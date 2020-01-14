@@ -1,4 +1,4 @@
-use vulkano::buffer::{BufferUsage, CpuAccessibleBuffer};
+use vulkano::buffer::cpu_pool::CpuBufferPool;
 
 fn main() {
     println!("Hello, world!");

@@ -1,5 +1,5 @@
 [package]
-name = "Rust3DEngine"
+name = "rust_3d_engine"
 version = "0.1.0"
 authors = ["ubuntunux <ubuntunux@gmail.com>"]
 edition = "2018"
@@ -8,15 +8,15 @@ edition = "2018"
 
 [dependencies]
 # The `vulkano` crate is the main crate that you must use to use Vulkan.
-vulkano = { path = "../vulkano" }
+vulkano = { path = "vulkano/vulkano" }
 # Provides the `shader!` macro that is used to generate code for using shaders.
-vulkano-shaders = { path = "../vulkano-shaders" }
+vulkano-shaders = { path = "vulkano/vulkano-shaders" }
 # The Vulkan library doesn't provide any functionality to create and handle windows, as
 # this would be out of scope. In order to open a window, we are going to use the `winit` crate.
 winit = "0.19"
 # The `vulkano_win` crate is the link between `vulkano` and `winit`. Vulkano doesn't know about winit,
 # and winit doesn't know about vulkano, so import a crate that will provide a link between the two.
-vulkano-win = { path = "../vulkano-win" }
+vulkano-win = { path = "vulkano/vulkano-win" }
 
 cgmath = "0.17"
 png = "0.15.0"
