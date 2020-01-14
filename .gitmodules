@@ -1,0 +1,4 @@
+[submodule "vulkano"]
+	path = vulkano
+	url = https://github.com/vulkano-rs/vulkano
+	branch = master
