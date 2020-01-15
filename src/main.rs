@@ -157,10 +157,10 @@ fn main() {
     loop {
         let now = time_instance.elapsed().as_secs_f64();
         let delta = now - elapsed_time;
-        elapsed_time = now;
         if 0.0 < delta {
-            println!("fps : {:.2} / {:.3}ms", 1.0 / delta, delta);
+            //println!("fps : {:.2} / {:.3}ms", 1.0 / delta, delta);
         }
+        elapsed_time = now;
 
         previous_frame_end.cleanup_finished();
         if recreate_swapchain {
