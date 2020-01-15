@@ -21,3 +21,4 @@ vulkano-win = { path = "vulkano/vulkano-win" }
 cgmath = "0.17"
 png = "0.15.0"
 time = "0.1.38"
+chrono = "*"
