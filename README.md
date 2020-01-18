@@ -2,4 +2,4 @@
 Rust3DEngine
 
 ### Note
- * Triangle (1024 x 768) : 2200fps / 0.00045ms
+ * Triangle (1024 x 768) : 2200fps / 0.45ms
