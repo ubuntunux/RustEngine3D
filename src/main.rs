@@ -17,6 +17,8 @@ use winit::{EventsLoop, Window, WindowBuilder, Event, WindowEvent};
 use std::sync::Arc;
 use std::time::Instant;
 
+use rust_engine_3d::vulkan_context::vulkan_context::test;
+
 fn main() {
     // Create Device
     let instance = {
