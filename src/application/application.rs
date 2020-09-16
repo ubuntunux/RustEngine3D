@@ -1,62 +1,4 @@
-// {-# LANGUAGE NegativeLiterals    #-}
-// {-# LANGUAGE DataKinds           #-}
-// {-# LANGUAGE GADTs               #-}
-// {-# LANGUAGE TypeOperators       #-}
-// {-# LANGUAGE ScopedTypeVariables #-}
-// {-# LANGUAGE OverloadedStrings   #-}
-// {-# LANGUAGE TypeApplications    #-}
-// {-# LANGUAGE NegativeLiterals    #-}
-// {-# LANGUAGE RecordWildCards     #-}
-//
-// module HulkanEngine3D.Application.Application
-// ( ApplicationData (..)
-// , runApplication
-// ) where
-//
-// import Control.Monad
-// import Data.IORef
-// import qualified Data.HashTable.IO as HashTable
-// import qualified Graphics.UI.GLFW as GLFW
-// import Graphics.UI.GLFW (ClientAPI (..), WindowHint (..))
-// import Numeric.DataFrame
-// import Numeric.Dimensions
-//
-// import qualified HulkanEngine3D.Constants as Constants
-// import HulkanEngine3D.Application.Command
-// import HulkanEngine3D.Application.Input
-// import qualified HulkanEngine3D.Application.SceneManager as SceneManager
-// import HulkanEngine3D.Render.Camera
-// import qualified HulkanEngine3D.Render.Renderer as Renderer
-// import HulkanEngine3D.Render.TransformObject
-// import qualified HulkanEngine3D.Resource.Resource as Resource
-// import HulkanEngine3D.Utilities.System
-// import HulkanEngine3D.Utilities.Logger
-// import HulkanEngine3D.Vulkan.Device
-//
-//
-// data TimeData = TimeData
-// { _accFrameTime :: Double
-// , _accFrameCount :: Int
-// , _averageFrameTime :: Double
-// , _averageFPS :: Double
-// , _currentTime :: Double
-// , _elapsedTime :: Double
-// , _deltaTime :: Double
-// } deriving (Show)
-//
-// data ApplicationData = ApplicationData
-// { _window :: GLFW.Window
-// , _windowSizeChanged :: IORef Bool
-// , _windowSize :: IORef (Int, Int)
-// , _timeData :: IORef TimeData
-// , _cameraMoveSpeed :: IORef Float
-// , _keyboardInputData :: IORef KeyboardInputData
-// , _mouseMoveData :: IORef MouseMoveData
-// , _mouseInputData :: IORef MouseInputData
-// , _sceneManagerData :: SceneManager.SceneManagerData
-// , _rendererData :: Renderer.RendererData
-// , _resources :: Resource.Resources
-// } deriving (Show)
+
 //
 //
 // class ApplicationInterface a where
@@ -437,7 +379,31 @@ use winit::window::{Window, WindowBuilder};
 
 use std::sync::Arc;
 
-//use rust_engine_3d::vulkan_context::vulkan_context::test;
+#[derive(Default, Debug, Clone)]
+pub struct TimeData
+    { _acc_frame_time: f64
+    , _acc_frame_count: i32
+    , _average_frame_time: f64
+    , _average_fps : f64
+    , _current_time : f64
+    , _elapsed_time : f64
+    , _delta_time : f64
+    }
+
+#[derive(Default, Debug, Clone)]
+pub struct ApplicationData
+    { _window: bool // GLFW.Window
+    , _window_size_changed: bool
+    , _window_size: (i32, i32)
+    , _time_data: TimeData
+    , _camera_move_speed: f32
+    , _keyboard_input_data: bool // KeyboardInputData
+    , _mouse_move_data: bool // MouseMoveData
+    , _mouse_input_data: bool // MouseInputData
+    , _scene_manager_data: bool // SceneManager.SceneManagerData
+    , _renderer_data: bool // Renderer.RendererData
+    , _resources: bool // Resource.Resources
+    }
 
 pub fn run_application() {
     let required_extensions = vulkano_win::required_extensions();
