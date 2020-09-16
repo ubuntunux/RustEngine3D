@@ -1,0 +1,7 @@
+{"material_name": "render_static_object",
+ "material_parameters": {
+    "textureBase": "sponza/vase_plant",
+    "textureMaterial": "sponza/vase_plant_spec",
+    "textureNormal": "common/default_n"
+    }
+}

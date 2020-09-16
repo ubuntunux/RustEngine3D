@@ -1,0 +1,7 @@
+{"material_name": "render_static_object",
+ "material_parameters": {
+    "textureBase": "sponza/chain_texture",
+    "textureMaterial": "sponza/chain_texture",
+    "textureNormal": "sponza/chain_texture_ddn"
+    }
+}

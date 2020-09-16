@@ -21,7 +21,7 @@ use winit::window::{Window, WindowBuilder};
 
 use std::sync::Arc;
 
-use rust_engine_3d::vulkan_context::vulkan_context::test;
+//use rust_engine_3d::vulkan_context::vulkan_context::test;
 
 fn main() {
     let required_extensions = vulkano_win::required_extensions();

@@ -1,0 +1,2 @@
+{"material_name": "render_ssao",
+ "material_parameters": {"ssaoNoise":"random_normal"}}

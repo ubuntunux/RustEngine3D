@@ -1,0 +1,7 @@
+{"material_name": "render_static_object",
+ "material_parameters": {
+    "textureBase": "common/default",
+    "textureMaterial": "common/default_m",
+    "textureNormal": "common/default_n"
+    }
+}

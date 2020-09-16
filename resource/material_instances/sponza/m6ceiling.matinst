@@ -1,0 +1,7 @@
+{"material_name": "render_static_object",
+ "material_parameters": {
+    "textureBase": "sponza/sponza_ceiling_a_diff",
+    "textureMaterial": "sponza/sponza_ceiling_a_spec",
+    "textureNormal": "sponza/sponza_ceiling_a_ddn"
+    }
+}
