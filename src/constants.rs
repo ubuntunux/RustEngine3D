@@ -1,5 +1,3 @@
-use std::vec::Vec;
-
 pub static ENGINE_NAME: &'static str = "RustEngine3D";
 pub static VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];
 pub static EXT_DEBUG_UTILS: bool = false;

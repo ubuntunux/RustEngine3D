@@ -50,7 +50,7 @@ impl Default for TimeData {
 
 #[derive(Debug, Clone)]
 pub struct ApplicationData
-    { pub _window: bool
+    { _window: bool
     , _window_size_changed: bool
     , _window_size: (i32, i32)
     , _time_data: TimeData
@@ -88,10 +88,7 @@ impl ApplicationData {
     }
 }
 
-pub fn run_application() {
-    let mut app = ApplicationData::new();
-    //let mut qq = Arc::get_mut(&mut app).unwrap();
-
+pub fn initialize_application(app: &mut ApplicationData) {
     let required_extensions = vulkano_win::required_extensions();
     let instance = Instance::new(None, &required_extensions, VULKAN_LAYERS.to_vec()).unwrap();
     let physical = PhysicalDevice::enumerate(&instance).next().unwrap();
@@ -241,4 +238,9 @@ pub fn run_application() {
         }
         _ => (),
     });
+}
+
+pub fn run_application() {
+    let mut app = ApplicationData::new();
+    initialize_application(Arc::get_mut(&mut app).unwrap());
 }
