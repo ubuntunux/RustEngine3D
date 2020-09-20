@@ -3,7 +3,6 @@ use vulkano::format::*;
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];
 pub const EXT_DEBUG_UTILS: bool = false;
-pub const KHR_SWAPCHAIN: bool = true;
 pub const DEPTH_FOMATS: [Format; 5] = [Format::D32Sfloat, Format::D32Sfloat_S8Uint, Format::D24Unorm_S8Uint, Format::D16Unorm_S8Uint, Format::D16Unorm];
 pub const DEPTH_STENCIL_FORMATS: [Format; 3] = [Format::D32Sfloat_S8Uint, Format::D24Unorm_S8Uint, Format::D16Unorm_S8Uint];
 pub const INVALID_QUEUE_INDEX: i32 = -1;
