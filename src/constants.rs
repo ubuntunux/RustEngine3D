@@ -1,6 +1,6 @@
 use vulkano::format::*;
 
-pub const ENGINE_NAME: &'static str = "RustEngine3D";
+pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];
 pub const EXT_DEBUG_UTILS: bool = false;
 pub const KHR_SWAPCHAIN: bool = true;
