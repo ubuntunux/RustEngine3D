@@ -23,6 +23,7 @@ use vulkano::swapchain::{
     SurfaceTransform,
     Swapchain,
     SwapchainCreationError,
+    SupportedPresentModes
 };
 use vulkano::sync;
 use vulkano::sync::{
@@ -113,6 +114,7 @@ pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> 
                 findFormat = true;
             }
         }
+        assert!(caps.present_modes.supports(PresentMode::Immediate));
         assert!(findFormat);
         assert!(constants::SWAP_CHAIN_IMAGE_COUNT < caps.max_image_count.unwrap() as i32);
         assert_eq!(CompositeAlpha::Opaque, alpha);
@@ -127,7 +129,7 @@ pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> 
             &queue,
             SurfaceTransform::Identity,
             CompositeAlpha::Opaque,
-            PresentMode::Fifo,
+            PresentMode::Immediate,
             FullscreenExclusive::Default,
             true,
             ColorSpace::SrgbNonLinear,
