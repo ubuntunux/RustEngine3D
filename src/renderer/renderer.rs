@@ -78,7 +78,7 @@ pub struct RendererData {
     // _resources: Box<resource::Resources>
 }
 
-pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Arc<RendererData> {
+pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> {
     let required_extensions = vulkano_win::required_extensions();
     let name: Option<Cow<str>> = Some("RustEngine3D".into());
     let version = Some(vulkano::instance::Version {major: 0, minor: 1, patch: 0});
@@ -132,7 +132,7 @@ pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Arc<RendererData> 
         ).unwrap()
     };
 
-    Arc::new(RendererData {
+    Box::new(RendererData {
         _frame_index: 0,
         _swapchain_index: 0,
         // _vertex_offset: vk::DeviceSize,

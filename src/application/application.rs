@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::borrow::Cow;
-
 use vulkano;
 use vulkano::device::{
     Device,
@@ -111,14 +108,16 @@ impl ApplicationData {
         Box::new(app)
     }
 
-    pub fn initialize_application(mut self) {
+    pub fn initialize_application (&mut self) -> (EventLoop<()>, Box<renderer::RendererData>) {
         let event_loop = EventLoop::new();
-        let mut renderer_data = renderer::create_renderer_data(&event_loop);
+        let renderer_data = renderer::create_renderer_data(&event_loop);
+        (event_loop, renderer_data)
+    }
 
+    pub fn update_application (&mut self, event_loop: EventLoop<()>, mut renderer_data: Box<renderer::RendererData>) {
         // Here is the basic initialization for the deferred system.
         let mut frame_system = frame::FrameSystem::new(renderer_data._queue.clone(), renderer_data._swapchain.format());
         let triangle_draw_system = frame::TriangleDrawSystem::new(renderer_data._queue.clone(), frame_system.deferred_subpass());
-        let mut recreate_swapchain = false;
         let mut previous_frame_end = Some(sync::now(renderer_data._device.clone()).boxed());
         let mut swapchain = renderer_data._swapchain.clone();
         let mut images = renderer_data._images.clone();
@@ -134,12 +133,12 @@ impl ApplicationData {
                 event: WindowEvent::Resized(_),
                 ..
             } => {
-                recreate_swapchain = true;
+                renderer_data._need_recreate_swapchain = true;
             }
             Event::RedrawEventsCleared => {
                 previous_frame_end.as_mut().unwrap().cleanup_finished();
 
-                if recreate_swapchain {
+                if renderer_data._need_recreate_swapchain {
                     let dimensions: [u32; 2] = renderer_data._surface.window().inner_size().into();
                     let (new_swapchain, new_images) =
                         match swapchain.recreate_with_dimensions(dimensions) {
@@ -149,21 +148,21 @@ impl ApplicationData {
                         };
                     swapchain = new_swapchain;
                     images = new_images;
-                    recreate_swapchain = false;
+                    renderer_data._need_recreate_swapchain = false;
                 }
 
                 let (image_num, suboptimal, acquire_future) =
                     match swapchain::acquire_next_image(swapchain.clone(), None) {
                         Ok(r) => r,
                         Err(AcquireError::OutOfDate) => {
-                            recreate_swapchain = true;
+                            renderer_data._need_recreate_swapchain = true;
                             return;
                         }
                         Err(e) => panic!("Failed to acquire next image: {:?}", e),
                     };
 
                 if suboptimal {
-                    recreate_swapchain = true;
+                    renderer_data._need_recreate_swapchain = true;
                 }
 
                 let future = previous_frame_end.take().unwrap().join(acquire_future);
@@ -199,7 +198,7 @@ impl ApplicationData {
                         previous_frame_end = Some(future.boxed());
                     }
                     Err(FlushError::OutOfDate) => {
-                        recreate_swapchain = true;
+                        renderer_data._need_recreate_swapchain = true;
                         previous_frame_end = Some(sync::now(renderer_data._device.clone()).boxed());
                     }
                     Err(e) => {
@@ -216,5 +215,6 @@ impl ApplicationData {
 
 pub fn run_application() {
     let mut app = ApplicationData::new();
-    app.initialize_application();
+    let (event_loop, renderer_data) = app.initialize_application();
+    app.update_application(event_loop, renderer_data);
 }
