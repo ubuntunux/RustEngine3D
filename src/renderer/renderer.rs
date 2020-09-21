@@ -17,6 +17,7 @@ use vulkano::swapchain;
 use vulkano::swapchain::{
     AcquireError,
     ColorSpace,
+    CompositeAlpha,
     FullscreenExclusive,
     PresentMode,
     SurfaceTransform,
@@ -39,7 +40,6 @@ use cgmath::Vector3;
 use crate::frame;
 use crate::constants;
 use crate::resource;
-use std::ops::Deref;
 
 #[derive(Clone)]
 pub struct RendererData {
@@ -106,19 +106,27 @@ pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> 
     let (swapchain, images) = {
         let caps = surface.capabilities(physical).unwrap();
         let alpha = caps.supported_composite_alpha.iter().next().unwrap();
-        let format = caps.supported_formats[0].0;
         let dimensions: [u32; 2] = surface.window().inner_size().into();
+        let mut findFormat = false;
+        for i in caps.supported_formats {
+            if constants::SWAP_CHAIN_IMAGE_FORMAT == i.0 {
+                findFormat = true;
+            }
+        }
+        assert!(findFormat);
+        assert!(constants::SWAP_CHAIN_IMAGE_COUNT < caps.max_image_count.unwrap() as i32);
+        assert_eq!(CompositeAlpha::Opaque, alpha);
         Swapchain::new(
             device.clone(),
             surface.clone(),
-            caps.min_image_count,
-            format,
+            constants::SWAP_CHAIN_IMAGE_COUNT as u32,
+            constants::SWAP_CHAIN_IMAGE_FORMAT,
             dimensions,
             1,
             ImageUsage::color_attachment(),
             &queue,
             SurfaceTransform::Identity,
-            alpha,
+            CompositeAlpha::Opaque,
             PresentMode::Fifo,
             FullscreenExclusive::Default,
             true,

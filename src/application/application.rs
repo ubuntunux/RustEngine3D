@@ -55,7 +55,6 @@ impl ApplicationData {
 pub fn run_application() {
     let event_loop = EventLoop::new();
     let mut renderer_data = renderer::create_renderer_data(&event_loop);
-    //let mut previous_frame_end = Some(sync::now(renderer_data._device.clone()).boxed());
     let mut resources = resource::Resources::new();
     let mut application_data = Box::new(ApplicationData {
         _window: false,
