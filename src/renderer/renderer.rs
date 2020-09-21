@@ -39,6 +39,7 @@ use cgmath::Vector3;
 use crate::frame;
 use crate::constants;
 use crate::resource;
+use std::ops::Deref;
 
 #[derive(Clone)]
 pub struct RendererData {
@@ -196,10 +197,9 @@ impl RendererData {
         self._need_recreate_swapchain = value;
     }
 
-    pub fn render_scene(&mut self) {
+    pub fn render_scene(&mut self, previous_frame_end: &mut Option<Box<dyn GpuFuture>>) {
         let mut frame_system = frame::FrameSystem::new(self._queue.clone(), self._swapchain.format());
         let triangle_draw_system = frame::TriangleDrawSystem::new(self._queue.clone(), frame_system.deferred_subpass());
-        let mut previous_frame_end = Some(sync::now(self._device.clone()).boxed());
         let mut swapchain = self._swapchain.clone();
         let mut images = self._images.clone();
 
@@ -248,15 +248,15 @@ impl RendererData {
 
         match future {
             Ok(future) => {
-                previous_frame_end = Some(future.boxed());
+                *previous_frame_end = Some(future.boxed());
             }
             Err(FlushError::OutOfDate) => {
                 self.set_need_recreate_swapchain(true);
-                previous_frame_end = Some(sync::now(self._device.clone()).boxed());
+                *previous_frame_end = Some(sync::now(self._device.clone()).boxed());
             }
             Err(e) => {
                 println!("Failed to flush future: {:?}", e);
-                previous_frame_end = Some(sync::now(self._device.clone()).boxed());
+                *previous_frame_end = Some(sync::now(self._device.clone()).boxed());
             }
         }
     }
