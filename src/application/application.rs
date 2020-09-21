@@ -74,7 +74,7 @@ pub fn run_application() {
     let mut previous_frame_end = Some(sync::now(renderer_data._device.clone()).boxed());
 
     // main loop
-    event_loop.run(move |event, _, control_flow| match event {
+    event_loop.run(move |event, window_target, control_flow| match event {
         Event::WindowEvent {
             event: WindowEvent::CloseRequested,
             ..
