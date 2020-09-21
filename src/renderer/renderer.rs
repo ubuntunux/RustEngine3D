@@ -29,16 +29,8 @@ use vulkano::sync::{
     GpuFuture
 };
 use vulkano_win::VkSurfaceBuild;
+use winit::event_loop::EventLoop;
 use winit::window::Window;
-use winit::event::{
-    Event,
-    WindowEvent
-};
-use winit::event_loop::{
-    ControlFlow,
-    EventLoop,
-    EventLoopWindowTarget
-};
 use winit::window::WindowBuilder;
 use cgmath::Matrix4;
 use cgmath::SquareMatrix;
@@ -48,11 +40,12 @@ use crate::frame;
 use crate::constants;
 use crate::resource;
 
+#[derive(Clone)]
 pub struct RendererData {
     pub _frame_index: i32,
     pub _swapchain_index: u32,
     // _vertex_offset: vk::DeviceSize,
-    pub _need_recreate_swapchain: bool,
+    _need_recreate_swapchain: bool,
     // _image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
     // _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
     // _vk_instance: vk::Instance,
@@ -164,6 +157,109 @@ pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> 
 }
 
 impl RendererData {
+    pub fn resize_window(&self) {
+        // resizeWindow :: GLFW.Window -> RendererData -> IO ()
+        // resizeWindow window rendererData@RendererData {..} = do
+        // logInfo "<< resizeWindow >>"
+        //
+        // deviceWaitIdle rendererData
+        //
+        // // destroy swapchain & graphics resources
+        // unloadGraphicsDatas _resources rendererData
+        //
+        // destroyRenderTargets rendererData _renderTargetDataMap
+        //
+        // // recreate swapchain & graphics resources
+        // recreateSwapChain rendererData window
+        // renderTargets <- createRenderTargets rendererData _renderTargetDataMap
+        // loadGraphicsDatas _resources rendererData
+    }
+
+    pub fn recreate_swapchain(&mut self) {
+        let dimensions: [u32; 2] = self._surface.window().inner_size().into();
+        let (new_swapchain, new_images) =
+            match self._swapchain.recreate_with_dimensions(dimensions) {
+                Ok(r) => r,
+                Err(SwapchainCreationError::UnsupportedDimensions) => return,
+                Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
+            };
+
+        self._swapchain = new_swapchain;
+        self._images = new_images;
+    }
+
+    pub fn get_need_recreate_swapchain(&self) -> bool {
+        self._need_recreate_swapchain
+    }
+
+    pub fn set_need_recreate_swapchain(&mut self, value: bool) {
+        self._need_recreate_swapchain = value;
+    }
+
+    pub fn render_scene(&mut self) {
+        let mut frame_system = frame::FrameSystem::new(self._queue.clone(), self._swapchain.format());
+        let triangle_draw_system = frame::TriangleDrawSystem::new(self._queue.clone(), frame_system.deferred_subpass());
+        let mut previous_frame_end = Some(sync::now(self._device.clone()).boxed());
+        let mut swapchain = self._swapchain.clone();
+        let mut images = self._images.clone();
+
+        previous_frame_end.as_mut().unwrap().cleanup_finished();
+
+        let (image_num, suboptimal, acquire_future) =
+            match swapchain::acquire_next_image(swapchain.clone(), None) {
+                Ok(r) => r,
+                Err(AcquireError::OutOfDate) => {
+                    self.set_need_recreate_swapchain(true);
+                    return;
+                }
+                Err(e) => panic!("Failed to acquire next image: {:?}", e),
+            };
+
+        if suboptimal {
+            self.set_need_recreate_swapchain(true);
+        }
+
+        let future = previous_frame_end.take().unwrap().join(acquire_future);
+        let mut frame = frame_system.frame(future, images[image_num].clone(), Matrix4::identity());
+        let mut after_future = None;
+        while let Some(pass) = frame.next_pass() {
+            match pass {
+                frame::Pass::Deferred(mut draw_pass) => {
+                    let cb = triangle_draw_system.draw(draw_pass.viewport_dimensions());
+                    draw_pass.execute(cb);
+                }
+                frame::Pass::Lighting(mut lighting) => {
+                    lighting.ambient_light([0.1, 0.1, 0.1]);
+                    lighting.directional_light(Vector3::new(0.2, -0.1, -0.7), [0.6, 0.6, 0.6]);
+                    lighting.point_light(Vector3::new(0.5, -0.5, -0.1), [1.0, 0.0, 0.0]);
+                    lighting.point_light(Vector3::new(-0.9, 0.2, -0.15), [0.0, 1.0, 0.0]);
+                    lighting.point_light(Vector3::new(0.0, 0.5, -0.05), [0.0, 0.0, 1.0]);
+                }
+                frame::Pass::Finished(af) => {
+                    after_future = Some(af);
+                }
+            }
+        }
+
+        let future = after_future
+            .unwrap()
+            .then_swapchain_present(self._queue.clone(), swapchain.clone(), image_num)
+            .then_signal_fence_and_flush();
+
+        match future {
+            Ok(future) => {
+                previous_frame_end = Some(future.boxed());
+            }
+            Err(FlushError::OutOfDate) => {
+                self.set_need_recreate_swapchain(true);
+                previous_frame_end = Some(sync::now(self._device.clone()).boxed());
+            }
+            Err(e) => {
+                println!("Failed to flush future: {:?}", e);
+                previous_frame_end = Some(sync::now(self._device.clone()).boxed());
+            }
+        }
+    }
 }
 
 
