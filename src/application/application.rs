@@ -81,8 +81,7 @@ impl ApplicationData {
 
 
 pub fn run_application() {
-    log::info!("This error has been printed to Stdout");
-    log::error!("This error has been printed to Stdout");
+    log::info!("run_application");
 
     let time_instance = time::Instant::now();
     let mut elapsed_time = time_instance.elapsed().as_secs_f64();
