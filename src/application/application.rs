@@ -65,7 +65,7 @@ impl TimeData {
 pub struct ApplicationData
     { _window: bool
     , _window_size_changed: bool
-    , _window_size: (i32, i32)
+    , _window_size: (u32, u32)
     , _time_data: TimeData
     , _camera_move_speed: f32
     , _keyboard_input_data: bool // KeyboardInputData
@@ -87,19 +87,19 @@ pub fn run_application() {
     let mut elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
 
-    // let (width, height) = (1024, 786);
-    // let mousePos = (width/2, height/2);
+    let window_size = (1024, 786);
+    let mousePos = (window_size.0/2, window_size.1/2);
     // let keyboard_input_data = create_keyboard_input_data();
     // let mouse_move_data = create_mouse_move_data(mousePos);
     // let mouse_input_data = create_mouse_input_data();
 
-    let mut renderer_data = renderer::create_renderer_data(&event_loop);
+    let mut renderer_data = renderer::create_renderer_data(window_size, &event_loop);
     let mut resources = resource::Resources::new();
     let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
     let mut application_data = Box::new(ApplicationData {
         _window: false,
         _window_size_changed: false,
-        _window_size: (1024, 768),
+        _window_size: window_size,
         _time_data: create_time_data(elapsed_time),
         _camera_move_speed: 1.0,
         _keyboard_input_data: false,

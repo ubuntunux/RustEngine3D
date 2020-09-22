@@ -32,11 +32,16 @@ use vulkano::sync::{
 };
 use vulkano_win::VkSurfaceBuild;
 use winit::event_loop::EventLoop;
-use winit::window::Window;
-use winit::window::WindowBuilder;
-use cgmath::Matrix4;
-use cgmath::SquareMatrix;
-use cgmath::Vector3;
+use winit::window::{
+    Window,
+    WindowBuilder
+};
+use winit::dpi;
+use cgmath::{
+    Matrix4,
+    SquareMatrix,
+    Vector3
+};
 
 use crate::frame;
 use crate::constants;
@@ -73,7 +78,7 @@ pub struct RendererData {
     // _resources: Box<resource::Resources>
 }
 
-pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> {
+pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Box<RendererData> {
     let required_extensions = vulkano_win::required_extensions();
     let name: Option<Cow<str>> = Some("RustEngine3D".into());
     let version = Some(vulkano::instance::Version {major: 0, minor: 1, patch: 0});
@@ -86,6 +91,7 @@ pub fn create_renderer_data<T> (event_loop: &EventLoop<T>) -> Box<RendererData> 
     let instance = Instance::new(Some(&info), &required_extensions, constants::VULKAN_LAYERS.to_vec()).unwrap();
     let physical = PhysicalDevice::enumerate(&instance).next().unwrap();
     let surface = WindowBuilder::new()
+        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {width: window_width, height: window_height}))
         .build_vk_surface(&event_loop, instance.clone())
         .unwrap();
     let queue_family = physical
