@@ -1,102 +1,89 @@
-{-# LANGUAGE NegativeLiterals    #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE TemplateHaskell     #-}
-{-# LANGUAGE GADTs               #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE TypeOperators       #-}
-{-# LANGUAGE KindSignatures      #-}
-{-# LANGUAGE ScopedTypeVariables #-}
+use std::collections::HashMap;
+use nalgebra::{ Vector2 };
 
-module HulkanEngine3D.Application.Input
-    ( KeyboardInputData (..)
-    , KeyboardInputInterface (..)
-    , MouseInputData (..)
-    , MouseMoveData (..)
-    , newKeyboardInputData
-    , newMouseInputData
-    , newMouseMoveData
-    ) where
+pub type inputKey = u32;
+pub type KeyMap = HashMap<inputKey, bool>;
 
-import Data.Hashable
-import Data.Maybe (fromMaybe)
-import qualified Data.HashTable.IO as HashTable
-import qualified Graphics.UI.GLFW as GLFW
-import Numeric.DataFrame
+#[derive(Clone)]
+pub struct KeyboardInputData {
+    _keyboard_down: bool,
+    _keyboard_pressed: bool,
+    _keyboard_up: bool,
+    _key_pressed_map: KeyMap,
+    _key_released_map: KeyMap,
+    _modifier_keys_shift: bool,
+    _modifier_keys_control: bool,
+    _modifier_keys_alt: bool,
+    _modifier_keys_super: bool,
+}
 
-instance Hashable GLFW.Key
+#[derive(Clone)]
+pub struct MouseMoveData {
+    _mouse_pos: Vector2<i32>,
+    _mouse_pos_prev: Vector2<i32>,
+    _mouse_pos_delta: Vector2<i32>,
+    _scroll_xoffset: f32,
+    _scroll_yoffset: f32
+}
 
-type KeyMap = HashTable.BasicHashTable GLFW.Key Bool
+#[derive(Clone)]
+pub struct MouseInputData {
+    _btn_l_down: bool,
+    _btn_m_down: bool,
+    _btn_r_down: bool,
+    _btn_l_up: bool,
+    _btn_m_up: bool,
+    _btn_r_up: bool
+}
 
-data KeyboardInputData = KeyboardInputData
-    { _keyboardDown :: Bool
-    , _keyboardPressed :: Bool
-    , _keyboardUp :: Bool
-    , _keyPressedMap :: KeyMap
-    , _keyReleasedMap :: KeyMap
-    , _modifierKeys :: GLFW.ModifierKeys
-    } deriving (Show)
+pub fn create_keyboard_input_data() -> Box<KeyboardInputData> {
+    Box::new(KeyboardInputData {
+        _keyboard_down: false,
+        _keyboard_pressed: false,
+        _keyboard_up: false,
+        _key_pressed_map: KeyMap::new(),
+        _key_released_map: KeyMap::new(),
+        _modifier_keys_shift: false,
+        _modifier_keys_control: false,
+        _modifier_keys_alt: false,
+        _modifier_keys_super: false,
+    })
+}
 
-data MouseMoveData = MouseMoveData
-    { _mousePos :: Vec2i
-    , _mousePosPrev :: Vec2i
-    , _mousePosDelta :: Vec2i
-    , _scroll_xoffset :: Float
-    , _scroll_yoffset :: Float
-    } deriving (Show)
+pub fn create_mouse_move_data((width, height): (i32, i32)) -> Box<MouseMoveData> {
+    let mouse_pos = Vector2::new(width, height);
+    Box::new(MouseMoveData {
+        _mouse_pos: mouse_pos.clone(),
+        _mouse_pos_prev: mouse_pos.clone(),
+        _mouse_pos_delta: Vector2::new(0, 0),
+        _scroll_xoffset: 0.0,
+        _scroll_yoffset: 0.0,
+    })
+}
 
-data MouseInputData = MouseInputData
-    { _btn_l_down :: Bool
-    , _btn_m_down :: Bool
-    , _btn_r_down :: Bool
-    , _btn_l_up :: Bool
-    , _btn_m_up :: Bool
-    , _btn_r_up :: Bool
-    } deriving (Show)
+pub fn create_mouse_input_data() -> Box<MouseInputData> {
+    Box::new(MouseInputData {
+        _btn_l_down: false,
+        _btn_m_down: false,
+        _btn_r_down: false,
+        _btn_l_up: false,
+        _btn_m_up: false,
+        _btn_r_up: false,
+    })
+}
 
-
-class KeyboardInputInterface a where
-    getKeyPressed :: a -> GLFW.Key -> IO Bool
-    getKeyReleased :: a -> GLFW.Key -> IO Bool
-
-instance KeyboardInputInterface KeyboardInputData where
-    getKeyPressed keyboardInputData key = fromMaybe False <$> HashTable.lookup (_keyPressedMap keyboardInputData) key
-    getKeyReleased keyboardInputData key = fromMaybe False <$> HashTable.lookup (_keyReleasedMap keyboardInputData) key
-
-newKeyboardInputData :: IO KeyboardInputData
-newKeyboardInputData = do
-    keyPressed <- HashTable.new
-    keyReleased <- HashTable.new
-    return KeyboardInputData
-            { _keyboardDown = False
-            , _keyboardPressed = False
-            , _keyboardUp = False
-            , _keyPressedMap = keyPressed
-            , _keyReleasedMap = keyReleased
-            , _modifierKeys = GLFW.ModifierKeys
-                { GLFW.modifierKeysShift = False
-                , GLFW.modifierKeysControl = False
-                , GLFW.modifierKeysAlt = False
-                , GLFW.modifierKeysSuper = False
-                }
-            }
-
-newMouseInputData :: MouseInputData
-newMouseInputData =
-    MouseInputData
-        { _btn_l_down = False
-        , _btn_m_down = False
-        , _btn_r_down = False
-        , _btn_l_up = False
-        , _btn_m_up = False
-        , _btn_r_up = False
+impl KeyboardInputData {
+    pub fn get_key_pressed(&self, key: &inputKey) -> bool {
+        match self._key_pressed_map.get(key) {
+            Some(a) => *a,
+            _ => false
         }
+    }
 
-newMouseMoveData :: Vec2i -> MouseMoveData
-newMouseMoveData mousepos =
-    MouseMoveData
-        { _mousePos = mousepos
-        , _mousePosPrev = mousepos
-        , _mousePosDelta = (vec2 0 0 :: Vec2i)
-        , _scroll_xoffset = 0.0
-        , _scroll_yoffset = 0.0
+    pub fn get_key_released(&self, key: &inputKey) -> bool {
+        match self._key_released_map.get(key) {
+            Some(a) => *a,
+            _ => false
         }
+    }
+}

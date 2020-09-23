@@ -1,3 +1,3 @@
 pub mod resource;
 
-pub use self::resource::Resources;
+pub use self::resource::*;

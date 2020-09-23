@@ -1,5 +1,5 @@
-// use std::path::Path;
-// use std::collections::HashMap;
+use std::path::Path;
+use std::collections::HashMap;
 
 const GATHER_ALL_FILES: bool = false;
 const MATERIAL_FILE_PATH: &str = "Resource/Materials";
@@ -23,35 +23,35 @@ const DEFAULT_MATERIAL_NAME: &str = "render_pass_static_opaque";
 const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
-// type ResourceDataMap a = HashTable.BasicHashTable Text.Text a
-// type FrameBufferDataMap = ResourceDataMap FrameBufferData
-// type MaterialDataMap = ResourceDataMap Material.MaterialData
-// type MaterialInstanceDataMap = ResourceDataMap MaterialInstance.MaterialInstanceData
-// type SceneManagerDataMap = ResourceDataMap SceneManagerData
-// type MeshDataMap = ResourceDataMap MeshData
-// type ModelDataMap = ResourceDataMap Model.ModelData
-// type TextureDataMap = ResourceDataMap TextureData
-// type RenderPassDataMap = ResourceDataMap RenderPassData
-// type DescriptorDataMap = ResourceDataMap Descriptor.DescriptorData
-// type MetaDataMap = ResourceDataMap MetaData
-//
+pub type ResourceDataMap<T> = HashMap<String, T>;
+// pub type FrameBufferDataMap = ResourceDataMap<FrameBufferData>
+// pub type MaterialDataMap = ResourceDataMap<material::MaterialData>
+// pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>
+// pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>
+// pub type MeshDataMap = ResourceDataMap<MeshData>
+// pub type ModelDataMap = ResourceDataMap<model::ModelData>
+// pub type TextureDataMap = ResourceDataMap<TextureData>
+// pub type RenderPassDataMap = ResourceDataMap<RenderPassData>
+// pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>
+//pub type MetaDataMap = ResourceDataMap<MetaData>;
 
-// #[derive(Debug, Clone)]
-// pub struct MetaData {
-//     _is_engine_resource: bool,
-//     _meta_file_path: bool,
-//     _resource_data_type: ResourceData,
-//     _resource_version: i32,
-//     _resource_file_path: FilePath,
-//     _resource_modify_time: Text.Text,
-//     _source_file_path: FilePath,
-//     _source_modify_time: Text.Text,
-//     _source_changed: bool
-// }
-//
-// pub enum ResourceData {
-//     ResourceDataMesh({ _data: MeshData })
-// }
+
+//#[derive(Debug, Clone)]
+pub struct MetaData<'a> {
+    _is_engine_resource: bool,
+    _meta_file_path: bool,
+    _resource_data_type: ResourceData,
+    _resource_version: i32,
+    _resource_file_path: &'a Path,
+    _resource_modify_time: &'a String,
+    _source_file_path: &'a Path,
+    _source_modify_time: &'a String,
+    _source_changed: bool
+}
+
+pub enum ResourceData {
+    ResourceDataMesh,
+}
 
 #[derive(Debug, Clone)]
 pub struct Resources {
@@ -66,41 +66,13 @@ pub struct Resources {
     // _descriptor_data_map: DescriptorDataMap
 }
 
-impl Default for Resources {
-    fn default() -> Resources {
-        Resources {
-        }
-    }
+pub fn create_resources() -> Box<Resources> {
+    Box::new(Resources {
+    })
 }
 
 impl Resources {
-    pub fn new() -> Box<Resources> {
-//         metaDataMap <- HashTable.new
-//         frameBufferDataMap <- HashTable.new
-//         modelDataMap <- HashTable.new
-//         meshDataMap <- HashTable.new
-//         textureDataMap <- HashTable.new
-//         renderPassDataMap <- HashTable.new
-//         materialDataMap <- HashTable.new
-//         materialInstanceDataMap <- HashTable.new
-//         descriptorDataMap <- HashTable.new
-//         return Resources
-//             { _metaDataMap = metaDataMap
-//             , _frameBufferDataMap = frameBufferDataMap
-//             , _modelDataMap = modelDataMap
-//             , _meshDataMap = meshDataMap
-//             , _textureDataMap = textureDataMap
-//             , _renderPassDataMap = renderPassDataMap
-//             , _materialDataMap = materialDataMap
-//             , _materialInstanceDataMap = materialInstanceDataMap
-//             , _descriptorDataMap = descriptorDataMap
-//             }
-        Box::new(Resources::default())
-    }
-}
-
-
-// getResourceData :: ResourceDataMap r -> Text.Text -> Text.Text -> IO r
+    // getResourceData :: ResourceDataMap r -> Text.Text -> Text.Text -> IO r
 // getResourceData resourceDataMap resourceName defaultResourceName = do
 //     maybeData <- HashTable.lookup resourceDataMap resourceName
 //     case maybeData of
@@ -521,3 +493,5 @@ impl Resources {
 //     unloadDescriptorDatas :: Resources -> RendererData -> IO ()
 //     unloadDescriptorDatas resources rendererData = do
 //         clearHashTable (_descriptorDataMap resources) (\(k, v) -> Descriptor.destroyDescriptorData (getDevice rendererData) v)
+
+}

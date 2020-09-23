@@ -5,13 +5,13 @@ use winit::event::Event;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;
 use winit::event_loop::EventLoop;
-//use winit::event_loop::EventLoopWindowTarget;
 use vulkano::sync;
 use vulkano::sync::GpuFuture;
 
 use crate::resource;
 use crate::renderer;
 use crate::application::scene_manager;
+use crate::application::input;
 
 #[derive(Debug, Clone)]
 pub struct TimeData
@@ -65,15 +65,15 @@ impl TimeData {
 pub struct ApplicationData
     { _window: bool
     , _window_size_changed: bool
-    , _window_size: (u32, u32)
+    , _window_size: (i32, i32)
     , _time_data: TimeData
     , _camera_move_speed: f32
-    , _keyboard_input_data: bool // KeyboardInputData
-    , _mouse_move_data: bool // MouseMoveData
-    , _mouse_input_data: bool // MouseInputData
+    , _keyboard_input_data: Box<input::KeyboardInputData>
+    , _mouse_move_data: Box<input::MouseMoveData>
+    , _mouse_input_data: Box<input::MouseInputData>
     , _scene_manager_data: Box<scene_manager::SceneManagerData>
     , _renderer_data: Box<renderer::RendererData>
-    , _resources: Box<resource::Resources> // Resource.Resources
+    , _resources: Box<resource::Resources>
     }
 
 impl ApplicationData {
@@ -87,24 +87,23 @@ pub fn run_application() {
     let mut elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
 
-    let window_size = (1024, 786);
-    let mousePos = (window_size.0/2, window_size.1/2);
-    // let keyboard_input_data = create_keyboard_input_data();
-    // let mouse_move_data = create_mouse_move_data(mousePos);
-    // let mouse_input_data = create_mouse_input_data();
-
+    let window_size: (i32, i32) = (1024, 786);
+    let mouse_pos = (window_size.0/2, window_size.1/2);
     let mut renderer_data = renderer::create_renderer_data(window_size, &event_loop);
-    let mut resources = resource::Resources::new();
+    let mut resources = resource::create_resources();
     let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
+    let mut keyboard_input_data = input::create_keyboard_input_data();
+    let mut mouse_move_data = input::create_mouse_move_data(mouse_pos);
+    let mut mouse_input_data = input::create_mouse_input_data();
     let mut application_data = Box::new(ApplicationData {
         _window: false,
         _window_size_changed: false,
         _window_size: window_size,
         _time_data: create_time_data(elapsed_time),
         _camera_move_speed: 1.0,
-        _keyboard_input_data: false,
-        _mouse_move_data: false,
-        _mouse_input_data: false,
+        _keyboard_input_data: keyboard_input_data.clone(),
+        _mouse_move_data: mouse_move_data.clone(),
+        _mouse_input_data: mouse_input_data.clone(),
         _scene_manager_data: scene_manager_data.clone(),
         _renderer_data: renderer_data.clone(),
         _resources: resources.clone(),
