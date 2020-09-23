@@ -1,82 +1,51 @@
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE DeriveAnyClass             #-}
-{-# LANGUAGE DeriveGeneric              #-}
-{-# LANGUAGE ExistentialQuantification  #-}
-{-# LANGUAGE FlexibleContexts           #-}
-{-# LANGUAGE FlexibleInstances          #-}
-{-# LANGUAGE GADTs                      #-}
-{-# LANGUAGE MagicHash                  #-}
-{-# LANGUAGE MultiParamTypeClasses      #-}
-{-# LANGUAGE NegativeLiterals           #-}
-{-# LANGUAGE OverloadedStrings          #-}
-{-# LANGUAGE PatternSynonyms            #-}
-{-# LANGUAGE PolyKinds                  #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
-{-# LANGUAGE StandaloneDeriving         #-}
-{-# LANGUAGE TypeFamilies               #-}
-{-# LANGUAGE TypeOperators              #-}
-{-# LANGUAGE UnboxedTuples              #-}
-{-# LANGUAGE UndecidableInstances       #-}
-{-# LANGUAGE ViewPatterns               #-}
+use nalgebra;
+use nalgebra::{ Vector3 };
 
+#[derive(Debug, Clone)]
+pub struct BoundingBox {
+    _min: Vector3<f32>,
+    _max: Vector3<f32>,
+    _center: Vector3<f32>,
+    _radius: f32
+}
 
-module HulkanEngine3D.Utilities.BoundingBox where
-
-import GHC.Generics (Generic)
-import Data.Text as Text ()
-import Foreign.Storable
-
-import Data.Aeson
-import Numeric.DataFrame
-import Numeric.PrimBytes
-
-import HulkanEngine3D.Utilities.DataFrame ()
-
-data BoundingBox = BoundingBox
-    { _boundingBoxMin :: {-# UNPACK #-} !Vec3f
-    , _boundingBoxMax :: {-# UNPACK #-} !Vec3f
-    , _boundingBoxCenter :: {-# UNPACK #-} !Vec3f
-    , _boundingBoxRadius :: {-# UNPACK #-} !Float
-    } deriving (Eq, Show, Read, Generic, ToJSON, FromJSON)
-
-instance PrimBytes BoundingBox
-
-instance Storable BoundingBox where
-    sizeOf _ = bSizeOf (undefined :: BoundingBox)
-    alignment _ = bAlignOf (undefined :: BoundingBox)
-    peek ptr = bPeek ptr
-    poke ptr vertexData = bPoke ptr vertexData
-
-defaultBoundingBox ::  BoundingBox
-defaultBoundingBox =
-    let minValue = vec3 -1 -1 -1
-        maxValue = vec3 1 1 1
-        S radius = normL2 $ (maxValue - minValue)
-    in BoundingBox
-        { _boundingBoxMin = minValue
-        , _boundingBoxMax = maxValue
-        , _boundingBoxCenter = (minValue + maxValue) * 0.5
-        , _boundingBoxRadius = radius
+impl Default for BoundingBox {
+    fn default() -> BoundingBox {
+        let min = Vector3::new(-1.0, -1.0, -1.0);
+        let max = Vector3::new(1.0, 1.0, 1.0);
+        BoundingBox {
+            _min: min.clone(),
+            _max: max.clone(),
+            _center: (max + min) * 0.5,
+            _radius: (max - min).norm() * 0.5
         }
+    }
+}
 
-calcBoundingBox :: [Vec3f] -> BoundingBox
-calcBoundingBox [] = defaultBoundingBox
-calcBoundingBox (position:positions) =
-    let (minValue, maxValue) = calcBoundingBox' position position positions
-        S radius = normL2 $ (maxValue - minValue)
-    in BoundingBox
-           { _boundingBoxMin = minValue
-           , _boundingBoxMax = maxValue
-           , _boundingBoxCenter = (minValue + maxValue) * 0.5
-           , _boundingBoxRadius = radius
-           }
-    where
-        calcBoundingBox' :: Vec3f -> Vec3f -> [Vec3f] -> (Vec3f, Vec3f)
-        calcBoundingBox' boundMin boundMax [] = (boundMin, boundMax)
-        calcBoundingBox' boundMin boundMax (position:positions) =
-            let (# minX, minY, minZ #) = unpackV3# boundMin
-                (# maxX, maxY, maxZ #) = unpackV3# boundMax
-                minValue = vec3 (min minX maxX) (min minY maxY) (min minZ maxZ)
-                maxValue = vec3 (max minX maxX) (max minY maxY) (max minZ maxZ)
-            in
-                calcBoundingBox' minValue maxValue positions
+
+pub fn calc_bounding_box(positions: Vec<Vector3<f32>>) -> BoundingBox {
+    if 0 == positions.len() {
+        return BoundingBox::default();
+    }
+
+    BoundingBox::default()
+    //     let (minValue, maxValue) = calcBoundingBox' position position positions
+    //     S radius = normL2 $ (maxValue - minValue)
+    //     in BoundingBox
+    //     { _bounding_box_min = minValue
+    //         , _bounding_box_max = maxValue
+    //         , _bounding_box_center = (minValue + maxValue) * 0.5
+    //     , _bounding_box_radius = radius
+    // }
+    // where
+    // calcBoundingBox' :: Vector3<f32> -> Vector3<f32> -> [Vector3<f32>] -> (Vector3<f32>, Vector3<f32>)
+    // calcBoundingBox' boundMin boundMax [] = (boundMin, boundMax)
+    // calcBoundingBox' boundMin boundMax (position:positions) =
+    // let (# minX, minY, minZ #) = unpackV3# boundMin
+    //     (# maxX, maxY, maxZ #) = unpackV3# boundMax
+    // minValue = vec3 (min minX maxX) (min minY maxY) (min minZ maxZ)
+    // maxValue = vec3 (max minX maxX) (max minY maxY) (max minZ maxZ)
+    // in
+    // calcBoundingBox' minValue maxValue positions
+}
+
