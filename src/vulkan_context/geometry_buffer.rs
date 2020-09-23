@@ -1,6 +1,6 @@
 use nalgebra::{ Vector2, Vector3, Matrix4 };
 
-use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::bounding_box::{ BoundingBox };
 
 #[derive(Debug, Clone)]
 pub struct VertexData {
