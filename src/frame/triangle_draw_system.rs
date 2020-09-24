@@ -144,38 +144,13 @@ vulkano::impl_vertex!(Vertex, position, normal, tangent, color, tex_coord);
 mod vs {
     vulkano_shaders::shader! {
         ty: "vertex",
-        src: "
-#version 450
-
-layout(location = 0) in vec3 position;
-layout(location = 1) in vec3 normal;
-layout(location = 2) in vec3 tangent;
-layout(location = 3) in uint color;
-layout(location = 4) in vec2 tex_coord;
-
-layout(location = 0) out vec3 v_color;
-
-void main() {
-    gl_Position = vec4(position, 1.0);
-    v_color = normal;
-}"
+        path: "resource/shaders/default.vert"
     }
 }
 
 mod fs {
     vulkano_shaders::shader! {
         ty: "fragment",
-        src: "
-#version 450
-
-layout(location = 0) in vec3 v_color;
-
-layout(location = 0) out vec4 f_color;
-layout(location = 1) out vec3 f_normal;
-
-void main() {
-    f_color = vec4(v_color, 1.0);
-    f_normal = vec3(0.0, 0.0, 1.0);
-}"
+        path: "resource/shaders/default.frag"
     }
 }
