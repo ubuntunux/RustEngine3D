@@ -5,8 +5,6 @@ use winit::event::Event;
 use winit::event::WindowEvent;
 use winit::event_loop::ControlFlow;
 use winit::event_loop::EventLoop;
-use vulkano::sync;
-use vulkano::sync::GpuFuture;
 
 use crate::resource;
 use crate::renderer;
@@ -111,7 +109,6 @@ pub fn run_application() {
 
     // main loop
     let mut render_scene = false;
-    let mut previous_frame_end = Some(sync::now(renderer_data._device.clone()).boxed());
     event_loop.run(move |event, window_target, control_flow|{
         application_data._time_data.updateTimeData(&time_instance);
 
@@ -135,7 +132,7 @@ pub fn run_application() {
         }
 
         if render_scene {
-            renderer_data.render_scene(&mut previous_frame_end);
+            renderer_data.render_scene();
         }
     });
 }

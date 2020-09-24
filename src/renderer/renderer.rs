@@ -2,35 +2,6 @@ use std::sync::Arc;
 use std::vec::Vec;
 use std::borrow::Cow;
 
-use vulkano;
-use vulkano::device::{
-    Device,
-    DeviceExtensions,
-    Queue
-};
-use vulkano::image::ImageUsage;
-use vulkano::instance::{
-    Instance,
-    PhysicalDevice
-};
-use vulkano::swapchain;
-use vulkano::swapchain::{
-    AcquireError,
-    ColorSpace,
-    CompositeAlpha,
-    FullscreenExclusive,
-    PresentMode,
-    SurfaceTransform,
-    Swapchain,
-    SwapchainCreationError,
-    SupportedPresentModes
-};
-use vulkano::sync;
-use vulkano::sync::{
-    FlushError,
-    GpuFuture
-};
-use vulkano_win::VkSurfaceBuild;
 use winit::event_loop::EventLoop;
 use winit::window::{
     Window,
@@ -43,7 +14,6 @@ use cgmath::{
     Vector3
 };
 
-use crate::frame;
 use crate::constants;
 use crate::resource;
 
@@ -56,14 +26,14 @@ pub struct RendererData {
     // _image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
     // _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
     // _vk_instance: vk::Instance,
-    pub _surface: Arc<vulkano::swapchain::Surface<Window>>,
-    pub _device: Arc<Device>,
+    //pub _surface: Arc<vulkano::swapchain::Surface<Window>>,
+    //pub _device: Arc<Device>,
     // _physical_device: vk::PhysicalDevice,
-    pub _swapchain: Arc<vulkano::swapchain::Swapchain<Window>>,
-    pub _images: Vec<Arc<vulkano::image::swapchain::SwapchainImage<Window>>>,
+    //pub _swapchain: Arc<vulkano::swapchain::Swapchain<Window>>,
+    //pub _images: Vec<Arc<vulkano::image::swapchain::SwapchainImage<Window>>>,
     // _swapchain_data: SwapChainData,
     // _swapchain_support_details: SwapChainSupportDetails,
-    pub _queue: Arc<Queue>,
+    //pub _queue: Arc<Queue>,
     // _queue_family_datas: QueueFamilyDatas,
     // _frame_fences: vk::Fence,
     // _command_pool: vk::CommandPool,
@@ -79,69 +49,6 @@ pub struct RendererData {
 }
 
 pub fn create_renderer_data<T> ((window_width, window_height): (i32, i32), event_loop: &EventLoop<T>) -> Box<RendererData> {
-    let required_extensions = vulkano_win::required_extensions();
-    let name: Option<Cow<str>> = Some("RustEngine3D".into());
-    let version = Some(vulkano::instance::Version {major: 0, minor: 1, patch: 0});
-    let info = vulkano::instance::ApplicationInfo {
-        application_name: name.clone(),
-        application_version: version,
-        engine_name: name.clone(),
-        engine_version: version
-    };
-    let instance = Instance::new(Some(&info), &required_extensions, constants::VULKAN_LAYERS.to_vec()).unwrap();
-    let physical = PhysicalDevice::enumerate(&instance).next().unwrap();
-    let surface = WindowBuilder::new()
-        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {width: window_width as u32, height: window_height as u32}))
-        .build_vk_surface(&event_loop, instance.clone())
-        .unwrap();
-    let queue_family = physical
-        .queue_families()
-        .find(|&q| q.supports_graphics() && surface.is_supported(q).unwrap_or(false))
-        .expect("couldn't find a graphical queue family");
-    let device_ext = DeviceExtensions {
-        khr_swapchain: true,
-        ext_debug_utils: constants::EXT_DEBUG_UTILS,
-        ..DeviceExtensions::none()
-    };
-    let (device, mut queues) = Device::new(
-        physical,
-        physical.supported_features(),
-        &device_ext,
-        [(queue_family, 0.5)].iter().cloned(),
-    ).unwrap();
-    let queue = queues.next().unwrap();
-    let (swapchain, images) = {
-        let caps = surface.capabilities(physical).unwrap();
-        let alpha = caps.supported_composite_alpha.iter().next().unwrap();
-        let dimensions: [u32; 2] = surface.window().inner_size().into();
-        let mut findFormat = false;
-        for i in caps.supported_formats {
-            if constants::SWAP_CHAIN_IMAGE_FORMAT == i.0 {
-                findFormat = true;
-            }
-        }
-        assert!(caps.present_modes.supports(PresentMode::Immediate));
-        assert!(findFormat);
-        assert!(constants::SWAP_CHAIN_IMAGE_COUNT < caps.max_image_count.unwrap() as i32);
-        assert_eq!(CompositeAlpha::Opaque, alpha);
-        Swapchain::new(
-            device.clone(),
-            surface.clone(),
-            constants::SWAP_CHAIN_IMAGE_COUNT as u32,
-            constants::SWAP_CHAIN_IMAGE_FORMAT,
-            dimensions,
-            1,
-            ImageUsage::color_attachment(),
-            &queue,
-            SurfaceTransform::Identity,
-            CompositeAlpha::Opaque,
-            PresentMode::Immediate,
-            FullscreenExclusive::Default,
-            true,
-            ColorSpace::SrgbNonLinear,
-        ).unwrap()
-    };
-
     Box::new(RendererData {
         _frame_index: 0,
         _swapchain_index: 0,
@@ -150,14 +57,14 @@ pub fn create_renderer_data<T> ((window_width, window_height): (i32, i32), event
         // _image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
         // _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
         // _vk_instance: vk::Instance,
-        _surface: surface,
-        _device: device,
+        //_surface: surface,
+        //_device: device,
         // _physical_device: vk::PhysicalDevice,
-        _images: images,
-        _swapchain: swapchain,
+        //_images: images,
+        //_swapchain: swapchain,
         // _swapchain_data: SwapChainData,
         // _swapchain_support_details: SwapChainSupportDetails,
-        _queue: queue,
+        //_queue: queue,
         // _queue_family_datas: QueueFamilyDatas,
         // _frame_fences: vk::Fence,
         // _command_pool: vk::CommandPool,
@@ -193,16 +100,16 @@ impl RendererData {
     }
 
     pub fn recreate_swapchain(&mut self) {
-        let dimensions: [u32; 2] = self._surface.window().inner_size().into();
-        let (new_swapchain, new_images) =
-            match self._swapchain.recreate_with_dimensions(dimensions) {
-                Ok(r) => r,
-                Err(SwapchainCreationError::UnsupportedDimensions) => return,
-                Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
-            };
-
-        self._swapchain = new_swapchain;
-        self._images = new_images;
+        // let dimensions: [u32; 2] = self._surface.window().inner_size().into();
+        // let (new_swapchain, new_images) =
+        //     match self._swapchain.recreate_with_dimensions(dimensions) {
+        //         Ok(r) => r,
+        //         Err(SwapchainCreationError::UnsupportedDimensions) => return,
+        //         Err(e) => panic!("Failed to recreate swapchain: {:?}", e),
+        //     };
+        //
+        // self._swapchain = new_swapchain;
+        // self._images = new_images;
     }
 
     pub fn get_need_recreate_swapchain(&self) -> bool {
@@ -213,68 +120,7 @@ impl RendererData {
         self._need_recreate_swapchain = value;
     }
 
-    pub fn render_scene(&mut self, previous_frame_end: &mut Option<Box<dyn GpuFuture>>) {
-        let mut frame_system = frame::FrameSystem::new(self._queue.clone(), self._swapchain.format());
-        let triangle_draw_system = frame::TriangleDrawSystem::new(self._queue.clone(), frame_system.deferred_subpass());
-        let mut swapchain = self._swapchain.clone();
-        let mut images = self._images.clone();
-
-        previous_frame_end.as_mut().unwrap().cleanup_finished();
-
-        let (image_num, suboptimal, acquire_future) =
-            match swapchain::acquire_next_image(swapchain.clone(), None) {
-                Ok(r) => r,
-                Err(AcquireError::OutOfDate) => {
-                    self.set_need_recreate_swapchain(true);
-                    return;
-                }
-                Err(e) => panic!("Failed to acquire next image: {:?}", e),
-            };
-
-        if suboptimal {
-            self.set_need_recreate_swapchain(true);
-        }
-
-        let future = previous_frame_end.take().unwrap().join(acquire_future);
-        let mut frame = frame_system.frame(future, images[image_num].clone(), Matrix4::identity());
-        let mut after_future = None;
-        while let Some(pass) = frame.next_pass() {
-            match pass {
-                frame::Pass::Deferred(mut draw_pass) => {
-                    let cb = triangle_draw_system.draw(draw_pass.viewport_dimensions());
-                    draw_pass.execute(cb);
-                }
-                frame::Pass::Lighting(mut lighting) => {
-                    lighting.ambient_light([0.1, 0.1, 0.1]);
-                    lighting.directional_light(Vector3::new(0.2, -0.1, -0.7), [0.6, 0.6, 0.6]);
-                    lighting.point_light(Vector3::new(0.5, -0.5, -0.1), [1.0, 0.0, 0.0]);
-                    lighting.point_light(Vector3::new(-0.9, 0.2, -0.15), [0.0, 1.0, 0.0]);
-                    lighting.point_light(Vector3::new(0.0, 0.5, -0.05), [0.0, 0.0, 1.0]);
-                }
-                frame::Pass::Finished(af) => {
-                    after_future = Some(af);
-                }
-            }
-        }
-
-        let future = after_future
-            .unwrap()
-            .then_swapchain_present(self._queue.clone(), swapchain.clone(), image_num)
-            .then_signal_fence_and_flush();
-
-        match future {
-            Ok(future) => {
-                *previous_frame_end = Some(future.boxed());
-            }
-            Err(FlushError::OutOfDate) => {
-                self.set_need_recreate_swapchain(true);
-                *previous_frame_end = Some(sync::now(self._device.clone()).boxed());
-            }
-            Err(e) => {
-                println!("Failed to flush future: {:?}", e);
-                *previous_frame_end = Some(sync::now(self._device.clone()).boxed());
-            }
-        }
+    pub fn render_scene(&mut self) {
     }
 }
 
