@@ -20,7 +20,7 @@ pub struct SceneManagerData {
 }
 
 pub fn create_scene_manager_data(
-    renderer_data: Box<renderer::RendererData>,
+    &renderer_data: Box<renderer::RendererData>,
     resources: Box<resource::Resources>
 ) -> Box<SceneManagerData> {
     Box::new(SceneManagerData {

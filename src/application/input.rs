@@ -50,8 +50,8 @@ pub fn create_keyboard_input_data() -> Box<KeyboardInputData> {
     })
 }
 
-pub fn create_mouse_move_data((width, height): (i32, i32)) -> Box<MouseMoveData> {
-    let mouse_pos = Vector2::new(width, height);
+pub fn create_mouse_move_data((width, height): (u32, u32)) -> Box<MouseMoveData> {
+    let mouse_pos = Vector2::new(width as i32, height as i32);
     Box::new(MouseMoveData {
         _mouse_pos: mouse_pos.clone(),
         _mouse_pos_prev: mouse_pos.clone(),

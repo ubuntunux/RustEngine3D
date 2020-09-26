@@ -63,7 +63,7 @@ impl TimeData {
 pub struct ApplicationData
     { _window: bool
     , _window_size_changed: bool
-    , _window_size: (i32, i32)
+    , _window_size: (u32, u32)
     , _time_data: TimeData
     , _camera_move_speed: f32
     , _keyboard_input_data: Box<input::KeyboardInputData>
@@ -85,11 +85,12 @@ pub fn run_application() {
     let mut elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
 
-    let window_size: (i32, i32) = (1024, 786);
+    let window_size: (u32, u32) = (1024, 786);
     let mouse_pos = (window_size.0/2, window_size.1/2);
     let mut renderer_data = renderer::create_renderer_data(window_size, &event_loop);
+    //renderer_data.initialize_renderer();
     let mut resources = resource::create_resources();
-    let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
+    let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data, resources.clone());
     let mut keyboard_input_data = input::create_keyboard_input_data();
     let mut mouse_move_data = input::create_mouse_move_data(mouse_pos);
     let mut mouse_input_data = input::create_mouse_input_data();
@@ -118,7 +119,7 @@ pub fn run_application() {
                 *control_flow = ControlFlow::Exit;
             },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                renderer_data.set_need_recreate_swapchain(true);
+                // renderer_data.set_need_recreate_swapchain(true);
             },
             Event::RedrawEventsCleared => {
                 render_scene = true;
@@ -126,13 +127,13 @@ pub fn run_application() {
             _ => {},
         }
 
-        if renderer_data.get_need_recreate_swapchain() {
-            renderer_data.recreate_swapchain();
-            renderer_data.set_need_recreate_swapchain(false);
-        }
+        // if renderer_data.get_need_recreate_swapchain() {
+        //     renderer_data.recreate_swapchain();
+        //     renderer_data.set_need_recreate_swapchain(false);
+        // }
 
-        if render_scene {
-            renderer_data.render_scene();
-        }
+        // if render_scene {
+        //     renderer_data.render_scene();
+        // }
     });
 }

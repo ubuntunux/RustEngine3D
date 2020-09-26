@@ -1,11 +1,10 @@
 #version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_ARB_shading_language_420pack : enable
 
-layout(location = 0) in vec3 v_color;
-
-layout(location = 0) out vec4 f_color;
-layout(location = 1) out vec3 f_normal;
+layout (location = 0) in vec4 o_color;
+layout (location = 0) out vec4 uFragColor;
 
 void main() {
-    f_color = vec4(v_color, 1.0);
-    f_normal = vec3(0.0, 0.0, 1.0);
+    uFragColor = o_color;
 }
