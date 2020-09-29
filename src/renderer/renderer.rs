@@ -9,6 +9,7 @@ use std::io::Cursor;
 use std::mem;
 use std::mem::align_of;
 use std::ops::Drop;
+use std::rc::Rc;
 use std::sync::Arc;
 use std::vec::Vec;
 
@@ -279,7 +280,7 @@ pub struct RendererData {
     pub rendering_complete_semaphore: vk::Semaphore,
 }
 
-pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Box<RendererData> {
+pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RendererData> {
     unsafe {
         let window = WindowBuilder::new()
             .with_title("Ash - Example")
@@ -592,7 +593,7 @@ pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event
         let rendering_complete_semaphore = device
             .create_semaphore(&semaphore_create_info, None)
             .unwrap();
-        Box::new(RendererData {
+        Rc::new(RendererData {
             entry,
             instance,
             device,

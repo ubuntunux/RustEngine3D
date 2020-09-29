@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::renderer;
 use crate::resource;
 
@@ -7,7 +9,7 @@ use crate::resource;
 
 #[derive(Clone)]
 pub struct SceneManagerData {
-    _renderer_data: Box<renderer::RendererData>, //Renderer.RendererData,
+    _renderer_data: Rc<renderer::RendererData>, //Renderer.RendererData,
     _resources: Box<resource::Resources>, //Resource.Resources,
     _main_camera: bool, //Camera.CameraObjectData,
     _main_light: bool, //Light.DirectionalLightData,
@@ -20,7 +22,7 @@ pub struct SceneManagerData {
 }
 
 pub fn create_scene_manager_data(
-    &renderer_data: Box<renderer::RendererData>,
+    renderer_data: Rc<renderer::RendererData>,
     resources: Box<resource::Resources>
 ) -> Box<SceneManagerData> {
     Box::new(SceneManagerData {

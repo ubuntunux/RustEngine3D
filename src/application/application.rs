@@ -1,4 +1,6 @@
 use std::time;
+use std::rc::Rc;
+use std::cell::RefCell;
 use log;
 
 use winit::event::Event;
@@ -70,7 +72,7 @@ pub struct ApplicationData
     , _mouse_move_data: Box<input::MouseMoveData>
     , _mouse_input_data: Box<input::MouseInputData>
     , _scene_manager_data: Box<scene_manager::SceneManagerData>
-    , _renderer_data: Box<renderer::RendererData>
+    , _renderer_data: Rc<renderer::RendererData>
     , _resources: Box<resource::Resources>
     }
 
@@ -90,7 +92,7 @@ pub fn run_application() {
     let mut renderer_data = renderer::create_renderer_data(window_size, &event_loop);
     //renderer_data.initialize_renderer();
     let mut resources = resource::create_resources();
-    let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data, resources.clone());
+    let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
     let mut keyboard_input_data = input::create_keyboard_input_data();
     let mut mouse_move_data = input::create_mouse_move_data(mouse_pos);
     let mut mouse_input_data = input::create_mouse_input_data();
@@ -104,7 +106,7 @@ pub fn run_application() {
         _mouse_move_data: mouse_move_data.clone(),
         _mouse_input_data: mouse_input_data.clone(),
         _scene_manager_data: scene_manager_data.clone(),
-        _renderer_data: renderer_data.clone(),
+        _renderer_data: renderer_data,
         _resources: resources.clone(),
     });
 
