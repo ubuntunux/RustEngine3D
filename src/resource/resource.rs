@@ -1,3 +1,5 @@
+use std::rc::Rc;
+use std::cell::RefCell;
 use std::path::Path;
 use std::collections::HashMap;
 
@@ -66,9 +68,9 @@ pub struct Resources {
     // _descriptor_data_map: DescriptorDataMap
 }
 
-pub fn create_resources() -> Box<Resources> {
-    Box::new(Resources {
-    })
+pub fn create_resources() -> Rc<RefCell<Resources>> {
+    Rc::new(RefCell::new(Resources {
+    }))
 }
 
 impl Resources {

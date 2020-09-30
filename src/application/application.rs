@@ -14,15 +14,15 @@ use crate::application::scene_manager;
 use crate::application::input;
 
 #[derive(Debug, Clone)]
-pub struct TimeData
-    { _acc_frame_time: f64
-    , _acc_frame_count: i32
-    , _average_frame_time: f64
-    , _average_fps: f64
-    , _current_time: f64
-    , _elapsed_time: f64
-    , _delta_time: f64
-    }
+pub struct TimeData {
+    _acc_frame_time: f64,
+    _acc_frame_count: i32,
+    _average_frame_time: f64,
+    _average_fps: f64,
+    _current_time: f64,
+    _elapsed_time: f64,
+    _delta_time: f64
+}
 
 pub fn create_time_data(elapsed_time: f64) -> TimeData {
     TimeData {
@@ -62,19 +62,19 @@ impl TimeData {
     }
 }
 
-pub struct ApplicationData
-    { _window: bool
-    , _window_size_changed: bool
-    , _window_size: (u32, u32)
-    , _time_data: TimeData
-    , _camera_move_speed: f32
-    , _keyboard_input_data: Box<input::KeyboardInputData>
-    , _mouse_move_data: Box<input::MouseMoveData>
-    , _mouse_input_data: Box<input::MouseInputData>
-    , _scene_manager_data: Box<scene_manager::SceneManagerData>
-    , _renderer_data: Rc<renderer::RendererData>
-    , _resources: Box<resource::Resources>
-    }
+pub struct ApplicationData {
+    _window: bool,
+    _window_size_changed: bool,
+    _window_size: (u32, u32),
+    _time_data: TimeData,
+    _camera_move_speed: f32,
+    _keyboard_input_data: Box<input::KeyboardInputData>,
+    _mouse_move_data: Box<input::MouseMoveData>,
+    _mouse_input_data: Box<input::MouseInputData>,
+    _scene_manager_data: Rc<RefCell<scene_manager::SceneManagerData>>,
+    _renderer_data: Rc<RefCell<renderer::RendererData>>,
+    _resources: Rc<RefCell<resource::Resources>>
+}
 
 impl ApplicationData {
 }
@@ -106,7 +106,7 @@ pub fn run_application() {
         _mouse_move_data: mouse_move_data.clone(),
         _mouse_input_data: mouse_input_data.clone(),
         _scene_manager_data: scene_manager_data.clone(),
-        _renderer_data: renderer_data,
+        _renderer_data: renderer_data.clone(),
         _resources: resources.clone(),
     });
 

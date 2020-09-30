@@ -280,7 +280,7 @@ pub struct RendererData {
     pub rendering_complete_semaphore: vk::Semaphore,
 }
 
-pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RendererData> {
+pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
     unsafe {
         let window = WindowBuilder::new()
             .with_title("Ash - Example")
@@ -593,7 +593,7 @@ pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event
         let rendering_complete_semaphore = device
             .create_semaphore(&semaphore_create_info, None)
             .unwrap();
-        Rc::new(RendererData {
+        Rc::new(RefCell::new(RendererData {
             entry,
             instance,
             device,
@@ -620,7 +620,7 @@ pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event
             debug_call_back,
             debug_utils_loader,
             depth_image_memory,
-        })
+        }))
     }
 }
 
