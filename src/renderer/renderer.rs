@@ -53,8 +53,40 @@ struct Vertex {
     color: [f32; 4],
 }
 
-#[derive(Clone)]
-pub struct RendererData2 {
+pub struct RendererData {
+    pub entry: Entry,
+    pub instance: Instance,
+    pub device: Device,
+    pub surface_loader: Surface,
+    pub swapchain_loader: Swapchain,
+    pub debug_utils_loader: DebugUtils,
+    pub window: Window,
+    pub debug_call_back: vk::DebugUtilsMessengerEXT,
+
+    pub pdevice: vk::PhysicalDevice,
+    pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    pub queue_family_index: u32,
+    pub present_queue: vk::Queue,
+
+    pub surface: vk::SurfaceKHR,
+    pub surface_format: vk::SurfaceFormatKHR,
+    pub surface_resolution: vk::Extent2D,
+
+    pub swapchain: vk::SwapchainKHR,
+    pub present_images: Vec<vk::Image>,
+    pub present_image_views: Vec<vk::ImageView>,
+
+    pub pool: vk::CommandPool,
+    pub draw_command_buffer: vk::CommandBuffer,
+    pub setup_command_buffer: vk::CommandBuffer,
+
+    pub depth_image: vk::Image,
+    pub depth_image_view: vk::ImageView,
+    pub depth_image_memory: vk::DeviceMemory,
+
+    pub present_complete_semaphore: vk::Semaphore,
+    pub rendering_complete_semaphore: vk::Semaphore,
+
     pub _frame_index: i32,
     pub _swapchain_index: u32,
     // _vertex_offset: vk::DeviceSize,
@@ -84,37 +116,6 @@ pub struct RendererData2 {
     // _resources: Box<resource::Resources>
 }
 
-//{
-//_frame_index: 0,
-//_swapchain_index: 0,
-// _vertex_offset: vk::DeviceSize,
-//_need_recreate_swapchain: false,
-// _image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
-// _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
-// _vk_instance: vk::Instance,
-//_surface: surface,
-//_device: device,
-// _physical_device: vk::PhysicalDevice,
-//_images: images,
-//_swapchain: swapchain,
-// _swapchain_data: SwapChainData,
-// _swapchain_support_details: SwapChainSupportDetails,
-//_queue: queue,
-// _queue_family_datas: QueueFamilyDatas,
-// _frame_fences: vk::Fence,
-// _command_pool: vk::CommandPool,
-// _command_buffer_count: 0,
-// _command_buffers: vk::CommandBuffer,
-// _render_features: vk::RenderFeatures,
-// _image_samplers: vk::ImageSamplers,
-// _debug_render_target: RenderTargetType,
-// _render_target_data_map: RenderTargetDataMap,
-// _uniform_buffer_data_map: UniformBufferDataMap,
-// _postprocess_ssao: PostProcessData,
-// _resources: Box<resource::Resources>
-//}
-
-
 // Simple offset_of macro akin to C++ offsetof
 #[macro_export]
 macro_rules! offset_of {
@@ -134,29 +135,22 @@ pub fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffe
     wait_mask: &[vk::PipelineStageFlags],
     wait_semaphores: &[vk::Semaphore],
     signal_semaphores: &[vk::Semaphore],
-    f: F,
+    func: F,
 ) {
     unsafe {
-        device
-            .reset_command_buffer(
-                command_buffer,
-                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-            )
-            .expect("Reset command buffer failed.");
+        device.reset_command_buffer(
+            command_buffer,
+            vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+        ).expect("Reset command buffer failed.");
 
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-        device
-            .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-            .expect("Begin commandbuffer");
-        f(device, command_buffer);
-        device
-            .end_command_buffer(command_buffer)
-            .expect("End commandbuffer");
+        device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
+        func(device, command_buffer);
+        device.end_command_buffer(command_buffer).expect("End commandbuffer");
 
-        let submit_fence = device
-            .create_fence(&vk::FenceCreateInfo::default(), None)
+        let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None)
             .expect("Create fence failed.");
 
         let command_buffers = vec![command_buffer];
@@ -245,40 +239,7 @@ pub fn find_memorytype_index_f<F: Fn(vk::MemoryPropertyFlags, vk::MemoryProperty
     None
 }
 
-pub struct RendererData {
-    pub entry: Entry,
-    pub instance: Instance,
-    pub device: Device,
-    pub surface_loader: Surface,
-    pub swapchain_loader: Swapchain,
-    pub debug_utils_loader: DebugUtils,
-    pub window: Window,
-    pub debug_call_back: vk::DebugUtilsMessengerEXT,
 
-    pub pdevice: vk::PhysicalDevice,
-    pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    pub queue_family_index: u32,
-    pub present_queue: vk::Queue,
-
-    pub surface: vk::SurfaceKHR,
-    pub surface_format: vk::SurfaceFormatKHR,
-    pub surface_resolution: vk::Extent2D,
-
-    pub swapchain: vk::SwapchainKHR,
-    pub present_images: Vec<vk::Image>,
-    pub present_image_views: Vec<vk::ImageView>,
-
-    pub pool: vk::CommandPool,
-    pub draw_command_buffer: vk::CommandBuffer,
-    pub setup_command_buffer: vk::CommandBuffer,
-
-    pub depth_image: vk::Image,
-    pub depth_image_view: vk::ImageView,
-    pub depth_image_memory: vk::DeviceMemory,
-
-    pub present_complete_semaphore: vk::Semaphore,
-    pub rendering_complete_semaphore: vk::Semaphore,
-}
 
 pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
     unsafe {
@@ -593,6 +554,7 @@ pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event
         let rendering_complete_semaphore = device
             .create_semaphore(&semaphore_create_info, None)
             .unwrap();
+
         Rc::new(RefCell::new(RendererData {
             entry,
             instance,
@@ -620,6 +582,33 @@ pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event
             debug_call_back,
             debug_utils_loader,
             depth_image_memory,
+            _frame_index: 0,
+            _swapchain_index: 0,
+            //_vertex_offset: vk::DeviceSize,
+            _need_recreate_swapchain: false,
+            //_image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
+            // _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
+            // _vk_instance: vk::Instance,
+            // _surface: surface,
+            // _device: device,
+            // _physical_device: vk::PhysicalDevice,
+            // _images: images,
+            // _swapchain: swapchain,
+            // _swapchain_data: SwapChainData,
+            // _swapchain_support_details: SwapChainSupportDetails,
+            // _queue: queue,
+            // _queue_family_datas: QueueFamilyDatas,
+            // _frame_fences: vk::Fence,
+            // _command_pool: vk::CommandPool,
+            _command_buffer_count: 0,
+            // _command_buffers: vk::CommandBuffer,
+            // _render_features: vk::RenderFeatures,
+            // _image_samplers: vk::ImageSamplers,
+            // _debug_render_target: RenderTargetType,
+            // _render_target_data_map: RenderTargetDataMap,
+            // _uniform_buffer_data_map: UniformBufferDataMap,
+            // _postprocess_ssao: PostProcessData,
+            // _resources: Box<resource::Resources>
         }))
     }
 }
