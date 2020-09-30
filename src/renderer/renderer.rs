@@ -118,7 +118,7 @@ pub struct RendererData {
 }
 
 
-pub fn create_renderer_data<T> (app_name: &str, (window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
+pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
     unsafe {
         let window = WindowBuilder::new()
             .with_title(constants::ENGINE_NAME)
@@ -143,10 +143,10 @@ pub fn create_renderer_data<T> (app_name: &str, (window_width, window_height): (
 
         let appinfo = vk::ApplicationInfo::builder()
             .application_name(&app_name)
-            .application_version(0)
+            .application_version(app_version)
             .engine_name(&app_name)
-            .engine_version(0)
-            .api_version(vk::make_version(1, 0, 0));
+            .engine_version(constants::ENGINE_VERSION)
+            .api_version(constants::API_VERSION);
 
         let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&appinfo)

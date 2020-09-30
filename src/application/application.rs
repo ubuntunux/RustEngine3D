@@ -80,7 +80,7 @@ impl ApplicationData {
 }
 
 
-pub fn run_application(app_name: &str) {
+pub fn run_application(app_name: &str, app_version: u32) {
     log::info!("run_application");
 
     let time_instance = time::Instant::now();
@@ -89,7 +89,7 @@ pub fn run_application(app_name: &str) {
 
     let window_size: (u32, u32) = (1024, 786);
     let mouse_pos = (window_size.0/2, window_size.1/2);
-    let mut renderer_data = renderer::create_renderer_data(app_name, window_size, &event_loop);
+    let mut renderer_data = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop);
     //renderer_data.initialize_renderer();
     let mut resources = resource::create_resources();
     let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
