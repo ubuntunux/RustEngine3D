@@ -96,7 +96,7 @@ pub fn run_application() {
     let mut keyboard_input_data = input::create_keyboard_input_data();
     let mut mouse_move_data = input::create_mouse_move_data(mouse_pos);
     let mut mouse_input_data = input::create_mouse_input_data();
-    let mut application_data = Box::new(ApplicationData {
+    let application_data_ref = Rc::new(RefCell::new(ApplicationData {
         _window: false,
         _window_size_changed: false,
         _window_size: window_size,
@@ -108,11 +108,12 @@ pub fn run_application() {
         _scene_manager_data: scene_manager_data.clone(),
         _renderer_data: renderer_data.clone(),
         _resources: resources.clone(),
-    });
+    }));
 
     // main loop
     let mut render_scene = false;
     event_loop.run(move |event, window_target, control_flow|{
+        let mut application_data = (*application_data_ref).borrow_mut();
         application_data._time_data.updateTimeData(&time_instance);
 
         render_scene = false;
