@@ -118,15 +118,15 @@ pub struct RendererData {
 }
 
 
-pub fn create_renderer_data<T> ((window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
+pub fn create_renderer_data<T> (app_name: &str, (window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
     unsafe {
         let window = WindowBuilder::new()
-            .with_title("Ash - Example")
+            .with_title(constants::ENGINE_NAME)
             .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {width: window_width, height: window_height}))
             .build(&event_loop)
             .unwrap();
         let entry = Entry::new().unwrap();
-        let app_name = CString::new("VulkanTriangle").unwrap();
+        let app_name = CString::new("app_name").unwrap();
 
         let layer_names = [CString::new("VK_LAYER_LUNARG_standard_validation").unwrap()];
         let layers_names_raw: Vec<*const i8> = layer_names
