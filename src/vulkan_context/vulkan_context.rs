@@ -19,10 +19,6 @@ use ash::{
     Instance,
 };
 use ash::extensions::ext::DebugUtils;
-use ash::extensions::khr::{
-    Surface,
-    Swapchain,
-};
 use ash::version::{
     DeviceV1_0,
     EntryV1_0,
