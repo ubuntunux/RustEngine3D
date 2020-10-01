@@ -150,9 +150,6 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .engine_version(constants::ENGINE_VERSION)
             .api_version(constants::API_VERSION);
 
-        log::info!("    api version: {}.{}.{}", vk::version_major(constants::API_VERSION), vk::version_minor(constants::API_VERSION), vk::version_patch(constants::API_VERSION));
-        log::info!("    surface_extensions: {:?}", surface_extensions);
-
         let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&appinfo)
             .enabled_layer_names(&layers_names_raw)
@@ -166,7 +163,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .message_severity(
                 vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
                 | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
+                //| vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
             )
             .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
             .pfn_user_callback(Some(vulkan_debug_callback));
@@ -208,33 +205,31 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .filter_map(|v| v)
             .next()
             .expect("Couldn't find suitable device.");
-        let queue_family_index = queue_family_index as u32;
-        let device_extension_names_raw = [Swapchain::name().as_ptr()];
-        let features = vk::PhysicalDeviceFeatures {
-            shader_clip_distance: 1,
-            ..Default::default()
-        };
-        let priorities = [1.0];
 
+        let queue_family_index = queue_family_index as u32;
+        let priorities = [1.0];
         let queue_info = [vk::DeviceQueueCreateInfo::builder()
             .queue_family_index(queue_family_index)
             .queue_priorities(&priorities)
             .build()];
 
+        let features = vk::PhysicalDeviceFeatures {
+            shader_clip_distance: 1,
+            ..Default::default()
+        };
+        let device_extension_names_raw = [Swapchain::name().as_ptr()];
         let device_create_info = vk::DeviceCreateInfo::builder()
             .queue_create_infos(&queue_info)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);
+        let device: Device = instance.create_device(pdevice, &device_create_info, None).unwrap();
 
-        let device: Device = instance
-            .create_device(pdevice, &device_create_info, None)
-            .unwrap();
-
-        let present_queue = device.get_device_queue(queue_family_index as u32, 0);
-
-        let surface_formats = surface_loader
-            .get_physical_device_surface_formats(pdevice, surface)
-            .unwrap();
+        let surface_formats = surface_loader.get_physical_device_surface_formats(pdevice, surface).unwrap();
+        println!("{:?}", surface_formats);
+        let require_format = vk::SurfaceFormatKHR {
+            format: vk::Format::B8G8R8_UNORM,
+            color_space: sfmt.color_space,
+        };
         let surface_format = surface_formats
             .iter()
             .map(|sfmt| match sfmt.format {
@@ -270,9 +265,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         } else {
             surface_capabilities.current_transform
         };
-        let present_modes = surface_loader
-            .get_physical_device_surface_present_modes(pdevice, surface)
-            .unwrap();
+        let present_modes = surface_loader.get_physical_device_surface_present_modes(pdevice, surface).unwrap();
         let present_mode = present_modes
             .iter()
             .cloned()
@@ -337,8 +330,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                     })
                     .image(image);
                 device.create_image_view(&create_view_info, None).unwrap()
-            })
-            .collect();
+            }).collect();
         let device_memory_properties = instance.get_physical_device_memory_properties(pdevice);
         let depth_image_create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
@@ -361,21 +353,18 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             &depth_image_memory_req,
             &device_memory_properties,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-        )
-            .expect("Unable to find suitable memory index for depth image.");
+        ).expect("Unable to find suitable memory index for depth image.");
 
         let depth_image_allocate_info = vk::MemoryAllocateInfo::builder()
             .allocation_size(depth_image_memory_req.size)
             .memory_type_index(depth_image_memory_index);
 
-        let depth_image_memory = device
-            .allocate_memory(&depth_image_allocate_info, None)
-            .unwrap();
+        let depth_image_memory = device.allocate_memory(&depth_image_allocate_info, None).unwrap();
 
-        device
-            .bind_image_memory(depth_image, depth_image_memory, 0)
+        device.bind_image_memory(depth_image, depth_image_memory, 0)
             .expect("Unable to bind depth image memory");
 
+        let present_queue = device.get_device_queue(queue_family_index as u32, 0);
         record_submit_commandbuffer(
             &device,
             setup_command_buffer,
@@ -436,6 +425,10 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         let rendering_complete_semaphore = device
             .create_semaphore(&semaphore_create_info, None)
             .unwrap();
+
+        log::info!("    swapchain: {:?}", Swapchain::name());
+        log::info!("    api version: {}.{}.{}", vk::version_major(constants::API_VERSION), vk::version_minor(constants::API_VERSION), vk::version_patch(constants::API_VERSION));
+        log::info!("    surface_extensions: {:?}", surface_extensions);
 
         Rc::new(RefCell::new(RendererData {
             entry,
