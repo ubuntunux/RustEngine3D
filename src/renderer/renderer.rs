@@ -120,20 +120,22 @@ pub struct RendererData {
 
 pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width, window_height): (u32, u32), event_loop: &EventLoop<T>) -> Rc<RefCell<RendererData>> {
     unsafe {
+        log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
         let window = WindowBuilder::new()
             .with_title(constants::ENGINE_NAME)
             .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {width: window_width, height: window_height}))
             .build(&event_loop)
             .unwrap();
         let entry = Entry::new().unwrap();
-        let app_name = CString::new("app_name").unwrap();
-
-        let layer_names = [CString::new("VK_LAYER_LUNARG_standard_validation").unwrap()];
+        let app_name = CString::new(app_name).unwrap();
+        let layer_names: Vec<CString> = constants::VULKAN_LAYERS
+            .iter()
+            .map(|layer_name| CString::new(*layer_name).unwrap())
+            .collect();
         let layers_names_raw: Vec<*const i8> = layer_names
             .iter()
             .map(|raw_name| raw_name.as_ptr())
             .collect();
-
         let surface_extensions = ash_window::enumerate_required_extensions(&window).unwrap();
         let mut extension_names_raw = surface_extensions
             .iter()
@@ -148,6 +150,9 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .engine_version(constants::ENGINE_VERSION)
             .api_version(constants::API_VERSION);
 
+        log::info!("    api version: {}.{}.{}", vk::version_major(constants::API_VERSION), vk::version_minor(constants::API_VERSION), vk::version_patch(constants::API_VERSION));
+        log::info!("    surface_extensions: {:?}", surface_extensions);
+
         let create_info = vk::InstanceCreateInfo::builder()
             .application_info(&appinfo)
             .enabled_layer_names(&layers_names_raw)
@@ -160,8 +165,8 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
             .message_severity(
                 vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                    | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                    | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
+                | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                | vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
             )
             .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
             .pfn_user_callback(Some(vulkan_debug_callback));

@@ -91,7 +91,7 @@ pub unsafe extern "system" fn vulkan_debug_callback(
         CStr::from_ptr(callback_data.p_message).to_string_lossy()
     };
     println!(
-        "{:?}:\n{:?} [{} ({})] : {}\n",
+        "[{:?}]:{:?} [{} ({})] : {}",
         message_severity,
         message_type,
         message_id_name,
