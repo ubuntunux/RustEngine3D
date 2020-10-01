@@ -80,22 +80,21 @@ impl ApplicationData {
 }
 
 
-pub fn run_application(app_name: &str, app_version: u32) {
+pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)) {
     log::info!("run_application");
 
     let time_instance = time::Instant::now();
     let mut elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
 
-    let window_size: (u32, u32) = (1024, 786);
     let mouse_pos = (window_size.0/2, window_size.1/2);
     let mut renderer_data = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop);
     //renderer_data.initialize_renderer();
     let mut resources = resource::create_resources();
     let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
-    let mut keyboard_input_data = input::create_keyboard_input_data();
-    let mut mouse_move_data = input::create_mouse_move_data(mouse_pos);
-    let mut mouse_input_data = input::create_mouse_input_data();
+    let keyboard_input_data = input::create_keyboard_input_data();
+    let mouse_move_data = input::create_mouse_move_data(mouse_pos);
+    let mouse_input_data = input::create_mouse_input_data();
     let application_data_ref = Rc::new(RefCell::new(ApplicationData {
         _window: false,
         _window_size_changed: false,

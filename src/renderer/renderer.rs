@@ -1,3 +1,4 @@
+use std::cmp::{min, max};
 use std::borrow::Cow;
 use std::cell::RefCell;
 use std::default::Default;
@@ -46,6 +47,7 @@ use winit::event_loop::EventLoop;
 
 use crate::constants;
 use crate::resource;
+use crate::vulkan_context::device::*;
 use crate::vulkan_context::vulkan_context::*;
 
 #[derive(Clone, Debug, Copy)]
@@ -64,7 +66,7 @@ pub struct RendererData {
     pub window: Window,
     pub debug_call_back: vk::DebugUtilsMessengerEXT,
 
-    pub pdevice: vk::PhysicalDevice,
+    pub physical_device: vk::PhysicalDevice,
     pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     pub queue_family_index: u32,
     pub present_queue: vk::Queue,
@@ -122,87 +124,36 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
         let window = WindowBuilder::new()
-            .with_title(constants::ENGINE_NAME)
+            .with_title(app_name)
             .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {width: window_width, height: window_height}))
             .build(&event_loop)
             .unwrap();
         let entry = Entry::new().unwrap();
-        let app_name = CString::new(app_name).unwrap();
-        let layer_names: Vec<CString> = constants::VULKAN_LAYERS
-            .iter()
-            .map(|layer_name| CString::new(*layer_name).unwrap())
-            .collect();
-        let layers_names_raw: Vec<*const i8> = layer_names
-            .iter()
-            .map(|raw_name| raw_name.as_ptr())
-            .collect();
         let surface_extensions = ash_window::enumerate_required_extensions(&window).unwrap();
-        let mut extension_names_raw = surface_extensions
-            .iter()
-            .map(|ext| ext.as_ptr())
-            .collect::<Vec<_>>();
-        extension_names_raw.push(DebugUtils::name().as_ptr());
-
-        let appinfo = vk::ApplicationInfo::builder()
-            .application_name(&app_name)
-            .application_version(app_version)
-            .engine_name(&app_name)
-            .engine_version(constants::ENGINE_VERSION)
-            .api_version(constants::API_VERSION);
-
-        let create_info = vk::InstanceCreateInfo::builder()
-            .application_info(&appinfo)
-            .enabled_layer_names(&layers_names_raw)
-            .enabled_extension_names(&extension_names_raw);
-
-        let instance: Instance = entry
-            .create_instance(&create_info, None)
-            .expect("Instance creation error");
-
-        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-            .message_severity(
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-                | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                //| vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
-            )
-            .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
-            .pfn_user_callback(Some(vulkan_debug_callback));
-
-        let debug_utils_loader = DebugUtils::new(&entry, &instance);
-        let debug_call_back = debug_utils_loader
-            .create_debug_utils_messenger(&debug_info, None)
-            .unwrap();
-        let surface = ash_window::create_surface(&entry, &instance, &window, None).unwrap();
-        let pdevices = instance
-            .enumerate_physical_devices()
-            .expect("Physical device error");
+        let instance: Instance = create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
+        let surface = create_vk_surface(&entry, &instance, &window);
         let surface_loader = Surface::new(&entry, &instance);
-        let (pdevice, queue_family_index) = pdevices
+        let (physical_device, swapchain_support_details, physical_device_features) = select_physical_device(&instance, &surface_loader, &surface).unwrap();
+
+        // TODO - here
+
+        let queue_family_index = instance
+            .get_physical_device_queue_family_properties(physical_device)
             .iter()
-            .map(|pdevice| {
-                instance
-                    .get_physical_device_queue_family_properties(*pdevice)
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, ref info)| {
-                        let supports_graphic_and_surface =
-                            info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-                                && surface_loader
-                                .get_physical_device_surface_support(
-                                    *pdevice,
-                                    index as u32,
-                                    surface,
-                                )
-                                .unwrap();
-                        if supports_graphic_and_surface {
-                            Some((*pdevice, index))
-                        } else {
-                            None
-                        }
-                    })
-                    .next()
+            .enumerate()
+            .filter_map(|(index, ref queue_family_properties)| {
+                let has_graphics_queue = queue_family_properties.queue_flags.contains(vk::QueueFlags::GRAPHICS);
+                let surface_support = surface_loader.get_physical_device_surface_support(
+                    physical_device,
+                    index as u32,
+                    surface,
+                ).unwrap();
+                if has_graphics_queue && surface_support {
+                    Some(index)
+                } else {
+                    None
+                }
             })
-            .filter_map(|v| v)
             .next()
             .expect("Couldn't find suitable device.");
 
@@ -222,34 +173,35 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .queue_create_infos(&queue_info)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);
-        let device: Device = instance.create_device(pdevice, &device_create_info, None).unwrap();
+        let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
 
-        let surface_formats = surface_loader.get_physical_device_surface_formats(pdevice, surface).unwrap();
-        println!("{:?}", surface_formats);
-        let require_format = vk::SurfaceFormatKHR {
-            format: vk::Format::B8G8R8_UNORM,
-            color_space: sfmt.color_space,
+        let surface_formats = surface_loader.get_physical_device_surface_formats(physical_device, surface).unwrap();
+        let required_format = vk::SurfaceFormatKHR {
+            format: constants::SWAP_CHAIN_IMAGE_FORMAT,
+            color_space: constants::SWAP_CHAIN_COLOR_SPACE,
         };
-        let surface_format = surface_formats
-            .iter()
-            .map(|sfmt| match sfmt.format {
-                vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
-                    format: vk::Format::B8G8R8_UNORM,
-                    color_space: sfmt.color_space,
-                },
-                _ => *sfmt,
-            })
-            .next()
-            .expect("Unable to find suitable surface format.");
-        let surface_capabilities = surface_loader
-            .get_physical_device_surface_capabilities(pdevice, surface)
-            .unwrap();
-        let mut desired_image_count = surface_capabilities.min_image_count + 1;
-        if surface_capabilities.max_image_count > 0
-            && desired_image_count > surface_capabilities.max_image_count
-        {
-            desired_image_count = surface_capabilities.max_image_count;
-        }
+        let surface_format =
+            if surface_formats.contains(&required_format) {
+                required_format.clone()
+            } else {
+                surface_formats
+                    .iter()
+                    .map(|sfmt| match sfmt.format {
+                        vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
+                            format: vk::Format::B8G8R8_UNORM,
+                            color_space: sfmt.color_space,
+                        },
+                        _ => *sfmt,
+                    })
+                    .next()
+                    .expect("Unable to find suitable surface format.")
+            };
+        let surface_capabilities = surface_loader.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
+        let desired_image_count = if surface_capabilities.max_image_count <= 0 {
+            max(surface_capabilities.min_image_count, constants::SWAP_CHAIN_IMAGE_COUNT)
+        } else {
+            min(surface_capabilities.max_image_count, max(surface_capabilities.min_image_count, constants::SWAP_CHAIN_IMAGE_COUNT))
+        };
         let surface_resolution = match surface_capabilities.current_extent.width {
             std::u32::MAX => vk::Extent2D {
                 width: window_width,
@@ -257,22 +209,23 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             },
             _ => surface_capabilities.current_extent,
         };
-        let pre_transform = if surface_capabilities
-            .supported_transforms
-            .contains(vk::SurfaceTransformFlagsKHR::IDENTITY)
-        {
-            vk::SurfaceTransformFlagsKHR::IDENTITY
+        let pre_transform =
+            if surface_capabilities.supported_transforms.contains(vk::SurfaceTransformFlagsKHR::IDENTITY) {
+                vk::SurfaceTransformFlagsKHR::IDENTITY
+            } else {
+                surface_capabilities.current_transform
+            };
+        let present_modes = surface_loader.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
+        let present_mode = if constants::ENABLE_IMMEDIATE_MODE {
+            vk::PresentModeKHR::IMMEDIATE
         } else {
-            surface_capabilities.current_transform
+            present_modes
+                .iter()
+                .cloned()
+                .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
+                .unwrap_or(vk::PresentModeKHR::FIFO)
         };
-        let present_modes = surface_loader.get_physical_device_surface_present_modes(pdevice, surface).unwrap();
-        let present_mode = present_modes
-            .iter()
-            .cloned()
-            .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
-            .unwrap_or(vk::PresentModeKHR::FIFO);
         let swapchain_loader = Swapchain::new(&instance, &device);
-
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
             .surface(surface)
             .min_image_count(desired_image_count)
@@ -286,10 +239,8 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .present_mode(present_mode)
             .clipped(true)
             .image_array_layers(1);
-
-        let swapchain = swapchain_loader
-            .create_swapchain(&swapchain_create_info, None)
-            .unwrap();
+        let swapchain = swapchain_loader.create_swapchain(&swapchain_create_info, None).unwrap();
+        log::info!("Swapchain: {:?}, {:?}", Swapchain::name(), surface_format);
 
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -302,9 +253,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .command_pool(pool)
             .level(vk::CommandBufferLevel::PRIMARY);
 
-        let command_buffers = device
-            .allocate_command_buffers(&command_buffer_allocate_info)
-            .unwrap();
+        let command_buffers = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap();
         let setup_command_buffer = command_buffers[0];
         let draw_command_buffer = command_buffers[1];
 
@@ -331,7 +280,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                     .image(image);
                 device.create_image_view(&create_view_info, None).unwrap()
             }).collect();
-        let device_memory_properties = instance.get_physical_device_memory_properties(pdevice);
+        let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
         let depth_image_create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
             .format(vk::Format::D16_UNORM)
@@ -361,8 +310,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
 
         let depth_image_memory = device.allocate_memory(&depth_image_allocate_info, None).unwrap();
 
-        device.bind_image_memory(depth_image, depth_image_memory, 0)
-            .expect("Unable to bind depth image memory");
+        device.bind_image_memory(depth_image, depth_image_memory, 0).expect("Unable to bind depth image memory");
 
         let present_queue = device.get_device_queue(queue_family_index as u32, 0);
         record_submit_commandbuffer(
@@ -377,7 +325,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                     .image(depth_image)
                     .dst_access_mask(
                         vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                        | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
                     )
                     .new_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
                     .old_layout(vk::ImageLayout::UNDEFINED)
@@ -388,7 +336,6 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                             .level_count(1)
                             .build(),
                     );
-
                 device.cmd_pipeline_barrier(
                     setup_command_buffer,
                     vk::PipelineStageFlags::BOTTOM_OF_PIPE,
@@ -400,7 +347,6 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                 );
             },
         );
-
         let depth_image_view_info = vk::ImageViewCreateInfo::builder()
             .subresource_range(
                 vk::ImageSubresourceRange::builder()
@@ -412,30 +358,29 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .image(depth_image)
             .format(depth_image_create_info.format)
             .view_type(vk::ImageViewType::TYPE_2D);
-
-        let depth_image_view = device
-            .create_image_view(&depth_image_view_info, None)
-            .unwrap();
-
+        let depth_image_view = device.create_image_view(&depth_image_view_info, None).unwrap();
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+        let present_complete_semaphore = device.create_semaphore(&semaphore_create_info, None).unwrap();
+        let rendering_complete_semaphore = device.create_semaphore(&semaphore_create_info, None).unwrap();
 
-        let present_complete_semaphore = device
-            .create_semaphore(&semaphore_create_info, None)
-            .unwrap();
-        let rendering_complete_semaphore = device
-            .create_semaphore(&semaphore_create_info, None)
-            .unwrap();
-
-        log::info!("    swapchain: {:?}", Swapchain::name());
-        log::info!("    api version: {}.{}.{}", vk::version_major(constants::API_VERSION), vk::version_minor(constants::API_VERSION), vk::version_patch(constants::API_VERSION));
-        log::info!("    surface_extensions: {:?}", surface_extensions);
+        // debug utils
+        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
+            .message_severity(
+                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+                    | vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
+                //| vk::DebugUtilsMessageSeverityFlagsEXT::INFO,
+            )
+            .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
+            .pfn_user_callback(Some(vulkan_debug_callback));
+        let debug_utils_loader = DebugUtils::new(&entry, &instance);
+        let debug_call_back = debug_utils_loader.create_debug_utils_messenger(&debug_info, None).unwrap();
 
         Rc::new(RefCell::new(RendererData {
             entry,
             instance,
             device,
             queue_family_index,
-            pdevice,
+            physical_device,
             device_memory_properties,
             window,
             surface_loader,
@@ -978,10 +923,8 @@ impl Drop for RendererData {
     fn drop(&mut self) {
         unsafe {
             self.device.device_wait_idle().unwrap();
-            self.device
-                .destroy_semaphore(self.present_complete_semaphore, None);
-            self.device
-                .destroy_semaphore(self.rendering_complete_semaphore, None);
+            self.device.destroy_semaphore(self.present_complete_semaphore, None);
+            self.device.destroy_semaphore(self.rendering_complete_semaphore, None);
             self.device.free_memory(self.depth_image_memory, None);
             self.device.destroy_image_view(self.depth_image_view, None);
             self.device.destroy_image(self.depth_image, None);
@@ -989,13 +932,11 @@ impl Drop for RendererData {
                 self.device.destroy_image_view(image_view, None);
             }
             self.device.destroy_command_pool(self.pool, None);
-            self.swapchain_loader
-                .destroy_swapchain(self.swapchain, None);
+            self.swapchain_loader.destroy_swapchain(self.swapchain, None);
             self.device.destroy_device(None);
-            self.surface_loader.destroy_surface(self.surface, None);
-            self.debug_utils_loader
-                .destroy_debug_utils_messenger(self.debug_call_back, None);
-            self.instance.destroy_instance(None);
+            destroy_vk_surface(&self.surface_loader, &self.surface);
+            self.debug_utils_loader.destroy_debug_utils_messenger(self.debug_call_back, None);
+            destroy_vk_instance(&self.instance);
         }
     }
 }
