@@ -145,26 +145,45 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             physical_device,
             constants::IS_CONCURRENT_MODE
         );
-
-        let queue_family_index = queue_family_indices._graphics_queue_index;
-
-        let queue_family_index = queue_family_index as u32;
-        let priorities = [1.0];
-        let queue_info = [vk::DeviceQueueCreateInfo::builder()
-            .queue_family_index(queue_family_index)
-            .queue_priorities(&priorities)
-            .build()];
-
-        let features = vk::PhysicalDeviceFeatures {
-            shader_clip_distance: 1,
-            ..Default::default()
+        let renderFeatures = vulkan_context::RenderFeatures {
+            _physical_device_features: physical_device_features.clone(),
+            _msaa_samples: msaa_samples,
         };
-        let device_extension_names_raw = [Swapchain::name().as_ptr()];
-        let device_create_info = vk::DeviceCreateInfo::builder()
-            .queue_create_infos(&queue_info)
-            .enabled_extension_names(&device_extension_names_raw)
-            .enabled_features(&features);
-        let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
+        let graphics_queue_index = queue_family_indices._graphics_queue_index;
+        let present_queue_index = queue_family_indices._present_queue_index;
+        let queue_family_index_set: Vec<u32> = if graphics_queue_index == present_queue_index {
+            vec![graphics_queue_index]
+        } else {
+            vec![graphics_queue_index, present_queue_index]
+        };
+
+        let device = device::create_device(&instance, physical_device, &renderFeatures, &queue_family_index_set);
+        let queue_map = queue::create_queues(&device, &queue_family_index_set);
+        let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
+        let queue_family_datas = queue::QueueFamilyDatas {
+            _graphics_queue: queue_map.get(&graphics_queue_index).unwrap_or(default_queue).clone(),
+            _present_queue: queue_map.get(&present_queue_index).unwrap_or(default_queue).clone(),
+            _queue_family_index_list: queue_family_index_set.clone(),
+            _queue_family_count: queue_map.len() as u32,
+            _queue_family_indices: queue_family_indices.clone()
+        };
+
+        /*
+        commandPool <- createCommandPool device queueFamilyDatas
+        imageAvailableSemaphores <- createSemaphores device
+        renderFinishedSemaphores <- createSemaphores device
+        frameFencesPtr <- createFrameFences device
+
+        swapChainData <- createSwapChainData device swapChainSupportDetails queueFamilyDatas vkSurface Constants.enableImmediateMode
+        swapChainDataRef <- newIORef swapChainData
+        swapChainSupportDetailsRef <- newIORef swapChainSupportDetails
+
+        let commandBufferCount = Constants.swapChainImageCount
+        commandBuffersPtr <- mallocArray commandBufferCount::IO (Ptr VkCommandBuffer)
+        createCommandBuffers device commandPool commandBufferCount commandBuffersPtr
+        commandBuffers <- peekArray commandBufferCount commandBuffersPtr
+        */
+
 
         let surface_formats = surface_interface.get_physical_device_surface_formats(physical_device, surface).unwrap();
         let required_format = vk::SurfaceFormatKHR {
@@ -235,7 +254,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
 
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(queue_family_index);
+            .queue_family_index(graphics_queue_index);
 
         let pool = device.create_command_pool(&pool_create_info, None).unwrap();
 
@@ -303,7 +322,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
 
         device.bind_image_memory(depth_image, depth_image_memory, 0).expect("Unable to bind depth image memory");
 
-        let present_queue = device.get_device_queue(queue_family_index as u32, 0);
+        let present_queue = device.get_device_queue(graphics_queue_index, 0);
         vulkan_context::record_submit_commandbuffer(
             &device,
             setup_command_buffer,
@@ -370,7 +389,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             entry,
             instance,
             device,
-            queue_family_index,
+            queue_family_index: graphics_queue_index,
             physical_device,
             device_memory_properties,
             window,
@@ -924,7 +943,7 @@ impl Drop for RendererData {
             }
             self.device.destroy_command_pool(self.pool, None);
             self.swapchain_interface.destroy_swapchain(self.swapchain, None);
-            self.device.destroy_device(None);
+            device::destroy_device(&self.device);
             device::destroy_vk_surface(&self.surface_interface, &self.surface);
             self.debug_utils_loader.destroy_debug_utils_messenger(self.debug_call_back, None);
             device::destroy_vk_instance(&self.instance);

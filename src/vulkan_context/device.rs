@@ -170,59 +170,47 @@ pub unsafe fn select_physical_device(instance: &Instance, surface_interface: &Su
     let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
     log::info!("Found {} devices", physical_devices.len());
     for physical_device in physical_devices {
-        let (result, swapchain_support_details, physical_device_features) = is_device_suitable(instance, surface_interface, surface, &physical_device);
+        let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, &physical_device);
         if result {
+            // set enable clip distance
+            physical_device_features.shader_clip_distance = 1;
             return Some((physical_device, swapchain_support_details, physical_device_features));
         }
     }
     None
 }
 
+pub unsafe fn create_device(
+    instance: &Instance,
+    physical_device: vk::PhysicalDevice,
+    render_features: &vulkan_context::RenderFeatures,
+    queue_family_index_set: &Vec<u32>
+) -> Device {
+    let queue_priorities = [1.0];
+    let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = queue_family_index_set
+        .iter()
+        .map(|queue_family_index| {
+            vk::DeviceQueueCreateInfo::builder()
+                .queue_family_index(*queue_family_index)
+                .queue_priorities(&queue_priorities)
+                .build()
+        })
+        .collect();
+    let layer_names: Vec<CString> = constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect();
+    let layer_names_raw: Vec<*const c_char> = layer_names.iter().map(|layer_name| { layer_name.as_ptr() }).collect();
+    let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|extension| { CString::new(*extension).unwrap() }).collect();
+    let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
+    let device_create_info = vk::DeviceCreateInfo::builder()
+        .queue_create_infos(&queue_create_infos)
+        .enabled_layer_names(&layer_names_raw)
+        .enabled_extension_names(&device_extension_names_raw)
+        .enabled_features(&render_features._physical_device_features);
+    let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
+    log::info!("Created Device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
+    device
+}
 
-//
-//
-// createDevice :: VkPhysicalDevice -> [Word32] -> IO VkDevice
-// createDevice physicalDevice queueFamilyList = do
-//     queuePrioritiesPtr <- new 1.0
-//     queueCreateInfoList <- forM queueFamilyList $ \queueFamilyIndex ->
-//         newVkData @VkDeviceQueueCreateInfo $ \queueCreateInfoPtr -> do
-//             writeField @"sType" queueCreateInfoPtr VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO
-//             writeField @"pNext" queueCreateInfoPtr VK_NULL_HANDLE
-//             writeField @"flags" queueCreateInfoPtr VK_ZERO_FLAGS
-//             writeField @"queueFamilyIndex" queueCreateInfoPtr queueFamilyIndex
-//             writeField @"queueCount" queueCreateInfoPtr 1
-//             writeField @"pQueuePriorities" queueCreateInfoPtr queuePrioritiesPtr
-//     physicalDeviceFeatures <- newVkData @VkPhysicalDeviceFeatures $
-//         \physicalDeviceFeaturesPtr -> do
-//             clearStorable physicalDeviceFeaturesPtr
-//             writeField @"samplerAnisotropy" physicalDeviceFeaturesPtr VK_TRUE
-//     queueCreateInfoArrayPtr <- newArray queueCreateInfoList
-//     requireDeviceExtensionsPtr <- newArray Constants.requireDeviceExtensions
-//     deviceCreateInfo <- withCStringList Constants.vulkanLayers $ \layerCount layerNames -> do
-//         newVkData @VkDeviceCreateInfo $ \devCreateInfoPtr -> do
-//             writeField @"sType" devCreateInfoPtr VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO
-//             writeField @"pNext" devCreateInfoPtr VK_NULL_HANDLE
-//             writeField @"flags" devCreateInfoPtr VK_ZERO_FLAGS
-//             writeField @"pQueueCreateInfos" devCreateInfoPtr queueCreateInfoArrayPtr
-//             writeField @"queueCreateInfoCount" devCreateInfoPtr (fromIntegral $ length queueCreateInfoList)
-//             writeField @"enabledLayerCount" devCreateInfoPtr (fromIntegral layerCount)
-//             writeField @"ppEnabledLayerNames" devCreateInfoPtr layerNames
-//             writeField @"enabledExtensionCount" devCreateInfoPtr (fromIntegral $ length Constants.requireDeviceExtensions)
-//             writeField @"ppEnabledExtensionNames" devCreateInfoPtr requireDeviceExtensionsPtr
-//             writeField @"pEnabledFeatures" devCreateInfoPtr (unsafePtr physicalDeviceFeatures)
-//     device <- alloca $ \devicePtr -> do
-//         result <- vkCreateDevice physicalDevice (unsafePtr deviceCreateInfo) VK_NULL_HANDLE devicePtr
-//         validationVK result "vkCreateDevice: failed to create vkDevice"
-//         peek devicePtr
-//     logInfo $ "Created Device: " ++ show device
-//     touchVkData deviceCreateInfo
-//     touchVkData physicalDeviceFeatures
-//     free requireDeviceExtensionsPtr
-//     free queueCreateInfoArrayPtr
-//     free queuePrioritiesPtr
-//     return device
-//
-// destroyDevice :: VkDevice -> IO ()
-// destroyDevice device = do
-//     logInfo "Destroy VkDevice"
-//     vkDestroyDevice device VK_NULL_HANDLE
+pub unsafe fn destroy_device(device: &Device) {
+    log::info!("Destroy VkDevice");
+    device.destroy_device(None);
+}

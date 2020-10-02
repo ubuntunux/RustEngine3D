@@ -25,6 +25,28 @@ use ash::version::{
     InstanceV1_0,
 };
 
+use crate::constants;
+
+
+enum BlendMode {
+    None,
+    AlphaBlend
+}
+
+pub struct SwapChainIndexMap<T> {
+    pub _values:[T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
+}
+
+pub struct FrameIndexMap<T> {
+    pub _values:[T; constants::MAX_FRAME_COUNT as usize]
+}
+
+#[derive(Debug, Clone)]
+pub struct RenderFeatures {
+    pub _physical_device_features: vk::PhysicalDeviceFeatures,
+    pub _msaa_samples: vk::SampleCountFlags
+}
+
 // Simple offset_of macro akin to C++ offsetof
 #[macro_export]
 macro_rules! offset_of {
@@ -136,90 +158,6 @@ pub fn find_memorytype_index_f<F: Fn(vk::MemoryPropertyFlags, vk::MemoryProperty
     None
 }
 
-//
-//
-// data SwapChainIndexMap a
-//     = SwapChainIndexMap a a a
-//     | SwapChainIndexMapEmpty
-//     deriving (Eq, Show)
-//
-// data FrameIndexMap a
-//     = FrameIndexMap a a
-//     | FrameIndexMapEmpty
-//     deriving (Eq, Show)
-//
-// data RenderFeatures = RenderFeatures
-//     { _anisotropyEnable :: VkBool32
-//     , _msaaSamples :: VkSampleCountFlagBits
-//     } deriving (Eq, Show)
-//
-// data BlendMode = BlendMode_None | BlendMode_AlphaBlend
-//
-// applySwapChainIndex :: (a -> b) -> SwapChainIndexMap a -> SwapChainIndexMap b
-// applySwapChainIndex f (SwapChainIndexMap a b c) = SwapChainIndexMap (f a) (f b) (f c)
-// applySwapChainIndex f _ = SwapChainIndexMapEmpty
-//
-// applyIOSwapChainIndex :: (a -> IO b) -> SwapChainIndexMap a -> IO (SwapChainIndexMap b)
-// applyIOSwapChainIndex f (SwapChainIndexMap a b c) = do
-//     a' <- f a
-//     b' <- f b
-//     c' <- f c
-//     return $ SwapChainIndexMap a' b' c'
-// applyIOSwapChainIndex f _ = return SwapChainIndexMapEmpty
-//
-// applyIOSwapChainIndex' :: (a -> IO b) -> SwapChainIndexMap a -> IO ()
-// applyIOSwapChainIndex' f abc = do
-//     applyIOSwapChainIndex f abc
-//     return ()
-//
-// atSwapChainIndex :: Int -> SwapChainIndexMap a -> a
-// atSwapChainIndex 0 (SwapChainIndexMap a b c) = a
-// atSwapChainIndex 1 (SwapChainIndexMap a b c) = b
-// atSwapChainIndex 2 (SwapChainIndexMap a b c) = c
-// atSwapChainIndex _ _ = undefined
-//
-// swapChainIndexMapSingleton :: a -> SwapChainIndexMap a
-// swapChainIndexMapSingleton a = SwapChainIndexMap a a a
-//
-// swapChainIndexMapFromList :: [a] -> SwapChainIndexMap a
-// swapChainIndexMapFromList (a:b:c:[]) = SwapChainIndexMap a b c
-// swapChainIndexMapFromList _ = SwapChainIndexMapEmpty
-//
-// swapChainIndexMapToList :: SwapChainIndexMap a -> [a]
-// swapChainIndexMapToList (SwapChainIndexMap a b c) = [a, b, c]
-// swapChainIndexMapToList _ = []
-//
-// atFrameIndex :: Int -> FrameIndexMap a -> a
-// atFrameIndex 0 (FrameIndexMap a b) = a
-// atFrameIndex 1 (FrameIndexMap a b) = b
-// atFrameIndex _ _ = undefined
-//
-// applyFrameIndex :: (a -> b) -> FrameIndexMap a -> FrameIndexMap b
-// applyFrameIndex f (FrameIndexMap a b) = FrameIndexMap (f a) (f b)
-// applyFrameIndex f _ = FrameIndexMapEmpty
-//
-// applyIOFrameIndex :: (a -> IO b) -> FrameIndexMap a -> IO (FrameIndexMap b)
-// applyIOFrameIndex f (FrameIndexMap a b) = do
-//     a' <- f a
-//     b' <- f b
-//     return $ FrameIndexMap a' b'
-// applyIOFrameIndex f _ = return FrameIndexMapEmpty
-//
-// applyIOFrameIndex' :: (a -> IO b) -> FrameIndexMap a -> IO ()
-// applyIOFrameIndex' f ab = do
-//     applyIOFrameIndex f ab
-//     return ()
-//
-// frameIndexMapSingleton :: a -> FrameIndexMap a
-// frameIndexMapSingleton a = FrameIndexMap a a
-//
-// frameIndexMapFromList :: [a] -> FrameIndexMap a
-// frameIndexMapFromList (a:b:[]) = FrameIndexMap a b
-// frameIndexMapFromList _ = FrameIndexMapEmpty
-//
-// frameIndexMapToList :: FrameIndexMap a -> [a]
-// frameIndexMapToList (FrameIndexMap a b) = [a, b]
-// frameIndexMapToList _ = []
 //
 // getColor32 :: Word32 -> Word32 -> Word32 -> Word32 -> Word32
 // getColor32 r g b a = (min 255 r) .|. shift (min 255 g) 8 .|. shift (min 255 b) 16 .|. shift (min 255 a) 24

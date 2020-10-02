@@ -1,11 +1,14 @@
+use std::collections::HashMap;
+
 use ash::{
     vk,
-    Instance
+    Instance,
+    Device,
 };
 use ash::extensions::khr::{
     Surface,
 };
-use ash::version::InstanceV1_0;
+use ash::version::{InstanceV1_0, DeviceV1_0};
 
 use crate::constants;
 
@@ -137,13 +140,12 @@ pub unsafe fn get_queue_family_indices(
     queue_family_indices
 }
 
-//
-// createQueues :: VkDevice -> [u32] -> IO (Map.Map u32 VkQueue)
-// createQueues device queueFamilyIndices = do
-//   queueList <- forM queueFamilyIndices $ \queueFamilyIndex -> do
-//     queue <- alloca $ \queuePtr -> do
-//       vkGetDeviceQueue device queueFamilyIndex 0 queuePtr
-//       peek queuePtr
-//     return (queueFamilyIndex, queue)
-//   logInfo $ "Created Queues: " ++ show queueList
-//   return $ Map.fromList queueList
+pub unsafe fn create_queues(device: &Device, queue_family_index_set: &Vec<u32>) -> HashMap<u32, vk::Queue> {
+    let mut queue_map = HashMap::new();
+    for queue_family_index in queue_family_index_set.iter() {
+        let queue = device.get_device_queue(*queue_family_index, 0);
+        queue_map.insert(*queue_family_index, queue);
+    }
+    log::info!("Created Queues: {:?}", queue_map);
+    queue_map
+}
