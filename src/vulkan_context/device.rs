@@ -30,8 +30,8 @@ use winit::window::{
 };
 
 use crate::constants;
-use crate::vulkan_context::swap_chain::*;
-use crate::vulkan_context::vulkan_context::*;
+use crate::vulkan_context::swapchain;
+use crate::vulkan_context::vulkan_context;
 
 // getExtensionNames :: (Traversable t1, VulkanMarshal t) => [Char] -> t1 t -> IO (t1 String)
 // getExtensionNames extensionType availableExtensionArrayPtr = do
@@ -136,19 +136,10 @@ pub unsafe fn create_vk_surface(entry: &Entry, instance: &Instance, window: &Win
     ash_window::create_surface(entry, instance, window, None).unwrap()
 }
 
-pub unsafe fn destroy_vk_surface(surface_loader: &Surface, surface: &vk::SurfaceKHR) {
+pub unsafe fn destroy_vk_surface(surface_interface: &Surface, surface_khr: &vk::SurfaceKHR) {
     log::info!("Destroy VkSurfaceKHR");
-    surface_loader.destroy_surface(*surface, None);
+    surface_interface.destroy_surface(*surface_khr, None);
 }
-
-//
-// getPhysicalDeviceProperties :: VkPhysicalDevice -> IO VkPhysicalDeviceProperties
-// getPhysicalDeviceProperties physicalDevice = do
-//     deviceProperties <- alloca $ \propertiesPtr -> do
-//         vkGetPhysicalDeviceProperties physicalDevice propertiesPtr
-//         peek propertiesPtr
-//     return deviceProperties
-//
 
 
 pub unsafe fn check_extension_support(
@@ -166,48 +157,33 @@ pub unsafe fn check_extension_support(
     false
 }
 
-/*
-isDeviceSuitable :: Maybe VkSurfaceKHR
-                 -> VkPhysicalDevice
-                 -> IO (Bool, Maybe SwapChainSupportDetails, VkPhysicalDeviceFeatures)
-isDeviceSuitable maybeVkSurface physicalDevice = do
-    deviceExtensionNames <- getDeviceExtensionSupport physicalDevice
-    hasExtension <- checkExtensionSupport deviceExtensionNames Constants.requireDeviceExtensions
-    supportedFeatures <- allocaPeek $ vkGetPhysicalDeviceFeatures physicalDevice
-    (maybeSwapChainSupportDetails, result) <- case maybeVkSurface of
-        Nothing -> pure (Nothing, False)
-        Just vkSurface -> do
-            swapChainSupportDetails <- querySwapChainSupport physicalDevice vkSurface
-            let result = isValidSwapChainSupport swapChainSupportDetails
-            return (Just swapChainSupportDetails, result)
-    pure (hasExtension && result, maybeSwapChainSupportDetails, supportedFeatures)
-    */
-
-pub unsafe fn is_device_suitable(instance: &Instance, surface_loader: &Surface, surface: &vk::SurfaceKHR, physical_device: &vk::PhysicalDevice)
-    -> (bool, SwapChainSupportDetails, vk::PhysicalDeviceFeatures)
+pub unsafe fn is_device_suitable(instance: &Instance, surface_interface: &Surface, surface_khr: &vk::SurfaceKHR, physical_device: &vk::PhysicalDevice)
+    -> (bool, swapchain::SwapChainSupportDetails, vk::PhysicalDeviceFeatures)
 {
     let available_device_extensions: Vec<vk::ExtensionProperties> = instance.enumerate_device_extension_properties(*physical_device).unwrap();
     let device_extension_names = vec![Swapchain::name()];
     let has_extension: bool = check_extension_support(&available_device_extensions, &device_extension_names);
     let physical_device_features = instance.get_physical_device_features(*physical_device);
-    let swapchain_support_details = query_swapchain_support(surface_loader, physical_device, surface);
-    let result = is_valid_swapchain_support(&swapchain_support_details);
+    let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface_khr);
+    let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
     (has_extension && result, swapchain_support_details, physical_device_features)
 }
 
-pub unsafe fn select_physical_device(instance: &Instance, surface_loader: &Surface, surface: &vk::SurfaceKHR)
-    -> Option<(vk::PhysicalDevice, SwapChainSupportDetails, vk::PhysicalDeviceFeatures)>
+pub unsafe fn select_physical_device(instance: &Instance, surface_interface: &Surface, surface_khr: &vk::SurfaceKHR)
+    -> Option<(vk::PhysicalDevice, swapchain::SwapChainSupportDetails, vk::PhysicalDeviceFeatures)>
 {
     let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
     log::info!("Found {} devices", physical_devices.len());
     for physical_device in physical_devices {
-        let (result, swapchain_support_details, physical_device_features) = is_device_suitable(instance, surface_loader, surface, &physical_device);
+        let (result, swapchain_support_details, physical_device_features) = is_device_suitable(instance, surface_interface, surface_khr, &physical_device);
         if result {
             return Some((physical_device, swapchain_support_details, physical_device_features));
         }
     }
     None
 }
+
+
 //
 //
 // createDevice :: VkPhysicalDevice -> [Word32] -> IO VkDevice

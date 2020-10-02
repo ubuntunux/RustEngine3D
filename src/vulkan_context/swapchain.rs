@@ -9,7 +9,7 @@ use ash::extensions::khr::{
 
 use crate::constants;
 
-pub type SwapChainIndexMap<T> = [T; constants::SWAP_CHAIN_IMAGE_COUNT as usize];
+pub type SwapChainIndexMap<T> = [T; constants::SWAPCHAIN_IMAGE_COUNT as usize];
 
 #[derive(Debug)]
 pub struct SwapChainSupportDetails {
@@ -20,11 +20,11 @@ pub struct SwapChainSupportDetails {
 
 #[derive(Debug)]
 pub struct SwapChainData {
-    _swap_chain: vk::SwapchainKHR,
-    _swap_chain_image_format: vk::Format,
-    _swap_chain_images: SwapChainIndexMap<vk::Image>,
-    _swap_chain_image_views: SwapChainIndexMap<vk::ImageView>,
-    _swap_chain_extent: vk::Extent2D
+    _swapchain: vk::SwapchainKHR,
+    _swapchain_image_format: vk::Format,
+    _swapchain_images: SwapChainIndexMap<vk::Image>,
+    _swapchain_image_views: SwapChainIndexMap<vk::ImageView>,
+    _swapchain_extent: vk::Extent2D
 }
 
 
@@ -173,18 +173,18 @@ pub unsafe fn query_swapchain_support(surface_loader: &Surface, physical_device:
 //   logInfo $ "    imageExtent : " ++ (show $ getField @"imageExtent" swapChainCreateInfo)
 //   logInfo $ "    imageSharingMode : " ++ (show $ getField @"imageSharingMode" swapChainCreateInfo)
 //
-//   let swapChainData = SwapChainData { _swap_chain = swapChain
-//                                     , _swap_chain_images = swapChainImages
-//                                     , _swap_chain_image_format = swapChainImageFormat
-//                                     , _swap_chain_image_views = swapChainImageViews
+//   let swapChainData = SwapChainData { _swapchain = swapChain
+//                                     , _swapchain_images = swapChainImages
+//                                     , _swapchain_image_format = swapChainImageFormat
+//                                     , _swapchain_image_views = swapChainImageViews
 //                                     , _swapChainExtent = swapChainExtent }
 //   return swapChainData
 //
 // destroySwapChainData :: VkDevice -> SwapChainData -> IO ()
 // destroySwapChainData device swapChainData = do
-//   destroySwapChainImageViews device (_swap_chain_image_views swapChainData)
+//   destroySwapChainImageViews device (_swapchain_image_views swapChainData)
 //   logInfo "Destroy SwapChain"
-//   vkDestroySwapchainKHR device (_swap_chain swapChainData) VK_NULL_HANDLE
+//   vkDestroySwapchainKHR device (_swapchain swapChainData) VK_NULL_HANDLE
 //
 // createSwapChainImageViews :: VkDevice -> SwapChainIndexMap VkImage -> VkFormat -> IO (SwapChainIndexMap VkImageView)
 // createSwapChainImageViews device swapChainImages swapChainImageFormat = do
