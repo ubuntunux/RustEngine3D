@@ -14,7 +14,6 @@ use std::rc::Rc;
 use std::sync::Arc;
 use std::vec::Vec;
 
-use ash;
 use ash::{
     vk,
     Device,
@@ -61,7 +60,7 @@ pub struct RendererData {
     pub instance: Instance,
     pub device: Device,
     pub surface_interface: Surface,
-    pub swapchain_loader: Swapchain,
+    pub swapchain_interface: Swapchain,
     pub debug_utils_loader: DebugUtils,
     pub window: Window,
     pub debug_call_back: vk::DebugUtilsMessengerEXT,
@@ -71,7 +70,7 @@ pub struct RendererData {
     pub queue_family_index: u32,
     pub present_queue: vk::Queue,
 
-    pub surface_khr: vk::SurfaceKHR,
+    pub surface: vk::SurfaceKHR,
     pub surface_format: vk::SurfaceFormatKHR,
     pub surface_resolution: vk::Extent2D,
 
@@ -131,13 +130,12 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         let entry = Entry::new().unwrap();
         let surface_extensions = ash_window::enumerate_required_extensions(&window).unwrap();
         let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
-        let surface_khr = device::create_vk_surface(&entry, &instance, &window);
+        let surface = device::create_vk_surface(&entry, &instance, &window);
         let surface_interface = Surface::new(&entry, &instance);
-        let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, &surface_khr).unwrap();
+        let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, &surface).unwrap();
         let deviceProperties = instance.get_physical_device_properties(physical_device);
-
-        // msaaSamples <- getMaxUsableSampleCount deviceProperties
-        // queueFamilyIndices <- getQueueFamilyIndices physicalDevice vkSurface isConcurrentMode
+        let msaa_samples = device::get_max_usable_sample_count(&deviceProperties);
+        //let queue_family_indices = get_queue_family_indices physicalDevice vkSurface isConcurrentMode
 
         let queue_family_index = instance
             .get_physical_device_queue_family_properties(physical_device)
@@ -148,7 +146,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                 let surface_support = surface_interface.get_physical_device_surface_support(
                     physical_device,
                     index as u32,
-                    surface_khr,
+                    surface,
                 ).unwrap();
                 if has_graphics_queue && surface_support {
                     Some(index)
@@ -177,7 +175,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .enabled_features(&features);
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
 
-        let surface_formats = surface_interface.get_physical_device_surface_formats(physical_device, surface_khr).unwrap();
+        let surface_formats = surface_interface.get_physical_device_surface_formats(physical_device, surface).unwrap();
         let required_format = vk::SurfaceFormatKHR {
             format: constants::SWAPCHAIN_IMAGE_FORMAT,
             color_space: constants::SWAPCHAIN_COLOR_SPACE,
@@ -198,7 +196,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                     .next()
                     .expect("Unable to find suitable surface format.")
             };
-        let surface_capabilities = surface_interface.get_physical_device_surface_capabilities(physical_device, surface_khr).unwrap();
+        let surface_capabilities = surface_interface.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
         let desired_image_count = if surface_capabilities.max_image_count <= 0 {
             max(surface_capabilities.min_image_count, constants::SWAPCHAIN_IMAGE_COUNT)
         } else {
@@ -217,7 +215,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             } else {
                 surface_capabilities.current_transform
             };
-        let present_modes = surface_interface.get_physical_device_surface_present_modes(physical_device, surface_khr).unwrap();
+        let present_modes = surface_interface.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
         let present_mode = if constants::ENABLE_IMMEDIATE_MODE {
             vk::PresentModeKHR::IMMEDIATE
         } else {
@@ -227,9 +225,9 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
                 .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
                 .unwrap_or(vk::PresentModeKHR::FIFO)
         };
-        let swapchain_loader = Swapchain::new(&instance, &device);
+        let swapchain_interface = Swapchain::new(&instance, &device);
         let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-            .surface(surface_khr)
+            .surface(surface)
             .min_image_count(desired_image_count)
             .image_color_space(surface_format.color_space)
             .image_format(surface_format.format)
@@ -241,7 +239,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             .present_mode(present_mode)
             .clipped(true)
             .image_array_layers(1);
-        let swapchain = swapchain_loader.create_swapchain(&swapchain_create_info, None).unwrap();
+        let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).unwrap();
         log::info!("Swapchain: {:?}, {:?}", Swapchain::name(), surface_format);
 
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
@@ -259,7 +257,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         let setup_command_buffer = command_buffers[0];
         let draw_command_buffer = command_buffers[1];
 
-        let present_images = swapchain_loader.get_swapchain_images(swapchain).unwrap();
+        let present_images = swapchain_interface.get_swapchain_images(swapchain).unwrap();
         let present_image_views: Vec<vk::ImageView> = present_images
             .iter()
             .map(|&image| {
@@ -389,7 +387,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             surface_format,
             present_queue,
             surface_resolution,
-            swapchain_loader,
+            swapchain_interface,
             swapchain,
             present_images,
             present_image_views,
@@ -400,7 +398,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             depth_image_view,
             present_complete_semaphore,
             rendering_complete_semaphore,
-            surface_khr,
+            surface,
             debug_call_back,
             debug_utils_loader,
             depth_image_memory,
@@ -809,7 +807,7 @@ impl RendererData {
 //     let render_scene = (|| {
 //         unsafe {
 //             let graphic_pipeline = graphics_pipelines[0];
-//             let (present_index, _) = self.swapchain_loader.acquire_next_image(
+//             let (present_index, _) = self.swapchain_interface.acquire_next_image(
 //                 self.swapchain,
 //                 std::u64::MAX,
 //                 self.present_complete_semaphore,
@@ -892,7 +890,7 @@ impl RendererData {
 //                 .swapchains(&swapchains)
 //                 .image_indices(&image_indices);
 //
-//             self.swapchain_loader
+//             self.swapchain_interface
 //                 .queue_present(self.present_queue, &present_info)
 //                 .unwrap();
 //         }
@@ -934,9 +932,9 @@ impl Drop for RendererData {
                 self.device.destroy_image_view(image_view, None);
             }
             self.device.destroy_command_pool(self.pool, None);
-            self.swapchain_loader.destroy_swapchain(self.swapchain, None);
+            self.swapchain_interface.destroy_swapchain(self.swapchain, None);
             self.device.destroy_device(None);
-            device::destroy_vk_surface(&self.surface_interface, &self.surface_khr);
+            device::destroy_vk_surface(&self.surface_interface, &self.surface);
             self.debug_utils_loader.destroy_debug_utils_messenger(self.debug_call_back, None);
             device::destroy_vk_instance(&self.instance);
         }

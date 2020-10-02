@@ -1,7 +1,4 @@
-use ash;
-use ash::{
-    vk,
-};
+use ash::vk;
 use ash::extensions::khr::{
     Surface,
     Swapchain,

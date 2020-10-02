@@ -1,125 +1,145 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
+use ash::{
+    vk,
+    Instance
+};
+use ash::extensions::khr::{
+    Surface,
+};
+use ash::version::InstanceV1_0;
 
-module HulkanEngine3D.Vulkan.Queue
-    ( QueueFamilyIndices (..)
-    , QueueFamilyDatas (..)
-    , createQueues
-    , getQueueFamilyIndices
-    ) where
+use crate::constants;
 
-import Control.Monad
-import Data.Bits
-import qualified Data.Map as Map
-import Foreign.Marshal.Alloc
-import Foreign.Marshal.Array
-import Foreign.Storable
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
-import Graphics.Vulkan.Ext.VK_KHR_surface
+#[derive(Debug, Clone)]
+pub struct QueueFamilyIndices {
+    _graphics_queue_index: u32,
+    _present_queue_index: u32,
+    _compute_queue_index: u32,
+    _transfer_queue_index: u32,
+    _sparse_binding_queue_index: u32
+}
 
-import qualified HulkanEngine3D.Constants as Constants
-import HulkanEngine3D.Utilities.System
-import HulkanEngine3D.Utilities.Logger
+#[derive(Debug, Clone)]
+pub struct QueueFamilyDatas {
+    _graphics_queue: vk::Queue,
+    _present_queue: vk::Queue,
+    _queue_family_index_list: Vec<u32>,
+    _queue_family_count: u32,
+    _queue_family_indices: QueueFamilyIndices
+}
 
-data QueueFamilyIndices = QueueFamilyIndices
-    { _graphicsQueueIndex :: Word32
-    , _presentQueueIndex :: Word32
-    , _computeQueueIndex :: Word32
-    , _transferQueueIndex :: Word32
-    , _sparseBindingQueueIndex :: Word32
-    } deriving (Eq, Show)
+unsafe fn select_queue_family(
+    surface_interface: &Surface,
+    surface: vk::SurfaceKHR,
+    physical_device: vk::PhysicalDevice,
+    queue_family_properties: &Vec<vk::QueueFamilyProperties>,
+    queue_flags: vk::QueueFlags
+) -> Vec<u32> {
+    queue_family_properties
+        .iter()
+        .enumerate()
+        .filter_map(|(index, ref queue_family_property)| {
+            let has_specify_queue = queue_family_property.queue_flags.contains(queue_flags);
+            let surface_support = surface_interface.get_physical_device_surface_support(
+                physical_device,
+                index as u32,
+                surface,
+            ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
+            if has_specify_queue && surface_support {
+                Some(index as u32)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
-data QueueFamilyDatas = QueueFamilyDatas
-    { _graphicsQueue :: VkQueue
-    , _presentQueue :: VkQueue
-    , _queueFamilyIndexList :: [Word32]
-    , _queueFamilyCount :: Word32
-    , _queueFamilyIndices :: QueueFamilyIndices
-    } deriving (Eq, Show)
+unsafe fn select_presentation_queue_family(
+    surface_interface: &Surface,
+    surface: vk::SurfaceKHR,
+    physical_device: vk::PhysicalDevice,
+    queue_family_properties: &Vec<vk::QueueFamilyProperties>
+) -> Vec<u32> {
+    queue_family_properties
+        .iter()
+        .enumerate()
+        .filter_map(|(index, ref queue_family_property)| {
+            let surface_support = surface_interface.get_physical_device_surface_support(
+                physical_device,
+                index as u32,
+                surface,
+            ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
+            if surface_support {
+                Some(index as u32)
+            } else {
+                None
+            }
+        })
+        .collect()
+}
 
-selectQueueFamily :: VkQueueBitmask FlagMask -> [(Word32, VkQueueFamilyProperties)] -> IO [Word32]
-selectQueueFamily _ [] = return []
-selectQueueFamily requireQueueFlag ((queueFamilyIndex, queueFamilyProperty):xs) = do
-  if 0 < queueCount && (queueFlags .&. requireQueueFlag) /= zeroBits
-    then do
-      result <- selectQueueFamily requireQueueFlag xs
-      return (queueFamilyIndex:result)
-    else
-      selectQueueFamily requireQueueFlag xs
-  where
-    queueCount = getField @"queueCount" queueFamilyProperty
-    queueFlags = getField @"queueFlags" queueFamilyProperty
 
-selectPresentationFamily :: VkPhysicalDevice
-                         -> VkSurfaceKHR
-                         -> [(Word32, VkQueueFamilyProperties)]
-                         -> IO [Word32]
-selectPresentationFamily _ _ [] = return []
-selectPresentationFamily device surface (queueFamilies:xs) = do
-  let queueFamilyIndex = fst queueFamilies
-  supported <- alloca $ \supportedPtr -> do
-    result <- vkGetPhysicalDeviceSurfaceSupportKHR device queueFamilyIndex surface supportedPtr
-    validationVK result "vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support."
-    peek supportedPtr
-  if VK_TRUE == supported
-    then do
-      result <- selectPresentationFamily device surface xs
-      return (queueFamilyIndex:result)
-    else
-      selectPresentationFamily device surface xs
+pub unsafe fn get_queue_families(
+    instance: &Instance,
+    physical_device: vk::PhysicalDevice
+) -> Vec<vk::QueueFamilyProperties> {
+    let queue_family_properties: Vec<vk::QueueFamilyProperties> = instance.get_physical_device_queue_family_properties(physical_device);
+    let family_count = queue_family_properties.len();
+    assert!(0 < family_count, "Zero queue family count!");
+    log::info!("Found {} queue families.", family_count);
+    queue_family_properties
+}
 
-getQueueFamilies :: VkPhysicalDevice -> IO [(Word32, VkQueueFamilyProperties)]
-getQueueFamilies physicalDevice = alloca $ \queueFamilyCountPtr -> do
-  vkGetPhysicalDeviceQueueFamilyProperties physicalDevice queueFamilyCountPtr VK_NULL_HANDLE
-  familyCount <- fromIntegral <$> peek queueFamilyCountPtr
-  when (familyCount <= 0) $ throwVKMsg "Zero queue family count!"
-  logInfo $ "Found " ++ show familyCount ++ " queue families."
-  queueFaimilies <- allocaArray familyCount $ \familiesPtr -> do
-    vkGetPhysicalDeviceQueueFamilyProperties physicalDevice queueFamilyCountPtr familiesPtr
-    zip [0..] <$> peekArray familyCount familiesPtr
-  mapM_ (\(x,y) -> logInfo $ "    [" ++ (show x) ++ "] " ++ (show y) ) queueFaimilies
-  return queueFaimilies
+pub unsafe fn get_queue_family_indices(
+    instance: &Instance,
+    surface_interface: &Surface,
+    surface: vk::SurfaceKHR,
+    physical_device: vk::PhysicalDevice,
+    is_concurrent_mode: bool
+) -> QueueFamilyIndices {
+    let queue_faimilies = get_queue_families(&instance, physical_device);
+    let presentation_queue_family_indices = select_presentation_queue_family(surface_interface, surface, physical_device, &queue_faimilies);
+    let graphics_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::GRAPHICS);
+    let compute_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::COMPUTE);
+    let transfer_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::TRANSFER);
+    let sparse_binding_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::SPARSE_BINDING);
+    let default_index = graphicsQueueIndices[0];
+    let fn_get_queue_family_index = |indices: &Vec<u32>| -> u32 {
+        if false == indices.is_empty() {
+            if is_concurrent_mode && indices.contains(default_index) {
+                return default_index;
+            } else if false {
+                return indices.iter().filter(|&&x| x != default_index).next();
+            } else {
+                return defaultIndex;
+            }
+        }
+        constants::INVALID_QUEUE_INDEX
+    };
 
-getQueueFamilyIndices :: VkPhysicalDevice -> VkSurfaceKHR -> Bool -> IO QueueFamilyIndices
-getQueueFamilyIndices physicalDevice vkSurface isConcurrentMode = do
-  queueFaimilies <- getQueueFamilies physicalDevice
-  presentationFamilyIndices <- selectPresentationFamily physicalDevice vkSurface queueFaimilies
-  graphicsQueueIndices <- selectQueueFamily VK_QUEUE_GRAPHICS_BIT queueFaimilies
-  computeFamilyIndices <- selectQueueFamily VK_QUEUE_COMPUTE_BIT queueFaimilies
-  transferFamilyIndices <- selectQueueFamily VK_QUEUE_TRANSFER_BIT queueFaimilies
-  sparseBindingFamilyIndices <- selectQueueFamily VK_QUEUE_SPARSE_BINDING_BIT queueFaimilies
-  let
-    defaultIndex = graphicsQueueIndices !! 0
-    queueFamilyIndices = QueueFamilyIndices
-      { _graphicsQueueIndex = defaultIndex
-      , _presentQueueIndex = getFamilyIndex presentationFamilyIndices defaultIndex
-      , _computeQueueIndex = getFamilyIndex computeFamilyIndices defaultIndex
-      , _transferQueueIndex = getFamilyIndex transferFamilyIndices defaultIndex
-      , _sparseBindingQueueIndex = getFamilyIndex sparseBindingFamilyIndices defaultIndex
-      }
-  logInfo $ "Graphics Queue Index : " ++ show (_graphicsQueueIndex queueFamilyIndices)
-  logInfo $ "Presentation Queue Index : " ++ show (_presentQueueIndex queueFamilyIndices) ++ " / " ++ show presentationFamilyIndices
-  logInfo $ "Computer Queue Index : " ++ show (_computeQueueIndex queueFamilyIndices) ++ " / " ++ show computeFamilyIndices
-  logInfo $ "Transfer Queue Index : " ++ show (_transferQueueIndex queueFamilyIndices) ++ " / " ++ show transferFamilyIndices
-  logInfo $ "Sparse Binding Queue Index : " ++ show (_sparseBindingQueueIndex queueFamilyIndices)  ++ " / " ++ show sparseBindingFamilyIndices
-  return queueFamilyIndices
-  where
-    getFamilyIndex [] _ = Constants.invalidQueueIndex
-    getFamilyIndex indices defaultIndex =
-      let result = [x | x <- indices, x /= defaultIndex]
-      in
-        if isConcurrentMode && (elem defaultIndex indices) then defaultIndex
-        else if 0 < (length result) then result !! 0
-        else defaultIndex
+    let queue_family_indices = QueueFamilyIndices {
+        _graphics_queue_index: defaultIndex,
+        _present_queue_index: fn_get_queue_family_index &presentation_queue_family_indices,
+        _compute_queue_index: fn_get_queue_family_index &compute_queue_family_indices,
+        _transfer_queue_index: fn_get_queue_family_index &transfer_queue_family_indices,
+        _sparse_binding_queue_index: fn_get_queue_family_index &sparse_binding_queue_family_indices
+    };
 
-createQueues :: VkDevice -> [Word32] -> IO (Map.Map Word32 VkQueue)
-createQueues device queueFamilyIndices = do
-  queueList <- forM queueFamilyIndices $ \queueFamilyIndex -> do
-    queue <- alloca $ \queuePtr -> do
-      vkGetDeviceQueue device queueFamilyIndex 0 queuePtr
-      peek queuePtr
-    return (queueFamilyIndex, queue)
-  logInfo $ "Created Queues: " ++ show queueList
-  return $ Map.fromList queueList
+    log::info!("Graphics Queue Index : {}", queue_family_indices._graphics_queue_index);
+    log::info!("Presentation Queue Index : {} / {:?}", queue_family_indices._present_queue_index, presentation_queue_family_indices);
+    log::info!("Computer Queue Index : {} / {:?}", queue_family_indices._compute_queue_index, compute_queue_family_indices);
+    log::info!("Transfer Queue Index : {} / {:?}", queue_family_indices._transfer_queue_index, transfer_queue_family_indices);
+    log::info!("Sparse Binding Queue Index : {} / {:?}", queue_family_indices._sparse_binding_queue_index, sparse_binding_queue_family_indices);
+
+    queue_family_indices
+}
+
+//
+// createQueues :: VkDevice -> [u32] -> IO (Map.Map u32 VkQueue)
+// createQueues device queueFamilyIndices = do
+//   queueList <- forM queueFamilyIndices $ \queueFamilyIndex -> do
+//     queue <- alloca $ \queuePtr -> do
+//       vkGetDeviceQueue device queueFamilyIndex 0 queuePtr
+//       peek queuePtr
+//     return (queueFamilyIndex, queue)
+//   logInfo $ "Created Queues: " ++ show queueList
+//   return $ Map.fromList queueList
