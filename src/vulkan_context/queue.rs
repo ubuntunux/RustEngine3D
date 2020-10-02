@@ -11,20 +11,20 @@ use crate::constants;
 
 #[derive(Debug, Clone)]
 pub struct QueueFamilyIndices {
-    _graphics_queue_index: u32,
-    _present_queue_index: u32,
-    _compute_queue_index: u32,
-    _transfer_queue_index: u32,
-    _sparse_binding_queue_index: u32
+    pub _graphics_queue_index: u32,
+    pub _present_queue_index: u32,
+    pub _compute_queue_index: u32,
+    pub _transfer_queue_index: u32,
+    pub _sparse_binding_queue_index: u32
 }
 
 #[derive(Debug, Clone)]
 pub struct QueueFamilyDatas {
-    _graphics_queue: vk::Queue,
-    _present_queue: vk::Queue,
-    _queue_family_index_list: Vec<u32>,
-    _queue_family_count: u32,
-    _queue_family_indices: QueueFamilyIndices
+    pub _graphics_queue: vk::Queue,
+    pub _present_queue: vk::Queue,
+    pub _queue_family_index_list: Vec<u32>,
+    pub _queue_family_count: u32,
+    pub _queue_family_indices: QueueFamilyIndices
 }
 
 unsafe fn select_queue_family(
@@ -102,26 +102,30 @@ pub unsafe fn get_queue_family_indices(
     let compute_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::COMPUTE);
     let transfer_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::TRANSFER);
     let sparse_binding_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::SPARSE_BINDING);
-    let default_index = graphicsQueueIndices[0];
+    let default_index = graphics_queue_family_indices[0];
     let fn_get_queue_family_index = |indices: &Vec<u32>| -> u32 {
         if false == indices.is_empty() {
-            if is_concurrent_mode && indices.contains(default_index) {
+            if is_concurrent_mode && indices.contains(&default_index) {
                 return default_index;
             } else if false {
-                return indices.iter().filter(|&&x| x != default_index).next();
+                return *indices
+                    .iter()
+                    .filter(|&&x| x != default_index)
+                    .next()
+                    .unwrap();
             } else {
-                return defaultIndex;
+                return default_index;
             }
         }
         constants::INVALID_QUEUE_INDEX
     };
 
     let queue_family_indices = QueueFamilyIndices {
-        _graphics_queue_index: defaultIndex,
-        _present_queue_index: fn_get_queue_family_index &presentation_queue_family_indices,
-        _compute_queue_index: fn_get_queue_family_index &compute_queue_family_indices,
-        _transfer_queue_index: fn_get_queue_family_index &transfer_queue_family_indices,
-        _sparse_binding_queue_index: fn_get_queue_family_index &sparse_binding_queue_family_indices
+        _graphics_queue_index: default_index,
+        _present_queue_index: fn_get_queue_family_index(&presentation_queue_family_indices),
+        _compute_queue_index: fn_get_queue_family_index(&compute_queue_family_indices),
+        _transfer_queue_index: fn_get_queue_family_index(&transfer_queue_family_indices),
+        _sparse_binding_queue_index: fn_get_queue_family_index(&sparse_binding_queue_family_indices)
     };
 
     log::info!("Graphics Queue Index : {}", queue_family_indices._graphics_queue_index);

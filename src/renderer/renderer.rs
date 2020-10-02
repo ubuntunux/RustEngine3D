@@ -46,8 +46,11 @@ use winit::event_loop::EventLoop;
 
 use crate::constants;
 use crate::resource;
-use crate::vulkan_context::device;
-use crate::vulkan_context::vulkan_context;
+use crate::vulkan_context::{
+    device,
+    queue,
+    vulkan_context,
+};
 
 #[derive(Clone, Debug, Copy)]
 struct Vertex {
@@ -135,27 +138,15 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, &surface).unwrap();
         let deviceProperties = instance.get_physical_device_properties(physical_device);
         let msaa_samples = device::get_max_usable_sample_count(&deviceProperties);
-        //let queue_family_indices = get_queue_family_indices physicalDevice vkSurface isConcurrentMode
+        let queue_family_indices = queue::get_queue_family_indices(
+            &instance,
+            &surface_interface,
+            surface,
+            physical_device,
+            constants::IS_CONCURRENT_MODE
+        );
 
-        let queue_family_index = instance
-            .get_physical_device_queue_family_properties(physical_device)
-            .iter()
-            .enumerate()
-            .filter_map(|(index, ref queue_family_properties)| {
-                let has_graphics_queue = queue_family_properties.queue_flags.contains(vk::QueueFlags::GRAPHICS);
-                let surface_support = surface_interface.get_physical_device_surface_support(
-                    physical_device,
-                    index as u32,
-                    surface,
-                ).unwrap();
-                if has_graphics_queue && surface_support {
-                    Some(index)
-                } else {
-                    None
-                }
-            })
-            .next()
-            .expect("Couldn't find suitable device.");
+        let queue_family_index = queue_family_indices._graphics_queue_index;
 
         let queue_family_index = queue_family_index as u32;
         let priorities = [1.0];

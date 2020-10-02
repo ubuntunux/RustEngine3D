@@ -64,8 +64,17 @@ pub unsafe fn get_max_usable_sample_count(
     deviceProperties: &vk::PhysicalDeviceProperties
 ) -> vk::SampleCountFlags {
     let sample_count_limit = min(deviceProperties.limits.framebuffer_color_sample_counts, deviceProperties.limits.framebuffer_depth_sample_counts);
-    log::info!("MSAA Samples: {:?}", sample_count_limit);
-    sample_count_limit
+    let sample_count = *[
+        vk::SampleCountFlags::TYPE_64,
+        vk::SampleCountFlags::TYPE_32,
+        vk::SampleCountFlags::TYPE_16,
+        vk::SampleCountFlags::TYPE_8,
+        vk::SampleCountFlags::TYPE_4,
+        vk::SampleCountFlags::TYPE_2,
+        vk::SampleCountFlags::TYPE_1,
+    ].iter().filter(|&&x| sample_count_limit.contains(x)).next().unwrap();
+    log::info!("MSAA Samples: {:?}", sample_count);
+    sample_count
 }
 
 pub unsafe fn create_vk_instance(
