@@ -1,1 +1,1 @@
-RUST_LOG=trace cargo run
+cargo run RUST_LOG=trace
