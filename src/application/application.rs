@@ -84,17 +84,16 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     log::info!("run_application");
 
     let time_instance = time::Instant::now();
-    let mut elapsed_time = time_instance.elapsed().as_secs_f64();
+    let elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
     let mouse_pos = (window_size.0/2, window_size.1/2);
-    let mut resources = resource::create_resources();
-    let mut renderer_data = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, &resources);
-    //renderer_data.initialize_renderer();
-    let mut scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
+    let resources = resource::create_resources();
+    let renderer_data = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone());
+    let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
     let keyboard_input_data = input::create_keyboard_input_data();
     let mouse_move_data = input::create_mouse_move_data(mouse_pos);
     let mouse_input_data = input::create_mouse_input_data();
-    let application_data_ref = Rc::new(RefCell::new(ApplicationData {
+    let application_data = Rc::new(RefCell::new(ApplicationData {
         _window: false,
         _window_size_changed: false,
         _window_size: window_size,
@@ -111,16 +110,20 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     // main loop
     let mut render_scene = false;
     event_loop.run(move |event, window_target, control_flow|{
-        let mut application_data = (*application_data_ref).borrow_mut();
+        let mut application_data = (*application_data).borrow_mut();
+        let mut renderer_data = (*renderer_data).borrow_mut();
         application_data._time_data.updateTimeData(&time_instance);
 
         render_scene = false;
         match event {
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 *control_flow = ControlFlow::Exit;
+                unsafe {
+                    renderer_data.destroy_renderer_data();
+                }
             },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                // renderer_data.set_need_recreate_swapchain(true);
+                renderer_data.set_need_recreate_swapchain(true);
             },
             Event::RedrawEventsCleared => {
                 render_scene = true;
@@ -128,13 +131,13 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             _ => {},
         }
 
-        // if renderer_data.get_need_recreate_swapchain() {
-        //     renderer_data.recreate_swapchain();
-        //     renderer_data.set_need_recreate_swapchain(false);
-        // }
+        if renderer_data.get_need_recreate_swapchain() {
+            renderer_data.recreate_swapchain();
+            renderer_data.set_need_recreate_swapchain(false);
+        }
 
-        // if render_scene {
-        //     renderer_data.render_scene();
-        // }
+        if render_scene {
+            renderer_data.render_scene();
+        }
     });
 }

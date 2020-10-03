@@ -52,13 +52,8 @@ use crate::vulkan_context::{
     queue,
     swapchain,
     sync,
-    vulkan_context
 };
-use crate::vulkan_context::vulkan_context::{
-    FrameIndexMap,
-    SwapchainIndexMap,
-    RenderFeatures,
-};
+use crate::vulkan_context::vulkan_context::*;
 
 #[derive(Clone, Debug, Copy)]
 struct Vertex {
@@ -68,9 +63,9 @@ struct Vertex {
 
 
 pub struct RendererData {
-    pub _frame_index: i32,
-    pub _swapchain_index: u32,
-    pub _need_recreate_swapchain: bool,
+    _frame_index: i32,
+    _swapchain_index: u32,
+    _need_recreate_swapchain: bool,
     pub _window: Window,
     pub _entry: Entry,
     pub _instance: Instance,
@@ -102,7 +97,7 @@ pub fn create_renderer_data<T>(
     app_version: u32,
     (window_width, window_height): (u32, u32),
     event_loop: &EventLoop<T>,
-    resources: &Rc<RefCell<resource::Resources>>
+    resources: Rc<RefCell<resource::Resources>>
 ) -> Rc<RefCell<RendererData>> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
@@ -126,7 +121,7 @@ pub fn create_renderer_data<T>(
             physical_device,
             constants::IS_CONCURRENT_MODE
         );
-        let render_features = vulkan_context::RenderFeatures {
+        let render_features = RenderFeatures {
             _physical_device_features: physical_device_features.clone(),
             _msaa_samples: msaa_samples,
         };
@@ -163,10 +158,11 @@ pub fn create_renderer_data<T>(
         let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT);
 
         // debug utils
+        let debug_message_level = get_debug_message_level(vk::DebugUtilsMessageSeverityFlagsEXT::WARNING);
         let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-            .message_severity(constants::DEBUG_UTILS_LEVEL_WARNING)
+            .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::WARNING)
             .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
-            .pfn_user_callback(Some(vulkan_context::vulkan_debug_callback));
+            .pfn_user_callback(Some(vulkan_debug_callback));
         let debug_util_interface = DebugUtils::new(&entry, &instance);
         let debug_call_back = debug_util_interface.create_debug_utils_messenger(&debug_info, None).unwrap();
 
@@ -202,7 +198,23 @@ pub fn create_renderer_data<T>(
 }
 
 impl RendererData {
-    pub unsafe fn destroy_renderer_data(&mut self) {
+    pub fn get_need_recreate_swapchain(&self) -> bool {
+        self._need_recreate_swapchain
+    }
+
+    pub fn set_need_recreate_swapchain(&mut self, value: bool) {
+        self._need_recreate_swapchain = value;
+    }
+
+    pub fn recreate_swapchain(&self) {
+        log::info!("recreate_swapchain");
+    }
+
+    pub fn render_scene(&self) {
+
+    }
+
+    pub unsafe fn destroy_renderer_data(&self) {
         //destroyUniformBufferDatas _device _uniformBufferDataMap
         //destroyRenderTargets rendererData _renderTargetDataMap
         sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
