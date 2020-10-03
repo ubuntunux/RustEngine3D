@@ -172,6 +172,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             constants::ENABLE_IMMEDIATE_MODE
         );
 
+        device::
         /*
         commandPool <- createCommandPool device queueFamilyDatas
         imageAvailableSemaphores <- createSemaphores device

@@ -1,50 +1,43 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
+use ash::{
+    vk,
+    Device,
+    Instance,
+};
 
-module HulkanEngine3D.Vulkan.Sync
-  ( createSemaphores
-  , destroySemaphores
-  , createFrameFences
-  , destroyFrameFences
-  ) where
+use crate::constants;
+use crate::vulkan_context::vulkan_context::{ FrameIndexMap };
+use ash::version::DeviceV1_0;
 
-import Control.Monad
-import Foreign.Marshal.Alloc
-import Foreign.Marshal.Array
-import Foreign.Ptr
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
-import Graphics.Vulkan.Marshal.Create
+pub unsafe fn create_semaphores(device: &Device) -> FrameIndexMap<vk::Semaphore> {
+    let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+    let semaphores = constants::SWAPCHAIN_IMAGE_INDICES
+        .iter()
+        .map(|index| {
+            device.create_semaphore(&semaphore_create_info, None).expect("vkCreateSemaphore failed!")
+        })
+        .collect();
+    log::info!("Create Semaphore: {:?}" semaphores);
+    semaphores
+}
 
-import qualified HulkanEngine3D.Constants as Constants
-import HulkanEngine3D.Utilities.System
-import HulkanEngine3D.Utilities.Logger
-import HulkanEngine3D.Vulkan.Vulkan
+pub unsafe fn destroy_semaphores(device: &Device, semaphores: &FrameIndexMap<vk::Semaphore>) {
+    log::info!("Destroy Semaphore: {:?}", semaphores);
+    semaphores.iter().map(|semaphore| { device.destroy_semaphore(*semaphore, None) });
+}
 
+pub unsafe fn create_frame_fences(device: &Device) -> vk::Fence {
+    let fence_create_info = vk::FenceCreateInfo {
+        flags: vk::FenceCreateFlags::SIGNALED,
+        ..Default::default()
+    };
+    let fences = constants::FRAME_INDICES
+        .iter()
+        .map(|index| {
 
-createSemaphores :: VkDevice -> IO (FrameIndexMap VkSemaphore)
-createSemaphores device = do
-  semaphores <- allocaArray Constants.maxFrameCount $ \semaphoresPtr -> do
-    let semaphoreCreateInfo = createVk @VkSemaphoreCreateInfo
-          $  set @"sType" VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO
-          &* set @"pNext" VK_NULL
-          &* set @"flags" VK_ZERO_FLAGS
-    forM_ [0..(Constants.maxFrameCount - 1)] $ \index -> do
-      withPtr semaphoreCreateInfo $ \semaphoreCreateInfoPtr -> do
-          result <- vkCreateSemaphore device semaphoreCreateInfoPtr VK_NULL (ptrAtIndex semaphoresPtr index)
-          validationVK result "vkCreateSemaphore failed!"
-    peekArray Constants.maxFrameCount semaphoresPtr
-  logInfo $ "Create Semaphore: " ++ show semaphores
-  return (frameIndexMapFromList semaphores)
+        })
+        .collect();
+}
 
-destroySemaphores :: VkDevice -> FrameIndexMap VkSemaphore -> IO ()
-destroySemaphores device semaphores = do
-  flip applyIOFrameIndex semaphores $ \semaphore ->
-    vkDestroySemaphore device semaphore VK_NULL
-  logInfo $ "Destroy Semaphore: " ++ show semaphores
-
-createFrameFences :: VkDevice -> IO (Ptr VkFence)
 createFrameFences device = do
   frameFencesPtr <- mallocArray Constants.maxFrameCount
   let fenceCreateInfo = createVk @VkFenceCreateInfo
