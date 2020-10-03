@@ -33,7 +33,6 @@ enum BlendMode {
     AlphaBlend
 }
 
-pub const swapchain_indices[u32; 3] = []
 pub type SwapchainIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 pub type FrameIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 

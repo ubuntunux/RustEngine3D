@@ -89,7 +89,7 @@ class RenderObjectInterface a where
 instance RenderObjectInterface RenderObjectData where
     createRenderObjectData :: Text.Text -> RenderObjectCreateData -> IO RenderObjectData
     createRenderObjectData renderObjectName renderObjectCreateData = do
-        logInfo $ "createRenderObjectData :: " ++ show renderObjectName
+        log::info!("createRenderObjectData :: " ++ show renderObjectName
         transformObjectData <- newTransformObjectData
         setPosition transformObjectData $ _position' renderObjectCreateData
         setRotation transformObjectData $ _rotation' renderObjectCreateData

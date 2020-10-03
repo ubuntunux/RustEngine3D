@@ -47,10 +47,17 @@ use winit::event_loop::EventLoop;
 use crate::constants;
 use crate::resource;
 use crate::vulkan_context::{
+    command_buffer,
     device,
     queue,
-    vulkan_context,
     swapchain,
+    sync,
+    vulkan_context
+};
+use crate::vulkan_context::vulkan_context::{
+    FrameIndexMap,
+    SwapchainIndexMap,
+    RenderFeatures,
 };
 
 #[derive(Clone, Debug, Copy)]
@@ -59,61 +66,34 @@ struct Vertex {
     color: [f32; 4],
 }
 
+
 pub struct RendererData {
-    pub entry: Entry,
-    pub instance: Instance,
-    pub device: Device,
-    pub surface_interface: Surface,
-    pub swapchain_interface: Swapchain,
-    pub debug_utils_loader: DebugUtils,
-    pub window: Window,
-    pub debug_call_back: vk::DebugUtilsMessengerEXT,
-
-    pub physical_device: vk::PhysicalDevice,
-    pub device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    pub queue_family_index: u32,
-    pub present_queue: vk::Queue,
-
-    pub surface: vk::SurfaceKHR,
-
-    pub pool: vk::CommandPool,
-    pub draw_command_buffer: vk::CommandBuffer,
-    pub setup_command_buffer: vk::CommandBuffer,
-
-    pub depth_image: vk::Image,
-    pub depth_image_view: vk::ImageView,
-    pub depth_image_memory: vk::DeviceMemory,
-
-    pub present_complete_semaphore: vk::Semaphore,
-    pub rendering_complete_semaphore: vk::Semaphore,
-
     pub _frame_index: i32,
     pub _swapchain_index: u32,
-    // _vertex_offset: vk::DeviceSize,
     pub _need_recreate_swapchain: bool,
-    // _image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
-    // _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
-    // _vk_instance: vk::Instance,
-    //pub _surface: Arc<vulkano::swapchain::Surface<Window>>,
-    //pub _device: Arc<Device>,
-    // _physical_device: vk::PhysicalDevice,
-    //pub _swapchain: Arc<vulkano::swapchain::Swapchain<Window>>,
-    //pub _images: Vec<Arc<vulkano::image::swapchain::SwapchainImage<Window>>>,
-    _swapchain_data: swapchain::SwapchainData,
-    // _swapchain_support_details: SwapchainSupportDetails,
-    //pub _queue: Arc<Queue>,
-    // _queue_family_datas: QueueFamilyDatas,
-    // _frame_fences: vk::Fence,
-    // _command_pool: vk::CommandPool,
-    pub _command_buffer_count: i32,
-    // _command_buffers: vk::CommandBuffer,
-    // _render_features: vk::RenderFeatures,
-    // _image_samplers: vk::ImageSamplers,
-    // _debug_render_target: RenderTargetType,
-    // _render_target_data_map: RenderTargetDataMap,
-    // _uniform_buffer_data_map: UniformBufferDataMap,
-    // _postprocess_ssao: PostProcessData,
-    // _resources: Box<resource::Resources>
+    pub _window: Window,
+    pub _entry: Entry,
+    pub _instance: Instance,
+    pub _device: Device,
+    pub _surface: vk::SurfaceKHR,
+    pub _surface_interface: Surface,
+    pub _swapchain_data: swapchain::SwapchainData,
+    pub _swapchain_support_details: swapchain::SwapchainSupportDetails,
+    pub _swapchain_interface: Swapchain,
+    pub _debug_util_interface: DebugUtils,
+    pub _debug_call_back: vk::DebugUtilsMessengerEXT,
+    pub _image_available_semaphores: FrameIndexMap<vk::Semaphore>,
+    pub _render_finished_semaphores: FrameIndexMap<vk::Semaphore>,
+    pub _queue_family_datas: queue::QueueFamilyDatas,
+    pub _frame_fences: Vec<vk::Fence>,
+    pub _command_pool: vk::CommandPool,
+    pub _command_buffers: Vec<vk::CommandBuffer>,
+    pub _render_features: vk::RenderFeatures,
+    //pub _debug_render_target: RenderTargetType,
+    //pub _render_target_data_map: RenderTargetDataMap,
+    //pub _uniform_buffer_data_map: UniformBufferDataMap,
+    //pub _postprocess_ssao: PostProcessData,
+    pub _resources: Rc<RefCell<resource::Resources>>
 }
 
 
@@ -140,7 +120,7 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             physical_device,
             constants::IS_CONCURRENT_MODE
         );
-        let renderFeatures = vulkan_context::RenderFeatures {
+        let render_features = vulkan_context::RenderFeatures {
             _physical_device_features: physical_device_features.clone(),
             _msaa_samples: msaa_samples,
         };
@@ -171,117 +151,11 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             &queue_family_datas,
             constants::ENABLE_IMMEDIATE_MODE
         );
-
-        device::
-        /*
-        commandPool <- createCommandPool device queueFamilyDatas
-        imageAvailableSemaphores <- createSemaphores device
-        renderFinishedSemaphores <- createSemaphores device
-        frameFencesPtr <- createFrameFences device
-
-        let commandBufferCount = Constants.swapChainImageCount
-        commandBuffersPtr <- mallocArray commandBufferCount::IO (Ptr VkCommandBuffer)
-        createCommandBuffers device commandPool commandBufferCount commandBuffersPtr
-        commandBuffers <- peekArray commandBufferCount commandBuffersPtr
-        */
-
-        let pool_create_info = vk::CommandPoolCreateInfo::builder()
-            .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(graphics_queue_index);
-
-        let pool = device.create_command_pool(&pool_create_info, None).unwrap();
-
-        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
-            .command_buffer_count(2)
-            .command_pool(pool)
-            .level(vk::CommandBufferLevel::PRIMARY);
-
-        let command_buffers = device.allocate_command_buffers(&command_buffer_allocate_info).unwrap();
-        let setup_command_buffer = command_buffers[0];
-        let draw_command_buffer = command_buffers[1];
-
-        let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
-        let depth_image_create_info = vk::ImageCreateInfo::builder()
-            .image_type(vk::ImageType::TYPE_2D)
-            .format(vk::Format::D16_UNORM)
-            .extent(vk::Extent3D {
-                width: swapchain_data._swapchain_extent.width,
-                height: swapchain_data._swapchain_extent.height,
-                depth: 1,
-            })
-            .mip_levels(1)
-            .array_layers(1)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .tiling(vk::ImageTiling::OPTIMAL)
-            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-        let depth_image = device.create_image(&depth_image_create_info, None).unwrap();
-        let depth_image_memory_req = device.get_image_memory_requirements(depth_image);
-        let depth_image_memory_index = vulkan_context::find_memorytype_index(
-            &depth_image_memory_req,
-            &device_memory_properties,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-        ).expect("Unable to find suitable memory index for depth image.");
-
-        let depth_image_allocate_info = vk::MemoryAllocateInfo::builder()
-            .allocation_size(depth_image_memory_req.size)
-            .memory_type_index(depth_image_memory_index);
-
-        let depth_image_memory = device.allocate_memory(&depth_image_allocate_info, None).unwrap();
-
-        device.bind_image_memory(depth_image, depth_image_memory, 0).expect("Unable to bind depth image memory");
-
-        let present_queue = device.get_device_queue(graphics_queue_index, 0);
-        vulkan_context::record_submit_commandbuffer(
-            &device,
-            setup_command_buffer,
-            present_queue,
-            &[],
-            &[],
-            &[],
-            |device, setup_command_buffer| {
-                let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-                    .image(depth_image)
-                    .dst_access_mask(
-                        vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                        | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-                    )
-                    .new_layout(vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL)
-                    .old_layout(vk::ImageLayout::UNDEFINED)
-                    .subresource_range(
-                        vk::ImageSubresourceRange::builder()
-                            .aspect_mask(vk::ImageAspectFlags::DEPTH)
-                            .layer_count(1)
-                            .level_count(1)
-                            .build(),
-                    );
-                device.cmd_pipeline_barrier(
-                    setup_command_buffer,
-                    vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                    vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                    vk::DependencyFlags::empty(),
-                    &[],
-                    &[],
-                    &[layout_transition_barriers.build()],
-                );
-            },
-        );
-        let depth_image_view_info = vk::ImageViewCreateInfo::builder()
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
-                    .level_count(1)
-                    .layer_count(1)
-                    .build(),
-            )
-            .image(depth_image)
-            .format(depth_image_create_info.format)
-            .view_type(vk::ImageViewType::TYPE_2D);
-        let depth_image_view = device.create_image_view(&depth_image_view_info, None).unwrap();
-        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
-        let present_complete_semaphore = device.create_semaphore(&semaphore_create_info, None).unwrap();
-        let rendering_complete_semaphore = device.create_semaphore(&semaphore_create_info, None).unwrap();
+        let image_available_semaphores = sync::create_semaphores(&device);
+        let render_finished_semaphores = sync::create_semaphores(&device);
+        let frame_fences = sync::create_fences(&device);
+        let command_pool = command_buffer::create_command_pool(&device, &queue_family_datas);
+        let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT);
 
         // debug utils
         let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
@@ -292,59 +166,36 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             )
             .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
             .pfn_user_callback(Some(vulkan_context::vulkan_debug_callback));
-        let debug_utils_loader = DebugUtils::new(&entry, &instance);
-        let debug_call_back = debug_utils_loader.create_debug_utils_messenger(&debug_info, None).unwrap();
+        let debug_util_interface = DebugUtils::new(&entry, &instance);
+        let debug_call_back = debug_util_interface.create_debug_utils_messenger(&debug_info, None).unwrap();
 
         Rc::new(RefCell::new(RendererData {
-            entry,
-            instance,
-            device,
-            queue_family_index: graphics_queue_index,
-            physical_device,
-            device_memory_properties,
-            window,
-            surface_interface,
-            present_queue,
-            swapchain_interface,
-            _swapchain_data: swapchain_data,
-            pool,
-            draw_command_buffer,
-            setup_command_buffer,
-            depth_image,
-            depth_image_view,
-            present_complete_semaphore,
-            rendering_complete_semaphore,
-            surface,
-            debug_call_back,
-            debug_utils_loader,
-            depth_image_memory,
             _frame_index: 0,
             _swapchain_index: 0,
-            //_vertex_offset: vk::DeviceSize,
             _need_recreate_swapchain: false,
-            //_image_available_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
-            // _render_finished_semaphores: [vk::Semaphore; MAX_FRAME_COUNT as usize],
-            // _vk_instance: vk::Instance,
-            // _surface: surface,
-            // _device: device,
-            // _physical_device: vk::PhysicalDevice,
-            // _images: images,
-            // _swapchain: swapchain,
-            // _swapchain_data: SwapchainData,
-            // _swapchain_support_details: SwapchainSupportDetails,
-            // _queue: queue,
-            // _queue_family_datas: QueueFamilyDatas,
-            // _frame_fences: vk::Fence,
-            // _command_pool: vk::CommandPool,
-            _command_buffer_count: 0,
-            // _command_buffers: vk::CommandBuffer,
-            // _render_features: vk::RenderFeatures,
-            // _image_samplers: vk::ImageSamplers,
-            // _debug_render_target: RenderTargetType,
-            // _render_target_data_map: RenderTargetDataMap,
-            // _uniform_buffer_data_map: UniformBufferDataMap,
-            // _postprocess_ssao: PostProcessData,
-            // _resources: Box<resource::Resources>
+            _window: window,
+            _entry: entry,
+            _instance: instance,
+            _device: device,
+            _surface: surface,
+            _surface_interface: surface_interface,
+            _swapchain_data: swapchain_data,
+            _swapchain_support_details: swapchain_support_details,
+            _swapchain_interface: swapchain_interface,
+            _debug_util_interface: debug_util_interface,
+            _debug_call_back: debug_call_back,
+            _image_available_semaphores: image_available_semaphores,
+            _render_finished_semaphores: render_finished_semaphores,
+            _queue_family_datas: queue_family_datas,
+            _frame_fences: frame_fences,
+            _command_pool: command_pool,
+            _command_buffers: command_buffers,
+            _render_features: render_features,
+            //pub _debug_render_target: RenderTargetType,
+            //pub _render_target_data_map: RenderTargetDataMap,
+            //pub _uniform_buffer_data_map: UniformBufferDataMap,
+            //pub _postprocess_ssao: PostProcessData,
+            _resources: resources.clone()
         }))
     }
 }
@@ -848,7 +699,7 @@ impl Drop for RendererData {
             swapchain::destroy_swapchain_data(&self.device, &self.swapchain_interface, &self._swapchain_data);
             device::destroy_device(&self.device);
             device::destroy_vk_surface(&self.surface_interface, &self.surface);
-            self.debug_utils_loader.destroy_debug_utils_messenger(self.debug_call_back, None);
+            self.debug_util_interface.destroy_debug_utils_messenger(self.debug_call_back, None);
             device::destroy_vk_instance(&self.instance);
         }
     }

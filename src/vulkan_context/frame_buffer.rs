@@ -60,7 +60,7 @@ createFrameBufferData :: VkDevice
                       -> FrameBufferDataCreateInfo
                       -> IO FrameBufferData
 createFrameBufferData device renderPass frameBufferDataCreateInfo = do
-    logInfo $ "Create Framebuffers : "
+    log::info!("Create Framebuffers : "
         ++ (Text.unpack $ _frameBufferName frameBufferDataCreateInfo)
         ++ show ( _frameBufferWidth $ frameBufferDataCreateInfo
                 , _frameBufferHeight $ frameBufferDataCreateInfo
@@ -112,6 +112,6 @@ createFrameBufferData device renderPass frameBufferDataCreateInfo = do
 
 destroyFrameBufferData :: VkDevice -> FrameBufferData -> IO ()
 destroyFrameBufferData device frameBufferData = do
-    logInfo $ "Destroy Framebuffers : " ++ show (_frameBufferName . _frameBufferInfo $ frameBufferData) ++ " "  ++ show (_frameBuffers frameBufferData)
+    log::info!("Destroy Framebuffers : " ++ show (_frameBufferName . _frameBufferInfo $ frameBufferData) ++ " "  ++ show (_frameBuffers frameBufferData)
     flip applyIOSwapchainIndex' (_frameBuffers frameBufferData) $ \frameBuffer ->
         vkDestroyFramebuffer device frameBuffer VK_NULL_HANDLE

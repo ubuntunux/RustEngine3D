@@ -86,7 +86,7 @@ impl Default for VertexData {
 //                    -> GeometryCreateInfo
 //                    -> IO GeometryData
 // createGeometryData physicalDevice device graphicsQueue commandPool geometryName geometryCreateInfo = do
-//     logInfo $ "createGeometryBuffer : " ++ (Text.unpack geometryName)
+//     log::info!("createGeometryBuffer : " ++ (Text.unpack geometryName)
 //     (vertexBufferMemory, vertexBuffer) <- createVertexBuffer physicalDevice device graphicsQueue commandPool (_geometry_create_info_vertices geometryCreateInfo)
 //     (indexBufferMemory, indexBuffer) <- createIndexBuffer physicalDevice device graphicsQueue commandPool (_geometry_create_info_indices geometryCreateInfo)
 //     vertexBufferPtr <- new vertexBuffer

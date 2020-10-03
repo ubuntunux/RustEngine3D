@@ -27,7 +27,7 @@ createMaterial :: Text.Text
                -> Aeson.Object
                -> IO MaterialData
 createMaterial materialDataName renderPassPipelineDataList materialParameterMap = do
-    logInfo $ "createMaterial : " ++ Text.unpack materialDataName
+    log::info!("createMaterial : " ++ Text.unpack materialDataName
     renderPassPipelineDataMap <- forM renderPassPipelineDataList $ \(renderPassData, pipelineData) -> do
         let renderPassPipelineDataName = (RenderPass._renderPassDataName renderPassData, RenderPass._pipelineDataName pipelineData)
         logTrivialInfo $ "    renderPass, pipeline : " ++ show renderPassPipelineDataName

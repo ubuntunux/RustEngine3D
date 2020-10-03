@@ -83,7 +83,7 @@ getShaderCreateInfo stageBit shaderModule = createVk @VkPipelineShaderStageCreat
 
 createShaderStageCreateInfo :: VkDevice -> String -> [Text.Text] -> VkShaderStageFlagBits -> IO VkPipelineShaderStageCreateInfo
 createShaderStageCreateInfo device shaderFileName shaderDefines stageBit = do
-    logInfo $ "createShaderStageCreateInfo : " ++ show stageBit ++ ": " ++ shaderFileName
+    log::info!("createShaderStageCreateInfo : " ++ show stageBit ++ ": " ++ shaderFileName
     -- ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
     (codeSize, codePtr) <- compileGLSL shaderFileName shaderDefines
     shaderModuleCreateInfo <- getShaderModuleCreateInfo codeSize codePtr
@@ -99,6 +99,6 @@ destroyShaderStageCreateInfo :: VkDevice -> VkPipelineShaderStageCreateInfo -> I
 destroyShaderStageCreateInfo device shaderStageCreateInfo = do
     let shaderModule = getField @"module" shaderStageCreateInfo
         shaderStage = getField @"stage" shaderStageCreateInfo
-    logInfo $ "destroyShaderStageCreateInfo : stage " ++ show shaderStage ++ ", module " ++ show shaderModule
+    log::info!("destroyShaderStageCreateInfo : stage " ++ show shaderStage ++ ", module " ++ show shaderModule
     vkDestroyShaderModule device (getField @"module" shaderStageCreateInfo) VK_NULL
     touchVkData shaderStageCreateInfo

@@ -1,64 +1,41 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
+use ash::{
+    vk,
+    Device,
+};
+use ash::version::{
+    DeviceV1_0
+};
 
-module HulkanEngine3D.Vulkan.CommandBuffer
-  ( createCommandPool
-  , destroyCommandPool
-  , createCommandBuffers
-  , destroyCommandBuffers
-  ) where
+use crate::vulkan_context::queue;
 
-import Foreign.Marshal.Array
-import Foreign.Ptr
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
-import Graphics.Vulkan.Marshal.Create
-
-import HulkanEngine3D.Utilities.System
-import HulkanEngine3D.Utilities.Logger
-import HulkanEngine3D.Vulkan.Queue
-
-
-createCommandPool :: VkDevice -> QueueFamilyDatas -> IO VkCommandPool
-createCommandPool device QueueFamilyDatas {..} = do
-    let graphicsQueueIndex = (_graphicsQueueIndex _queueFamilyIndices)
-        commandPoolCreateInfo = createVk @VkCommandPoolCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT
-            &* set @"queueFamilyIndex" graphicsQueueIndex
-    logInfo $ "Create Command Pool: graphicsFamilyIndex(" ++ show graphicsQueueIndex ++ ")"
-    allocaPeek $ \commandPoolPtr -> do
-        withPtr commandPoolCreateInfo $ \createInfoPtr -> do
-            result <- vkCreateCommandPool device createInfoPtr VK_NULL commandPoolPtr
-            validationVK result "vkCreateCommandPool failed!"
-
-destroyCommandPool :: VkDevice -> VkCommandPool -> IO ()
-destroyCommandPool device commandPool = do
-  logInfo $ "Destroy Command Pool: " ++ show commandPool
-  vkDestroyCommandPool device commandPool VK_NULL
+pub unsafe fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFamilyDatas) -> vk::CommandPool {
+    let queue_family_index = queue_family_data._queue_family_indices._graphics_queue_index;
+    let command_pool_create_info = vk::CommandPoolCreateInfo {
+        flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+        queue_family_index,
+        ..Default::default()
+    };
+    log::info!("Create Command Pool: queueFamilyIndex({:?})", command_pool_create_info.queue_family_index);
+    device.create_command_pool(&command_pool_create_info, None).expect("vkCreateCommandPool failed!")
+}
 
 
-createCommandBuffers :: VkDevice
-                     -> VkCommandPool
-                     -> Int
-                     -> Ptr VkCommandBuffer
-                     -> IO ()
-createCommandBuffers device commandPool commandBufferCount commandBuffersPtr = do
-    let allocationInfo = createVk @VkCommandBufferAllocateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"commandPool" commandPool
-            &* set @"level" VK_COMMAND_BUFFER_LEVEL_PRIMARY
-            &* set @"commandBufferCount" (fromIntegral commandBufferCount)
-    withPtr allocationInfo $ \allocationInfoPtr -> do
-        result <- vkAllocateCommandBuffers device allocationInfoPtr commandBuffersPtr
-        validationVK result "vkAllocateCommandBuffers failed!"
-    commandBuffers <- peekArray commandBufferCount commandBuffersPtr
-    logInfo $ "Create Command Buffer: "  ++ show commandBufferCount ++ " " ++ (show commandBuffersPtr)
+pub unsafe fn destroy_command_pool(device: &Device, command_pool: vk::CommandPool) {
+    log::info!("Destroy Command Pool: {:?}", command_pool);
+    device.destroy_command_pool(command_pool, None);
+}
 
+pub unsafe fn create_command_buffers(device: &Device, command_pool: vk::CommandPool, command_buffer_count: u32) -> Vec<vk::CommandBuffer> {
+    let allocation_info = vk::CommandBufferAllocateInfo::builder()
+        .command_pool(command_pool)
+        .level(vk::CommandBufferLevel::PRIMARY)
+        .command_buffer_count(command_buffer_count);
+    let command_buffers = device.allocate_command_buffers(&allocation_info).expect("vkAllocateCommandBuffers failed!");
+    log::info!("Create Command Buffer: {:?}", command_buffers);
+    command_buffers
+}
 
-destroyCommandBuffers :: VkDevice -> VkCommandPool -> Int -> Ptr VkCommandBuffer -> IO ()
-destroyCommandBuffers device commandPool bufferCount commandBuffersPtr = do
-  vkFreeCommandBuffers device commandPool (fromIntegral bufferCount) commandBuffersPtr
+pub unsafe fn destroy_command_buffers(device: &Device, command_pool: vk::CommandPool, command_buffers: &Vec<vk::CommandBuffer>) {
+    log::info!("Destroy Command Buffers: {:?}", command_buffers);
+    device.free_command_buffers(command_pool, command_buffers);
+}

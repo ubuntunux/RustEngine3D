@@ -37,7 +37,7 @@ data Triangle = Triangle {-# UNPACK #-}!Wavefront.FaceIndex
 
 loadMesh :: FilePath -> IO [GeometryCreateInfo]
 loadMesh file = do
-    logInfo $ "Loading mesh: " ++ file
+    log::info!("Loading mesh: " ++ file
     obj <- either throwVKMsg pure =<< Wavefront.fromFile file
     objVertices obj
 

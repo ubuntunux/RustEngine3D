@@ -66,7 +66,7 @@ class LightInterface a where
 instance LightInterface DirectionalLightData where
     createLightData :: Text.Text -> LightCreateInfo -> IO DirectionalLightData
     createLightData name directionalLightCreateData = do
-        logInfo $ "createLightData : " ++ Text.unpack name
+        log::info!("createLightData : " ++ Text.unpack name
         directionalLightName <- newIORef name
         directionalLightConstants <- newIORef (_directionalLightConstants' directionalLightCreateData)
         shadowOrthogonal <- newIORef matrix4x4_indentity

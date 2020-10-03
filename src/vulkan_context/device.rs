@@ -35,8 +35,8 @@ use crate::vulkan_context::vulkan_context;
 // getExtensionNames :: (Traversable t1, VulkanMarshal t) => [Char] -> t1 t -> IO (t1 String)
 // getExtensionNames extensionType availableExtensionArrayPtr = do
 //   availableExtensionNames <- mapM getExtensionName availableExtensionArrayPtr
-//   logInfo $ "Available " ++ extensionType ++ " extensions : " ++ (show (length availableExtensionNames))
-//   --mapM (\extensionName -> logInfo $ "    " ++ extensionName) availableExtensionNames
+//   log::info!("Available " ++ extensionType ++ " extensions : " ++ (show (length availableExtensionNames))
+//   --mapM (\extensionName -> log::info!("    " ++ extensionName) availableExtensionNames
 //   return availableExtensionNames
 //   where
 //     getExtensionName extensionPtr =

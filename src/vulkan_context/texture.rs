@@ -551,7 +551,7 @@ pub unsafe fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 //             , _imageMipLevels = mipLevels
 //             , _descriptorImageInfo = descriptorImageInfo
 //             }
-//     logInfo $ "createRenderTarget : "
+//     log::info!("createRenderTarget : "
 //         ++ Text.unpack textureDataName
 //         ++ " " ++ show _textureCreateInfoViewType
 //         ++ " " ++ show _textureCreateInfoFormat
@@ -646,7 +646,7 @@ pub unsafe fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 //             , _descriptorImageInfo = descriptorImageInfo
 //             }
 //
-//     logInfo $ "createTextureData : "
+//     log::info!("createTextureData : "
 //         ++ Text.unpack textureDataName
 //         ++ " " ++ show _textureCreateInfoViewType
 //         ++ " " ++ show _textureCreateInfoFormat
@@ -659,7 +659,7 @@ pub unsafe fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 //
 // destroyTextureData :: VkDevice -> TextureData -> IO ()
 // destroyTextureData device textureData@TextureData{..} = do
-//     logInfo $ "destroyTextureData(" ++ (Text.unpack _textureDataName) ++ ") : image " ++ show _image ++ ", imageView " ++ show _imageView ++ ", imageMemory " ++ show _imageMemory ++ ", sampler " ++ show _imageSampler
+//     log::info!("destroyTextureData(" ++ (Text.unpack _textureDataName) ++ ") : image " ++ show _image ++ ", imageView " ++ show _imageView ++ ", imageMemory " ++ show _imageMemory ++ ", sampler " ++ show _imageSampler
 //     destroyImageSampler device _imageSampler
 //     destroyImageView device _imageView
 //     destroyImage device _image _imageMemory

@@ -47,7 +47,7 @@ defaultUniformBufferData = UniformBufferData
 
 createUniformBuffer :: VkPhysicalDevice -> VkDevice -> Text.Text -> Int -> VkDeviceSize -> IO [(VkDeviceMemory, VkBuffer)]
 createUniformBuffer physicalDevice device uniformBufferName bufferCount bufferSize = do
-    logInfo $ "createUniformBuffer : " ++ Text.unpack uniformBufferName
+    log::info!("createUniformBuffer : " ++ Text.unpack uniformBufferName
     replicateM bufferCount $ createBuffer
         physicalDevice
         device

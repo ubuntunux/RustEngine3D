@@ -206,7 +206,7 @@ createRenderPassData device renderPassDataCreateInfo@RenderPassDataCreateInfo {.
     pipelineDataMap <- HashTable.new
     forM_ pipelineDataList $ \pipelineData ->
         HashTable.insert pipelineDataMap (_pipelineDataName pipelineData) pipelineData
-    logInfo $ "CreateRenderPassData : " ++ (Text.unpack _renderPassCreateInfoName)
+    log::info!("CreateRenderPassData : " ++ (Text.unpack _renderPassCreateInfoName)
     return RenderPassData
         { _renderPassDataName = _renderPassCreateInfoName
         , _renderPass = renderPass
@@ -275,13 +275,13 @@ createRenderPass device renderPassDataCreateInfo@RenderPassDataCreateInfo {..} =
         validationVK result "vkCreatePipelineLayout failed!"
         peek renderPassPtr
     touchVkData renderPassCreateInfo
-    logInfo $ "Create RenderPass : " ++ Text.unpack _renderPassCreateInfoName ++ " " ++ show renderPass
+    log::info!("Create RenderPass : " ++ Text.unpack _renderPassCreateInfoName ++ " " ++ show renderPass
     return renderPass
 
 
 destroyRenderPass :: VkDevice -> VkRenderPass -> Text.Text -> IO ()
 destroyRenderPass device renderPass renderPassName = do
-    logInfo $ "Destroy RenderPass : " ++ Text.unpack renderPassName ++ " " ++ show renderPass
+    log::info!("Destroy RenderPass : " ++ Text.unpack renderPassName ++ " " ++ show renderPass
     vkDestroyRenderPass device renderPass VK_NULL
 
 
@@ -450,7 +450,7 @@ createGraphicsPipelineData device renderPass pipelineDataCreateInfo@PipelineData
             validationVK result "vkCreateGraphicsPipelines failed!"
         peek graphicsPipelinePtr
 
-    logInfo $ "createGraphicsPipeline : " ++ Text.unpack _pipelineDataCreateInfoName ++ " (" ++ show graphicsPipeline ++ ")"
+    log::info!("createGraphicsPipeline : " ++ Text.unpack _pipelineDataCreateInfoName ++ " (" ++ show graphicsPipeline ++ ")"
     logTrivialInfo $ "    shaderDefines : " ++ show _pipelineShaderDefines
     logTrivialInfo $ "    vertexShader : " ++ show _pipelineVertexShaderFile
     logTrivialInfo $ "    fragmentShader : " ++ show _pipelineFragmentShaderFile
@@ -468,7 +468,7 @@ createGraphicsPipelineData device renderPass pipelineDataCreateInfo@PipelineData
 
 destroyPipelineData :: VkDevice -> PipelineData -> IO ()
 destroyPipelineData device pipelineData@PipelineData {..} = do
-    logInfo $ "Destroy GraphicsPipeline : " ++ Text.unpack _pipelineDataName ++ "pipeline " ++ show _pipeline ++ ", pipelineLayout" ++ show _pipelineLayout
+    log::info!("Destroy GraphicsPipeline : " ++ Text.unpack _pipelineDataName ++ "pipeline " ++ show _pipeline ++ ", pipelineLayout" ++ show _pipelineLayout
     vkDestroyPipeline device _pipeline VK_NULL
     destroyPipelineLayout device _pipelineLayout
     destroyShaderStageCreateInfo device _vertexShaderCreateInfo

@@ -41,7 +41,7 @@ class ModelInterface a where
 instance ModelInterface ModelData where
     newModelData :: Text.Text -> MeshData -> [MaterialInstanceData] -> IO ModelData
     newModelData name meshData materialInstanceDatas = do
-        logInfo $ "newModelData : " ++ Text.unpack name
+        log::info!("newModelData : " ++ Text.unpack name
         modelDataName <- newIORef name
         materialInstanceDatasRef <- newIORef materialInstanceDatas
         return ModelData

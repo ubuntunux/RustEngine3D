@@ -84,7 +84,7 @@ class CameraObjectInterface a where
 instance CameraObjectInterface CameraObjectData where
     createCameraObjectData :: Text.Text -> CameraCreateData -> IO CameraObjectData
     createCameraObjectData name cameraCreateData = do
-        logInfo $ "createCameraObjectData :: " ++ show name
+        log::info!("createCameraObjectData :: " ++ show name
         nameRef <- newIORef name
         meterPerUnitRef <- newIORef (meterPerUnit cameraCreateData)
         nearRef <- newIORef (near cameraCreateData)
