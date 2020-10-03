@@ -339,7 +339,7 @@ pub unsafe fn create_image_view(
 }
 
 pub unsafe fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
-    device.destroy_image_view(image_view);
+    device.destroy_image_view(image_view, None);
 }
 
 //

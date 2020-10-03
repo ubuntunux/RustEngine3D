@@ -50,6 +50,7 @@ use crate::vulkan_context::{
     device,
     queue,
     vulkan_context,
+    swapchain,
 };
 
 #[derive(Clone, Debug, Copy)]
@@ -74,12 +75,6 @@ pub struct RendererData {
     pub present_queue: vk::Queue,
 
     pub surface: vk::SurfaceKHR,
-    pub surface_format: vk::SurfaceFormatKHR,
-    pub surface_resolution: vk::Extent2D,
-
-    pub swapchain: vk::SwapchainKHR,
-    pub present_images: Vec<vk::Image>,
-    pub present_image_views: Vec<vk::ImageView>,
 
     pub pool: vk::CommandPool,
     pub draw_command_buffer: vk::CommandBuffer,
@@ -104,7 +99,7 @@ pub struct RendererData {
     // _physical_device: vk::PhysicalDevice,
     //pub _swapchain: Arc<vulkano::swapchain::Swapchain<Window>>,
     //pub _images: Vec<Arc<vulkano::image::swapchain::SwapchainImage<Window>>>,
-    // _swapchain_data: SwapchainData,
+    _swapchain_data: swapchain::SwapchainData,
     // _swapchain_support_details: SwapchainSupportDetails,
     //pub _queue: Arc<Queue>,
     // _queue_family_datas: QueueFamilyDatas,
@@ -167,13 +162,17 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             _queue_family_count: queue_map.len() as u32,
             _queue_family_indices: queue_family_indices.clone()
         };
-
-        swapChainData <- createSwapchainData device swapChainSupportDetails queueFamilyDatas vkSurface Constants.enableImmediateMode
+        let swapchain_interface = Swapchain::new(&instance, &device);
+        let swapchain_data: swapchain::SwapchainData = swapchain::create_swapchain_data(
+            &device,
+            &swapchain_interface,
+            surface,
+            &swapchain_support_details,
+            &queue_family_datas,
+            constants::ENABLE_IMMEDIATE_MODE
+        );
 
         /*
-        swapChainDataRef <- newIORef swapChainData
-        swapChainSupportDetailsRef <- newIORef swapChainSupportDetails
-
         commandPool <- createCommandPool device queueFamilyDatas
         imageAvailableSemaphores <- createSemaphores device
         renderFinishedSemaphores <- createSemaphores device
@@ -184,74 +183,6 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         createCommandBuffers device commandPool commandBufferCount commandBuffersPtr
         commandBuffers <- peekArray commandBufferCount commandBuffersPtr
         */
-
-
-        let surface_formats = surface_interface.get_physical_device_surface_formats(physical_device, surface).unwrap();
-        let required_format = vk::SurfaceFormatKHR {
-            format: constants::SWAPCHAIN_IMAGE_FORMAT,
-            color_space: constants::SWAPCHAIN_COLOR_SPACE,
-        };
-        let surface_format =
-            if surface_formats.contains(&required_format) {
-                required_format.clone()
-            } else {
-                surface_formats
-                    .iter()
-                    .map(|sfmt| match sfmt.format {
-                        vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
-                            format: vk::Format::B8G8R8_UNORM,
-                            color_space: sfmt.color_space,
-                        },
-                        _ => *sfmt,
-                    })
-                    .next()
-                    .expect("Unable to find suitable surface format.")
-            };
-        let surface_capabilities = surface_interface.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
-        let desired_image_count = if surface_capabilities.max_image_count <= 0 {
-            max(surface_capabilities.min_image_count, constants::SWAPCHAIN_IMAGE_COUNT)
-        } else {
-            min(surface_capabilities.max_image_count, max(surface_capabilities.min_image_count, constants::SWAPCHAIN_IMAGE_COUNT))
-        };
-        let surface_resolution = match surface_capabilities.current_extent.width {
-            std::u32::MAX => vk::Extent2D {
-                width: window_width,
-                height: window_height,
-            },
-            _ => surface_capabilities.current_extent,
-        };
-        let pre_transform =
-            if surface_capabilities.supported_transforms.contains(vk::SurfaceTransformFlagsKHR::IDENTITY) {
-                vk::SurfaceTransformFlagsKHR::IDENTITY
-            } else {
-                surface_capabilities.current_transform
-            };
-        let present_modes = surface_interface.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
-        let present_mode = if constants::ENABLE_IMMEDIATE_MODE {
-            vk::PresentModeKHR::IMMEDIATE
-        } else {
-            present_modes
-                .iter()
-                .cloned()
-                .find(|&mode| mode == vk::PresentModeKHR::MAILBOX)
-                .unwrap_or(vk::PresentModeKHR::FIFO)
-        };
-        let swapchain_interface = Swapchain::new(&instance, &device);
-        let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-            .surface(surface)
-            .min_image_count(desired_image_count)
-            .image_color_space(surface_format.color_space)
-            .image_format(surface_format.format)
-            .image_extent(surface_resolution)
-            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-            .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .pre_transform(pre_transform)
-            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-            .present_mode(present_mode)
-            .clipped(true)
-            .image_array_layers(1);
-        let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).unwrap();
-        log::info!("Swapchain: {:?}, {:?}", Swapchain::name(), surface_format);
 
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
@@ -268,36 +199,13 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
         let setup_command_buffer = command_buffers[0];
         let draw_command_buffer = command_buffers[1];
 
-        let present_images = swapchain_interface.get_swapchain_images(swapchain).unwrap();
-        let present_image_views: Vec<vk::ImageView> = present_images
-            .iter()
-            .map(|&image| {
-                let create_view_info = vk::ImageViewCreateInfo::builder()
-                    .view_type(vk::ImageViewType::TYPE_2D)
-                    .format(surface_format.format)
-                    .components(vk::ComponentMapping {
-                        r: vk::ComponentSwizzle::R,
-                        g: vk::ComponentSwizzle::G,
-                        b: vk::ComponentSwizzle::B,
-                        a: vk::ComponentSwizzle::A,
-                    })
-                    .subresource_range(vk::ImageSubresourceRange {
-                        aspect_mask: vk::ImageAspectFlags::COLOR,
-                        base_mip_level: 0,
-                        level_count: 1,
-                        base_array_layer: 0,
-                        layer_count: 1,
-                    })
-                    .image(image);
-                device.create_image_view(&create_view_info, None).unwrap()
-            }).collect();
         let device_memory_properties = instance.get_physical_device_memory_properties(physical_device);
         let depth_image_create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
             .format(vk::Format::D16_UNORM)
             .extent(vk::Extent3D {
-                width: surface_resolution.width,
-                height: surface_resolution.height,
+                width: swapchain_data._swapchain_extent.width,
+                height: swapchain_data._swapchain_extent.height,
                 depth: 1,
             })
             .mip_levels(1)
@@ -395,13 +303,9 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             device_memory_properties,
             window,
             surface_interface,
-            surface_format,
             present_queue,
-            surface_resolution,
             swapchain_interface,
-            swapchain,
-            present_images,
-            present_image_views,
+            _swapchain_data: swapchain_data,
             pool,
             draw_command_buffer,
             setup_command_buffer,
@@ -939,11 +843,8 @@ impl Drop for RendererData {
             self.device.free_memory(self.depth_image_memory, None);
             self.device.destroy_image_view(self.depth_image_view, None);
             self.device.destroy_image(self.depth_image, None);
-            for &image_view in self.present_image_views.iter() {
-                self.device.destroy_image_view(image_view, None);
-            }
             self.device.destroy_command_pool(self.pool, None);
-            self.swapchain_interface.destroy_swapchain(self.swapchain, None);
+            swapchain::destroy_swapchain_data(&self.device, &self.swapchain_interface, &self._swapchain_data);
             device::destroy_device(&self.device);
             device::destroy_vk_surface(&self.surface_interface, &self.surface);
             self.debug_utils_loader.destroy_debug_utils_messenger(self.debug_call_back, None);

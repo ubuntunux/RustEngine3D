@@ -13,22 +13,22 @@ use ash::extensions::khr::{
 use crate::constants;
 use crate::vulkan_context::queue;
 use crate::vulkan_context::texture;
-use crate::vulkan_context::vulkan_context::{ SwapchainIndexMap }
+use crate::vulkan_context::vulkan_context::{ SwapchainIndexMap };
 
 #[derive(Debug)]
 pub struct SwapchainSupportDetails {
-    _capabilities: vk::SurfaceCapabilitiesKHR,
-    _formats: Vec<vk::SurfaceFormatKHR>,
-    _present_modes: Vec<vk::PresentModeKHR>
+    pub _capabilities: vk::SurfaceCapabilitiesKHR,
+    pub _formats: Vec<vk::SurfaceFormatKHR>,
+    pub _present_modes: Vec<vk::PresentModeKHR>
 }
 
 #[derive(Debug)]
 pub struct SwapchainData {
-    _swapchain: vk::SwapchainKHR,
-    _swapchain_image_format: vk::Format,
-    _swapchain_images: SwapchainIndexMap<vk::Image>,
-    _swapchain_image_views: SwapchainIndexMap<vk::ImageView>,
-    _swapchain_extent: vk::Extent2D
+    pub _swapchain: vk::SwapchainKHR,
+    pub _swapchain_image_format: vk::Format,
+    pub _swapchain_images: SwapchainIndexMap<vk::Image>,
+    pub _swapchain_image_views: SwapchainIndexMap<vk::ImageView>,
+    pub _swapchain_extent: vk::Extent2D
 }
 
 pub unsafe fn choose_swapchain_surface_format(
@@ -105,9 +105,9 @@ pub unsafe fn query_swapchain_support(
 pub unsafe fn create_swapchain_data(
     device: &Device,
     swapchain_interface: &Swapchain,
+    surface: vk::SurfaceKHR,
     swapchain_support_details: &SwapchainSupportDetails,
     queue_family_datas: &queue::QueueFamilyDatas,
-    surface_khr: vk::SurfaceKHR,
     immediate_mode: bool
 ) -> SwapchainData
 {
@@ -144,33 +144,32 @@ pub unsafe fn create_swapchain_data(
         .present_mode(present_mode)
         .clipped(true);
     if queue_family_datas._queue_family_indices._graphics_queue_index != queue_family_datas._queue_family_indices._present_queue_index {
-        swapchain_create_info
+        swapchain_create_info = swapchain_create_info
             .image_sharing_mode(vk::SharingMode::CONCURRENT)
             .queue_family_indices(&queue_family_datas._queue_family_index_list);
     } else {
-        swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
+        swapchain_create_info = swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
     }
     let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
     let swapchain_images: SwapchainIndexMap<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
     let swapchain_image_views = create_swapchain_image_views(&device, &swapchain_images, swapchain_create_info.image_format);
 
-    // logInfo $ "Create Swapchain : " ++ (show swapChain)
-    // logInfo $ "    presentMode : " ++ show presentMode
-    // logInfo $ "    image_count : " ++ (show image_count') ++ " " ++ (show swapChainImages)
-    // logInfo $ "    imageFormat : " ++ (show $ getField @"imageFormat" swapChainCreateInfo)
-    // logInfo $ "    imageColorSpace : " ++ (show $ getField @"imageColorSpace" swapChainCreateInfo)
-    // logInfo $ "    imageViews : " ++ (show swapChainImageViews)
-    // logInfo $ "    image_extent : " ++ (show $ getField @"image_extent" swapChainCreateInfo)
-    // logInfo $ "    imageSharingMode : " ++ (show $ getField @"imageSharingMode" swapChainCreateInfo)
+    log::info!("Create Swapchain : {:?}", swapchain);
+    log::info!("    presentMode : {:?}", present_mode);
+    log::info!("    image_count : {} {:?}", image_count, swapchain_images);
+    log::info!("    imageFormat : {:?}", surface_format.format);
+    log::info!("    imageColorSpace : {:?}", surface_format.color_space);
+    log::info!("    imageViews : {:?}", swapchain_image_views);
+    log::info!("    image_extent : {:?}", image_extent);
+    log::info!("    imageSharingMode : {:?}", swapchain_create_info.image_sharing_mode);
 
-    // let swapChainData = SwapchainData {
-    //     _swapchain: swapChain,
-    //     _swapchain_images: swapChainImages,
-    //     _swapchain_image_format: swapChainImageFormat,
-    //     _swapchain_image_views: swapChainImageViews,
-    //     _swapChainExtent: swapChainExtent
-    // }
-    swapChainData
+    SwapchainData {
+        _swapchain: swapchain,
+        _swapchain_images: swapchain_images,
+        _swapchain_image_format: surface_format.format,
+        _swapchain_image_views: swapchain_image_views,
+        _swapchain_extent: image_extent
+    }
 }
 
 pub unsafe fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, swapchain_data: &SwapchainData) {
