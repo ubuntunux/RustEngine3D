@@ -334,7 +334,8 @@ pub unsafe fn create_image_view(
             level_count: layer_count,
             base_array_layer: 0,
             layer_count: mip_levels,
-        });
+        })
+        .build();
     device.create_image_view(&create_view_info, None).expect("vkCreateImageView failed!")
 }
 

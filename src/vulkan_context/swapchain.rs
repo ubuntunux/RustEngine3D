@@ -142,13 +142,14 @@ pub unsafe fn create_swapchain_data(
         .pre_transform(pre_transform)
         .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
         .present_mode(present_mode)
-        .clipped(true);
+        .clipped(true)
+        .build();
     if queue_family_datas._queue_family_indices._graphics_queue_index != queue_family_datas._queue_family_indices._present_queue_index {
-        swapchain_create_info = swapchain_create_info
-            .image_sharing_mode(vk::SharingMode::CONCURRENT)
-            .queue_family_indices(&queue_family_datas._queue_family_index_list);
+        swapchain_create_info.image_sharing_mode = vk::SharingMode::CONCURRENT;
+        swapchain_create_info.queue_family_index_count = queue_family_datas._queue_family_index_list.len() as u32;
+        swapchain_create_info.p_queue_family_indices = (&queue_family_datas._queue_family_index_list).as_ptr();
     } else {
-        swapchain_create_info = swapchain_create_info.image_sharing_mode(vk::SharingMode::EXCLUSIVE);
+        swapchain_create_info.image_sharing_mode = vk::SharingMode::EXCLUSIVE;
     }
     let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
     let swapchain_images: SwapchainIndexMap<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");

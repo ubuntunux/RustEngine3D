@@ -1,164 +1,130 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE FlexibleContexts #-}
-{-# LANGUAGE PolyKinds        #-}
-{-# LANGUAGE TypeApplications #-}
-{-# LANGUAGE InstanceSigs     #-}
-{-# LANGUAGE RecordWildCards  #-}
+use std::os::raw::c_void;
 
-module HulkanEngine3D.Vulkan.Buffer
-  ( findMemoryType
-  , createBuffer
-  , destroyBuffer
-  , copyBuffer
-  , updateBufferData
-  ) where
+use ash::{
+    vk,
+    Device,
+    Instance,
+};
+use ash::version::{DeviceV1_0, InstanceV1_0};
+use ash::util::Align;
 
-import Data.Void
-import Data.Bits
-import Foreign.Ptr
-import Foreign.Storable
+pub struct BufferData {
+    pub _buffer: vk::Buffer,
+    pub _buffer_memory: vk::DeviceMemory,
+    pub _buffer_memory_requirements: vk::MemoryRequirements
+}
 
-import Numeric.DataFrame
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
-import Graphics.Vulkan.Marshal.Create
-import Graphics.Vulkan.Marshal.Create.DataFrame
-
-import HulkanEngine3D.Utilities.System
-import HulkanEngine3D.Utilities.Logger
-import HulkanEngine3D.Vulkan.Vulkan
-
-
-data BufferData = BufferData
-    { _buffer ::VkBuffer
-    , _bufferMemory :: VkDeviceMemory
-    , _bufferDescriptor :: VkDescriptorBufferInfo
-    , _bufferSize :: VkDeviceSize
-    , _bufferAlignment :: VkDeviceSize
-    , _bufferMapped :: Ptr Void
-    , _bufferUsageFlags :: VkBufferUsageFlags
-    , _bufferMemoryPropertyFlags :: VkMemoryPropertyFlags
+pub unsafe fn find_memory_type_index(
+    memory_requirments: &vk::MemoryRequirements,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    flags: vk::MemoryPropertyFlags
+) -> Option<u32> {
+    let memory_type_bits = memory_requirments.memory_type_bits;
+    // Try to find an exactly matching memory flag
+    // for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
+    //     let property_flags = memory_types[index].property_flags;
+    //     if (0 != (memory_type_bits & (1 << index as u32))) && (flags == property_flags) {
+    //         return Some(index as u32);
+    //     }
+    // }
+    // Otherwise find a memory flag that works
+    for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
+        let property_flags = memory_type.property_flags;
+        if (0 != (memory_type_bits & (1 << index as u32))) && (flags == (flags & property_flags)) {
+            return Some(index as u32);
+        }
     }
+    None
+}
 
+pub unsafe fn create_buffer_data(
+    device: &Device,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    buffer_size: vk::DeviceSize,
+    buffer_usage_flags: vk::BufferUsageFlags,
+    memory_property_flags: vk::MemoryPropertyFlags
+) -> BufferData {
+    let buffer_create_info = vk::BufferCreateInfo {
+        size: buffer_size,
+        usage: buffer_usage_flags,
+        sharing_mode: vk::SharingMode::EXCLUSIVE,
+        ..Default::default()
+    };
+    let buffer = device.create_buffer(&buffer_create_info, None).expect("vkCreateBuffer failed!");
+    let buffer_memory_requirements = device.get_buffer_memory_requirements(buffer);
+    let memory_type_index = find_memory_type_index(&buffer_memory_requirements, memory_properties, memory_property_flags)
+        .expect("Unable to find suitable memorytype for the vertex buffer.");
+    let memory_allocate_info = vk::MemoryAllocateInfo {
+        allocation_size: buffer_memory_requirements.size,
+        memory_type_index: memory_type_index,
+        ..Default::default()
+    };
+    let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
+    device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-class BufferInterface a where
-    uploadBufferData :: (PrimBytes b) => VkDevice -> a -> b -> IO ()
-    uploadBufferDataOffset :: (PrimBytes b) => VkDevice -> a -> b -> VkDeviceSize -> VkDeviceSize -> IO ()
-    destroyBufferData :: VkDevice -> a -> IO ()
+    log::info!("    Create Buffer: buffer({:?}), memory({:?})", buffer, buffer_memory);
+    log::info!("        buffer_size: {:?}", buffer_size);
+    log::info!("        memory_type_index: {:?}", memory_type_index);
+    log::info!("        memory_requirements: {:?}", buffer_memory_requirements);
 
-instance BufferInterface BufferData where
-    uploadBufferData :: (PrimBytes b) => VkDevice -> BufferData -> b -> IO ()
-    uploadBufferData device bufferData uploadData =
-        uploadBufferDataOffset device bufferData uploadData (bSizeOf uploadData::VkDeviceSize) (0::VkDeviceSize)
+    BufferData {
+        _buffer: buffer,
+        _buffer_memory: buffer_memory,
+        _buffer_memory_requirements: buffer_memory_requirements,
+    }
+}
 
-    uploadBufferDataOffset :: (PrimBytes b) => VkDevice -> BufferData -> b -> VkDeviceSize -> VkDeviceSize -> IO ()
-    uploadBufferDataOffset device bufferData@BufferData{..} uploadData size offset = do
-        bufferDataPtr <- allocaPeek $ \mappedDataPtr ->
-            vkMapMemory device _bufferMemory offset size VK_ZERO_FLAGS mappedDataPtr
-        poke (castPtr bufferDataPtr) (scalar uploadData)
-        vkUnmapMemory device _bufferMemory
+pub unsafe fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
+    log::info!("    Destroy Buffer : buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
+    device.destroy_buffer(buffer_data._buffer, None);
+    device.free_memory(buffer_data._buffer_memory, None);
+}
 
-    destroyBufferData :: VkDevice -> BufferData -> IO ()
-    destroyBufferData device bufferData@BufferData{..} = do
-        destroyBuffer device _buffer _bufferMemory
+pub unsafe fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T]) {
+    let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, buffer_data._buffer_memory_requirements.size, vk::MemoryMapFlags::empty()).unwrap();
+    let mut slice = Align::new(
+        buffer_ptr,
+        buffer_data._buffer_memory_requirements.alignment,
+        buffer_data._buffer_memory_requirements.size,
+    );
+    slice.copy_from_slice(upload_data);
+    device.unmap_memory(buffer_data._buffer_memory);
+}
 
+pub unsafe fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], data_size: vk::DeviceSize, offset: vk::DeviceSize) {
+    let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, data_size, vk::MemoryMapFlags::empty()).unwrap();
+    let mut slice = Align::new(
+        buffer_ptr,
+        buffer_data._buffer_memory_requirements.alignment,
+        data_size,
+    );
+    slice.copy_from_slice(upload_data);
+    device.unmap_memory(buffer_data._buffer_memory);
+}
 
+unsafe fn copy_buffer_region(
+    device: &Device,
+    command_buffer: vk::CommandBuffer,
+    src_buffer: vk::Buffer,
+    dst_buffer: vk::Buffer,
+    regions: &[vk::BufferCopy]
+) {
+    log::info!("\nPlease call copy_buffer with run_commands_once for immediatelly execution!!!!!\n");
+    log::info!("    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})", src_buffer, dst_buffer, regions);
+    device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, regions);
+}
 
--- | Return an index of a memory type for a device
-findMemoryType :: VkPhysicalDevice
-               -> Word32 -- ^ type filter bitfield
-               -> VkMemoryPropertyFlags -- ^ desired memory properties
-               -> IO Word32
-findMemoryType physicalDevice typeFilter propertyFlags = do
-    memProps <- allocaPeek $ \ptr -> vkGetPhysicalDeviceMemoryProperties physicalDevice ptr
-    let mtCount = getField @"memoryTypeCount" memProps
-        memTypes = getVec @"memoryTypes" memProps
-        flags index = getField @"propertyFlags" (ixOff (fromIntegral index) memTypes)
-        go i | i == mtCount = return i
-             | otherwise = if testBit typeFilter (fromIntegral i) &&
-                              (propertyFlags == (flags i .&. propertyFlags))
-                           then return i
-                           else go (i + 1)
-    go 0
-
-
-
-createBuffer :: VkPhysicalDevice
-             -> VkDevice
-             -> VkDeviceSize
-             -> VkBufferUsageFlags
-             -> VkMemoryPropertyFlags
-             -> IO (VkDeviceMemory, VkBuffer)
-createBuffer physicalDevice device bufferSize bufferUsageFlags memoryPropertyFlags = do    
-    let bufferCreateInfo = createVk @VkBufferCreateInfo
-          $  set @"sType" VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO
-          &* set @"pNext" VK_NULL
-          &* set @"size" bufferSize
-          &* set @"usage" bufferUsageFlags
-          &* set @"sharingMode" VK_SHARING_MODE_EXCLUSIVE
-          &* set @"queueFamilyIndexCount" 0
-          &* set @"pQueueFamilyIndices" VK_NULL
-
-    -- create buffer
-    buffer <- allocaPeek $ \bufferPtr -> do
-        withPtr bufferCreateInfo $ \createInfoPtr -> do
-            result <- vkCreateBuffer device createInfoPtr VK_NULL bufferPtr
-            validationVK result "vkCreateBuffer failed!"
-
-    memoryRequirements <- allocaPeek $ vkGetBufferMemoryRequirements device buffer
-    memoryTypeIndex <- findMemoryType physicalDevice (getField @"memoryTypeBits" memoryRequirements) memoryPropertyFlags
-    
-    let allocInfo = createVk @VkMemoryAllocateInfo
-          $  set @"sType" VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO
-          &* set @"pNext" VK_NULL
-          &* set @"allocationSize" (getField @"size" memoryRequirements)
-          &* set @"memoryTypeIndex" memoryTypeIndex
-          
-    -- create allocate memory
-    bufferMemory <- allocaPeek $ \bufferMemoryPtr -> do
-        withPtr allocInfo $ \allocInfoPtr -> do
-            result <- vkAllocateMemory device allocInfoPtr VK_NULL bufferMemoryPtr
-            validationVK result "vkAllocateMemory failed!"
-
-    logTrivialInfo $ "    Create Buffer : "  ++ show buffer ++ ", Memory : " ++ show bufferMemory
-    logTrivialInfo $ "        bufferSize : " ++ show bufferSize
-    logTrivialInfo $ "        memoryTypeIndex : " ++ show memoryTypeIndex
-    logTrivialInfo $ "        " ++ show memoryRequirements
-
-    let memoryOffset = 0 :: VkDeviceSize
-    vkBindBufferMemory device buffer bufferMemory memoryOffset
-
-    return (bufferMemory, buffer)
-
-destroyBuffer :: VkDevice -> VkBuffer -> VkDeviceMemory -> IO ()
-destroyBuffer device buffer memory = do
-    logTrivialInfo $ "    Destroy Buffer : buffer "  ++ show buffer ++ ", memory " ++ show memory
-    vkDestroyBuffer device buffer VK_NULL
-    vkFreeMemory device memory VK_NULL
-
-
--- | @copyBuffer dev pool queue src dest n@ copies @n@ bytes from @src@ buffer to @dest@ buffer.
-copyBuffer :: VkDevice
-           -> VkCommandPool
-           -> VkQueue
-           -> VkBuffer 
-           -> VkBuffer 
-           -> VkDeviceSize 
-           -> IO ()
-copyBuffer device commandPool commandQueue srcBuffer dstBuffer bufferSize = do
-    logTrivialInfo $ "    CopyBuffer : " ++ show srcBuffer ++ " -> " ++ show dstBuffer ++ " { size = " ++ show bufferSize ++ " }"
-    runCommandsOnce device commandPool commandQueue $ \commandBuffer -> do
-        let copyRegion = createVk @VkBufferCopy
-                $  set @"srcOffset" 0
-                &* set @"dstOffset" 0
-                &* set @"size" bufferSize
-        withPtr copyRegion $ \copyRegionPtr -> do
-            vkCmdCopyBuffer commandBuffer srcBuffer dstBuffer 1 copyRegionPtr
-
-
-updateBufferData :: (Storable a) => VkDevice -> VkDeviceMemory -> a -> IO ()
-updateBufferData device buffer bufferData = do
-    bufferDataPtr <- allocaPeek $ \mappedDataPtr ->
-        vkMapMemory device buffer 0 (fromIntegral $ sizeOf bufferData) VK_ZERO_FLAGS mappedDataPtr
-    poke (castPtr bufferDataPtr) bufferData
-    vkUnmapMemory device buffer
+pub unsafe fn copy_buffer(
+   device: &Device,
+   command_buffer: vk::CommandBuffer,
+   src_buffer: vk::Buffer,
+   dst_buffer: vk::Buffer,
+   buffer_size: vk::DeviceSize
+) {
+    let copy_region: [vk::BufferCopy; 1] = [vk::BufferCopy {
+        src_offset: 0,
+        dst_offset: 0,
+        size: buffer_size
+    }];
+    copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
+}

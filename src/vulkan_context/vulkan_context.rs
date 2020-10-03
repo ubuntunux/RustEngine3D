@@ -54,7 +54,7 @@ macro_rules! offset_of {
     }};
 }
 
-pub fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
+pub unsafe fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
     device: &D,
     command_buffer: vk::CommandBuffer,
     submit_queue: vk::Queue,
@@ -63,117 +63,79 @@ pub fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffe
     signal_semaphores: &[vk::Semaphore],
     func: F,
 ) {
-    unsafe {
-        device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES)
-            .expect("Reset command buffer failed.");
-        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-        device.begin_command_buffer(command_buffer, &command_buffer_begin_info)
-            .expect("Begin commandbuffer");
-        func(device, command_buffer);
-        device.end_command_buffer(command_buffer)
-            .expect("End commandbuffer");
-        let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None)
-            .expect("Create fence failed.");
-        let command_buffers = vec![command_buffer];
-        let submit_info = vk::SubmitInfo::builder()
-            .wait_semaphores(wait_semaphores)
-            .wait_dst_stage_mask(wait_mask)
-            .command_buffers(&command_buffers)
-            .signal_semaphores(signal_semaphores);
-        device.queue_submit(submit_queue, &[submit_info.build()], submit_fence)
-            .expect("queue submit failed.");
-        device.wait_for_fences(&[submit_fence], true, std::u64::MAX)
-            .expect("Wait for fence failed.");
+    device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).expect("Reset command buffer failed.");
+    let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
+        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
+        .build();
+    device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
+    func(device, command_buffer);
+    device.end_command_buffer(command_buffer).expect("End commandbuffer");
+    let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None).expect("Create fence failed.");
+    let command_buffers = vec![command_buffer];
+    let submit_info = vk::SubmitInfo::builder()
+        .wait_semaphores(wait_semaphores)
+        .wait_dst_stage_mask(wait_mask)
+        .command_buffers(&command_buffers)
+        .signal_semaphores(signal_semaphores)
+        .build();
+    device.queue_submit(submit_queue, &[submit_info], submit_fence).expect("queue submit failed.");
+    device.wait_for_fences(&[submit_fence], true, std::u64::MAX).expect("Wait for fence failed.");
+    device.destroy_fence(submit_fence, None);
+}
+
+pub unsafe fn run_commands_once<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
+    device: &D,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    func: F,
+) {
+    let allocate_info = vk::CommandBufferAllocateInfo::builder()
+        .level(vk::CommandBufferLevel::PRIMARY)
+        .command_pool(command_pool)
+        .command_buffer_count(1)
+        .build();
+    let command_buffers = device.allocate_command_buffers(&allocate_info).unwrap();
+    let command_buffer = command_buffers[0];
+    let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
+        .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
+        .build();
+
+    device.begin_command_buffer(command_buffer, &command_buffer_begin_info);
+
+    // execute function
+    func(device, command_buffer);
+
+    device.end_command_buffer(command_buffer);
+
+    let submit_info = vk::SubmitInfo::builder()
+        .command_buffers(&command_buffers)
+        .build();
+
+    // TODO: a real app would need a better logic for waiting.
+    // In the example below, we create a new fence every time we want to
+    // execute a single command. Then, we attach this fence to our command.
+    // vkWaitForFences makes the host (CPU) wait until the command is executed.
+    // The other way to do this thing is vkQueueWaitIdle.
+    //
+    // I guess, a good approach could be to pass the fence to this function
+    // from the call site. The call site would decide when it wants to wait
+    // for this command to finish.
+    //
+    // Even if we don't pass the fence from outside, maybe we should create
+    // the fence oustise of the innermost `locally` scope. This way, the
+    // fence would be shared between calls (on the other hand, a possible
+    // concurrency would be hurt in this case).
+    const SYNC_WITH_FENCE: bool = false;
+    if SYNC_WITH_FENCE {
+        let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None).expect("Create fence failed.");
+        device.queue_submit(command_queue, &[submit_info], submit_fence).expect("queue submit failed.");
+        device.wait_for_fences(&[submit_fence], true, std::u64::MAX).expect("Wait for fence failed.");
         device.destroy_fence(submit_fence, None);
-    }
-}
-
-pub unsafe extern "system" fn vulkan_debug_callback(
-    message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
-    message_type: vk::DebugUtilsMessageTypeFlagsEXT,
-    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
-    _user_data: *mut std::os::raw::c_void,
-) -> vk::Bool32 {
-    let callback_data = *p_callback_data;
-    let message_id_number: i32 = callback_data.message_id_number as i32;
-    let message_id_name = if callback_data.p_message_id_name.is_null() {
-        Cow::from("")
     } else {
-        CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
-    };
-    let message = if callback_data.p_message.is_null() {
-        Cow::from("")
-    } else {
-        CStr::from_ptr(callback_data.p_message).to_string_lossy()
-    };
-    println!(
-        "[{:?}]:{:?} [{} ({})] : {}",
-        message_severity,
-        message_type,
-        message_id_name,
-        &message_id_number.to_string(),
-        message,
-    );
-    vk::FALSE
-}
-
-pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverityFlagsEXT) -> vk::DebugUtilsMessageSeverityFlagsEXT {
-    match debug_message_level {
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => (
-                vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
-                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => (
-                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => (
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
-        _ => (
-            vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
-                vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
-                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
+        device.queue_submit(command_queue, &[submit_info], *std::ptr::null::<vk::Fence>()).expect("queue submit failed.");
+        device.queue_wait_idle(command_queue).expect("vkQueueWaitIdle error");
     }
-}
-
-pub fn find_memorytype_index(
-    memory_req: &vk::MemoryRequirements,
-    memory_prop: &vk::PhysicalDeviceMemoryProperties,
-    flags: vk::MemoryPropertyFlags,
-) -> Option<u32> {
-    // Try to find an exactly matching memory flag
-    let best_suitable_index =
-        find_memorytype_index_f(memory_req, memory_prop, flags, |property_flags, flags| {
-            property_flags == flags
-        });
-    if best_suitable_index.is_some() {
-        return best_suitable_index;
-    }
-    // Otherwise find a memory flag that works
-    find_memorytype_index_f(memory_req, memory_prop, flags, |property_flags, flags| {
-        property_flags & flags == flags
-    })
-}
-
-pub fn find_memorytype_index_f<F: Fn(vk::MemoryPropertyFlags, vk::MemoryPropertyFlags) -> bool>(
-    memory_req: &vk::MemoryRequirements,
-    memory_prop: &vk::PhysicalDeviceMemoryProperties,
-    flags: vk::MemoryPropertyFlags,
-    f: F,
-) -> Option<u32> {
-    let mut memory_type_bits = memory_req.memory_type_bits;
-    for (index, ref memory_type) in memory_prop.memory_types.iter().enumerate() {
-        if memory_type_bits & 1 == 1 && f(memory_type.property_flags, flags) {
-            return Some(index as u32);
-        }
-        memory_type_bits >>= 1;
-    }
-    None
+    device.free_command_buffers(command_pool, &command_buffers);
 }
 
 //

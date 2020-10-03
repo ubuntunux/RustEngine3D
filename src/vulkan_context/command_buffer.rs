@@ -29,7 +29,8 @@ pub unsafe fn create_command_buffers(device: &Device, command_pool: vk::CommandP
     let allocation_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(command_pool)
         .level(vk::CommandBufferLevel::PRIMARY)
-        .command_buffer_count(command_buffer_count);
+        .command_buffer_count(command_buffer_count)
+        .build();
     let command_buffers = device.allocate_command_buffers(&allocation_info).expect("vkAllocateCommandBuffers failed!");
     log::info!("Create Command Buffer: {:?}", command_buffers);
     command_buffers

@@ -101,12 +101,14 @@ pub unsafe fn create_vk_instance(
         .application_version(app_version)
         .engine_name(&app_name)
         .engine_version(constants::ENGINE_VERSION)
-        .api_version(constants::API_VERSION);
+        .api_version(constants::API_VERSION)
+        .build();
 
     let create_info = vk::InstanceCreateInfo::builder()
         .application_info(&appinfo)
         .enabled_layer_names(&layers_names_raw)
-        .enabled_extension_names(&extension_names_raw);
+        .enabled_extension_names(&extension_names_raw)
+        .build();
 
     log::info!(
         "Create Vulkan Instance: {:?}, api version: {}.{}.{}",
@@ -201,7 +203,8 @@ pub unsafe fn create_device(
         .queue_create_infos(&queue_create_infos)
         .enabled_layer_names(&layer_names_raw)
         .enabled_extension_names(&device_extension_names_raw)
-        .enabled_features(&render_features._physical_device_features);
+        .enabled_features(&render_features._physical_device_features)
+        .build();
     let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
     log::info!("Created Device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
     device

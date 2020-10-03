@@ -55,12 +55,57 @@ use crate::vulkan_context::{
 };
 use crate::vulkan_context::vulkan_context::*;
 
-#[derive(Clone, Debug, Copy)]
-struct Vertex {
-    pos: [f32; 4],
-    color: [f32; 4],
+pub unsafe extern "system" fn vulkan_debug_callback(
+    message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
+    message_type: vk::DebugUtilsMessageTypeFlagsEXT,
+    p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
+    _user_data: *mut std::os::raw::c_void,
+) -> vk::Bool32 {
+    let callback_data = *p_callback_data;
+    let message_id_number: i32 = callback_data.message_id_number as i32;
+    let message_id_name = if callback_data.p_message_id_name.is_null() {
+        Cow::from("")
+    } else {
+        CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
+    };
+    let message = if callback_data.p_message.is_null() {
+        Cow::from("")
+    } else {
+        CStr::from_ptr(callback_data.p_message).to_string_lossy()
+    };
+    println!(
+        "[{:?}]:{:?} [{} ({})] : {}",
+        message_severity,
+        message_type,
+        message_id_name,
+        &message_id_number.to_string(),
+        message,
+    );
+    vk::FALSE
 }
 
+pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverityFlagsEXT) -> vk::DebugUtilsMessageSeverityFlagsEXT {
+    match debug_message_level {
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => (
+            vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
+                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+        ),
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => (
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+        ),
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => (
+            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+        ),
+        _ => (
+            vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
+                vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
+                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+        ),
+    }
+}
 
 pub struct RendererData {
     _frame_index: i32,
@@ -70,6 +115,8 @@ pub struct RendererData {
     pub _entry: Entry,
     pub _instance: Instance,
     pub _device: Device,
+    pub _device_properties: vk::PhysicalDeviceProperties,
+    pub _device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     pub _surface: vk::SurfaceKHR,
     pub _surface_interface: Surface,
     pub _swapchain_data: swapchain::SwapchainData,
@@ -112,8 +159,9 @@ pub fn create_renderer_data<T>(
         let surface = device::create_vk_surface(&entry, &instance, &window);
         let surface_interface = Surface::new(&entry, &instance);
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
-        let deviceProperties = instance.get_physical_device_properties(physical_device);
-        let msaa_samples = device::get_max_usable_sample_count(&deviceProperties);
+        let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
+        let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
+        let msaa_samples = device::get_max_usable_sample_count(&device_properties);
         let queue_family_indices = queue::get_queue_family_indices(
             &instance,
             &surface_interface,
@@ -162,7 +210,8 @@ pub fn create_renderer_data<T>(
         let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
             .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::WARNING)
             .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
-            .pfn_user_callback(Some(vulkan_debug_callback));
+            .pfn_user_callback(Some(vulkan_debug_callback))
+            .build();
         let debug_util_interface = DebugUtils::new(&entry, &instance);
         let debug_call_back = debug_util_interface.create_debug_utils_messenger(&debug_info, None).unwrap();
 
@@ -174,6 +223,8 @@ pub fn create_renderer_data<T>(
             _entry: entry,
             _instance: instance,
             _device: device,
+            _device_properties: device_properties,
+            _device_memory_properties: device_memory_properties,
             _surface: surface,
             _surface_interface: surface_interface,
             _swapchain_data: swapchain_data,
