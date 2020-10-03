@@ -60,10 +60,8 @@ use crate::vulkan_context::vulkan_context;
 
 //
 
-pub unsafe fn get_max_usable_sample_count(
-    deviceProperties: &vk::PhysicalDeviceProperties
-) -> vk::SampleCountFlags {
-    let sample_count_limit = min(deviceProperties.limits.framebuffer_color_sample_counts, deviceProperties.limits.framebuffer_depth_sample_counts);
+pub unsafe fn get_max_usable_sample_count(device_properties: &vk::PhysicalDeviceProperties) -> vk::SampleCountFlags {
+    let sample_count_limit = min(device_properties.limits.framebuffer_color_sample_counts, device_properties.limits.framebuffer_depth_sample_counts);
     let sample_count = *[
         vk::SampleCountFlags::TYPE_64,
         vk::SampleCountFlags::TYPE_32,
@@ -131,11 +129,10 @@ pub unsafe fn create_vk_surface(entry: &Entry, instance: &Instance, window: &Win
     ash_window::create_surface(entry, instance, window, None).unwrap()
 }
 
-pub unsafe fn destroy_vk_surface(surface_interface: &Surface, surface: &vk::SurfaceKHR) {
+pub unsafe fn destroy_vk_surface(surface_interface: &Surface, surface: vk::SurfaceKHR) {
     log::info!("Destroy VkSurfaceKHR");
-    surface_interface.destroy_surface(*surface, None);
+    surface_interface.destroy_surface(surface, None);
 }
-
 
 pub unsafe fn check_extension_support(
     available_device_extensions: &Vec<vk::ExtensionProperties>,
@@ -152,25 +149,25 @@ pub unsafe fn check_extension_support(
     false
 }
 
-pub unsafe fn is_device_suitable(instance: &Instance, surface_interface: &Surface, surface: &vk::SurfaceKHR, physical_device: &vk::PhysicalDevice)
+pub unsafe fn is_device_suitable(instance: &Instance, surface_interface: &Surface, surface: vk::SurfaceKHR, physical_device: vk::PhysicalDevice)
     -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)
 {
-    let available_device_extensions: Vec<vk::ExtensionProperties> = instance.enumerate_device_extension_properties(*physical_device).unwrap();
+    let available_device_extensions: Vec<vk::ExtensionProperties> = instance.enumerate_device_extension_properties(physical_device).unwrap();
     let device_extension_names = vec![Swapchain::name()];
     let has_extension: bool = check_extension_support(&available_device_extensions, &device_extension_names);
-    let physical_device_features = instance.get_physical_device_features(*physical_device);
+    let physical_device_features = instance.get_physical_device_features(physical_device);
     let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface);
     let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
     (has_extension && result, swapchain_support_details, physical_device_features)
 }
 
-pub unsafe fn select_physical_device(instance: &Instance, surface_interface: &Surface, surface: &vk::SurfaceKHR)
+pub unsafe fn select_physical_device(instance: &Instance, surface_interface: &Surface, surface: vk::SurfaceKHR)
     -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)>
 {
     let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
     log::info!("Found {} devices", physical_devices.len());
     for physical_device in physical_devices {
-        let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, &physical_device);
+        let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
         if result {
             // set enable clip distance
             physical_device_features.shader_clip_distance = 1;

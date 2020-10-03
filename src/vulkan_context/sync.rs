@@ -41,7 +41,7 @@ pub unsafe fn create_fences(device: &Device) -> FrameIndexMap<vk::Fence> {
     fences
 }
 
-pub unsafe fn destroy_ences(device: &Device, fences: FrameIndexMap<vk::Fence>) {
+pub unsafe fn destroy_fences(device: &Device, fences: &FrameIndexMap<vk::Fence>) {
     log::info!("Destroy Fences: {:?}", fences);
     fences.iter().map(|fence| { device.destroy_fence(*fence, None) });
 }

@@ -74,12 +74,12 @@ pub unsafe fn is_valid_swapchain_support(swapchain_support_details: &SwapchainSu
 
 pub unsafe fn query_swapchain_support(
     surface_loader: &Surface,
-    physical_device: &vk::PhysicalDevice,
-    surface: &vk::SurfaceKHR
+    physical_device: vk::PhysicalDevice,
+    surface: vk::SurfaceKHR
 ) -> SwapchainSupportDetails {
-    let capabilities: vk::SurfaceCapabilitiesKHR = surface_loader.get_physical_device_surface_capabilities(*physical_device, *surface).unwrap();
-    let formats = surface_loader.get_physical_device_surface_formats(*physical_device, *surface).unwrap();
-    let present_modes = surface_loader.get_physical_device_surface_present_modes(*physical_device, *surface).unwrap();
+    let capabilities: vk::SurfaceCapabilitiesKHR = surface_loader.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
+    let formats = surface_loader.get_physical_device_surface_formats(physical_device, surface).unwrap();
+    let present_modes = surface_loader.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
     SwapchainSupportDetails {
         _capabilities: capabilities,
         _formats: formats,
@@ -180,10 +180,10 @@ pub unsafe fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swap
 
 pub unsafe fn create_swapchain_image_views(
     device: &Device,
-    swapChain_images: &SwapchainIndexMap<vk::Image>,
+    swapchain_images: &SwapchainIndexMap<vk::Image>,
     image_format: vk::Format
 ) -> SwapchainIndexMap<vk::ImageView> {
-    swapChain_images
+    swapchain_images
         .iter()
         .map(|image| {
             texture::create_image_view(device, *image, vk::ImageViewType::TYPE_2D, image_format, vk::ImageAspectFlags::COLOR, 1, 1)

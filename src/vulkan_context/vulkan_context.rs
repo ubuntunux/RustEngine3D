@@ -118,6 +118,23 @@ pub unsafe extern "system" fn vulkan_debug_callback(
     vk::FALSE
 }
 
+pub fn get_debug_util_level(vk::DebugUtilsMessageSeverityFlagsEXT) -> {
+    match
+    pub const DEBUG_UTILS_LEVEL_VERBOSE: vk::DebugUtilsMessageSeverityFlagsEXT =
+        vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
+            vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR;
+    pub const DEBUG_UTILS_LEVEL_INFO: vk::DebugUtilsMessageSeverityFlagsEXT =
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR;
+    pub const DEBUG_UTILS_LEVEL_WARNING: vk::DebugUtilsMessageSeverityFlagsEXT =
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR;
+    pub const DEBUG_UTILS_LEVEL_ERROR: vk::DebugUtilsMessageSeverityFlagsEXT =
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR;
+}
+
 pub fn find_memorytype_index(
     memory_req: &vk::MemoryRequirements,
     memory_prop: &vk::PhysicalDeviceMemoryProperties,
