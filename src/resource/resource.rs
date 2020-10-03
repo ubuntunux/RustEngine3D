@@ -447,7 +447,7 @@ impl Resources {
 //                             case (materialParameterType, materialParameterResourceType) of
 //                                 (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Descriptor.DescriptorResourceType_UniformBuffer) -> do
 //                                     uniformBufferData <- getUniformBufferData rendererData (fromText materialParameterName)
-//                                     return $ Descriptor.DescriptorBufferInfo (atSwapChainIndex swapChainIndex (_descriptorBufferInfos uniformBufferData))
+//                                     return $ Descriptor.DescriptorBufferInfo (atSwapchainIndex swapChainIndex (_descriptorBufferInfos uniformBufferData))
 //                                 (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_Texture) -> do
 //                                     textureData <- case maybeMaterialParameter of
 //                                         Just (Aeson.String value) -> getTextureData resources value

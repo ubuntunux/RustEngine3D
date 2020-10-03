@@ -11,7 +11,7 @@ import Graphics.Vulkan.Core_1_0
 
 import HulkanEngine3D.Render.Renderer
 import HulkanEngine3D.Render.RenderTargetDeclaration
-import HulkanEngine3D.Vulkan.SwapChain
+import HulkanEngine3D.Vulkan.Swapchain
 import qualified HulkanEngine3D.Vulkan.Texture as Texture
 import HulkanEngine3D.Utilities.System
 import qualified HulkanEngine3D.Constants as Constants
@@ -36,7 +36,7 @@ type RenderTargetDataMap = HashTable.BasicHashTable RenderTargetType Texture.Tex
 
 createRenderTargets :: RendererData -> RenderTargetDataMap -> IO ()
 createRenderTargets rendererData renderTargetDataMap = do
-    swapChainData <- getSwapChainData rendererData
+    swapChainData <- getSwapchainData rendererData
     let windowWidth = getField @"width" (_swapChainExtent swapChainData)
         windowHeight = getField @"height" (_swapChainExtent swapChainData)
         samples = VK_SAMPLE_COUNT_1_BIT -- min VK_SAMPLE_COUNT_4_BIT (_msaaSamples . _renderFeatures $ rendererData)

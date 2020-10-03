@@ -17,7 +17,7 @@ import HulkanEngine3D.Render.RenderTargetDeclaration
 import HulkanEngine3D.Vulkan.Descriptor
 import HulkanEngine3D.Vulkan.FrameBuffer
 import HulkanEngine3D.Vulkan.RenderPass
-import HulkanEngine3D.Vulkan.SwapChain
+import HulkanEngine3D.Vulkan.Swapchain
 import HulkanEngine3D.Vulkan.Vulkan
 import HulkanEngine3D.Utilities.System
 
@@ -34,7 +34,7 @@ getFrameBufferDataCreateInfo rendererData renderPassName = do
         , _frameBufferViewPort = createViewport 0 0 width height 0 1
         , _frameBufferScissorRect = createScissorRect 0 0 width height
         , _frameBufferColorAttachmentFormats = [_swapChainImageFormat swapChainData]
-        , _frameBufferImageViewLists = applySwapChainIndex (\swapChainImageView -> [swapChainImageView]) (_swapChainImageViews swapChainData)
+        , _frameBufferImageViewLists = applySwapchainIndex (\swapChainImageView -> [swapChainImageView]) (_swapChainImageViews swapChainData)
         }
 
 getRenderPassDataCreateInfo :: RendererData -> IO RenderPassDataCreateInfo

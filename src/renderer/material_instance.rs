@@ -26,7 +26,7 @@ data PipelineBindingData = PipelineBindingData
     { _renderPassData :: RenderPass.RenderPassData
     , _pipelineData :: RenderPass.PipelineData
     , _descriptorSetsPtr :: Ptr VkDescriptorSet
-    , _writeDescriptorSetPtrs :: SwapChainIndexMap (Ptr VkWriteDescriptorSet)
+    , _writeDescriptorSetPtrs :: SwapchainIndexMap (Ptr VkWriteDescriptorSet)
     , _descriptorSetCount :: Int
     } deriving Show
 
@@ -83,7 +83,7 @@ destroyMaterialInstance :: VkDevice -> MaterialInstanceData -> IO ()
 destroyMaterialInstance device materialInstanceData = do
     forM_ (_pipelineBindingDataMap materialInstanceData) $ \pipelineBindingData -> do
         free (_descriptorSetsPtr pipelineBindingData)
-        applyIOSwapChainIndex' free (_writeDescriptorSetPtrs pipelineBindingData)
+        applyIOSwapchainIndex' free (_writeDescriptorSetPtrs pipelineBindingData)
 
 getRenderPassPipelineData :: MaterialInstanceData -> RenderPass.RenderPassPipelineDataName -> (RenderPass.RenderPassData, RenderPass.PipelineData)
 getRenderPassPipelineData materialInstanceData renderPassPipelineDataName =

@@ -30,19 +30,19 @@ import HulkanEngine3D.Vulkan.Vulkan
 
 data UniformBufferData = UniformBufferData
     { _uniformBufferName :: Text.Text
-    , _uniformBuffers :: SwapChainIndexMap VkBuffer
-    , _uniformBufferMemories :: SwapChainIndexMap VkDeviceMemory
+    , _uniformBuffers :: SwapchainIndexMap VkBuffer
+    , _uniformBufferMemories :: SwapchainIndexMap VkDeviceMemory
     , _uniformBufferDataSize :: VkDeviceSize
-    , _descriptorBufferInfos :: SwapChainIndexMap VkDescriptorBufferInfo
+    , _descriptorBufferInfos :: SwapchainIndexMap VkDescriptorBufferInfo
     } deriving (Eq, Show)
 
 defaultUniformBufferData :: UniformBufferData
 defaultUniformBufferData = UniformBufferData
     { _uniformBufferName = ""
-    , _uniformBuffers = SwapChainIndexMapEmpty
-    , _uniformBufferMemories = SwapChainIndexMapEmpty
+    , _uniformBuffers = SwapchainIndexMapEmpty
+    , _uniformBufferMemories = SwapchainIndexMapEmpty
     , _uniformBufferDataSize = 0
-    , _descriptorBufferInfos = SwapChainIndexMapEmpty
+    , _descriptorBufferInfos = SwapchainIndexMapEmpty
     }
 
 createUniformBuffer :: VkPhysicalDevice -> VkDevice -> Text.Text -> Int -> VkDeviceSize -> IO [(VkDeviceMemory, VkBuffer)]
@@ -55,7 +55,7 @@ createUniformBuffer physicalDevice device uniformBufferName bufferCount bufferSi
         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
         ( VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT .|. VK_MEMORY_PROPERTY_HOST_COHERENT_BIT )
 
-destroyUniformBuffer :: VkDevice -> SwapChainIndexMap VkBuffer -> SwapChainIndexMap VkDeviceMemory -> IO ()
+destroyUniformBuffer :: VkDevice -> SwapchainIndexMap VkBuffer -> SwapchainIndexMap VkDeviceMemory -> IO ()
 destroyUniformBuffer device buffers memories = do
     logInfo "destroyUniformBuffers"
     forM_ (zip (swapChainIndexMapToList buffers) (swapChainIndexMapToList memories)) $ \(buffer, memory) ->

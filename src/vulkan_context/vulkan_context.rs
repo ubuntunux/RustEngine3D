@@ -33,13 +33,8 @@ enum BlendMode {
     AlphaBlend
 }
 
-pub struct SwapChainIndexMap<T> {
-    pub _values:[T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
-}
-
-pub struct FrameIndexMap<T> {
-    pub _values:[T; constants::MAX_FRAME_COUNT as usize]
-}
+pub type SwapchainIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
+pub type FrameIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 
 #[derive(Debug, Clone)]
 pub struct RenderFeatures {

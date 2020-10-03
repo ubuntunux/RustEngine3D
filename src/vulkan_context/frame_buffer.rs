@@ -29,7 +29,7 @@ data FrameBufferDataCreateInfo = FrameBufferDataCreateInfo
     , _frameBufferColorAttachmentFormats :: [VkFormat]
     , _frameBufferDepthAttachmentFormats :: [VkFormat]
     , _frameBufferResolveAttachmentFormats :: [VkFormat]
-    , _frameBufferImageViewLists :: SwapChainIndexMap [VkImageView]
+    , _frameBufferImageViewLists :: SwapchainIndexMap [VkImageView]
     , _frameBufferClearValues :: [VkClearValue]
     }  deriving (Eq, Show)
 
@@ -45,14 +45,14 @@ defaultFrameBufferDataCreateInfo = FrameBufferDataCreateInfo
     , _frameBufferColorAttachmentFormats = []
     , _frameBufferDepthAttachmentFormats = []
     , _frameBufferResolveAttachmentFormats = []
-    , _frameBufferImageViewLists = SwapChainIndexMapEmpty
+    , _frameBufferImageViewLists = SwapchainIndexMapEmpty
     , _frameBufferClearValues = []
     }
 
 data FrameBufferData = FrameBufferData
     { _frameBufferInfo :: FrameBufferDataCreateInfo
-    , _frameBuffers :: SwapChainIndexMap VkFramebuffer
-    , _renderPassBeginInfos :: SwapChainIndexMap VkRenderPassBeginInfo
+    , _frameBuffers :: SwapchainIndexMap VkFramebuffer
+    , _renderPassBeginInfos :: SwapchainIndexMap VkRenderPassBeginInfo
     }
 
 createFrameBufferData :: VkDevice
@@ -66,7 +66,7 @@ createFrameBufferData device renderPass frameBufferDataCreateInfo = do
                 , _frameBufferHeight $ frameBufferDataCreateInfo
                 , _frameBufferDepth $ frameBufferDataCreateInfo
                 )
-    frameBuffers <- applyIOSwapChainIndex createFrameBuffer (_frameBufferImageViewLists frameBufferDataCreateInfo)
+    frameBuffers <- applyIOSwapchainIndex createFrameBuffer (_frameBufferImageViewLists frameBufferDataCreateInfo)
     let renderPassBeginInfo frameBuffer = createVk @VkRenderPassBeginInfo
             $  set @"sType" VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO
             &* set @"pNext" VK_NULL
@@ -87,7 +87,7 @@ createFrameBufferData device renderPass frameBufferDataCreateInfo = do
     return FrameBufferData
         { _frameBufferInfo = frameBufferDataCreateInfo
         , _frameBuffers = frameBuffers
-        , _renderPassBeginInfos = applySwapChainIndex renderPassBeginInfo frameBuffers
+        , _renderPassBeginInfos = applySwapchainIndex renderPassBeginInfo frameBuffers
         }
     where
         createFrameBuffer :: [VkImageView] -> IO VkFramebuffer
@@ -113,5 +113,5 @@ createFrameBufferData device renderPass frameBufferDataCreateInfo = do
 destroyFrameBufferData :: VkDevice -> FrameBufferData -> IO ()
 destroyFrameBufferData device frameBufferData = do
     logInfo $ "Destroy Framebuffers : " ++ show (_frameBufferName . _frameBufferInfo $ frameBufferData) ++ " "  ++ show (_frameBuffers frameBufferData)
-    flip applyIOSwapChainIndex' (_frameBuffers frameBufferData) $ \frameBuffer ->
+    flip applyIOSwapchainIndex' (_frameBuffers frameBufferData) $ \frameBuffer ->
         vkDestroyFramebuffer device frameBuffer VK_NULL_HANDLE

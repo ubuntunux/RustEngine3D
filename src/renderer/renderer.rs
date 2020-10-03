@@ -104,8 +104,8 @@ pub struct RendererData {
     // _physical_device: vk::PhysicalDevice,
     //pub _swapchain: Arc<vulkano::swapchain::Swapchain<Window>>,
     //pub _images: Vec<Arc<vulkano::image::swapchain::SwapchainImage<Window>>>,
-    // _swapchain_data: SwapChainData,
-    // _swapchain_support_details: SwapChainSupportDetails,
+    // _swapchain_data: SwapchainData,
+    // _swapchain_support_details: SwapchainSupportDetails,
     //pub _queue: Arc<Queue>,
     // _queue_family_datas: QueueFamilyDatas,
     // _frame_fences: vk::Fence,
@@ -168,15 +168,16 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             _queue_family_indices: queue_family_indices.clone()
         };
 
+        swapChainData <- createSwapchainData device swapChainSupportDetails queueFamilyDatas vkSurface Constants.enableImmediateMode
+
         /*
+        swapChainDataRef <- newIORef swapChainData
+        swapChainSupportDetailsRef <- newIORef swapChainSupportDetails
+
         commandPool <- createCommandPool device queueFamilyDatas
         imageAvailableSemaphores <- createSemaphores device
         renderFinishedSemaphores <- createSemaphores device
         frameFencesPtr <- createFrameFences device
-
-        swapChainData <- createSwapChainData device swapChainSupportDetails queueFamilyDatas vkSurface Constants.enableImmediateMode
-        swapChainDataRef <- newIORef swapChainData
-        swapChainSupportDetailsRef <- newIORef swapChainSupportDetails
 
         let commandBufferCount = Constants.swapChainImageCount
         commandBuffersPtr <- mallocArray commandBufferCount::IO (Ptr VkCommandBuffer)
@@ -424,8 +425,8 @@ pub fn create_renderer_data<T> (app_name: &str, app_version: u32, (window_width,
             // _physical_device: vk::PhysicalDevice,
             // _images: images,
             // _swapchain: swapchain,
-            // _swapchain_data: SwapChainData,
-            // _swapchain_support_details: SwapChainSupportDetails,
+            // _swapchain_data: SwapchainData,
+            // _swapchain_support_details: SwapchainSupportDetails,
             // _queue: queue,
             // _queue_family_datas: QueueFamilyDatas,
             // _frame_fences: vk::Fence,
@@ -457,7 +458,7 @@ impl RendererData {
     //     // destroyRenderTargets rendererData _renderTargetDataMap
     //     //
     //     // // recreate swapchain & graphics resources
-    //     // recreateSwapChain rendererData window
+    //     // recreateSwapchain rendererData window
     //     // renderTargets <- createRenderTargets rendererData _renderTargetDataMap
     //     // loadGraphicsDatas _resources rendererData
     // }

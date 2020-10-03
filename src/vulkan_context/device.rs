@@ -153,7 +153,7 @@ pub unsafe fn check_extension_support(
 }
 
 pub unsafe fn is_device_suitable(instance: &Instance, surface_interface: &Surface, surface: &vk::SurfaceKHR, physical_device: &vk::PhysicalDevice)
-    -> (bool, swapchain::SwapChainSupportDetails, vk::PhysicalDeviceFeatures)
+    -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)
 {
     let available_device_extensions: Vec<vk::ExtensionProperties> = instance.enumerate_device_extension_properties(*physical_device).unwrap();
     let device_extension_names = vec![Swapchain::name()];
@@ -165,7 +165,7 @@ pub unsafe fn is_device_suitable(instance: &Instance, surface_interface: &Surfac
 }
 
 pub unsafe fn select_physical_device(instance: &Instance, surface_interface: &Surface, surface: &vk::SurfaceKHR)
-    -> Option<(vk::PhysicalDevice, swapchain::SwapChainSupportDetails, vk::PhysicalDeviceFeatures)>
+    -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)>
 {
     let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
     log::info!("Found {} devices", physical_devices.len());
