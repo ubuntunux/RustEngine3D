@@ -4,6 +4,9 @@ use ash::{
 };
 use ash::version::DeviceV1_0;
 
+use crate::constants;
+use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
+
 #[derive(Debug, Clone)]
 pub enum DescriptorResourceInfo {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
@@ -29,9 +32,9 @@ pub struct DescriptorDataCreateInfo {
 
 #[derive(Debug, Clone)]
 pub struct DescriptorData {
-    pub _descriptor_data_create_info_list: Vec<DescriptorDataCreateInfo>,
-    pub _descriptor_set_layout_binding_list: Vec<vk::DescriptorSetLayoutBinding>,
-    pub _descriptor_pool_size_list: Vec<vk::DescriptorPoolSize>,
+    pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
+    pub _descriptor_set_layout_bindings: Vec<vk::DescriptorSetLayoutBinding>,
+    pub _descriptor_pool_sizes: Vec<vk::DescriptorPoolSize>,
     pub _descriptor_pool: vk::DescriptorPool,
     pub _descriptor_set_layout: vk::DescriptorSetLayout,
     pub _max_descriptor_sets_count: u32,
@@ -40,9 +43,9 @@ pub struct DescriptorData {
 impl Default for DescriptorData {
     fn default() -> DescriptorData {
         DescriptorData {
-            _descriptor_data_create_info_list: Vec::<DescriptorDataCreateInfo>::new(),
-            _descriptor_set_layout_binding_list: Vec::<vk::DescriptorSetLayoutBinding>::new(),
-            _descriptor_pool_size_list: Vec::<vk::DescriptorPoolSize>::new(),
+            _descriptor_data_create_infos: Vec::<DescriptorDataCreateInfo>::new(),
+            _descriptor_set_layout_bindings: Vec::<vk::DescriptorSetLayoutBinding>::new(),
+            _descriptor_pool_sizes: Vec::<vk::DescriptorPoolSize>::new(),
             _descriptor_pool: vk::DescriptorPool::null(),
             _descriptor_set_layout: vk::DescriptorSetLayout::null(),
             _max_descriptor_sets_count: 0,
@@ -96,117 +99,138 @@ pub fn destroy_descriptor_set_layout(device: &Device, descriptor_set_layout: vk:
     }
 }
 
+pub fn create_descriptor_data(
+    device: &Device,
+    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
+    max_descriptor_sets_count: u32
+) -> DescriptorData {
+    log::info!("createDescriptorData");
+    let descriptor_layout_bindings = descriptor_data_create_infos
+        .iter()
+        .map(|descriptor_data_create_info| {
+            vk::DescriptorSetLayoutBinding::builder()
+                .binding(descriptor_data_create_info._descriptor_binding_index)
+                .descriptor_type(descriptor_data_create_info._descriptor_type)
+                .descriptor_count(1)
+                .stage_flags(descriptor_data_create_info._descriptor_shader_stage)
+                .build()
+        })
+        .collect();
+    let descriptor_pool_sizes = descriptor_data_create_infos
+        .iter()
+        .map(|descriptor_data_create_info| {
+            vk::DescriptorPoolSize::builder()
+                .ty(descriptor_data_create_info._descriptor_type)
+                .descriptor_count(max_descriptor_sets_count)
+                .build()
+        })
+        .collect();
+    let descriptor_set_layout = create_descriptor_set_layout(device, &descriptor_layout_bindings);
+    let descriptor_pool = create_descriptor_pool(device, &descriptor_pool_sizes, max_descriptor_sets_count);
+    DescriptorData {
+        _descriptor_data_create_infos: descriptor_data_create_infos.clone(),
+        _descriptor_set_layout_bindings: descriptor_layout_bindings,
+        _descriptor_pool_sizes: descriptor_pool_sizes,
+        _descriptor_pool: descriptor_pool,
+        _descriptor_set_layout: descriptor_set_layout,
+        _max_descriptor_sets_count: max_descriptor_sets_count,
+    }
+}
 
-//
-//
-// createDescriptorData :: VkDevice
-//                      -> [DescriptorDataCreateInfo]
-//                      -> Int
-//                      -> IO DescriptorData
-// createDescriptorData device descriptorDataCreateInfoList maxDescriptorSetsCount = do
-//     logInfo "createDescriptorData"
-//     descriptorLayoutBindingWithPoolSizeList <- forM descriptorDataCreateInfoList $ \descriptorDataCreateInfo -> do
-//         let descriptorType = _descriptor_type' descriptorDataCreateInfo
-//             bindingIndex = _descriptor_binding_index' descriptorDataCreateInfo
-//             shaderStageFlags = _descriptor_shader_stage' descriptorDataCreateInfo
-//             descriptorLayoutBinding = createVk @VkDescriptorSetLayoutBinding
-//                 $  set @"binding" bindingIndex
-//                 &* set @"descriptorType" descriptorType
-//                 &* set @"descriptorCount" 1
-//                 &* set @"stageFlags" shaderStageFlags
-//                 &* set @"pImmutableSamplers" VK_NULL
-//             descriptorPoolSize = createVk @VkDescriptorPoolSize
-//                 $  set @"type" descriptorType
-//                 &* set @"descriptorCount" (fromIntegral maxDescriptorSetsCount)
-//         return (descriptorLayoutBinding, descriptorPoolSize)
-//     let (descriptorSetLayoutBindingList, descriptorPoolSizeList) = unzip descriptorLayoutBindingWithPoolSizeList
-//     descriptorSetLayout <- create_descriptor_set_layout device descriptorSetLayoutBindingList
-//     descriptorPool <- createDescriptorPool device descriptorPoolSizeList maxDescriptorSetsCount
-//     let descriptorData = DescriptorData
-//             { _descriptor_data_create_info_list = descriptorDataCreateInfoList
-//             , _descriptor_set_layout_binding_list = descriptorSetLayoutBindingList
-//             , _descriptor_pool_size_list = descriptorPoolSizeList
-//             , _descriptor_pool = descriptorPool
-//             , _descriptor_set_layout = descriptorSetLayout
-//             , _max_descriptor_sets_count = maxDescriptorSetsCount
-//             }
-//     return descriptorData
-//
-//
-// destroyDescriptorData :: VkDevice
-//                       -> DescriptorData
-//                       -> IO ()
-// destroyDescriptorData device descriptorData@DescriptorData{..} = do
-//     logInfo "destroyDescriptorData"
-//     destroyDescriptorSetLayout device _descriptor_set_layout
-//     destroyDescriptorPool device _descriptor_pool
-//
-//
-// createDescriptorSet :: VkDevice -> DescriptorData -> IO [VkDescriptorSet]
-// createDescriptorSet device descriptorData@DescriptorData {..} = do
-//     let descriptorSetLayouts = replicate Constants.descriptorSetCountAtOnce _descriptor_set_layout
-//     allocaArray (length descriptorSetLayouts) $ \descriptorSetLayoutsPtr -> do
-//         pokeArray descriptorSetLayoutsPtr descriptorSetLayouts
-//         let allocateInfo = createVk @VkDescriptorSetAllocateInfo
-//                 $  set @"sType" VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO
-//                 &* set @"pNext" VK_NULL
-//                 &* set @"descriptorPool" _descriptor_pool
-//                 &* set @"descriptorSetCount" (fromIntegral . length $ descriptorSetLayouts)
-//                 &* set @"pSetLayouts" descriptorSetLayoutsPtr
-//         descriptorSets <- allocaPeekArray Constants.descriptorSetCountAtOnce $ \descriptorSetPtr ->
-//             withPtr allocateInfo $ \allocateInfoPtr ->
-//                 vkAllocateDescriptorSets device allocateInfoPtr descriptorSetPtr
-//         logTrivialInfo $ "    createDescriptorSet : " ++ show descriptorSets
-//         return descriptorSets
-//
-// destroyDescriptorSet :: VkDevice -> VkDescriptorPool -> [VkDescriptorSet] -> Ptr VkDescriptorSet -> IO ()
-// destroyDescriptorSet device descriptorPool descriptorSets descriptorSetPtr = do
-//     logTrivialInfo $ "    destroyDescriptorSet : " ++ show descriptorSets
-//     -- need VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT flag for vkFreeDescriptorSets
-//     when (descriptorSetPtr /= VK_NULL) $
-//         vkFreeDescriptorSets device descriptorPool (fromIntegral . length $ descriptorSets) descriptorSetPtr
-//             >>= flip validationVK "destroyDescriptorSetData failed!"
-//
-//
-// createWriteDescriptorSets :: VkDescriptorSet
-//                           -> [u32]
-//                           -> [VkDescriptorSetLayoutBinding]
-//                           -> [DescriptorResourceInfo]
-//                           -> [VkWriteDescriptorSet]
-// createWriteDescriptorSets descriptorSet descriptorBindIndices descriptorSetLayoutBindingList descriptorResourceInfos = do
-//     zipWith3 writeDescriptorSet descriptorBindIndices descriptorSetLayoutBindingList descriptorResourceInfos
-//     where
-//         writeDescriptorSet :: u32 -> VkDescriptorSetLayoutBinding -> DescriptorResourceInfo -> VkWriteDescriptorSet
-//         writeDescriptorSet bindingIndex descriptorSetLayoutBinding descriptorResourceInfo =
-//             createVk @VkWriteDescriptorSet
-//                 $  set @"sType" VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET
-//                 &* set @"pNext" VK_NULL
-//                 &* set @"dstSet" descriptorSet
-//                 &* set @"dstBinding" bindingIndex
-//                 &* set @"dstArrayElement" 0
-//                 &* set @"descriptorType" (getField @"descriptorType" descriptorSetLayoutBinding)
-//                 &* set @"descriptorCount" 1
-//                 &* case descriptorResourceInfo of
-//                         DescriptorBufferInfo bufferInfo ->
-//                             setVkRef @"pBufferInfo" bufferInfo
-//                             &* set @"pImageInfo" VK_NULL
-//                         DescriptorImageInfo imageInfo ->
-//                             set @"pBufferInfo" VK_NULL
-//                             &* setVkRef @"pImageInfo" imageInfo
-//                         otherwise ->
-//                             set @"pBufferInfo" VK_NULL
-//                             &* set @"pImageInfo" VK_NULL
-//                 &* set @"pTexelBufferView" VK_NULL
-//
-//
-// updateWriteDescriptorSet :: Ptr VkWriteDescriptorSet -> Int -> DescriptorResourceInfo -> IO ()
-// updateWriteDescriptorSet writeDescriptorSetPtr descriptorOffset descriptorResourceInfo = do
-//     let writeDescriptorSetPtrOffset = ptrAtIndex writeDescriptorSetPtr descriptorOffset
-//     case descriptorResourceInfo of
-//         DescriptorBufferInfo bufferInfo ->
-//             withPtr bufferInfo $ \bufferInfoPtr ->
-//                 writeField @"pBufferInfo" writeDescriptorSetPtrOffset bufferInfoPtr
-//         DescriptorImageInfo imageInfo ->
-//             withPtr imageInfo $ \imageInfoPtr ->
-//                 writeField @"pImageInfo" writeDescriptorSetPtrOffset imageInfoPtr
-//         otherwise -> return ()
+pub fn destroy_descriptor_data(device: &Device, descriptor_data: &DescriptorData) {
+    log::info!("destroyDescriptorData");
+    unsafe {
+        device.destroy_descriptor_set_layout(descriptor_data._descriptor_set_layout, None);
+        device.destroy_descriptor_pool(descriptor_data._descriptor_pool, None);
+    }
+}
+
+pub fn create_descriptor_sets(
+    device: &Device,
+    descriptor_data: &DescriptorData
+) -> SwapchainIndexMap<vk::DescriptorSet> {
+    let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT as usize] = [
+        descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT as usize
+    ];
+    let allocation_info = vk::DescriptorSetAllocateInfo::builder()
+        .descriptor_pool(descriptor_data._descriptor_pool)
+        .set_layouts(&descriptor_set_layouts)
+        .build();
+    unsafe {
+        let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("");
+        log::info!("    CreateDescriptorSet: {:?}", descriptor_sets);
+        descriptor_sets
+    }
+}
+
+pub fn destroy_descriptor_sets(
+    device: &Device,
+    descriptor_pool: vk::DescriptorPool,
+    descriptor_sets: &SwapchainIndexMap<vk::DescriptorSet>,
+) {
+    log::info!("    destroyDescriptorSet: {:?}", descriptor_sets);
+    // need VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT flag for vkFreeDescriptorSets
+    unsafe {
+        device.free_descriptor_sets(descriptor_pool, &descriptor_sets);
+    }
+}
+
+pub fn create_write_descriptor_sets(
+    descriptor_set: vk::DescriptorSet,
+    descriptor_bind_indices: &Vec<u32>,
+    descriptor_set_layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>,
+    descriptor_resource_infos: &Vec<DescriptorResourceInfo>,
+) -> Vec<vk::WriteDescriptorSet> {
+    let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::new();
+    let count = descriptor_bind_indices.len();
+    for index in 0..count {
+        let mut write_descriptor_set = vk::WriteDescriptorSet {
+            dst_set: descriptor_set,
+            dst_binding: descriptor_bind_indices[index],
+            dst_array_element: 0,
+            descriptor_type: descriptor_set_layout_bindings[index].descriptor_type,
+            descriptor_count: 1,
+            ..Default::default()
+        };
+
+        match &descriptor_resource_infos[index] {
+            DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
+                write_descriptor_set.p_buffer_info = buffer_info;
+                write_descriptor_set.p_image_info = std::ptr::null();
+            },
+            DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
+                write_descriptor_set.p_buffer_info = std::ptr::null();
+                write_descriptor_set.p_image_info = image_info;
+            },
+            _ => {
+                write_descriptor_set.p_buffer_info = std::ptr::null();
+                write_descriptor_set.p_image_info = std::ptr::null();
+            }
+        }
+
+        write_descriptor_sets.push(write_descriptor_set);
+    }
+    write_descriptor_sets
+}
+
+pub fn update_write_descriptor_set(
+    mut write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet>,
+    descriptor_offset: usize,
+    descriptor_resource_info: &DescriptorResourceInfo
+) {
+    let mut write_descriptor_set = &mut write_descriptor_sets[descriptor_offset];
+    match descriptor_resource_info {
+        DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
+            write_descriptor_set.p_buffer_info = buffer_info;
+            write_descriptor_set.p_image_info = std::ptr::null();
+        },
+        DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
+            write_descriptor_set.p_buffer_info = std::ptr::null();
+            write_descriptor_set.p_image_info = image_info;
+        },
+        _ => {
+            write_descriptor_set.p_buffer_info = std::ptr::null();
+            write_descriptor_set.p_image_info = std::ptr::null();
+        }
+    }
+}
