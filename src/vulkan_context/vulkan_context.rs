@@ -31,9 +31,9 @@ use crate::constants;
 pub type SwapchainIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 pub type FrameIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 
-enum BlendMode {
+pub enum BlendMode {
     None,
-    AlphaBlend
+    AlphaBlend,
 }
 
 #[derive(Debug, Clone)]
@@ -46,66 +46,47 @@ pub fn get_color32(r: u32, g: u32, b: u32, a: u32) -> u32 {
     (min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24))
 }
 
-// getColorBlendMode :: BlendMode -> VkPipelineColorBlendAttachmentState
-// getColorBlendMode blendMode =
-//     case blendMode of
-//         BlendMode_None -> createVk @VkPipelineColorBlendAttachmentState
-//             $  set @"colorWriteMask" ( VK_COLOR_COMPONENT_R_BIT .|. VK_COLOR_COMPONENT_G_BIT .|. VK_COLOR_COMPONENT_B_BIT )
-//             &* set @"blendEnable" VK_FALSE
-//             &* set @"srcColorBlendFactor" VK_BLEND_FACTOR_ONE
-//             &* set @"dstColorBlendFactor" VK_BLEND_FACTOR_ZERO
-//             &* set @"colorBlendOp" VK_BLEND_OP_ADD
-//             &* set @"srcAlphaBlendFactor" VK_BLEND_FACTOR_ONE
-//             &* set @"dstAlphaBlendFactor" VK_BLEND_FACTOR_ZERO
-//             &* set @"alphaBlendOp" VK_BLEND_OP_ADD
-//         BlendMode_AlphaBlend -> createVk @VkPipelineColorBlendAttachmentState
-//              $  set @"colorWriteMask" ( VK_COLOR_COMPONENT_R_BIT .|. VK_COLOR_COMPONENT_G_BIT .|. VK_COLOR_COMPONENT_B_BIT )
-//              &* set @"blendEnable" VK_TRUE
-//              &* set @"srcColorBlendFactor" VK_BLEND_FACTOR_SRC_ALPHA
-//              &* set @"dstColorBlendFactor" VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA
-//              &* set @"colorBlendOp" VK_BLEND_OP_ADD
-//              &* set @"srcAlphaBlendFactor" VK_BLEND_FACTOR_ONE
-//              &* set @"dstAlphaBlendFactor" VK_BLEND_FACTOR_ZERO
-//              &* set @"alphaBlendOp" VK_BLEND_OP_ADD
-//
-// getColorClearValue :: [Float] -> VkClearValue
-// getColorClearValue colors = createVk @VkClearValue
-//     $ setVk @"color"
-//         $ setVec @"float32" (toColorVector colors)
-//     where
-//         toColorVector :: [Float] -> Vec4f
-//         toColorVector (x:y:z:w:xs) = vec4 x y z w
-//         toColorVector (x:y:z:xs) = vec4 x y z 0
-//         toColorVector (x:y:xs) = vec4 x y 0 0
-//         toColorVector (x:xs) = vec4 x 0 0 0
-//         toColorVector _ = vec4 0 0 0 0
-//
-// getDepthStencilClearValue :: Float -> Word32 -> VkClearValue
-// getDepthStencilClearValue depthClearValue stencilClearValue = createVk @VkClearValue
-//     $ setVk @"depthStencil"
-//         $  set @"depth" depthClearValue
-//         &* set @"stencil" stencilClearValue
-//
-// createViewport :: Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> Word32 -> VkViewport
-// createViewport x y width height minDepth maxDepth = createVk @VkViewport
-//     $  set @"x" (fromIntegral x)
-//     &* set @"y" (fromIntegral y)
-//     &* set @"width" (fromIntegral width)
-//     &* set @"height" (fromIntegral height)
-//     &* set @"minDepth" (fromIntegral minDepth)
-//     &* set @"maxDepth" (fromIntegral maxDepth)
-//
-// createScissorRect :: Int32 -> Int32 -> Word32 -> Word32 -> VkRect2D
-// createScissorRect x y width height = createVk @VkRect2D
-//     $  setVk @"extent"
-//         (  set @"width" width
-//         &* set @"height" height
-//         )
-//     &* setVk @"offset"
-//         (  set @"x" x
-//         &* set @"y" y
-//         )
-//
+pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAttachmentState {
+    match blend_mode {
+        BlendMode::AlphaBlend => vk::PipelineColorBlendAttachmentState {
+            blend_enable: vk::TRUE,
+            src_color_blend_factor: vk::BlendFactor::SRC_ALPHA,
+            dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
+            color_blend_op: vk::BlendOp::ADD,
+            src_alpha_blend_factor: vk::BlendFactor::ONE,
+            dst_alpha_blend_factor: vk::BlendFactor::ZERO,
+            alpha_blend_op: vk::BlendOp::ADD,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
+        },
+        _ => vk::PipelineColorBlendAttachmentState {
+            blend_enable: vk::FALSE,
+            src_color_blend_factor: vk::BlendFactor::ONE,
+            dst_color_blend_factor: vk::BlendFactor::ZERO,
+            color_blend_op: vk::BlendOp::ADD,
+            src_alpha_blend_factor: vk::BlendFactor::ONE,
+            dst_alpha_blend_factor: vk::BlendFactor::ZERO,
+            alpha_blend_op: vk::BlendOp::ADD,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
+        },
+    }
+}
+
+pub fn get_color_clear_value(colors: &[f32]) -> vk::ClearValue {
+    vk::ClearValue {
+        color: vk::ClearColorValue {
+            float32: [colors[0], colors[1], colors[2], colors[3]]
+        }
+    }
+}
+
+pub fn get_depth_stencil_clear_value(depth_clear_value: f32, stencil_clear_value: u32) -> vk::ClearValue {
+    vk::ClearValue {
+        depth_stencil: vk::ClearDepthStencilValue {
+            depth: depth_clear_value,
+            stencil: stencil_clear_value
+        }
+    }
+}
 
 pub unsafe fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
     device: &D,

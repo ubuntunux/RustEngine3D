@@ -32,33 +32,57 @@ use crate::constants;
 use crate::vulkan_context::swapchain;
 use crate::vulkan_context::vulkan_context;
 
-// getExtensionNames :: (Traversable t1, VulkanMarshal t) => [Char] -> t1 t -> IO (t1 String)
-// getExtensionNames extensionType availableExtensionArrayPtr = do
-//   availableExtensionNames <- mapM getExtensionName availableExtensionArrayPtr
-//   log::info!("Available " ++ extensionType ++ " extensions : " ++ (show (length availableExtensionNames))
-//   --mapM (\extensionName -> log::info!("    " ++ extensionName) availableExtensionNames
-//   return availableExtensionNames
-//   where
-//     getExtensionName extensionPtr =
-//       let extensionNamePtr = plusPtr (unsafePtr extensionPtr) (fieldOffset @"extensionName" @VkExtensionProperties)
-//       in peekCString $ castPtr extensionNamePtr
-//
-// getInstanceExtensionSupport :: IO [String]
-// getInstanceExtensionSupport = do
-//     availableExtensionArrayPtr <- asListVK $ \counterPtr valueArrayPtr -> do
-//         result <- vkEnumerateInstanceExtensionProperties VK_NULL_HANDLE counterPtr valueArrayPtr
-//         validationVK result "vkEnumerateInstanceExtensionProperties error"
-//     getExtensionNames "Instance" availableExtensionArrayPtr
-//
-// getDeviceExtensionSupport :: VkPhysicalDevice -> IO [String]
-// getDeviceExtensionSupport physicalDevice = do
-//     availableExtensionArrayPtr <- asListVK $ \counterPtr valueArrayPtr -> do
-//         result <- vkEnumerateDeviceExtensionProperties physicalDevice VK_NULL_HANDLE counterPtr valueArrayPtr
-//         validationVK result "vkEnumerateInstanceExtensionProperties error"
-//     getExtensionNames "Device" availableExtensionArrayPtr
-//
 
-//
+pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::ExtensionProperties>) -> Vec<CString> {
+    log::info!("Available {} extentions: {}", extension_type, available_extensions.len());
+    let mut extension_names: Vec<CString> = Vec::new();
+    for available_extension in available_extensions {
+        unsafe {
+            let extension_name = CString::from(CStr::from_ptr(available_extension.extension_name.as_ptr() as *const c_char));
+            //log::info!("    {}", extension_name.to_str().unwrap());
+            extension_names.push(extension_name);
+        }
+    }
+    extension_names
+}
+
+pub fn get_instance_extension_supports(entry: &Entry) -> Vec<CString> {
+    let available_instance_extensions: Vec<vk::ExtensionProperties> = entry.enumerate_instance_extension_properties()
+        .expect("vkEnumerateInstanceExtensionProperties error");
+    get_extension_names(&"Instance", &available_instance_extensions)
+}
+
+pub fn get_device_extension_supports(instance: &Instance, physical_device: vk::PhysicalDevice) -> Vec<CString> {
+    unsafe {
+        let available_device_extensions: Vec<vk::ExtensionProperties> = instance.enumerate_device_extension_properties(physical_device)
+            .expect("vkEnumerateInstanceExtensionProperties error");
+        get_extension_names(&"Device", &available_device_extensions)
+    }
+}
+
+pub unsafe fn check_extension_support(
+    extension_type: &str,
+    available_extensions: &Vec<CString>,
+    require_extensions: &Vec<CString>
+) -> bool {
+    log::info!("Require {} Extensions: {} / {} availables.", extension_type, require_extensions.len(), require_extensions.len());
+    let mut result: bool = true;
+    for require_extension in require_extensions {
+        let mut found: bool = false;
+        for available_extension in available_extensions {
+            if require_extension == available_extension {
+                found = true;
+                log::info!("    {} (OK)", require_extension.to_str().unwrap());
+                break;
+            }
+        }
+        if false == found {
+            result = false;
+            log::info!("    {} (Failed)", require_extension.to_str().unwrap());
+        }
+    }
+    result
+}
 
 pub unsafe fn get_max_usable_sample_count(device_properties: &vk::PhysicalDeviceProperties) -> vk::SampleCountFlags {
     let sample_count_limit = min(device_properties.limits.framebuffer_color_sample_counts, device_properties.limits.framebuffer_depth_sample_counts);
@@ -95,6 +119,13 @@ pub unsafe fn create_vk_instance(
         .map(|ext| ext.as_ptr())
         .collect::<Vec<_>>();
     extension_names_raw.push(DebugUtils::name().as_ptr());
+
+    let require_extension_names = surface_extensions
+        .iter()
+        .map(|ext| CString::from(*ext) )
+        .collect();
+    let available_instance_extensions: Vec<CString> = get_instance_extension_supports(entry);
+    check_extension_support(&"Instance", &available_instance_extensions, &require_extension_names);
 
     let appinfo = vk::ApplicationInfo::builder()
         .application_name(&app_name)
@@ -136,36 +167,26 @@ pub unsafe fn destroy_vk_surface(surface_interface: &Surface, surface: vk::Surfa
     surface_interface.destroy_surface(surface, None);
 }
 
-pub unsafe fn check_extension_support(
-    available_device_extensions: &Vec<vk::ExtensionProperties>,
-    require_extensions: &Vec<&CStr>
-) -> bool {
-    for available_device_extension in available_device_extensions {
-        for require_extension in require_extensions {
-            let available_device_extension_name = CStr::from_ptr(available_device_extension.extension_name.as_ptr() as *const c_char);
-            if Some(Ordering::Equal) == require_extension.partial_cmp(&available_device_extension_name) {
-                return true;
-            }
-        }
-    }
-    false
-}
-
-pub unsafe fn is_device_suitable(instance: &Instance, surface_interface: &Surface, surface: vk::SurfaceKHR, physical_device: vk::PhysicalDevice)
-    -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)
-{
-    let available_device_extensions: Vec<vk::ExtensionProperties> = instance.enumerate_device_extension_properties(physical_device).unwrap();
-    let device_extension_names = vec![Swapchain::name()];
-    let has_extension: bool = check_extension_support(&available_device_extensions, &device_extension_names);
+pub unsafe fn is_device_suitable(
+    instance: &Instance,
+    surface_interface: &Surface,
+    surface: vk::SurfaceKHR,
+    physical_device: vk::PhysicalDevice
+) -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures) {
+    let available_device_extensions = get_device_extension_supports(instance, physical_device);
+    let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|str| CString::new(*str).unwrap() ).collect();
+    let has_extension: bool = check_extension_support(&"Device", &available_device_extensions, &device_extension_names);
     let physical_device_features = instance.get_physical_device_features(physical_device);
     let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface);
     let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
     (has_extension && result, swapchain_support_details, physical_device_features)
 }
 
-pub unsafe fn select_physical_device(instance: &Instance, surface_interface: &Surface, surface: vk::SurfaceKHR)
-    -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)>
-{
+pub unsafe fn select_physical_device(
+    instance: &Instance,
+    surface_interface: &Surface,
+    surface: vk::SurfaceKHR
+) -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)> {
     let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
     log::info!("Found {} devices", physical_devices.len());
     for physical_device in physical_devices {
