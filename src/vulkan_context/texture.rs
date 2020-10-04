@@ -309,7 +309,7 @@ use ash::version::DeviceV1_0;
 // destroyImageSampler device sampler = vkDestroySampler device sampler VK_NULL
 //
 
-pub unsafe fn create_image_view(
+pub fn create_image_view(
     device: &Device,
     image: vk::Image,
     view_type:vk::ImageViewType,
@@ -336,11 +336,15 @@ pub unsafe fn create_image_view(
             layer_count: mip_levels,
         })
         .build();
-    device.create_image_view(&create_view_info, None).expect("vkCreateImageView failed!")
+    unsafe {
+        device.create_image_view(&create_view_info, None).expect("vkCreateImageView failed!")
+    }
 }
 
-pub unsafe fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
-    device.destroy_image_view(image_view, None);
+pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
+    unsafe {
+        device.destroy_image_view(image_view, None);
+    }
 }
 
 //

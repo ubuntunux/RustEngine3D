@@ -60,7 +60,7 @@ pub fn get_device_extension_supports(instance: &Instance, physical_device: vk::P
     }
 }
 
-pub unsafe fn check_extension_support(
+pub fn check_extension_support(
     extension_type: &str,
     available_extensions: &Vec<CString>,
     require_extensions: &Vec<CString>
@@ -84,7 +84,7 @@ pub unsafe fn check_extension_support(
     result
 }
 
-pub unsafe fn get_max_usable_sample_count(device_properties: &vk::PhysicalDeviceProperties) -> vk::SampleCountFlags {
+pub fn get_max_usable_sample_count(device_properties: &vk::PhysicalDeviceProperties) -> vk::SampleCountFlags {
     let sample_count_limit = min(device_properties.limits.framebuffer_color_sample_counts, device_properties.limits.framebuffer_depth_sample_counts);
     let sample_count = *[
         vk::SampleCountFlags::TYPE_64,
@@ -99,7 +99,7 @@ pub unsafe fn get_max_usable_sample_count(device_properties: &vk::PhysicalDevice
     sample_count
 }
 
-pub unsafe fn create_vk_instance(
+pub fn create_vk_instance(
     entry: &Entry,
     app_name: &str,
     app_version: u32,
@@ -149,58 +149,70 @@ pub unsafe fn create_vk_instance(
         vk::version_patch(constants::API_VERSION)
     );
 
-    entry.create_instance(&create_info, None).expect("Instance creation error")
+    unsafe {
+        entry.create_instance(&create_info, None).expect("Instance creation error")
+    }
 }
 
-pub unsafe fn destroy_vk_instance(instance: &Instance) {
+pub fn destroy_vk_instance(instance: &Instance) {
     log::info!("Destroy Vulkan Instance");
-    instance.destroy_instance(None);
+    unsafe {
+        instance.destroy_instance(None);
+    }
 }
 
-pub unsafe fn create_vk_surface(entry: &Entry, instance: &Instance, window: &Window) -> vk::SurfaceKHR {
+pub fn create_vk_surface(entry: &Entry, instance: &Instance, window: &Window) -> vk::SurfaceKHR {
     log::info!("Create VkSurfaceKHR");
-    ash_window::create_surface(entry, instance, window, None).unwrap()
+    unsafe {
+        ash_window::create_surface(entry, instance, window, None).unwrap()
+    }
 }
 
-pub unsafe fn destroy_vk_surface(surface_interface: &Surface, surface: vk::SurfaceKHR) {
+pub fn destroy_vk_surface(surface_interface: &Surface, surface: vk::SurfaceKHR) {
     log::info!("Destroy VkSurfaceKHR");
-    surface_interface.destroy_surface(surface, None);
+    unsafe {
+        surface_interface.destroy_surface(surface, None);
+    }
 }
 
-pub unsafe fn is_device_suitable(
+pub fn is_device_suitable(
     instance: &Instance,
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice
 ) -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures) {
-    let available_device_extensions = get_device_extension_supports(instance, physical_device);
-    let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|str| CString::new(*str).unwrap() ).collect();
-    let has_extension: bool = check_extension_support(&"Device", &available_device_extensions, &device_extension_names);
-    let physical_device_features = instance.get_physical_device_features(physical_device);
-    let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface);
-    let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
-    (has_extension && result, swapchain_support_details, physical_device_features)
+    unsafe {
+        let available_device_extensions = get_device_extension_supports(instance, physical_device);
+        let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|str| CString::new(*str).unwrap() ).collect();
+        let has_extension: bool = check_extension_support(&"Device", &available_device_extensions, &device_extension_names);
+        let physical_device_features = instance.get_physical_device_features(physical_device);
+        let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface);
+        let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
+        (has_extension && result, swapchain_support_details, physical_device_features)
+    }
 }
 
-pub unsafe fn select_physical_device(
+pub fn select_physical_device(
     instance: &Instance,
     surface_interface: &Surface,
     surface: vk::SurfaceKHR
 ) -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)> {
-    let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
-    log::info!("Found {} devices", physical_devices.len());
-    for physical_device in physical_devices {
-        let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
-        if result {
-            // set enable clip distance
-            physical_device_features.shader_clip_distance = 1;
-            return Some((physical_device, swapchain_support_details, physical_device_features));
+    unsafe {
+        let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
+        log::info!("Found {} devices", physical_devices.len());
+        for physical_device in physical_devices {
+            let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
+            if result {
+                // set enable clip distance
+                physical_device_features.shader_clip_distance = 1;
+                return Some((physical_device, swapchain_support_details, physical_device_features));
+            }
         }
     }
     None
 }
 
-pub unsafe fn create_device(
+pub fn create_device(
     instance: &Instance,
     physical_device: vk::PhysicalDevice,
     render_features: &vulkan_context::RenderFeatures,
@@ -226,12 +238,16 @@ pub unsafe fn create_device(
         .enabled_extension_names(&device_extension_names_raw)
         .enabled_features(&render_features._physical_device_features)
         .build();
-    let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
-    log::info!("Created Device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
-    device
+    unsafe {
+        let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
+        log::info!("Created Device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
+        device
+    }
 }
 
-pub unsafe fn destroy_device(device: &Device) {
+pub fn destroy_device(device: &Device) {
     log::info!("Destroy VkDevice");
-    device.destroy_device(None);
+    unsafe {
+        device.destroy_device(None);
+    }
 }

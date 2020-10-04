@@ -30,69 +30,74 @@ pub struct QueueFamilyDatas {
     pub _queue_family_indices: QueueFamilyIndices
 }
 
-unsafe fn select_queue_family(
+fn select_queue_family(
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     queue_family_properties: &Vec<vk::QueueFamilyProperties>,
     queue_flags: vk::QueueFlags
 ) -> Vec<u32> {
-    queue_family_properties
-        .iter()
-        .enumerate()
-        .filter_map(|(index, ref queue_family_property)| {
-            let has_specify_queue = queue_family_property.queue_flags.contains(queue_flags);
-            let surface_support = surface_interface.get_physical_device_surface_support(
-                physical_device,
-                index as u32,
-                surface,
-            ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
-            if has_specify_queue && surface_support {
-                Some(index as u32)
-            } else {
-                None
-            }
-        })
-        .collect()
+    unsafe {
+        queue_family_properties
+            .iter()
+            .enumerate()
+            .filter_map(|(index, ref queue_family_property)| {
+                let has_specify_queue = queue_family_property.queue_flags.contains(queue_flags);
+                let surface_support = surface_interface.get_physical_device_surface_support(
+                    physical_device,
+                    index as u32,
+                    surface,
+                ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
+                if has_specify_queue && surface_support {
+                    Some(index as u32)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
-unsafe fn select_presentation_queue_family(
+fn select_presentation_queue_family(
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     queue_family_properties: &Vec<vk::QueueFamilyProperties>
 ) -> Vec<u32> {
-    queue_family_properties
-        .iter()
-        .enumerate()
-        .filter_map(|(index, ref queue_family_property)| {
-            let surface_support = surface_interface.get_physical_device_surface_support(
-                physical_device,
-                index as u32,
-                surface,
-            ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
-            if surface_support {
-                Some(index as u32)
-            } else {
-                None
-            }
-        })
-        .collect()
+    unsafe {
+        queue_family_properties
+            .iter()
+            .enumerate()
+            .filter_map(|(index, ref queue_family_property)| {
+                let surface_support = surface_interface.get_physical_device_surface_support(
+                    physical_device,
+                    index as u32,
+                    surface,
+                ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
+                if surface_support {
+                    Some(index as u32)
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
 }
 
-
-pub unsafe fn get_queue_families(
+pub fn get_queue_families(
     instance: &Instance,
     physical_device: vk::PhysicalDevice
 ) -> Vec<vk::QueueFamilyProperties> {
-    let queue_family_properties: Vec<vk::QueueFamilyProperties> = instance.get_physical_device_queue_family_properties(physical_device);
-    let family_count = queue_family_properties.len();
-    assert!(0 < family_count, "Zero queue family count!");
-    log::info!("Found {} queue families.", family_count);
-    queue_family_properties
+    unsafe {
+        let queue_family_properties: Vec<vk::QueueFamilyProperties> = instance.get_physical_device_queue_family_properties(physical_device);
+        let family_count = queue_family_properties.len();
+        assert!(0 < family_count, "Zero queue family count!");
+        log::info!("Found {} queue families.", family_count);
+        queue_family_properties
+    }
 }
 
-pub unsafe fn get_queue_family_indices(
+pub fn get_queue_family_indices(
     instance: &Instance,
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
@@ -140,12 +145,14 @@ pub unsafe fn get_queue_family_indices(
     queue_family_indices
 }
 
-pub unsafe fn create_queues(device: &Device, queue_family_index_set: &Vec<u32>) -> HashMap<u32, vk::Queue> {
-    let mut queue_map = HashMap::new();
-    for queue_family_index in queue_family_index_set.iter() {
-        let queue = device.get_device_queue(*queue_family_index, 0);
-        queue_map.insert(*queue_family_index, queue);
+pub fn create_queues(device: &Device, queue_family_index_set: &Vec<u32>) -> HashMap<u32, vk::Queue> {
+    unsafe {
+        let mut queue_map = HashMap::new();
+        for queue_family_index in queue_family_index_set.iter() {
+            let queue = device.get_device_queue(*queue_family_index, 0);
+            queue_map.insert(*queue_family_index, queue);
+        }
+        log::info!("Created Queues: {:?}", queue_map);
+        queue_map
     }
-    log::info!("Created Queues: {:?}", queue_map);
-    queue_map
 }

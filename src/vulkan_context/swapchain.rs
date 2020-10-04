@@ -31,7 +31,7 @@ pub struct SwapchainData {
     pub _swapchain_extent: vk::Extent2D
 }
 
-pub unsafe fn choose_swapchain_surface_format(
+pub fn choose_swapchain_surface_format(
     swap_chain_support_details: &SwapchainSupportDetails,
     require_format: vk::Format,
     require_color_space: vk::ColorSpaceKHR
@@ -68,41 +68,28 @@ pub fn choose_swapchain_extent(swapchain_support_details: &SwapchainSupportDetai
     }
 }
 
-pub unsafe fn is_valid_swapchain_support(swapchain_support_details: &SwapchainSupportDetails) -> bool {
+pub fn is_valid_swapchain_support(swapchain_support_details: &SwapchainSupportDetails) -> bool {
     (false == swapchain_support_details._formats.is_empty()) && (false == swapchain_support_details._present_modes.is_empty())
 }
 
-pub unsafe fn query_swapchain_support(
+pub fn query_swapchain_support(
     surface_loader: &Surface,
     physical_device: vk::PhysicalDevice,
     surface: vk::SurfaceKHR
 ) -> SwapchainSupportDetails {
-    let capabilities: vk::SurfaceCapabilitiesKHR = surface_loader.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
-    let formats = surface_loader.get_physical_device_surface_formats(physical_device, surface).unwrap();
-    let present_modes = surface_loader.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
-    SwapchainSupportDetails {
-        _capabilities: capabilities,
-        _formats: formats,
-        _present_modes: present_modes
+    unsafe {
+        let capabilities: vk::SurfaceCapabilitiesKHR = surface_loader.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
+        let formats = surface_loader.get_physical_device_surface_formats(physical_device, surface).unwrap();
+        let present_modes = surface_loader.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
+        SwapchainSupportDetails {
+            _capabilities: capabilities,
+            _formats: formats,
+            _present_modes: present_modes
+        }
     }
 }
-// querySwapchainSupport :: VkPhysicalDevice -> V/kSurfaceKHR -> IO SwapchainSupportDetails
-// querySwapchainSupport physicalDevice vkSurface = do
-//   capabilities <- newVkData $ \pSurfaceCapabilities -> do
-//     result <- vkGetPhysicalDeviceSurfaceCapabilitiesKHR physicalDevice vkSurface pSurfaceCapabilities
-//     validationVK result "vkGetPhysicalDeviceSurfaceCapabilitiesKHR error"
-//   formats <- asListVK $ \counterPtr valuePtr -> do
-//     result <- vkGetPhysicalDeviceSurfaceFormatsKHR physicalDevice vkSurface counterPtr valuePtr
-//     validationVK result "vkGetPhysicalDeviceSurfaceFormatsKHR error"
-//   presentModes <- asListVK $ \counterPtr valuePtr -> do
-//     result <- vkGetPhysicalDeviceSurfacePresentModesKHR physicalDevice vkSurface counterPtr valuePtr
-//     validationVK result "vkGetPhysicalDeviceSurfacePresentModesKHR error"
-//   return SwapchainSupportDetails { _capabilities = capabilities
-//                                  , _formats = formats
-//                                  , _presentModes = presentModes }
-//
 
-pub unsafe fn create_swapchain_data(
+pub fn create_swapchain_data(
     device: &Device,
     swapchain_interface: &Swapchain,
     surface: vk::SurfaceKHR,
@@ -151,35 +138,40 @@ pub unsafe fn create_swapchain_data(
     } else {
         swapchain_create_info.image_sharing_mode = vk::SharingMode::EXCLUSIVE;
     }
-    let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
-    let swapchain_images: SwapchainIndexMap<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
-    let swapchain_image_views = create_swapchain_image_views(&device, &swapchain_images, swapchain_create_info.image_format);
 
-    log::info!("Create Swapchain : {:?}", swapchain);
-    log::info!("    presentMode : {:?}", present_mode);
-    log::info!("    image_count : {} {:?}", image_count, swapchain_images);
-    log::info!("    imageFormat : {:?}", surface_format.format);
-    log::info!("    imageColorSpace : {:?}", surface_format.color_space);
-    log::info!("    imageViews : {:?}", swapchain_image_views);
-    log::info!("    image_extent : {:?}", image_extent);
-    log::info!("    imageSharingMode : {:?}", swapchain_create_info.image_sharing_mode);
+    unsafe {
+        let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
+        let swapchain_images: SwapchainIndexMap<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
+        let swapchain_image_views = create_swapchain_image_views(&device, &swapchain_images, swapchain_create_info.image_format);
 
-    SwapchainData {
-        _swapchain: swapchain,
-        _swapchain_images: swapchain_images,
-        _swapchain_image_format: surface_format.format,
-        _swapchain_image_views: swapchain_image_views,
-        _swapchain_extent: image_extent
+        log::info!("Create Swapchain : {:?}", swapchain);
+        log::info!("    presentMode : {:?}", present_mode);
+        log::info!("    image_count : {} {:?}", image_count, swapchain_images);
+        log::info!("    imageFormat : {:?}", surface_format.format);
+        log::info!("    imageColorSpace : {:?}", surface_format.color_space);
+        log::info!("    imageViews : {:?}", swapchain_image_views);
+        log::info!("    image_extent : {:?}", image_extent);
+        log::info!("    imageSharingMode : {:?}", swapchain_create_info.image_sharing_mode);
+
+        SwapchainData {
+            _swapchain: swapchain,
+            _swapchain_images: swapchain_images,
+            _swapchain_image_format: surface_format.format,
+            _swapchain_image_views: swapchain_image_views,
+            _swapchain_extent: image_extent
+        }
     }
 }
 
-pub unsafe fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, swapchain_data: &SwapchainData) {
+pub fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, swapchain_data: &SwapchainData) {
     destroy_swapchain_image_views(device, &swapchain_data._swapchain_image_views);
     log::info!("Destroy Swapchain");
-    swapchain_interface.destroy_swapchain(swapchain_data._swapchain, None);
+    unsafe {
+        swapchain_interface.destroy_swapchain(swapchain_data._swapchain, None);
+    }
 }
 
-pub unsafe fn create_swapchain_image_views(
+pub fn create_swapchain_image_views(
     device: &Device,
     swapchain_images: &SwapchainIndexMap<vk::Image>,
     image_format: vk::Format
@@ -192,7 +184,7 @@ pub unsafe fn create_swapchain_image_views(
         .collect()
 }
 
-pub unsafe fn destroy_swapchain_image_views(device: &Device, swapchain_image_views: &SwapchainIndexMap<vk::ImageView>) {
+pub fn destroy_swapchain_image_views(device: &Device, swapchain_image_views: &SwapchainIndexMap<vk::ImageView>) {
     for image_view in swapchain_image_views.iter() {
         texture::destroy_image_view(device, *image_view);
     }

@@ -14,7 +14,7 @@ pub struct BufferData {
     pub _buffer_memory_requirements: vk::MemoryRequirements
 }
 
-pub unsafe fn find_memory_type_index(
+pub fn find_memory_type_index(
     memory_requirments: &vk::MemoryRequirements,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     flags: vk::MemoryPropertyFlags
@@ -37,72 +37,80 @@ pub unsafe fn find_memory_type_index(
     None
 }
 
-pub unsafe fn create_buffer_data(
+pub fn create_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     buffer_size: vk::DeviceSize,
     buffer_usage_flags: vk::BufferUsageFlags,
     memory_property_flags: vk::MemoryPropertyFlags
 ) -> BufferData {
-    let buffer_create_info = vk::BufferCreateInfo {
-        size: buffer_size,
-        usage: buffer_usage_flags,
-        sharing_mode: vk::SharingMode::EXCLUSIVE,
-        ..Default::default()
-    };
-    let buffer = device.create_buffer(&buffer_create_info, None).expect("vkCreateBuffer failed!");
-    let buffer_memory_requirements = device.get_buffer_memory_requirements(buffer);
-    let memory_type_index = find_memory_type_index(&buffer_memory_requirements, memory_properties, memory_property_flags)
-        .expect("Unable to find suitable memorytype for the vertex buffer.");
-    let memory_allocate_info = vk::MemoryAllocateInfo {
-        allocation_size: buffer_memory_requirements.size,
-        memory_type_index: memory_type_index,
-        ..Default::default()
-    };
-    let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
-    device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
+    unsafe {
+        let buffer_create_info = vk::BufferCreateInfo {
+            size: buffer_size,
+            usage: buffer_usage_flags,
+            sharing_mode: vk::SharingMode::EXCLUSIVE,
+            ..Default::default()
+        };
+        let buffer = device.create_buffer(&buffer_create_info, None).expect("vkCreateBuffer failed!");
+        let buffer_memory_requirements = device.get_buffer_memory_requirements(buffer);
+        let memory_type_index = find_memory_type_index(&buffer_memory_requirements, memory_properties, memory_property_flags)
+            .expect("Unable to find suitable memorytype for the vertex buffer.");
+        let memory_allocate_info = vk::MemoryAllocateInfo {
+            allocation_size: buffer_memory_requirements.size,
+            memory_type_index: memory_type_index,
+            ..Default::default()
+        };
+        let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
+        device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-    log::info!("    Create Buffer: buffer({:?}), memory({:?})", buffer, buffer_memory);
-    log::info!("        buffer_size: {:?}", buffer_size);
-    log::info!("        memory_type_index: {:?}", memory_type_index);
-    log::info!("        memory_requirements: {:?}", buffer_memory_requirements);
+        log::info!("    Create Buffer: buffer({:?}), memory({:?})", buffer, buffer_memory);
+        log::info!("        buffer_size: {:?}", buffer_size);
+        log::info!("        memory_type_index: {:?}", memory_type_index);
+        log::info!("        memory_requirements: {:?}", buffer_memory_requirements);
 
-    BufferData {
-        _buffer: buffer,
-        _buffer_memory: buffer_memory,
-        _buffer_memory_requirements: buffer_memory_requirements,
+        BufferData {
+            _buffer: buffer,
+            _buffer_memory: buffer_memory,
+            _buffer_memory_requirements: buffer_memory_requirements,
+        }
     }
 }
 
-pub unsafe fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
-    log::info!("    Destroy Buffer : buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
-    device.destroy_buffer(buffer_data._buffer, None);
-    device.free_memory(buffer_data._buffer_memory, None);
+pub fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
+    unsafe {
+        log::info!("    Destroy Buffer : buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
+        device.destroy_buffer(buffer_data._buffer, None);
+        device.free_memory(buffer_data._buffer_memory, None);
+    }
 }
 
-pub unsafe fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T]) {
-    let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, buffer_data._buffer_memory_requirements.size, vk::MemoryMapFlags::empty()).unwrap();
-    let mut slice = Align::new(
-        buffer_ptr,
-        buffer_data._buffer_memory_requirements.alignment,
-        buffer_data._buffer_memory_requirements.size,
-    );
-    slice.copy_from_slice(upload_data);
-    device.unmap_memory(buffer_data._buffer_memory);
+pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T]) {
+    unsafe {
+        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, buffer_data._buffer_memory_requirements.size, vk::MemoryMapFlags::empty()).unwrap();
+        let mut slice = Align::new(
+            buffer_ptr,
+            buffer_data._buffer_memory_requirements.alignment,
+            buffer_data._buffer_memory_requirements.size,
+        );
+        slice.copy_from_slice(upload_data);
+        device.unmap_memory(buffer_data._buffer_memory);
+    }
 }
 
-pub unsafe fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], data_size: vk::DeviceSize, offset: vk::DeviceSize) {
-    let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, data_size, vk::MemoryMapFlags::empty()).unwrap();
-    let mut slice = Align::new(
-        buffer_ptr,
-        buffer_data._buffer_memory_requirements.alignment,
-        data_size,
-    );
-    slice.copy_from_slice(upload_data);
-    device.unmap_memory(buffer_data._buffer_memory);
+pub fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], data_size: vk::DeviceSize, offset: vk::DeviceSize) {
+    unsafe {
+        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, data_size, vk::MemoryMapFlags::empty()).unwrap();
+        let mut slice = Align::new(
+            buffer_ptr,
+            buffer_data._buffer_memory_requirements.alignment,
+            data_size,
+        );
+        slice.copy_from_slice(upload_data);
+        device.unmap_memory(buffer_data._buffer_memory);
+    }
 }
 
-unsafe fn copy_buffer_region(
+pub fn copy_buffer_region(
     device: &Device,
     command_buffer: vk::CommandBuffer,
     src_buffer: vk::Buffer,
@@ -111,10 +119,12 @@ unsafe fn copy_buffer_region(
 ) {
     log::info!("\nPlease call copy_buffer with run_commands_once for immediatelly execution!!!!!\n");
     log::info!("    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})", src_buffer, dst_buffer, regions);
-    device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, regions);
+    unsafe {
+        device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, regions);
+    }
 }
 
-pub unsafe fn copy_buffer(
+pub fn copy_buffer(
    device: &Device,
    command_buffer: vk::CommandBuffer,
    src_buffer: vk::Buffer,
@@ -126,5 +136,7 @@ pub unsafe fn copy_buffer(
         dst_offset: 0,
         size: buffer_size
     }];
-    copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
+    unsafe {
+        copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
+    }
 }

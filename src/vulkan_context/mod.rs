@@ -1,5 +1,6 @@
 pub mod buffer;
 pub mod command_buffer;
+pub mod descriptor;
 pub mod device;
 pub mod geometry_buffer;
 pub mod swapchain;
@@ -10,6 +11,7 @@ pub mod vulkan_context;
 
 use self::buffer::*;
 use self::command_buffer::*;
+use self::descriptor::*;
 use self::device::*;
 use self::geometry_buffer::*;
 use self::swapchain::*;

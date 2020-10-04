@@ -265,18 +265,20 @@ impl RendererData {
 
     }
 
-    pub unsafe fn destroy_renderer_data(&self) {
-        //destroyUniformBufferDatas _device _uniformBufferDataMap
-        //destroyRenderTargets rendererData _renderTargetDataMap
-        sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
-        sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
-        sync::destroy_fences(&self._device, &self._frame_fences);
-        command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
-        command_buffer::destroy_command_pool(&self._device, self._command_pool);
-        swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
-        device::destroy_device(&self._device);
-        device::destroy_vk_surface(&self._surface_interface, self._surface);
-        self._debug_util_interface.destroy_debug_utils_messenger(self._debug_call_back, None);
-        device::destroy_vk_instance(&self._instance);
+    pub fn destroy_renderer_data(&self) {
+        unsafe {
+            //destroyUniformBufferDatas _device _uniformBufferDataMap
+            //destroyRenderTargets rendererData _renderTargetDataMap
+            sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
+            sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
+            sync::destroy_fences(&self._device, &self._frame_fences);
+            command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
+            command_buffer::destroy_command_pool(&self._device, self._command_pool);
+            swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
+            device::destroy_device(&self._device);
+            device::destroy_vk_surface(&self._surface_interface, self._surface);
+            self._debug_util_interface.destroy_debug_utils_messenger(self._debug_call_back, None);
+            device::destroy_vk_instance(&self._instance);
+        }
     }
 }
