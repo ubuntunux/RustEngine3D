@@ -61,7 +61,7 @@ pub struct Resources {
     // _mesh_data_map: MeshDataMap,
     // _model_data_map: ModelDataMap,
     // _texture_data_map: TextureDataMap,
-    // _frame_buffer_data_map: FrameBufferDataMap,
+    // _framebuffer_data_map: FrameBufferDataMap,
     // _render_pass_data_map: RenderPassDataMap,
     // _material_data_map: MaterialDataMap,
     // _material_instance_data_map: MaterialInstanceDataMap,
