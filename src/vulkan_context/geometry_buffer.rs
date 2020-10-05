@@ -1,8 +1,29 @@
-use nalgebra::{ Vector2, Vector3, Matrix4 };
+use std::mem;
 
-use crate::utilities::bounding_box::{ BoundingBox };
+use ash::{
+    vk,
+    Device,
+};
+use ash::version::DeviceV1_0;
+use nalgebra::{
+    Vector2,
+    Vector3,
+    Matrix4
+};
 
-#[derive(Debug, Clone)]
+use crate::constants;
+use crate::vulkan_context::buffer;
+use crate::vulkan_context::vulkan_context::{
+    get_color32,
+    get_format_size,
+    run_commands_once,
+};
+use crate::utilities::bounding_box::{
+    BoundingBox,
+    calc_bounding_box
+};
+
+#[derive(Debug, Clone, Copy)]
 pub struct VertexData {
     _position: Vector3<f32>,
     _normal: Vector3<f32>,
@@ -13,20 +34,38 @@ pub struct VertexData {
 
 #[derive(Debug, Clone)]
 pub struct GeometryCreateInfo {
-    _vertices: Vec<VertexData>,
+    _vertex_datas: Vec<VertexData>,
     _indices: Vec<u32>,
     _bounding_box: BoundingBox
 }
 
-#[derive(Debug, Clone)]
 pub struct GeometryData {
-    // _geometryName: Text.Text,
-    // _vertexBufferMemory: VkDeviceMemory,
-    // _vertexBufferPtr: Ptr VkBuffer,
-    // _indexBufferMemory: VkDeviceMemory,
-    // _indexBuffer: VkBuffer,
-    // _vertexIndexCount: u32,
-    // _geometryBoundingBox: BoundingBox
+    _geometry_name: String,
+    _vertex_buffer_data: buffer::BufferData,
+    _index_buffer_data: buffer::BufferData,
+    _vertex_index_count: u32,
+    _geometry_bounding_box: BoundingBox
+}
+
+pub fn add_vertex_input_attribute_description(
+    mut vertex_input_attribute_descriptions: &mut Vec<vk::VertexInputAttributeDescription>,
+    binding: u32,
+    format: vk::Format
+) {
+    let location: u32 = vertex_input_attribute_descriptions.len() as u32;
+    let offset: u32 = if 0 == location {
+        0
+    } else {
+        let last_description = vertex_input_attribute_descriptions.last().unwrap();
+        last_description.offset + get_format_size(last_description.format)
+    };
+
+    vertex_input_attribute_descriptions.push(vk::VertexInputAttributeDescription {
+        location: location,
+        binding: binding,
+        format: format,
+        offset: offset,
+    });
 }
 
 impl Default for VertexData {
@@ -41,141 +80,73 @@ impl Default for VertexData {
     }
 }
 
-// vertexInputBindDescription :: VkVertexInputBindingDescription
-// vertexInputBindDescription = createVk @VkVertexInputBindingDescription
-//     $  set @"binding" 0
-//     &* set @"stride"  (bSizeOf @VertexData undefined)
-//     &* set @"inputRate" VK_VERTEX_INPUT_RATE_VERTEX
-//
-// vertexInputAttributeDescriptions :: DF.Vector VkVertexInputAttributeDescription 5
-// vertexInputAttributeDescriptions = ST.runST $ do
-//     mv <- ST.newPinnedDataFrame
-//     ST.writeDataFrame mv (Idx 0 :* U) . scalar $ createVk
-//         $  set @"location" 0
-//         &* set @"binding" 0
-//         &* set @"format" VK_FORMAT_R32G32B32_SFLOAT
-//         &* set @"offset" (bFieldOffsetOf @"_vertex_position" @VertexData undefined)
-//     ST.writeDataFrame mv (Idx 1 :* U) . scalar $ createVk
-//         $  set @"location" 1
-//         &* set @"binding" 0
-//         &* set @"format" VK_FORMAT_R32G32B32_SFLOAT
-//         &* set @"offset" (bFieldOffsetOf @"_vertex_normal" @VertexData undefined)
-//     ST.writeDataFrame mv (Idx 2 :* U) . scalar $ createVk
-//         $  set @"location" 2
-//         &* set @"binding" 0
-//         &* set @"format" VK_FORMAT_R32G32B32_SFLOAT
-//         &* set @"offset" (bFieldOffsetOf @"_vertex_tangent" @VertexData undefined)
-//     ST.writeDataFrame mv (Idx 3 :* U) . scalar $ createVk
-//         $  set @"location" 3
-//         &* set @"binding" 0
-//         &* set @"format" VK_FORMAT_R8G8B8A8_UNORM
-//         &* set @"offset" (bFieldOffsetOf @"_vertex_color" @VertexData undefined)
-//     ST.writeDataFrame mv (Idx 4 :* U) . scalar $ createVk
-//         $  set @"location" 4
-//         &* set @"binding" 0
-//         &* set @"format" VK_FORMAT_R32G32_SFLOAT
-//         &* set @"offset" (bFieldOffsetOf @"_vertex_tex_coord" @VertexData undefined)
-//     ST.unsafeFreezeDataFrame mv
-//
-//
-// createGeometryData :: VkPhysicalDevice
-//                    -> VkDevice
-//                    -> VkQueue
-//                    -> VkCommandPool
-//                    -> Text.Text
-//                    -> GeometryCreateInfo
-//                    -> IO GeometryData
-// createGeometryData physicalDevice device graphicsQueue commandPool geometryName geometryCreateInfo = do
-//     log::info!("createGeometryBuffer : " ++ (Text.unpack geometryName)
-//     (vertexBufferMemory, vertexBuffer) <- createVertexBuffer physicalDevice device graphicsQueue commandPool (_geometry_create_info_vertices geometryCreateInfo)
-//     (indexBufferMemory, indexBuffer) <- createIndexBuffer physicalDevice device graphicsQueue commandPool (_geometry_create_info_indices geometryCreateInfo)
-//     vertexBufferPtr <- new vertexBuffer
-//     return GeometryData
-//         { _geometryName = geometryName
-//         , _vertexBufferMemory = vertexBufferMemory
-//         , _vertexBufferPtr = vertexBufferPtr
-//         , _indexBufferMemory = indexBufferMemory
-//         , _indexBuffer = indexBuffer
-//         , _vertexIndexCount = (fromIntegral . SVector.length $ _geometry_create_info_indices geometryCreateInfo)
-//         , _geometryBoundingBox = _geometry_create_info_bounding_box geometryCreateInfo
-//         }
-//
-// destroyGeometryData :: VkDevice -> GeometryData -> IO ()
-// destroyGeometryData device geometryData@GeometryData {..} = do
-//     logInfo "destroyGeometryData"
-//     vertexBuffer <- peek _vertexBufferPtr
-//     destroyBuffer device vertexBuffer _vertexBufferMemory
-//     destroyBuffer device _indexBuffer _indexBufferMemory
-//     free _vertexBufferPtr
-//
-//
-// createVertexBuffer :: VkPhysicalDevice
-//                    -> VkDevice
-//                    -> VkQueue
-//                    -> VkCommandPool
-//                    -> SVector.Vector VertexData
-//                    -> IO (VkDeviceMemory, VkBuffer)
-// createVertexBuffer physicalDevice device graphicsQueue commandPool vertices = do
-//     let bufferSize = fromIntegral (sizeOf (undefined::VertexData) * (SVector.length vertices))::VkDeviceSize
-//         bufferUsageFlags = (VK_BUFFER_USAGE_TRANSFER_DST_BIT .|. VK_BUFFER_USAGE_VERTEX_BUFFER_BIT)
-//         memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-//
-//     logTrivialInfo $ "createVertexBuffer : bufferSize " ++ show bufferSize
-//
-//     // create temporary staging buffer
-//     let stagingBufferUsageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-//         stagingBufferMemoryPropertyFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT .|. VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-//     (stagingBufferMemory, stagingBuffer) <- createBuffer physicalDevice device bufferSize stagingBufferUsageFlags stagingBufferMemoryPropertyFlags
-//
-//     // upload data
-//     stagingDataPtr <- allocaPeek $ vkMapMemory device stagingBufferMemory 0 bufferSize VK_ZERO_FLAGS
-//     SVector.unsafeWith vertices $ \ptr -> do
-//         copyBytes (castPtr stagingDataPtr) ptr (fromIntegral bufferSize)
-//     vkUnmapMemory device stagingBufferMemory
-//
-//     // create vertex buffer & copy
-//     (vertexBufferMemory, vertexBuffer) <- createBuffer physicalDevice device bufferSize bufferUsageFlags memoryPropertyFlags
-//     copyBuffer device commandPool graphicsQueue stagingBuffer vertexBuffer bufferSize
-//
-//     // destroy temporary staging buffer
-//     destroyBuffer device stagingBuffer stagingBufferMemory
-//
-//     return (vertexBufferMemory, vertexBuffer)
-//
-//
-//
-// createIndexBuffer :: VkPhysicalDevice
-//                   -> VkDevice
-//                   -> VkQueue
-//                   -> VkCommandPool
-//                   -> SVector.Vector u32
-//                   -> IO (VkDeviceMemory, VkBuffer)
-// createIndexBuffer physicalDevice device graphicsQueue commandPool indices = do
-//     let bufferSize = fromIntegral (sizeOf (undefined::u32) * (SVector.length indices))::VkDeviceSize
-//         bufferUsageFlags = (VK_BUFFER_USAGE_TRANSFER_DST_BIT .|. VK_BUFFER_USAGE_INDEX_BUFFER_BIT)
-//         memoryPropertyFlags = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-//
-//     logTrivialInfo $ "createIndexBuffer : bufferSize " ++ show bufferSize
-//
-//     // create index buffer
-//     (indexBufferMemory, indexBuffer) <- createBuffer physicalDevice device bufferSize bufferUsageFlags memoryPropertyFlags
-//
-//     // create temporary staging buffer
-//     let stagingBufferUsageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-//         stagingBufferMemoryPropertyFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT .|. VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-//     (stagingBufferMemory, stagingBuffer) <- createBuffer physicalDevice device bufferSize stagingBufferUsageFlags stagingBufferMemoryPropertyFlags
-//
-//     // copy data
-//     stagingDataPtr <- allocaPeek $ vkMapMemory device stagingBufferMemory 0 bufferSize VK_ZERO_FLAGS
-//     SVector.unsafeWith indices $ \ptr -> do
-//         copyBytes (castPtr stagingDataPtr) ptr (fromIntegral bufferSize)
-//     vkUnmapMemory device stagingBufferMemory
-//     copyBuffer device commandPool graphicsQueue stagingBuffer indexBuffer bufferSize
-//
-//     // destroy temporary staging buffer
-//     destroyBuffer device stagingBuffer stagingBufferMemory
-//
-//     return (indexBufferMemory, indexBuffer)
+impl VertexData {
+    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const NORMAL: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const TANGENT: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const COLOR: vk::Format = vk::Format::R8G8B8A8_UNORM;
+    const TEXCOORD: vk::Format = vk::Format::R32G32_SFLOAT;
+
+    pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let binding = 0u32;
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::POSITION);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::NORMAL);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TANGENT);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::COLOR);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TEXCOORD);
+        vertex_input_attribute_descriptions
+    }
+
+    fn get_vertex_input_binding_description() -> vk::VertexInputBindingDescription {
+        vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: mem::size_of::<VertexData>() as u32,
+            input_rate: vk::VertexInputRate::VERTEX
+        }
+    }
+}
+
+pub fn create_geometry_data(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    geometry_name: &String,
+    geometry_create_info: &GeometryCreateInfo
+) -> GeometryData {
+    log::info!("createGeometryBuffer: {:?}", geometry_name);
+    let vertex_buffer_data = buffer::create_buffer_data_with_uploads(
+        device,
+        command_pool,
+        command_queue,
+        device_memory_properties,
+        vk::BufferUsageFlags::VERTEX_BUFFER,
+        &geometry_create_info._vertex_datas
+    );
+    let index_buffer_data = buffer::create_buffer_data_with_uploads(
+        device,
+        command_pool,
+        command_queue,
+        device_memory_properties,
+        vk::BufferUsageFlags::INDEX_BUFFER,
+        &geometry_create_info._indices
+    );
+    GeometryData {
+        _geometry_name: geometry_name.clone(),
+        _vertex_buffer_data: vertex_buffer_data,
+        _index_buffer_data: index_buffer_data,
+        _vertex_index_count: geometry_create_info._indices.len() as u32,
+        _geometry_bounding_box: geometry_create_info._bounding_box.clone()
+    }
+}
+
+pub fn destroy_geometry_data(device: &Device, geometry_data: &GeometryData) {
+    log::info!("destroyGeometryData");
+    buffer::destroy_buffer_data(device, &geometry_data._vertex_buffer_data);
+    buffer::destroy_buffer_data(device, &geometry_data._index_buffer_data);
+}
+
 //
 // {-
 //     Note: This point can also be considered as the vector starting from the origin to pi.
@@ -237,24 +208,35 @@ impl Default for VertexData {
 //             in
 //                 DList.fromList [(i0, resultTangent), (i1, resultTangent), (i2, resultTangent)]
 //
-// quadGeometryCreateInfos :: [GeometryCreateInfo]
-// quadGeometryCreateInfos =
-//     let positionList = [vec3 -1.0 -1.0 0.0, vec3 1.0 -1.0 0.0, vec3 1.0 1.0 0.0, vec3 -1.0 1.0 0.0]
-//         positions = Vector.fromList positionList
-//         vertexCount = length positions
-//         normals = Vector.replicate vertexCount $ vec3 0 1 0
-//         vertexColor = getColor32 255 255 255 255
-//         texCoords = Vector.fromList [vec2 0 0, vec2 1 0, vec2 1 1, vec2 0 1]
-//         indices = Vector.fromList [0, 3, 2, 2, 1, 0] :: Vector.Vector u32
-//         tangents = computeTangent positions normals texCoords indices
-//         vertices = [VertexData (positions Vector.! i) (normals Vector.! i) (tangents Vector.! i) vertexColor (texCoords Vector.! i) | i <- [0..(vertexCount - 1)]]
-//     in
-//         [ GeometryCreateInfo
-//             { _geometry_create_info_vertices = SVector.fromList vertices
-//             , _geometry_create_info_indices = SVector.fromList (Vector.toList indices)
-//             , _geometry_create_info_bounding_box = calcBoundingBox positionList
-//             }
-//         ]
+
+pub fn quad_geometry_createInfos() -> Vec<GeometryCreateInfo> {
+    let positions: Vec<Vector3<f32>> = vec![Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, -1.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)];
+    let vertex_count = positions.len() as u32;
+    let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count as usize];
+    let vertex_color = get_color32(255, 255, 255, 255);
+    let tex_coords: Vec<Vector2<f32>> = vec![Vector2::new(0.0, 0.0), Vector2::new(1.0, 0.0), Vector2::new(1.0, 1.0), Vector2::new(0.0, 1.0)];
+    let indeces: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
+    // TODO : taqngets = computeTangent positions normals texCoords indices
+    let tangents = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count as usize];
+    let vertex_datas = positions
+        .iter()
+        .enumerate()
+        .map(|(index, position)| {
+            VertexData {
+                _position: positions[index].clone(),
+                _normal: normals[index].clone(),
+                _tangent: tangents[index].clone(),
+                _color: vertex_color,
+                _tex_coord: tex_coords[index].clone(),
+            }
+        }).collect();
+
+    vec![GeometryCreateInfo {
+        _vertex_datas: vertex_datas,
+        _indices: indeces,
+        _bounding_box: calc_bounding_box(&positions)
+    }]
+}
 //
 // cubeGeometryCreateInfos :: [GeometryCreateInfo]
 // cubeGeometryCreateInfos =

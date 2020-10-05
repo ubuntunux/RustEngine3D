@@ -42,6 +42,16 @@ pub struct RenderFeatures {
     pub _msaa_samples: vk::SampleCountFlags
 }
 
+pub fn get_format_size(format: vk::Format) -> u32 {
+    match format {
+        vk::Format::R32G32B32A32_SFLOAT => 16,
+        vk::Format::R32G32B32_SFLOAT => 12,
+        vk::Format::R32G32_SFLOAT => 8,
+        vk::Format::R8G8B8A8_UNORM => 4,
+        _ => panic!("Not implemented for format({:?})", format)
+    }
+}
+
 pub fn get_color32(r: u32, g: u32, b: u32, a: u32) -> u32 {
     (min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24))
 }

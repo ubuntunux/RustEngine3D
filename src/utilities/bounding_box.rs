@@ -23,7 +23,7 @@ impl Default for BoundingBox {
 }
 
 
-pub fn calc_bounding_box(positions: Vec<Vector3<f32>>) -> BoundingBox {
+pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
     if 0 == positions.len() {
         return BoundingBox::default();
     }

@@ -49,6 +49,7 @@ use crate::resource;
 use crate::vulkan_context::{
     command_buffer,
     device,
+    geometry_buffer,
     queue,
     swapchain,
     sync,
@@ -206,9 +207,9 @@ pub fn create_renderer_data<T>(
         let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT);
 
         // debug utils
-        let debug_message_level = get_debug_message_level(vk::DebugUtilsMessageSeverityFlagsEXT::WARNING);
+        let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
         let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-            .message_severity(vk::DebugUtilsMessageSeverityFlagsEXT::WARNING)
+            .message_severity(debug_message_level)
             .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
             .pfn_user_callback(Some(vulkan_debug_callback))
             .build();

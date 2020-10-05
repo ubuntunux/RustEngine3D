@@ -1,3 +1,4 @@
+use std::mem;
 use std::os::raw::c_void;
 
 use ash::{
@@ -7,6 +8,10 @@ use ash::{
 };
 use ash::version::{DeviceV1_0, InstanceV1_0};
 use ash::util::Align;
+
+use crate::vulkan_context::vulkan_context::{
+    run_commands_once,
+};
 
 pub struct BufferData {
     pub _buffer: vk::Buffer,
@@ -37,6 +42,53 @@ pub fn find_memory_type_index(
     None
 }
 
+pub fn create_buffer_data_with_uploads<T: Copy>(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    dst_buffer_type: vk::BufferUsageFlags,
+    upload_datas: &Vec<T>,
+) -> BufferData {
+    let buffer_size = (mem::size_of::<T>() * upload_datas.len()) as vk::DeviceSize;
+    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
+    log::info!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
+
+    // create temporary staging buffer
+    let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
+    let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    let staging_buffer_data = create_buffer_data(
+        device,
+        device_memory_properties,
+        buffer_size,
+        staging_buffer_usage_flags,
+        staging_buffer_memory_property_flags
+    );
+
+    // upload data
+    upload_buffer_data(device, &staging_buffer_data, &upload_datas);
+
+    // create vertex buffer & copy
+    let dst_buffer_data = create_buffer_data(
+        device,
+        device_memory_properties,
+        buffer_size,
+        buffer_usage_flags,
+        buffer_memory_property_flags
+    );
+
+    // copy buffer
+    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer|
+        copy_buffer(device, command_buffer, staging_buffer_data._buffer, dst_buffer_data._buffer, buffer_size)
+    );
+
+    // destroy temporary staging buffer
+    destroy_buffer_data(device, &staging_buffer_data);
+
+    dst_buffer_data
+}
+
 pub fn create_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
@@ -63,7 +115,7 @@ pub fn create_buffer_data(
         let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-        log::info!("    Create Buffer: buffer({:?}), memory({:?})", buffer, buffer_memory);
+        log::info!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
         log::info!("        buffer_size: {:?}", buffer_size);
         log::info!("        memory_type_index: {:?}", memory_type_index);
         log::info!("        memory_requirements: {:?}", buffer_memory_requirements);
@@ -117,7 +169,6 @@ pub fn copy_buffer_region(
     dst_buffer: vk::Buffer,
     regions: &[vk::BufferCopy]
 ) {
-    log::info!("\nPlease call copy_buffer with run_commands_once for immediatelly execution!!!!!\n");
     log::info!("    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})", src_buffer, dst_buffer, regions);
     unsafe {
         device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, regions);
