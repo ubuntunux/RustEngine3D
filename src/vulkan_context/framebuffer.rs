@@ -124,6 +124,8 @@ pub fn create_framebuffer_data(
 pub fn destroy_framebuffer_data(device: &Device, framebuffer_data: &FramebufferData) {
     log::info!("Destroy Framebuffers: {:?} {:?}", framebuffer_data._framebuffer_info._framebuffer_name, framebuffer_data._framebuffers);
     unsafe {
-        framebuffer_data._framebuffers.iter().map(|framebuffer| { device.destroy_framebuffer(*framebuffer, None) });
+        for framebuffer in framebuffer_data._framebuffers.iter() {
+            device.destroy_framebuffer(*framebuffer, None);
+        }
     }
 }
