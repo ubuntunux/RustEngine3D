@@ -21,7 +21,7 @@ layout (location = 0) in vec3 vs_in_position;
 layout (location = 1) in vec4 vs_in_color;
 layout (location = 2) in vec3 vs_in_normal;
 layout (location = 3) in vec3 vs_in_tangent;
-layout (location = 4) in vec2 vs_in_tex_coord;
+layout (location = 4) in vec2 vs_in_texcoord;
 // instance data
 layout (location = 5) in vec4 vs_in_isntance_offset;
 

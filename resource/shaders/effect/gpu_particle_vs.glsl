@@ -24,7 +24,7 @@ layout (location = 0) in vec3 vs_in_position;
 layout (location = 1) in vec4 vs_in_color;
 layout (location = 2) in vec3 vs_in_normal;
 layout (location = 3) in vec3 vs_in_tangent;
-layout (location = 4) in vec2 vs_in_tex_coord;
+layout (location = 4) in vec2 vs_in_texcoord;
 
 layout (location = 0) out VERTEX_OUTPUT vs_output;
 layout (location = INSTANCE_ID_LOCATION) flat out uint instanceID;
@@ -52,7 +52,7 @@ void main()
 
     vs_output.world_position = world_position.xyz;
 
-    vec2 uv_size = vs_in_tex_coord.xy / vec2(PARTICLE_CELL_COUNT);
+    vec2 uv_size = vs_in_texcoord.xy / vec2(PARTICLE_CELL_COUNT);
     vs_output.uv = particle_datas[id].sequence_uv + uv_size;
     vs_output.next_uv = particle_datas[id].next_sequence_uv + uv_size;
     vs_output.sequence_ratio = particle_datas[id].sequence_ratio;

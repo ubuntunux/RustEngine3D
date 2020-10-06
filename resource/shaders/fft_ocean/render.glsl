@@ -40,7 +40,7 @@ layout (location = 0) in vec3 vs_in_position;
 layout (location = 1) in vec4 vs_in_color;
 layout (location = 2) in vec3 vs_in_normal;
 layout (location = 3) in vec3 vs_in_tangent;
-layout (location = 4) in vec2 vs_in_tex_coord;
+layout (location = 4) in vec2 vs_in_texcoord;
 layout (location = 5) in vec2 offset;   // instance buffer
 
 layout (location = 0) out VERTEX_OUTPUT vs_output;
@@ -150,7 +150,7 @@ void main()
 {
     vec2 uv = vs_output.uvs.xy;
     vec2 fft_uv = vs_output.uvs.zw;
-    vec2 screen_tex_coord = (vs_output.proj_pos.xy / vs_output.proj_pos.w) * 0.5 + 0.5;
+    vec2 screen_texcoord = (vs_output.proj_pos.xy / vs_output.proj_pos.w) * 0.5 + 0.5;
     vec3 view_center_ray = vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
     float screen_fade = pow(vs_output.screen_fade, 100.0f);
 
@@ -160,7 +160,7 @@ void main()
     vec3 V = -relative_pos / dist;
     float view_ray_angle = dot(view_center_ray, V);
 
-    float scene_dist = texture2D(texture_linear_depth, screen_tex_coord).x / view_ray_angle;
+    float scene_dist = texture2D(texture_linear_depth, screen_texcoord).x / view_ray_angle;
     float vertex_noise = vs_output.vertex_noise;
 
     // fix scene_depth
@@ -194,7 +194,7 @@ void main()
     float fresnel = fresnelSchlick(max(0.2, dot(smooth_normal, V)), F0).x;
 
     // refract
-    vec2 reflected_screen_uv = screen_tex_coord + N.xz * 0.05f;
+    vec2 reflected_screen_uv = screen_texcoord + N.xz * 0.05f;
     float refracted_scene_dist = texture2D(texture_linear_depth, reflected_screen_uv).x / view_ray_angle;
     float refracted_scene_dist_origin = refracted_scene_dist;
 
@@ -230,12 +230,12 @@ void main()
     vec3 scene_reflect_color = textureCubeLod(texture_probe, invert_y(R), 0.0).xyz;
 
     // Under Water
-    vec3 under_water_color = texture2DLod(texture_scene, (refracted_scene_dist <= dist) ? screen_tex_coord : reflected_screen_uv, 0.0).xyz;
+    vec3 under_water_color = texture2DLod(texture_scene, (refracted_scene_dist <= dist) ? screen_texcoord : reflected_screen_uv, 0.0).xyz;
     {
         // Under Water Caustic
         if(false == isUnderWater)
         {
-            vec3 under_water_shadow = vec3(get_shadow_factor_simple(screen_tex_coord, world_pos, dot(L, vertex_normal.xyz), texture_shadow));
+            vec3 under_water_shadow = vec3(get_shadow_factor_simple(screen_texcoord, world_pos, dot(L, vertex_normal.xyz), texture_shadow));
             under_water_shadow = max(sky_irradiance, under_water_shadow);
 
             const float chromaSeperation = sin(t * 3.5f) * 0.005;

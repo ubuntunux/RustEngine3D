@@ -118,9 +118,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         match event {
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 *control_flow = ControlFlow::Exit;
-                unsafe {
-                    renderer_data.destroy_renderer_data();
-                }
+                renderer_data.destroy_renderer_data();
             },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
                 renderer_data.set_need_recreate_swapchain(true);

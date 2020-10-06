@@ -2,8 +2,8 @@ use std;
 use ash::vk;
 
 pub const ENGINE_NAME: &str = "RustEngine3D";
-pub const ENGINE_VERSION: u32 = vk::make_version(0, 1, 0);
-pub const API_VERSION: u32 = vk::make_version(1, 0, 0);
+pub const ENGINE_VERSION: u32 = vk::make_version(1, 1, 0);
+pub const API_VERSION: u32 = vk::make_version(9, 1, 0);
 
 pub const DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::WARNING;
 pub const VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];

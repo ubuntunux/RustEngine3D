@@ -187,7 +187,5 @@ pub fn copy_buffer(
         dst_offset: 0,
         size: buffer_size
     }];
-    unsafe {
-        copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
-    }
+    copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
 }

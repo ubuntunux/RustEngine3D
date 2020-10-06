@@ -49,7 +49,6 @@ use crate::resource;
 use crate::vulkan_context::{
     command_buffer,
     device,
-    geometry_buffer,
     queue,
     swapchain,
     sync,
@@ -259,8 +258,7 @@ impl RendererData {
     }
 
     pub fn recreate_swapchain(&self) {
-        log::info!("recreate_swapchain");
-    }
+        log::info!("recreate_swapchain");    }
 
     pub fn render_scene(&self) {
 

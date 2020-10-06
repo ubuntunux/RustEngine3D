@@ -26,7 +26,9 @@ pub fn create_semaphores(device: &Device) -> FrameIndexMap<vk::Semaphore> {
 pub fn destroy_semaphores(device: &Device, semaphores: &FrameIndexMap<vk::Semaphore>) {
     log::info!("Destroy Semaphore: {:?}", semaphores);
     unsafe {
-        semaphores.iter().map(|semaphore| { device.destroy_semaphore(*semaphore, None) });
+        for semaphore in semaphores.iter() {
+            device.destroy_semaphore(*semaphore, None)
+        }
     }
 }
 
@@ -50,6 +52,8 @@ pub fn create_fences(device: &Device) -> FrameIndexMap<vk::Fence> {
 pub fn destroy_fences(device: &Device, fences: &FrameIndexMap<vk::Fence>) {
     log::info!("Destroy Fences: {:?}", fences);
     unsafe {
-        fences.iter().map(|fence| { device.destroy_fence(*fence, None) });
+        for fence in fences.iter() {
+            device.destroy_fence(*fence, None);
+        }
     }
 }

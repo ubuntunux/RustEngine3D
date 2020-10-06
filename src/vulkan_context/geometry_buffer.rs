@@ -1,10 +1,12 @@
 use std::mem;
+use std::collections::HashMap;
 
 use ash::{
     vk,
     Device,
 };
 use ash::version::DeviceV1_0;
+use nalgebra;
 use nalgebra::{
     Vector2,
     Vector3,
@@ -12,6 +14,7 @@ use nalgebra::{
 };
 
 use crate::constants;
+use crate::utilities::math;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::{
     get_color32,
@@ -23,13 +26,14 @@ use crate::utilities::bounding_box::{
     calc_bounding_box
 };
 
+
 #[derive(Debug, Clone, Copy)]
 pub struct VertexData {
     _position: Vector3<f32>,
     _normal: Vector3<f32>,
     _tangent: Vector3<f32>,
     _color: u32,
-    _tex_coord: Vector2<f32>
+    _texcoord: Vector2<f32>
 }
 
 #[derive(Debug, Clone)]
@@ -48,7 +52,7 @@ pub struct GeometryData {
 }
 
 pub fn add_vertex_input_attribute_description(
-    mut vertex_input_attribute_descriptions: &mut Vec<vk::VertexInputAttributeDescription>,
+    vertex_input_attribute_descriptions: &mut Vec<vk::VertexInputAttributeDescription>,
     binding: u32,
     format: vk::Format
 ) {
@@ -75,7 +79,7 @@ impl Default for VertexData {
             _normal: Vector3::new(0.0, 0.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
             _color: 0,
-            _tex_coord: Vector2::new(0.0, 0.0)
+            _texcoord: Vector2::new(0.0, 0.0)
         }
     }
 }
@@ -177,47 +181,62 @@ pub fn destroy_geometry_data(device: &Device, geometry_data: &GeometryData) {
 //     Equation of N:
 //         N = cross(T, B)
 // -}
-// computeTangent :: Vector.Vector Vector3<f32> -> Vector.Vector Vector3<f32> -> Vector.Vector Vector2<f32> -> Vector.Vector u32 -> (Vector.Vector Vector3<f32>)
-// computeTangent positions normals texcoords indices =
-//     let vertexCount = length positions
-//         indexCount = length indices
-//         tangentList = DList.foldr (\i acc -> DList.append (computeTangent' i positions texcoords normals) acc) DList.empty (DList.fromList [0,3..(indexCount - 1)])
-//         tangentMap = Map.fromList $ DList.toList tangentList
-//         keys = DList.map (\(index, tangent) -> index) tangentList
-//     in
-//         Vector.fromList . DList.toList $ DList.map (\key -> fromJust $ Map.lookup key tangentMap) keys
-//     where
-//         computeTangent' :: Int -> Vector.Vector Vector3<f32> -> Vector.Vector Vector2<f32> -> Vector.Vector Vector3<f32> -> DList.DList (Int, Vector3<f32>)
-//         computeTangent' i positions texcoords normals =
-//             let i0 = fromIntegral $ indices Vector.! i
-//                 i1 = fromIntegral $ indices Vector.! (i + 1)
-//                 i2 = fromIntegral $ indices Vector.! (i + 2)
-//                 deltaPos_0_1 = (positions Vector.! i1) - (positions Vector.! i0)
-//                 deltaPos_0_2 = (positions Vector.! i2) - (positions Vector.! i0)
-//                 deltaUV_0_1 = (texcoords Vector.! i1) - (texcoords Vector.! i0)
-//                 deltaUV_0_2 = (texcoords Vector.! i2) - (texcoords Vector.! i0)
-//                 S r = (deltaUV_0_1 .! Idx 0) * (deltaUV_0_2 .! Idx 1) - (deltaUV_0_1 .! Idx 1) * (deltaUV_0_2 .! Idx 0)
-//                 r' = if r /= 0.0 then (1.0 / r) else 0.0
-//                 tangent = safeNormalize $ (deltaPos_0_1 * (fromScalar $ deltaUV_0_2 .! Idx 1) - deltaPos_0_2 * (fromScalar $ deltaUV_0_1 .! Idx 1)) * (fromScalar $ scalar r')
-//                 avg_normal = safeNormalize $ (normals Vector.! i0 + normals Vector.! i1 + normals Vector.! i2)
-//                 resultTangent =
-//                     if 0.0 == (dot tangent tangent) then
-//                         cross avg_normal world_up
-//                     else
-//                         tangent
-//             in
-//                 DList.fromList [(i0, resultTangent), (i1, resultTangent), (i2, resultTangent)]
-//
+pub fn compute_tangent(
+    positions: &Vec<Vector3<f32>>,
+    normals: &Vec<Vector3<f32>>,
+    texcoords: &Vec<Vector2<f32>>,
+    indices: &Vec<u32>
+) -> Vec<Vector3<f32>> {
+    let vertex_count = positions.len();
+    let index_count = indices.len();
+    assert_eq!(0, index_count as u32 % 3);
+    let world_up: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
+    let mut tangent_map: HashMap<usize, Vector3<f32>> = HashMap::new();
+    for i in (0..index_count).step_by(3) {
+        let i0 = indices[i] as usize;
+        let i1 = indices[i + 1] as usize;
+        let i2 = indices[i + 2] as usize;
+        let delta_pos_0_1 = &positions[i1] - &positions[i0];
+        let delta_pos_0_2 = &positions[i2] - &positions[i0];
+        let delta_uv_0_1 = &texcoords[i1] - &texcoords[i0];
+        let delta_uv_0_2 = &texcoords[i2] - &texcoords[i0];
+        let mut r: f32 = (delta_uv_0_1.x * delta_uv_0_2.y) - (delta_uv_0_1.y * delta_uv_0_2.x);
+        if 0.0 != r {
+            r = 1.0 / r;
+        }
+        let tangent: Vector3<f32> = (((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r).normalize();
+        let avg_normal: Vector3<f32> = (&normals[i0] + &normals[i1] + &normals[i2]).normalize();
+        let result_tangent = if 0.0 == tangent.dot(&tangent) {
+            avg_normal.cross(&world_up)
+        } else {
+            tangent
+        };
+        tangent_map.insert(i0, result_tangent.clone());
+        tangent_map.insert(i1, result_tangent.clone());
+        tangent_map.insert(i2, result_tangent.clone());
+    }
+    let vertex_count_indices: Vec<usize> = (0..vertex_count).collect();
+    let tangents: Vec<Vector3<f32>> = vertex_count_indices
+        .iter()
+        .map(|index| {
+            tangent_map.get(index).unwrap().clone()
+        }).collect();
+    tangents
+}
+
 
 pub fn quad_geometry_createInfos() -> Vec<GeometryCreateInfo> {
-    let positions: Vec<Vector3<f32>> = vec![Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, -1.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)];
-    let vertex_count = positions.len() as u32;
-    let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count as usize];
+    let positions: Vec<Vector3<f32>> = vec![(-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (1.0, 1.0, 0.0), (-1.0, 1.0, 0.0)]
+        .iter()
+        .map(|(x, y, z)| {
+            Vector3::new(*x, *y, *z)
+        }).collect();
+    let vertex_count = positions.len();
+    let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count];
     let vertex_color = get_color32(255, 255, 255, 255);
-    let tex_coords: Vec<Vector2<f32>> = vec![Vector2::new(0.0, 0.0), Vector2::new(1.0, 0.0), Vector2::new(1.0, 1.0), Vector2::new(0.0, 1.0)];
-    let indeces: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
-    // TODO : taqngets = computeTangent positions normals texCoords indices
-    let tangents = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count as usize];
+    let texcoords: Vec<Vector2<f32>> = vec![Vector2::new(0.0, 0.0), Vector2::new(1.0, 0.0), Vector2::new(1.0, 1.0), Vector2::new(0.0, 1.0)];
+    let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
+    let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
     let vertex_datas = positions
         .iter()
         .enumerate()
@@ -227,51 +246,64 @@ pub fn quad_geometry_createInfos() -> Vec<GeometryCreateInfo> {
                 _normal: normals[index].clone(),
                 _tangent: tangents[index].clone(),
                 _color: vertex_color,
-                _tex_coord: tex_coords[index].clone(),
+                _texcoord: texcoords[index].clone(),
             }
         }).collect();
 
     vec![GeometryCreateInfo {
         _vertex_datas: vertex_datas,
-        _indices: indeces,
+        _indices: indices,
         _bounding_box: calc_bounding_box(&positions)
     }]
 }
-//
-// cubeGeometryCreateInfos :: [GeometryCreateInfo]
-// cubeGeometryCreateInfos =
-//     let vertexColor = getColor32 255 255 255 255
-//         positionList = [(vec3 x y z) * 0.5 | (x, y, z) <- [
-//             (-1, 1, 1), (-1, -1, 1), (1, -1, 1), (1, 1, 1),
-//             (1, 1, 1), (1, -1, 1), (1, -1, -1), (1, 1, -1),
-//             (1, 1, -1), (1, -1, -1), (-1, -1, -1), (-1, 1, -1),
-//             (-1, 1, -1), (-1, -1, -1), (-1, -1, 1), (-1, 1, 1),
-//             (-1, 1, -1), (-1, 1, 1), (1, 1, 1), (1, 1, -1),
-//             (-1, -1, 1), (-1, -1, -1), (1, -1, -1), (1, -1, 1)]]
-//         positions = Vector.fromList positionList
-//         normals = Vector.fromList [vec3 x y z | (x, y, z) <- [
-//             (0, 0, 1), (0, 0, 1), (0, 0, 1), (0, 0, 1),
-//             (1, 0, 0), (1, 0, 0), (1, 0, 0), (1, 0, 0),
-//             (0, 0, -1), (0, 0, -1), (0, 0, -1), (0, 0, -1),
-//             (-1, 0, 0), (-1, 0, 0), (-1, 0, 0), (-1, 0, 0),
-//             (0, 1, 0), (0, 1, 0), (0, 1, 0), (0, 1, 0),
-//             (0, -1, 0), (0, -1, 0), (0, -1, 0), (0, -1, 0)]]
-//         texCoords = Vector.fromList [vec2 x y | (x, y) <- [
-//             (0, 1), (0, 0), (1, 0), (1, 1),
-//             (0, 1), (0, 0), (1, 0), (1, 1),
-//             (0, 1), (0, 0), (1, 0), (1, 1),
-//             (0, 1), (0, 0), (1, 0), (1, 1),
-//             (0, 1), (0, 0), (1, 0), (1, 1),
-//             (0, 1), (0, 0), (1, 0), (1, 1)]]
-//         indexList = [ 0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22 ] :: [u32]
-//         indices = Vector.fromList indexList
-//         tangents = computeTangent positions normals texCoords indices
-//         vertexCount = length positions
-//         vertices = [VertexData (positions Vector.! i) (normals Vector.! i) (tangents Vector.! i) vertexColor (texCoords Vector.! i) | i <- [0..(vertexCount - 1)]]
-//     in
-//         [ GeometryCreateInfo
-//             { _geometry_create_info_vertices = SVector.fromList vertices
-//             , _geometry_create_info_indices = SVector.fromList indexList
-//             , _geometry_create_info_bounding_box = calcBoundingBox positionList
-//             }
-//         ]
+
+pub fn cube_geometry_createInfos() -> Vec<GeometryCreateInfo> {
+    let positions: Vec<Vector3<f32>> =
+        vec![(-0.5, 0.5, 0.5), (-0.5, -0.5, 0.5), (0.5, -0.5, 0.5), (0.5, 0.5, 0.5),
+             (0.5, 0.5, 0.5), (0.5, -0.5, 0.5), (0.5, -0.5, -0.5), (0.5, 0.5, -0.5),
+             (0.5, 0.5, -0.5), (0.5, -0.5, -0.5), (-0.5, -0.5, -0.5), (-0.5, 0.5, -0.5),
+             (-0.5, 0.5, -0.5), (-0.5, -0.5, -0.5), (-0.5, -0.5, 0.5), (-0.5, 0.5, 0.5),
+             (-0.5, 0.5, -0.5), (-0.5, 0.5, 0.5), (0.5, 0.5, 0.5), (0.5, 0.5, -0.5),
+             (-0.5, -0.5, 0.5), (-0.5, -0.5, -0.5), (0.5, -0.5, -0.5), (0.5, -0.5, 0.5)]
+            .iter()
+            .map(|(x, y, z)| { Vector3::new(*x, *y, *z) }).collect();
+    let normals: Vec<Vector3<f32>> =
+        vec![(0.0, 0.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0),
+             (1.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.0),
+             (0.0, 0.0, -1.0), (0.0, 0.0, -1.0), (0.0, 0.0, -1.0), (0.0, 0.0, -1.0),
+             (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0),
+             (0.0, 1.0, 0.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.0),
+             (0.0, -1.0, 0.0), (0.0, -1.0, 0.0), (0.0, -1.0, 0.0), (0.0, -1.0, 0.0)]
+            .iter()
+            .map(|(x, y, z)| { Vector3::new(*x, *y, *z) }).collect();
+    let texcoords: Vec<Vector2<f32>> =
+        vec![(0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0),
+             (0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0),
+             (0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0),
+             (0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0),
+             (0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0),
+             (0.0, 1.0), (0.0, 0.0), (1.0, 0.0), (1.0, 1.0)]
+            .iter()
+            .map(|(x, y)| Vector2::new(*x, *y)).collect();
+    let vertex_color = get_color32(255, 255, 255, 255);
+    let indices: Vec<u32> = vec![ 0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22 ];
+    let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
+    let vertex_datas = positions
+        .iter()
+        .enumerate()
+        .map(|(index, position)| {
+            VertexData {
+                _position: positions[index].clone(),
+                _normal: normals[index].clone(),
+                _tangent: tangents[index].clone(),
+                _color: vertex_color,
+                _texcoord: texcoords[index].clone(),
+            }
+        }).collect();
+
+    vec![GeometryCreateInfo {
+        _vertex_datas: vertex_datas,
+        _indices: indices,
+        _bounding_box: calc_bounding_box(&positions)
+    }]
+}
