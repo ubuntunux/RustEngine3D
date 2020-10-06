@@ -3,10 +3,15 @@ use std::rc::Rc;
 use std::cell::RefCell;
 use log;
 
-use winit::event::Event;
-use winit::event::WindowEvent;
-use winit::event_loop::ControlFlow;
-use winit::event_loop::EventLoop;
+use winit::event::{
+    Event,
+    VirtualKeyCode,
+    WindowEvent,
+};
+use winit::event_loop::{
+    ControlFlow,
+    EventLoop
+};
 
 use crate::resource;
 use crate::renderer;
@@ -120,13 +125,19 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                 *control_flow = ControlFlow::Exit;
                 renderer_data.destroy_renderer_data();
             },
+            Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
+                if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                    *control_flow = ControlFlow::Exit;
+                    renderer_data.destroy_renderer_data();
+                }
+            },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
                 renderer_data.set_need_recreate_swapchain(true);
             },
             Event::RedrawEventsCleared => {
                 render_scene = true;
             },
-            _ => {},
+            _ => { },
         }
 
         if renderer_data.get_need_recreate_swapchain() {
