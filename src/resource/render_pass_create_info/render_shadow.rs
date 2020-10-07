@@ -13,7 +13,7 @@ import HulkanEngine3D.Render.Renderer
 import HulkanEngine3D.Render.RenderTargetDeclaration
 import HulkanEngine3D.Render.UniformBufferDatas (UniformBufferType (..))
 import HulkanEngine3D.Vulkan.Descriptor
-import HulkanEngine3D.Vulkan.FrameBuffer
+import HulkanEngine3D.Vulkan.Framebuffer
 import HulkanEngine3D.Vulkan.RenderPass
 import HulkanEngine3D.Vulkan.Texture
 import HulkanEngine3D.Vulkan.Vulkan
@@ -24,11 +24,11 @@ getRenderPassName :: Constants.RenderObjectType -> Text.Text
 getRenderPassName Constants.RenderObject_Static = "render_pass_static_shadow"
 getRenderPassName Constants.RenderObject_Skeletal = "render_pass_skeletal_shadow"
 
-getFrameBufferDataCreateInfo :: RendererData -> Text.Text -> Constants.RenderObjectType -> IO FrameBufferDataCreateInfo
-getFrameBufferDataCreateInfo rendererData renderPassName renderObjectType = do
+getFramebufferDataCreateInfo :: RendererData -> Text.Text -> Constants.RenderObjectType -> IO FramebufferDataCreateInfo
+getFramebufferDataCreateInfo rendererData renderPassName renderObjectType = do
     textureDepth <- getRenderTarget rendererData RenderTarget_Shadow
     let (width, height, depth) = (_imageWidth textureDepth, _imageHeight textureDepth, _imageDepth textureDepth)
-    return defaultFrameBufferDataCreateInfo
+    return defaultFramebufferDataCreateInfo
         { _frameBufferName = renderPassName
         , _frameBufferWidth = width
         , _frameBufferHeight = height
@@ -48,7 +48,7 @@ getFrameBufferDataCreateInfo rendererData renderPassName renderObjectType = do
 getRenderPassDataCreateInfo :: RendererData -> Constants.RenderObjectType -> IO RenderPassDataCreateInfo
 getRenderPassDataCreateInfo rendererData renderObjectType = do
     let renderPassName = getRenderPassName renderObjectType
-    frameBufferDataCreateInfo <- getFrameBufferDataCreateInfo rendererData renderPassName renderObjectType
+    frameBufferDataCreateInfo <- getFramebufferDataCreateInfo rendererData renderPassName renderObjectType
     let sampleCount = _frameBufferSampleCount frameBufferDataCreateInfo
         (attachmentLoadOperation, attachmentInitialLayout) = case renderObjectType of
             Constants.RenderObject_Static -> (VK_ATTACHMENT_LOAD_OP_CLEAR, VK_IMAGE_LAYOUT_UNDEFINED)
@@ -128,7 +128,7 @@ getRenderPassDataCreateInfo rendererData renderObjectType = do
             ]
     return RenderPassDataCreateInfo
         { _renderPassCreateInfoName = getRenderPassName renderObjectType
-        , _renderPassFrameBufferCreateInfo = frameBufferDataCreateInfo
+        , _renderPassFramebufferCreateInfo = frameBufferDataCreateInfo
         , _colorAttachmentDescriptions = colorAttachmentDescriptions
         , _depthAttachmentDescriptions = depthAttachmentDescriptions
         , _resolveAttachmentDescriptions = []

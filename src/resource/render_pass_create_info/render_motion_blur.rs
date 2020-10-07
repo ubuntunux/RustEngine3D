@@ -12,7 +12,7 @@ import HulkanEngine3D.Render.Renderer
 import HulkanEngine3D.Render.RenderTargetDeclaration
 import HulkanEngine3D.Render.UniformBufferDatas (UniformBufferType (..))
 import HulkanEngine3D.Vulkan.Descriptor
-import HulkanEngine3D.Vulkan.FrameBuffer
+import HulkanEngine3D.Vulkan.Framebuffer
 import HulkanEngine3D.Vulkan.RenderPass
 import HulkanEngine3D.Vulkan.Texture
 import HulkanEngine3D.Vulkan.Vulkan
@@ -21,12 +21,12 @@ import HulkanEngine3D.Utilities.System (toText)
 renderPassName :: Text.Text
 renderPassName = "render_motion_blur"
 
-getFrameBufferDataCreateInfo :: RendererData -> IO FrameBufferDataCreateInfo
-getFrameBufferDataCreateInfo rendererData = do
+getFramebufferDataCreateInfo :: RendererData -> IO FramebufferDataCreateInfo
+getFramebufferDataCreateInfo rendererData = do
     textureSceneColor <- getRenderTarget rendererData RenderTarget_SceneColorCopy
     let (width, height, depth) = (_imageWidth textureSceneColor, _imageHeight textureSceneColor, _imageDepth textureSceneColor)
         textures = [textureSceneColor]
-    return defaultFrameBufferDataCreateInfo
+    return defaultFramebufferDataCreateInfo
         { _frameBufferName = renderPassName
         , _frameBufferWidth = width
         , _frameBufferHeight = height
@@ -40,7 +40,7 @@ getFrameBufferDataCreateInfo rendererData = do
 
 getRenderPassDataCreateInfo :: RendererData -> IO RenderPassDataCreateInfo
 getRenderPassDataCreateInfo rendererData = do
-    frameBufferDataCreateInfo <- getFrameBufferDataCreateInfo rendererData
+    frameBufferDataCreateInfo <- getFramebufferDataCreateInfo rendererData
     let sampleCount = _frameBufferSampleCount frameBufferDataCreateInfo
         colorAttachmentDescriptions =
             [ defaultAttachmentDescription
@@ -107,7 +107,7 @@ getRenderPassDataCreateInfo rendererData = do
             ]
     return RenderPassDataCreateInfo
         { _renderPassCreateInfoName = renderPassName
-        , _renderPassFrameBufferCreateInfo = frameBufferDataCreateInfo
+        , _renderPassFramebufferCreateInfo = frameBufferDataCreateInfo
         , _colorAttachmentDescriptions = colorAttachmentDescriptions
         , _depthAttachmentDescriptions = []
         , _resolveAttachmentDescriptions = []

@@ -26,7 +26,7 @@ const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, T>;
-// pub type FrameBufferDataMap = ResourceDataMap<FrameBufferData>
+// pub type FramebufferDataMap = ResourceDataMap<FramebufferData>
 // pub type MaterialDataMap = ResourceDataMap<material::MaterialData>
 // pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>
 // pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>
@@ -61,7 +61,7 @@ pub struct Resources {
     // _mesh_data_map: MeshDataMap,
     // _model_data_map: ModelDataMap,
     // _texture_data_map: TextureDataMap,
-    // _framebuffer_data_map: FrameBufferDataMap,
+    // _framebuffer_data_map: FramebufferDataMap,
     // _render_pass_data_map: RenderPassDataMap,
     // _material_data_map: MaterialDataMap,
     // _material_instance_data_map: MaterialInstanceDataMap,
@@ -100,7 +100,7 @@ impl Resources {
 //         logInfo "initializeResources"
 // --        loadTextureDatas resources rendererData
 // --        loadRenderPassDatas resources rendererData
-// --        loadFrameBufferDatas resources rendererData
+// --        loadFramebufferDatas resources rendererData
 // --        loadMaterialDatas resources rendererData
 // --        loadMaterialInstanceDatas resources rendererData
 //         loadMeshDatas resources rendererData
@@ -113,7 +113,7 @@ impl Resources {
 //         unloadMeshDatas resources rendererData
 //         unloadMaterialInstanceDatas resources rendererData
 //         unloadMaterialDatas resources rendererData
-//         unloadFrameBufferDatas resources rendererData
+//         unloadFramebufferDatas resources rendererData
 //         unloadRenderPassDatas resources rendererData
 //         unloadTextureDatas resources rendererData
 //         unloadDescriptorDatas resources rendererData
@@ -132,7 +132,7 @@ impl Resources {
 //     loadGraphicsDatas resources rendererData = do
 //         logInfo "Resources::loadGraphicsDatas"
 //         loadRenderPassDatas resources rendererData
-//         loadFrameBufferDatas resources rendererData
+//         loadFramebufferDatas resources rendererData
 //         loadMaterialDatas resources rendererData
 //         loadMaterialInstanceDatas resources rendererData
 //         updateMaterialInstanceDatas resources rendererData
@@ -142,7 +142,7 @@ impl Resources {
 //         logInfo "Resources::unloadGraphicsDatas"
 //         unloadMaterialInstanceDatas resources rendererData
 //         unloadMaterialDatas resources rendererData
-//         unloadFrameBufferDatas resources rendererData
+//         unloadFramebufferDatas resources rendererData
 //         unloadRenderPassDatas resources rendererData
 //         unloadDescriptorDatas resources rendererData
 //
@@ -338,28 +338,28 @@ impl Resources {
 //     getTextureData resources resourceName =
 //         getResourceData (_textureDataMap resources) resourceName defaultTextureName
 //
-//     -- FrameBuffer
-//     loadFrameBufferDatas :: Resources -> RendererData -> IO ()
-//     loadFrameBufferDatas resources rendererData = do
+//     -- Framebuffer
+//     loadFramebufferDatas :: Resources -> RendererData -> IO ()
+//     loadFramebufferDatas resources rendererData = do
 //         renderPassDataCreateInfos <- RenderPassCreateInfo.getRenderPassDataCreateInfos rendererData
-//         let frameBufferCreateInfoList = map (\renderPassDataCreateInfo -> (_renderPassCreateInfoName renderPassDataCreateInfo, _renderPassFrameBufferCreateInfo renderPassDataCreateInfo)) renderPassDataCreateInfos
+//         let frameBufferCreateInfoList = map (\renderPassDataCreateInfo -> (_renderPassCreateInfoName renderPassDataCreateInfo, _renderPassFramebufferCreateInfo renderPassDataCreateInfo)) renderPassDataCreateInfos
 //             frameBufferCreateInfoMap = Map.fromList frameBufferCreateInfoList
-//         HashTable.mapM_ (\(k, v) -> registFrameBufferData frameBufferCreateInfoMap k) (_renderPassDataMap resources)
+//         HashTable.mapM_ (\(k, v) -> registFramebufferData frameBufferCreateInfoMap k) (_renderPassDataMap resources)
 //         where
-//             registFrameBufferData :: Map.Map Text.Text FrameBufferDataCreateInfo -> Text.Text -> IO ()
-//             registFrameBufferData frameBufferCreateInfoMap renderPassName = do
+//             registFramebufferData :: Map.Map Text.Text FramebufferDataCreateInfo -> Text.Text -> IO ()
+//             registFramebufferData frameBufferCreateInfoMap renderPassName = do
 //                 Just renderPassData <- getRenderPassData resources renderPassName
-//                 let frameBufferName = _renderPassFrameBufferName (renderPassData::RenderPassData)
+//                 let frameBufferName = _renderPassFramebufferName (renderPassData::RenderPassData)
 //                     Just frameBufferDataCreateInfo = Map.lookup frameBufferName frameBufferCreateInfoMap
-//                 frameBufferData <- createFrameBufferData (getDevice rendererData) (_renderPass renderPassData) frameBufferDataCreateInfo
+//                 frameBufferData <- createFramebufferData (getDevice rendererData) (_renderPass renderPassData) frameBufferDataCreateInfo
 //                 HashTable.insert (_frameBufferDataMap resources) frameBufferName frameBufferData
 //
-//     unloadFrameBufferDatas :: Resources -> RendererData -> IO ()
-//     unloadFrameBufferDatas resources rendererData =
-//         clearHashTable (_frameBufferDataMap resources) (\(k, v) -> destroyFrameBufferData (getDevice rendererData) v)
+//     unloadFramebufferDatas :: Resources -> RendererData -> IO ()
+//     unloadFramebufferDatas resources rendererData =
+//         clearHashTable (_frameBufferDataMap resources) (\(k, v) -> destroyFramebufferData (getDevice rendererData) v)
 //
-//     getFrameBufferData :: Resources -> Text.Text -> IO (Maybe FrameBufferData)
-//     getFrameBufferData resources resourceName =
+//     getFramebufferData :: Resources -> Text.Text -> IO (Maybe FramebufferData)
+//     getFramebufferData resources resourceName =
 //        HashTable.lookup (_frameBufferDataMap resources) resourceName
 //
 //     -- RenderPassLoader

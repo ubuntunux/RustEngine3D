@@ -14,17 +14,17 @@ import HulkanEngine3D.Render.Renderer
 import HulkanEngine3D.Render.RenderTargetDeclaration
 import HulkanEngine3D.Render.UniformBufferDatas (UniformBufferType (..))
 import HulkanEngine3D.Vulkan.Descriptor
-import HulkanEngine3D.Vulkan.FrameBuffer
+import HulkanEngine3D.Vulkan.Framebuffer
 import HulkanEngine3D.Vulkan.RenderPass
 import HulkanEngine3D.Vulkan.Texture
 import HulkanEngine3D.Vulkan.Vulkan
 import HulkanEngine3D.Utilities.System
 
-getFrameBufferDataCreateInfo :: RendererData -> Text.Text -> IO FrameBufferDataCreateInfo
-getFrameBufferDataCreateInfo rendererData renderPassName = do
+getFramebufferDataCreateInfo :: RendererData -> Text.Text -> IO FramebufferDataCreateInfo
+getFramebufferDataCreateInfo rendererData renderPassName = do
     renderTarget <- getRenderTarget rendererData RenderTarget_SceneColor
     let (width, height, depth) = (_imageWidth renderTarget, _imageHeight renderTarget, _imageDepth renderTarget)
-    return defaultFrameBufferDataCreateInfo
+    return defaultFramebufferDataCreateInfo
         { _frameBufferName = renderPassName
         , _frameBufferWidth = width
         , _frameBufferHeight = height
@@ -40,7 +40,7 @@ getFrameBufferDataCreateInfo rendererData renderPassName = do
 getRenderPassDataCreateInfo :: RendererData -> IO RenderPassDataCreateInfo
 getRenderPassDataCreateInfo rendererData = do
     let renderPassName = "composite_gbuffer"
-    frameBufferDataCreateInfo <- getFrameBufferDataCreateInfo rendererData renderPassName
+    frameBufferDataCreateInfo <- getFramebufferDataCreateInfo rendererData renderPassName
     let sampleCount = _frameBufferSampleCount frameBufferDataCreateInfo
         colorAttachmentDescriptions =
             [ defaultAttachmentDescription
@@ -149,7 +149,7 @@ getRenderPassDataCreateInfo rendererData = do
             ]
     return RenderPassDataCreateInfo
         { _renderPassCreateInfoName = renderPassName
-        , _renderPassFrameBufferCreateInfo = frameBufferDataCreateInfo
+        , _renderPassFramebufferCreateInfo = frameBufferDataCreateInfo
         , _colorAttachmentDescriptions = colorAttachmentDescriptions
         , _depthAttachmentDescriptions = []
         , _resolveAttachmentDescriptions = []

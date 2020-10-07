@@ -1,38 +1,29 @@
-{-# LANGUAGE DeriveGeneric    #-}
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
+use nalgebra::{
+    Matrix4
+};
 
-module HulkanEngine3D.Vulkan.PushConstant
-    ( PushConstantData (..)
-    , getPushConstantRange
-    ) where
+use ash::{
+    vk,
+    Device,
+};
+use ash::version::{
+    DeviceV1_0
+};
 
-import GHC.Generics (Generic)
-import Foreign.Storable
+trait PushConstantInterface {
+}
 
-import Graphics.Vulkan.Core_1_0
-import Graphics.Vulkan.Marshal.Create
+#[derive(Debug, Clone)]
+struct PushConstants_StaticRenderObject {
+    _model_matrixt: Matrix4<f32>,
+}
 
-import Numeric.DataFrame
-import Numeric.PrimBytes
+impl PushConstantInterface for PushConstants_StaticRenderObject {
 
+}
 
-data PushConstantData = PushConstantData
-  { modelMatrix :: Mat44f
-  } deriving (Eq, Ord, Show, Generic)
-
-instance PrimBytes PushConstantData
-
-instance Storable PushConstantData where
-    sizeOf _ = bSizeOf (undefined :: PushConstantData)
-    alignment _ = bAlignOf (undefined :: PushConstantData)
-    peek ptr = bPeek ptr
-    poke ptr pushConstantData = bPoke ptr pushConstantData
-
-
-getPushConstantRange :: PushConstantData -> VkShaderStageFlags -> VkPushConstantRange
-getPushConstantRange pushConstantData shaderStage = createVk @VkPushConstantRange
-    $ set @"stageFlags" shaderStage
-    &* set @"size" (bSizeOf @PushConstantData pushConstantData)
-    &* set @"offset" 0
+// getPushConstantRange :: PushConstantData -> VkShaderStageFlags -> VkPushConstantRange
+// getPushConstantRange pushConstantData shaderStage = createVk @VkPushConstantRange
+//     $ set @"stageFlags" shaderStage
+//     &* set @"size" (bSizeOf @PushConstantData pushConstantData)
+//     &* set @"offset" 0

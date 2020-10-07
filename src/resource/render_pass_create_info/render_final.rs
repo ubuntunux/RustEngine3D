@@ -15,7 +15,7 @@ import Graphics.Vulkan.Ext.VK_KHR_swapchain
 import HulkanEngine3D.Render.Renderer
 import HulkanEngine3D.Render.RenderTargetDeclaration
 import HulkanEngine3D.Vulkan.Descriptor
-import HulkanEngine3D.Vulkan.FrameBuffer
+import HulkanEngine3D.Vulkan.Framebuffer
 import HulkanEngine3D.Vulkan.RenderPass
 import HulkanEngine3D.Vulkan.Swapchain
 import HulkanEngine3D.Vulkan.Vulkan
@@ -24,13 +24,13 @@ import HulkanEngine3D.Utilities.System
 renderPassName :: Text.Text
 renderPassName = "render_final"
 
-getFrameBufferDataCreateInfo :: RendererData -> IO FrameBufferDataCreateInfo
-getFrameBufferDataCreateInfo rendererData = do
+getFramebufferDataCreateInfo :: RendererData -> IO FramebufferDataCreateInfo
+getFramebufferDataCreateInfo rendererData = do
     swapChainData <- readIORef (_swapChainDataRef rendererData)
     let imageSize = _swapChainExtent swapChainData
         width = getField @"width" imageSize
         height = getField @"height" imageSize
-    return defaultFrameBufferDataCreateInfo
+    return defaultFramebufferDataCreateInfo
         { _frameBufferName = renderPassName
         , _frameBufferWidth = width
         , _frameBufferHeight = height
@@ -42,7 +42,7 @@ getFrameBufferDataCreateInfo rendererData = do
 
 getRenderPassDataCreateInfo :: RendererData -> IO RenderPassDataCreateInfo
 getRenderPassDataCreateInfo rendererData = do
-    frameBufferDataCreateInfo <- getFrameBufferDataCreateInfo rendererData
+    frameBufferDataCreateInfo <- getFramebufferDataCreateInfo rendererData
     let sampleCount = _frameBufferSampleCount frameBufferDataCreateInfo
         colorAttachmentDescriptions =
             [ defaultAttachmentDescription
@@ -91,7 +91,7 @@ getRenderPassDataCreateInfo rendererData = do
             ]
     return RenderPassDataCreateInfo
         { _renderPassCreateInfoName = renderPassName
-        , _renderPassFrameBufferCreateInfo = frameBufferDataCreateInfo
+        , _renderPassFramebufferCreateInfo = frameBufferDataCreateInfo
         , _colorAttachmentDescriptions = colorAttachmentDescriptions
         , _depthAttachmentDescriptions = []
         , _resolveAttachmentDescriptions = []
