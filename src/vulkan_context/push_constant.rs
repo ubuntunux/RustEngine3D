@@ -10,20 +10,22 @@ use ash::version::{
     DeviceV1_0
 };
 
-trait PushConstantInterface {
+pub trait PushConstantInterface {
 }
 
 #[derive(Debug, Clone)]
-struct PushConstants_StaticRenderObject {
-    _model_matrixt: Matrix4<f32>,
+pub struct PushConstants_StaticRenderObject {
+    pub _model_matrixt: Matrix4<f32>,
+}
+
+impl Default for PushConstants_StaticRenderObject {
+    fn default() -> PushConstants_StaticRenderObject {
+        PushConstants_StaticRenderObject {
+            _model_matrixt: Matrix4::indentity(),
+        }
+    }
 }
 
 impl PushConstantInterface for PushConstants_StaticRenderObject {
 
 }
-
-// getPushConstantRange :: PushConstantData -> VkShaderStageFlags -> VkPushConstantRange
-// getPushConstantRange pushConstantData shaderStage = createVk @VkPushConstantRange
-//     $ set @"stageFlags" shaderStage
-//     &* set @"size" (bSizeOf @PushConstantData pushConstantData)
-//     &* set @"offset" 0

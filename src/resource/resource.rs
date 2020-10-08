@@ -371,7 +371,7 @@ impl Resources {
 //             registRenderPassData renderPassDataCreateInfo = do
 //                 descriptorDatas <- forM (_pipelineDataCreateInfos renderPassDataCreateInfo) $ \pipelineDataCreateInfo -> do
 //                     getDescriptorData resources rendererData (_renderPassCreateInfoName renderPassDataCreateInfo) pipelineDataCreateInfo
-//                 defaultRenderPassData <- createRenderPassData (getDevice rendererData) renderPassDataCreateInfo descriptorDatas
+//                 defaultRenderPassData <- create_render_pass_data (getDevice rendererData) renderPassDataCreateInfo descriptorDatas
 //                 HashTable.insert (_renderPassDataMap resources) (_renderPassDataName defaultRenderPassData) defaultRenderPassData
 //
 //     unloadRenderPassDatas :: Resources -> RendererData -> IO ()
