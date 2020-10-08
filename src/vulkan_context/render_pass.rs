@@ -154,43 +154,16 @@ pub struct RenderPassData {
     _pipelineDataMap: PipelineDataMap,
 }
 
-// class RenderPassInterface a where
-//     getRenderPassDataName :: a -> String
-//     getRenderPass :: a -> vk::RenderPass
-//     getRenderPassFramebufferName :: a -> String
-//     getDefaultPipelineData :: a -> PipelineData
-//     getPipelineData :: a -> String -> IO PipelineData
-//
-// instance RenderPassInterface RenderPassData where
-//     getRenderPassDataName :: RenderPassData -> String
-//     getRenderPassDataName renderPassData = _renderPassDataName renderPassData
-//
-//     getRenderPass :: RenderPassData -> vk::RenderPass
-//     getRenderPass renderPassData = _renderPass renderPassData
-//
-//     getRenderPassFramebufferName :: RenderPassData -> String
-//     getRenderPassFramebufferName renderPassData = _renderPassFramebufferName (renderPassData::RenderPassData)
-//
-//     getDefaultPipelineData :: RenderPassData -> PipelineData
-//     getDefaultPipelineData renderPassData = _defaultPipelineData renderPassData
-//
-//     getPipelineData :: RenderPassData -> String -> IO PipelineData
-//     getPipelineData renderPassData pipelineDataName = do
-//         maybePipelineData <- HashTable.lookup (_pipelineDataMap renderPassData) pipelineDataName
-//         return $ case maybePipelineData of
-//             Nothing -> getDefaultPipelineData renderPassData
-//             otherwise -> Maybe.fromJust maybePipelineData
-//
-//
-// createSubpassDependency :: u32
-//                         -> u32
-//                         -> vk::PipelineStageFlags
-//                         -> vk::PipelineStageFlags
-//                         -> vk::AccessFlags
-//                         -> vk::AccessFlags
-//                         -> vk::DependencyFlags
-//                         -> vk::SubpassDependency
-// createSubpassDependency srcSubpass dstSubpass srcStageMask dstStageMask srcAccessMask dstAccessMask dependencyFlags =
+pub fn create_subpass_dependency(
+    src_subpass: u32,
+    dstSubpass: u32,
+    srcStageMask: vk::PipelineStageFlags,
+    dstStageMask: vk::PipelineStageFlags,
+    srcAccessMask: vk::AccessFlags,
+    dstAccessMask: vk::AccessFlags,
+    dependencyFlags: vk::DependencyFlags
+ ) -> vk::SubpassDependency
+ 
 //     createvk:: @vk::SubpassDependency
 //         $  set @"srcSubpass" srcSubpass
 //         &* set @"dstSubpass" dstSubpass
