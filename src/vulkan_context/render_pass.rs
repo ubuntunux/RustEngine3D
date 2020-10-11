@@ -7,8 +7,7 @@ use std::path::{
 
 use nalgebra::{
     Matrix4
-}
-    
+};
 use ash::{
     vk,
     Device,
@@ -17,13 +16,16 @@ use ash::version::{
     DeviceV1_0
 };
 
+use crate::vulkan_context::descriptor::{
+    DescriptorDataCreateInfo,
+    DescriptorData,
+};
 use crate::vulkan_context::framebuffer::{
     FramebufferDataCreateInfo,
     FramebufferData,
 };
-use crate::vulkan_context::descriptor::{
-    DescriptorDataCreateInfo,
-    DescriptorData,
+use crate::vulkan_context::geometry_buffer::{
+    VertexData
 };
 use crate::vulkan_context::push_constant::{
     PushConstantInterface,
@@ -53,7 +55,7 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_vertex_shader_file: PathBuf,
     pub _pipeline_fragment_shader_file: PathBuf,
     pub _pipeline_shader_defines: Vec<String>,
-    pub _pipeline_dynamic_state_list: Vec<vk::DynamicState>,
+    pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _pipeline_sample_count: vk::SampleCountFlags,
     pub _pipeline_polygon_mode: vk::PolygonMode,
     pub _pipeline_cull_mode: vk::CullModeFlags,
@@ -339,100 +341,83 @@ pub fn create_grahpics_pipeline_data<T: PushConstantInterface>(
         &push_constant_ranges,
         &descriptor_set_layouts
     );
+    let vertex_input_bind_descriptions = [VertexData.get_vertex_input_binding_description()];
+    let vertex_input_attribute_descriptions = [VertexData.create_vertex_input_attribute_descriptions()];
+    let vertex_input_info = vk::PipelineVertexInputStateCreateInfo::builder()
+        .vertex_binding_descriptions(&vertex_input_bind_descriptions)
+        .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
+        .build();
+    let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder()
+        .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+        .primitive_restart_enable(false)
+        .build();
+    let dynamic_state = vk::PipelineDynamicStateCreateInfo::builder()
+        .dynamic_states(&pipeline_data_create_info._pipeline_dynamic_states)
+    let viewports = [pipeline_data_create_info._pipeline_viewport];
+    let scissors = [pipeline_data_create_info._pipeline_scissor_rect];
+    let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
+        .viewports(&viewports)
+        .scissors(&scissors)
+        .build();
+    let rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
+        .depth_clamp_enable(false)
+        .rasterizer_discard_enable(false)
+        .polygon_mode(pipeline_data_create_info._pipeline_polygon_mode)
+        .cull_mode(pipeline_data_create_info._pipeline_cull_mode)
+        .front_face(pipeline_data_create_info._pipeline_front_face)
+        .depth_bias_enable(false)
+        .depth_bias_constant_factor(0.0)
+        .depth_bias_clamp(0.0)
+        .depth_bias_slope_factor(0.0)
+        .line_width(1.0)
+        .build();
+    let sample_mask: [vk::SampleMask] = [];
+    let multi_sampling = vk::PipelineMultisampleStateCreateInfo::builder()
+        .sample_shading_enable(false)
+        .rasterization_samples(pipeline_data_create_info._pipeline_sample_count)
+        .min_sample_shading(1.0)
+        .sample_mask(&[])
+        .alpha_to_coverage_enable(false)
+        .alpha_to_one_enable(false)
+        .build();
+    let blend_constants = [0.0, 0.0, 0.0, 0.0];
+    let color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
+        .logic_op_enable(false)
+        .logic_op(vk::LogicOp::COPY)
+        .attachments(&pipeline_data_create_info._pipeline_color_blend_modes)
+        .blend_constants(blend_constants)
+        .build();
+    let depth_stencil_sate_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
+    let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo::builder()
+        .depth_test_enable(depth_stencil_sate_create_info._depth_test_enable as bool)
+        .depth_write_enable(depth_stencil_sate_create_info._depth_write_enable as bool)
+        .depth_compare_op(depth_stencil_sate_create_info._depth_compare_op)
+        .depth_bounds_test_enable(false)
+        .min_depth_bounds(0.0)
+        .max_depth_bounds(1.0)
+        .stencil_test_enable(depth_stencil_state_create_info._stencil_test_enable)
+        .front(vk::StencilOpState {
+            fail_op: depth_stencil_state_create_info._front_fail_op,
+            pass_op: depth_stencil_state_create_info._front_pass_op,
+            depth_fail_op: depth_stencil_state_create_info._front_depth_fail_op,
+            compare_op: depth_stencil_state_create_info._front_compare_op,
+            compare_mask: depth_stencil_state_create_info._front_compare_mask,
+            write_mask: depth_stencil_state_create_info._front_write_mask,
+            reference: depth_stencil_state_create_info._front_reference,
+        })
+        .back(vk::StencilOpState {
+            fail_op: depth_stencil_state_create_info._back_fail_op,
+            pass_op: depth_stencil_state_create_info._back_pass_op,
+            depth_fail_op: depth_stencil_state_create_info._back_depth_fail_op,
+            compare_op: depth_stencil_state_create_info._back_compare_op,
+            compare_mask: depth_stencil_state_create_info._back_compare_mask,
+            write_mask: depth_stencil_state_create_info._back_write_mask,
+            reference: depth_stencil_state_create_info._back_reference,
+        })
+        .build();
+    let grphics_pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
+        .stages(&shader_stage_infos)
 
-    let vertexInputInfo = createvk:: @vk::PipelineVertexInputStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"vertexBindingDescriptionCount" 1
-            &* setDFRef @"pVertexBindingDescriptions" (scalar vertexInputBindDescription)
-            &* set @"vertexAttributeDescriptionCount" (fromIntegral . totalDim $ inSpaceOf dims vertexInputAttributeDescriptions)
-            &* setDFRef @"pVertexAttributeDescriptions" vertexInputAttributeDescriptions
-        inputAssembly = createvk:: @vk::PipelineInputAssemblyStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"topology" VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST
-            &* set @"primitiveRestartEnable" VK_FALSE
-        dynamicState = createvk:: @vk::PipelineDynamicStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"dynamicStateCount" (fromIntegral . length $ _pipelineDynamicStateList)
-            &* case _pipelineDynamicStateList of
-                [] -> set @"pDynamicStates" VK_NULL
-                otherwise -> setListRef @"pDynamicStates" _pipelineDynamicStateList
-        viewPortState = createvk:: @vk::PipelineViewportStateCreateInfo
-            $ set @"sType" VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"viewportCount" 1
-            &* setvk::Ref @"pViewports" _pipelineViewport
-            &* set @"scissorCount" 1
-            &* setvk::Ref @"pScissors" _pipelineScissorRect
-        rasterizer = createvk:: @vk::PipelineRasterizationStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"depthClampEnable" VK_FALSE
-            &* set @"rasterizerDiscardEnable" VK_FALSE
-            &* set @"polygonMode" _pipelinePolygonMode
-            &* set @"cullMode" (bitToMask _pipelineCullMode)
-            &* set @"frontFace" _pipelineFrontFace
-            &* set @"depthBiasEnable" VK_FALSE
-            &* set @"depthBiasConstantFactor" 0
-            &* set @"depthBiasClamp" 0
-            &* set @"depthBiasSlopeFactor" 0
-            &* set @"lineWidth" 1.0
-        multisampling = createvk:: @vk::PipelineMultisampleStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"sampleShadingEnable" VK_FALSE
-            &* set @"rasterizationSamples" _pipelineSampleCount
-            &* set @"minSampleShading" 1.0
-            &* set @"pSampleMask" VK_NULL
-            &* set @"alphaToCoverageEnable" VK_FALSE
-            &* set @"alphaToOneEnable" VK_FALSE
-        colorBlending = createvk:: @vk::PipelineColorBlendStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"logicOpEnable" VK_FALSE
-            &* set @"logicOp" VK_LOGIC_OP_COPY
-            &* set @"attachmentCount" (fromIntegral . length $ _pipelineColorBlendModes)
-            &* setListRef @"pAttachments" _pipelineColorBlendModes
-            &* setAt @"blendConstants" @0 0.0
-            &* setAt @"blendConstants" @1 0.0
-            &* setAt @"blendConstants" @2 0.0
-            &* setAt @"blendConstants" @3 0.0
-        depthStencilState = createvk:: @vk::PipelineDepthStencilStateCreateInfo
-            $  set @"sType" VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO
-            &* set @"pNext" VK_NULL
-            &* set @"flags" VK_ZERO_FLAGS
-            &* set @"depthTestEnable" _depthTestEnable
-            &* set @"depthWriteEnable" _depthWriteEnable
-            &* set @"depthCompareOp" _depthCompareOp
-            &* set @"depthBoundsTestEnable" VK_FALSE
-            &* set @"minDepthBounds" 0.0
-            &* set @"maxDepthBounds" 1.0
-            &* set @"stencilTestEnable" _stencilTestEnable
-            &* setvk:: @"front"
-                (  set @"failOp" _frontFailOp
-                &* set @"passOp" _frontPassOp
-                &* set @"depthFailOp" _frontDepthFailOp
-                &* set @"compareOp" _frontCompareOp
-                &* set @"compareMask" _frontCompareMask
-                &* set @"writeMask" _frontWriteMask
-                &* set @"reference" _frontReference )
-            &* setvk:: @"back"
-                (  set @"failOp" _backFailOp
-                &* set @"passOp" _backPassOp
-                &* set @"depthFailOp" _backDepthFailOp
-                &* set @"compareOp" _backCompareOp
-                &* set @"compareMask" _backCompareMask
-                &* set @"writeMask" _backWriteMask
-                &* set @"reference" _backReference )
         graphicsPipelineCreateInfo = createvk:: @vk::GraphicsPipelineCreateInfo
             $  set @"sType" VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO
             &* set @"pNext" VK_NULL
