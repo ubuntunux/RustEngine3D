@@ -102,12 +102,12 @@ impl VertexData {
         vertex_input_attribute_descriptions
     }
 
-    fn get_vertex_input_binding_description() -> vk::VertexInputBindingDescription {
-        vk::VertexInputBindingDescription {
+    pub fn get_vertex_input_binding_descriptions() -> [vk::VertexInputBindingDescription; 1] {
+        [vk::VertexInputBindingDescription {
             binding: 0,
             stride: mem::size_of::<VertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX
-        }
+        }]
     }
 }
 

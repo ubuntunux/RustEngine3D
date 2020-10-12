@@ -21,7 +21,7 @@ pub struct PushConstants_StaticRenderObject {
 impl Default for PushConstants_StaticRenderObject {
     fn default() -> PushConstants_StaticRenderObject {
         PushConstants_StaticRenderObject {
-            _model_matrixt: Matrix4::indentity(),
+            _model_matrixt: Matrix4::identity(),
         }
     }
 }
