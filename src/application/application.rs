@@ -17,6 +17,7 @@ use crate::resource;
 use crate::renderer;
 use crate::application::scene_manager;
 use crate::application::input;
+use crate::vulkan_context::shader;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -87,7 +88,6 @@ impl ApplicationData {
 
 pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)) {
     log::info!("run_application");
-
     let time_instance = time::Instant::now();
     let elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();

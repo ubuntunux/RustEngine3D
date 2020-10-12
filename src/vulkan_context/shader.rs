@@ -18,25 +18,23 @@ use ash::version::{
 pub const SHADER_CACHE_DIRECTORY: &str = "Resource/ShaderCaches";
 pub const SHADER_DIRECTORY: &str = "Resource/Shaders";
 
-pub fn spirv_file_path_with_defines(shader_filename: &String, shader_defines: &[String]) -> PathBuf {
-    let filepath = Path::new(shader_filename);
-    let ext = filepath.extension().unwrap();
+pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
+    let ext = shader_filename.extension().unwrap();
     let mut just_filename = PathBuf::new();
-    just_filename.push(filepath.parent().unwrap());
-    just_filename.push(filepath.file_stem().unwrap());
+    just_filename.push(shader_filename.parent().unwrap());
+    just_filename.push(shader_filename.file_stem().unwrap());
     let mut spirv_file_path = PathBuf::from(SHADER_DIRECTORY);
-    if shader_defines.is_empty() {
-        spirv_file_path.push(just_filename);
-    } else {
-        let mut filename_with_defines: String = String::from(just_filename.to_str().unwrap());
-        let mut shader_file_post_fix: String = shader_defines.join("_");
-        shader_file_post_fix = shader_file_post_fix.replace("=", "");
-        filename_with_defines.push_str(&shader_file_post_fix);
-        spirv_file_path.push(filename_with_defines);
+    spirv_file_path.push(just_filename);
+    let mut spirv_file_path_str: String = String::from(spirv_file_path.to_str().unwrap());
+    if false == shader_defines.is_empty() {
+        let mut defines_to_str: String = shader_defines.join("_");
+        defines_to_str = defines_to_str.replace("=", "");
+        spirv_file_path_str.push_str(&defines_to_str);
     }
-    spirv_file_path.push(ext);
-    spirv_file_path.push(".spirv");
-    spirv_file_path
+    spirv_file_path_str.push('.');
+    spirv_file_path_str.push_str(ext.to_str().unwrap());
+    spirv_file_path_str.push_str(".spirv");
+    PathBuf::from(spirv_file_path_str)
 }
 
 
