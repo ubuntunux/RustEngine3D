@@ -1,4 +1,4 @@
-use std::cmp::{ min, max, Ordering };
+use std::cmp::{ min };
 use std::os::raw::c_char;
 use std::ffi::{
     CStr,
@@ -15,17 +15,14 @@ use ash::{
 use ash::extensions::ext::DebugUtils;
 use ash::extensions::khr::{
     Surface,
-    Swapchain,
 };
 use ash::version::{
     DeviceV1_0,
     EntryV1_0,
     InstanceV1_0,
 };
-use ash::util::*;
 use winit::window::{
-    Window,
-    WindowBuilder
+    Window
 };
 
 use crate::constants;

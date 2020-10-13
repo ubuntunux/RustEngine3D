@@ -14,7 +14,7 @@ pub fn create_semaphores(device: &Device) -> FrameIndexMap<vk::Semaphore> {
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
         let semaphores = constants::SWAPCHAIN_IMAGE_INDICES
             .iter()
-            .map(|index| {
+            .map(|_| {
                 device.create_semaphore(&semaphore_create_info, None).expect("vkCreateSemaphore failed!")
             })
             .collect();
@@ -40,7 +40,7 @@ pub fn create_fences(device: &Device) -> FrameIndexMap<vk::Fence> {
         };
         let fences = constants::FRAME_INDICES
             .iter()
-            .map(|index| {
+            .map(|_| {
                 device.create_fence(&fence_create_info, None).expect("vkCreateSemaphore failed!")
             })
             .collect();

@@ -1,17 +1,7 @@
-use std::cmp::{min, max};
 use std::borrow::Cow;
 use std::cell::RefCell;
-use std::default::Default;
-use std::ffi::{
-    CStr,
-    CString,
-};
-use std::io::Cursor;
-use std::mem;
-use std::mem::align_of;
-use std::ops::Drop;
+use std::ffi::CStr;
 use std::rc::Rc;
-use std::sync::Arc;
 use std::vec::Vec;
 
 use ash::{
@@ -26,22 +16,14 @@ use ash::extensions::khr::{
     Swapchain,
 };
 use ash::version::{
-    DeviceV1_0,
-    EntryV1_0,
     InstanceV1_0,
 };
-use ash::util::*;
 use winit;
-use winit::*;
 use winit::dpi;
 use winit::window::{
     Window,
     WindowBuilder
 };
-use winit::event::VirtualKeyCode;
-use winit::event::Event;
-use winit::event::WindowEvent;
-use winit::event_loop::ControlFlow;
 use winit::event_loop::EventLoop;
 
 use crate::constants;
@@ -258,7 +240,8 @@ impl RendererData {
     }
 
     pub fn recreate_swapchain(&self) {
-        log::info!("recreate_swapchain");    }
+        log::info!("recreate_swapchain");
+    }
 
     pub fn render_scene(&self) {
 

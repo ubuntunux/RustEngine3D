@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use nalgebra::{ Vector2 };
 
-pub type inputKey = u32;
-pub type KeyMap = HashMap<inputKey, bool>;
+pub type InputKey = u32;
+pub type KeyMap = HashMap<InputKey, bool>;
 
 #[derive(Clone)]
 pub struct KeyboardInputData {
@@ -73,14 +73,14 @@ pub fn create_mouse_input_data() -> Box<MouseInputData> {
 }
 
 impl KeyboardInputData {
-    pub fn get_key_pressed(&self, key: &inputKey) -> bool {
+    pub fn get_key_pressed(&self, key: &InputKey) -> bool {
         match self._key_pressed_map.get(key) {
             Some(a) => *a,
             _ => false
         }
     }
 
-    pub fn get_key_released(&self, key: &inputKey) -> bool {
+    pub fn get_key_released(&self, key: &InputKey) -> bool {
         match self._key_released_map.get(key) {
             Some(a) => *a,
             _ => false

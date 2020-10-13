@@ -17,7 +17,6 @@ use crate::resource;
 use crate::renderer;
 use crate::application::scene_manager;
 use crate::application::input;
-use crate::vulkan_context::shader;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {

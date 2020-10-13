@@ -1,12 +1,12 @@
 use std::mem;
-use std::os::raw::c_void;
 
 use ash::{
     vk,
     Device,
-    Instance,
 };
-use ash::version::{DeviceV1_0, InstanceV1_0};
+use ash::version::{
+    DeviceV1_0
+};
 use ash::util::Align;
 
 use crate::vulkan_context::vulkan_context::{
