@@ -8,7 +8,6 @@ use std::path::{
 use std::os::raw::c_char;
 use std::process;
 
-use tempdir::TempDir;
 use nalgebra::{
     Matrix4
 };
