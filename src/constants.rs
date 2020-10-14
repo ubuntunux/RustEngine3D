@@ -10,9 +10,18 @@ pub const VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];
 //pub const VULKAN_LAYERS: [&str; 0] = [];
 pub const REQUIRE_DEVICE_EXTENSIONS: [&str; 1] = ["VK_KHR_swapchain"];
 
-//pub const DEPTH_FOMATS: [Format; 5] = [Format::D32Sfloat, Format::D32Sfloat_S8Uint, Format::D24Unorm_S8Uint, Format::D16Unorm_S8Uint, Format::D16Unorm];
-//pub const DEPTH_STENCIL_FORMATS: [Format; 3] = [Format::D32Sfloat_S8Uint, Format::D24Unorm_S8Uint, Format::D16Unorm_S8Uint];
-
+pub const DEPTH_FOMATS: [vk::Format; 5] = [
+    vk::Format::D32_SFLOAT,
+    vk::Format::D32_SFLOAT_S8_UINT,
+    vk::Format::D24_UNORM_S8_UINT,
+    vk::Format::D16_UNORM_S8_UINT,
+    vk::Format::D16_UNORM
+];
+pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
+    vk:: Format::D32_SFLOAT_S8_UINT,
+    vk::Format::D24_UNORM_S8_UINT,
+    vk::Format::D16_UNORM_S8_UINT
+];
 pub const INVALID_QUEUE_INDEX: u32 = std::u32::MAX;
 pub const SWAPCHAIN_IMAGE_COUNT: u32 = 3;
 pub const SWAPCHAIN_IMAGE_INDICES: [u32; SWAPCHAIN_IMAGE_COUNT as usize] = [0, 1, 2];
