@@ -13,6 +13,7 @@ use crate::vulkan_context::vulkan_context::{
     run_commands_once,
 };
 
+#[derive(Debug, Clone, Copy)]
 pub struct BufferData {
     pub _buffer: vk::Buffer,
     pub _buffer_memory: vk::DeviceMemory,

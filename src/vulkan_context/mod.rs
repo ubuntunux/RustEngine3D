@@ -11,6 +11,7 @@ pub mod shader;
 pub mod swapchain;
 pub mod sync;
 pub mod texture;
+pub mod uniform_buffer;
 pub mod vulkan_context;
 
 use self::buffer::*;
@@ -26,4 +27,5 @@ use self::shader::*;
 use self::swapchain::*;
 use self::sync::*;
 use self::texture::*;
+use self::uniform_buffer::*;
 use self::vulkan_context::*;

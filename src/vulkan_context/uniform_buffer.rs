@@ -1,88 +1,78 @@
-{-# LANGUAGE NegativeLiterals    #-}
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE DeriveGeneric       #-}
-{-# LANGUAGE RankNTypes          #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE ScopedTypeVariables #-}
-{-# LANGUAGE TypeApplications    #-}
-{-# LANGUAGE OverloadedStrings   #-}
+use ash::{
+    vk,
+    Device,
+};
+use ash::version::{
+    DeviceV1_0
+};
 
-module HulkanEngine3D.Vulkan.UniformBuffer
-    ( UniformBufferData (..)
-    , defaultUniformBufferData
-    , createUniformBufferData
-    , destroyUniformBufferData
-    ) where
+use crate::constants;
+use crate::vulkan_context::buffer;
+use crate::vulkan_context::vulkan_context::{ SwapchainIndexMap };
 
+#[derive(Debug, Clone)]
+pub struct UniformBufferData {
+    _uniform_buffer_name: String,
+    _uniform_buffers: SwapchainIndexMap<buffer::BufferData>,
+    _uniform_buffer_data_size: vk::DeviceSize,
+    _descriptor_buffer_infos: SwapchainIndexMap<vk::DescriptorBufferInfo>
+}
 
-import Control.Monad
-import Data.Bits ((.|.))
-import qualified Data.Text as Text
+pub fn create_uniform_buffer(
+    device: &Device,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    uniform_buffer_name: &String,
+    buffer_count: u32,
+    buffer_size: vk::DeviceSize
+) -> Vec<buffer::BufferData> {
+    log::info!("create_uniform_buffer: {}", uniform_buffer_name);
+    (0..buffer_count).map(|index| {
+        buffer::create_buffer_data(
+            device,
+            memory_properties,
+            buffer_size,
+            vk::BufferUsageFlags::UNIFORM_BUFFER,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT
+        )
+    }).collect()
+}
 
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
-import Graphics.Vulkan.Marshal.Create
-
-import qualified HulkanEngine3D.Constants as Constants
-import HulkanEngine3D.Utilities.Logger
-import HulkanEngine3D.Vulkan.Buffer
-import HulkanEngine3D.Vulkan.Vulkan
-
-data UniformBufferData = UniformBufferData
-    { _uniformBufferName :: Text.Text
-    , _uniformBuffers :: SwapchainIndexMap VkBuffer
-    , _uniformBufferMemories :: SwapchainIndexMap VkDeviceMemory
-    , _uniformBufferDataSize :: VkDeviceSize
-    , _descriptorBufferInfos :: SwapchainIndexMap VkDescriptorBufferInfo
-    } deriving (Eq, Show)
-
-defaultUniformBufferData :: UniformBufferData
-defaultUniformBufferData = UniformBufferData
-    { _uniformBufferName = ""
-    , _uniformBuffers = SwapchainIndexMapEmpty
-    , _uniformBufferMemories = SwapchainIndexMapEmpty
-    , _uniformBufferDataSize = 0
-    , _descriptorBufferInfos = SwapchainIndexMapEmpty
+pub fn destroy_uniform_buffer(device: &Device, uniform_buffers: &SwapchainIndexMap<buffer::BufferData>) {
+    log::info!("destroy_uniform_buffer");
+    for uniform_buffer in uniform_buffers {
+        buffer::destroy_buffer_data(device, uniform_buffer);
     }
+}
 
-createUniformBuffer :: VkPhysicalDevice -> VkDevice -> Text.Text -> Int -> VkDeviceSize -> IO [(VkDeviceMemory, VkBuffer)]
-createUniformBuffer physicalDevice device uniformBufferName bufferCount bufferSize = do
-    log::info!("createUniformBuffer : " ++ Text.unpack uniformBufferName
-    replicateM bufferCount $ createBuffer
-        physicalDevice
-        device
-        bufferSize
-        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT
-        ( VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT .|. VK_MEMORY_PROPERTY_HOST_COHERENT_BIT )
-
-destroyUniformBuffer :: VkDevice -> SwapchainIndexMap VkBuffer -> SwapchainIndexMap VkDeviceMemory -> IO ()
-destroyUniformBuffer device buffers memories = do
-    logInfo "destroyUniformBuffers"
-    forM_ (zip (swapChainIndexMapToList buffers) (swapChainIndexMapToList memories)) $ \(buffer, memory) ->
-        destroyBuffer device buffer memory
-
-createUniformBufferData :: VkPhysicalDevice -> VkDevice -> Text.Text -> VkDeviceSize -> IO UniformBufferData
-createUniformBufferData physicalDevice device uniformBufferName bufferSize = do
-    (uniformBufferMemories, uniformBuffers) <- unzip <$> createUniformBuffer
-        physicalDevice
-        device
-        uniformBufferName
-        Constants.swapChainImageCount
-        bufferSize
-    let createVkDescriptorBufferInfo uniformBuffer =
-            createVk @VkDescriptorBufferInfo
-                $  set @"buffer" uniformBuffer
-                &* set @"offset" 0
-                &* set @"range" bufferSize
-        descriptorBufferInfos = map createVkDescriptorBufferInfo uniformBuffers
-    return UniformBufferData
-        { _uniformBufferName = uniformBufferName
-        , _uniformBuffers = swapChainIndexMapFromList uniformBuffers
-        , _uniformBufferMemories = swapChainIndexMapFromList uniformBufferMemories
-        , _uniformBufferDataSize = bufferSize
-        , _descriptorBufferInfos = swapChainIndexMapFromList descriptorBufferInfos
+pub fn create_uniform_buffer_data(
+    device: &Device,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    uniform_buffer_name: &String,
+    buffer_size: vk::DeviceSize
+) -> UniformBufferData {
+    let uniform_buffers = create_uniform_buffer(
+        device,
+        memory_properties,
+        uniform_buffer_name,
+        constants::SWAPCHAIN_IMAGE_COUNT,
+        buffer_size
+    );
+    let descriptor_buffer_infos = uniform_buffers.iter().map(|buffer_data| {
+        vk::DescriptorBufferInfo {
+            buffer: buffer_data._buffer,
+            offset: 0,
+            range: buffer_size,
         }
+    }).collect();
 
-destroyUniformBufferData :: VkDevice -> UniformBufferData -> IO ()
-destroyUniformBufferData device uniformBufferData =
-    destroyUniformBuffer device (_uniformBuffers uniformBufferData) (_uniformBufferMemories uniformBufferData)
+    UniformBufferData {
+        _uniform_buffer_name: uniform_buffer_name.clone(),
+        _uniform_buffers: uniform_buffers,
+        _uniform_buffer_data_size: buffer_size,
+        _descriptor_buffer_infos: descriptor_buffer_infos
+    }
+}
+
+pub fn destroy_uniform_buffer_data(device: &Device, uniform_buffer_data: &UniformBufferData) {
+    destroy_uniform_buffer(device, &uniform_buffer_data._uniform_buffers);
+}
