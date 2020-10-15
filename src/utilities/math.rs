@@ -8,34 +8,26 @@ use nalgebra::{
 
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
 
+pub struct MathData {
+    _clip_space_matrix: Matrix4<f32>,
+}
 
-// getFloat :: Float -> Scalar Float
-// getFloat v = S v
-//
-// getFloat2 :: Float -> Vec2f
-// getFloat2 v = fromScalar (S v)
-//
-// getFloat3 :: Float -> Vec3f
-// getFloat3 v = fromScalar (S v)
-//
-// getFloat4 :: Float -> Vec4f
-// getFloat4 v = fromScalar (S v)
-//
-// matrix4x4_indentity :: Mat44f
-// matrix4x4_indentity =
-//     DF4 (DF4 1 0 0 0)
-//         (DF4 0 1 0 0)
-//         (DF4 0 0 1 0)
-//         (DF4 0 0 0 1)
-//
-// -- ... and a {clip space -> screen space} matrix that converts points into
-// --     the vulkan screen space {x: -1..1, y: 1..-1, z: 0..1}
-// clipSpaceMatrix :: Mat44f
-// clipSpaceMatrix = DF4
-//     (DF4 1   0   0   0)
-//     (DF4 0 (-1)  0   0)
-//     (DF4 0   0  0.5  0)
-//     (DF4 0   0  0.5  1)
+impl Default for MathData {
+    fn default() -> MathData {
+        MathData {
+            // -- ... and a {clip space -> screen space} matrix that converts points into
+            // --     the vulkan screen space {x: -1..1, y: 1..-1, z: 0..1}
+            _clip_space_matrix: Matrix4::new(
+                1.0, 0.0, 0.0, 0.0,
+                0.0, -1.0, 0.0, 0.0,
+                0.0, 0.0, 0.5, 0.0,
+                0.0, 0.0, 0.5, 1.0,
+            )
+        }
+    }
+}
+
+
 //
 // quaternion_identity :: Quater Float
 // quaternion_identity = Quater 0 0 0 1
