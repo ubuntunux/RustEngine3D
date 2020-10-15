@@ -454,8 +454,17 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
         device.destroy_image_view(image_view, None);
     }
 }
-//
-// //
+
+pub fn transition_image_layout(
+    image: vk::Image,
+    format: vk::Format,
+    transition: ImageLayoutTransition,
+    layer_count,
+    mip_levels,
+    command_buffer: vk::CommandBuffer
+) {
+    
+}
 // transitionImageLayout :: vk::Image
 //                       -> vk::Format
 //                       -> ImageLayoutTransition
