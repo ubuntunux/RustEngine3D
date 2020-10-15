@@ -1,32 +1,41 @@
 use std::cmp::max;
+use std::mem::{self, align_of};
+use std::os::raw::c_void;
+
 use ash::{
     vk,
     Device,
     Instance,
 };
+use ash::util::Align;
 use ash::extensions::khr::{
     Surface,
     Swapchain,
 };
-use ash::version::{DeviceV1_0, InstanceV1_0};
+use ash::version::{
+    DeviceV1_0,
+    InstanceV1_0
+};
 
 use crate::constants;
+use crate::vulkan_context::buffer;
+use crate::vulkan_context::vulkan_context::run_commands_once;
 
 #[derive(Debug, Clone)]
 pub struct TextureCreateInfo {
-    _texture_create_info_width: u32,
-    _texture_create_info_height: u32,
-    _texture_create_info_depth: u32,
-    _texture_create_info_format: vk::Format,
-    _texture_create_info_view_type: vk::ImageViewType,
-    _texture_create_info_samples: vk::SampleCountFlags,
-    _texture_create_info_min_filter: vk::Filter,
-    _texture_create_info_mag_filter: vk::Filter,
-    _texture_create_info_wrap_mode: vk::SamplerAddressMode,
-    _texture_create_info_enable_mipmap: bool,
-    _texture_create_info_enable_anisotropy: bool,
-    _texture_create_info_immutable: bool,
-    _texture_create_info_data: Vec<u8>
+    _texture_width: u32,
+    _texture_height: u32,
+    _texture_depth: u32,
+    _texture_format: vk::Format,
+    _texture_view_type: vk::ImageViewType,
+    _texture_samples: vk::SampleCountFlags,
+    _texture_min_filter: vk::Filter,
+    _texture_mag_filter: vk::Filter,
+    _texture_wrap_mode: vk::SamplerAddressMode,
+    _enable_mipmap: bool,
+    _enable_anisotropy: bool,
+    _immutable: bool,
+    _texture_initial_datas: Vec<u8>
 }
 
 #[derive(Debug, Clone)]
@@ -45,7 +54,6 @@ pub struct TextureData {
     _descriptor_image_info: vk::DescriptorImageInfo,
 }
 
-#[allow(non_camel_case)]
 pub enum ImageLayoutTransition {
     TransferUndefToTransferDst,
     TransferDstToShaderReadOnly,
@@ -66,19 +74,19 @@ pub struct TransitionDependent {
 impl Default for TextureCreateInfo {
     fn default() -> TextureCreateInfo {
         TextureCreateInfo {
-            _texture_create_info_width: 1,
-            _texture_create_info_height: 1,
-            _texture_create_info_depth: 1,
-            _texture_create_info_format: vk::Format::R8G8B8A8_UNORM,
-            _texture_create_info_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_create_info_samples: vk::SampleCountFlags::TYPE_1,
-            _texture_create_info_min_filter: vk::Filter::LINEAR,
-            _texture_create_info_mag_filter: vk::Filter::LINEAR,
-            _texture_create_info_wrap_mode: vk::SamplerAddressMode::REPEAT,
-            _texture_create_info_enable_mipmap: true,
-            _texture_create_info_enable_anisotropy: true,
-            _texture_create_info_immutable: true,
-            _texture_create_info_data: Vec::new(),
+            _texture_width: 1,
+            _texture_height: 1,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
+            _enable_mipmap: true,
+            _enable_anisotropy: true,
+            _immutable: true,
+            _texture_initial_datas: Vec::new(),
         }
     }
 }
@@ -456,332 +464,456 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 }
 
 pub fn transition_image_layout(
+    device: &Device,
+    command_buffer: vk::CommandBuffer,
     image: vk::Image,
     format: vk::Format,
     transition: ImageLayoutTransition,
-    layer_count,
-    mip_levels,
-    command_buffer: vk::CommandBuffer
+    layer_count: u32,
+    mip_levels: u32
 ) {
-    
+    let transition_dependent = get_transition_dependent(transition);
+    let aspect_mask = match transition_dependent._new_layout {
+        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL =>
+            if constants::DEPTH_STENCIL_FORMATS.contains(&format) {
+                vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+            } else {
+                vk::ImageAspectFlags::DEPTH
+            },
+        _ => vk::ImageAspectFlags::COLOR
+    };
+    let barriers: [vk::ImageMemoryBarrier; 1] = [
+        vk::ImageMemoryBarrier {
+            old_layout: transition_dependent._old_layout,
+            new_layout: transition_dependent._new_layout,
+            src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+            dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+            image,
+            subresource_range: vk::ImageSubresourceRange {
+                aspect_mask,
+                base_mip_level: 0,
+                level_count: mip_levels,
+                base_array_layer: 0,
+                layer_count,
+                ..Default::default()
+            },
+            src_access_mask: transition_dependent._src_access_mask,
+            dst_access_mask: transition_dependent._dst_access_mask,
+            ..Default::default()
+        }
+    ];
+    unsafe {
+        device.cmd_pipeline_barrier(
+            command_buffer,
+            transition_dependent._src_stage_mask,
+            transition_dependent._dst_stage_mask,
+            vk::DependencyFlags::empty(),
+            &[],
+            &[],
+            &barriers);
+    }
 }
-// transitionImageLayout :: vk::Image
-//                       -> vk::Format
-//                       -> ImageLayoutTransition
-//                       -> u32
-//                       -> u32
-//                       -> vk::CommandBuffer
-//                       -> IO ()
-// transitionImageLayout image format transition layerCount mipLevels commandBuffer = do
-//     let TransitionDependent {..} = transitionDependent transition
-//         aspectMask = case _newLayout of
-//             VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-//                 | elem format Constants.depthStencilFormats -> VK_IMAGE_ASPECT_DEPTH_BIT .|. VK_IMAGE_ASPECT_STENCIL_BIT
-//                 | otherwise -> VK_IMAGE_ASPECT_DEPTH_BIT
-//             otherwise -> VK_IMAGE_ASPECT_COLOR_BIT
-//         barrier = createvk:: @vk::ImageMemoryBarrier
-//             $  set @"sType" VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER
-//             &* set @"pNext" VK_NULL
-//             &* set @"oldLayout" _oldLayout
-//             &* set @"newLayout" _newLayout
-//             &* set @"srcQueueFamilyIndex" VK_QUEUE_FAMILY_IGNORED
-//             &* set @"dstQueueFamilyIndex" VK_QUEUE_FAMILY_IGNORED
-//             &* set @"image" image
-//             &* setvk:: @"subresourceRange"
-//                 (  set @"aspectMask" aspectMask
-//                 &* set @"baseMipLevel" 0
-//                 &* set @"levelCount" mipLevels
-//                 &* set @"baseArrayLayer" 0
-//                 &* set @"layerCount" layerCount)
-//             &* set @"srcAccessMask" _srcAccessMask
-//             &* set @"dstAccessMask" _dstAccessMask
-//     withPtr barrier $ \barrierPtr -> vkCmdPipelineBarrier
-//         commandBuffer
-//         _srcStageMask
-//         _dstStageMask
-//         VK_ZERO_FLAGS
-//         0 VK_NULL
-//         0 VK_NULL
-//         1 barrierPtr
-// //
-// //
-// createImage :: vk::PhysicalDevice
-//             -> vk::Device
-//             -> vk::ImageType
-//             -> u32
-//             -> u32
-//             -> u32
-//             -> u32
-//             -> u32
-//             -> vk::SampleCountFlagBits
-//             -> vk::Format
-//             -> vk::ImageTiling
-//             -> vk::ImageUsageFlags
-//             -> vk::ImageCreateFlags
-//             -> vk::MemoryPropertyFlags
-//             -> IO (vk::DeviceMemory, vk::Image)
-// createImage physicalDevice device imageType width height depth layerCount mipLevels samples format tiling usage imageCreateFlags memoryPropertyFlags = do
-//     let imageCreateInfo = createvk:: @vk::ImageCreateInfo
-//             $  set @"sType" VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO
-//             &* set @"pNext" VK_NULL
-//             &* set @"flags" imageCreateFlags
-//             &* set @"imageType" imageType
-//             &* setvk:: @"extent"
-//                 (  set @"width" width
-//                 &* set @"height" height
-//                 &* set @"depth" depth
-//                 )
-//             &* set @"mipLevels" mipLevels
-//             &* set @"arrayLayers" layerCount
-//             &* set @"format" format
-//             &* set @"tiling" tiling
-//             &* set @"initialLayout" VK_IMAGE_LAYOUT_UNDEFINED
-//             &* set @"usage" usage
-//             &* set @"sharingMode" VK_SHARING_MODE_EXCLUSIVE
-//             &* set @"samples" samples
-//             &* set @"queueFamilyIndexCount" 0
-//             &* set @"pQueueFamilyIndices" VK_NULL
-// //
-//     imageFormatProperties <- allocaPeek $ \pImageFormatProperties ->
-//         throwingVK "vkGetPhysicalDeviceImageFormatProperties failed!" $
-//             vkGetPhysicalDeviceImageFormatProperties physicalDevice format imageType tiling usage imageCreateFlags pImageFormatProperties
-// //
-//     image <- withPtr imageCreateInfo $ \imageCreateInfoPtr -> allocaPeek $ \imagePtr ->
-//         throwingVK "vkCreateImage failed!" $
-//             vkCreateImage device imageCreateInfoPtr VK_NULL imagePtr
-// //
-//     memoryRequirements <- allocaPeek $ \memoryRequirementsPtr ->
-//         vkGetImageMemoryRequirements device image memoryRequirementsPtr
-// //
-//     memoryType <- findMemoryType physicalDevice(getField @"memoryTypeBits" memoryRequirements) memoryPropertyFlags
-// //
-//     let allocInfo = createvk:: @vk::MemoryAllocateInfo
-//             $  set @"sType" VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO
-//             &* set @"pNext" VK_NULL
-//             &* set @"allocationSize" (getField @"size" memoryRequirements)
-//             &* set @"memoryTypeIndex" memoryType
-// //
-//     imageMemory <- withPtr allocInfo $ \allocInfoPtr ->
-//         allocaPeek $ \imageMemoryPtr ->
-//             throwingVK "vkAllocateMemory failed!" $ vkAllocateMemory device allocInfoPtr VK_NULL imageMemoryPtr
-// //
-//     vkBindImageMemory device image imageMemory 0
-// //
-//     return (imageMemory, image)
-// //
-// destroyImage :: vk::Device -> vk::Image -> vk::DeviceMemory -> IO ()
-// destroyImage device image imageMemory = do
-//     vkDestroyImage device image VK_NULL
-//     vkFreeMemory device imageMemory VK_NULL
-// //
-// copyBufferToImage :: vk::Device
-//                   -> vk::CommandPool
-//                   -> vk::Queue
-//                   -> vk::Buffer
-//                   -> vk::Image
-//                   -> u32
-//                   -> u32
-//                   -> u32
-//                   -> u32
-//                   -> IO ()
-// copyBufferToImage device commandBufferPool commandQueue buffer image width height depth layerCount =
-//     runCommandsOnce device commandBufferPool commandQueue $ \commandBuffer ->
-//         let region = createvk:: @vk::BufferImageCopy
-//                 $  set @"bufferOffset" 0
-//                 &* set @"bufferRowLength" 0
-//                 &* set @"bufferImageHeight" 0
-//                 &* setvk:: @"imageSubresource"
-//                     (  set @"aspectMask" VK_IMAGE_ASPECT_COLOR_BIT
-//                     &* set @"mipLevel" 0
-//                     &* set @"baseArrayLayer" 0
-//                     &* set @"layerCount" layerCount)
-//                 &* setvk:: @"imageOffset"
-//                     (  set @"x" 0
-//                     &* set @"y" 0
-//                     &* set @"z" 0)
-//                 &* setvk:: @"imageExtent"
-//                     (  set @"width" width
-//                     &* set @"height" height
-//                     &* set @"depth" depth)
-//         in withPtr region $ \regionPtr ->
-//             vkCmdCopyBufferToImage commandBuffer buffer image VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL 1 regionPtr
-// //
-// createRenderTarget :: String
-//                    -> vk::PhysicalDevice
-//                    -> vk::Device
-//                    -> vk::CommandPool
-//                    -> vk::Queue
-//                    -> TextureCreateInfo
-//                    -> IO TextureData
-// createRenderTarget textureDataName physicalDevice device commandBufferPool queue textureCreateInfo@TextureCreateInfo {..} = do
-//     let enableAnisotropy = if _textureCreateInfoEnableAnisotropy then VK_TRUE else VK_FALSE
-//         textureCreateFlags = if (VK_IMAGE_VIEW_TYPE_CUBE == _textureCreateInfoViewType) then VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT else VK_ZERO_FLAGS
-//         layerCount = if (VK_IMAGE_VIEW_TYPE_CUBE == _textureCreateInfoViewType) then 6 else 1
-//         mipLevels = case _textureCreateInfoEnableMipmap of
-//             True -> calcMipLevels _textureCreateInfoWidth _textureCreateInfoHeight _textureCreateInfoDepth
-//             False -> 1
-//         isDepthFormat = elem _textureCreateInfoFormat Constants.depthFomats
-//         commonUsage = VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT .|. VK_IMAGE_USAGE_TRANSFER_SRC_BIT .|. VK_IMAGE_USAGE_TRANSFER_DST_BIT .|. VK_IMAGE_USAGE_SAMPLED_BIT
-//         imageType = imageViewTypeToImageType _textureCreateInfoViewType
-//     (imageUsage, imageAspect, imageLayoutTransition, imageFormat) <-
-//         if isDepthFormat then do
-//             depthFormat <- findSupportedFormat physicalDevice _textureCreateInfoFormat VK_IMAGE_TILING_OPTIMAL VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
-//             return ( commonUsage .|. VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT
-//                    , VK_IMAGE_ASPECT_DEPTH_BIT
-//                    , TransferUndef_DepthStencilAttachemnt
-//                    , depthFormat
-//                    )
-//         else
-//             return ( commonUsage .|. VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT
-//                    , VK_IMAGE_ASPECT_COLOR_BIT
-//                    , TransferUndef_ColorAttachemnt
-//                    , _textureCreateInfoFormat
-//                    )
-//     (imageMemory, image) <- createImage
-//         physicalDevice
-//         device
-//         imageType
-//         _textureCreateInfoWidth
-//         _textureCreateInfoHeight
-//         _textureCreateInfoDepth
-//         layerCount
-//         mipLevels
-//         _textureCreateInfoSamples
-//         imageFormat
-//         VK_IMAGE_TILING_OPTIMAL
-//         imageUsage
-//         textureCreateFlags
-//         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-// //
-//     runCommandsOnce device commandBufferPool queue $ \commandBuffer ->
-//         transitionImageLayout image imageFormat imageLayoutTransition layerCount mipLevels commandBuffer
-// //
-//     imageView <- createImageView device image _textureCreateInfoViewType imageFormat imageAspect layerCount mipLevels
-//     imageSampler <- createImageSampler device mipLevels _textureCreateInfoMinFilter _textureCreateInfoMagFilter _textureCreateInfoWrapMode enableAnisotropy
-//     let descriptorImageInfo = createDescriptorImageInfo VK_IMAGE_LAYOUT_GENERAL imageView imageSampler
-//         textureData = TextureData
-//             { _textureDataName = textureDataName
-//             , _imageView = imageView
-//             , _image = image
-//             , _imageMemory = imageMemory
-//             , _imageSampler = imageSampler
-//             , _imageFormat = imageFormat
-//             , _imageWidth = _textureCreateInfoWidth
-//             , _imageHeight = _textureCreateInfoHeight
-//             , _imageDepth = _textureCreateInfoDepth
-//             , _imageSampleCount = _textureCreateInfoSamples
-//             , _imageMipLevels = mipLevels
-//             , _descriptorImageInfo = descriptorImageInfo
-//             }
-//     log::info!("createRenderTarget : "
-//         ++ Text.unpack textureDataName
-//         ++ " " ++ show _textureCreateInfoViewType
-//         ++ " " ++ show _textureCreateInfoFormat
-//         ++ " "  ++ show _textureCreateInfoWidth
-//         ++ ", " ++ show _textureCreateInfoHeight
-//         ++ ", " ++ show _textureCreateInfoDepth
-//     logTrivialInfo $ "    TextureData : image " ++ show image ++ ", imageView " ++ show imageView ++ ", imageMemory " ++ show imageMemory ++ ", sampler " ++ show imageSampler
-//     return textureData
-// //
-// //
-// createTextureData :: String
-//                   -> vk::PhysicalDevice
-//                   -> vk::Device
-//                   -> vk::CommandPool
-//                   -> vk::Queue
-//                   -> TextureCreateInfo
-//                   -> IO TextureData
-// createTextureData textureDataName physicalDevice device commandBufferPool commandQueue textureCreateInfo@TextureCreateInfo {..} = do
-//     let (imageDataForeignPtr, imageDataLen) = SVector.unsafeToForeignPtr0 _textureCreateInfoData
-//         bufferSize = (fromIntegral imageDataLen)::vk::DeviceSize
-//         enableAnisotropy = if _textureCreateInfoEnableAnisotropy then VK_TRUE else VK_FALSE
-//         textureCreateFlags = if (VK_IMAGE_VIEW_TYPE_CUBE == _textureCreateInfoViewType) then VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT else VK_ZERO_FLAGS
-//         layerCount = if (VK_IMAGE_VIEW_TYPE_CUBE == _textureCreateInfoViewType) then 6 else 1
-//         mipLevels = case _textureCreateInfoEnableMipmap of
-//             True -> calcMipLevels _textureCreateInfoWidth _textureCreateInfoHeight _textureCreateInfoDepth
-//             False -> 1
-//         imageType = imageViewTypeToImageType _textureCreateInfoViewType
-//     -- we don't need to access the vk::DeviceMemory of the image, copyBufferToImage works with the vk::Image
-//     (imageMemory, image) <- createImage
-//         physicalDevice
-//         device
-//         imageType
-//         _textureCreateInfoWidth
-//         _textureCreateInfoHeight
-//         _textureCreateInfoDepth
-//         layerCount
-//         mipLevels
-//         _textureCreateInfoSamples
-//         _textureCreateInfoFormat
-//         VK_IMAGE_TILING_OPTIMAL
-//         (VK_IMAGE_USAGE_TRANSFER_SRC_BIT .|. VK_IMAGE_USAGE_TRANSFER_DST_BIT .|. VK_IMAGE_USAGE_SAMPLED_BIT)
-//         textureCreateFlags
-//         VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-//     -- run command
-//     runCommandsOnce device commandBufferPool commandQueue $ \commandBuffer ->
-//         transitionImageLayout image _textureCreateInfoFormat TransferUndef_TransferDst layerCount mipLevels commandBuffer
-// //
-//     -- create temporary staging buffer
-//     let stagingBufferUsageFlags = VK_BUFFER_USAGE_TRANSFER_SRC_BIT
-//         stagingBufferMemoryPropertyFlags = (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT .|. VK_MEMORY_PROPERTY_HOST_COHERENT_BIT)
-//     (stagingBufferMemory, stagingBuffer) <- createBuffer physicalDevice device bufferSize stagingBufferUsageFlags stagingBufferMemoryPropertyFlags
-// //
-//     -- upload data
-//     stagingDataPtr <- allocaPeek $
-//         vkMapMemory device stagingBufferMemory 0 bufferSize VK_ZERO_FLAGS
-//     withForeignPtr imageDataForeignPtr $ \imageDataPtr ->
-//         copyArray (castPtr stagingDataPtr) imageDataPtr imageDataLen
-//     vkUnmapMemory device stagingBufferMemory
-// //
-//     copyBufferToImage device commandBufferPool commandQueue stagingBuffer image _textureCreateInfoWidth _textureCreateInfoHeight _textureCreateInfoDepth layerCount
-// //
-//     runCommandsOnce device commandBufferPool commandQueue $ \commandBuffer ->
-//         -- generateMipmaps does this as a side effect:
-//         -- transitionImageLayout image VK_FORMAT_R8G8B8A8_UNORM TransferDst_ShaderReadOnly mipLevels
-//         generateMipmaps
-//             physicalDevice
-//             image
-//             _textureCreateInfoFormat
-//             _textureCreateInfoWidth
-//             _textureCreateInfoHeight
-//             _textureCreateInfoDepth
-//             mipLevels
-//             layerCount
-//             commandBuffer
-//     destroyBuffer device stagingBuffer stagingBufferMemory
-// //
-//     imageView <- createImageView device image _textureCreateInfoViewType _textureCreateInfoFormat VK_IMAGE_ASPECT_COLOR_BIT layerCount mipLevels
-//     imageSampler <- createImageSampler device mipLevels _textureCreateInfoMinFilter _textureCreateInfoMagFilter _textureCreateInfoWrapMode enableAnisotropy
-//     let descriptorImageInfo = createDescriptorImageInfo VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL imageView imageSampler
-//         textureData@TextureData {..} = TextureData
-//             { _textureDataName = textureDataName
-//             , _image = image
-//             , _imageView = imageView
-//             , _imageMemory = imageMemory
-//             , _imageSampler = imageSampler
-//             , _imageFormat = _textureCreateInfoFormat
-//             , _imageWidth = _textureCreateInfoWidth
-//             , _imageHeight = _textureCreateInfoHeight
-//             , _imageDepth = _textureCreateInfoDepth
-//             , _imageSampleCount = _textureCreateInfoSamples
-//             , _imageMipLevels = fromIntegral mipLevels
-//             , _descriptorImageInfo = descriptorImageInfo
-//             }
-// //
-//     log::info!("createTextureData : "
-//         ++ Text.unpack textureDataName
-//         ++ " " ++ show _textureCreateInfoViewType
-//         ++ " " ++ show _textureCreateInfoFormat
-//         ++ " "  ++ show _textureCreateInfoWidth
-//         ++ ", " ++ show _textureCreateInfoHeight
-//         ++ ", " ++ show _textureCreateInfoDepth
-//     logTrivialInfo $ "    TextureData : image " ++ show _image ++ ", imageView " ++ show _imageView ++ ", imageMemory " ++ show _imageMemory ++ ", sampler " ++ show _imageSampler
-// //
-//     return textureData
-// //
-// destroyTextureData :: vk::Device -> TextureData -> IO ()
-// destroyTextureData device textureData@TextureData{..} = do
-//     log::info!("destroyTextureData(" ++ (Text.unpack _textureDataName) ++ ") : image " ++ show _image ++ ", imageView " ++ show _imageView ++ ", imageMemory " ++ show _imageMemory ++ ", sampler " ++ show _imageSampler
-//     destroyImageSampler device _imageSampler
-//     destroyImageView device _imageView
-//     destroyImage device _image _imageMemory
+
+pub fn create_image(
+    instance: &Instance,
+    device: &Device,
+    physical_device: vk::PhysicalDevice,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    image_type: vk::ImageType,
+    width: u32,
+    height: u32,
+    depth: u32,
+    layer_count: u32,
+    mip_levels: u32,
+    samples: vk::SampleCountFlags,
+    format: vk::Format,
+    tiling: vk::ImageTiling,
+    usage: vk::ImageUsageFlags,
+    image_create_flags: vk::ImageCreateFlags,
+    memory_property_flags: vk::MemoryPropertyFlags
+) -> (vk::DeviceMemory, vk::Image) {
+    unsafe {
+        let image_create_info = vk::ImageCreateInfo {
+            flags: image_create_flags,
+            image_type,
+            extent: vk::Extent3D { width, height, depth, },
+            mip_levels,
+            array_layers: layer_count,
+            format,
+            tiling,
+            initial_layout: vk::ImageLayout::UNDEFINED,
+            usage,
+            sharing_mode: vk::SharingMode::EXCLUSIVE,
+            samples,
+            ..Default::default()
+        };
+
+        let image_format_properties = instance.get_physical_device_image_format_properties(
+            physical_device,
+            format,
+            image_type,
+            tiling,
+            usage,
+            image_create_flags
+        ).expect("vkGetPhysicalDeviceImageFormatProperties failed!");
+
+        let image = device.create_image(&image_create_info, None).expect("vkCreateImage failed!");
+        let memory_requirements = device.get_image_memory_requirements(image);
+        let memory_type_index = buffer::find_memory_type_index(&memory_requirements, memory_properties, memory_property_flags).unwrap();
+        let image_allocate_info = vk::MemoryAllocateInfo {
+            allocation_size: memory_requirements.size,
+            memory_type_index,
+            ..Default::default()
+        };
+        let image_memory = device.allocate_memory(&image_allocate_info, None).expect("vkAllocateMemory failed!");
+        device.bind_image_memory(image, image_memory, 0).expect("vkBindImageMemory failed!");
+        (image_memory, image)
+    }
+}
+
+pub fn destroy_image(device: &Device, image: vk::Image, image_memory: vk::DeviceMemory) {
+    unsafe {
+        device.destroy_image(image, None);
+        device.free_memory(image_memory, None);
+    }
+}
+
+pub fn copy_buffer_to_image(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    buffer: vk::Buffer,
+    image: vk::Image,
+    image_aspect: vk::ImageAspectFlags,
+    width: u32,
+    height: u32,
+    depth: u32,
+    layer_count: u32,
+) {
+    let regions: [vk::BufferImageCopy; 1] = [
+        vk::BufferImageCopy {
+            buffer_offset: 0,
+            buffer_row_length: 0,
+            buffer_image_height: 0,
+            image_subresource: vk::ImageSubresourceLayers {
+                aspect_mask: image_aspect,
+                mip_level: 0,
+                base_array_layer: 0,
+                layer_count,
+            },
+            image_offset: vk::Offset3D { x: 0, y: 0 , z: 0 },
+            image_extent:  vk::Extent3D { width, height, depth },
+            ..Default::default()
+        }
+    ];
+    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+            unsafe {
+                device.cmd_copy_buffer_to_image(command_buffer, buffer, image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, &regions);
+            }
+        }
+    );
+}
+
+pub fn create_render_target(
+    texture_data_name: &String,
+    instance: &Instance,
+    device: &Device,
+    physical_device: vk::PhysicalDevice,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    texture_create_info: &TextureCreateInfo,
+) -> TextureData {
+    let enable_anisotropy = match texture_create_info._enable_anisotropy {
+        true => vk::TRUE,
+        _ => vk::FALSE
+    };
+    let (texture_create_flags, layer_count) = match texture_create_info._texture_view_type {
+        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6),
+        _ => (vk::ImageCreateFlags::empty(), 1),
+    };
+    let mip_levels = match texture_create_info._enable_mipmap {
+        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_create_info._texture_depth),
+        _ => 1
+    };
+    let is_depth_format = constants::DEPTH_FOMATS.contains(&texture_create_info._texture_format);
+    let common_usage = vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::SAMPLED;
+    let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
+    let (image_usage, image_aspect, image_layout_transition, image_format) =
+        if is_depth_format {
+            let depth_format = find_supported_format(
+                instance,
+                physical_device,
+                texture_create_info._texture_format,
+                vk::ImageTiling::OPTIMAL,
+                vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT
+            );
+            (
+                common_usage | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                vk::ImageAspectFlags::DEPTH,
+                ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt,
+                depth_format
+            )
+        } else {
+            (
+                common_usage | vk::ImageUsageFlags::COLOR_ATTACHMENT,
+                vk::ImageAspectFlags::COLOR,
+                ImageLayoutTransition::TransferUndefToColorAttachemnt,
+                texture_create_info._texture_format
+            )
+        };
+    let (image_memory, image) = create_image(
+        instance,
+        device,
+        physical_device,
+        memory_properties,
+        image_type,
+        texture_create_info._texture_width,
+        texture_create_info._texture_height,
+        texture_create_info._texture_depth,
+        layer_count,
+        mip_levels,
+        texture_create_info._texture_samples,
+        image_format,
+        vk::ImageTiling::OPTIMAL,
+        image_usage,
+        texture_create_flags,
+        vk::MemoryPropertyFlags::DEVICE_LOCAL
+    );
+    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+            transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, layer_count, mip_levels);
+        }
+    );
+    let image_view = create_image_view(
+        device,
+        image,
+        texture_create_info._texture_view_type,
+        image_format,
+        image_aspect,
+        layer_count,
+        mip_levels
+    );
+    let image_sampler = create_image_sampler(
+        device,
+        mip_levels,
+        texture_create_info._texture_min_filter,
+        texture_create_info._texture_mag_filter,
+        texture_create_info._texture_wrap_mode,
+        enable_anisotropy
+    );
+    let descriptor_image_info = vk::DescriptorImageInfo {
+        sampler: image_sampler,
+        image_view,
+        image_layout: vk::ImageLayout::GENERAL
+    };
+    let texture_data = TextureData {
+        _texture_data_name: texture_data_name.clone(),
+        _image: image,
+        _image_view: image_view,
+        _image_memory: image_memory,
+        _image_sampler: image_sampler,
+        _image_format: image_format,
+        _image_width: texture_create_info._texture_width,
+        _image_height: texture_create_info._texture_height,
+        _image_depth: texture_create_info._texture_depth,
+        _image_mip_levels: mip_levels,
+        _image_sample_count: texture_create_info._texture_samples,
+        _descriptor_image_info: descriptor_image_info
+    };
+    log::info!("createRenderTarget: {} {:?} {:?} {} {} {}",
+             texture_data_name,
+             texture_create_info._texture_view_type,
+             image_format,
+             texture_create_info._texture_width,
+             texture_create_info._texture_height,
+             texture_create_info._texture_depth
+    );
+    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
+    texture_data
+}
+
+pub fn create_texture_data(
+    texture_data_name: &String,
+    instance: &Instance,
+    device: &Device,
+    physical_device: vk::PhysicalDevice,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    texture_create_info: &TextureCreateInfo,
+) -> TextureData {
+    let image_datas = &texture_create_info._texture_initial_datas;
+    let buffer_size = image_datas.len() as vk::DeviceSize;
+    let enable_anisotropy = match texture_create_info._enable_anisotropy {
+        true => vk::TRUE,
+        _ => vk::FALSE
+    };
+    let (texture_create_flags, layer_count) = match texture_create_info._texture_view_type {
+        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6),
+        _ => (vk::ImageCreateFlags::empty(), 1),
+    };
+    let mip_levels = match texture_create_info._enable_mipmap {
+        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_create_info._texture_depth),
+        _ => 1
+    };
+    let image_aspect = vk::ImageAspectFlags::COLOR;
+    let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
+    let image_usage = vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED;
+    // we don't need to access the vk::DeviceMemory of the image, copyBufferToImage works with the vk::Image
+    let (image_memory, image) = create_image(
+        instance,
+        device,
+        physical_device,
+        memory_properties,
+        image_type,
+        texture_create_info._texture_width,
+        texture_create_info._texture_height,
+        texture_create_info._texture_depth,
+        layer_count,
+        mip_levels,
+        texture_create_info._texture_samples,
+        texture_create_info._texture_format,
+        vk::ImageTiling::OPTIMAL,
+        image_usage,
+        texture_create_flags,
+        vk::MemoryPropertyFlags::DEVICE_LOCAL
+    );
+    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+        transition_image_layout(
+            device,
+            command_buffer,
+            image,
+            texture_create_info._texture_format,
+            ImageLayoutTransition::TransferUndefToTransferDst,
+            layer_count,
+            mip_levels
+        );
+    });
+
+    // create temporary staging buffer
+    let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
+    let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
+        device,
+        memory_properties,
+        buffer_size,
+        staging_buffer_usage_flags,
+        staging_buffer_memory_property_flags
+    );
+
+    unsafe {
+        // upload data
+        let stageing_buffer_ptr: *mut c_void = device.map_memory(
+            staging_buffer_data._buffer_memory,
+            0,
+            buffer_size,
+            vk::MemoryMapFlags::empty()
+        ).expect("Failed to map_memory!");
+        let mut stageing_buffer_slice = Align::new(
+            stageing_buffer_ptr,
+            align_of::<u32>() as u64,
+            staging_buffer_data._buffer_memory_requirements.size,
+        );
+        stageing_buffer_slice.copy_from_slice(image_datas);
+        device.unmap_memory(staging_buffer_data._buffer_memory);
+    }
+
+    copy_buffer_to_image(
+        device,
+        command_pool,
+        command_queue,
+        staging_buffer_data._buffer,
+        image,
+        image_aspect,
+        texture_create_info._texture_width,
+        texture_create_info._texture_height,
+        texture_create_info._texture_depth,
+        layer_count,
+    );
+
+    // generateMipmaps does this as a side effect:
+    // transitionImageLayout image VK_FORMAT_R8G8B8A8_UNORM TransferDst_ShaderReadOnly mipLevels
+    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+        generate_mipmaps(
+            instance,
+            device,
+            physical_device,
+            command_buffer,
+            image,
+            image_aspect,
+            texture_create_info._texture_format,
+            texture_create_info._texture_width as i32,
+            texture_create_info._texture_height as i32,
+            texture_create_info._texture_depth as i32,
+            mip_levels,
+            layer_count,
+        );
+    });
+
+    // destroy staging buffer
+    buffer::destroy_buffer_data(device, &staging_buffer_data);
+
+    // create texture datas
+    let image_view = create_image_view(
+        device,
+        image,
+        texture_create_info._texture_view_type,
+        texture_create_info._texture_format,
+        image_aspect,
+        layer_count,
+        mip_levels
+    );
+    let image_sampler = create_image_sampler(
+        device,
+        mip_levels,
+        texture_create_info._texture_min_filter,
+        texture_create_info._texture_mag_filter,
+        texture_create_info._texture_wrap_mode,
+        enable_anisotropy
+    );
+    let descriptor_image_info = vk::DescriptorImageInfo {
+        sampler: image_sampler,
+        image_view,
+        image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
+    };
+    let texture_data = TextureData {
+        _texture_data_name: texture_data_name.clone(),
+        _image: image.clone(),
+        _image_view: image_view.clone(),
+        _image_memory: image_memory,
+        _image_sampler: image_sampler,
+        _image_format: texture_create_info._texture_format,
+        _image_width: texture_create_info._texture_width,
+        _image_height: texture_create_info._texture_height,
+        _image_depth: texture_create_info._texture_depth,
+        _image_mip_levels: mip_levels,
+        _image_sample_count: texture_create_info._texture_samples,
+        _descriptor_image_info: descriptor_image_info
+    };
+
+    log::info!("createRenderTarget: {} {:?} {:?} {} {} {}",
+             texture_data_name,
+             texture_create_info._texture_view_type,
+             texture_create_info._texture_format,
+             texture_create_info._texture_width,
+             texture_create_info._texture_height,
+             texture_create_info._texture_depth
+    );
+    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
+    texture_data
+}
+
+pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
+    unsafe {
+        log::info!("destroyTextureData({}): image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}",
+            texture_data._texture_data_name,
+            texture_data._image,
+            texture_data._image_view,
+            texture_data._image_memory,
+            texture_data._image_sampler
+        );
+        device.destroy_sampler(texture_data._image_sampler, None);
+        device.destroy_image_view(texture_data._image_view, None);
+        destroy_image(device, texture_data._image, texture_data._image_memory);
+    }
+}

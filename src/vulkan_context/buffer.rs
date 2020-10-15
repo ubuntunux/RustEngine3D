@@ -21,11 +21,11 @@ pub struct BufferData {
 }
 
 pub fn find_memory_type_index(
-    memory_requirments: &vk::MemoryRequirements,
+    memory_requirements: &vk::MemoryRequirements,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     flags: vk::MemoryPropertyFlags
 ) -> Option<u32> {
-    let memory_type_bits = memory_requirments.memory_type_bits;
+    let memory_type_bits = memory_requirements.memory_type_bits;
     // Try to find an exactly matching memory flag
     // for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
     //     let property_flags = memory_types[index].property_flags;
@@ -110,7 +110,7 @@ pub fn create_buffer_data(
             .expect("Unable to find suitable memorytype for the vertex buffer.");
         let memory_allocate_info = vk::MemoryAllocateInfo {
             allocation_size: buffer_memory_requirements.size,
-            memory_type_index: memory_type_index,
+            memory_type_index,
             ..Default::default()
         };
         let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
