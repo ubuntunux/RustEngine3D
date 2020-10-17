@@ -59,7 +59,7 @@ pub fn inverse_transform_matrix(translation: &Vector3<f32>, rotation_matrix: &Ma
     inv_rotation_matrix.set_column(0, &column0);
     inv_rotation_matrix.set_column(1, &column1);
     inv_rotation_matrix.set_column(2, &column2);
-    inv_rotation_matrix = inv_rotation_matrix.transpose();
+    inv_rotation_matrix = inv_rotation_matrix.transpose().into();
 
     let homogeneous_pos = Vector4::new(-translation[0], -translation[1], -translation[2], 1.0);
     let x: f32 = homogeneous_pos.dot(&column0);
