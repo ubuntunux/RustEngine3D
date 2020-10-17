@@ -59,17 +59,20 @@ impl Default for MathData {
 //         row2 = (rotation_matrix .! Idx 2 :: Vec4f) * (getFloat4 sz)
 //         row3 = toHomPoint translation
 //     in DF4 row0 row1 row2 row3
-//
-// inverse_transform_matrix :: Vec3f -> Mat44f -> Vec3f -> Mat44f
-// inverse_transform_matrix translation rotation_matrix scale =
-//     let rotation_matrix_T = transpose rotation_matrix
-//         (# sx, sy, sz #) = unpackV3# scale
-//         row0 = (rotation_matrix_T .! Idx 0 :: Vec4f) / (getFloat4 sx)
-//         row1 = (rotation_matrix_T .! Idx 1 :: Vec4f) / (getFloat4 sy)
-//         row2 = (rotation_matrix_T .! Idx 2 :: Vec4f) / (getFloat4 sz)
-//         p = toHomVector (-translation)
-//         x = (rotation_matrix .! Idx 0) %* p
-//         y = (rotation_matrix .! Idx 1) %* p
-//         z = (rotation_matrix .! Idx 2) %* p
-//         row3 = DF4 x y z (scalar 1.0)
-//     in DF4 row0 row1 row2 row3
+
+pub fn inverse_transform_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
+    let rotation_matrix_t = rotation_matrix.transpose();
+    let column0 = rotation_matrix_t.column(0) / scale[0];
+    let column1 = rotation_matrix_t.column(1) / scale[1];
+    let column2 = rotation_matrix_t.column(2) / scale[2];
+    let homogeneous_vector = Vector4::new(-translation[0], -translation[1], -translation[2], 1.0);
+    let x: f32 = homogeneous_vector.dot(&rotation_matrix.column(0));
+    let y: f32 = homogeneous_vector.dot(&rotation_matrix.column(1));
+    let z: f32 = homogeneous_vector.dot(&rotation_matrix.column(2));
+    Matrix4::from_columns(&[
+        column0,
+        column1,
+        column2,
+        Vector4::new(x, y, z, 1.0),
+    ])
+}
