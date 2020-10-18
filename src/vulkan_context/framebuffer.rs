@@ -89,7 +89,7 @@ pub fn create_framebuffer_data(
     unsafe {
         let framebuffers: Vec<vk::Framebuffer> = constants::SWAPCHAIN_IMAGE_INDICES
             .iter()
-            .map(|index| {
+            .map(|__index| {
                 device.create_framebuffer(&framebuffer_create_info, None).expect("vkCreateFramebuffer failed!")
             }).collect();
 

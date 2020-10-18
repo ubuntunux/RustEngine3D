@@ -50,14 +50,3 @@ pub const SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub const SSAO_KERNEL_SIZE: i32 = 64;
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const SSAO_NOISE_DIM: i32 = 4;
-
-// -- NOTE : sync with scene_constants.glsl
-enum RenderMode {
-    RenderModeCommon,
-    RenderModeShadow
-}
-
-enum RenderObjectType {
-    RenderObjectStatic,
-    RenderObjectSkeletal
-}

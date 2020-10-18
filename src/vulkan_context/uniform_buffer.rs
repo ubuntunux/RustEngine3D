@@ -2,9 +2,6 @@ use ash::{
     vk,
     Device,
 };
-use ash::version::{
-    DeviceV1_0
-};
 
 use crate::constants;
 use crate::vulkan_context::buffer;
@@ -26,7 +23,7 @@ pub fn create_uniform_buffer(
     buffer_size: vk::DeviceSize
 ) -> Vec<buffer::BufferData> {
     log::info!("create_uniform_buffer: {}", uniform_buffer_name);
-    (0..buffer_count).map(|index| {
+    (0..buffer_count).map(|_i| {
         buffer::create_buffer_data(
             device,
             memory_properties,

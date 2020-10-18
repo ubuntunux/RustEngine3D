@@ -214,7 +214,7 @@ pub fn create_write_descriptor_sets(
 }
 
 pub fn update_write_descriptor_set(
-    mut write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet>,
+    write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet>,
     descriptor_offset: usize,
     descriptor_resource_info: &DescriptorResourceInfo
 ) {

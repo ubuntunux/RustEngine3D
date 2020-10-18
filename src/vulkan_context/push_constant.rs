@@ -2,17 +2,10 @@ use nalgebra::{
     Matrix4
 };
 
-use ash::{
-    vk,
-    Device,
-};
-use ash::version::{
-    DeviceV1_0
-};
-
 pub trait PushConstantInterface {
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstants_StaticRenderObject {
     pub _model_matrixt: Matrix4<f32>,

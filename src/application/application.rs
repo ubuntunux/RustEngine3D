@@ -113,7 +113,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
 
     // main loop
     let mut render_scene = false;
-    event_loop.run(move |event, window_target, control_flow|{
+    event_loop.run(move |event, __window_target, control_flow|{
         let mut application_data = (*application_data).borrow_mut();
         let mut renderer_data = (*renderer_data).borrow_mut();
         application_data._time_data.update_time_data(&time_instance);

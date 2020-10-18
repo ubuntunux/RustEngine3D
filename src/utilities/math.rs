@@ -1,8 +1,6 @@
 use nalgebra::{
-    Vector2,
     Vector3,
     Vector4,
-    Matrix3,
     Matrix4,
 };
 
@@ -31,6 +29,14 @@ impl Default for MathData {
             _world_front: Vector3::new(0.0, 0.0, 1.0)
         }
     }
+}
+
+pub fn degree_to_radian(degree: f32) -> f32 {
+    degree / 180.0 * std::f32::consts::PI
+}
+
+pub fn radian_to_degree(degree: f32) -> f32 {
+    degree / std::f32::consts::PI * 180.0
 }
 
 pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
@@ -78,4 +84,53 @@ pub fn inverse_transform_matrix(translation: &Vector3<f32>, rotation_matrix: &Ma
         Vector4::from(inv_rotation_matrix.column(2)),
         Vector4::new(x, y, z, 1.0),
     ])
+}
+
+pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> Matrix4<f32> {
+    let f: Vector3<f32> = (target - eye).normalize();
+    let s: Vector3<f32> = f.cross(&up);
+    let u: Vector3<f32> = s.cross(&f);
+    Matrix4::from_columns(&[
+        Vector4::new(s.x, s.y, s.z, 0.0),
+        Vector4::new(u.x, u.y, u.z, 0.0),
+        Vector4::new(f.x, f.y, f.z, 0.0),
+        Vector4::new(-s.dot(eye), -u.dot(eye), -f.dot(eye), 1.0)
+    ])
+}
+
+pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Matrix4<f32> {
+    let mut m: Matrix4<f32> = Matrix4::identity();
+    m.m11 = 2.0 / (right - left);
+    m.m22 = 2.0 / (top - bottom);
+    m.m33 = -2.0 / (far - near);
+    m.m14 = -(right + left) / (right - left);
+    m.m24 = -(top + bottom) / (top - bottom);
+    m.m34 = -(far + near) / (far - near);
+    m.m44 = 1.0;
+    m
+}
+
+pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Matrix4<f32> {
+    let height: f32 = degree_to_radian(fov * 0.5).tan() * near;
+    let width: f32 = height * aspect;
+    let depth = far - near;
+    // Compact version, it is assumed that x1 and x2 are the same.
+    Matrix4::from_columns(&[
+        Vector4::new(near / width, 0.0, 0.0, 0.0),
+        Vector4::new(0.0, near / height, 0.0, 0.0),
+        Vector4::new(0.0, 0.0, -(far + near) / depth, -1.0),
+        Vector4::new(0.0, 0.0, -(2.0 * near * far) / depth, 0.0)
+    ])
+
+    // Verbose version
+    // let left = -width;
+    // let right = width;
+    // let top = height;
+    // let bottom = -height;
+    // Matrix4::from_columns(&[
+    //     Vector4::new(2.0 * near / (right - left), 0.0, 0.0, 0.0),
+    //     Vector4::new(0.0, 2.0 * near / (top - bottom), 0.0, 0.0),
+    //     Vector4::new((right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1.0),
+    //     Vector4::new(0.0, 0.0, -2.0 * near * far / (far - near), 0.0),
+    // ])
 }

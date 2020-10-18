@@ -68,7 +68,7 @@ fn select_presentation_queue_family(
         queue_family_properties
             .iter()
             .enumerate()
-            .filter_map(|(index, ref queue_family_property)| {
+            .filter_map(|(index, ref __queue_family_property)| {
                 let surface_support = surface_interface.get_physical_device_surface_support(
                     physical_device,
                     index as u32,

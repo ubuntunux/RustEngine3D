@@ -7,10 +7,8 @@ use nalgebra::{
 };
 
 use crate::utilities::math::{
-    MathData,
     make_rotation_matrix,
-    make_matrix,
-    inverse_transform_matrix
+    make_matrix
 };
 
 #[derive(Debug, Clone)]
@@ -42,12 +40,12 @@ pub struct TransformObjectData {
 }
 
 impl TransformObjectData {
-    pub fn new_transform_object_data(math_data: &MathData) -> TransformObjectData {
+    pub fn new_transform_object_data() -> TransformObjectData {
         TransformObjectData {
             _updated: true,
-            _front: math_data._world_front.clone() as Vector3<f32>,
-            _left: math_data._world_left.clone() as Vector3<f32>,
-            _up: math_data._world_up.clone() as Vector3<f32>,
+            _front: Vector3::new(0.0, 0.0, 1.0),
+            _left: Vector3::new(1.0, 0.0, 0.0),
+            _up: Vector3::new(0.0, 1.0, 0.0),
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
             _scale: Vector3::new(1.0, 1.0, 1.0),

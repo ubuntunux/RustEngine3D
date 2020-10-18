@@ -160,7 +160,7 @@ impl SceneManagerData {
 //     updateSceneManagerData sceneManagerData@SceneManagerData {..} elapsedTime deltaTime = do
 //         mainCamera <- getMainCamera sceneManagerData
 //         Camera.updateCameraObjectData mainCamera
-//         cameraPosition <- Camera.getCameraPosition mainCamera
+//         cameraPosition <- Camera.get_camera_position mainCamera
 //
 //         mainLight <- getMainLight sceneManagerData
 //         Light.updateLightData mainLight cameraPosition

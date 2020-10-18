@@ -38,6 +38,17 @@ use crate::vulkan_context::{
 };
 use crate::vulkan_context::vulkan_context::*;
 
+// -- NOTE : sync with scene_constants.glsl
+enum RenderMode {
+    RenderModeCommon,
+    RenderModeShadow
+}
+
+enum RenderObjectType {
+    RenderObjectStatic,
+    RenderObjectSkeletal
+}
+
 pub unsafe extern "system" fn vulkan_debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
     message_type: vk::DebugUtilsMessageTypeFlagsEXT,

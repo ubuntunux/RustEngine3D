@@ -5,21 +5,16 @@ use ash::{
     vk,
     Device,
 };
-use ash::version::DeviceV1_0;
 use nalgebra;
 use nalgebra::{
     Vector2,
     Vector3,
-    Matrix4
 };
 
-use crate::constants;
-use crate::utilities::math;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::{
     get_color32,
     get_format_size,
-    run_commands_once,
 };
 use crate::utilities::bounding_box::{
     BoundingBox,
@@ -224,8 +219,7 @@ pub fn compute_tangent(
     tangents
 }
 
-
-pub fn quad_geometry_createInfos() -> Vec<GeometryCreateInfo> {
+pub fn quad_geometry_create_infos() -> Vec<GeometryCreateInfo> {
     let positions: Vec<Vector3<f32>> = vec![(-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (1.0, 1.0, 0.0), (-1.0, 1.0, 0.0)]
         .iter()
         .map(|(x, y, z)| {
@@ -240,13 +234,13 @@ pub fn quad_geometry_createInfos() -> Vec<GeometryCreateInfo> {
     let vertex_datas = positions
         .iter()
         .enumerate()
-        .map(|(index, position)| {
+        .map(|(index, __position)| {
             VertexData {
-                _position: positions[index].clone(),
-                _normal: normals[index].clone(),
-                _tangent: tangents[index].clone(),
+                _position: positions[index].clone() as Vector3<f32>,
+                _normal: normals[index].clone() as Vector3<f32>,
+                _tangent: tangents[index].clone() as Vector3<f32>,
                 _color: vertex_color,
-                _texcoord: texcoords[index].clone(),
+                _texcoord: texcoords[index].clone() as Vector2<f32>,
             }
         }).collect();
 
@@ -257,7 +251,7 @@ pub fn quad_geometry_createInfos() -> Vec<GeometryCreateInfo> {
     }]
 }
 
-pub fn cube_geometry_createInfos() -> Vec<GeometryCreateInfo> {
+pub fn cube_geometry_create_infos() -> Vec<GeometryCreateInfo> {
     let positions: Vec<Vector3<f32>> =
         vec![(-0.5, 0.5, 0.5), (-0.5, -0.5, 0.5), (0.5, -0.5, 0.5), (0.5, 0.5, 0.5),
              (0.5, 0.5, 0.5), (0.5, -0.5, 0.5), (0.5, -0.5, -0.5), (0.5, 0.5, -0.5),
@@ -291,13 +285,13 @@ pub fn cube_geometry_createInfos() -> Vec<GeometryCreateInfo> {
     let vertex_datas = positions
         .iter()
         .enumerate()
-        .map(|(index, position)| {
+        .map(|(index, __position)| {
             VertexData {
-                _position: positions[index].clone(),
-                _normal: normals[index].clone(),
-                _tangent: tangents[index].clone(),
+                _position: positions[index].clone() as Vector3<f32>,
+                _normal: normals[index].clone() as Vector3<f32>,
+                _tangent: tangents[index].clone() as Vector3<f32>,
                 _color: vertex_color,
-                _texcoord: texcoords[index].clone(),
+                _texcoord: texcoords[index].clone() as Vector2<f32>,
             }
         }).collect();
 

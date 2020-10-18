@@ -1,16 +1,11 @@
-use std::env;
 use std::fs;
 use std::io::Read;
 use std::path::{
-    Path,
     PathBuf,
 };
 use std::os::raw::c_char;
 use std::process;
 
-use nalgebra::{
-    Matrix4
-};
 use ash::{
     vk,
     Device,
@@ -18,7 +13,6 @@ use ash::{
 use ash::version::{
     DeviceV1_0
 };
-use std::fs::create_dir_all;
 
 pub const SHADER_CACHE_DIRECTORY: &str = "resource/shader_caches";
 pub const SHADER_DIRECTORY: &str = "resource/shaders";
@@ -44,7 +38,7 @@ pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &
 }
 
 
-pub fn compile_GLSL(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
+pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
     let validator_exe = match which::which("glslangValidator") {
         Ok(path) => path,
         Err(_) => panic!("Cannot find glslangValidator executable.\nCheck if it is available in your $PATH\nRead more about it at https://www.khronos.org/opengles/sdk/tools/Reference-Compiler/")
@@ -79,7 +73,8 @@ pub fn compile_GLSL(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
 
     // convert glsl -> spirv
     if do_convert || force_convert {
-        fs::create_dir_all(spirv_file_path.parent().unwrap());
+        fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
+
         if false == shader_file_path.is_file() {
             panic!("compileGLSL: {:?} does not exist.", shader_file_path);
         }
@@ -101,13 +96,12 @@ pub fn compile_GLSL(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
     let mut f = fs::File::open(&spirv_file_path).unwrap();
     let mut buffer: Vec<u8> = Vec::new();
     f.read_to_end(&mut buffer).unwrap();
-    let mut content_size = buffer.len() as u32;
+    let content_size = buffer.len() as u32;
     let remain = content_size % 4;
     if 0 < remain {
-        for i in 0..remain {
+        for __i in 0..remain {
             buffer.push(0);
         }
-        content_size = content_size + 4 - remain;
     }
     buffer
 }
@@ -120,7 +114,7 @@ pub fn create_shader_stage_create_info(
 ) -> vk::PipelineShaderStageCreateInfo {
     log::info!("createShaderStageCreateInfo: {:?}: {:?}", stage_flag, shader_filename);
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
-    let code_buffer = compile_GLSL(shader_filename, shader_defines);
+    let code_buffer = compile_glsl(shader_filename, shader_defines);
     let shader_module_create_info = vk::ShaderModuleCreateInfo {
         code_size: code_buffer.len(),
         p_code: code_buffer.as_ptr() as *const u32,

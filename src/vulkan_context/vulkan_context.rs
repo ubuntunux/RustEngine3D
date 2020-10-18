@@ -1,32 +1,14 @@
-use std::cmp::{ min, max };
-use std::borrow::Cow;
+use std::cmp::min;
 use std::default::Default;
-use std::ffi::{
-    CStr,
-    CString,
-};
-use std::mem;
-use std::mem::align_of;
-use std::ops::Drop;
-use std::rc::Rc;
-use std::sync::Arc;
 use std::vec::Vec;
 
 use ash;
 use ash::{
     vk,
-    Device,
-    Entry,
-    Instance,
 };
-use ash::extensions::ext::DebugUtils;
 use ash::version::{
     DeviceV1_0,
-    EntryV1_0,
-    InstanceV1_0,
 };
-
-use crate::constants;
 
 pub type SwapchainIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 pub type FrameIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
@@ -147,12 +129,12 @@ pub fn run_commands_once<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
             .build();
 
-        device.begin_command_buffer(command_buffer, &command_buffer_begin_info);
+        device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Failed to begin_command_buffer");
 
         // execute function
         func(device, command_buffer);
 
-        device.end_command_buffer(command_buffer);
+        device.end_command_buffer(command_buffer).expect("Failed to end_command_buffer");
 
         let submit_info = vk::SubmitInfo::builder()
             .command_buffers(&command_buffers)

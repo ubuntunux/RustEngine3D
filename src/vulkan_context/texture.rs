@@ -1,5 +1,5 @@
 use std::cmp::max;
-use std::mem::{self, align_of};
+use std::mem::align_of;
 use std::os::raw::c_void;
 
 use ash::{
@@ -8,10 +8,6 @@ use ash::{
     Instance,
 };
 use ash::util::Align;
-use ash::extensions::khr::{
-    Surface,
-    Swapchain,
-};
 use ash::version::{
     DeviceV1_0,
     InstanceV1_0
@@ -202,7 +198,7 @@ pub fn image_blit_struct(
         ],
         src_subresource: vk::ImageSubresourceLayers {
             aspect_mask: image_aspect_mask,
-            mip_level: (mip_level - 1),
+            mip_level: mip_level - 1,
             base_array_layer: 0,
             layer_count
         },
@@ -232,7 +228,7 @@ pub fn create_mipmap(
             image_barrier_struct(
                 image,
                 aspect_mask,
-                (mip_level - 1),
+                mip_level - 1,
                 layer_count,
                 vk::ImageLayout::TRANSFER_DST_OPTIMAL,
                 vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
@@ -274,7 +270,7 @@ pub fn create_mipmap(
             image_barrier_struct(
                 image,
                 aspect_mask,
-                (mip_level - 1),
+                mip_level - 1,
                 layer_count,
                 vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
                 vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
@@ -339,7 +335,7 @@ pub fn generate_mipmaps(
             image_barrier_struct(
                 image,
                 aspect_mask,
-                (mip_levels - 1),
+                mip_levels - 1,
                 layer_count,
                 vk::ImageLayout::TRANSFER_DST_OPTIMAL,
                 vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
@@ -367,7 +363,7 @@ pub fn find_supported_format(
     features: vk::FormatFeatureFlags,
 ) -> vk::Format {
     unsafe {
-        let candidates: Vec<vk::Format> = constants::DEPTH_FOMATS.iter().filter(|format| {
+        let candidates: Vec<vk::Format> = constants::DEPTH_FOMATS.iter().filter(|__format| {
             let format_properties = instance.get_physical_device_format_properties(physical_device, require_format);
             match tiling {
                 vk::ImageTiling::LINEAR => (format_properties.linear_tiling_features & features) == features,
@@ -548,7 +544,7 @@ pub fn create_image(
             ..Default::default()
         };
 
-        let image_format_properties = instance.get_physical_device_image_format_properties(
+        instance.get_physical_device_image_format_properties(
             physical_device,
             format,
             image_type,

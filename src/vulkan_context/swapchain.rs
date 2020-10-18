@@ -3,7 +3,6 @@ use std::cmp::{ min, max };
 use ash::{
     vk,
     Device,
-    Instance,
 };
 use ash::extensions::khr::{
     Surface,
