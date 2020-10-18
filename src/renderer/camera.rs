@@ -1,9 +1,12 @@
+use nalgebra::linalg;
 use nalgebra::{
     Vector3,
+    Vector4,
     Matrix4,
 };
 
 use crate::constants;
+use crate::utilities::math;
 use crate::renderer::transform_object::TransformObjectData;
 
 #[derive(Clone, Debug)]
@@ -47,7 +50,8 @@ pub struct CameraObjectData {
     _view_origin_projection_matrix: Matrix4<f32>,
     _inv_view_origin_projection_matrix: Matrix4<f32>,
     _view_origin_projection_matrix_prev: Matrix4<f32>,
-    _transform_object: TransformObjectData
+    _transform_object: TransformObjectData,
+    _updated: bool,
 }
 
 impl CameraObjectData {
@@ -71,14 +75,14 @@ impl CameraObjectData {
             _view_origin_projection_matrix: Matrix4::identity(),
             _inv_view_origin_projection_matrix: Matrix4::identity(),
             _view_origin_projection_matrix_prev: Matrix4::identity(),
-            _transform_object: TransformObjectData::new_transform_object_data()
+            _transform_object: TransformObjectData::new_transform_object_data(),
+            _updated: true,
         };
         // initialize
         camera_object_data._transform_object.set_position(&camera_create_info.position);
-        camera_object_data._transform_object.update_transform_object(false);
+        camera_object_data._transform_object.update_transform_object();
         camera_object_data
     }
-
     pub fn get_camera_position(&self) -> &Vector3<f32> {
         &self._transform_object.get_position()
     }
@@ -118,44 +122,34 @@ impl CameraObjectData {
     pub fn get_view_origin_projection_matrix_prev(&self) -> &Matrix4<f32> {
         &self._view_origin_projection_matrix_prev
     }
+    pub fn set_aspect(&mut self, aspect: f32) {
+        self._aspect = aspect;
+        self.update_projection_matrix();
+    }
 
-    // pub fn set_aspect(&mut self, camera_object_data: &CameraObjectData, aspect: f32) {
-    //     self._aspect = aspect;
-    //     self.update_projection_matrix();
-    // }
+    pub fn update_projection_matrix(&mut self) {
+        self._updated = true;
+        self._projection_matrix = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
+        linalg::try_invert_to(self._projection_matrix.into(), &mut self._inv_projection_matrix);
+    }
 
-    // pub fn update_projection_matrix(&mut self) {
-    //     let fovy = self._fov / 360.0 * math::TWO_PI;
-    //     let proj = Perspective3::new(self._aspect, fovy, self._near, self._far);
-    //     let projection_matrix =
-    //     fov <- read_fov
-    //     aspect <- read_aspect
-    //     near <- read_near
-    //     far <- read_far
-    //     let projectionMatrix = contract (perspective near far (fov/360.0 * 2.0 * pi) aspect) clipSpaceMatrix
-    //     write_projectionMatrix projectionMatrix
-    //     write_invProjectionMatrix (inverse projectionMatrix)
-    // }
-    //
-    // updateCameraObjectData: CameraObjectData -> IO ()
-    // updateCameraObjectData cameraObjectData@CameraObjectData {..} = do
-    //     updated <- updateTransformObject _transformObject
-    //     projectionMatrix <- read_projectionMatrix
-    //     invProjectionMatrix <- read_invProjectionMatrix
-    //     viewMatrix <- getInverseMatrix _transformObject
-    //     invViewMatrix <- getMatrix _transformObject
-    //     write_viewMatrix viewMatrix
-    //     write_invViewMatrix invViewMatrix
-    //     write_viewProjectionMatrix (contract viewMatrix projectionMatrix)
-    //     write_invViewProjectionMatrix (contract invProjectionMatrix invViewMatrix)
-    //     let viewOriginMatrix = DF4 (viewMatrix .! Idx 0) (viewMatrix .! Idx 1) (viewMatrix .! Idx 2) (vec4 0 0 0 1)
-    //         invViewOriginMatrix = (transpose viewOriginMatrix)
-    //     write_viewOriginMatrix viewOriginMatrix
-    //     write_invViewOriginMatrix invViewOriginMatrix
-    //     viewOriginProjectionMatrixPrev <- read_viewOriginProjectionMatrix
-    //     write_viewOriginProjectionMatrixPrev viewOriginProjectionMatrixPrev
-    //     write_viewOriginProjectionMatrix (contract viewOriginMatrix projectionMatrix)
-    //     write_invViewOriginProjectionMatrix (contract invProjectionMatrix invViewOriginMatrix)
-    //
-
+    pub fn update_camera_object_data(&mut self) {
+        let updated = self._transform_object.update_transform_object();
+        if updated || self._updated {
+            // view matrix is inverse matrix of transform, cause it's camera.
+            self._view_matrix = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
+            self._inv_view_matrix = self._transform_object.get_matrix().clone() as Matrix4<f32>;
+            self._view_origin_matrix.set_column(0, &self._view_matrix.column(0));
+            self._view_origin_matrix.set_column(1, &self._view_matrix.column(1));
+            self._view_origin_matrix.set_column(2, &self._view_matrix.column(2));
+            self._view_origin_matrix.set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
+            self._inv_view_origin_matrix = self._view_origin_matrix.transpose();
+            self._view_projection_matrix = &self._projection_matrix * &self._view_matrix;
+            self._inv_view_projection_matrix = &self._inv_view_matrix * &self._inv_projection_matrix;
+            self._view_origin_projection_matrix_prev = self._view_origin_projection_matrix.clone() as Matrix4<f32>;
+            self._view_origin_projection_matrix = &self._projection_matrix * &self._view_origin_matrix;
+            self._inv_view_origin_projection_matrix = &self._inv_view_origin_matrix * &self._inv_projection_matrix;
+            self._updated = false;
+        }
+    }
 }

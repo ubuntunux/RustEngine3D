@@ -35,7 +35,7 @@ pub fn get_format_size(format: vk::Format) -> u32 {
 }
 
 pub fn get_color32(r: u32, g: u32, b: u32, a: u32) -> u32 {
-    (min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24))
+    min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24)
 }
 
 pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAttachmentState {

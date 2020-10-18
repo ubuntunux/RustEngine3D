@@ -7,6 +7,9 @@ use nalgebra::{
 };
 
 use crate::utilities::math::{
+    get_world_left,
+    get_world_up,
+    get_world_front,
     make_rotation_matrix,
     make_matrix
 };
@@ -43,9 +46,9 @@ impl TransformObjectData {
     pub fn new_transform_object_data() -> TransformObjectData {
         TransformObjectData {
             _updated: true,
-            _front: Vector3::new(0.0, 0.0, 1.0),
-            _left: Vector3::new(1.0, 0.0, 0.0),
-            _up: Vector3::new(0.0, 1.0, 0.0),
+            _front: get_world_front(),
+            _left: get_world_left(),
+            _up: get_world_up(),
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
             _scale: Vector3::new(1.0, 1.0, 1.0),
@@ -68,54 +71,42 @@ impl TransformObjectData {
             _prev_inverse_matrix: Matrix4::identity(),
         }
     }
-
     pub fn get_matrix(&self) -> &Matrix4<f32> {
         &self._matrix
     }
-
     pub fn get_inverse_matrix(&self) -> &Matrix4<f32> {
         &self._inverse_matrix
     }
-
     pub fn get_left(&self) -> &Vector3<f32> {
         &self._left
     }
-
     pub fn get_front(&self) -> &Vector3<f32> {
         &self._front
     }
-
     pub fn get_up(&self) -> &Vector3<f32> {
         &self._up
     }
-
     pub fn get_position(&self) -> &Vector3<f32> {
         &self._position
     }
-
     pub fn set_position(&mut self, position: &Vector3<f32>) {
         self._position.copy_from(position);
     }
-
     pub fn get_prev_position(&self) -> &Vector3<f32> {
         &self._prev_position
     }
     pub fn move_left(&mut self, move_speed: f32) {
         self._position += (&self._left * move_speed) as Vector3<f32>;
     }
-
     pub fn move_up(&mut self, move_speed: f32) {
         self._position += (&self._up * move_speed) as Vector3<f32>;
     }
-
     pub fn move_front(&mut self, move_speed: f32) {
         self._position += (&self._front * move_speed) as Vector3<f32>;
     }
-
     pub fn get_rotation(&self) -> &Vector3<f32> {
         &self._rotation
     }
-
     pub fn set_rotation(&mut self, rotation: &Vector3<f32>) {
         self._rotation.copy_from(rotation);
         self._rotation.x = self._rotation.x % std::f32::consts::PI;
@@ -155,7 +146,15 @@ impl TransformObjectData {
         self._scale.z = scale;
     }
 
-    pub fn update_transform_object(&mut self, force_update: bool) -> bool {
+    pub fn update_transform_object(&mut self) -> bool {
+        self.update_transform_object_func(false)
+    }
+
+    pub fn force_update_transform_object(&mut self) -> bool {
+        self.update_transform_object_func(true)
+    }
+
+    pub fn update_transform_object_func(&mut self, force_update: bool) -> bool {
         let prev_updated: bool = self._updated;
         self._prev_position_store.copy_from(&self._prev_position);
         let updated_position = force_update || self._prev_position != self._position;

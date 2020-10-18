@@ -16,6 +16,7 @@ use crate::vulkan_context::vulkan_context::{
     get_color32,
     get_format_size,
 };
+use crate::utilities::math;
 use crate::utilities::bounding_box::{
     BoundingBox,
     calc_bounding_box
@@ -185,7 +186,6 @@ pub fn compute_tangent(
     let vertex_count = positions.len();
     let index_count = indices.len();
     assert_eq!(0, index_count as u32 % 3);
-    let world_up: Vector3<f32> = Vector3::new(0.0, 1.0, 0.0);
     let mut tangent_map: HashMap<usize, Vector3<f32>> = HashMap::new();
     for i in (0..index_count).step_by(3) {
         let i0 = indices[i] as usize;
@@ -202,7 +202,7 @@ pub fn compute_tangent(
         let tangent: Vector3<f32> = (((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r).normalize();
         let avg_normal: Vector3<f32> = (&normals[i0] + &normals[i1] + &normals[i2]).normalize();
         let result_tangent = if 0.0 == tangent.dot(&tangent) {
-            avg_normal.cross(&world_up)
+            avg_normal.cross(&math::get_world_up())
         } else {
             tangent
         };

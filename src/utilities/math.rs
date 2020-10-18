@@ -6,29 +6,27 @@ use nalgebra::{
 
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
 
-pub struct MathData {
-    pub _clip_space_matrix: Matrix4<f32>,
-    pub _world_left: Vector3<f32>,
-    pub _world_front: Vector3<f32>,
-    pub _world_up: Vector3<f32>,
+pub fn get_clip_space_matrix() -> Matrix4<f32> {
+    // -- ... and a {clip space -> screen space} matrix that converts points into
+    // --     the vulkan screen space {x: -1..1, y: 1..-1, z: 0..1}
+    Matrix4::new(
+        1.0, 0.0, 0.0, 0.0,
+        0.0, -1.0, 0.0, 0.0,
+        0.0, 0.0, 0.5, 0.5,
+        0.0, 0.0, 0.0, 1.0,
+    )
 }
 
-impl Default for MathData {
-    fn default() -> MathData {
-        MathData {
-            // -- ... and a {clip space -> screen space} matrix that converts points into
-            // --     the vulkan screen space {x: -1..1, y: 1..-1, z: 0..1}
-            _clip_space_matrix: Matrix4::new(
-                1.0, 0.0, 0.0, 0.0,
-                0.0, -1.0, 0.0, 0.0,
-                0.0, 0.0, 0.5, 0.0,
-                0.0, 0.0, 0.5, 1.0,
-            ),
-            _world_left: Vector3::new(1.0, 0.0, 0.0),
-            _world_up: Vector3::new(0.0, 1.0, 0.0),
-            _world_front: Vector3::new(0.0, 0.0, 1.0)
-        }
-    }
+pub fn get_world_left() -> Vector3<f32> {
+    Vector3::new(1.0, 0.0, 0.0)
+}
+
+pub fn get_world_up() -> Vector3<f32> {
+    Vector3::new(0.0, 1.0, 0.0)
+}
+
+pub fn get_world_front() -> Vector3<f32> {
+    Vector3::new(0.0, 0.0, 1.0)
 }
 
 pub fn degree_to_radian(degree: f32) -> f32 {
@@ -110,7 +108,7 @@ pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: 
     m
 }
 
-pub fn perspective(fov: f32, aspect: f32, near: f32, far: f32) -> Matrix4<f32> {
+pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) -> Matrix4<f32> {
     let height: f32 = degree_to_radian(fov * 0.5).tan() * near;
     let width: f32 = height * aspect;
     let depth = far - near;
