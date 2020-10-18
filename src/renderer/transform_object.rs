@@ -113,47 +113,36 @@ impl TransformObjectData {
         self._rotation.y = self._rotation.y % std::f32::consts::PI;
         self._rotation.z = self._rotation.z % std::f32::consts::PI;
     }
-
     pub fn rotation_pitch(&mut self, rotation_speed: f32) {
         self._rotation.x = (self._rotation.x + rotation_speed) % std::f32::consts::PI;
     }
-
     pub fn rotation_yaw(&mut self, rotation_speed: f32) {
         self._rotation.y = (self._rotation.y + rotation_speed) % std::f32::consts::PI;
     }
-
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
         self._rotation.z = (self._rotation.z + rotation_speed) % std::f32::consts::PI;
     }
-
     pub fn get_scale(&mut self) -> &Vector3<f32> {
         &self._scale
     }
-
     pub fn set_scale(&mut self, scale: &Vector3<f32>) {
         self._scale.copy_from(scale);
     }
-
     pub fn set_scale_x(&mut self, scale: f32) {
         self._scale.x = scale;
     }
-
     pub fn set_scale_y(&mut self, scale: f32) {
         self._scale.y = scale;
     }
-
     pub fn set_scale_z(&mut self, scale: f32) {
         self._scale.z = scale;
     }
-
     pub fn update_transform_object(&mut self) -> bool {
         self.update_transform_object_func(false)
     }
-
     pub fn force_update_transform_object(&mut self) -> bool {
         self.update_transform_object_func(true)
     }
-
     pub fn update_transform_object_func(&mut self, force_update: bool) -> bool {
         let prev_updated: bool = self._updated;
         self._prev_position_store.copy_from(&self._prev_position);

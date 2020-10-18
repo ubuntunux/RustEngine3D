@@ -268,7 +268,7 @@ impl RendererData {
 
     pub fn destroy_renderer_data(&self) {
         unsafe {
-            //destroyUniformBufferDatas _device _uniformBufferDataMap
+            //destroy_uniform_buffer_datas _device _uniformBufferDataMap
             //destroyRenderTargets rendererData _renderTargetDataMap
             sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
             sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);

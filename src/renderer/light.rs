@@ -1,126 +1,88 @@
-{-# LANGUAGE DeriveGeneric          #-}
-{-# LANGUAGE MagicHash              #-}
-{-# LANGUAGE InstanceSigs           #-}
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE NegativeLiterals       #-}
-{-# LANGUAGE DuplicateRecordFields  #-}
-{-# LANGUAGE MultiParamTypeClasses  #-}
-{-# LANGUAGE UnboxedTuples          #-}
+use nalgebra::{
+    Vector3,
+    Matrix4,
+};
 
+use crate::renderer::uniform_buffer_data::LightConstants;
+use crate::renderer::transform_object::{
+    TransformObjectData,
+};
+use crate::utilities::math::{
+    get_clip_space_matrix,
+    orthogonal,
+    make_translate_matrix,
+};
 
-module HulkanEngine3D.Render.Light where
+#[derive(Clone, Debug)]
+pub struct DirectionalLightCreateInfo {
+    _position: Vector3<f32>,
+    _rotation: Vector3<f32>,
+    _light_constants: LightConstants,
+}
 
-import GHC.Generics (Generic)
-import Control.Monad
-import Data.IORef
-import qualified Data.Text as Text
-import Foreign.Storable
+#[derive(Clone, Debug)]
+pub struct DirectionalLightData {
+    _light_name: String,
+    _light_constants: LightConstants,
+    _light_shadow_projection: Matrix4<f32>,
+    _transform_object: TransformObjectData,
+    _updated_light_data: bool,
+}
 
-import Numeric.DataFrame
-import Numeric.PrimBytes
-import Graphics.Vulkan
-
-import HulkanEngine3D.Render.TransformObject
-import qualified HulkanEngine3D.Render.UniformBufferDatas as UniformBufferDatas
-import HulkanEngine3D.Utilities.Logger
-import HulkanEngine3D.Utilities.Math
-
-data LightCreateInfo = DirectionalLightCreateInfo
-    { _directionalLightPosition' :: Vec3f
-    , _directionalLightRotation' :: Vec3f
-    , _directionalLightConstants' :: UniformBufferDatas.LightConstants
-    } deriving (Show, Generic)
-
-instance PrimBytes LightCreateInfo
-
-instance Storable LightCreateInfo where
-    sizeOf _ = bSizeOf (undefined :: LightCreateInfo)
-    alignment _ = bAlignOf (undefined :: LightCreateInfo)
-    peek ptr = bPeek ptr
-    poke ptr v = bPoke ptr v
-
-
-data DirectionalLightData = DirectionalLightData
-    { _directionalLightName :: IORef Text.Text
-    , _directionalLightConstants :: IORef UniformBufferDatas.LightConstants
-    , _directionalLightShadowProjection :: IORef Mat44f
-    , _directionalLightTransformObject :: TransformObjectData
-    , _directionalLightDataChanged :: IORef Bool
-    } deriving (Show)
-
-
-class LightInterface a where
-    createLightData :: Text.Text -> LightCreateInfo -> IO a
-    getLightConstants :: a -> IO UniformBufferDatas.LightConstants
-    getLightPosition :: a -> IO Vec3f
-    getLightDirection :: a -> IO Vec3f
-    getLightColor :: a -> IO Vec3f
-    getLightShadowSamples :: a -> IO (Scalar Int32)
-    getLightShadowExp :: a -> IO (Scalar Float)
-    getLightShadowBias :: a -> IO (Scalar Float)
-    getShadowViewProjectionMatrix :: a -> IO Mat44f
-    updateShadowOrthogonal :: a -> IO ()
-    updateLightData :: a -> Vec3f -> IO ()
-
-instance LightInterface DirectionalLightData where
-    createLightData :: Text.Text -> LightCreateInfo -> IO DirectionalLightData
-    createLightData name directionalLightCreateData = do
-        log::info!("createLightData : " ++ Text.unpack name
-        directionalLightName <- newIORef name
-        directionalLightConstants <- newIORef (_directionalLightConstants' directionalLightCreateData)
-        shadowOrthogonal <- newIORef matrix4x4_indentity
-        transformObjectData <- newTransformObjectData
-        dataChanged <- newIORef False
-        let lightData = DirectionalLightData
-                { _directionalLightName = directionalLightName
-                , _directionalLightConstants = directionalLightConstants
-                , _directionalLightShadowProjection = shadowOrthogonal
-                , _directionalLightTransformObject = transformObjectData
-                , _directionalLightDataChanged = dataChanged
-                }
-        setPosition transformObjectData (_directionalLightPosition' directionalLightCreateData)
-        setRotation transformObjectData (_directionalLightRotation' directionalLightCreateData)
-        updateShadowOrthogonal lightData
-        updateLightData lightData float3_zero
-        return lightData
-
-    getLightConstants lightData = readIORef (_directionalLightConstants lightData)
-    getLightPosition lightData = getPosition $ _directionalLightTransformObject lightData
-    getLightDirection lightData = getFront $ _directionalLightTransformObject lightData
-    getLightColor lightData = UniformBufferDatas._LIGHT_COLOR <$> readIORef (_directionalLightConstants lightData)
-    getLightShadowSamples lightData = UniformBufferDatas._SHADOW_SAMPLES <$> readIORef (_directionalLightConstants lightData)
-    getLightShadowExp lightData = UniformBufferDatas._SHADOW_EXP <$> readIORef (_directionalLightConstants lightData)
-    getLightShadowBias lightData = UniformBufferDatas._SHADOW_BIAS <$> readIORef (_directionalLightConstants lightData)
-    getShadowViewProjectionMatrix lightData = UniformBufferDatas._SHADOW_VIEW_PROJECTION <$> readIORef (_directionalLightConstants lightData)
-
-    updateShadowOrthogonal :: DirectionalLightData -> IO ()
-    updateShadowOrthogonal lightData@DirectionalLightData {..} = do
-        directionalLightConstants <- readIORef _directionalLightConstants
-        let (# width, height, near, far #) = unpackV4# (UniformBufferDatas._SHADOW_DIMENSIONS directionalLightConstants)
-        writeIORef _directionalLightShadowProjection $ contract (orthogonal near far (width * 2.0) (height * 2.0)) clipSpaceMatrix
-        writeIORef _directionalLightDataChanged True
-
-    updateLightData :: DirectionalLightData -> Vec3f -> IO ()
-    updateLightData lightData@DirectionalLightData {..} viewPosition = do
-        updatedTransform <- updateTransformObject _directionalLightTransformObject
-        dataChangedPrev <- readIORef _directionalLightDataChanged
-        let dataChanged = True || dataChangedPrev || updatedTransform
-            translationMatrix = translate3 (-viewPosition)
-        when dataChanged $ do
-            lightFront <- getLightDirection lightData
-            inverseMatrix <- getInverseMatrix _directionalLightTransformObject
-            shadowProjection <- readIORef _directionalLightShadowProjection
-            modifyIORef _directionalLightConstants $ \directionalLightConstants -> directionalLightConstants
-                { UniformBufferDatas._SHADOW_VIEW_PROJECTION = (contract (contract translationMatrix inverseMatrix) shadowProjection)
-                , UniformBufferDatas._LIGHT_DIRECTION = lightFront
-                }
-        writeIORef _directionalLightDataChanged False
-
-
-defaultDirectionalLightCreateInfo :: LightCreateInfo
-defaultDirectionalLightCreateInfo = DirectionalLightCreateInfo
-    { _directionalLightPosition' = vec3 0 0 0
-    , _directionalLightRotation' = vec3 (-3.141592 * 0.5) 0 0
-    , _directionalLightConstants' = UniformBufferDatas.defaultLightConstants
+impl Default for DirectionalLightCreateInfo {
+    fn default() -> DirectionalLightCreateInfo {
+        DirectionalLightCreateInfo {
+            _position: Vector3::zeros(),
+            _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
+            _light_constants: LightConstants::default(),
+        }
     }
+}
+
+impl DirectionalLightData {
+    pub fn create_light_data(light_name: &String, light_create_info: &DirectionalLightCreateInfo) -> DirectionalLightData {
+        log::info!("create_light_data: {}", light_name);
+        let mut light_data = DirectionalLightData {
+            _light_name: light_name.clone(),
+            _light_constants: light_create_info._light_constants.clone(),
+            _light_shadow_projection: Matrix4::identity(),
+            _transform_object: TransformObjectData::new_transform_object_data(),
+            _updated_light_data: false,
+        };
+        light_data._transform_object.set_position(&light_create_info._position);
+        light_data._transform_object.set_rotation(&light_create_info._rotation);
+        light_data.update_shadow_orthogonal();
+        light_data.update_light_data(&Vector3::zeros());
+        light_data
+    }
+
+    pub fn get_light_constants(&self) -> &LightConstants { &self._light_constants }
+    pub fn get_light_position(&self) -> &Vector3<f32> { self._transform_object.get_position() }
+    pub fn get_light_direction(&self) -> &Vector3<f32> { self._transform_object.get_front() }
+    pub fn get_light_color(&self) -> &Vector3<f32> { &self._light_constants._light_color }
+    pub fn get_light_shadow_samples(&self) -> i32 { self._light_constants._shadow_samples }
+    pub fn get_light_shadow_exp(&self) -> f32 { self._light_constants._shadow_exp }
+    pub fn get_light_shadow_bias(&self) -> f32 { self._light_constants._shadow_bias }
+    pub fn get_shadow_view_projection_matrix(&self) -> &Matrix4<f32> { &self._light_constants._shadow_view_projection }
+
+    pub fn update_shadow_orthogonal(&mut self) {
+        let width = self._light_constants._shadow_dimensions.x;
+        let height = self._light_constants._shadow_dimensions.y;
+        let near = self._light_constants._shadow_dimensions.z;
+        let far = self._light_constants._shadow_dimensions.w;
+        self._light_shadow_projection = get_clip_space_matrix() * orthogonal(-width, width, -height, height, near, far);
+        self._updated_light_data = true;
+    }
+
+    pub fn update_light_data(&mut self, view_position: &Vector3<f32>) {
+        let updated_transform = self._transform_object.update_transform_object();
+        let updated_light_data = self._updated_light_data;
+        if true || updated_light_data || updated_transform {
+            let translation_matrix = make_translate_matrix(view_position);
+            let inverse_matrix = self._transform_object.get_inverse_matrix();
+            self._light_constants._shadow_view_projection = &self._light_shadow_projection * inverse_matrix * translation_matrix;
+            self._light_constants._light_direction = self.get_light_direction().clone() as Vector3<f32>;
+        }
+        self._updated_light_data = false;
+    }
+}
