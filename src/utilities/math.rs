@@ -9,7 +9,10 @@ use nalgebra::{
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
 
 pub struct MathData {
-    _clip_space_matrix: Matrix4<f32>,
+    pub _clip_space_matrix: Matrix4<f32>,
+    pub _world_left: Vector3<f32>,
+    pub _world_front: Vector3<f32>,
+    pub _world_up: Vector3<f32>,
 }
 
 impl Default for MathData {
@@ -22,12 +25,15 @@ impl Default for MathData {
                 0.0, -1.0, 0.0, 0.0,
                 0.0, 0.0, 0.5, 0.0,
                 0.0, 0.0, 0.5, 1.0,
-            )
+            ),
+            _world_left: Vector3::new(1.0, 0.0, 0.0),
+            _world_up: Vector3::new(0.0, 1.0, 0.0),
+            _world_front: Vector3::new(0.0, 0.0, 1.0)
         }
     }
 }
 
-pub fn rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
+pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
     let ch = yaw.cos();
     let sh = yaw.sin();
     let ca = roll.cos();
