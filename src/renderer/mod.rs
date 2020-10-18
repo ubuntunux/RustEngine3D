@@ -1,8 +1,9 @@
-pub mod renderer;
-pub mod transform_object;
 pub mod camera;
 pub mod image_sampler;
 pub mod light;
+pub mod material;
+pub mod renderer;
+pub mod transform_object;
 pub mod uniform_buffer_data;
 
 #[allow(unused_imports)]
@@ -13,6 +14,9 @@ pub use self::image_sampler::*;
 
 #[allow(unused_imports)]
 pub use self::light::*;
+
+#[allow(unused_imports)]
+pub use self::material::*;
 
 #[allow(unused_imports)]
 pub use self::renderer::*;
