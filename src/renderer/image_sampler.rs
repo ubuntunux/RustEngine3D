@@ -1,41 +1,26 @@
-{-# LANGUAGE DataKinds        #-}
-{-# LANGUAGE RecordWildCards  #-}
-{-# LANGUAGE TypeApplications #-}
+use ash::{
+    vk,
+    Device,
+};
 
-module HulkanEngine3D.Render.ImageSampler
-    ( ImageSamplers (..)
-    , defaultImageSamplers
-    , createImageSamplers
-    , destroyImageSamplers
-    ) where
+use crate::vulkan_context::texture;
 
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
-import HulkanEngine3D.Vulkan.Texture
+#[derive(Clone, Debug)]
+pub struct ImageSamplerData {
+    _point_clamp: vk::Sampler,
+    _linear_clamp: vk::Sampler,
+}
 
-
-data ImageSamplers = ImageSamplers
-    { _imageSamplerPointClamp :: VkSampler
-    , _imageSamplerLinearClamp :: VkSampler
-    } deriving (Show)
-
-
-defaultImageSamplers :: ImageSamplers
-defaultImageSamplers = ImageSamplers
-    { _imageSamplerPointClamp = VK_NULL
-    , _imageSamplerLinearClamp = VK_NULL
+pub fn create_image_samplers(device: &Device) -> ImageSamplerData {
+    let point_clamp = texture::create_image_sampler(device, 0, vk::Filter::NEAREST, vk::Filter::NEAREST, vk::SamplerAddressMode::CLAMP_TO_EDGE, vk::FALSE);
+    let linear_clamp = texture::create_image_sampler(device, 0, vk::Filter::LINEAR, vk::Filter::LINEAR, vk::SamplerAddressMode::CLAMP_TO_EDGE, vk::FALSE);
+    ImageSamplerData {
+        _point_clamp: point_clamp,
+        _linear_clamp: linear_clamp,
     }
+}
 
-createImageSamplers :: VkDevice -> IO ImageSamplers
-createImageSamplers device = do
-    imageSamplerPointClamp <- createImageSampler device 0 VK_FILTER_NEAREST VK_FILTER_NEAREST VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE VK_FALSE
-    imageSamplerLinearClamp <- createImageSampler device 0 VK_FILTER_LINEAR VK_FILTER_LINEAR VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE VK_FALSE
-    return ImageSamplers
-        { _imageSamplerPointClamp = imageSamplerPointClamp
-        , _imageSamplerLinearClamp = imageSamplerLinearClamp
-        }
-
-destroyImageSamplers :: VkDevice -> ImageSamplers -> IO ()
-destroyImageSamplers device imageSamplers = do
-    destroyImageSampler device (_imageSamplerPointClamp imageSamplers)
-    destroyImageSampler device (_imageSamplerLinearClamp imageSamplers)
+pub fn destroy_image_samplers(device: &Device, image_sampler_data: &ImageSamplerData) {
+    texture::destroy_image_sampler(device, image_sampler_data._point_clamp);
+    texture::destroy_image_sampler(device, image_sampler_data._linear_clamp);
+}
