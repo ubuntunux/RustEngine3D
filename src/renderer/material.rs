@@ -1,35 +1,46 @@
-use std::collections::HashMap;
+use serde_json;
 
 use crate::vulkan_context::render_pass;
-
-type RenderPassPipelineDataMap = HashMap<String, (render_pass::RenderPassData, render_pass::PipelineData)>;
 
 #[derive(Clone, Debug)]
 pub struct MaterialData {
     _material_data_name: String,
-    _render_pass_pipeline_data_map: RenderPassPipelineDataMap,
-    _material_parameter_map: String,
+    _render_pass_pipeline_data_map: render_pass::RenderPassPipelineDataMap,
+    _material_parameter_map: serde_json::Value,
 }
 
-//
-// createMaterial: String
-//                -> [(RenderPass.RenderPassData, RenderPass.PipelineData)]
-//                -> Aeson.Object
-//                -> IO MaterialData
-// createMaterial materialDataName renderPassPipelineDataList materialParameterMap = do
-//     log::info!("createMaterial : " ++ Text.unpack materialDataName
-//     renderPassPipelineDataMap <- forM renderPassPipelineDataList $ \(renderPassData, pipelineData) -> do
-//         let renderPassPipelineDataName = (RenderPass._renderPassDataName renderPassData, RenderPass._pipelineDataName pipelineData)
-//         logTrivialInfo $ "    renderPass, pipeline : " ++ show renderPassPipelineDataName
-//         return (renderPassPipelineDataName, (renderPassData, pipelineData))
-//     return MaterialData
-//         { _materialDataName = materialDataName
-//         , _renderPassPipelineDataMap = Map.fromList renderPassPipelineDataMap
-//         , _materialParameterMap = materialParameterMap
-//         }
-//
-// destroyMaterial: MaterialData -> IO ()
-// destroyMaterial materialData = return ()
-//
-// getRenderPassPipelineData: MaterialData -> RenderPass.RenderPassPipelineDataName -> (RenderPass.RenderPassData, RenderPass.PipelineData)
-// getRenderPassPipelineData materialData renderPassPipelineDataName = Maybe.fromJust $ Map.lookup renderPassPipelineDataName (_renderPassPipelineDataMap materialData)
+impl MaterialData {
+    pub fn create_material(
+        material_data_name: &String,
+        render_pass_pipeline_datas: &[(render_pass::RenderPassData, render_pass::PipelineData)],
+        material_parameter_map: &serde_json::Value
+    ) -> MaterialData {
+        log::info!("create_material: {}", material_data_name);
+
+        let mut render_pass_pipeline_data_map = render_pass::RenderPassPipelineDataMap::new();
+        for (render_pass_data, pipeline_data) in render_pass_pipeline_datas {
+            let render_pass_pipeline_data_name = render_pass::RenderPassPipelineDataName {
+                _render_pass_data_name: render_pass_data._render_pass_data_name.clone(),
+                _pipeline_data_name: pipeline_data._pipeline_data_name.clone(),
+            };
+            log::info!("    renderPass, pipeline: {:?}", render_pass_pipeline_data_name);
+            render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, (render_pass_data.clone(), pipeline_data.clone()));
+        }
+        MaterialData {
+            _material_data_name: material_data_name.clone(),
+            _render_pass_pipeline_data_map: render_pass_pipeline_data_map,
+            _material_parameter_map: material_parameter_map.clone()
+        }
+    }
+
+    pub fn destroy_material(&self) {
+        // nothing
+    }
+
+    pub fn get_render_pass_pipeline_data(
+        &self,
+        render_pass_pipeline_data_name: &render_pass::RenderPassPipelineDataName
+    ) -> &(render_pass::RenderPassData, render_pass::PipelineData) {
+        self._render_pass_pipeline_data_map.get(render_pass_pipeline_data_name).unwrap()
+    }
+}

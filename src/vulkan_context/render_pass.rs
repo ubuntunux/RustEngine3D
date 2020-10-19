@@ -26,10 +26,10 @@ use crate::vulkan_context::shader::{
     destroy_shader_stage_create_info
 };
 
-
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RenderPassPipelineDataName {
-    _render_pass_data_name: String,
-    _pipeline_data_name: String,
+    pub _render_pass_data_name: String,
+    pub _pipeline_data_name: String,
 }
 
 #[derive(Clone)]
@@ -149,8 +149,6 @@ pub struct PipelineData {
     pub _descriptor_data: DescriptorData,
 }
 
-type PipelineDataMap = HashMap<String, PipelineData>;
-
 #[derive(Clone, Debug)]
 pub struct RenderPassData {
     pub _render_pass_data_name: String,
@@ -160,6 +158,8 @@ pub struct RenderPassData {
     pub _pipeline_data_map: PipelineDataMap,
 }
 
+pub type PipelineDataMap = HashMap<String, PipelineData>;
+pub type RenderPassPipelineDataMap = HashMap<RenderPassPipelineDataName, (RenderPassData, PipelineData)>;
 
 pub fn create_render_pass_data(
     device: &Device,
