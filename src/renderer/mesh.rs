@@ -1,63 +1,42 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE NegativeLiterals       #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE TypeSynonymInstances   #-}
-{-# LANGUAGE FlexibleInstances      #-}
-{-# LANGUAGE InstanceSigs           #-}
 
-module HulkanEngine3D.Render.Mesh where
+use crate::vulkan_context::geometry_buffer::GeometryData;
 
-import Data.IORef
-import qualified Data.Text as Text
+pub struct MeshData {
+    _name: String,
+    _bound_box: bool,
+    _skeleton_datas: Vec<bool>,
+    _animation_datas: Vec<bool>,
+    _geometry_buffer_datas: Vec<GeometryData>,
+}
 
-import HulkanEngine3D.Vulkan.GeometryBuffer
-import HulkanEngine3D.Utilities.System ()
 
-data MeshData = MeshData
-    { _name :: IORef Text.Text
-    , _boundBox :: Bool
-    , _skeletonDatas :: [Bool]
-    , _animationDatas :: [Bool]
-    , _geometryBufferDatas :: IORef [GeometryData]
-    } | EmptyMeshData deriving (Eq, Show)
+impl MeshData {
+    pub fn new_mesh_data(mesh_name: &String, geometry_buffer_datas: Vec<GeometryData>) -> MeshData {
+        MeshData {
+            _name: mesh_name.clone(),
+            _bound_box: false,
+            _skeleton_datas: Vec::new(),
+            _animation_datas: Vec::new(),
+            _geometry_buffer_datas: geometry_buffer_datas,
+        }
+    }
 
-class MeshInterface a where
-    newMeshData :: Text.Text -> [GeometryData] -> IO a
-    getGeometryDataCount :: a -> IO Int
-    getGeometryDataList :: a -> IO [GeometryData]
-    getDefaultGeometryData :: a -> IO GeometryData
-    getGeometryData :: a -> Int -> IO GeometryData
-    updateMeshData :: a -> IO ()
+    pub fn get_geometry_data_count(&self) -> u32 {
+        self._geometry_buffer_datas.len() as u32
+    }
 
-instance MeshInterface MeshData where
-    newMeshData :: Text.Text -> [GeometryData] -> IO MeshData
-    newMeshData meshName geometryBufferDatas = do
-        nameRef <- newIORef meshName
-        geometryBufferDatasRef <- newIORef geometryBufferDatas
-        return MeshData
-            { _name = nameRef
-            , _boundBox = False
-            , _skeletonDatas = []
-            , _animationDatas = []
-            , _geometryBufferDatas = geometryBufferDatasRef
-            }
+    pub fn get_geomtry_datas(&self) -> &Vec<GeometryData> {
+        &self._geometry_buffer_datas
+    }
 
-    getGeometryDataCount :: MeshData -> IO Int
-    getGeometryDataCount meshData = do
-        geometryBufferDatasList <- readIORef (_geometryBufferDatas meshData)
-        return $ length geometryBufferDatasList
+    pub fn get_default_geometry_data(&self) -> &GeometryData {
+        &self._geometry_buffer_datas[0]
+    }
 
-    getGeometryDataList :: MeshData -> IO [GeometryData]
-    getGeometryDataList meshData = readIORef (_geometryBufferDatas meshData)
+    pub fn get_geomtry_data(&self, index: u32) -> &GeometryData {
+        &self._geometry_buffer_datas[index as usize]
+    }
 
-    getDefaultGeometryData :: MeshData -> IO GeometryData
-    getDefaultGeometryData meshData = getGeometryData meshData 0
-
-    getGeometryData :: MeshData -> Int -> IO GeometryData
-    getGeometryData meshData n = do
-        geometryBufferDatasList <- readIORef (_geometryBufferDatas meshData)
-        return $ geometryBufferDatasList !! n
-
-    updateMeshData :: MeshData -> IO ()
-    updateMeshData meshData = return ()
+    pub fn update_mesh_data(&self) {
+    }
+}

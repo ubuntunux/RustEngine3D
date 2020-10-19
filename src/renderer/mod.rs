@@ -3,6 +3,7 @@ pub mod image_sampler;
 pub mod light;
 pub mod material;
 pub mod material_instance;
+pub mod mesh;
 pub mod renderer;
 pub mod transform_object;
 pub mod uniform_buffer_data;
@@ -21,6 +22,9 @@ pub use self::material::*;
 
 #[allow(unused_imports)]
 pub use self::material_instance::*;
+
+#[allow(unused_imports)]
+pub use self::mesh::*;
 
 #[allow(unused_imports)]
 pub use self::renderer::*;
