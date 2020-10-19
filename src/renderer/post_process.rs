@@ -1,43 +1,46 @@
-{-# LANGUAGE DataKinds                  #-}
-{-# LANGUAGE RecordWildCards            #-}
-{-# LANGUAGE TypeApplications           #-}
-{-# LANGUAGE ScopedTypeVariables        #-}
+use rand;
+use nalgebra::{
+    Vector3,
+    Matrix,
+    ArrayStorage,
+    U4,
+    U64,
+    Matrix4x1
+};
 
-module HulkanEngine3D.Render.PostProcess where
+use crate::constants;
 
-import Control.Monad
-import System.Random
+type Matrix4x64f = Matrix<f32, U4, U64, ArrayStorage<f32, U4, U64>>;
 
-import Numeric.DataFrame
-import Numeric.Dimensions
+#[derive(Clone, Debug)]
+#[allow(non_camel_case_types)]
+pub struct PostProcessData_SSAO {
+    _ssao_kernel_size: i32,
+    _ssao_radius: f32,
+    _ssao_noise_dim: i32,
+    _ssao_kernel_samples: Matrix4x64f,
+}
 
-import qualified HulkanEngine3D.Constants as Constants
 
-
-data PostProcessData
-    = PostProcessData_SSAO
-        { _ssao_kernel_size :: {-# UNPACK #-} !Int
-        , _ssao_radius :: {-# UNPACK #-} !Float
-        , _ssao_noise_dim :: {-# UNPACK #-} !Int
-        , _ssao_kernel_samples :: DataFrame Float '[64, 4]
+impl Default for PostProcessData_SSAO {
+    fn default() -> PostProcessData_SSAO {
+        let mut random_normals: Matrix4x64f = Matrix4x64f::zeros();
+        let (_rows, columns) = random_normals.shape();
+        for i in 0..columns {
+            let scale = rand::random::<f32>();
+            let normal = Vector3::new(
+                rand::random::<f32>() * 2.0 - 1.0,
+                rand::random::<f32>() * 0.5 + 0.5,
+                rand::random::<f32>() * 2.0 - 1.0
+            ).normalize() * scale;
+            random_normals.set_column(i, &Matrix4x1::new(normal.x, normal.y, normal.z, 0.0));
         }
-    deriving (Eq, Show)
 
-
-initializePostProcessData_SSAO :: IO PostProcessData
-initializePostProcessData_SSAO = do
-    randomNormals <- getRandomNormals Constants._SSAO_KERNEL_SIZE
-    return PostProcessData_SSAO
-        { _ssao_kernel_size = Constants._SSAO_KERNEL_SIZE
-        , _ssao_radius = Constants._SSAO_RADIUS
-        , _ssao_noise_dim = Constants._SSAO_NOISE_DIM
-        , _ssao_kernel_samples = iwgen @Float @'[64] @'[4] (\(Idx i:*U) -> randomNormals !! fromIntegral i)
+        PostProcessData_SSAO {
+            _ssao_kernel_size: constants::SSAO_KERNEL_SIZE,
+            _ssao_radius: constants::SSAO_RADIUS,
+            _ssao_noise_dim: constants::SSAO_NOISE_DIM,
+            _ssao_kernel_samples: random_normals,
         }
-    where
-        getRandomNormals :: Int -> IO [Vec4f]
-        getRandomNormals count = replicateM count $ do
-            x <- randomIO :: IO Float
-            y <- randomIO :: IO Float
-            z <- randomIO :: IO Float
-            scale <- randomIO :: IO Float
-            pure . toHomVector $ (normalized (vec3 (x * 2.0 - 1.0) (y * 0.5 + 0.5) (z * 2.0 - 1.0))) * vec3 scale scale scale
+    }
+}

@@ -5,6 +5,7 @@ pub mod material;
 pub mod material_instance;
 pub mod mesh;
 pub mod model;
+pub mod post_process;
 pub mod renderer;
 pub mod transform_object;
 pub mod uniform_buffer_data;
@@ -29,6 +30,9 @@ pub use self::mesh::*;
 
 #[allow(unused_imports)]
 pub use self::model::*;
+
+#[allow(unused_imports)]
+pub use self::post_process::*;
 
 #[allow(unused_imports)]
 pub use self::renderer::*;
