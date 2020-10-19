@@ -1,15 +1,10 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE TypeApplications    #-}
 
-module HulkanEngine3D.Render.RenderElement where
+use crate::renderer::render_object::RenderObjectData;
+use crate::renderer::material_instance::MaterialInstanceData;
+use crate::vulkan_context::geometry_buffer::GeometryData;
 
-import HulkanEngine3D.Render.MaterialInstance
-import HulkanEngine3D.Render.RenderObject
-import HulkanEngine3D.Vulkan.GeometryBuffer
-
-data RenderElementData = RenderElementData
-    { _renderObject :: RenderObjectData
-    , _geometryData :: GeometryData
-    , _materialInstanceData :: MaterialInstanceData
-    } deriving Show
+pub struct RenderElementData {
+    pub _render_object: RenderObjectData,
+    pub _geometry_data: GeometryData,
+    pub _material_instance_data: MaterialInstanceData,
+}
