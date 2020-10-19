@@ -23,11 +23,11 @@ pub enum DescriptorResourceType {
 
 #[derive(Debug, Clone)]
 pub struct DescriptorDataCreateInfo {
-    _descriptor_binding_index: u32,
-    _descriptor_name: String,
-    _descriptor_resource_type: DescriptorResourceType,
-    _descriptor_type: vk::DescriptorType,
-    _descriptor_shader_stage: vk::ShaderStageFlags,
+    pub _descriptor_binding_index: u32,
+    pub _descriptor_name: String,
+    pub _descriptor_resource_type: DescriptorResourceType,
+    pub _descriptor_type: vk::DescriptorType,
+    pub _descriptor_shader_stage: vk::ShaderStageFlags,
 }
 
 #[derive(Debug, Clone)]

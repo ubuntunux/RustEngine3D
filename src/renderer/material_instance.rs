@@ -1,94 +1,107 @@
-{-# LANGUAGE DataKinds              #-}
-{-# LANGUAGE RecordWildCards        #-}
-{-# LANGUAGE TypeApplications       #-}
-{-# LANGUAGE OverloadedStrings      #-}
-{-# LANGUAGE DuplicateRecordFields  #-}
+use std::collections::HashMap;
 
-module HulkanEngine3D.Render.MaterialInstance where
+use ash::{
+    vk,
+    Device,
+};
 
-import Control.Monad
-import qualified Data.Map as Map
-import qualified Data.Text as Text
-import qualified Data.Maybe as Maybe
-import Foreign.Marshal.Alloc
-import Foreign.Marshal.Array
+use crate::renderer::material::MaterialData;
+use crate::vulkan_context::{
+    descriptor,
+    render_pass,
+};
+use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
+use crate::constants;
+use ash::version::DeviceV1_0;
 
-import Graphics.Vulkan
-import Graphics.Vulkan.Core_1_0
+#[derive(Clone, Debug)]
+pub struct PipelineBindingData {
+    _render_pass_data: render_pass::RenderPassData,
+    _pipeline_data: render_pass::PipelineData,
+    _descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>>,
+    _descriptor_set_count: u32,
+}
 
-import qualified HulkanEngine3D.Render.Material as Material
-import HulkanEngine3D.Vulkan.Vulkan
-import qualified HulkanEngine3D.Vulkan.RenderPass as RenderPass
-import qualified HulkanEngine3D.Vulkan.Descriptor as Descriptor
-import HulkanEngine3D.Utilities.Logger
+type PipelineBindingDataMap = HashMap<render_pass::RenderPassPipelineDataName, PipelineBindingData>;
 
-data PipelineBindingData = PipelineBindingData
-    { _renderPassData :: RenderPass.RenderPassData
-    , _pipelineData :: RenderPass.PipelineData
-    , _descriptorSetsPtr :: Ptr VkDescriptorSet
-    , _writeDescriptorSetPtrs :: SwapchainIndexMap (Ptr VkWriteDescriptorSet)
-    , _descriptorSetCount :: Int
-    } deriving Show
+#[derive(Clone, Debug)]
+pub struct MaterialInstanceData {
+    _material_instance_data_name: String,
+    _material_data: MaterialData,
+    _pipeline_binding_data_map: PipelineBindingDataMap,
+}
 
-type PipelineBindingDataMap = Map.Map RenderPass.RenderPassPipelineDataName PipelineBindingData
+impl MaterialInstanceData {
+    pub fn create_material_instance(
+        device: &Device,
+        material_instance_data_name: &String,
+        material_data: &MaterialData,
+        pipeline_bind_create_infos: &Vec<(render_pass::RenderPassData, render_pass::PipelineData, Vec<Vec<descriptor::DescriptorResourceInfo>>)>,
+    ) -> MaterialInstanceData {
+        log::info!("create_material_instance: {}", material_instance_data_name);
+        log::info!("    material_data: {}", material_data._material_data_name);
+        let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
+        for (render_pass_data, pipeline_data, descriptor_resource_infos_list) in pipeline_bind_create_infos {
+            let render_pass_pipeline_data_name = render_pass::RenderPassPipelineDataName {
+                _render_pass_data_name: render_pass_data._render_pass_data_name.clone(),
+                _pipeline_data_name: pipeline_data._pipeline_data_name.clone(),
+            };
+            log::info!("        (RenderPass, Pipeline): {:?}", render_pass_pipeline_data_name);
+            let descriptor_data = &pipeline_data._descriptor_data;
+            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+            let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+                descriptor_data_create_info._descriptor_binding_index
+            }).collect();
+            let descriptor_set_layout_bindings = &descriptor_data._descriptor_set_layout_bindings;
+            let descriptor_set_binding_count = descriptor_binding_indices.len();
+            let write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = constants::SWAPCHAIN_IMAGE_INDICES
+                .iter()
+                .map(|index| {
+                    let descriptor_set = descriptor_sets[*index as usize];
+                    let descriptor_resource_infos = &descriptor_resource_infos_list[*index as usize];
+                    let descriptor_writes = descriptor::create_write_descriptor_sets(
+                        descriptor_set,
+                        &descriptor_binding_indices,
+                        descriptor_set_layout_bindings,
+                        descriptor_resource_infos,
+                    );
+                    let descriptor_writes_count = descriptor_resource_infos.len();
+                    assert_eq!(descriptor_writes_count, descriptor_set_binding_count, "descriptorWritesCount Error");
 
-data MaterialInstanceData = MaterialInstanceData
-    { _materialInstanceDataName :: Text.Text
-    , _materialData :: Material.MaterialData
-    , _pipelineBindingDataMap :: PipelineBindingDataMap
-    } deriving Show
+                    unsafe {
+                        // vkUpdateDescriptorSets
+                        device.update_descriptor_sets(&descriptor_writes, &[]);
+                    }
+                    descriptor_writes
+                }).collect();
 
+            let pipeline_binding_data = PipelineBindingData {
+                _render_pass_data: render_pass_data.clone(),
+                _pipeline_data: pipeline_data.clone(),
+                _descriptor_sets: descriptor_sets,
+                _write_descriptor_sets: write_descriptor_sets,
+                _descriptor_set_count: descriptor_set_binding_count as u32,
+            };
 
-createMaterialInstance :: VkDevice
-                       -> Text.Text
-                       -> Material.MaterialData
-                       -> [(RenderPass.RenderPassData, RenderPass.PipelineData, [[Descriptor.DescriptorResourceInfo]])]
-                       -> IO MaterialInstanceData
-createMaterialInstance device materialInstanceDataName materialData pipelineBindingCreateInfoList = do
-    log::info!("createMaterialInstance : " ++ Text.unpack materialInstanceDataName
-    logTrivialInfo $ "    materialData : " ++ Text.unpack (Material._materialDataName materialData)
-    pipelineBindingDataList <- forM pipelineBindingCreateInfoList $ \(renderPassData, pipelineData, descriptorResourceInfosList) -> do
-        let renderPassPipelineDataName = (RenderPass._renderPassDataName renderPassData, RenderPass._pipelineDataName pipelineData)
-        logTrivialInfo $ "        (RenderPass, Pipeline) : " ++ show renderPassPipelineDataName
-        descriptorSets <- Descriptor.createDescriptorSet device (RenderPass._descriptorData pipelineData)
-        descriptorSetsPtr <- mallocArray (length descriptorSets)
-        pokeArray descriptorSetsPtr descriptorSets
-        let descriptorData = RenderPass._descriptorData $ pipelineData
-            descriptorBindingIndices = map Descriptor._descriptorBindingIndex' (Descriptor._descriptorDataCreateInfoList descriptorData)
-            descriptorSetLayoutBindingList = Descriptor._descriptorSetLayoutBindingList descriptorData
-            descriptorSetBindingCount = length descriptorBindingIndices
-        writeDescriptorSetPtrs <- forM (zip descriptorSets descriptorResourceInfosList) $ \(descriptorSet, descriptorResourceInfos) -> do
-            let descriptorWrites = Descriptor.createWriteDescriptorSets descriptorSet descriptorBindingIndices descriptorSetLayoutBindingList descriptorResourceInfos
-                descriptorWritesCount = length descriptorWrites
-            when (descriptorWritesCount /= descriptorSetBindingCount) $ error "descriptorWritesCount Error"
-            writeDescriptorSetPtr <- mallocArray descriptorWritesCount
-            pokeArray writeDescriptorSetPtr descriptorWrites
-            vkUpdateDescriptorSets device (fromIntegral descriptorWritesCount) writeDescriptorSetPtr 0 VK_NULL
-            return writeDescriptorSetPtr
-        let pipelineBindingData = PipelineBindingData
-                { _renderPassData = renderPassData
-                , _pipelineData = pipelineData
-                , _descriptorSetsPtr = descriptorSetsPtr
-                , _writeDescriptorSetPtrs = swapChainIndexMapFromList writeDescriptorSetPtrs
-                , _descriptorSetCount = descriptorSetBindingCount
-                }
-        return (renderPassPipelineDataName, pipelineBindingData)
-    return MaterialInstanceData
-        { _materialInstanceDataName = materialInstanceDataName
-        , _materialData = materialData
-        , _pipelineBindingDataMap = Map.fromList pipelineBindingDataList
+            pipeline_binding_data_map.insert(render_pass_pipeline_data_name, pipeline_binding_data);
         }
 
-destroyMaterialInstance :: VkDevice -> MaterialInstanceData -> IO ()
-destroyMaterialInstance device materialInstanceData = do
-    forM_ (_pipelineBindingDataMap materialInstanceData) $ \pipelineBindingData -> do
-        free (_descriptorSetsPtr pipelineBindingData)
-        applyIOSwapchainIndex' free (_writeDescriptorSetPtrs pipelineBindingData)
+        MaterialInstanceData {
+            _material_instance_data_name: material_instance_data_name.clone(),
+            _material_data: material_data.clone(),
+            _pipeline_binding_data_map: pipeline_binding_data_map
+        }
+    }
 
-getRenderPassPipelineData :: MaterialInstanceData -> RenderPass.RenderPassPipelineDataName -> (RenderPass.RenderPassData, RenderPass.PipelineData)
-getRenderPassPipelineData materialInstanceData renderPassPipelineDataName =
-    let pipelineBindingData = getPipelineBindingData materialInstanceData renderPassPipelineDataName
-    in (_renderPassData pipelineBindingData, _pipelineData pipelineBindingData)
+    pub fn destroy_material_instance(&self) {
+        // nothing..
+    }
 
-getPipelineBindingData :: MaterialInstanceData -> RenderPass.RenderPassPipelineDataName -> PipelineBindingData
-getPipelineBindingData materialInstanceData renderPassPipelineDataName = Maybe.fromJust $ Map.lookup renderPassPipelineDataName (_pipelineBindingDataMap materialInstanceData)
+    pub fn get_pipeline_binding_data(
+        &self,
+        render_pass_pipeline_data_name: &render_pass::RenderPassPipelineDataName,
+    ) -> &PipelineBindingData {
+        self._pipeline_binding_data_map.get(render_pass_pipeline_data_name).unwrap()
+    }
+}

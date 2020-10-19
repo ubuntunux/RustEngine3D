@@ -4,9 +4,9 @@ use crate::vulkan_context::render_pass;
 
 #[derive(Clone, Debug)]
 pub struct MaterialData {
-    _material_data_name: String,
-    _render_pass_pipeline_data_map: render_pass::RenderPassPipelineDataMap,
-    _material_parameter_map: serde_json::Value,
+    pub _material_data_name: String,
+    pub _render_pass_pipeline_data_map: render_pass::RenderPassPipelineDataMap,
+    pub _material_parameter_map: serde_json::Value,
 }
 
 impl MaterialData {
