@@ -1,79 +1,59 @@
-{-# LANGUAGE DataKinds           #-}
-{-# LANGUAGE RecordWildCards     #-}
-{-# LANGUAGE NegativeLiterals    #-}
-{-# LANGUAGE OverloadedStrings   #-}
-{-# LANGUAGE InstanceSigs        #-}
 
-module HulkanEngine3D.Render.Model where
+use crate::renderer::material_instance::MaterialInstanceData;
+use crate::renderer::mesh::MeshData;
 
-import Data.IORef
-import qualified Data.Text as Text
+#[derive(Clone, Debug)]
+pub struct ModelCreateInfo {
+    _model_data_name: String,
+    _mesh_data: MeshData,
+    _material_instance_datas: Vec<MaterialInstanceData>,
+}
 
-import HulkanEngine3D.Render.MaterialInstance
-import HulkanEngine3D.Render.Mesh
-import HulkanEngine3D.Utilities.System ()
-import HulkanEngine3D.Utilities.Logger
-
-
-data ModelCreateInfo = ModelCreateInfo
-    { _modelDataName' :: Text.Text
-    , _meshData' :: MeshData
-    , _materialInstanceDatas' :: [MaterialInstanceData]
-    } deriving Show
-
-data ModelData = EmptyModelData | ModelData
-    { _modelDataName :: IORef Text.Text
-    , _meshData :: MeshData
-    , _materialInstanceDatas :: IORef [MaterialInstanceData]
-    } deriving Show
+#[derive(Clone, Debug)]
+pub struct ModelData {
+    _model_data_name: String,
+    _mesh_data: MeshData,
+    _material_instance_datas: Vec<MaterialInstanceData>,
+}
 
 
-class ModelInterface a where
-    newModelData :: Text.Text -> MeshData -> [MaterialInstanceData] -> IO a
-    destroyModelData :: a -> IO ()
-    getMeshData :: a -> MeshData
-    getMaterialInstanceDataCount :: a -> IO Int
-    getMaterialInstanceDataList :: a -> IO [MaterialInstanceData]
-    setMaterialInstanceDataList :: a -> [MaterialInstanceData] -> IO ()
-    getMaterialInstanceData :: a -> Int -> IO MaterialInstanceData
-    updateModelData :: a -> IO ()
+impl ModelData {
+    pub fn new_model_data(
+        model_name: String,
+        mesh_data: MeshData,
+        material_instance_datas: Vec<MaterialInstanceData>
+    ) -> ModelData {
+        log::info!("newModelData: {}", model_name);
+        ModelData {
+            _model_data_name: model_name,
+            _mesh_data: mesh_data,
+            _material_instance_datas: material_instance_datas,
+        }
+    }
 
-instance ModelInterface ModelData where
-    newModelData :: Text.Text -> MeshData -> [MaterialInstanceData] -> IO ModelData
-    newModelData name meshData materialInstanceDatas = do
-        log::info!("newModelData : " ++ Text.unpack name
-        modelDataName <- newIORef name
-        materialInstanceDatasRef <- newIORef materialInstanceDatas
-        return ModelData
-            { _modelDataName = modelDataName
-            , _meshData = meshData
-            , _materialInstanceDatas = materialInstanceDatasRef
-            }
+    pub fn destroy_model_data(&self) {
+    }
 
-    destroyModelData :: ModelData -> IO ()
-    destroyModelData modelData = do
-        materialInstanceDatas <- readIORef (_materialInstanceDatas modelData)
-        return ()
+    pub fn get_mesh_data(&self) -> &MeshData {
+        &self._mesh_data
+    }
 
-    getMeshData :: ModelData -> MeshData
-    getMeshData modelData = _meshData modelData
+    pub fn get_material_instance_data_count(&self) -> usize {
+        self._material_instance_datas.len()
+    }
 
-    getMaterialInstanceDataCount :: ModelData -> IO Int
-    getMaterialInstanceDataCount modelData = do
-        materialInstanceDatas <- readIORef (_materialInstanceDatas modelData)
-        return $ length materialInstanceDatas
+    pub fn get_material_instance_datas(&self) -> &Vec<MaterialInstanceData> {
+        &self._material_instance_datas
+    }
 
-    getMaterialInstanceDataList :: ModelData -> IO [MaterialInstanceData]
-    getMaterialInstanceDataList modelData = readIORef (_materialInstanceDatas modelData)
+    pub fn set_material_instance_datas(&mut self, material_instance_datas: Vec<MaterialInstanceData>) {
+        self._material_instance_datas = material_instance_datas;
+    }
 
-    setMaterialInstanceDataList :: ModelData -> [MaterialInstanceData] -> IO ()
-    setMaterialInstanceDataList modelData materialInstanceDatas = writeIORef (_materialInstanceDatas modelData) materialInstanceDatas
+    pub fn get_material_instance_data(&self, index: usize) -> &MaterialInstanceData {
+        &self._material_instance_datas[index]
+    }
 
-    getMaterialInstanceData :: ModelData -> Int -> IO MaterialInstanceData
-    getMaterialInstanceData modelData n = do
-        materialInstanceDatas <- readIORef (_materialInstanceDatas modelData)
-        return $ materialInstanceDatas !! n
-
-    updateModelData :: ModelData -> IO ()
-    updateModelData modelData = return ()
-
+    pub fn update_model_data(&self) {
+    }
+}

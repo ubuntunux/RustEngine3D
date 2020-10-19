@@ -1,6 +1,7 @@
 
 use crate::vulkan_context::geometry_buffer::GeometryData;
 
+#[derive(Clone, Debug)]
 pub struct MeshData {
     _name: String,
     _bound_box: bool,
@@ -21,8 +22,8 @@ impl MeshData {
         }
     }
 
-    pub fn get_geometry_data_count(&self) -> u32 {
-        self._geometry_buffer_datas.len() as u32
+    pub fn get_geometry_data_count(&self) -> usize {
+        self._geometry_buffer_datas.len()
     }
 
     pub fn get_geomtry_datas(&self) -> &Vec<GeometryData> {
@@ -33,8 +34,8 @@ impl MeshData {
         &self._geometry_buffer_datas[0]
     }
 
-    pub fn get_geomtry_data(&self, index: u32) -> &GeometryData {
-        &self._geometry_buffer_datas[index as usize]
+    pub fn get_geomtry_data(&self, index: usize) -> &GeometryData {
+        &self._geometry_buffer_datas[index]
     }
 
     pub fn update_mesh_data(&self) {

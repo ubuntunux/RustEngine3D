@@ -39,6 +39,7 @@ pub struct GeometryCreateInfo {
     _bounding_box: BoundingBox
 }
 
+#[derive(Debug, Clone)]
 pub struct GeometryData {
     _geometry_name: String,
     _vertex_buffer_data: buffer::BufferData,
