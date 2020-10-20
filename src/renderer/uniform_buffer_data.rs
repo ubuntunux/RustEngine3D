@@ -22,10 +22,9 @@ use nalgebra::{
 
 use crate::constants;
 
+use crate::vulkan_context::uniform_buffer;
 use crate::vulkan_context::uniform_buffer::{
     UniformBufferData,
-    create_uniform_buffer_data,
-    destroy_uniform_buffer_data,
 };
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -45,7 +44,7 @@ pub fn uniform_buffer_type_to_string(uniform_buffer_type: &UniformBufferType) ->
     }
 }
 
-type UniformBufferDataMap = HashMap<UniformBufferType, UniformBufferData>;
+pub type UniformBufferDataMap = HashMap<UniformBufferType, UniformBufferData>;
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
 #[derive(Clone, Debug)]
@@ -130,7 +129,7 @@ pub fn regist_uniform_data(
     uniform_buffer_data_type: UniformBufferType,
     uniform_buffer_data_size: usize
 ) {
-    let uniform_buffer_data = create_uniform_buffer_data(
+    let uniform_buffer_data = uniform_buffer::create_uniform_buffer_data(
         device,
         memory_properties,
         &String::from(uniform_buffer_type_to_string(&uniform_buffer_data_type)),
@@ -148,11 +147,4 @@ pub fn regist_uniform_datas(
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::ViewConstants, std::mem::size_of::<ViewConstants>());
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::LightConstant, std::mem::size_of::<LightConstants>());
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::SSAOConstants, std::mem::size_of::<SSAOConstants>());
-}
-
-pub fn destroy_uniform_buffer_datas(device: &Device, uniform_buffer_data_map: &mut UniformBufferDataMap) {
-    for uniform_buffer_data in uniform_buffer_data_map.values() {
-        destroy_uniform_buffer_data(device, uniform_buffer_data);
-    }
-    uniform_buffer_data_map.clear();
 }

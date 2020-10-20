@@ -19,35 +19,35 @@ use crate::vulkan_context::vulkan_context::run_commands_once;
 
 #[derive(Debug, Clone)]
 pub struct TextureCreateInfo {
-    _texture_width: u32,
-    _texture_height: u32,
-    _texture_depth: u32,
-    _texture_format: vk::Format,
-    _texture_view_type: vk::ImageViewType,
-    _texture_samples: vk::SampleCountFlags,
-    _texture_min_filter: vk::Filter,
-    _texture_mag_filter: vk::Filter,
-    _texture_wrap_mode: vk::SamplerAddressMode,
-    _enable_mipmap: bool,
-    _enable_anisotropy: bool,
-    _immutable: bool,
-    _texture_initial_datas: Vec<u8>
+    pub _texture_width: u32,
+    pub _texture_height: u32,
+    pub _texture_depth: u32,
+    pub _texture_format: vk::Format,
+    pub _texture_view_type: vk::ImageViewType,
+    pub _texture_samples: vk::SampleCountFlags,
+    pub _texture_min_filter: vk::Filter,
+    pub _texture_mag_filter: vk::Filter,
+    pub _texture_wrap_mode: vk::SamplerAddressMode,
+    pub _enable_mipmap: bool,
+    pub _enable_anisotropy: bool,
+    pub _immutable: bool,
+    pub _texture_initial_datas: Vec<u8>
 }
 
 #[derive(Debug, Clone)]
 pub struct TextureData {
-    _texture_data_name: String,
-    _image: vk::Image,
-    _image_view: vk::ImageView,
-    _image_memory: vk::DeviceMemory,
-    _image_sampler:vk::Sampler,
-    _image_format: vk::Format,
-    _image_width: u32,
-    _image_height: u32,
-    _image_depth: u32,
-    _image_mip_levels: u32,
-    _image_sample_count: vk::SampleCountFlags,
-    _descriptor_image_info: vk::DescriptorImageInfo,
+    pub _texture_data_name: String,
+    pub _image: vk::Image,
+    pub _image_view: vk::ImageView,
+    pub _image_memory: vk::DeviceMemory,
+    pub _image_sampler:vk::Sampler,
+    pub _image_format: vk::Format,
+    pub _image_width: u32,
+    pub _image_height: u32,
+    pub _image_depth: u32,
+    pub _image_mip_levels: u32,
+    pub _image_sample_count: vk::SampleCountFlags,
+    pub _descriptor_image_info: vk::DescriptorImageInfo,
 }
 
 pub enum ImageLayoutTransition {
@@ -59,12 +59,12 @@ pub enum ImageLayoutTransition {
 
 #[derive(Debug, Clone)]
 pub struct TransitionDependent {
-    _old_layout: vk::ImageLayout,
-    _new_layout: vk::ImageLayout,
-    _src_access_mask: vk::AccessFlags,
-    _dst_access_mask: vk::AccessFlags,
-    _src_stage_mask: vk::PipelineStageFlags,
-    _dst_stage_mask: vk::PipelineStageFlags,
+    pub _old_layout: vk::ImageLayout,
+    pub _new_layout: vk::ImageLayout,
+    pub _src_access_mask: vk::AccessFlags,
+    pub _dst_access_mask: vk::AccessFlags,
+    pub _src_stage_mask: vk::PipelineStageFlags,
+    pub _dst_stage_mask: vk::PipelineStageFlags,
 }
 
 impl Default for TextureCreateInfo {
@@ -411,12 +411,15 @@ pub fn create_image_sampler(
     };
 
     unsafe {
-        device.create_sampler(&sampler_create_info, None).expect("Failed to create sampler.")
+        let sampler = device.create_sampler(&sampler_create_info, None).expect("Failed to create sampler.");
+        log::info!("create_image_sampler: {:?}", sampler);
+        sampler
     }
 }
 
 pub fn destroy_image_sampler(device: &Device, sampler: vk::Sampler) {
     unsafe {
+        log::info!("destroy_image_sampler: {:?}", sampler);
         device.destroy_sampler(sampler, None);
     }
 }

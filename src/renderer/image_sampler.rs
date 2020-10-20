@@ -11,6 +11,15 @@ pub struct ImageSamplerData {
     _linear_clamp: vk::Sampler,
 }
 
+impl Default for ImageSamplerData {
+    fn default() -> ImageSamplerData {
+        ImageSamplerData {
+            _point_clamp: vk::Sampler::null(),
+            _linear_clamp: vk::Sampler::null(),
+        }
+    }
+}
+
 pub fn create_image_samplers(device: &Device) -> ImageSamplerData {
     let point_clamp = texture::create_image_sampler(device, 0, vk::Filter::NEAREST, vk::Filter::NEAREST, vk::SamplerAddressMode::CLAMP_TO_EDGE, vk::FALSE);
     let linear_clamp = texture::create_image_sampler(device, 0, vk::Filter::LINEAR, vk::Filter::LINEAR, vk::SamplerAddressMode::CLAMP_TO_EDGE, vk::FALSE);

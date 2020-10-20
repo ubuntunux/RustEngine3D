@@ -8,6 +8,7 @@ pub mod model;
 pub mod post_process;
 pub mod render_element;
 pub mod render_object;
+pub mod render_target;
 pub mod renderer;
 pub mod transform_object;
 pub mod uniform_buffer_data;
@@ -41,6 +42,9 @@ pub use self::render_element::*;
 
 #[allow(unused_imports)]
 pub use self::render_object::*;
+
+#[allow(unused_imports)]
+pub use self::render_target::*;
 
 #[allow(unused_imports)]
 pub use self::renderer::*;

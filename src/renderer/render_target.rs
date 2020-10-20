@@ -1,223 +1,268 @@
-{-# LANGUAGE DataKinds          #-}
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE RecordWildCards    #-}
-{-# LANGUAGE TypeApplications   #-}
+use std::collections::HashMap;
 
-module HulkanEngine3D.Render.RenderTarget where
+use ash::{
+    vk,
+};
 
-import qualified Data.HashTable.IO as HashTable
+use crate::constants;
+use crate::renderer::renderer::RendererData;
+use crate::vulkan_context::texture::{
+    TextureData,
+    TextureCreateInfo
+};
 
-import Graphics.Vulkan.Core_1_0
+#[repr(i32)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum RenderTargetType {
+    SceneColor,
+    SceneColorCopy,
+    SceneDepth,
+    BackBuffer,
+    BackBufferCopy,
+    SceneAlbedo,
+    SceneNormal,
+    SceneMaterial,
+    SceneVelocity,
+    SSAO,
+    Shadow,
+    MaxBound,
+}
 
-import HulkanEngine3D.Render.Renderer
-import HulkanEngine3D.Render.RenderTargetDeclaration
-import HulkanEngine3D.Vulkan.Swapchain
-import qualified HulkanEngine3D.Vulkan.Texture as Texture
-import HulkanEngine3D.Utilities.System
-import qualified HulkanEngine3D.Constants as Constants
+pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
-data RenderTargetType = RenderTarget_SceneColor
-                      | RenderTarget_SceneColorCopy 
-                      | RenderTarget_SceneDepth
-                      | RenderTarget_BackBuffer
-                      | RenderTarget_BackBufferCopy
-                      | RenderTarget_SceneAlbedo
-                      | RenderTarget_SceneNormal
-                      | RenderTarget_SceneMaterial
-                      | RenderTarget_SceneVelocity
-                      | RenderTarget_SSAO
-                      | RenderTarget_Shadow
-                      deriving (Bounded, Enum, Eq, Ord, Show, Read, Generic)
+pub fn regist_render_target(
+    renderer_data: &mut RendererData,
+    render_target_type: RenderTargetType,
+    texture_create_info: &TextureCreateInfo
+) {
+    let texture_data_name = format!("{:?}", render_target_type);
+    let texture_data = renderer_data.create_render_target(
+        &texture_data_name,
+        &texture_create_info,
+    );
+    renderer_data._render_target_data_map.insert(render_target_type, texture_data);
+}
 
-instance Hashable RenderTargetType
-
-type RenderTargetDataMap = HashTable.BasicHashTable RenderTargetType Texture.TextureData
-
-
-createRenderTargets :: RendererData -> RenderTargetDataMap -> IO ()
-createRenderTargets rendererData renderTargetDataMap = do
-    swapChainData <- getSwapchainData rendererData
-    let windowWidth = getField @"width" (_swapChainExtent swapChainData)
-        windowHeight = getField @"height" (_swapChainExtent swapChainData)
-        samples = VK_SAMPLE_COUNT_1_BIT -- min VK_SAMPLE_COUNT_4_BIT (_msaaSamples . _renderFeatures $ rendererData)
-        enableMipmap = True
-        disableMipmap = False
-        enableAnisotropy = True
-        disableAnisotropy = False
-        immutable = True
-        mutable = False
-        emptyData = (Texture._textureCreateInfoData Texture.defaultTextureCreateInfo)
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneColor $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_R16G16B16A16_SFLOAT
-            VK_IMAGE_VIEW_TYPE_2D
-            samples
-            VK_FILTER_LINEAR
-            VK_FILTER_LINEAR
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneColorCopy $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_R16G16B16A16_SFLOAT
-            VK_IMAGE_VIEW_TYPE_2D
-            samples
-            VK_FILTER_LINEAR
-            VK_FILTER_LINEAR
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneDepth $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_D32_SFLOAT
-            VK_IMAGE_VIEW_TYPE_2D
-            samples
-            VK_FILTER_NEAREST
-            VK_FILTER_NEAREST
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_BackBuffer $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_B8G8R8A8_UNORM
-            VK_IMAGE_VIEW_TYPE_2D
-            samples
-            VK_FILTER_LINEAR
-            VK_FILTER_LINEAR
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_BackBufferCopy $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_B8G8R8A8_UNORM
-            VK_IMAGE_VIEW_TYPE_2D
-            samples
-            VK_FILTER_LINEAR
-            VK_FILTER_LINEAR
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneAlbedo $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_R8G8B8A8_UNORM
-            VK_IMAGE_VIEW_TYPE_2D
-            VK_SAMPLE_COUNT_1_BIT
-            VK_FILTER_LINEAR
-            VK_FILTER_LINEAR
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneMaterial $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_R8G8B8A8_UNORM
-            VK_IMAGE_VIEW_TYPE_2D
-            VK_SAMPLE_COUNT_1_BIT
-            VK_FILTER_NEAREST
-            VK_FILTER_NEAREST
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneNormal $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_R8G8B8A8_UNORM
-            VK_IMAGE_VIEW_TYPE_2D
-            VK_SAMPLE_COUNT_1_BIT
-            VK_FILTER_NEAREST
-            VK_FILTER_NEAREST
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SceneVelocity $
-        Texture.TextureCreateInfo
-            windowWidth
-            windowHeight
-            1
-            VK_FORMAT_R16G16_SFLOAT
-            VK_IMAGE_VIEW_TYPE_2D
-            VK_SAMPLE_COUNT_1_BIT
-            VK_FILTER_NEAREST
-            VK_FILTER_NEAREST
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_SSAO $
-        Texture.TextureCreateInfo
-            (div windowWidth 2)
-            (div windowHeight 2)
-            1
-            VK_FORMAT_R16_SFLOAT
-            VK_IMAGE_VIEW_TYPE_2D
-            VK_SAMPLE_COUNT_1_BIT
-            VK_FILTER_LINEAR
-            VK_FILTER_LINEAR
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    registRenderTarget rendererData renderTargetDataMap RenderTarget_Shadow $
-        Texture.TextureCreateInfo
-            Constants.shadowMapSize
-            Constants.shadowMapSize
-            1
-            VK_FORMAT_D32_SFLOAT
-            VK_IMAGE_VIEW_TYPE_2D
-            samples
-            VK_FILTER_NEAREST
-            VK_FILTER_NEAREST
-            VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE
-            disableMipmap
-            disableAnisotropy
-            mutable
-            emptyData
-    where
-        registRenderTarget :: RendererData -> RenderTargetDataMap -> RenderTargetType -> Texture.TextureCreateInfo -> IO ()
-        registRenderTarget rendererData renderTargetDataMap renderTargetType textureCreateInfo = do
-            textureData <- createRenderTarget rendererData (toText renderTargetType) textureCreateInfo
-            HashTable.insert renderTargetDataMap renderTargetType textureData
-
-destroyRenderTargets :: RendererData -> RenderTargetDataMap -> IO ()
-destroyRenderTargets rendererData renderTargetDataMap =
-    clearHashTable renderTargetDataMap (\(k, v) -> destroyTexture rendererData v)
+pub fn create_render_targets(renderer_data: &mut RendererData) {
+    let swapchain_data = &renderer_data._swapchain_data;
+    let window_width = swapchain_data._swapchain_extent.width;
+    let window_height = swapchain_data._swapchain_extent.height;
+    let samples = vk::SampleCountFlags::TYPE_1;
+    //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_data._render_features._msaa_samples);
+    let _enable_mipmap = true;
+    let disable_mipmap = false;
+    let _enable_anisotropy = true;
+    let disable_anisotropy = false;
+    let _immutable = true;
+    let mutable = false;
+    let empty_data: Vec<u8> = Vec::new();
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneColor,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: samples,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneColorCopy,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: samples,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneDepth,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::D32_SFLOAT,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: samples,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::BackBuffer,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: samples,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::BackBufferCopy,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: samples,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneAlbedo,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneMaterial,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneNormal,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SceneVelocity,
+        &TextureCreateInfo {
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R16G16_SFLOAT,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::SSAO,
+        &TextureCreateInfo {
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
+            _texture_depth: 1,
+            _texture_format: vk::Format::R16_SFLOAT,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+    regist_render_target(
+        renderer_data,
+        RenderTargetType::Shadow,
+        &TextureCreateInfo {
+            _texture_width: constants::SHADOW_MAP_SIZE,
+            _texture_height: constants::SHADOW_MAP_SIZE,
+            _texture_depth: 1,
+            _texture_format: vk::Format::D32_SFLOAT,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_samples: vk::SampleCountFlags::TYPE_1,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            _immutable: mutable,
+            _texture_initial_datas: empty_data.clone()
+        }
+    );
+}
