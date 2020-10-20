@@ -75,32 +75,36 @@ impl Default for AnimationPlayInfo {
     } 
 }
 
-// instance RenderObjecti32erface RenderObjectData where
-//     createRenderObjectData: String -> RenderObjectCreateData -> IO RenderObjectData
-//     createRenderObjectData renderObjectName renderObjectCreateData = do
-//         log::info!("createRenderObjectData: " ++ show renderObjectName
-//         transformObjectData <- newTransformObjectData
-//         setPosition transformObjectData $ _position renderObjectCreateData
-//         setRotation transformObjectData $ _rotation renderObjectCreateData
-//         setScale transformObjectData $ _scale renderObjectCreateData
-//         return RenderObjectData
-//             { _renderObjectName = renderObjectName
-//             , _modelData = _modelData renderObjectCreateData
-//             , _transformObject = transformObjectData
-//             , _animation_play_info =
-//                 case _has_animation_data renderObjectCreateData of
-//                     True -> default_animation_play_info
-//                     otherwise -> EmptyAnimationPlayInfo
-//             }
-//
-//     getModelData: RenderObjectData -> ModelData
-//     getModelData renderObjectData = _modelData renderObjectData
-//
-//     getTransformObjectData: RenderObjectData -> TransformObjectData
-//     getTransformObjectData renderObjectData = _transformObject renderObjectData
-//
-//     updateRenderObjectData: RenderObjectData -> IO ()
-//     updateRenderObjectData renderObjectData = do
-//         updateTransformObject (_transformObject renderObjectData)
-//         return ()
-//
+impl RenderObjectData {
+    pub fn create_render_object_data(
+        render_object_name: &String,
+        render_object_create_data: RenderObjectCreateData
+    ) -> RenderObjectData {
+        log::info!("create_render_object_data: {}", render_object_name);
+        let mut transform_object_data = TransformObjectData::new_transform_object_data();
+        transform_object_data.set_position(&render_object_create_data._position);
+        transform_object_data.set_rotation(&render_object_create_data._rotation);
+        transform_object_data.set_scale(&render_object_create_data._scale);
+        RenderObjectData {
+            _render_object_name: render_object_name.clone(),
+            _model_data: render_object_create_data._model_data.unwrap(),
+            _transform_object: transform_object_data,
+            _animation_play_info: match render_object_create_data._has_animation_data {
+                true => Some(AnimationPlayInfo::default()),
+                _ => None
+            }
+        }
+    }
+
+    pub fn get_model_data(&self) -> &ModelData {
+        &self._model_data
+    }
+
+    pub fn get_transform_object_data(&self) -> &TransformObjectData {
+        &self._transform_object
+    }
+
+    pub fn update_render_object_data(&mut self) {
+        self._transform_object.update_transform_object();
+    }
+}
