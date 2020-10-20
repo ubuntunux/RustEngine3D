@@ -35,11 +35,11 @@ pub struct AnimationPlayInfo {
     pub _animation_start_time: f32,
     pub _animation_end_time: f32,
     pub _is_animation_end: bool,
-    pub _animation_buffers: Matrix4<f32>,
-    pub _prev_animation_buffers: Matrix4<f32>,
-    pub _blend_animation_buffers: Matrix4<f32>,
+    pub _animation_buffers: Vec<Matrix4<f32>>,
+    pub _prev_animation_buffers: Vec<Matrix4<f32>>,
+    pub _blend_animation_buffers: Vec<Matrix4<f32>>,
     pub _animation_count: i32,
-    pub _animation_mesh: MeshData,
+    pub _animation_mesh: Option<MeshData>,
 }
 
 impl Default for RenderObjectCreateData {
@@ -54,30 +54,27 @@ impl Default for RenderObjectCreateData {
     } 
 }
 
-// default_animation_play_info: AnimationPlayInfo
-// default_animation_play_info = AnimationPlayInfo
-//     { _last_animation_frame = 0.0
-//     , _animation_loop = True
-//     , _animation_blend_time = 0.5
-//     , _animation_elapsed_time = 0.0
-//     , _animation_speed = 1.0
-//     , _animation_frame = 0.0
-//     , _animation_start_time = 0.0
-//     , _animation_end_time = -1.0
-//     , _is_animation_end = False
-//     , _animation_buffers = Vector.empty
-//     , _prev_animation_buffers = Vector.empty
-//     , _blend_animation_buffers = Vector.empty
-//     , _animation_count = 0
-//     , _animation_mesh = Mesh.EmptyMeshData
-//     }
-//
-// class RenderObjecti32erface a where
-//     createRenderObjectData: String -> RenderObjectCreateData -> IO a
-//     getModelData: a -> ModelData
-//     getTransformObjectData: a -> TransformObjectData
-//     updateRenderObjectData: a -> IO ()
-//
+impl Default for AnimationPlayInfo {
+    fn default() -> AnimationPlayInfo {
+        AnimationPlayInfo {
+            _last_animation_frame: 0.0,
+            _animation_loop: true,
+            _animation_blend_time: 0.5,
+            _animation_elapsed_time: 0.0,
+            _animation_speed: 1.0,
+            _animation_frame: 0.0,
+            _animation_start_time: 0.0,
+            _animation_end_time: -1.0,
+            _is_animation_end: false,
+            _animation_buffers: Vec::new(),
+            _prev_animation_buffers: Vec::new(),
+            _blend_animation_buffers: Vec::new(),
+            _animation_count: 0,
+            _animation_mesh: None,
+        }
+    } 
+}
+
 // instance RenderObjecti32erface RenderObjectData where
 //     createRenderObjectData: String -> RenderObjectCreateData -> IO RenderObjectData
 //     createRenderObjectData renderObjectName renderObjectCreateData = do
