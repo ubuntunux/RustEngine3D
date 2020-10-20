@@ -9,7 +9,7 @@ use crate::renderer::transform_object::TransformObjectData;
 
 #[derive(Clone, Debug)]
 pub struct RenderObjectCreateData {
-    pub _model_data: ModelData,
+    pub _model_data: Option<ModelData>,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
@@ -21,7 +21,7 @@ pub struct RenderObjectData {
     pub _render_object_name: String,
     pub _model_data: ModelData,
     pub _transform_object: TransformObjectData,
-    pub _animation_play_info: AnimationPlayInfo,
+    pub _animation_play_info: Option<AnimationPlayInfo>,
 }
 
 #[derive(Clone, Debug)]
@@ -42,15 +42,18 @@ pub struct AnimationPlayInfo {
     pub _animation_mesh: MeshData,
 }
 
-// defaultRenderObjectCreateData: RenderObjectCreateData
-// defaultRenderObjectCreateData = RenderObjectCreateData
-//     { _modelData = EmptyModelData
-//     , _position = vec3 0 0 0
-//     , _rotation = vec3 0 0 0
-//     , _scale = vec3 1 1 1
-//     , _has_animation_data = False
-//     }
-//
+impl Default for RenderObjectCreateData {
+    fn default() -> RenderObjectCreateData {
+        RenderObjectCreateData {
+            _model_data: None,
+            _position: Vector3::zeros(),
+            _rotation: Vector3::zeros(),
+            _scale: Vector3::new(1.0, 1.0, 1.0),
+            _has_animation_data: false,
+        }
+    } 
+}
+
 // default_animation_play_info: AnimationPlayInfo
 // default_animation_play_info = AnimationPlayInfo
 //     { _last_animation_frame = 0.0
