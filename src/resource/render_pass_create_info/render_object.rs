@@ -1,168 +1,230 @@
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE RecordWildCards    #-}
+use std::path::PathBuf;
 
-module HulkanEngine3D.Resource.RenderPassCreateInfo.RenderObject where
+use ash::{
+    vk,
+};
 
-import Data.Bits
-import qualified Data.Text as Text
+use crate::constants;
+use crate::renderer::renderer::{
+    RenderObjectType,
+    RendererData,
+};
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::uniform_buffer_data::UniformBufferType;
+use crate::renderer::push_constants::{
+    PushConstantInterface,
+    PushConstants_StaticRenderObject,
+    PushConstants_SkeletalRenderObject,
+};
+use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
+use crate::vulkan_context::render_pass::{
+    RenderPassDataCreateInfo,
+    PipelineDataCreateInfo,
+    ImageAttachmentDescription,
+    DepthStencilStateCreateInfo,
+};
+use crate::vulkan_context::descriptor::{
+    DescriptorDataCreateInfo,
+    DescriptorResourceType,
+};
+use crate::vulkan_context::vulkan_context;
+use crate::vulkan_context::vulkan_context::{
+    BlendMode,
+};
 
-import Graphics.Vulkan.Core_1_0
+pub fn get_render_pass_name(render_object_type: RenderObjectType) -> String {
+    let render_pass_name = match render_object_type {
+        RenderObjectType::Static => "render_pass_static_opaque",
+        RenderObjectType::Skeletal => "render_pass_skeletal_opaque",
+    };
+    String::from(render_pass_name)
+}
 
-import qualified HulkanEngine3D.Constants as Constants
-import HulkanEngine3D.Render.Renderer
-import HulkanEngine3D.Render.RenderTargetDeclaration
-import HulkanEngine3D.Render.UniformBufferDatas (UniformBufferType (..))
-import HulkanEngine3D.Vulkan.Descriptor
-import HulkanEngine3D.Vulkan.Framebuffer
-import HulkanEngine3D.Vulkan.RenderPass
-import HulkanEngine3D.Vulkan.Texture
-import HulkanEngine3D.Vulkan.Vulkan
-import HulkanEngine3D.Utilities.System (toText)
+pub fn get_framebuffer_data_create_info(
+    renderer_data: &RendererData,
+    render_pass_name: &String,
+    render_object_type: RenderObjectType
+) -> FramebufferDataCreateInfo {
+    let texture_scene_albedo = renderer_data.get_render_target(RenderTargetType::SceneAlbedo);
+    let texture_scene_material = renderer_data.get_render_target(RenderTargetType::SceneMaterial);
+    let texture_scene_normal = renderer_data.get_render_target(RenderTargetType::SceneNormal);
+    let texture_scene_velocity = renderer_data.get_render_target(RenderTargetType::SceneVelocity);
+    let texture_scene_depth = renderer_data.get_render_target(RenderTargetType::SceneDepth);
+    let (width, height, depth) = (texture_scene_albedo._image_width, texture_scene_albedo._image_height, texture_scene_albedo._image_depth);
+    let image_views = vec![
+        texture_scene_albedo._image_view,
+        texture_scene_material._image_view,
+        texture_scene_normal._image_view,
+        texture_scene_velocity._image_view,
+        texture_scene_depth._image_view,
+    ];
 
-getRenderPassName :: Constants.RenderObjectType -> Text.Text
-getRenderPassName Constants.RenderObject_Static = "render_pass_static_opaque"
-getRenderPassName Constants.RenderObject_Skeletal = "render_pass_skeletal_opaque"
+    FramebufferDataCreateInfo {
+        _framebuffer_name: render_pass_name.clone(),
+        _framebuffer_width: width,
+        _framebuffer_height: height,
+        _framebuffer_depth: depth,
+        _framebuffer_sample_count: texture_scene_albedo._image_sample_count,
+        _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
+        _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
+        _framebuffer_color_attachment_formats: vec![
+            texture_scene_albedo._image_format,
+            texture_scene_material._image_format,
+            texture_scene_normal._image_format,
+            texture_scene_velocity._image_format,
+        ],
+        _framebuffer_depth_attachment_formats: vec![
+            texture_scene_depth._image_format,
+        ],
+        _framebuffer_image_views: vec![image_views; constants::SWAPCHAIN_IMAGE_COUNT],
+        _framebuffer_clear_values: match render_object_type {
+            RenderObjectType::Static => vec![
+                vulkan_context::get_color_clear_zero(),
+                vulkan_context::get_color_clear_zero(),
+                vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0),
+                vulkan_context::get_color_clear_zero(),
+                vulkan_context::get_depth_stencil_clear_value(1.0, 0)
+            ],
+            RenderObjectType::Skeletal => Vec::new(),
+        },
+        ..Default::default()
+    }
+}
 
-getFramebufferDataCreateInfo :: RendererData -> Text.Text -> Constants.RenderObjectType -> IO FramebufferDataCreateInfo
-getFramebufferDataCreateInfo rendererData renderPassName renderObjectType = do
-    textureSceneAlbedo <- getRenderTarget rendererData RenderTarget_SceneAlbedo
-    textureSceneMaterial <- getRenderTarget rendererData RenderTarget_SceneMaterial
-    textureSceneNormal <- getRenderTarget rendererData RenderTarget_SceneNormal
-    textureSceneVelocity <- getRenderTarget rendererData RenderTarget_SceneVelocity
-    textureSceneDepth <- getRenderTarget rendererData RenderTarget_SceneDepth
-    let (width, height, depth) = (_imageWidth textureSceneAlbedo, _imageHeight textureSceneAlbedo, _imageDepth textureSceneAlbedo)
-        textures = [textureSceneAlbedo, textureSceneMaterial, textureSceneNormal, textureSceneVelocity]
-    return defaultFramebufferDataCreateInfo
-        { _frameBufferName = renderPassName
-        , _frameBufferWidth = width
-        , _frameBufferHeight = height
-        , _frameBufferDepth = depth
-        , _frameBufferSampleCount = _imageSampleCount textureSceneAlbedo
-        , _frameBufferViewPort = createViewport 0 0 width height 0 1
-        , _frameBufferScissorRect = createScissorRect 0 0 width height
-        , _frameBufferColorAttachmentFormats = [_imageFormat texture | texture <- textures]
-        , _frameBufferDepthAttachmentFormats = [_imageFormat textureSceneDepth]
-        , _frameBufferImageViewLists = swapChainIndexMapSingleton $ (map _imageView textures) ++ [_imageView textureSceneDepth]
-        , _frameBufferClearValues =
-            case renderObjectType of
-                Constants.RenderObject_Static -> [ getColorClearValue [0.0, 0.0, 0.0]
-                                                 , getColorClearValue [0.0, 0.0, 0.0]
-                                                 , getColorClearValue [0.5, 0.5, 1.0]
-                                                 , getColorClearValue [0.0, 0.0]
-                                                 , getDepthStencilClearValue 1.0 0
-                                                 ]
-                otherwise -> []
+pub fn get_render_pass_data_create_info(
+    renderer_data: &RendererData,
+    render_object_type: RenderObjectType,
+) -> RenderPassDataCreateInfo {
+    let render_pass_name = get_render_pass_name(render_object_type);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, &render_pass_name, render_object_type);
+    let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
+    let (attachment_load_operation, attachment_initial_layout) = match render_object_type  {
+        RenderObjectType::Static => (vk::AttachmentLoadOp::CLEAR, vk::ImageLayout::UNDEFINED),
+        RenderObjectType::Skeletal => (vk::AttachmentLoadOp::LOAD, vk::ImageLayout::GENERAL),
+    };
+    let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
+        color_attachment_descriptions.push({
+            ImageAttachmentDescription {
+                _attachment_image_format: *format,
+                _attachment_image_samples: sample_count,
+                _attachment_load_operation: attachment_load_operation,
+                _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+                _attachment_initial_layout: attachment_initial_layout,
+                _attachment_final_layout: vk::ImageLayout::GENERAL,
+                _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                ..Default::default()
+            }
+        });
+    }
+    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
+        depth_attachment_descriptions.push({
+            ImageAttachmentDescription {
+                _attachment_image_format: *format,
+                _attachment_image_samples: sample_count,
+                _attachment_load_operation: attachment_load_operation,
+                _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+                _attachment_initial_layout: attachment_initial_layout,
+                _attachment_final_layout: vk::ImageLayout::GENERAL,
+                _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                ..Default::default()
+            }
+        });
+    }
+    let subpass_dependencies = vec![
+        vk::SubpassDependency {
+            src_subpass: vk::SUBPASS_EXTERNAL,
+            dst_subpass: 0,
+            src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+            dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            src_access_mask: vk::AccessFlags::MEMORY_READ,
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dependency_flags: vk::DependencyFlags::BY_REGION,
+        },
+        vk::SubpassDependency {
+            src_subpass: 0,
+            dst_subpass: vk::SUBPASS_EXTERNAL,
+            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: vk::AccessFlags::MEMORY_READ,
+            dependency_flags: vk::DependencyFlags::BY_REGION,
         }
-
-getRenderPassDataCreateInfo :: RendererData -> Constants.RenderObjectType -> IO RenderPassDataCreateInfo
-getRenderPassDataCreateInfo rendererData renderObjectType = do
-    let renderPassName = getRenderPassName renderObjectType
-    frameBufferDataCreateInfo <- getFramebufferDataCreateInfo rendererData renderPassName renderObjectType
-    let sampleCount = _frameBufferSampleCount frameBufferDataCreateInfo
-        (attachmentLoadOperation, attachmentInitialLayout) = case renderObjectType of
-            Constants.RenderObject_Static -> (VK_ATTACHMENT_LOAD_OP_CLEAR, VK_IMAGE_LAYOUT_UNDEFINED)
-            otherwise -> (VK_ATTACHMENT_LOAD_OP_LOAD, VK_IMAGE_LAYOUT_GENERAL)
-        colorAttachmentDescriptions =
-            [ defaultAttachmentDescription
-                { _attachmentImageFormat = format
-                , _attachmentImageSamples = sampleCount
-                , _attachmentLoadOperation = attachmentLoadOperation
-                , _attachmentStoreOperation = VK_ATTACHMENT_STORE_OP_STORE
-                , _attachmentInitialLayout = attachmentInitialLayout
-                , _attachmentFinalLayout = VK_IMAGE_LAYOUT_GENERAL
-                , _attachmentReferenceLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL
-                } | format <- _frameBufferColorAttachmentFormats frameBufferDataCreateInfo
-            ]
-        depthAttachmentDescriptions =
-            [ defaultAttachmentDescription
-                { _attachmentImageFormat = format
-                , _attachmentImageSamples = sampleCount
-                , _attachmentLoadOperation = attachmentLoadOperation
-                , _attachmentStoreOperation = VK_ATTACHMENT_STORE_OP_STORE
-                , _attachmentInitialLayout = attachmentInitialLayout
-                , _attachmentFinalLayout = VK_IMAGE_LAYOUT_GENERAL
-                , _attachmentReferenceLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
-                } | format <- _frameBufferDepthAttachmentFormats frameBufferDataCreateInfo
-            ]
-        subpassDependencies =
-            [ createSubpassDependency
-                VK_SUBPASS_EXTERNAL
-                0
-                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                VK_ACCESS_MEMORY_READ_BIT
-                (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT .|. VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                VK_DEPENDENCY_BY_REGION_BIT
-            , createSubpassDependency
-                0
-                VK_SUBPASS_EXTERNAL
-                VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT
-                VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT
-                (VK_ACCESS_COLOR_ATTACHMENT_READ_BIT .|. VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT)
-                VK_ACCESS_MEMORY_READ_BIT
-                VK_DEPENDENCY_BY_REGION_BIT
-            ]
-        pipelineDataCreateInfos =
-            [ PipelineDataCreateInfo
-                { _pipelineDataCreateInfoName = "render_object"
-                , _pipelineVertexShaderFile = "render_object.vert"
-                , _pipelineFragmentShaderFile = "render_object.frag"
-                , _pipelineShaderDefines = []
-                , _pipelineDynamicStateList = [VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR]
-                , _pipelineSampleCount = sampleCount
-                , _pipelinePolygonMode = VK_POLYGON_MODE_FILL
-                , _pipelineCullMode = VK_CULL_MODE_BACK_BIT
-                , _pipelineFrontFace = VK_FRONT_FACE_CLOCKWISE
-                , _pipelineViewport = _frameBufferViewPort frameBufferDataCreateInfo
-                , _pipelineScissorRect = _frameBufferScissorRect frameBufferDataCreateInfo
-                , _pipelineColorBlendModes = replicate (length colorAttachmentDescriptions) $ getColorBlendMode BlendMode_None
-                , _depthStencilStateCreateInfo = defaultDepthStencilStateCreateInfo
-                , _descriptorDataCreateInfoList =
-                    [ DescriptorDataCreateInfo
-                        0
-                        (toText UniformBuffer_SceneConstants)
-                        DescriptorResourceType_UniformBuffer
-                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                        (VK_SHADER_STAGE_VERTEX_BIT .|. VK_SHADER_STAGE_FRAGMENT_BIT)
-                    , DescriptorDataCreateInfo
-                        1
-                        (toText UniformBuffer_ViewConstants)
-                        DescriptorResourceType_UniformBuffer
-                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                        (VK_SHADER_STAGE_VERTEX_BIT .|. VK_SHADER_STAGE_FRAGMENT_BIT)
-                    , DescriptorDataCreateInfo
-                        2
-                        (toText UniformBuffer_LightConstants)
-                        DescriptorResourceType_UniformBuffer
-                        VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER
-                        (VK_SHADER_STAGE_VERTEX_BIT .|. VK_SHADER_STAGE_FRAGMENT_BIT)
-                    , DescriptorDataCreateInfo
-                        3
-                        "textureBase"
-                        DescriptorResourceType_Texture
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                        VK_SHADER_STAGE_FRAGMENT_BIT
-                    , DescriptorDataCreateInfo
-                        4
-                        "textureMaterial"
-                        DescriptorResourceType_Texture
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                        VK_SHADER_STAGE_FRAGMENT_BIT
-                    , DescriptorDataCreateInfo
-                        5
-                        "textureNormal"
-                        DescriptorResourceType_Texture
-                        VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER
-                        VK_SHADER_STAGE_FRAGMENT_BIT
-                    ]
+    ];
+    let pipeline_data_create_infos = vec![
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("render_object"),
+            _pipeline_vertex_shader_file: PathBuf::from("render_object.vert"),
+            _pipeline_fragment_shader_file: PathBuf::from("render_object.frag"),
+            _pipeline_shader_defines: Vec::new(),
+            _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
+            _pipeline_sample_count: sample_count,
+            _pipeline_polygon_mode: vk::PolygonMode::FILL,
+            _pipeline_cull_mode: vk::CullModeFlags::BACK,
+            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
+            _pipeline_viewport: framebuffer_data_create_info._framebuffer_view_port,
+            _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
+            _push_constant_size: match render_object_type {
+                RenderObjectType::Static => PushConstants_StaticRenderObject::get_push_constants_size(),
+                RenderObjectType::Skeletal => PushConstants_SkeletalRenderObject::get_push_constants_size(),
+            },
+            _descriptor_data_create_info_list: vec![
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 0,
+                    _descriptor_name: format!("{:?}", UniformBufferType::SceneConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_name: format!("{:?}", UniformBufferType::ViewConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 2,
+                    _descriptor_name: format!("{:?}", UniformBufferType::LightConstant),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 3,
+                    _descriptor_name: String::from("textureBase"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 4,
+                    _descriptor_name: String::from("textureMaterial"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 5,
+                    _descriptor_name: String::from("textureNormal"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 }
-            ]
-    return RenderPassDataCreateInfo
-        { _renderPassCreateInfoName = renderPassName
-        , _renderPassFramebufferCreateInfo = frameBufferDataCreateInfo
-        , _colorAttachmentDescriptions = colorAttachmentDescriptions
-        , _depthAttachmentDescriptions = depthAttachmentDescriptions
-        , _resolveAttachmentDescriptions = []
-        , _subpassDependencies = subpassDependencies
-        , _pipelineDataCreateInfos = pipelineDataCreateInfos
+            ],
         }
+    ];
+
+    RenderPassDataCreateInfo  {
+        _render_pass_create_info_name: render_pass_name.clone(),
+        _render_pass_frame_buffer_create_info: framebuffer_data_create_info,
+        _color_attachment_descriptions: color_attachment_descriptions,
+        _depth_attachment_descriptions: depth_attachment_descriptions,
+        _resolve_attachment_descriptions: Vec::new(),
+        _subpass_dependencies: subpass_dependencies,
+        _pipeline_data_create_infos: pipeline_data_create_infos,
+    }
+}

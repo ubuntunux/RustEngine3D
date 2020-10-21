@@ -38,7 +38,7 @@ pub type ResourceDataMap<T> = HashMap<String, T>;
 //pub type MetaDataMap = ResourceDataMap<MetaData>;
 
 
-//#[derive(Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct MetaData<'a> {
     _is_engine_resource: bool,
     _meta_file_path: bool,
@@ -51,6 +51,7 @@ pub struct MetaData<'a> {
     _source_changed: bool
 }
 
+#[derive(Clone, Debug, Copy)]
 pub enum ResourceData {
     ResourceDataMesh,
 }

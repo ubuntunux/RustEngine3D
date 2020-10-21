@@ -66,16 +66,17 @@ use crate::renderer::image_sampler::{
     ImageSamplerData
 };
 
-
 // -- NOTE : sync with scene_constants.glsl
-enum RenderMode {
+#[derive(Clone, Debug, Copy)]
+pub enum RenderMode {
     RenderModeCommon,
     RenderModeShadow
 }
 
-enum RenderObjectType {
-    RenderObjectStatic,
-    RenderObjectSkeletal
+#[derive(Clone, Debug, Copy)]
+pub enum RenderObjectType {
+    Static,
+    Skeletal
 }
 
 pub unsafe extern "system" fn vulkan_debug_callback(
@@ -227,7 +228,7 @@ pub fn create_renderer_data<T>(
         let render_finished_semaphores = sync::create_semaphores(&device);
         let frame_fences = sync::create_fences(&device);
         let command_pool = command_buffer::create_command_pool(&device, &queue_family_datas);
-        let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT);
+        let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
         // debug utils
         let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);

@@ -4,12 +4,9 @@ use ash::vk;
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_version(1, 1, 0);
 pub const API_VERSION: u32 = vk::make_version(9, 1, 0);
-
 pub const DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::WARNING;
 pub const VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];
-//pub const VULKAN_LAYERS: [&str; 0] = [];
 pub const REQUIRE_DEVICE_EXTENSIONS: [&str; 1] = ["VK_KHR_swapchain"];
-
 pub const DEPTH_FOMATS: [vk::Format; 5] = [
     vk::Format::D32_SFLOAT,
     vk::Format::D32_SFLOAT_S8_UINT,
@@ -23,13 +20,13 @@ pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D16_UNORM_S8_UINT
 ];
 pub const INVALID_QUEUE_INDEX: u32 = std::u32::MAX;
-pub const SWAPCHAIN_IMAGE_COUNT: u32 = 3;
-pub const SWAPCHAIN_IMAGE_INDICES: [u32; SWAPCHAIN_IMAGE_COUNT as usize] = [0, 1, 2];
+pub const SWAPCHAIN_IMAGE_COUNT: usize = 3;
+pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2];
 pub const SWAPCHAIN_IMAGE_FORMAT:vk::Format = vk::Format::B8G8R8A8_SRGB;
 pub const SWAPCHAIN_COLOR_SPACE:vk::ColorSpaceKHR = vk::ColorSpaceKHR::SRGB_NONLINEAR;
-pub const MAX_FRAME_COUNT: u32 = 2;
-pub const FRAME_INDICES: [u32; MAX_FRAME_COUNT as usize] = [0, 1];
-pub const MAX_DESCRIPTOR_POOL_ALLOC_COUNT: u32 = 100;
+pub const MAX_FRAME_COUNT: usize = 2;
+pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
+pub const MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 100;
 pub const ENABLE_IMMEDIATE_MODE: bool = true;
 pub const ENABLE_VALIDATION_LAYER: bool = true;
 pub const IS_CONCURRENT_MODE: bool = true;

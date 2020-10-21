@@ -12,7 +12,7 @@ use crate::vulkan_context::texture::{
 };
 
 #[repr(i32)]
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum RenderTargetType {
     SceneColor,
     SceneColorCopy,

@@ -51,7 +51,7 @@ pub fn create_uniform_buffer_data(
         device,
         memory_properties,
         uniform_buffer_name,
-        constants::SWAPCHAIN_IMAGE_COUNT,
+        constants::SWAPCHAIN_IMAGE_COUNT as u32,
         buffer_size
     );
     let descriptor_buffer_infos = uniform_buffers.iter().map(|buffer_data| {

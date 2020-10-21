@@ -13,6 +13,7 @@ use ash::version::{
 pub type SwapchainIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 pub type FrameIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 
+#[derive(Clone, Debug, Copy)]
 pub enum BlendMode {
     None,
     AlphaBlend,
@@ -63,11 +64,45 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
     }
 }
 
-pub fn get_color_clear_value(colors: &[f32]) -> vk::ClearValue {
+pub fn get_color_clear_zero() -> vk::ClearValue {
     vk::ClearValue {
         color: vk::ClearColorValue {
-            float32: [colors[0], colors[1], colors[2], colors[3]]
+            float32: [0.0, 0.0, 0.0, 0.0]
         }
+    }
+}
+
+pub fn get_color_clear_one() -> vk::ClearValue {
+    vk::ClearValue {
+        color: vk::ClearColorValue {
+            float32: [1.0, 1.0, 1.0, 1.0]
+        }
+    }
+}
+
+pub fn get_color_clear_value(x: f32, y: f32, z: f32, w: f32) -> vk::ClearValue {
+    vk::ClearValue {
+        color: vk::ClearColorValue {
+            float32: [x, y, z, w]
+        }
+    }
+}
+
+pub fn create_viewport(x: u32, y: u32, width: u32, height: u32, min_depth: f32, max_depth: f32) -> vk::Viewport {
+    vk::Viewport {
+        x: x as f32,
+        y: y as f32,
+        width: width as f32,
+        height: height as f32,
+        min_depth,
+        max_depth
+    }
+}
+
+pub fn create_rect_2d(x: i32, y: i32, width: u32, height: u32) -> vk::Rect2D {
+    vk::Rect2D {
+        offset: vk::Offset2D { x, y },
+        extent: vk::Extent2D { width, height }
     }
 }
 

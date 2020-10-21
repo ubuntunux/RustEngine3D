@@ -4,7 +4,6 @@ pub mod descriptor;
 pub mod device;
 pub mod framebuffer;
 pub mod geometry_buffer;
-pub mod push_constant;
 pub mod queue;
 pub mod render_pass;
 pub mod shader;
@@ -31,9 +30,6 @@ use self::framebuffer::*;
 
 #[allow(unused_imports)]
 use self::geometry_buffer::*;
-
-#[allow(unused_imports)]
-use self::push_constant::*;
 
 #[allow(unused_imports)]
 use self::render_pass::*;

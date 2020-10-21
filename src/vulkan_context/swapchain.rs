@@ -107,9 +107,9 @@ pub fn create_swapchain_data(
     let max_image_count = swapchain_support_details._capabilities.max_image_count;
     let min_image_count = swapchain_support_details._capabilities.min_image_count;
     let image_count = if max_image_count <= 0 {
-        max(min_image_count, constants::SWAPCHAIN_IMAGE_COUNT)
+        max(min_image_count, constants::SWAPCHAIN_IMAGE_COUNT as u32)
     } else {
-        min(max_image_count, max(min_image_count, constants::SWAPCHAIN_IMAGE_COUNT))
+        min(max_image_count, max(min_image_count, constants::SWAPCHAIN_IMAGE_COUNT as u32))
     };
     let pre_transform = if swapchain_support_details._capabilities.supported_transforms.contains(vk::SurfaceTransformFlagsKHR::IDENTITY) {
         vk::SurfaceTransformFlagsKHR::IDENTITY

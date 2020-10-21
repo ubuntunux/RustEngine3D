@@ -149,8 +149,8 @@ pub fn create_descriptor_sets(
     device: &Device,
     descriptor_data: &DescriptorData
 ) -> SwapchainIndexMap<vk::DescriptorSet> {
-    let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT as usize] = [
-        descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT as usize
+    let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT] = [
+        descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT
     ];
     let allocation_info = vk::DescriptorSetAllocateInfo::builder()
         .descriptor_pool(descriptor_data._descriptor_pool)

@@ -50,6 +50,7 @@ pub struct TextureData {
     pub _descriptor_image_info: vk::DescriptorImageInfo,
 }
 
+#[derive(Clone, Debug, Copy)]
 pub enum ImageLayoutTransition {
     TransferUndefToTransferDst,
     TransferDstToShaderReadOnly,
