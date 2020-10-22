@@ -715,7 +715,7 @@ impl RendererData {
         //                 viewConstants = ViewConstants
         //                     { _VIEW  = viewMatrix
         //                     , _INV_VIEW = invViewMatrix
-        //                     , _VIEW_ORIGIN = viewOriginMatrix
+        //                     , _VIEW_ORIGIN = viewOriginffMatrix
         //                     , _INV_VIEW_ORIGIN = invViewOriginMatrix
         //                     , _PROJECTION = projectionMatrix
         //                     , _INV_PROJECTION = invProjectionMatrix

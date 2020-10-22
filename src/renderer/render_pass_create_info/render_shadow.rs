@@ -5,7 +5,11 @@ use ash::{
 };
 
 use crate::constants;
+use crate::utilities::system::{
+    enum_to_string
+};
 use crate::renderer::renderer::{
+    RenderMode,
     RenderObjectType,
     RendererData,
 };
@@ -28,61 +32,36 @@ use crate::vulkan_context::descriptor::{
     DescriptorResourceType,
 };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::vulkan_context::{
-    BlendMode,
-};
 
 pub fn get_render_pass_name(render_object_type: RenderObjectType) -> String {
     let render_pass_name = match render_object_type {
-        RenderObjectType::Static => "render_pass_static_opaque",
-        RenderObjectType::Skeletal => "render_pass_skeletal_opaque",
+        RenderObjectType::Static => "render_pass_static_shadow",
+        RenderObjectType::Skeletal => "render_pass_skeletal_shadow",
     };
     String::from(render_pass_name)
 }
+
 
 pub fn get_framebuffer_data_create_info(
     renderer_data: &RendererData,
     render_pass_name: &String,
     render_object_type: RenderObjectType
 ) -> FramebufferDataCreateInfo {
-    let texture_scene_albedo = renderer_data.get_render_target(RenderTargetType::SceneAlbedo);
-    let texture_scene_material = renderer_data.get_render_target(RenderTargetType::SceneMaterial);
-    let texture_scene_normal = renderer_data.get_render_target(RenderTargetType::SceneNormal);
-    let texture_scene_velocity = renderer_data.get_render_target(RenderTargetType::SceneVelocity);
-    let texture_scene_depth = renderer_data.get_render_target(RenderTargetType::SceneDepth);
-    let (width, height, depth) = (texture_scene_albedo._image_width, texture_scene_albedo._image_height, texture_scene_albedo._image_depth);
-    let image_views = vec![
-        texture_scene_albedo._image_view,
-        texture_scene_material._image_view,
-        texture_scene_normal._image_view,
-        texture_scene_velocity._image_view,
-        texture_scene_depth._image_view,
-    ];
-
+    let texture_shadow = renderer_data.get_render_target(RenderTargetType::Shadow);
+    let (width, height, depth) = (texture_shadow._image_width, texture_shadow._image_height, texture_shadow._image_depth);
+    let image_views = vec![texture_shadow._image_view];
     FramebufferDataCreateInfo {
         _framebuffer_name: render_pass_name.clone(),
         _framebuffer_width: width,
         _framebuffer_height: height,
         _framebuffer_depth: depth,
-        _framebuffer_sample_count: texture_scene_albedo._image_sample_count,
+        _framebuffer_sample_count: texture_shadow._image_sample_count,
         _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
         _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-        _framebuffer_color_attachment_formats: vec![
-            texture_scene_albedo._image_format,
-            texture_scene_material._image_format,
-            texture_scene_normal._image_format,
-            texture_scene_velocity._image_format,
-        ],
-        _framebuffer_depth_attachment_formats: vec![
-            texture_scene_depth._image_format,
-        ],
+        _framebuffer_depth_attachment_formats: vec![ texture_shadow._image_format ],
         _framebuffer_image_views: vec![image_views; constants::SWAPCHAIN_IMAGE_COUNT],
         _framebuffer_clear_values: match render_object_type {
             RenderObjectType::Static => vec![
-                vulkan_context::get_color_clear_zero(),
-                vulkan_context::get_color_clear_zero(),
-                vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0),
-                vulkan_context::get_color_clear_zero(),
                 vulkan_context::get_depth_stencil_clear_value(1.0, 0)
             ],
             RenderObjectType::Skeletal => Vec::new(),
@@ -102,21 +81,6 @@ pub fn get_render_pass_data_create_info(
         RenderObjectType::Static => (vk::AttachmentLoadOp::CLEAR, vk::ImageLayout::UNDEFINED),
         RenderObjectType::Skeletal => (vk::AttachmentLoadOp::LOAD, vk::ImageLayout::GENERAL),
     };
-    let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
-        color_attachment_descriptions.push({
-            ImageAttachmentDescription {
-                _attachment_image_format: *format,
-                _attachment_image_samples: sample_count,
-                _attachment_load_operation: attachment_load_operation,
-                _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                _attachment_initial_layout: attachment_initial_layout,
-                _attachment_final_layout: vk::ImageLayout::GENERAL,
-                _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                ..Default::default()
-            }
-        });
-    }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push({
@@ -156,8 +120,8 @@ pub fn get_render_pass_data_create_info(
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("render_object"),
             _pipeline_vertex_shader_file: PathBuf::from("render_object.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("render_object.frag"),
-            _pipeline_shader_defines: Vec::new(),
+            _pipeline_fragment_shader_file: PathBuf::from("shadowmap.frag"),
+            _pipeline_shader_defines: vec![format!("RenderMode={:?}", RenderMode::RenderModeShadow)],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
@@ -165,7 +129,7 @@ pub fn get_render_pass_data_create_info(
             _pipeline_front_face: vk::FrontFace::CLOCKWISE,
             _pipeline_viewport: framebuffer_data_create_info._framebuffer_view_port,
             _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _push_constant_size: match render_object_type {
                 RenderObjectType::Static => PushConstants_StaticRenderObject::get_push_constants_size(),
@@ -174,21 +138,21 @@ pub fn get_render_pass_data_create_info(
             _descriptor_data_create_info_list: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: format!("{:?}", UniformBufferType::SceneConstants),
+                    _descriptor_name: enum_to_string(&UniformBufferType::SceneConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: format!("{:?}", UniformBufferType::ViewConstants),
+                    _descriptor_name: enum_to_string(&UniformBufferType::ViewConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
-                    _descriptor_name: format!("{:?}", UniformBufferType::LightConstant),
+                    _descriptor_name: enum_to_string(&UniformBufferType::LightConstant),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
@@ -196,20 +160,6 @@ pub fn get_render_pass_data_create_info(
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
                     _descriptor_name: String::from("textureBase"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
-                    _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 4,
-                    _descriptor_name: String::from("textureMaterial"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
-                    _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 5,
-                    _descriptor_name: String::from("textureNormal"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
@@ -221,7 +171,7 @@ pub fn get_render_pass_data_create_info(
     RenderPassDataCreateInfo  {
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_frame_buffer_create_info: framebuffer_data_create_info,
-        _color_attachment_descriptions: color_attachment_descriptions,
+        _color_attachment_descriptions: Vec::new(),
         _depth_attachment_descriptions: depth_attachment_descriptions,
         _resolve_attachment_descriptions: Vec::new(),
         _subpass_dependencies: subpass_dependencies,
