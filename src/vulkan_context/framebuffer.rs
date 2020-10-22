@@ -27,7 +27,15 @@ pub struct FramebufferDataCreateInfo {
     pub _framebuffer_clear_values: Vec<vk::ClearValue>,
 }
 
-#[derive(Clone)]
+impl std::fmt::Debug for FramebufferDataCreateInfo {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FramebufferDataCreateInfo")
+            .field("_name", &self._framebuffer_name)
+            .finish()
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct FramebufferData {
     _framebuffer_info: FramebufferDataCreateInfo,
     _framebuffers: SwapchainIndexMap<vk::Framebuffer>,

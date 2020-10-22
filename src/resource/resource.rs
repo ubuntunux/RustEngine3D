@@ -1,7 +1,14 @@
 use std::rc::Rc;
 use std::cell::RefCell;
-use std::path::Path;
+use std::path::{ PathBuf };
 use std::collections::HashMap;
+
+use crate::vulkan_context::descriptor;
+use crate::vulkan_context::render_pass::RenderPassData;
+use crate::vulkan_context::texture::TextureData;
+use crate::renderer::{ model, MeshData, material_instance, material };
+use crate::application::SceneManagerData;
+use crate::vulkan_context::framebuffer::FramebufferData;
 
 const GATHER_ALL_FILES: bool = false;
 const MATERIAL_FILE_PATH: &str = "Resource/Materials";
@@ -26,28 +33,28 @@ const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, T>;
-// pub type FramebufferDataMap = ResourceDataMap<FramebufferData>
-// pub type MaterialDataMap = ResourceDataMap<material::MaterialData>
-// pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>
-// pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>
-// pub type MeshDataMap = ResourceDataMap<MeshData>
-// pub type ModelDataMap = ResourceDataMap<model::ModelData>
-// pub type TextureDataMap = ResourceDataMap<TextureData>
-// pub type RenderPassDataMap = ResourceDataMap<RenderPassData>
-// pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>
-//pub type MetaDataMap = ResourceDataMap<MetaData>;
+pub type FramebufferDataMap = ResourceDataMap<FramebufferData>;
+pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
+pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
+pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>;
+pub type MeshDataMap = ResourceDataMap<MeshData>;
+pub type ModelDataMap = ResourceDataMap<model::ModelData>;
+pub type TextureDataMap = ResourceDataMap<TextureData>;
+pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
+pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
+pub type MetaDataMap = ResourceDataMap<MetaData>;
 
 
 #[derive(Debug, Clone)]
-pub struct MetaData<'a> {
+pub struct MetaData {
     _is_engine_resource: bool,
     _meta_file_path: bool,
     _resource_data_type: ResourceData,
     _resource_version: i32,
-    _resource_file_path: &'a Path,
-    _resource_modify_time: &'a String,
-    _source_file_path: &'a Path,
-    _source_modify_time: &'a String,
+    _resource_file_path: PathBuf,
+    _resource_modify_time: String,
+    _source_file_path: PathBuf,
+    _source_modify_time: String,
     _source_changed: bool
 }
 
@@ -58,19 +65,28 @@ pub enum ResourceData {
 
 #[derive(Debug, Clone)]
 pub struct Resources {
-    // _meta_data_map: MetaDataMap,
-    // _mesh_data_map: MeshDataMap,
-    // _model_data_map: ModelDataMap,
-    // _texture_data_map: TextureDataMap,
-    // _framebuffer_data_map: FramebufferDataMap,
-    // _render_pass_data_map: RenderPassDataMap,
-    // _material_data_map: MaterialDataMap,
-    // _material_instance_data_map: MaterialInstanceDataMap,
-    // _descriptor_data_map: DescriptorDataMap
+    pub _meta_data_map: MetaDataMap,
+    pub _mesh_data_map: MeshDataMap,
+    pub _model_data_map: ModelDataMap,
+    pub _texture_data_map: TextureDataMap,
+    pub _framebuffer_data_map: FramebufferDataMap,
+    pub _render_pass_data_map: RenderPassDataMap,
+    pub _material_data_map: MaterialDataMap,
+    pub _material_instance_data_map: MaterialInstanceDataMap,
+    pub _descriptor_data_map: DescriptorDataMap
 }
 
 pub fn create_resources() -> Rc<RefCell<Resources>> {
     Rc::new(RefCell::new(Resources {
+        _meta_data_map: MetaDataMap::new(),
+        _mesh_data_map: MeshDataMap::new(),
+        _model_data_map: ModelDataMap::new(),
+        _texture_data_map: TextureDataMap::new(),
+        _framebuffer_data_map: FramebufferDataMap::new(),
+        _render_pass_data_map: RenderPassDataMap::new(),
+        _material_data_map: MaterialDataMap::new(),
+        _material_instance_data_map: MaterialInstanceDataMap::new(),
+        _descriptor_data_map: DescriptorDataMap::new()
     }))
 }
 
