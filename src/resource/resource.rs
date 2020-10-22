@@ -32,7 +32,7 @@ const DEFAULT_MATERIAL_NAME: &str = "render_pass_static_opaque";
 const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
-pub type ResourceDataMap<T> = HashMap<String, T>;
+pub type ResourceDataMap<T> = HashMap<String, Rc<RefCell<T>>>;
 pub type FramebufferDataMap = ResourceDataMap<FramebufferData>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
@@ -91,26 +91,26 @@ pub fn create_resources() -> Rc<RefCell<Resources>> {
 }
 
 impl Resources {
-    // getResourceData :: ResourceDataMap r -> Text.Text -> Text.Text -> IO r
-// getResourceData resourceDataMap resourceName defaultResourceName = do
-//     maybeData <- HashTable.lookup resourceDataMap resourceName
-//     case maybeData of
-//         Nothing -> getDefaultResourceData
-//         otherwise -> return (Maybe.fromJust maybeData)
-//     where
-//         getDefaultResourceData = Maybe.fromJust <$> HashTable.lookup resourceDataMap defaultResourceName
-//
-// getResourceNameFromFilePath :: FilePath -> FilePath -> Text.Text
+    pub fn get_resource_data<T>(resource_data_map: &ResourceDataMap<T>, resource_name: &String, default_resource_name: &String) -> Rc<RefCell<T>> {
+        let maybe_data = resource_data_map.get(resource_name);
+        let data = match maybe_data {
+            None => resource_data_map.get(default_resource_name).unwrap(),
+            _ => maybe_data.unwrap(),
+        };
+        data.clone()
+    }
+
+// getResourceNameFromFilePath :: FilePath -> FilePath -> String
 // getResourceNameFromFilePath resourcePath resourceFilePath = Text.pack $ drop (length resourcePath + 1) (dropExtension resourceFilePath)
 //
-// getUniqueResourceName :: ResourceDataMap r -> FilePath -> FilePath -> IO Text.Text
+// getUniqueResourceName :: ResourceDataMap r -> FilePath -> FilePath -> IO String
 // getUniqueResourceName resourceDataMap resourcePath resourceFilePath = do
 //     let resourceName = getResourceNameFromFilePath resourcePath resourceFilePath
 //     generateUniqueName resourceDataMap resourceName
 //
 // getResourceFileName :: FilePath -> FilePath -> String -> FilePath
 // getResourceFileName resourceFilePath resourceName resourceExt = joinPath [resourceFilePath, addExtension resourceName resourceExt]
-//
+
 // instance ResourceInterface Resources where
 //     initializeResources :: Resources -> RendererData -> IO ()
 //     initializeResources resources rendererData = do
@@ -196,7 +196,7 @@ impl Resources {
 //     unloadModelDatas resources rendererData = do
 //         clearHashTable (_modelDataMap resources) (\(k, v) -> Model.destroyModelData v)
 //
-//     getModelData :: Resources -> Text.Text -> IO Model.ModelData
+//     getModelData :: Resources -> String -> IO Model.ModelData
 //     getModelData resources resourceName = do
 //         getResourceData (_modelDataMap resources) resourceName defaultModelName
 //
@@ -258,7 +258,7 @@ impl Resources {
 //                     return geometryCreateInfos
 //             registMeshData (_meshDataMap resources) meshName geometryCreateInfos
 //         where
-//             registMeshData :: MeshDataMap -> Text.Text -> [GeometryBuffer.GeometryCreateInfo] -> IO ()
+//             registMeshData :: MeshDataMap -> String -> [GeometryBuffer.GeometryCreateInfo] -> IO ()
 //             registMeshData meshDataMap meshName geometryCreateInfos = do
 //                 geometryBufferDatas <- forM (zip ([0..]::[Int]) geometryCreateInfos) $ \(index, geometryCreateInfo) -> do
 //                     createGeometryBuffer rendererData (Text.append meshName (Text.pack $ show index)) geometryCreateInfo
@@ -275,7 +275,7 @@ impl Resources {
 //                     geometryData <- getGeometryData meshData index
 //                     destroyGeometryBuffer rendererData geometryData
 //
-//     getMeshData :: Resources -> Text.Text -> IO MeshData
+//     getMeshData :: Resources -> String -> IO MeshData
 //     getMeshData resources resourceName =
 //         getResourceData (_meshDataMap resources) resourceName defaultMeshName
 //
@@ -311,7 +311,7 @@ impl Resources {
 //                 textureData <- createTexture rendererData textureDataName textureCreateInfo
 //                 HashTable.insert (_textureDataMap resources) textureDataName textureData
 //         where
-//             getTextureDataName :: [FilePath] -> FilePath -> (Text.Text, [String])
+//             getTextureDataName :: [FilePath] -> FilePath -> (String, [String])
 //             getTextureDataName textureFiles textureFile =
 //                 let textureDataName = getResourceNameFromFilePath textureSourceFilePath textureFile
 //                     (textureFileName, _) = Text.breakOnEnd "_" (Text.pack textureFile)
@@ -351,7 +351,7 @@ impl Resources {
 //     unloadTextureDatas resources rendererData =
 //         clearHashTable (_textureDataMap resources) (\(k, v) -> destroyTexture rendererData v)
 //
-//     getTextureData :: Resources -> Text.Text -> IO TextureData
+//     getTextureData :: Resources -> String -> IO TextureData
 //     getTextureData resources resourceName =
 //         getResourceData (_textureDataMap resources) resourceName defaultTextureName
 //
@@ -363,7 +363,7 @@ impl Resources {
 //             frameBufferCreateInfoMap = Map.fromList frameBufferCreateInfoList
 //         HashTable.mapM_ (\(k, v) -> registFramebufferData frameBufferCreateInfoMap k) (_renderPassDataMap resources)
 //         where
-//             registFramebufferData :: Map.Map Text.Text FramebufferDataCreateInfo -> Text.Text -> IO ()
+//             registFramebufferData :: Map.Map String FramebufferDataCreateInfo -> String -> IO ()
 //             registFramebufferData frameBufferCreateInfoMap renderPassName = do
 //                 Just renderPassData <- getRenderPassData resources renderPassName
 //                 let frameBufferName = _renderPassFramebufferName (renderPassData::RenderPassData)
@@ -375,7 +375,7 @@ impl Resources {
 //     unloadFramebufferDatas resources rendererData =
 //         clearHashTable (_frameBufferDataMap resources) (\(k, v) -> destroyFramebufferData (getDevice rendererData) v)
 //
-//     getFramebufferData :: Resources -> Text.Text -> IO (Maybe FramebufferData)
+//     getFramebufferData :: Resources -> String -> IO (Maybe FramebufferData)
 //     getFramebufferData resources resourceName =
 //        HashTable.lookup (_frameBufferDataMap resources) resourceName
 //
@@ -395,7 +395,7 @@ impl Resources {
 //     unloadRenderPassDatas resources rendererData =
 //         clearHashTable (_renderPassDataMap resources) (\(k, v) -> destroyRenderPassData (getDevice rendererData) v)
 //
-//     getRenderPassData :: Resources -> Text.Text -> IO (Maybe RenderPassData)
+//     getRenderPassData :: Resources -> String -> IO (Maybe RenderPassData)
 //     getRenderPassData resources resourceName =
 //         HashTable.lookup (_renderPassDataMap resources) resourceName
 //
@@ -433,7 +433,7 @@ impl Resources {
 //     unloadMaterialDatas resources rendererData =
 //         clearHashTable (_materialDataMap resources) (\(k, v) -> Material.destroyMaterial v)
 //
-//     getMaterialData :: Resources -> Text.Text -> IO Material.MaterialData
+//     getMaterialData :: Resources -> String -> IO Material.MaterialData
 //     getMaterialData resources resourceName =
 //         getResourceData (_materialDataMap resources) resourceName defaultMaterialName
 //
@@ -491,12 +491,12 @@ impl Resources {
 //                 getMaterialInstanceData resources (MaterialInstance._materialInstanceDataName materialInstance)
 //             Model.setMaterialInstanceDataList modelData newMaterialInstances
 //
-//     getMaterialInstanceData :: Resources -> Text.Text -> IO MaterialInstance.MaterialInstanceData
+//     getMaterialInstanceData :: Resources -> String -> IO MaterialInstance.MaterialInstanceData
 //     getMaterialInstanceData resources resourceName =
 //         getResourceData (_materialInstanceDataMap resources) resourceName defaultMaterialInstanceName
 //
 //     -- DescriptorDatas
-//     getDescriptorData :: Resources -> RendererData -> Text.Text -> PipelineDataCreateInfo -> IO Descriptor.DescriptorData
+//     getDescriptorData :: Resources -> RendererData -> String -> PipelineDataCreateInfo -> IO Descriptor.DescriptorData
 //     getDescriptorData resources rendererData renderPassName pipelineDataCreateInfo = do
 //         let descriptorName = Text.append renderPassName (_pipelineDataCreateInfoName pipelineDataCreateInfo)
 //             descriptorDataCreateInfoList = _descriptorDataCreateInfoList (pipelineDataCreateInfo::PipelineDataCreateInfo)

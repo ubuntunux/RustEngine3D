@@ -114,24 +114,22 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     // main loop
     let mut render_scene = false;
     event_loop.run(move |event, __window_target, control_flow|{
-        let mut application_data = (*application_data).borrow_mut();
-        let mut renderer_data = (*renderer_data).borrow_mut();
-        application_data._time_data.update_time_data(&time_instance);
+        application_data.borrow_mut()._time_data.update_time_data(&time_instance);
 
         render_scene = false;
         match event {
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 *control_flow = ControlFlow::Exit;
-                renderer_data.destroy_renderer_data();
+                renderer_data.borrow_mut().destroy_renderer_data();
             },
             Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
                 if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                     *control_flow = ControlFlow::Exit;
-                    renderer_data.destroy_renderer_data();
+                    renderer_data.borrow_mut().destroy_renderer_data();
                 }
             },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                renderer_data.set_need_recreate_swapchain(true);
+                renderer_data.borrow_mut().set_need_recreate_swapchain(true);
             },
             Event::RedrawEventsCleared => {
                 render_scene = true;
@@ -139,13 +137,13 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             _ => { },
         }
 
-        if renderer_data.get_need_recreate_swapchain() {
-            renderer_data.recreate_swapchain();
-            renderer_data.set_need_recreate_swapchain(false);
+        if renderer_data.borrow().get_need_recreate_swapchain() {
+            renderer_data.borrow_mut().recreate_swapchain();
+            renderer_data.borrow_mut().set_need_recreate_swapchain(false);
         }
 
         if render_scene {
-            renderer_data.render_scene();
+            renderer_data.borrow().render_scene();
         }
     });
 }
