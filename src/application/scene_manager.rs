@@ -1,8 +1,9 @@
-use std::rc::Rc;
-use std::cell::RefCell;
-
 use crate::renderer;
 use crate::resource;
+use crate::utilities::system::{
+    self,
+    RcRefCell
+};
 
 // type CameraObjectMap = HashTable.BasicHashTable Text.Text Camera.CameraObjectData
 // type DirectionalLightObjectMap = HashTable.BasicHashTable Text.Text Light.DirectionalLightData
@@ -10,8 +11,8 @@ use crate::resource;
 
 #[derive(Clone)]
 pub struct SceneManagerData {
-    _renderer_data: Rc<RefCell<renderer::RendererData>>,
-    _resources: Rc<RefCell<resource::Resources>>,
+    _renderer_data: RcRefCell<renderer::RendererData>,
+    _resources: RcRefCell<resource::Resources>,
     _main_camera: bool, //Camera.CameraObjectData,
     _main_light: bool, //Light.DirectionalLightData,
     _camera_object_map: bool, //CameraObjectMap,
@@ -23,10 +24,10 @@ pub struct SceneManagerData {
 }
 
 pub fn create_scene_manager_data(
-    renderer_data: Rc<RefCell<renderer::RendererData>>,
-    resources: Rc<RefCell<resource::Resources>>
-) -> Rc<RefCell<SceneManagerData>> {
-    Rc::new(RefCell::new(SceneManagerData {
+    renderer_data: RcRefCell<renderer::RendererData>,
+    resources: RcRefCell<resource::Resources>
+) -> RcRefCell<SceneManagerData> {
+    system::newRcRefCell(SceneManagerData {
         _renderer_data: renderer_data,
         _resources: resources,
         _main_camera: false,
@@ -37,7 +38,7 @@ pub fn create_scene_manager_data(
         _static_render_elements: false,
         _skeletal_render_object_map: false,
         _skeletal_render_elements: false,
-    }))
+    })
 }
 
 impl SceneManagerData {

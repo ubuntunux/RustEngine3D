@@ -25,11 +25,18 @@ use crate::vulkan_context::shader::{
     create_shader_stage_create_info,
     destroy_shader_stage_create_info
 };
+use crate::utilities::system::{ RcRefCell, newRcRefCell };
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RenderPassPipelineDataName {
     pub _render_pass_data_name: String,
     pub _pipeline_data_name: String,
+}
+
+#[derive(Clone, Debug)]
+pub struct RenderPassPipelineData {
+    pub _render_pass_data: RcRefCell<RenderPassData>,
+    pub _pipieline_data: RcRefCell<PipelineData>,
 }
 
 #[derive(Clone)]
@@ -154,12 +161,38 @@ pub struct RenderPassData {
     pub _render_pass_data_name: String,
     pub _render_pass: vk::RenderPass,
     pub _render_pass_framebuffer_name: String,
-    pub _default_pipeline_data_name: String,
+    pub _default_pipeline_data: RcRefCell<PipelineData>,
     pub _pipeline_data_map: PipelineDataMap,
 }
 
-pub type PipelineDataMap = HashMap<String, PipelineData>;
-pub type RenderPassPipelineDataMap = HashMap<RenderPassPipelineDataName, (RenderPassData, PipelineData)>;
+pub type PipelineDataMap = HashMap<String, RcRefCell<PipelineData>>;
+pub type RenderPassPipelineDataMap = HashMap<RenderPassPipelineDataName, RenderPassPipelineData>;
+
+impl RenderPassData {
+    pub fn get_render_pass_data_name(&self) -> &String {
+        &self._render_pass_data_name
+    }
+
+    pub fn get_render_pass(&self) -> vk::RenderPass {
+        self._render_pass
+    }
+
+    pub fn get_render_pass_frame_buffer_name(&self) -> &String {
+        &self._render_pass_framebuffer_name
+    }
+
+    pub fn get_default_pipeline_data(&self) -> &RcRefCell<PipelineData> {
+        &self._default_pipeline_data
+    }
+
+    pub fn get_pipeline_data(&self, pipeline_data_name: &String) -> &RcRefCell<PipelineData> {
+        let maybe_pipeline_data = self._pipeline_data_map.get(pipeline_data_name);
+        match maybe_pipeline_data {
+            Some(pipeline_data) => pipeline_data,
+            None => self.get_default_pipeline_data(),
+        }
+    }
+}
 
 pub fn create_render_pass_data(
     device: &Device,
@@ -180,14 +213,15 @@ pub fn create_render_pass_data(
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }
-        pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), pipeline_data);
+        pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
     log::info!("CreateRenderPassData: {}", render_pass_data_create_info._render_pass_create_info_name);
+    let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
         _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
         _render_pass: render_pass,
         _render_pass_framebuffer_name: render_pass_data_create_info._render_pass_frame_buffer_create_info._framebuffer_name.clone(),
-        _default_pipeline_data_name: default_pipeline_data_name,
+        _default_pipeline_data: default_pipeline_data.clone(),
         _pipeline_data_map: pipeline_data_map,
     }
 }

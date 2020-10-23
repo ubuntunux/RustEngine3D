@@ -1,6 +1,4 @@
 use std::time;
-use std::rc::Rc;
-use std::cell::RefCell;
 use log;
 
 use winit::event::{
@@ -13,10 +11,14 @@ use winit::event_loop::{
     EventLoop
 };
 
-use crate::resource;
-use crate::renderer;
 use crate::application::scene_manager;
 use crate::application::input;
+use crate::resource;
+use crate::renderer;
+use crate::utilities::system::{ self, RcRefCell };
+use std::borrow::Borrow;
+use crate::renderer::RendererData;
+use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -76,9 +78,9 @@ pub struct ApplicationData {
     _keyboard_input_data: Box<input::KeyboardInputData>,
     _mouse_move_data: Box<input::MouseMoveData>,
     _mouse_input_data: Box<input::MouseInputData>,
-    _scene_manager_data: Rc<RefCell<scene_manager::SceneManagerData>>,
-    _renderer_data: Rc<RefCell<renderer::RendererData>>,
-    _resources: Rc<RefCell<resource::Resources>>
+    _scene_manager_data: RcRefCell<scene_manager::SceneManagerData>,
+    _renderer_data: RcRefCell<renderer::RendererData>,
+    _resources: RcRefCell<resource::Resources>
 }
 
 impl ApplicationData {
@@ -92,24 +94,28 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     let event_loop = EventLoop::new();
     let mouse_pos = (window_size.0/2, window_size.1/2);
     let resources = resource::create_resources();
-    let renderer_data = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone());
+    let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone());
     let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
     let keyboard_input_data = input::create_keyboard_input_data();
     let mouse_move_data = input::create_mouse_move_data(mouse_pos);
     let mouse_input_data = input::create_mouse_input_data();
-    let application_data = Rc::new(RefCell::new(ApplicationData {
-        _window: false,
-        _window_size_changed: false,
-        _window_size: window_size,
-        _time_data: create_time_data(elapsed_time),
-        _camera_move_speed: 1.0,
-        _keyboard_input_data: keyboard_input_data.clone(),
-        _mouse_move_data: mouse_move_data.clone(),
-        _mouse_input_data: mouse_input_data.clone(),
-        _scene_manager_data: scene_manager_data.clone(),
-        _renderer_data: renderer_data.clone(),
-        _resources: resources.clone(),
-    }));
+    let application_data = system::newRcRefCell(
+        ApplicationData {
+            _window: false,
+            _window_size_changed: false,
+            _window_size: window_size,
+            _time_data: create_time_data(elapsed_time),
+            _camera_move_speed: 1.0,
+            _keyboard_input_data: keyboard_input_data.clone(),
+            _mouse_move_data: mouse_move_data.clone(),
+            _mouse_input_data: mouse_input_data.clone(),
+            _scene_manager_data: scene_manager_data.clone(),
+            _renderer_data: renderer_data.clone(),
+            _resources: resources.clone(),
+        }
+    );
+
+    // resources.borrow_mut().initialize_resources(&renderer_data.borrow_mut());
 
     // main loop
     let mut render_scene = false;
@@ -137,13 +143,13 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             _ => { },
         }
 
-        if renderer_data.borrow().get_need_recreate_swapchain() {
+        if renderer_data.borrow_mut().get_need_recreate_swapchain() {
             renderer_data.borrow_mut().recreate_swapchain();
             renderer_data.borrow_mut().set_need_recreate_swapchain(false);
         }
 
         if render_scene {
-            renderer_data.borrow().render_scene();
+            renderer_data.borrow_mut().render_scene();
         }
     });
 }

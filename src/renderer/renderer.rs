@@ -1,7 +1,5 @@
 use std::borrow::Cow;
-use std::cell::RefCell;
 use std::ffi::CStr;
-use std::rc::Rc;
 use std::vec::Vec;
 use std::path::PathBuf;
 use ash::{
@@ -64,6 +62,10 @@ use crate::renderer::post_process::{
 };
 use crate::renderer::image_sampler::{
     ImageSamplerData
+};
+use crate::utilities::system::{
+    self,
+    RcRefCell,
 };
 
 // -- NOTE : sync with scene_constants.glsl
@@ -161,7 +163,7 @@ pub struct RendererData {
     pub _render_target_data_map: RenderTargetDataMap,
     pub _uniform_buffer_data_map: UniformBufferDataMap,
     pub _postprocess_ssao: PostProcessData_SSAO,
-    pub _resources: Rc<RefCell<resource::Resources>>
+    pub _resources: RcRefCell<resource::Resources>
 }
 
 pub fn create_renderer_data<T>(
@@ -169,8 +171,8 @@ pub fn create_renderer_data<T>(
     app_version: u32,
     (window_width, window_height): (u32, u32),
     event_loop: &EventLoop<T>,
-    resources: Rc<RefCell<resource::Resources>>
-) -> Rc<RefCell<RendererData>> {
+    resources: RcRefCell<resource::Resources>
+) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
         let window = WindowBuilder::new()
@@ -274,7 +276,7 @@ pub fn create_renderer_data<T>(
 
         renderer_data.initialize_renderer();
 
-        Rc::new(RefCell::new(renderer_data))
+        system::newRcRefCell(renderer_data)
     }
 }
 
@@ -389,6 +391,10 @@ impl RendererData {
             self.get_graphics_queue(),
             texture_create_info
         )
+    }
+
+    pub fn destroy_texture(&self, texture_data: &texture::TextureData) {
+        texture::destroy_texture_data(self.get_device(), texture_data);
     }
 
     pub fn get_render_target(&self, render_target_type: RenderTargetType) -> &texture::TextureData {
