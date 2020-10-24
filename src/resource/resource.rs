@@ -1,4 +1,4 @@
-use std::path::{ PathBuf };
+use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
 
 use crate::application::SceneManagerData;
@@ -21,20 +21,23 @@ use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 
 
 const GATHER_ALL_FILES: bool = false;
+const USE_JSON_FOR_MESH: bool = false;
+
 const MATERIAL_FILE_PATH: &str = "Resource/Materials";
 const MATERIAL_INSTANCE_FILE_PATH: &str = "Resource/MaterialInstances";
 const MESH_SOURCE_FILE_PATH: &str = "Resource/Externals/Meshes";
 const MESH_FILE_PATH: &str = "Resource/Meshes";
+const MODEL_FILE_PATH: &str = "Resource/Models";
+const TEXTURE_SOURCE_FILE_PATH: &str = "Resource/Externals/Textures";
+const TEXTURE_FILE_PATH: &str = "Resource/Textures";
+
 const EXT_OBJ: &str = "obj";
 const EXT_COLLADA: &str = "dae";
 const MESH_SOURCE_EXTS: [&str; 2] = [EXT_OBJ, EXT_COLLADA];
 const EXT_JSON: &str = "json";
 const EXT_MESH: &str = "mesh";
-const USE_JSON_FOR_MESH: bool = false;
-const MODEL_FILE_PATH: &str = "Resource/Models";
-const CUBE_TEXTURE_FACES: [&str; 6] = ["right", "left", "top", "bottom", "front", "back"];
-const TEXTURE_SOURCE_FILE_PATH: &str = "Resource/Externals/Textures";
-const TEXTURE_FILE_PATH: &str = "Resource/Textures";
+const EXT_MODEL: &str = "model";
+
 const DEFAULT_MESH_NAME: &str = "quad";
 const DEFAULT_MODEL_NAME: &str = "quad";
 const DEFAULT_TEXTURE_NAME: &str = "common/default";
@@ -190,24 +193,27 @@ impl Resources {
 
     // ModelData
     pub fn load_model_datas(&mut self, _renderer_data: &RendererData) {
-//         modelFiles <- walkDirectory modelPathBuf ["model"]
-//         forM_ modelFiles $ \modelFile -> do
-//             modelName <- getUniqueResourceName (_modelDataMap resources) modelPathBuf modelFile
-//             contents <- ByteString.readFile modelFile
-//             registModelData (_modelDataMap resources) modelName contents
-//         where
-//             registModelData modelDataMap modelName contents = do
-//                 let Just (Aeson.Object modelCreateInfoMap) = Aeson.decodeStrict contents
-//                     Just (Aeson.Array materialInstanceNames) = HashMap.lookup "material_instances" modelCreateInfoMap
-//                     materialInstanceCount = Vector.length materialInstanceNames
-//                     Just (Aeson.String meshName) = HashMap.lookup "mesh" modelCreateInfoMap
-//                 meshData <- getMeshData resources meshName
-//                 geometryDataCount <- getGeometryDataCount meshData
-//                 let materialInstanceNameList = (Vector.take geometryDataCount materialInstanceNames) Vector.++ (Vector.replicate (max 0 (geometryDataCount - materialInstanceCount)) (Aeson.String defaultMaterialInstanceName))
-//                 materialInstanceDatas <- forM (Vector.toList materialInstanceNameList) $ \(Aeson.String materialInstanceName) ->
-//                     getMaterialInstanceData resources materialInstanceName
-//                 modelData <- Model.newModelData modelName meshData materialInstanceDatas
-//                 HashTable.insert modelDataMap modelName modelData
+        let model_files: Vec<PathBuf> = system::walk_directory(Path::new(MODEL_FILE_PATH), &[EXT_MODEL]);
+        for model_file in model_files {
+
+        }
+        forM_ modelFiles $ \modelFile -> do
+            modelName <- getUniqueResourceName (_modelDataMap resources) modelPathBuf modelFile
+            contents <- ByteString.readFile modelFile
+            registModelData (_modelDataMap resources) modelName contents
+        where
+            registModelData modelDataMap modelName contents = do
+                let Just (Aeson.Object modelCreateInfoMap) = Aeson.decodeStrict contents
+                    Just (Aeson.Array materialInstanceNames) = HashMap.lookup "material_instances" modelCreateInfoMap
+                    materialInstanceCount = Vector.length materialInstanceNames
+                    Just (Aeson.String meshName) = HashMap.lookup "mesh" modelCreateInfoMap
+                meshData <- getMeshData resources meshName
+                geometryDataCount <- getGeometryDataCount meshData
+                let materialInstanceNameList = (Vector.take geometryDataCount materialInstanceNames) Vector.++ (Vector.replicate (max 0 (geometryDataCount - materialInstanceCount)) (Aeson.String defaultMaterialInstanceName))
+                materialInstanceDatas <- forM (Vector.toList materialInstanceNameList) $ \(Aeson.String materialInstanceName) ->
+                    getMaterialInstanceData resources materialInstanceName
+                modelData <- Model.newModelData modelName meshData materialInstanceDatas
+                HashTable.insert modelDataMap modelName modelData
     }
 
     pub fn unload_model_datas(&mut self, _renderer_data: &RendererData) {

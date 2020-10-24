@@ -19,6 +19,7 @@ pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D24_UNORM_S8_UINT,
     vk::Format::D16_UNORM_S8_UINT
 ];
+pub const CUBE_TEXTURE_FACES: [&str; 6] = ["right", "left", "top", "bottom", "front", "back"];
 pub const INVALID_QUEUE_INDEX: u32 = std::u32::MAX;
 pub const SWAPCHAIN_IMAGE_COUNT: usize = 3;
 pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2];
