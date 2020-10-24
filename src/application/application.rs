@@ -16,9 +16,7 @@ use crate::application::input;
 use crate::resource;
 use crate::renderer;
 use crate::utilities::system::{ self, RcRefCell };
-use std::borrow::Borrow;
 use crate::renderer::RendererData;
-use std::ops::Deref;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -115,7 +113,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         }
     );
 
-    // resources.borrow_mut().initialize_resources(&renderer_data.borrow_mut());
+    resources.borrow_mut().initialize_resources(&renderer_data.borrow_mut());
 
     // main loop
     let mut render_scene = false;
