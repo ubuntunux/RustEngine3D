@@ -112,7 +112,7 @@ pub fn create_shader_stage_create_info(
     shader_defines: &[String],
     stage_flag: vk::ShaderStageFlags
 ) -> vk::PipelineShaderStageCreateInfo {
-    log::info!("createShaderStageCreateInfo: {:?}: {:?}", stage_flag, shader_filename);
+    log::info!("create_shader_stage_create_info: {:?}: {:?}", stage_flag, shader_filename);
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
     let code_buffer = compile_glsl(shader_filename, shader_defines);
     let shader_module_create_info = vk::ShaderModuleCreateInfo {
@@ -133,7 +133,7 @@ pub fn create_shader_stage_create_info(
 }
 
 pub fn destroy_shader_stage_create_info(device: &Device, shader_stage_create_info: &vk::PipelineShaderStageCreateInfo) {
-    log::info!("destroyShaderStageCreateInfo : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
+    log::info!("destroy_shader_stage_create_info : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
     unsafe {
         device.destroy_shader_module(shader_stage_create_info.module, None);
     }

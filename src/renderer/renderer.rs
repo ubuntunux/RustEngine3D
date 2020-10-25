@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::vec::Vec;
-use std::path::PathBuf;
 use ash::{
     vk,
     Device,
@@ -31,7 +30,6 @@ use crate::vulkan_context::{
     device,
     geometry_buffer,
     queue,
-    shader,
     swapchain,
     sync,
     texture,
@@ -291,13 +289,6 @@ impl RendererData {
 
     pub fn recreate_swapchain(&self) {
         log::info!("recreate_swapchain");
-        let x = shader::create_shader_stage_create_info(
-            &self._device,
-            &PathBuf::from("default.vert"),
-            &[],
-            vk::ShaderStageFlags::VERTEX
-        );
-        &shader::destroy_shader_stage_create_info(&self._device, &x);
     }
 
     pub fn destroy_renderer_data(&mut self) {

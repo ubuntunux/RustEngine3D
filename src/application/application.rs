@@ -82,6 +82,10 @@ pub struct ApplicationData {
 }
 
 impl ApplicationData {
+    pub fn terminate_applicateion(&mut self) {
+        self._resources.borrow_mut().destroy_resources(&self._renderer_data.borrow_mut());
+        self._renderer_data.borrow_mut().destroy_renderer_data();
+    }
 }
 
 
@@ -116,7 +120,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     resources.borrow_mut().initialize_resources(&renderer_data.borrow_mut());
 
     // main loop
-    let mut render_scene = false;
+    let mut render_scene: bool = false;
     event_loop.run(move |event, __window_target, control_flow|{
         application_data.borrow_mut()._time_data.update_time_data(&time_instance);
 
@@ -124,12 +128,14 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         match event {
             Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                 *control_flow = ControlFlow::Exit;
-                renderer_data.borrow_mut().destroy_renderer_data();
+                application_data.borrow_mut().terminate_applicateion();
+                return;
             },
             Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
                 if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                     *control_flow = ControlFlow::Exit;
-                    renderer_data.borrow_mut().destroy_renderer_data();
+                    application_data.borrow_mut().terminate_applicateion();
+                    return;
                 }
             },
             Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {

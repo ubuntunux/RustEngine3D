@@ -720,7 +720,7 @@ pub fn create_render_target(
         _image_sample_count: texture_create_info._texture_samples,
         _descriptor_image_info: descriptor_image_info
     };
-    log::info!("createRenderTarget: {} {:?} {:?} {} {} {}",
+    log::info!("create_render_target: {} {:?} {:?} {} {} {}",
              texture_data_name,
              texture_create_info._texture_view_type,
              image_format,
@@ -891,7 +891,7 @@ pub fn create_texture_data(
         _descriptor_image_info: descriptor_image_info
     };
 
-    log::info!("createRenderTarget: {} {:?} {:?} {} {} {}",
+    log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
              texture_data_name,
              texture_create_info._texture_view_type,
              texture_create_info._texture_format,
@@ -905,7 +905,7 @@ pub fn create_texture_data(
 
 pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
     unsafe {
-        log::info!("destroyTextureData({}): image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}",
+        log::info!("destroy_texture_data({}): image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}",
             texture_data._texture_data_name,
             texture_data._image,
             texture_data._image_view,

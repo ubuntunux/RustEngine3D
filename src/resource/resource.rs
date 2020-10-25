@@ -20,7 +20,7 @@ use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 use std::io::Read;
-use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, GeometryData};
+use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
 
 
 const GATHER_ALL_FILES: bool = false;
@@ -235,23 +235,25 @@ impl Resources {
     }
 
     // Mesh Loader
-    pub fn regist_mesh_data(mesh_data_map: &mut MeshDataMap, mesh_name: &String, geometry_create_infos: &Vec<GeometryCreateInfo>) {
-        let mut geometry_datas: Vec<GeometryData>;
+    pub fn regist_mesh_data(
+        &mut self,
+        renderer_data: &RendererData,
+        mesh_name: &String,
+        geometry_create_infos: &Vec<GeometryCreateInfo>,
+    ) {
+        let mut geometry_datas: Vec<GeometryData> = Vec::new();
         for (i, geometry_create_info) in geometry_create_infos.iter().enumerate() {
-            let geometry_data = ge
+            let geomtery_name: String = format!("{}_{}", mesh_name, i);
+            let geometry_data = renderer_data.create_geometry_buffer(&geomtery_name, geometry_create_info);
+            geometry_datas.push(geometry_data);
         }
-            geometryBuffer_datas <- forM (zip ([0..]::[Int]) geometryCreateInfos) $ \(index, geometryCreateInfo) -> do
-                createGeometryBuffer rendererData (Text.append meshName (Text.pack $ show index)) geometryCreateInfo
-            meshData <- newMeshData meshName geometryBuffer_datas
-            HashTable.insert (_meshDataMap resources) meshName meshData
+        let mesh_data = MeshData::new_mesh_data(&mesh_name, geometry_datas);
+        self._mesh_data_map.insert(mesh_name.clone(), newRcRefCell(mesh_data));
     }
 
-    pub fn load_mesh_datas(&mut self, _renderer_data: &RendererData) {
-
-
-        // registMeshData (_meshDataMap resources) "quad" GeometryBuffer.quadGeometryCreateInfos
-        // registMeshData (_meshDataMap resources) "cube" GeometryBuffer.cubeGeometryCreateInfos
-        //
+    pub fn load_mesh_datas(&mut self, renderer_data: &RendererData) {
+        self.regist_mesh_data(renderer_data, &String::from("quad"), &geometry_buffer::quad_geometry_create_infos());
+        self.regist_mesh_data(renderer_data, &String::from("cube"), &geometry_buffer::cube_geometry_create_infos());
         // let resourceExt = if useJsonForMesh then jsonExt else meshExt
         // meshFiles <- walkDirectory meshPathBuf [resourceExt]
         // let meshFileMap = Map.fromList $ map (\meshFile -> (getResourceNameFromPathBuf meshPathBuf meshFile, meshFile)) meshFiles
