@@ -3,10 +3,10 @@ use nalgebra::{ Vector3 };
 
 #[derive(Debug, Clone)]
 pub struct BoundingBox {
-    _min: Vector3<f32>,
-    _max: Vector3<f32>,
-    _center: Vector3<f32>,
-    _radius: f32
+    pub _min: Vector3<f32>,
+    pub _max: Vector3<f32>,
+    pub _center: Vector3<f32>,
+    pub _radius: f32
 }
 
 impl Default for BoundingBox {

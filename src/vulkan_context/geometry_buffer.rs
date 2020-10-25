@@ -25,27 +25,27 @@ use crate::utilities::bounding_box::{
 
 #[derive(Debug, Clone, Copy)]
 pub struct VertexData {
-    _position: Vector3<f32>,
-    _normal: Vector3<f32>,
-    _tangent: Vector3<f32>,
-    _color: u32,
-    _texcoord: Vector2<f32>
+    pub _position: Vector3<f32>,
+    pub _normal: Vector3<f32>,
+    pub _tangent: Vector3<f32>,
+    pub _color: u32,
+    pub _texcoord: Vector2<f32>
 }
 
 #[derive(Debug, Clone)]
 pub struct GeometryCreateInfo {
-    _vertex_datas: Vec<VertexData>,
-    _indices: Vec<u32>,
-    _bounding_box: BoundingBox
+    pub _vertex_datas: Vec<VertexData>,
+    pub _indices: Vec<u32>,
+    pub _bounding_box: BoundingBox
 }
 
 #[derive(Debug, Clone)]
 pub struct GeometryData {
-    _geometry_name: String,
-    _vertex_buffer_data: buffer::BufferData,
-    _index_buffer_data: buffer::BufferData,
-    _vertex_index_count: u32,
-    _geometry_bounding_box: BoundingBox
+    pub _geometry_name: String,
+    pub _vertex_buffer_data: buffer::BufferData,
+    pub _index_buffer_data: buffer::BufferData,
+    pub _vertex_index_count: u32,
+    pub _geometry_bounding_box: BoundingBox
 }
 
 pub fn add_vertex_input_attribute_description(

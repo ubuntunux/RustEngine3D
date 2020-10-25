@@ -1,14 +1,20 @@
 use std::fs::{ self, File };
+use std::io::prelude::*;
 use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
 
+    use serde_json;
+
 use crate::application::SceneManagerData;
+use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::renderer::mesh::{ MeshData };
 use crate::renderer::model::{ self, ModelData };
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
 use crate::vulkan_context::descriptor::{ self, DescriptorData };
+use crate::vulkan_context::framebuffer::{ self, FramebufferData };
+use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
 use crate::vulkan_context::render_pass::{
     self,
     PipelineDataCreateInfo,
@@ -17,12 +23,8 @@ use crate::vulkan_context::render_pass::{
     RenderPassPipelineData,
 };
 use crate::vulkan_context::texture::TextureData;
-use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
-use std::io::Read;
-use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
-use ash::extensions::nv::MeshShader;
-
+use cgmath::num_traits::AsPrimitive;
 
 const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;
@@ -201,9 +203,11 @@ impl Resources {
         let model_files: Vec<PathBuf> = system::walk_directory(&model_file_path, &[EXT_MODEL]);
         for model_file in model_files {
             let mode_name = get_unique_resource_name(&self._model_data_map, &model_file_path, &model_file);
-            let mut file = File::open(&model_file).unwrap();
-            let mut contents = String::new();
-            file.read_to_string(&mut contents).expect("failed to read.");
+            let contents = fs::read_to_string(model_file).expect("Something went wrong reading the file");
+            // let mut lines = contents.lines();
+            // let line = lines.next();
+            // while None != line {
+            // }
         }
         // forM_ modelFiles $ \modelFile -> do
         //     modelName <- getUniqueResourceName (_modelDataMap resources) modelPathBuf modelFile
@@ -291,7 +295,7 @@ impl Resources {
                 None => {
                     // Convert to mesh from source
                     let geometry_create_infos = match src_file_ext.as_str() {
-                        EXT_OBJ => vec![], // ObjLoader.loadMesh meshSourceFile,
+                        EXT_OBJ => WaveFrontOBJ::get_geometry_datas(&mesh_source_file),
                         EXT_COLLADA => vec![], // ColladaLoader.loadCollada meshSourceFile
                         _ => panic!("error")
                     };
@@ -305,6 +309,15 @@ impl Resources {
                     if USE_JSON_FOR_MESH {
                         // Aeson.encodeFile (getResourceFileName meshPathBuf mesh_name resourceExt) geometryCreateInfos
                     } else {
+                        let mut file = File::create(mesh_file_path).expect("Failed to create file");
+                        for geometry_create_info in geometry_create_infos.iter() {
+                            // serialize matrix
+                            let serialized_matrix = serde_json::to_string(&geometry_create_info._vertex_datas[0]._position).expect("");
+                            // deserialize matrix
+                            // let deserialized_matrix: DMatrix<i32> = serde_json::from_str(&serialized_matrix)?;
+
+                            file.write(serialized_matrix.as_bytes()).expect("Failed to write_all");
+                        }
                         // contents <- forM geometryCreateInfos $ \geometryCreateInfo -> do
                         //     let vertex_datas = SVector.toList (SVector.unsafeCast (GeometryBuffer._geometryCreateInfoVertices geometryCreateInfo)::SVector.Vector Word8)
                         //         index_datas = SVector.toList (SVector.unsafeCast (GeometryBuffer._geometryCreateInfoIndices geometryCreateInfo)::SVector.Vector Word8)
