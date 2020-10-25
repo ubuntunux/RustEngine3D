@@ -1,5 +1,5 @@
-use std::fs::File;
-use std::path::PathBuf;
+use std::fs::{ self, File };
+use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
 
 use crate::application::SceneManagerData;
@@ -21,6 +21,7 @@ use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 use std::io::Read;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
+use ash::extensions::nv::MeshShader;
 
 
 const GATHER_ALL_FILES: bool = false;
@@ -28,7 +29,7 @@ const USE_JSON_FOR_MESH: bool = false;
 
 const MATERIAL_FILE_PATH: &str = "resource/materials";
 const MATERIAL_INSTANCE_FILE_PATH: &str = "resource/material_instances";
-const MESH_SOURCE_FILE_PATH: &str = "resource/rxternals/meshes";
+const MESH_SOURCE_FILE_PATH: &str = "resource/externals/meshes";
 const MESH_FILE_PATH: &str = "resource/meshes";
 const MODEL_FILE_PATH: &str = "resource/models";
 const TEXTURE_SOURCE_FILE_PATH: &str = "resource/externals/textures";
@@ -254,57 +255,72 @@ impl Resources {
     pub fn load_mesh_datas(&mut self, renderer_data: &RendererData) {
         self.regist_mesh_data(renderer_data, &String::from("quad"), &geometry_buffer::quad_geometry_create_infos());
         self.regist_mesh_data(renderer_data, &String::from("cube"), &geometry_buffer::cube_geometry_create_infos());
-        // let resourceExt = if useJsonForMesh then jsonExt else meshExt
-        // meshFiles <- walkDirectory meshPathBuf [resourceExt]
-        // let meshFileMap = Map.fromList $ map (\meshFile -> (getResourceNameFromPathBuf meshPathBuf meshFile, meshFile)) meshFiles
-        // meshSourceFiles <- walkDirectory meshSourcePathBuf meshSourceExts
-        // forM_ meshSourceFiles $ \meshSourceFile -> do
-        //     meshName <- getUniqueResourceName (_meshDataMap resources) meshSourcePathBuf meshSourceFile
-        //     let resourceName = Text.unpack meshName
-        //         file_ext = map Char.toLower (takeExtension meshSourceFile)
-        //     geometryCreateInfos <- case Map.lookup meshName meshFileMap of
-        //         Just meshFile ->
-        //             -- Load mesh
-        //             if useJsonForMesh then
-        //                 Maybe.fromJust <$> (Aeson.decodeFileStrict meshFile)
-        //             else do
-        //                 contents <- Binary.decodeFile meshFile::IO [([Word8], [Word8], [Word8])]
-        //                 forM contents $ \(vertex_datas, index_datas, boundingBoxData) -> do
-        //                     boundingBox <- alloca $ \ptr -> do
-        //                         pokeArray ptr boundingBoxData
-        //                         peek (castPtr ptr::Ptr BoundingBox)
-        //                     return GeometryBuffer.GeometryCreateInfo
-        //                         { GeometryBuffer._geometryCreateInfoVertices = (SVector.unsafeCast (SVector.fromList vertex_datas)::SVector.Vector GeometryBuffer.VertexData)
-        //                         , GeometryBuffer._geometryCreateInfoIndices = (SVector.unsafeCast (SVector.fromList index_datas)::SVector.Vector Word32)
-        //                         , GeometryBuffer._geometryCreateInfoBoundingBox = boundingBox
-        //                         }
-        //         otherwise -> do
-        //             -- Convert to mesh from source
-        //             geometryCreateInfos <-
-        //                 if ext_obj == file_ext then
-        //                     ObjLoader.loadMesh meshSourceFile
-        //                 else if ext_collada == file_ext then do
-        //                     ColladaLoader.loadCollada meshSourceFile
-        //                     error "error"
-        //                 else
-        //                     return []
-        //             -- Save mesh
-        //             createDirectoryIfMissing True (takeDirectory $ combine meshPathBuf resourceName)
-        //             if useJsonForMesh then
-        //                 Aeson.encodeFile (getResourceFileName meshPathBuf resourceName resourceExt) geometryCreateInfos
-        //             else do
-        //                 contents <- forM geometryCreateInfos $ \geometryCreateInfo -> do
-        //                     let vertex_datas = SVector.toList (SVector.unsafeCast (GeometryBuffer._geometryCreateInfoVertices geometryCreateInfo)::SVector.Vector Word8)
-        //                         index_datas = SVector.toList (SVector.unsafeCast (GeometryBuffer._geometryCreateInfoIndices geometryCreateInfo)::SVector.Vector Word8)
-        //                         boundingBox = GeometryBuffer._geometryCreateInfoBoundingBox geometryCreateInfo
-        //                     boundingBoxData <- alloca $ \ptr -> do
-        //                         poke ptr (GeometryBuffer._geometryCreateInfoBoundingBox geometryCreateInfo)
-        //                         let count = sizeOf (undefined::BoundingBox) `div` sizeOf (undefined::Word8)
-        //                         peekArray count (castPtr ptr::Ptr Word8)
-        //                     return ((vertex_datas, index_datas, boundingBoxData)::([Word8], [Word8], [Word8]))
-        //                 Binary.encodeFile (getResourceFileName meshPathBuf resourceName resourceExt) contents
-        //             return geometryCreateInfos
-        //     registMeshData (_meshDataMap resources) meshName geometryCreateInfos
+        let mesh_directory = PathBuf::from(MESH_FILE_PATH);
+        let mesh_source_directory = PathBuf::from(MESH_SOURCE_FILE_PATH);
+        let resource_ext = if USE_JSON_FOR_MESH { EXT_JSON } else { EXT_MESH };
+        let mesh_files = system::walk_directory(mesh_source_directory.as_path(), &[resource_ext]);
+        let mut mesh_file_map: HashMap<String, PathBuf> = HashMap::new();
+        for mesh_file in mesh_files {
+            let mesh_name = get_resource_name_from_file_path(&mesh_source_directory, &mesh_file);
+            mesh_file_map.insert(mesh_name, mesh_file);
+        }
+        let mesh_source_files = system::walk_directory(mesh_source_directory.as_path(), &MESH_SOURCE_EXTS);
+        for mesh_source_file in mesh_source_files {
+            let mesh_name = get_unique_resource_name(&self._mesh_data_map, &mesh_source_directory, &mesh_source_file);
+            let src_file_ext: String = String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
+            let geometry_create_infos = match mesh_file_map.get(&mesh_name) {
+                Some(mesh_file) => {
+                    // Load mesh
+                    if USE_JSON_FOR_MESH {
+                        // Maybe.fromJust < $ > (Aeson.decodeFileStrict meshFile)
+                    } else {
+                        // contents <- Binary.decodeFile meshFile::IO [([Word8], [Word8], [Word8])]
+                        // forM contents $ \(vertex_datas, index_datas, boundingBoxData) -> do
+                        //     boundingBox <- alloca $ \ptr -> do
+                        //         pokeArray ptr boundingBoxData
+                        //         peek (castPtr ptr::Ptr BoundingBox)
+                        //     return GeometryBuffer.GeometryCreateInfo
+                        //         { GeometryBuffer._geometryCreateInfoVertices = (SVector.unsafeCast (SVector.fromList vertex_datas)::SVector.Vector GeometryBuffer.VertexData)
+                        //         , GeometryBuffer._geometryCreateInfoIndices = (SVector.unsafeCast (SVector.fromList index_datas)::SVector.Vector Word32)
+                        //         , GeometryBuffer._geometryCreateInfoBoundingBox = boundingBox
+                        //         }
+                        // }
+                    }
+                    vec![]
+                },
+                None => {
+                    // Convert to mesh from source
+                    let geometry_create_infos = match src_file_ext.as_str() {
+                        EXT_OBJ => vec![], // ObjLoader.loadMesh meshSourceFile,
+                        EXT_COLLADA => vec![], // ColladaLoader.loadCollada meshSourceFile
+                        _ => panic!("error")
+                    };
+
+                    // Save mesh
+                    let mut mesh_file_path: PathBuf = mesh_directory.clone();
+                    mesh_file_path.push(&mesh_name);
+                    mesh_file_path.set_extension(resource_ext);
+                    fs::create_dir_all(mesh_file_path.parent().unwrap()).expect("Failed to create directories.");
+
+                    if USE_JSON_FOR_MESH {
+                        // Aeson.encodeFile (getResourceFileName meshPathBuf mesh_name resourceExt) geometryCreateInfos
+                    } else {
+                        // contents <- forM geometryCreateInfos $ \geometryCreateInfo -> do
+                        //     let vertex_datas = SVector.toList (SVector.unsafeCast (GeometryBuffer._geometryCreateInfoVertices geometryCreateInfo)::SVector.Vector Word8)
+                        //         index_datas = SVector.toList (SVector.unsafeCast (GeometryBuffer._geometryCreateInfoIndices geometryCreateInfo)::SVector.Vector Word8)
+                        //         boundingBox = GeometryBuffer._geometryCreateInfoBoundingBox geometryCreateInfo
+                        //     boundingBoxData <- alloca $ \ptr -> do
+                        //         poke ptr (GeometryBuffer._geometryCreateInfoBoundingBox geometryCreateInfo)
+                        //         let count = sizeOf (undefined::BoundingBox) `div` sizeOf (undefined::Word8)
+                        //         peekArray count (castPtr ptr::Ptr Word8)
+                        //     return ((vertex_datas, index_datas, boundingBoxData)::([Word8], [Word8], [Word8]))
+                        // Binary.encodeFile (getResourceFileName meshPathBuf mesh_name resourceExt) contents
+                    }
+                    geometry_create_infos
+                },
+            };
+            self.regist_mesh_data(renderer_data, &mesh_name, &geometry_create_infos);
+        }
     }
 
     pub fn unload_mesh_datas(&mut self, renderer_data: &RendererData) {
