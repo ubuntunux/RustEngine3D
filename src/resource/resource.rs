@@ -50,6 +50,7 @@ const EXT_JSON: &str = "json";
 const EXT_MESH: &str = "mesh";
 const EXT_MODEL: &str = "model";
 const IMAGE_SOURCE_EXTS: [&str; 4] = ["jpg", "png", "tga", "bmp"];
+const EXT_TEXTURE: &str = "texture";
 
 const DEFAULT_MESH_NAME: &str = "quad";
 const DEFAULT_MODEL_NAME: &str = "quad";
@@ -402,13 +403,13 @@ impl Resources {
         //
 
         // load texture from files
-        //let texture_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
+        //let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
-        let texture_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
-        for texture_file in texture_files.iter() {
+        let texture_src_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
+        for texture_src_file in texture_src_files.iter() {
             let (texture_data_name, cube_texture_files) = Resources::get_texture_data_name(
                 &texture_source_directory,
-                &texture_file
+                &texture_src_file
             );
             let is_cube_texture: bool = false == cube_texture_files.is_empty();
             let existing_resource_data: Option<&RcRefCell<TextureData>> = self._texture_data_map.get(&texture_data_name);
@@ -417,9 +418,13 @@ impl Resources {
                     if is_cube_texture {
                         Resources::load_image_datas(&cube_texture_files)
                     } else {
-                        Resources::load_image_data(texture_file)
+                        Resources::load_image_data(texture_src_file)
                     };
-                let image_view_type: vk::ImageViewType = if is_cube_texture { vk::ImageViewType::CUBE } else { vk::ImageViewType::TYPE_2D };
+                let image_view_type: vk::ImageViewType = if is_cube_texture {
+                    vk::ImageViewType::CUBE
+                } else {
+                    vk::ImageViewType::TYPE_2D
+                };
                 if vk::Format::UNDEFINED != image_format {
                     let texture_create_info = TextureCreateInfo {
                         _texture_width: image_width,
