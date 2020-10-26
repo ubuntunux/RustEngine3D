@@ -13,6 +13,7 @@ pub struct MeshData {
 
 impl MeshData {
     pub fn new_mesh_data(mesh_name: &String, geometry_buffer_datas: Vec<GeometryData>) -> MeshData {
+        log::info!("new_mesh_data: {}", mesh_name);
         MeshData {
             _name: mesh_name.clone(),
             _bound_box: false,

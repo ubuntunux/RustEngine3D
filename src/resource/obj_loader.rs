@@ -52,11 +52,9 @@ impl WaveFrontOBJ {
             let mut pre_fix: &str = "";
 
             let contents = fs::read_to_string(filename).expect("Failed to read to string.");
-            let mut lines = contents.lines();
-            let line = lines.next();
-            while None != line {
+            let lines = contents.lines();
+            for content in lines {
                 // is comment?
-                let content: &str = line.unwrap();
                 if content.is_empty() || content.starts_with("#") {
                     continue;
                 }
@@ -248,11 +246,7 @@ impl WaveFrontOBJ {
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = WaveFrontOBJ::initialize(filename);
-        println!("parse");
         obj.parse(filename, 1.0, false);
-        println!("generate_geometry_datas");
-        let x = obj.generate_geometry_datas();
-        println!("end");
-        x
+        obj.generate_geometry_datas()
     }
 }

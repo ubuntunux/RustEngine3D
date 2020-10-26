@@ -1,6 +1,8 @@
 use std::mem;
 use std::collections::HashMap;
 
+use serde::{ Serialize, Deserialize };
+
 use ash::{
     vk,
     Device,
@@ -23,7 +25,7 @@ use crate::utilities::bounding_box::{
 };
 
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct VertexData {
     pub _position: Vector3<f32>,
     pub _normal: Vector3<f32>,
@@ -32,7 +34,7 @@ pub struct VertexData {
     pub _texcoord: Vector2<f32>
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GeometryCreateInfo {
     pub _vertex_datas: Vec<VertexData>,
     pub _indices: Vec<u32>,
@@ -116,7 +118,7 @@ pub fn create_geometry_data(
     geometry_name: &String,
     geometry_create_info: &GeometryCreateInfo
 ) -> GeometryData {
-    log::info!("createGeometryBuffer: {:?}", geometry_name);
+    log::debug!("createGeometryBuffer: {:?}", geometry_name);
     let vertex_buffer_data = buffer::create_buffer_data_with_uploads(
         device,
         command_pool,
@@ -143,7 +145,7 @@ pub fn create_geometry_data(
 }
 
 pub fn destroy_geometry_data(device: &Device, geometry_data: &GeometryData) {
-    log::info!("destroyGeometryData");
+    log::debug!("destroyGeometryData");
     buffer::destroy_buffer_data(device, &geometry_data._vertex_buffer_data);
     buffer::destroy_buffer_data(device, &geometry_data._index_buffer_data);
 }

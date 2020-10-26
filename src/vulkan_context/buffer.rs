@@ -54,7 +54,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     let buffer_size = (mem::size_of::<T>() * upload_datas.len()) as vk::DeviceSize;
     let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_DST;
     let buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
-    log::info!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
+    log::debug!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
 
     // create temporary staging buffer
     let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
@@ -116,10 +116,10 @@ pub fn create_buffer_data(
         let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-        log::info!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
-        log::info!("        buffer_size: {:?}", buffer_size);
-        log::info!("        memory_type_index: {:?}", memory_type_index);
-        log::info!("        memory_requirements: {:?}", buffer_memory_requirements);
+        log::debug!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
+        log::debug!("        buffer_size: {:?}", buffer_size);
+        log::debug!("        memory_type_index: {:?}", memory_type_index);
+        log::debug!("        memory_requirements: {:?}", buffer_memory_requirements);
 
         BufferData {
             _buffer: buffer,
@@ -131,7 +131,7 @@ pub fn create_buffer_data(
 
 pub fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
     unsafe {
-        log::info!("    Destroy Buffer : buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
+        log::debug!("    Destroy Buffer : buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
         device.destroy_buffer(buffer_data._buffer, None);
         device.free_memory(buffer_data._buffer_memory, None);
     }
@@ -170,7 +170,7 @@ pub fn copy_buffer_region(
     dst_buffer: vk::Buffer,
     regions: &[vk::BufferCopy]
 ) {
-    log::info!("    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})", src_buffer, dst_buffer, regions);
+    log::debug!("    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})", src_buffer, dst_buffer, regions);
     unsafe {
         device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, regions);
     }

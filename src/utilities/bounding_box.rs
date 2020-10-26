@@ -1,7 +1,8 @@
+use serde::{ Serialize, Deserialize };
 use nalgebra;
 use nalgebra::{ Vector3 };
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct BoundingBox {
     pub _min: Vector3<f32>,
     pub _max: Vector3<f32>,
