@@ -447,9 +447,9 @@ pub fn create_image_view(
         .subresource_range(vk::ImageSubresourceRange {
             aspect_mask: aspect_flags,
             base_mip_level: 0,
-            level_count: layer_count,
+            level_count: mip_levels,
             base_array_layer: 0,
-            layer_count: mip_levels,
+            layer_count,
         })
         .build();
     unsafe {
