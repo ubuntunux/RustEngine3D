@@ -142,8 +142,8 @@ pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, u
         let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, buffer_data._buffer_memory_requirements.size, vk::MemoryMapFlags::empty()).unwrap();
         let mut slice = Align::new(
             buffer_ptr,
-            buffer_data._buffer_memory_requirements.alignment,
-            buffer_data._buffer_memory_requirements.size,
+            std::mem::align_of::<T>() as u64,
+            std::mem::size_of::<T>()  as u64 * upload_data.len()  as u64,
         );
         slice.copy_from_slice(upload_data);
         device.unmap_memory(buffer_data._buffer_memory);
@@ -155,7 +155,7 @@ pub fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &Buffer
         let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, data_size, vk::MemoryMapFlags::empty()).unwrap();
         let mut slice = Align::new(
             buffer_ptr,
-            buffer_data._buffer_memory_requirements.alignment,
+            std::mem::align_of::<T>() as u64,
             data_size,
         );
         slice.copy_from_slice(upload_data);
