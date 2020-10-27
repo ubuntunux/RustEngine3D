@@ -400,10 +400,10 @@ impl Resources {
         //let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
 
-        // let texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_data);
-        // for texture_data in texture_datas {
-        //     self._texture_data_map.insert(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
-        // }
+        let texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_data);
+        for texture_data in texture_datas {
+            self._texture_data_map.insert(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
+        }
 
         // generate necessary texture datas
         texture_generator::generate_images(&texture_source_directory);

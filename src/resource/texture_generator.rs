@@ -39,7 +39,7 @@ pub fn generate_3d_data(size: u32) -> Vec<u32> {
     for z in 0..size {
         for y in 0..size {
             for x in 0..size {
-                let index = (x + y * size + z * size * size) * 4;
+                let index = (x + y * size + z * size * size);
                 data[index as usize] = vulkan_context::get_color32(
                     min(255, (x as f32 * value) as u32),
                     min(255, (y as f32 * value) as u32),
@@ -162,6 +162,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
         _texture_initial_datas: vec![ white, black, red, green, blue, yellow ],
         ..Default::default()
     });
+
     vec![
         texture_default_3d,
         texture_default_2d_array,
