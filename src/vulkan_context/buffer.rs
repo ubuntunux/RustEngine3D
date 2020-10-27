@@ -143,7 +143,7 @@ pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, u
         let mut slice = Align::new(
             buffer_ptr,
             std::mem::align_of::<T>() as u64,
-            std::mem::size_of::<T>()  as u64 * upload_data.len()  as u64,
+            std::mem::size_of::<T>() as u64 * upload_data.len() as u64,
         );
         slice.copy_from_slice(upload_data);
         device.unmap_memory(buffer_data._buffer_memory);
