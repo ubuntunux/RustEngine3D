@@ -1,131 +1,173 @@
-{-# LANGUAGE OverloadedStrings  #-}
-{-# LANGUAGE RecordWildCards    #-}
-{-# LANGUAGE OverloadedStrings  #-}
+use std::cmp::min;
+use std::fs;
+use std::path::PathBuf;
 
-module HulkanEngine3D.Resource.TextureGenerator where
+use ash::vk;
+use image;
+use nalgebra::{
+    Vector3,
+    Vector4,
+};
+use rand;
 
-import Control.Monad
-import Control.Monad.ST
-import qualified Data.Vector.Storable as SVector
-import qualified Data.Text as Text ()
-import System.Directory
-import System.FilePath.Posix
-import System.Random
+use crate::constants;
+use crate::renderer::renderer::RendererData;
+use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
+use crate::vulkan_context::vulkan_context;
 
-import Graphics.Vulkan.Core_1_0
-import qualified Codec.Picture as Image
-import qualified Codec.Picture.Types as Image
-
-import qualified HulkanEngine3D.Render.Renderer as Renderer
-import qualified HulkanEngine3D.Render.PostProcess as PostProcess
-import qualified HulkanEngine3D.Vulkan.Texture as Texture
-import qualified HulkanEngine3D.Vulkan.Vulkan as Vulkan
-import qualified HulkanEngine3D.Utilities.Vector as Vector
-
-
-generateFlatColorImageRGBA8 :: Int -> Int -> (Word8, Word8, Word8, Word8) -> Image.Image Image.PixelRGBA8
-generateFlatColorImageRGBA8 imageWidth imageHeight (r, g, b, a) = runST $ do
-      img <- Image.newMutableImage imageWidth imageHeight
-      let go x y
-            | x >= imageWidth  = go 0 (y + 1)
-            | y >= imageHeight = Image.unsafeFreezeImage img
-            | otherwise = do
-                Image.writePixel img
-                  (imageWidth - x - 1)
-                  (imageHeight - y - 1)
-                  (Image.PixelRGBA8 r g b a)
-                go (x + 1) y
-      go 0 0
-
-generateFlatColorImageRGBF :: Int -> Int -> (Float, Float, Float) -> Image.Image Image.PixelRGBF
-generateFlatColorImageRGBF imageWidth imageHeight (r, g, b) = runST $ do
-      img <- Image.newMutableImage imageWidth imageHeight
-      let go x y
-            | x >= imageWidth  = go 0 (y + 1)
-            | y >= imageHeight = Image.unsafeFreezeImage img
-            | otherwise = do
-                Image.writePixel img
-                  (imageWidth - x - 1)
-                  (imageHeight - y - 1)
-                  (Image.PixelRGBF r g b)
-                go (x + 1) y
-      go 0 0
-
-generateFlatColorImageRGBA16 :: Int -> Int -> (Word16, Word16, Word16, Word16) -> Image.Image Image.PixelRGBA16
-generateFlatColorImageRGBA16 imageWidth imageHeight (r, g, b, a) = runST $ do
-      img <- Image.newMutableImage imageWidth imageHeight
-      let go x y
-            | x >= imageWidth  = go 0 (y + 1)
-            | y >= imageHeight = Image.unsafeFreezeImage img
-            | otherwise = do
-                Image.writePixel img
-                  (imageWidth - x - 1)
-                  (imageHeight - y - 1)
-                  (Image.PixelRGBA16 r g b a)
-                go (x + 1) y
-      go 0 0
-
-generateImages :: Renderer.RendererData -> FilePath -> IO ()
-generateImages rendererData textureFilePath = do
-    ifNotExistSaveImage textureFilePath "common/flat_none.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (0, 0, 0, 0))
-    ifNotExistSaveImage textureFilePath "common/flat_black.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (0, 0, 0, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_gray.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (128, 128, 128, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_white.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (255, 255, 255, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_red.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (255, 0, 0, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_green.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (0, 255, 0, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_blue.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (0, 0, 255, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_normal.png" (Image.ImageRGBA8 $ generateFlatColorImageRGBA8 2 2 (128, 128, 255, 255))
-    ifNotExistSaveImage textureFilePath "common/flat_normal_f32.png" (Image.ImageRGBF $ generateFlatColorImageRGBF 2 2 (0.5, 0.5, 1.0))
-    ifNotExistSaveImage textureFilePath "common/flat_normal_u16.png" (Image.ImageRGBA16 $ generateFlatColorImageRGBA16 2 2 (32767, 32767, 65535, 65535))
-    where
-        ifNotExistSaveImage :: FilePath -> FilePath -> Image.DynamicImage -> IO ()
-        ifNotExistSaveImage textureFilePath imageFileName image = do
-            let imageFilePath = combine textureFilePath imageFileName
-            doesFileExist imageFilePath >>= \result -> when (not result) $ do
-                createDirectoryIfMissing True (takeDirectory imageFilePath)
-                Image.savePngImage imageFilePath image
-
-generateRandomNormals :: Int -> Int -> IO [Vector.Vec4]
-generateRandomNormals width height = do
-    replicateM (width * height) $ do
-        x <- randomIO :: IO Float
-        y <- randomIO :: IO Float
-        z <- randomIO :: IO Float
-        pure $ Vector.Vec4 (x * 2.0 - 1.0) (y * 2.0 - 1.0) z 1.0
-
-
-generateTextures :: Renderer.RendererData -> IO [Texture.TextureData]
-generateTextures rendererData = do
-    let postprocess_ssao = (Renderer._postprocess_ssao rendererData)
-        ssao_noise_dim = PostProcess._ssao_noise_dim postprocess_ssao
-        white = Vulkan.getColor32 255 255 255 255
-        black = Vulkan.getColor32 0 0 0 255
-        red = Vulkan.getColor32 255 0 0 255
-        green = Vulkan.getColor32 0 255 0 255
-        blue = Vulkan.getColor32 0 0 255 255
-        yellow = Vulkan.getColor32 255 255 0 255
-
-    randomNormals <- SVector.fromList <$> (generateRandomNormals ssao_noise_dim ssao_noise_dim)
-    textureRandomNormal <- Renderer.createTexture rendererData "random_normal" Texture.defaultTextureCreateInfo
-        { Texture._textureCreateInfoWidth = fromIntegral ssao_noise_dim
-        , Texture._textureCreateInfoHeight = fromIntegral ssao_noise_dim
-        , Texture._textureCreateInfoFormat = VK_FORMAT_R32G32B32A32_SFLOAT
-        , Texture._textureCreateInfoData = SVector.unsafeCast randomNormals
+fn generate_flat_color_image_rgba8(texture_source_directory: &PathBuf, file_path: &str, image_width: u32, image_height: u32, color: [u8; 4]) {
+    let mut image_file_path = texture_source_directory.clone();
+    image_file_path.push(file_path);
+    if false == image_file_path.is_file() {
+        log::info!("generate_flat_color_image_rgba8: {:?}", image_file_path);
+        let directory = image_file_path.parent().unwrap();
+        if false == directory.is_dir() {
+            fs::create_dir_all(directory).expect("Failed to create directories.");
         }
-    textureCheck <- Renderer.createTexture rendererData "checker" Texture.defaultTextureCreateInfo
-        { Texture._textureCreateInfoWidth = 2
-        , Texture._textureCreateInfoHeight = 2
-        , Texture._textureCreateInfoViewType = VK_IMAGE_VIEW_TYPE_2D
-        , Texture._textureCreateInfoMinFilter = VK_FILTER_NEAREST
-        , Texture._textureCreateInfoMagFilter = VK_FILTER_NEAREST
-        , Texture._textureCreateInfoData = SVector.unsafeCast $
-            SVector.fromList [ white, black, black, white ]
-        }
-    textureColorCube <- Renderer.createTexture rendererData "color_cube" Texture.defaultTextureCreateInfo
-            { Texture._textureCreateInfoWidth = 1
-            , Texture._textureCreateInfoHeight = 1
-            , Texture._textureCreateInfoViewType = VK_IMAGE_VIEW_TYPE_CUBE
-            , Texture._textureCreateInfoData = SVector.unsafeCast $
-                SVector.fromList [ white, black, red, green, blue, yellow ]
+        let image = image::ImageBuffer::from_fn(image_width, image_height, |_x, _y| {
+            image::Rgba(color)
+        });
+        image.save(image_file_path.as_path()).expect("Failed to save image.");
+    }
+}
+
+pub fn generate_3d_data(size: u32) -> Vec<u32> {
+    let value: f32 = 255.0 / size as f32;
+    let buffer_size = size * size * size;
+    let mut data: Vec<u32> = Vec::new();
+    data.resize(buffer_size as usize, 255);
+    for z in 0..size {
+        for y in 0..size {
+            for x in 0..size {
+                let index = (x + y * size + z * size * size) * 4;
+                data[index as usize] = vulkan_context::get_color32(
+                    min(255, (x as f32 * value) as u32),
+                    min(255, (y as f32 * value) as u32),
+                    min(255, (z as f32 * value) as u32),
+                    255
+                );
             }
-    return [ textureRandomNormal, textureCheck, textureColorCube ]
+        }
+    }
+    data
+}
+
+pub fn generate_random_data(image_width: u32, image_height: u32) -> Vec<Vector4<f32>> {
+    let mut image_datas: Vec<Vector4<f32>> = Vec::new();
+    image_datas.resize((image_width * image_height) as usize, Vector4::zeros());
+    for image_data in image_datas.iter_mut() {
+        image_data.x = rand::random::<f32>();
+        image_data.y = rand::random::<f32>();
+        image_data.z = rand::random::<f32>();
+        image_data.w = rand::random::<f32>();
+    }
+    image_datas
+}
+
+pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vector4<f32>> {
+    let mut image_datas: Vec<Vector4<f32>> = Vec::new();
+    image_datas.resize((image_width * image_height) as usize, Vector4::zeros());
+    for image_data in image_datas.iter_mut() {
+        let scale = rand::random::<f32>();
+        let normal = Vector3::new(
+            rand::random::<f32>() * 2.0 - 1.0,
+            rand::random::<f32>() * 2.0 - 1.0,
+            rand::random::<f32>()
+        ).normalize() * scale;
+        image_data.x = normal.x;
+        image_data.y = normal.y;
+        image_data.z = normal.z;
+        image_data.w = 1.0;
+    }
+    image_datas
+}
+
+pub fn generate_images(texture_source_directory: &PathBuf) {
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_none.png", 2, 2, [0, 0, 0, 0]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_black.png", 2, 2, [0, 0, 0, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_gray.png", 2, 2, [128, 128, 128, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_white.png", 2, 2, [255, 255, 255, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_red.png", 2, 2, [255, 0, 0, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_green.png", 2, 2, [0, 255, 0, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_blue.png", 2, 2, [0, 0, 255, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal.png", 2, 2, [128, 128, 255, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_white_no_alpha.png", 2, 2, [255, 255, 255, 0]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal_no_alpha.png", 2, 2, [128, 128, 255, 0]);
+}
+
+pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
+    let white = vulkan_context::get_color32(255, 255, 255, 255);
+    let black = vulkan_context::get_color32(0, 0, 0, 255);
+    let red = vulkan_context::get_color32(255, 0, 0, 255);
+    let green = vulkan_context::get_color32(0, 255, 0, 255);
+    let blue = vulkan_context::get_color32(0, 0, 255, 255);
+    let yellow = vulkan_context::get_color32(255, 255, 0, 255);
+
+    let default_3d_data = generate_3d_data(64);
+    let texture_default_3d = renderer_data.create_texture(&String::from("common/default_3d"), &TextureCreateInfo {
+        _texture_width: 64,
+        _texture_height: 64,
+        _texture_depth: 64,
+        _texture_format: vk::Format::R8G8B8A8_UNORM,
+        _texture_view_type: vk::ImageViewType::TYPE_3D,
+        _texture_min_filter: vk::Filter::NEAREST,
+        _texture_mag_filter: vk::Filter::NEAREST,
+        _texture_initial_datas: default_3d_data,
+        ..Default::default()
+    });
+
+    let default_2d_array_data = generate_3d_data(64);
+    let texture_default_2d_array = renderer_data.create_texture(&String::from("common/default_2d_array"), &TextureCreateInfo {
+        _texture_width: 64,
+        _texture_height: 64,
+        _texture_depth: 64,
+        _texture_format: vk::Format::R8G8B8A8_UNORM,
+        _texture_view_type: vk::ImageViewType::TYPE_2D_ARRAY,
+        _texture_min_filter: vk::Filter::NEAREST,
+        _texture_mag_filter: vk::Filter::NEAREST,
+        _texture_initial_datas: default_2d_array_data,
+        ..Default::default()
+    });
+
+    let random_data = generate_random_data(512, 512);
+    let texture_random = renderer_data.create_texture(&String::from("common/random"), &TextureCreateInfo {
+        _texture_width: 512,
+        _texture_height: 512,
+        _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+        _texture_view_type: vk::ImageViewType::TYPE_2D,
+        _texture_initial_datas: random_data,
+        ..Default::default()
+    });
+
+    let random_normals = generate_random_normals(constants::SSAO_NOISE_DIM as u32, constants::SSAO_NOISE_DIM as u32);
+    let texture_random_normal = renderer_data.create_texture(&String::from("common/random_normal"), &TextureCreateInfo {
+        _texture_width: constants::SSAO_NOISE_DIM as u32,
+        _texture_height: constants::SSAO_NOISE_DIM as u32,
+        _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+        _texture_initial_datas: random_normals,
+        ..Default::default()
+    });
+    let texture_check = renderer_data.create_texture(&String::from("common/checker"), &TextureCreateInfo {
+        _texture_width: 2,
+        _texture_height: 2,
+        _texture_min_filter: vk::Filter::NEAREST,
+        _texture_mag_filter: vk::Filter::NEAREST,
+        _texture_initial_datas: vec![white, black, white, black],
+        ..Default::default()
+    });
+    let texture_color_cube = renderer_data.create_texture(&String::from("common/color_cube"), &TextureCreateInfo {
+        _texture_width: 1,
+        _texture_height: 1,
+        _texture_view_type: vk::ImageViewType::CUBE,
+        _texture_initial_datas: vec![ white, black, red, green, blue, yellow ],
+        ..Default::default()
+    });
+    vec![
+        texture_default_3d,
+        texture_default_2d_array,
+        texture_random,
+        texture_random_normal,
+        texture_check,
+        texture_color_cube
+    ]
+}

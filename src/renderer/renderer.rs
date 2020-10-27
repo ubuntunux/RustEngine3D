@@ -358,7 +358,7 @@ impl RendererData {
         log::info!("Current DebugRenderTarget: {:?}", self._debug_render_target);
     }
 
-    pub fn create_render_target(&self, texture_data_name: &String, texture_create_info: &texture::TextureCreateInfo) -> texture::TextureData {
+    pub fn create_render_target<T>(&self, texture_data_name: &String, texture_create_info: &texture::TextureCreateInfo<T>) -> texture::TextureData {
         texture::create_render_target(
             texture_data_name,
             self.get_instance(),
@@ -371,7 +371,7 @@ impl RendererData {
         )
     }
 
-    pub fn create_texture(&self, texture_data_name: &String, texture_create_info: &texture::TextureCreateInfo) -> texture::TextureData {
+    pub fn create_texture<T: Copy>(&self, texture_data_name: &String, texture_create_info: &texture::TextureCreateInfo<T>) -> texture::TextureData {
         texture::create_texture_data(
             texture_data_name,
             self.get_instance(),

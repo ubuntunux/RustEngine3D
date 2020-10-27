@@ -1,10 +1,14 @@
 use std::fs::{ self, File };
 use std::io::prelude::*;
-use std::path::{ Path, PathBuf };
+use std::path::{ PathBuf };
 use std::collections::HashMap;
 
 use serde_json;
 use bincode;
+use image::{
+    self,
+    GenericImageView,
+};
 use ash::{
     vk
 };
@@ -12,6 +16,7 @@ use ash::{
 use crate::application::SceneManagerData;
 use crate::constants;
 use crate::resource::obj_loader::WaveFrontOBJ;
+use crate::resource::texture_generator;
 use crate::renderer::mesh::{ MeshData };
 use crate::renderer::model::{ self, ModelData };
 use crate::renderer::material::{ self, MaterialData };
@@ -29,8 +34,6 @@ use crate::vulkan_context::render_pass::{
 };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
-use image::GenericImageView;
-use std::any::Any;
 
 const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;
@@ -394,17 +397,18 @@ impl Resources {
     }
 
     pub fn load_texture_datas(&mut self, renderer_data: &RendererData) {
-        // texture_datas <- generateTextures rendererData
-        // forM_ texture_datas $ \textureData -> do
-        //     HashTable.insert (_textureDataMap resources) (_textureDataName textureData) textureData
-        //
-        // // generate necessary texture datas
-        // generateImages rendererData textureSourcePathBuf
-        //
-
-        // load texture from files
         //let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
+
+        // let texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_data);
+        // for texture_data in texture_datas {
+        //     self._texture_data_map.insert(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
+        // }
+
+        // generate necessary texture datas
+        texture_generator::generate_images(&texture_source_directory);
+
+        // load texture from files
         let texture_src_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
         for texture_src_file in texture_src_files.iter() {
             let (texture_data_name, cube_texture_files) = Resources::get_texture_data_name(

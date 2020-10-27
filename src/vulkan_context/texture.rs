@@ -18,7 +18,7 @@ use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::run_commands_once;
 
 #[derive(Debug, Clone)]
-pub struct TextureCreateInfo {
+pub struct TextureCreateInfo<T> {
     pub _texture_width: u32,
     pub _texture_height: u32,
     pub _texture_depth: u32,
@@ -31,7 +31,7 @@ pub struct TextureCreateInfo {
     pub _enable_mipmap: bool,
     pub _enable_anisotropy: bool,
     pub _immutable: bool,
-    pub _texture_initial_datas: Vec<u8>
+    pub _texture_initial_datas: Vec<T>
 }
 
 #[derive(Debug, Clone)]
@@ -68,8 +68,8 @@ pub struct TransitionDependent {
     pub _dst_stage_mask: vk::PipelineStageFlags,
 }
 
-impl Default for TextureCreateInfo {
-    fn default() -> TextureCreateInfo {
+impl<T> Default for TextureCreateInfo<T> {
+    fn default() -> TextureCreateInfo<T> {
         TextureCreateInfo {
             _texture_width: 1,
             _texture_height: 1,
@@ -614,7 +614,7 @@ pub fn copy_buffer_to_image(
     );
 }
 
-pub fn create_render_target(
+pub fn create_render_target<T>(
     texture_data_name: &String,
     instance: &Instance,
     device: &Device,
@@ -622,7 +622,7 @@ pub fn create_render_target(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
-    texture_create_info: &TextureCreateInfo,
+    texture_create_info: &TextureCreateInfo<T>,
 ) -> TextureData {
     let enable_anisotropy = match texture_create_info._enable_anisotropy {
         true => vk::TRUE,
@@ -732,7 +732,7 @@ pub fn create_render_target(
     texture_data
 }
 
-pub fn create_texture_data(
+pub fn create_texture_data<T: Copy>(
     texture_data_name: &String,
     instance: &Instance,
     device: &Device,
@@ -740,10 +740,10 @@ pub fn create_texture_data(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
-    texture_create_info: &TextureCreateInfo,
+    texture_create_info: &TextureCreateInfo<T>,
 ) -> TextureData {
     let image_datas = &texture_create_info._texture_initial_datas;
-    let buffer_size = image_datas.len() as vk::DeviceSize;
+    let buffer_size = (std::mem::size_of::<T>() * image_datas.len()) as vk::DeviceSize;
     let enable_anisotropy = match texture_create_info._enable_anisotropy {
         true => vk::TRUE,
         _ => vk::FALSE

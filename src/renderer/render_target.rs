@@ -30,10 +30,10 @@ pub enum RenderTargetType {
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
-pub fn regist_render_target(
+pub fn regist_render_target<T>(
     renderer_data: &mut RendererData,
     render_target_type: RenderTargetType,
-    texture_create_info: &TextureCreateInfo
+    texture_create_info: &TextureCreateInfo<T>
 ) {
     let texture_data_name = format!("{:?}", render_target_type);
     let texture_data = renderer_data.create_render_target(
