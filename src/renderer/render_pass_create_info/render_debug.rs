@@ -100,8 +100,8 @@ pub fn get_render_pass_data_create_info(
                 _depth_write_enable: false,
                 ..Default::default()
             },
-            _push_constant_size: 0,
-            _descriptor_data_create_info_list: vec![
+            _push_constant_ranges: Vec::new(),
+            _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
                     _descriptor_name: enum_to_string(&RenderTargetType::BackBuffer),

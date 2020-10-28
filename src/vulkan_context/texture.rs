@@ -22,6 +22,7 @@ pub struct TextureCreateInfo<T> {
     pub _texture_width: u32,
     pub _texture_height: u32,
     pub _texture_depth: u32,
+    pub _texture_layer: u32,
     pub _texture_format: vk::Format,
     pub _texture_view_type: vk::ImageViewType,
     pub _texture_samples: vk::SampleCountFlags,
@@ -74,6 +75,7 @@ impl<T> Default for TextureCreateInfo<T> {
             _texture_width: 1,
             _texture_height: 1,
             _texture_depth: 1,
+            _texture_layer: 1,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_samples: vk::SampleCountFlags::TYPE_1,
@@ -413,14 +415,14 @@ pub fn create_image_sampler(
 
     unsafe {
         let sampler = device.create_sampler(&sampler_create_info, None).expect("Failed to create sampler.");
-        log::info!("create_image_sampler: {:?}", sampler);
+        log::debug!("create_image_sampler: {:?}", sampler);
         sampler
     }
 }
 
 pub fn destroy_image_sampler(device: &Device, sampler: vk::Sampler) {
     unsafe {
-        log::info!("destroy_image_sampler: {:?}", sampler);
+        log::debug!("destroy_image_sampler: {:?}", sampler);
         device.destroy_sampler(sampler, None);
     }
 }
@@ -630,6 +632,7 @@ pub fn create_render_target<T>(
     };
     let (texture_create_flags, layer_count) = match texture_create_info._texture_view_type {
         vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6),
+        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layer),
         _ => (vk::ImageCreateFlags::empty(), 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -728,7 +731,7 @@ pub fn create_render_target<T>(
              texture_create_info._texture_height,
              texture_create_info._texture_depth
     );
-    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
+    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
     texture_data
 }
 
@@ -750,6 +753,7 @@ pub fn create_texture_data<T: Copy>(
     };
     let (texture_create_flags, layer_count) = match texture_create_info._texture_view_type {
         vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6),
+        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::CUBE_COMPATIBLE, texture_create_info._texture_layer),
         _ => (vk::ImageCreateFlags::empty(), 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -899,7 +903,7 @@ pub fn create_texture_data<T: Copy>(
              texture_create_info._texture_height,
              texture_create_info._texture_depth
     );
-    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
+    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
     texture_data
 }
 

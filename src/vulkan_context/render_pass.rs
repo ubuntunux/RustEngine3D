@@ -65,8 +65,8 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_scissor_rect: vk::Rect2D,
     pub _pipeline_color_blend_modes: Vec<vk::PipelineColorBlendAttachmentState>,
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
-    pub _push_constant_size: u32, // ex) mem::size_of::<PushConstants_StaticRenderObject>()
-    pub _descriptor_data_create_info_list: Vec<DescriptorDataCreateInfo>,
+    pub _push_constant_ranges: Vec<vk::PushConstantRange>, // ex) mem::size_of::<PushConstants_StaticRenderObject>()
+    pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 }
 
 #[derive(Clone, Debug)]
@@ -196,8 +196,8 @@ impl RenderPassData {
 
 pub fn create_render_pass_data(
     device: &Device,
-    render_pass_data_create_info: RenderPassDataCreateInfo,
-    descriptor_datas: Vec<DescriptorData>
+    render_pass_data_create_info: &RenderPassDataCreateInfo,
+    descriptor_datas: &Vec<RcRefCell<DescriptorData>>
 ) -> RenderPassData {
     let render_pass = create_render_pass(device, &render_pass_data_create_info);
     let count = render_pass_data_create_info._pipeline_data_create_infos.len();
@@ -208,14 +208,14 @@ pub fn create_render_pass_data(
             device,
             render_pass,
             &render_pass_data_create_info._pipeline_data_create_infos[i],
-            &descriptor_datas[i]
+            &descriptor_datas[i].borrow()
         );
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }
         pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
-    log::info!("CreateRenderPassData: {}", render_pass_data_create_info._render_pass_create_info_name);
+    log::info!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
         _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
@@ -227,8 +227,11 @@ pub fn create_render_pass_data(
 }
 
 pub fn destroy_render_pass_data(device: &Device, render_pass_data: &RenderPassData) {
-    log::info!("DestroyRenderPassData: {}", render_pass_data._render_pass_data_name);
+    log::info!("destroy_render_pass_data: {}", render_pass_data._render_pass_data_name);
     destroy_render_pass(device, render_pass_data._render_pass, &render_pass_data._render_pass_data_name);
+    for pipeline_data in render_pass_data._pipeline_data_map.values() {
+        destroy_pipeline_data(device, &pipeline_data.borrow());
+    }
 }
 
 
@@ -300,13 +303,13 @@ pub fn create_render_pass(
         .build();
     unsafe {
         let render_pass = deivce.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
-        log::info!("Create RenderPass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
+        log::info!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
         render_pass
     }
 }
 
 pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_pass_name: &String) {
-    log::info!("Destroy RenderPass: {} {:?}", render_pass_name, render_pass);
+    log::info!("destroy_render_pass: {} {:?}", render_pass_name, render_pass);
     unsafe {
         device.destroy_render_pass(render_pass, None);
     }
@@ -324,13 +327,13 @@ pub fn create_pipeline_layout(
         .build();
     unsafe {
         let pipeline_layout = device.create_pipeline_layout(&pipeline_create_info, None).expect("VkCreatePipelineLayout failed!!");
-        log::info!("Create PipelineLayout: {:?}", pipeline_layout);
+        log::debug!("    create_pipeline_layout: {:?}", pipeline_layout);
         pipeline_layout
     }
 }
 
 pub fn destroy_pipieline_layout(device: &Device, pipeline_layout: vk::PipelineLayout) {
-    log::info!("Destroy PipelineLayout, {:?}", pipeline_layout);
+    log::debug!("    destroy_pipieline_layout: {:?}", pipeline_layout);
     unsafe {
         device.destroy_pipeline_layout(pipeline_layout, None);
     }
@@ -355,16 +358,11 @@ pub fn create_graphics_pipeline_data(
         vk::ShaderStageFlags::FRAGMENT
     );
     let depth_stencil_state_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
-    let push_constant_ranges = [vk::PushConstantRange {
-        stage_flags: vk::ShaderStageFlags::ALL,
-        offset: 0,
-        size: pipeline_data_create_info._push_constant_size,
-    }];
-    let descriptor_set_layouts = [descriptor_data._descriptor_set_layout];
+    let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let shader_stage_infos = vec![vertex_shader_create_info, fragment_shader_create_info];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &push_constant_ranges,
+        &pipeline_data_create_info._push_constant_ranges,
         &descriptor_set_layouts
     );
     let vertex_input_bind_descriptions = VertexData::get_vertex_input_binding_descriptions();
@@ -464,7 +462,7 @@ pub fn create_graphics_pipeline_data(
             None
         ).expect("vkCreateGraphicsPipelines failed!");
 
-        log::info!("createGraphicsPipeline: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
+        log::info!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
         log::info!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
         log::info!("    vertexShader: {:?}", pipeline_data_create_info._pipeline_vertex_shader_file);
         log::info!("    fragmentShader: {:?}", pipeline_data_create_info._pipeline_fragment_shader_file);
@@ -482,7 +480,7 @@ pub fn create_graphics_pipeline_data(
 }
 
 pub fn destroy_pipeline_data(device: &Device, pipeline_data: &PipelineData) {
-    log::info!("Destroy GraphicsPipeline: {}, pipeline: {:?}, pipeline_layout: {:?}", pipeline_data._pipeline_data_name,pipeline_data._pipeline, pipeline_data._pipeline_layout);
+    log::info!("    destroy_pipeline_data: {}, pipeline: {:?}, pipeline_layout: {:?}", pipeline_data._pipeline_data_name,pipeline_data._pipeline, pipeline_data._pipeline_layout);
     unsafe {
         device.destroy_pipeline(pipeline_data._pipeline, None);
         device.destroy_pipeline_layout(pipeline_data._pipeline_layout, None);

@@ -88,8 +88,15 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
             command.arg(combined_shader_defines);
         }
         command.current_dir(".");
-        let output = command.output().expect("failed to execute glslangValidator.");
-        log::info!("{}", String::from_utf8(output.stdout).unwrap());
+        match command.output() {
+            Ok(output) => {
+                let msg = String::from_utf8(output.stdout).unwrap();
+                if msg.trim() != shader_file_path.to_str().unwrap() {
+                    log::info!("{}", msg);
+                }
+            },
+            Err(e) => panic!("failed to execute glslangValidator. {:?}", e),
+        }
     }
 
     // read spirv
@@ -112,7 +119,7 @@ pub fn create_shader_stage_create_info(
     shader_defines: &[String],
     stage_flag: vk::ShaderStageFlags
 ) -> vk::PipelineShaderStageCreateInfo {
-    log::info!("create_shader_stage_create_info: {:?}: {:?}", stage_flag, shader_filename);
+    log::info!("    create_shader_stage_create_info: {:?}: {:?}", stage_flag, shader_filename);
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
     let code_buffer = compile_glsl(shader_filename, shader_defines);
     let shader_module_create_info = vk::ShaderModuleCreateInfo {
@@ -122,7 +129,7 @@ pub fn create_shader_stage_create_info(
     };
     unsafe {
         let shader_module = device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
-        let main: *const c_char = "main".as_ptr() as *const c_char;
+        let main: *const c_char = "main\0".as_ptr() as *const c_char;
         vk::PipelineShaderStageCreateInfo {
             stage: stage_flag,
             module: shader_module,
@@ -133,7 +140,7 @@ pub fn create_shader_stage_create_info(
 }
 
 pub fn destroy_shader_stage_create_info(device: &Device, shader_stage_create_info: &vk::PipelineShaderStageCreateInfo) {
-    log::info!("destroy_shader_stage_create_info : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
+    log::info!("    destroy_shader_stage_create_info : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
     unsafe {
         device.destroy_shader_module(shader_stage_create_info.module, None);
     }

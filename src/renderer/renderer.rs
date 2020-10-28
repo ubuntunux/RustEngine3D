@@ -68,9 +68,10 @@ use crate::utilities::system::{
 
 // -- NOTE : sync with scene_constants.glsl
 #[derive(Clone, Debug, Copy)]
+#[allow(non_camel_case_types)]
 pub enum RenderMode {
-    RenderModeCommon,
-    RenderModeShadow
+    RenderMode_Common = 0,
+    RenderMode_Shadow = 1,
 }
 
 #[derive(Clone, Debug, Copy)]

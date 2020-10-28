@@ -39,7 +39,7 @@ pub fn generate_3d_data(size: u32) -> Vec<u32> {
     for z in 0..size {
         for y in 0..size {
             for x in 0..size {
-                let index = (x + y * size + z * size * size);
+                let index = x + y * size + z * size * size;
                 data[index as usize] = vulkan_context::get_color32(
                     min(255, (x as f32 * value) as u32),
                     min(255, (y as f32 * value) as u32),
@@ -120,7 +120,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
     let texture_default_2d_array = renderer_data.create_texture(&String::from("common/default_2d_array"), &TextureCreateInfo {
         _texture_width: 64,
         _texture_height: 64,
-        _texture_depth: 64,
+        _texture_layer: 64,
         _texture_format: vk::Format::R8G8B8A8_UNORM,
         _texture_view_type: vk::ImageViewType::TYPE_2D_ARRAY,
         _texture_min_filter: vk::Filter::NEAREST,

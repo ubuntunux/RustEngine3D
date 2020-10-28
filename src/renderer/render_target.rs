@@ -62,17 +62,14 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_samples: samples,
-            _texture_min_filter: vk::Filter::LINEAR,
-            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -81,17 +78,14 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_samples: samples,
-            _texture_min_filter: vk::Filter::LINEAR,
-            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -100,9 +94,7 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::D32_SFLOAT,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_samples: samples,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
@@ -110,7 +102,8 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -119,17 +112,14 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_samples: samples,
-            _texture_min_filter: vk::Filter::LINEAR,
-            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -138,17 +128,14 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_samples: samples,
-            _texture_min_filter: vk::Filter::LINEAR,
-            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -157,17 +144,13 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_samples: vk::SampleCountFlags::TYPE_1,
-            _texture_min_filter: vk::Filter::LINEAR,
-            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -176,17 +159,15 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_samples: vk::SampleCountFlags::TYPE_1,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -195,17 +176,15 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_samples: vk::SampleCountFlags::TYPE_1,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -214,17 +193,15 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_depth: 1,
             _texture_format: vk::Format::R16G16_SFLOAT,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_samples: vk::SampleCountFlags::TYPE_1,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -233,17 +210,15 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
-            _texture_depth: 1,
             _texture_format: vk::Format::R16_SFLOAT,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_samples: vk::SampleCountFlags::TYPE_1,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
     regist_render_target(
@@ -252,17 +227,15 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
         &TextureCreateInfo {
             _texture_width: constants::SHADOW_MAP_SIZE,
             _texture_height: constants::SHADOW_MAP_SIZE,
-            _texture_depth: 1,
             _texture_format: vk::Format::D32_SFLOAT,
-            _texture_view_type: vk::ImageViewType::TYPE_2D,
-            _texture_samples: vk::SampleCountFlags::TYPE_1,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
-            _texture_initial_datas: empty_data.clone()
+            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
         }
     );
 }

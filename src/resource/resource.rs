@@ -22,6 +22,7 @@ use crate::renderer::model::{ self, ModelData };
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
+use crate::renderer::render_pass_create_info;
 use crate::vulkan_context::descriptor::{ self, DescriptorData };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
@@ -215,7 +216,7 @@ impl Resources {
         let model_file_path = PathBuf::from(MODEL_FILE_PATH);
         let model_files: Vec<PathBuf> = system::walk_directory(&model_file_path, &[EXT_MODEL]);
         for model_file in model_files {
-            let mode_name = get_unique_resource_name(&self._model_data_map, &model_file_path, &model_file);
+            let model_name = get_unique_resource_name(&self._model_data_map, &model_file_path, &model_file);
             let contents = fs::read_to_string(model_file).expect("Something went wrong reading the file");
             // let mut lines = contents.lines();
             // let line = lines.next();
@@ -301,7 +302,7 @@ impl Resources {
                     // Convert to mesh from source
                     let geometry_create_infos = match src_file_ext.as_str() {
                         EXT_OBJ => WaveFrontOBJ::get_geometry_datas(&mesh_source_file),
-                        EXT_COLLADA => vec![], // ColladaLoader.loadCollada meshSourceFile
+                        EXT_COLLADA => Vec::new(), // ColladaLoader.loadCollada meshSourceFile
                         _ => panic!("error")
                     };
                     // Save mesh
@@ -356,14 +357,14 @@ impl Resources {
                 return (texture_data_name, cube_face_files);
             }
         }
-        (texture_data_name, vec![])
+        (texture_data_name, Vec::new())
     }
 
     pub fn load_image_data(texture_file: &PathBuf) -> (u32, u32, Vec<u8>, vk::Format) {
         let image_file = image::io::Reader::open(texture_file).unwrap().decode();
         if image_file.is_err() {
             log::error!("load_image_data error: {:?}", texture_file);
-            return (0, 0, vec![], vk::Format::UNDEFINED);
+            return (0, 0, Vec::new(), vk::Format::UNDEFINED);
         }
         let dynamic_image: image::DynamicImage = image_file.unwrap();
         let (image_width, image_height) = dynamic_image.dimensions();
@@ -374,7 +375,7 @@ impl Resources {
             image::DynamicImage::ImageRgb16(_) => (dynamic_image.to_rgba().into_raw(), vk::Format::R16G16B16A16_UNORM),
             _ => {
                 log::error!("Unkown format: {:?}", texture_file);
-                (vec![], vk::Format::UNDEFINED)
+                (Vec::new(), vk::Format::UNDEFINED)
             }
         };
         (image_width, image_height, image_data_raw, image_format)
@@ -484,15 +485,17 @@ impl Resources {
     }
 
     // RenderPassLoader
-    pub fn load_render_pass_datas(&mut self, _renderer_data: &RendererData) {
-        // renderPassDataCreateInfos <- RenderPassCreateInfo.getRenderPassDataCreateInfos rendererData
-        // mapM_ registRenderPassData renderPassDataCreateInfos
-        // where
-        //     registRenderPassData renderPassDataCreateInfo = do
-        //         descriptor_datas <- forM (_pipelineDataCreateInfos renderPassDataCreateInfo) $ \pipelineDataCreateInfo -> do
-        //             getDescriptorData resources rendererData (_renderPassCreateInfoName renderPassDataCreateInfo) pipelineDataCreateInfo
-        //         defaultRenderPassData <- create_render_pass_data (getDevice rendererData) renderPassDataCreateInfo descriptor_datas
-        //         HashTable.insert (_renderPassDataMap resources) (_renderPassDataName defaultRenderPassData) defaultRenderPassData
+    pub fn load_render_pass_datas(&mut self, renderer_data: &RendererData) {
+        let render_pass_data_create_infos = render_pass_create_info::get_render_pass_data_create_infos(renderer_data);
+        for render_pass_data_create_info in render_pass_data_create_infos.iter() {
+            let descriptor_datas = render_pass_data_create_info._pipeline_data_create_infos
+                .iter()
+                .map(|pipeline_data_create_info| {
+                    self.get_descriptor_data(renderer_data, &render_pass_data_create_info._render_pass_create_info_name, pipeline_data_create_info)
+                }).collect();
+            let default_render_pass_data = render_pass::create_render_pass_data(renderer_data.get_device(), render_pass_data_create_info, &descriptor_datas);
+            self._render_pass_data_map.insert(default_render_pass_data.get_render_pass_data_name().clone(), newRcRefCell(default_render_pass_data));
+        }
     }
 
     pub fn unload_render_pass_datas(&mut self, renderer_data: &RendererData) {
@@ -613,22 +616,25 @@ impl Resources {
 
     // Descriptor_datas
     pub fn get_descriptor_data(
-        &self,
-        _renderer_data: &RendererData,
-        _render_pass_name: &String,
-        _pipeline_data_create_info: &PipelineDataCreateInfo
+        &mut self,
+        renderer_data: &RendererData,
+        render_pass_name: &String,
+        pipeline_data_create_info: &PipelineDataCreateInfo
     ) -> RcRefCell<DescriptorData> {
-        // let descriptorName = Text.append renderPassName (_pipelineDataCreateInfoName pipelineDataCreateInfo)
-        //     descriptorDataCreateInfoList = _descriptorDataCreateInfoList (pipelineDataCreateInfo::PipelineDataCreateInfo)
-        //     maxDescriptorPoolCount = Constants.maxDescriptorPoolAllocCount * Constants.descriptorSetCountAtOnce
-        // maybeDescriptorData <- HashTable.lookup (_descriptorDataMap resources) descriptorName
-        // case maybeDescriptorData of
-        //     (Just descriptorData) -> return descriptorData
-        //     otherwise -> do
-        //         descriptorData <- Descriptor.createDescriptorData (getDevice rendererData) descriptorDataCreateInfoList maxDescriptorPoolCount
-        //         HashTable.insert (_descriptorDataMap resources) descriptorName descriptorData
-        //         return descriptorData
-        system::newRcRefCell(DescriptorData::default())
+        let descriptor_name: String = format!("{}{}", render_pass_name, pipeline_data_create_info._pipeline_data_create_info_name);
+        let descriptor_data_create_infos = &pipeline_data_create_info._descriptor_data_create_infos;
+        let max_descriptor_pool_count: u32 = (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32;
+        let maybe_descriptor_data = self._descriptor_data_map.get(&descriptor_name);
+        match maybe_descriptor_data {
+            Some(descriptor_data) => descriptor_data.clone(),
+            None => {
+                let descriptor_data = newRcRefCell(
+                    descriptor::create_descriptor_data(renderer_data.get_device(), descriptor_data_create_infos, max_descriptor_pool_count)
+                );
+                self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
+                descriptor_data
+            }
+        }
     }
 
     pub fn unload_descriptor_datas(&mut self, renderer_data: &RendererData) {

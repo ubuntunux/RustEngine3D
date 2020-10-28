@@ -121,39 +121,44 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
 
     // main loop
     let mut render_scene: bool = false;
+    let mut run_application: bool = true;
     event_loop.run(move |event, __window_target, control_flow|{
-        application_data.borrow_mut()._time_data.update_time_data(&time_instance);
+        if run_application {
+            application_data.borrow_mut()._time_data.update_time_data(&time_instance);
 
-        render_scene = false;
-        match event {
-            Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
-                *control_flow = ControlFlow::Exit;
-                application_data.borrow_mut().terminate_applicateion();
-                return;
-            },
-            Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
-                if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+            render_scene = false;
+            match event {
+                Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                     *control_flow = ControlFlow::Exit;
                     application_data.borrow_mut().terminate_applicateion();
+                    run_application = false;
                     return;
-                }
-            },
-            Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                renderer_data.borrow_mut().set_need_recreate_swapchain(true);
-            },
-            Event::RedrawEventsCleared => {
-                render_scene = true;
-            },
-            _ => { },
-        }
+                },
+                Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
+                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                        *control_flow = ControlFlow::Exit;
+                        application_data.borrow_mut().terminate_applicateion();
+                        run_application = false;
+                        return;
+                    }
+                },
+                Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
+                    renderer_data.borrow_mut().set_need_recreate_swapchain(true);
+                },
+                Event::RedrawEventsCleared => {
+                    render_scene = true;
+                },
+                _ => { },
+            }
 
-        if renderer_data.borrow_mut().get_need_recreate_swapchain() {
-            renderer_data.borrow_mut().recreate_swapchain();
-            renderer_data.borrow_mut().set_need_recreate_swapchain(false);
-        }
+            if renderer_data.borrow_mut().get_need_recreate_swapchain() {
+                renderer_data.borrow_mut().recreate_swapchain();
+                renderer_data.borrow_mut().set_need_recreate_swapchain(false);
+            }
 
-        if render_scene {
-            renderer_data.borrow_mut().render_scene();
+            if render_scene {
+                renderer_data.borrow_mut().render_scene();
+            }
         }
     });
 }

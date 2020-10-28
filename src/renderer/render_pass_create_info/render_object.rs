@@ -9,6 +9,7 @@ use crate::utilities::system::{
     enum_to_string
 };
 use crate::renderer::renderer::{
+    RenderMode,
     RenderObjectType,
     RendererData,
 };
@@ -160,7 +161,7 @@ pub fn get_render_pass_data_create_info(
             _pipeline_data_create_info_name: String::from("render_object"),
             _pipeline_vertex_shader_file: PathBuf::from("render_object.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("render_object.frag"),
-            _pipeline_shader_defines: Vec::new(),
+            _pipeline_shader_defines: vec![format!("RenderMode={:?}", RenderMode::RenderMode_Common as i32)],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
@@ -170,11 +171,15 @@ pub fn get_render_pass_data_create_info(
             _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
-            _push_constant_size: match render_object_type {
-                RenderObjectType::Static => PushConstants_StaticRenderObject::get_push_constants_size(),
-                RenderObjectType::Skeletal => PushConstants_SkeletalRenderObject::get_push_constants_size(),
-            },
-            _descriptor_data_create_info_list: vec![
+            _push_constant_ranges: vec![vk::PushConstantRange {
+                stage_flags: vk::ShaderStageFlags::ALL,
+                offset: 0,
+                size: match render_object_type {
+                    RenderObjectType::Static => PushConstants_StaticRenderObject::get_push_constants_size(),
+                    RenderObjectType::Skeletal => PushConstants_SkeletalRenderObject::get_push_constants_size(),
+                }
+            }],
+            _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
                     _descriptor_name: enum_to_string(&UniformBufferType::SceneConstants),
