@@ -288,14 +288,14 @@ pub fn create_render_pass(
         .map(|(index, ref description)| {
             create_image_attachment_reference(description, description_offset + index as u32)
         }).collect();
-    let mut subpass = vk::SubpassDescription::builder()
-        .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-        .color_attachments(&color_attachment_refernces)
-        .resolve_attachments(&resolve_attachment_refernces);
-    if false == depth_attachment_refernces.is_empty() {
-        subpass = subpass.depth_stencil_attachment(&depth_attachment_refernces[0]);
-    }
-    let subpasses: [vk::SubpassDescription; 1] = [subpass.build()];
+    let subpasses = [vk::SubpassDescription {
+        pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+        p_color_attachments: if !color_attachment_refernces.is_empty() { color_attachment_refernces.as_ptr() } else { std::ptr::null() },
+        color_attachment_count: color_attachment_refernces.len() as u32,
+        p_resolve_attachments: if !resolve_attachment_refernces.is_empty() { resolve_attachment_refernces.as_ptr() } else { std::ptr::null() },
+        p_depth_stencil_attachment: if !depth_attachment_refernces.is_empty() { depth_attachment_refernces.as_ptr() } else { std::ptr::null() },
+        ..Default::default()
+    }];
     let render_pass_create_info = vk::RenderPassCreateInfo::builder()
         .attachments(&image_attachments)
         .subpasses(&subpasses)
