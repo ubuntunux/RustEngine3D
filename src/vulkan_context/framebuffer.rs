@@ -75,13 +75,15 @@ pub fn create_framebuffer_data(
     );
 
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {
-        vk::FramebufferCreateInfo::builder()
-            .render_pass(render_pass)
-            .attachments(&framebuffer_data_create_info._framebuffer_image_views[index])
-            .width(framebuffer_data_create_info._framebuffer_width)
-            .height(framebuffer_data_create_info._framebuffer_height)
-            .layers(framebuffer_data_create_info._framebuffer_depth)
-            .build()
+        vk::FramebufferCreateInfo {
+            render_pass,
+            attachment_count: framebuffer_data_create_info._framebuffer_image_views[index].len() as u32,
+            p_attachments: framebuffer_data_create_info._framebuffer_image_views[index].as_ptr(),
+            width: framebuffer_data_create_info._framebuffer_width,
+            height: framebuffer_data_create_info._framebuffer_height,
+            layers: framebuffer_data_create_info._framebuffer_depth,
+            ..Default::default()
+        }
     };
 
     unsafe {
@@ -94,17 +96,19 @@ pub fn create_framebuffer_data(
         let render_pass_begin_infos: Vec<vk::RenderPassBeginInfo> = framebuffers
             .iter()
             .map(|framebuffer| {
-                vk::RenderPassBeginInfo::builder()
-                    .render_pass(render_pass)
-                    .framebuffer(*framebuffer)
-                    .render_area(vulkan_context::create_rect_2d(
+                vk::RenderPassBeginInfo {
+                    render_pass,
+                    framebuffer: *framebuffer,
+                    render_area: vulkan_context::create_rect_2d(
                         0,
                         0,
                         framebuffer_data_create_info._framebuffer_width,
                         framebuffer_data_create_info._framebuffer_height
-                    ))
-                    .clear_values(&framebuffer_data_create_info._framebuffer_clear_values)
-                    .build()
+                    ),
+                    clear_value_count: framebuffer_data_create_info._framebuffer_clear_values.len() as u32,
+                    p_clear_values: framebuffer_data_create_info._framebuffer_clear_values.as_ptr(),
+                    ..Default::default()
+                }
             }).collect();
 
         FramebufferData {

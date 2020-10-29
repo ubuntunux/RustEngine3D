@@ -240,22 +240,23 @@ pub fn create_render_pass(
     render_pass_data_create_info: &RenderPassDataCreateInfo
 ) -> vk::RenderPass {
     let create_image_attachment = | attachment_description: &ImageAttachmentDescription | -> vk::AttachmentDescription {
-        vk::AttachmentDescription::builder()
-            .format(attachment_description._attachment_image_format)
-            .samples(attachment_description._attachment_image_samples)
-            .load_op(attachment_description._attachment_load_operation)
-            .store_op(attachment_description._attachment_store_operation)
-            .stencil_load_op(attachment_description._attachment_stencil_load_operation)
-            .stencil_store_op(attachment_description._attachment_stencil_store_operation)
-            .initial_layout(attachment_description._attachment_initial_layout)
-            .final_layout(attachment_description._attachment_final_layout)
-            .build()
+        vk::AttachmentDescription {
+            format: attachment_description._attachment_image_format,
+            samples: attachment_description._attachment_image_samples,
+            load_op: attachment_description._attachment_load_operation,
+            store_op: attachment_description._attachment_store_operation,
+            stencil_load_op: attachment_description._attachment_stencil_load_operation,
+            stencil_store_op: attachment_description._attachment_stencil_store_operation,
+            initial_layout: attachment_description._attachment_initial_layout,
+            final_layout: attachment_description._attachment_final_layout,
+            ..Default::default()
+    }
     };
     let create_image_attachment_reference = | attachment_description: &ImageAttachmentDescription, index: u32 | -> vk::AttachmentReference {
-        vk::AttachmentReference::builder()
-            .attachment(index)
-            .layout(attachment_description._attachment_reference_layout)
-            .build()
+        vk::AttachmentReference {
+            attachment: index,
+            layout: attachment_description._attachment_reference_layout,
+        }
     };
     let color_attachment_descriptions = &render_pass_data_create_info._color_attachment_descriptions;
     let depth_attachment_descriptions = &render_pass_data_create_info._depth_attachment_descriptions;
@@ -296,11 +297,16 @@ pub fn create_render_pass(
         p_depth_stencil_attachment: if !depth_attachment_refernces.is_empty() { depth_attachment_refernces.as_ptr() } else { std::ptr::null() },
         ..Default::default()
     }];
-    let render_pass_create_info = vk::RenderPassCreateInfo::builder()
-        .attachments(&image_attachments)
-        .subpasses(&subpasses)
-        .dependencies(&render_pass_data_create_info._subpass_dependencies)
-        .build();
+
+    let render_pass_create_info = vk::RenderPassCreateInfo {
+        p_attachments: image_attachments.as_ptr(),
+        attachment_count: image_attachments.len() as u32,
+        p_subpasses: subpasses.as_ptr(),
+        subpass_count: subpasses.len() as u32,
+        p_dependencies: render_pass_data_create_info._subpass_dependencies.as_ptr(),
+        dependency_count: render_pass_data_create_info._subpass_dependencies.len() as u32,
+        ..Default::default()
+    };
     unsafe {
         let render_pass = deivce.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
         log::info!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
@@ -321,10 +327,13 @@ pub fn create_pipeline_layout(
     push_constant_ranges: &[vk::PushConstantRange],
     descriptor_set_layouts: &[vk::DescriptorSetLayout]
 ) -> vk::PipelineLayout {
-    let pipeline_create_info = vk::PipelineLayoutCreateInfo::builder()
-        .set_layouts(descriptor_set_layouts)
-        .push_constant_ranges(push_constant_ranges)
-        .build();
+    let pipeline_create_info = vk::PipelineLayoutCreateInfo {
+        p_set_layouts: descriptor_set_layouts.as_ptr(),
+        set_layout_count: descriptor_set_layouts.len() as u32,
+        p_push_constant_ranges: push_constant_ranges.as_ptr(),
+        push_constant_range_count: push_constant_ranges.len() as u32,
+        ..Default::default()
+    };
     unsafe {
         let pipeline_layout = device.create_pipeline_layout(&pipeline_create_info, None).expect("VkCreatePipelineLayout failed!!");
         log::debug!("    create_pipeline_layout: {:?}", pipeline_layout);
@@ -367,59 +376,72 @@ pub fn create_graphics_pipeline_data(
     );
     let vertex_input_bind_descriptions = VertexData::get_vertex_input_binding_descriptions();
     let vertex_input_attribute_descriptions = VertexData::create_vertex_input_attribute_descriptions();
-    let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::builder()
-        .vertex_binding_descriptions(&vertex_input_bind_descriptions)
-        .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
-        .build();
-    let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder()
-        .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
-        .primitive_restart_enable(false)
-        .build();
-    let dynamic_state = vk::PipelineDynamicStateCreateInfo::builder()
-        .dynamic_states(&pipeline_data_create_info._pipeline_dynamic_states)
-        .build();
+    let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
+        vertex_binding_description_count: vertex_input_bind_descriptions.len() as u32,
+        p_vertex_binding_descriptions: vertex_input_bind_descriptions.as_ptr(),
+        vertex_attribute_description_count: vertex_input_attribute_descriptions.len() as u32,
+        p_vertex_attribute_descriptions: vertex_input_attribute_descriptions.as_ptr(),
+        ..Default::default()
+    };
+    let input_assembly = vk::PipelineInputAssemblyStateCreateInfo {
+        topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+        primitive_restart_enable: 0,
+        ..Default::default()
+    };
+    let dynamic_state = vk::PipelineDynamicStateCreateInfo {
+        dynamic_state_count: pipeline_data_create_info._pipeline_dynamic_states.len() as u32,
+        p_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.as_ptr(),
+        ..Default::default()
+    };
     let viewports = [pipeline_data_create_info._pipeline_viewport];
     let scissors = [pipeline_data_create_info._pipeline_scissor_rect];
-    let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
-        .viewports(&viewports)
-        .scissors(&scissors)
-        .build();
-    let rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
-        .depth_clamp_enable(false)
-        .rasterizer_discard_enable(false)
-        .polygon_mode(pipeline_data_create_info._pipeline_polygon_mode)
-        .cull_mode(pipeline_data_create_info._pipeline_cull_mode)
-        .front_face(pipeline_data_create_info._pipeline_front_face)
-        .depth_bias_enable(false)
-        .depth_bias_constant_factor(0.0)
-        .depth_bias_clamp(0.0)
-        .depth_bias_slope_factor(0.0)
-        .line_width(1.0)
-        .build();
-    let multi_sampling = vk::PipelineMultisampleStateCreateInfo::builder()
-        .sample_shading_enable(false)
-        .rasterization_samples(pipeline_data_create_info._pipeline_sample_count)
-        .min_sample_shading(1.0)
-        .alpha_to_coverage_enable(false)
-        .alpha_to_one_enable(false)
-        .build();
+    let viewport_state = vk::PipelineViewportStateCreateInfo {
+        viewport_count: viewports.len() as u32,
+        p_viewports: viewports.as_ptr(),
+        scissor_count: scissors.len() as u32,
+        p_scissors: scissors.as_ptr(),
+        ..Default::default()
+    };
+    let rasterizer = vk::PipelineRasterizationStateCreateInfo {
+        depth_clamp_enable: 0,
+        rasterizer_discard_enable: 0,
+        polygon_mode: pipeline_data_create_info._pipeline_polygon_mode,
+        cull_mode: pipeline_data_create_info._pipeline_cull_mode,
+        front_face: pipeline_data_create_info._pipeline_front_face,
+        depth_bias_enable: 0,
+        depth_bias_constant_factor: 0.0,
+        depth_bias_clamp: 0.0,
+        depth_bias_slope_factor: 0.0,
+        line_width: 1.0,
+        ..Default::default()
+    };
+    let multi_sampling = vk::PipelineMultisampleStateCreateInfo {
+        sample_shading_enable: 0,
+        rasterization_samples: pipeline_data_create_info._pipeline_sample_count,
+        min_sample_shading: 1.0,
+        alpha_to_coverage_enable: 0,
+        alpha_to_one_enable: 0,
+        ..Default::default()
+    };
     let blend_constants = [0.0, 0.0, 0.0, 0.0];
-    let color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
-        .logic_op_enable(false)
-        .logic_op(vk::LogicOp::COPY)
-        .attachments(&pipeline_data_create_info._pipeline_color_blend_modes)
-        .blend_constants(blend_constants)
-        .build();
+    let color_blending = vk::PipelineColorBlendStateCreateInfo {
+        logic_op_enable: 0,
+        logic_op: vk::LogicOp::COPY,
+        attachment_count: pipeline_data_create_info._pipeline_color_blend_modes.len() as u32,
+        p_attachments: pipeline_data_create_info._pipeline_color_blend_modes.as_ptr(),
+        blend_constants,
+        ..Default::default()
+    };
     let depth_stencil_sate_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
-    let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo::builder()
-        .depth_test_enable(depth_stencil_sate_create_info._depth_test_enable)
-        .depth_write_enable(depth_stencil_sate_create_info._depth_write_enable)
-        .depth_compare_op(depth_stencil_sate_create_info._depth_compare_op)
-        .depth_bounds_test_enable(false)
-        .min_depth_bounds(0.0)
-        .max_depth_bounds(1.0)
-        .stencil_test_enable(depth_stencil_state_create_info._stencil_test_enable)
-        .front(vk::StencilOpState {
+    let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo {
+        depth_test_enable: depth_stencil_sate_create_info._depth_test_enable.into(),
+        depth_write_enable: depth_stencil_sate_create_info._depth_write_enable.into(),
+        depth_compare_op: depth_stencil_sate_create_info._depth_compare_op,
+        depth_bounds_test_enable: 0,
+        min_depth_bounds: 0.0,
+        max_depth_bounds: 1.0,
+        stencil_test_enable: depth_stencil_state_create_info._stencil_test_enable.into(),
+        front: vk::StencilOpState {
             fail_op: depth_stencil_state_create_info._front_fail_op,
             pass_op: depth_stencil_state_create_info._front_pass_op,
             depth_fail_op: depth_stencil_state_create_info._front_depth_fail_op,
@@ -427,8 +449,8 @@ pub fn create_graphics_pipeline_data(
             compare_mask: depth_stencil_state_create_info._front_compare_mask,
             write_mask: depth_stencil_state_create_info._front_write_mask,
             reference: depth_stencil_state_create_info._front_reference,
-        })
-        .back(vk::StencilOpState {
+        },
+        back: vk::StencilOpState {
             fail_op: depth_stencil_state_create_info._back_fail_op,
             pass_op: depth_stencil_state_create_info._back_pass_op,
             depth_fail_op: depth_stencil_state_create_info._back_depth_fail_op,
@@ -436,24 +458,27 @@ pub fn create_graphics_pipeline_data(
             compare_mask: depth_stencil_state_create_info._back_compare_mask,
             write_mask: depth_stencil_state_create_info._back_write_mask,
             reference: depth_stencil_state_create_info._back_reference,
-        })
-        .build();
-    let grphics_pipeline_create_info = [vk::GraphicsPipelineCreateInfo::builder()
-        .stages(&shader_stage_infos)
-        .vertex_input_state(&vertex_input_state_info)
-        .input_assembly_state(&input_assembly)
-        .viewport_state(&viewport_state)
-        .rasterization_state(&rasterizer)
-        .multisample_state(&multi_sampling)
-        .depth_stencil_state(&depth_stencil_state)
-        .color_blend_state(&color_blending)
-        .dynamic_state(&dynamic_state)
-        .layout(pipeline_layout)
-        .render_pass(render_pass)
-        .subpass(0)
-        .base_pipeline_handle(vk::Pipeline::null())
-        .base_pipeline_index(-1)
-        .build()];
+        },
+        ..Default::default()
+    };
+    let grphics_pipeline_create_info = [vk::GraphicsPipelineCreateInfo {
+        stage_count: shader_stage_infos.len() as u32,
+        p_stages: shader_stage_infos.as_ptr(),
+        p_vertex_input_state: &vertex_input_state_info,
+        p_input_assembly_state: &input_assembly,
+        p_viewport_state: &viewport_state,
+        p_rasterization_state: &rasterizer,
+        p_multisample_state: &multi_sampling,
+        p_depth_stencil_state: &depth_stencil_state,
+        p_color_blend_state: &color_blending,
+        p_dynamic_state: &dynamic_state,
+        layout: pipeline_layout,
+        render_pass,
+        subpass: 0,
+        base_pipeline_handle: vk::Pipeline::null(),
+        base_pipeline_index: -1,
+        ..Default::default()
+    }];
 
     unsafe {
         let graphics_pipelines = device.create_graphics_pipelines(

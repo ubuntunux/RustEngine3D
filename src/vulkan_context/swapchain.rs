@@ -117,19 +117,20 @@ pub fn create_swapchain_data(
         swapchain_support_details._capabilities.current_transform
     };
 
-    let mut swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-        .surface(surface)
-        .min_image_count(image_count)
-        .image_color_space(surface_format.color_space)
-        .image_format(surface_format.format)
-        .image_extent(image_extent)
-        .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-        .image_array_layers(1)
-        .pre_transform(pre_transform)
-        .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-        .present_mode(present_mode)
-        .clipped(true)
-        .build();
+    let mut swapchain_create_info = vk::SwapchainCreateInfoKHR {
+        surface,
+        min_image_count: image_count,
+        image_color_space: surface_format.color_space,
+        image_format: surface_format.format,
+        image_extent,
+        image_usage: vk::ImageUsageFlags::COLOR_ATTACHMENT,
+        image_array_layers: 1,
+        pre_transform,
+        composite_alpha: vk::CompositeAlphaFlagsKHR::OPAQUE,
+        present_mode,
+        clipped: 1,
+        ..Default::default()
+    };
     if queue_family_datas._queue_family_indices._graphics_queue_index != queue_family_datas._queue_family_indices._present_queue_index {
         swapchain_create_info.image_sharing_mode = vk::SharingMode::CONCURRENT;
         swapchain_create_info.queue_family_index_count = queue_family_datas._queue_family_index_list.len() as u32;

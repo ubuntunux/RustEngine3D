@@ -436,24 +436,25 @@ pub fn create_image_view(
     layer_count: u32,
     mip_levels: u32
 ) -> vk::ImageView {
-    let create_view_info = vk::ImageViewCreateInfo::builder()
-        .image(image)
-        .view_type(view_type)
-        .format(format)
-        .components(vk::ComponentMapping {
+    let create_view_info = vk::ImageViewCreateInfo {
+        image,
+        view_type,
+        format,
+        components: vk::ComponentMapping {
             r: vk::ComponentSwizzle::IDENTITY,
             g: vk::ComponentSwizzle::IDENTITY,
             b: vk::ComponentSwizzle::IDENTITY,
             a: vk::ComponentSwizzle::IDENTITY,
-        })
-        .subresource_range(vk::ImageSubresourceRange {
+        },
+        subresource_range: vk::ImageSubresourceRange {
             aspect_mask: aspect_flags,
             base_mip_level: 0,
             level_count: mip_levels,
             base_array_layer: 0,
             layer_count,
-        })
-        .build();
+        },
+        ..Default::default()
+    };
     unsafe {
         device.create_image_view(&create_view_info, None).expect("vkCreateImageView failed!")
     }

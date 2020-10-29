@@ -176,7 +176,7 @@ pub fn create_renderer_data<T>(
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
         let window = WindowBuilder::new()
             .with_title(app_name)
-            .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {width: window_width, height: window_height}))
+            .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_width, height: window_height }))
             .build(&event_loop)
             .unwrap();
         let entry = Entry::new().unwrap();
@@ -233,11 +233,12 @@ pub fn create_renderer_data<T>(
 
         // debug utils
         let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
-        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT::builder()
-            .message_severity(debug_message_level)
-            .message_type(vk::DebugUtilsMessageTypeFlagsEXT::all())
-            .pfn_user_callback(Some(vulkan_debug_callback))
-            .build();
+        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+            message_severity: debug_message_level,
+            message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
+            pfn_user_callback: Some(vulkan_debug_callback),
+            ..Default::default()
+        };
         let debug_util_interface = DebugUtils::new(&entry, &instance);
         let debug_call_back = debug_util_interface.create_debug_utils_messenger(&debug_info, None).unwrap();
         let mut renderer_data = RendererData {

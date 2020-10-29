@@ -58,12 +58,14 @@ pub fn create_descriptor_pool(
     pool_sizes: &Vec<vk::DescriptorPoolSize>,
     max_descriptor_sets_count: u32
 ) -> vk::DescriptorPool {
-    let pool_create_info = vk::DescriptorPoolCreateInfo::builder()
+    let pool_create_info = vk::DescriptorPoolCreateInfo {
         // Note: for manually free descriptorSets - vk::DescriptorPoolCreateFlags::FREE_DESCRIPTOR_SET
-        .flags(vk::DescriptorPoolCreateFlags::empty())
-        .pool_sizes(pool_sizes)
-        .max_sets(max_descriptor_sets_count)
-        .build();
+        flags: vk::DescriptorPoolCreateFlags::empty(),
+        pool_size_count: pool_sizes.len() as u32,
+        p_pool_sizes: pool_sizes.as_ptr(),
+        max_sets: max_descriptor_sets_count,
+        ..Default::default()
+    };
     unsafe {
         let descriptor_pool = device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
         log::debug!("    CreateDescriptorPool : {:?}", descriptor_pool);
@@ -82,9 +84,11 @@ pub fn create_descriptor_set_layout(
     device: &Device,
     layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>
 ) -> vk::DescriptorSetLayout {
-    let layout_create_info = vk::DescriptorSetLayoutCreateInfo::builder()
-        .bindings(&layout_bindings)
-        .build();
+    let layout_create_info = vk::DescriptorSetLayoutCreateInfo {
+        binding_count: layout_bindings.len() as u32,
+        p_bindings: layout_bindings.as_ptr(),
+        ..Default::default()
+    };
     unsafe {
         let descriptor_set_layout = device.create_descriptor_set_layout(&layout_create_info, None).expect("vkCreateDescriptorSetLayout failed!");
         log::debug!("    CreateDescriptorSetLayout: {:?}", descriptor_set_layout);
@@ -108,21 +112,22 @@ pub fn create_descriptor_data(
     let descriptor_layout_bindings = descriptor_data_create_infos
         .iter()
         .map(|descriptor_data_create_info| {
-            vk::DescriptorSetLayoutBinding::builder()
-                .binding(descriptor_data_create_info._descriptor_binding_index)
-                .descriptor_type(descriptor_data_create_info._descriptor_type)
-                .descriptor_count(1)
-                .stage_flags(descriptor_data_create_info._descriptor_shader_stage)
-                .build()
+            vk::DescriptorSetLayoutBinding {
+                binding: descriptor_data_create_info._descriptor_binding_index,
+                descriptor_type: descriptor_data_create_info._descriptor_type,
+                descriptor_count: 1,
+                stage_flags: descriptor_data_create_info._descriptor_shader_stage,
+                ..Default::default()
+            }
         })
         .collect();
     let descriptor_pool_sizes = descriptor_data_create_infos
         .iter()
         .map(|descriptor_data_create_info| {
-            vk::DescriptorPoolSize::builder()
-                .ty(descriptor_data_create_info._descriptor_type)
-                .descriptor_count(max_descriptor_sets_count)
-                .build()
+            vk::DescriptorPoolSize {
+                ty: descriptor_data_create_info._descriptor_type,
+                descriptor_count: max_descriptor_sets_count,
+            }
         })
         .collect();
     let descriptor_set_layout = create_descriptor_set_layout(device, &descriptor_layout_bindings);
@@ -152,10 +157,12 @@ pub fn create_descriptor_sets(
     let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT] = [
         descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT
     ];
-    let allocation_info = vk::DescriptorSetAllocateInfo::builder()
-        .descriptor_pool(descriptor_data._descriptor_pool)
-        .set_layouts(&descriptor_set_layouts)
-        .build();
+    let allocation_info = vk::DescriptorSetAllocateInfo {
+        descriptor_pool: descriptor_data._descriptor_pool,
+        descriptor_set_count: descriptor_set_layouts.len() as u32,
+        p_set_layouts: descriptor_set_layouts.as_ptr(),
+        ..Default::default()
+    };
     unsafe {
         let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("");
         log::debug!("    CreateDescriptorSet: {:?}", descriptor_sets);

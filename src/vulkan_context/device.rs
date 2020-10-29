@@ -119,24 +119,28 @@ pub fn create_vk_instance(
 
     let require_extension_names = surface_extensions
         .iter()
-        .map(|ext| CString::from(*ext) )
+        .map(|ext| CString::from(*ext))
         .collect();
     let available_instance_extensions: Vec<CString> = get_instance_extension_supports(entry);
     check_extension_support(&"Instance", &available_instance_extensions, &require_extension_names);
 
-    let appinfo = vk::ApplicationInfo::builder()
-        .application_name(&app_name)
-        .application_version(app_version)
-        .engine_name(&app_name)
-        .engine_version(constants::ENGINE_VERSION)
-        .api_version(constants::API_VERSION)
-        .build();
+    let appinfo = vk::ApplicationInfo {
+        p_application_name: app_name.as_ptr(),
+        application_version: app_version,
+        p_engine_name: app_name.as_ptr(),
+        engine_version: constants::ENGINE_VERSION,
+        api_version: constants::API_VERSION,
+        ..Default::default()
+    };
 
-    let create_info = vk::InstanceCreateInfo::builder()
-        .application_info(&appinfo)
-        .enabled_layer_names(&layers_names_raw)
-        .enabled_extension_names(&extension_names_raw)
-        .build();
+    let create_info = vk::InstanceCreateInfo {
+        p_application_info: &appinfo,
+        enabled_layer_count: layers_names_raw.len() as u32,
+        pp_enabled_layer_names: layers_names_raw.as_ptr(),
+        enabled_extension_count: extension_names_raw.len() as u32,
+        pp_enabled_extension_names: extension_names_raw.as_ptr(),
+        ..Default::default()
+    };
 
     log::info!(
         "Create Vulkan Instance: {:?}, api version: {}.{}.{}",
@@ -219,22 +223,28 @@ pub fn create_device(
     let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = queue_family_index_set
         .iter()
         .map(|queue_family_index| {
-            vk::DeviceQueueCreateInfo::builder()
-                .queue_family_index(*queue_family_index)
-                .queue_priorities(&queue_priorities)
-                .build()
+            vk::DeviceQueueCreateInfo {
+                queue_family_index: *queue_family_index,
+                queue_count: queue_priorities.len() as u32,
+                p_queue_priorities: queue_priorities.as_ptr(),
+                ..Default::default()
+            }
         })
         .collect();
     let layer_names: Vec<CString> = constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect();
     let layer_names_raw: Vec<*const c_char> = layer_names.iter().map(|layer_name| { layer_name.as_ptr() }).collect();
     let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|extension| { CString::new(*extension).unwrap() }).collect();
     let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
-    let device_create_info = vk::DeviceCreateInfo::builder()
-        .queue_create_infos(&queue_create_infos)
-        .enabled_layer_names(&layer_names_raw)
-        .enabled_extension_names(&device_extension_names_raw)
-        .enabled_features(&render_features._physical_device_features)
-        .build();
+    let device_create_info = vk::DeviceCreateInfo {
+        queue_create_info_count: queue_create_infos.len() as u32,
+        p_queue_create_infos: queue_create_infos.as_ptr(),
+        enabled_layer_count: layer_names_raw.len() as u32,
+        pp_enabled_layer_names: layer_names_raw.as_ptr(),
+        enabled_extension_count: device_extension_names_raw.len() as u32,
+        pp_enabled_extension_names: device_extension_names_raw.as_ptr(),
+        p_enabled_features: &render_features._physical_device_features,
+        ..Default::default()
+    };
     unsafe {
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
         log::info!("Created Device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);

@@ -126,20 +126,25 @@ pub fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffe
 ) {
     unsafe {
         device.reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES).expect("Reset command buffer failed.");
-        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
-            .build();
+        let command_buffer_begin_info = vk::CommandBufferBeginInfo {
+            flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+            ..Default::default()
+        };
         device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
         func(device, command_buffer);
         device.end_command_buffer(command_buffer).expect("End commandbuffer");
         let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None).expect("Create fence failed.");
         let command_buffers = vec![command_buffer];
-        let submit_info = vk::SubmitInfo::builder()
-            .wait_semaphores(wait_semaphores)
-            .wait_dst_stage_mask(wait_mask)
-            .command_buffers(&command_buffers)
-            .signal_semaphores(signal_semaphores)
-            .build();
+        let submit_info = vk::SubmitInfo {
+            wait_semaphore_count: wait_semaphores.len() as u32,
+            p_wait_semaphores: wait_semaphores.as_ptr(),
+            p_wait_dst_stage_mask: wait_mask.as_ptr(),
+            command_buffer_count: command_buffers.len() as u32,
+            p_command_buffers: command_buffers.as_ptr(),
+            signal_semaphore_count: signal_semaphores.len() as u32,
+            p_signal_semaphores: signal_semaphores.as_ptr(),
+            ..Default::default()
+        };
         device.queue_submit(submit_queue, &[submit_info], submit_fence).expect("queue submit failed.");
         device.wait_for_fences(&[submit_fence], true, std::u64::MAX).expect("Wait for fence failed.");
         device.destroy_fence(submit_fence, None);
@@ -153,16 +158,18 @@ pub fn run_commands_once<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
     func: F,
 ) {
     unsafe {
-        let allocate_info = vk::CommandBufferAllocateInfo::builder()
-            .level(vk::CommandBufferLevel::PRIMARY)
-            .command_pool(command_pool)
-            .command_buffer_count(1)
-            .build();
+        let allocate_info = vk::CommandBufferAllocateInfo {
+            level: vk::CommandBufferLevel::PRIMARY,
+            command_pool,
+            command_buffer_count: 1,
+            ..Default::default()
+        };
         let command_buffers = device.allocate_command_buffers(&allocate_info).unwrap();
         let command_buffer = command_buffers[0];
-        let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
-            .build();
+        let command_buffer_begin_info = vk::CommandBufferBeginInfo {
+            flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+            ..Default::default()
+        };
 
         device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Failed to begin_command_buffer");
 
@@ -171,9 +178,11 @@ pub fn run_commands_once<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
 
         device.end_command_buffer(command_buffer).expect("Failed to end_command_buffer");
 
-        let submit_info = vk::SubmitInfo::builder()
-            .command_buffers(&command_buffers)
-            .build();
+        let submit_info = vk::SubmitInfo {
+            command_buffer_count: command_buffers.len() as u32,
+            p_command_buffers: command_buffers.as_ptr(),
+            ..Default::default()
+        };
 
         // TODO: a real app would need a better logic for waiting.
         // In the example below, we create a new fence every time we want to
