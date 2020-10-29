@@ -24,7 +24,7 @@ use crate::renderer::material_instance::{ self, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_pass_create_info;
 use crate::vulkan_context::descriptor::{ self, DescriptorData };
-use crate::vulkan_context::framebuffer::{ self, FramebufferData };
+use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
 use crate::vulkan_context::render_pass::{
     self,
@@ -244,7 +244,7 @@ impl Resources {
 
     pub fn unload_model_datas(&mut self, _renderer_data: &RendererData) {
         for model_data in self._model_data_map.values() {
-            (*model_data).borrow().destroy_model_data();
+            model_data.borrow().destroy_model_data();
         }
         self._model_data_map.clear();
     }
@@ -458,19 +458,24 @@ impl Resources {
     }
 
     // Framebuffer
-    pub fn load_framebuffer_datas(&mut self, _renderer_data: &RendererData) {
-        // renderPassDataCreateInfos <- RenderPassCreateInfo.getRenderPassDataCreateInfos rendererData
-        // let frameBufferCreateInfoList = map (\renderPassDataCreateInfo -> (_renderPassCreateInfoName renderPassDataCreateInfo, _renderPassFramebufferCreateInfo renderPassDataCreateInfo)) renderPassDataCreateInfos
-        //     frameBufferCreateInfoMap = Map.fromList frameBufferCreateInfoList
-        // HashTable.mapM_ (\(k, v) -> registFramebufferData frameBufferCreateInfoMap k) (_renderPassDataMap resources)
-        // where
-        //     registFramebufferData :: Map.Map String FramebufferDataCreateInfo -> String -> IO ()
-        //     registFramebufferData frameBufferCreateInfoMap renderPassName = do
-        //         Just renderPassData <- getRenderPassData resources renderPassName
-        //         let frameBufferName = _renderPassFramebufferName (renderPassData::RenderPassData)
-        //             Just frameBufferDataCreateInfo = Map.lookup frameBufferName frameBufferCreateInfoMap
-        //         frameBufferData <- createFramebufferData (getDevice rendererData) (_renderPass renderPassData) frameBufferDataCreateInfo
-        //         HashTable.insert (_frameBufferDataMap resources) frameBufferName frameBufferData
+    pub fn load_framebuffer_datas(&mut self, renderer_data: &RendererData) {
+        let render_pass_data_create_infos = render_pass_create_info::get_render_pass_data_create_infos(renderer_data);
+        for render_pass_data in self._render_pass_data_map.values() {
+            let render_pass_data = render_pass_data.borrow();
+            let framebuffer_name = &render_pass_data._render_pass_framebuffer_name;
+
+            for render_pass_data_create_info in render_pass_data_create_infos.iter() {
+                if *framebuffer_name == render_pass_data_create_info._render_pass_create_info_name {
+                    let framebuffer_data = newRcRefCell(framebuffer::create_framebuffer_data(
+                        renderer_data.get_device(),
+                        render_pass_data._render_pass,
+                        &render_pass_data_create_info._render_pass_frame_buffer_create_info,
+                    ));
+                    self._framebuffer_data_map.insert(framebuffer_name.clone(), framebuffer_data);
+                    break;
+                }
+            }
+        }
     }
 
     pub fn unload_framebuffer_datas(&mut self, renderer_data: &RendererData) {
