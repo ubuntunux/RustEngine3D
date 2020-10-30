@@ -1,9 +1,9 @@
 use std::fs::{ self, File };
 use std::io::prelude::*;
-use std::path::{ PathBuf };
+use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
 
-use serde_json;
+use serde_json::{ self, Value, json };
 use bincode;
 use image::{
     self,
@@ -51,6 +51,8 @@ const EXT_OBJ: &str = "obj";
 const EXT_COLLADA: &str = "dae";
 const MESH_SOURCE_EXTS: [&str; 2] = [EXT_OBJ, EXT_COLLADA];
 const EXT_JSON: &str = "json";
+const EXT_MATERIAL: &str = "mat";
+const EXT_MATERIAL_INSTANCE: &str = "matinst";
 const EXT_MESH: &str = "mesh";
 const EXT_MODEL: &str = "model";
 const IMAGE_SOURCE_EXTS: [&str; 4] = ["jpg", "png", "tga", "bmp"];
@@ -530,22 +532,39 @@ impl Resources {
 
     // Material_datas
     pub fn load_material_datas(&mut self, _renderer_data: &RendererData) {
-        // materialFiles <- walkDirectory materialPathBuf ["mat"]
-        // forM_ materialFiles $ \materialFile -> do
-        //     materialName <- getUniqueResourceName (_materialDataMap resources) materialPathBuf materialFile
-        //     contents <- ByteString.readFile materialFile
-        //     registMaterialData rendererData (_materialDataMap resources) materialName contents
-        // where
-        //     registMaterialData rendererData materialDataMap materialName contents = do
-        //         let Just (Aeson.Object materialCreateInfo) = Aeson.decodeStrict contents
-        //             Just (Aeson.Array pipelineCreateInfoArray) = HashMap.lookup "pipelines" materialCreateInfo
-        //             Aeson.Object materialParameterMap = HashMap.lookupDefault (Aeson.Object HashMap.empty) "material_parameters" materialCreateInfo
-        //         renderPassPipelineDataList <- forM pipelineCreateInfoArray $ \(Aeson.Object pipelineCreateInfo) -> do
-        //             let Just (Aeson.String renderPassDataName) = HashMap.lookup "renderPass" pipelineCreateInfo
-        //                 Just (Aeson.String pipelineDataName) = HashMap.lookup "pipleline" pipelineCreateInfo
-        //             getRenderPassPipelineData resources (renderPassDataName, pipelineDataName)
-        //         material <- Material.createMaterial materialName (Vector.toList renderPassPipelineDataList) materialParameterMap
-        //         HashTable.insert (_materialDataMap resources) materialName material
+        let material_directory = PathBuf::from(MATERIAL_FILE_PATH);
+        let material_files = system::walk_directory(&material_directory.as_path(), &[EXT_MATERIAL]);
+        for material_file in material_files {
+            let material_name = get_unique_resource_name(&self._material_data_map, &material_directory, &material_file);
+            let loaded_contents = fs::File::open(material_file).expect("Failed to create file");
+            let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let material_create_info = match contents {
+                Value::Object(material_create_info) => material_create_info,
+                _ => panic!("material parsing error"),
+            };
+            let pipeline_create_infos = material_create_info.get("pipelines").unwrap().as_array().unwrap();
+            let empty_object = json!({});
+            let material_parameter_map = match material_create_info.get("material_parameters") {
+                Some(material_parameter_map) => material_parameter_map,
+                _ => &empty_object,
+            };
+            let render_pass_pipeline_datas: Vec<RenderPassPipelineData> = pipeline_create_infos.iter().map(|pipeline_create_info| {
+                let render_pass_data_name = match pipeline_create_info.get("render_pass").unwrap() {
+                    Value::String(render_pass_data_name) => render_pass_data_name,
+                    _ => panic!("failed to parsing render_pass"),
+                };
+                let pipeline_data_name = match pipeline_create_info.get("pipeline").unwrap() {
+                    Value::String(pipeline_data_name) => pipeline_data_name,
+                    _ => panic!("failed to parsing pipeline"),
+                };
+                self.get_render_pass_pipeline_data(&RenderPassPipelineDataName {
+                    _render_pass_data_name: render_pass_data_name.clone(),
+                    _pipeline_data_name: pipeline_data_name.clone(),
+                })
+            }).collect();
+            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameter_map);
+            self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
+        }
     }
 
     pub fn unload_material_datas(&mut self, _renderer_data: &RendererData) {

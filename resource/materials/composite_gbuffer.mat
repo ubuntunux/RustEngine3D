@@ -1,4 +1,4 @@
-{ "pipelines": [{ "renderPass": "composite_gbuffer", "pipleline": "composite_gbuffer" }]
+{ "pipelines": [{ "render_pass": "composite_gbuffer", "pipeline": "composite_gbuffer" }]
 , "material_parameters": { "textureProbe": "common/default_cube", "ibl_brdf_lut": "common/ibl_brdf_lut"}
 }
 
