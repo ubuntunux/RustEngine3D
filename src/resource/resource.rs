@@ -580,44 +580,57 @@ impl Resources {
 
     // MaterialInstance_datas
     pub fn load_material_instance_datas(&mut self, _renderer_data: &RendererData) {
-        // materialInstanceFiles <- walkDirectory materialInstancePathBuf ["matinst"]
-        // forM_ materialInstanceFiles $ \materialInstanceFile -> do
-        //     materialInstanceName <- getUniqueResourceName (_materialInstanceDataMap resources) materialInstancePathBuf materialInstanceFile
-        //     contents <- ByteString.readFile materialInstanceFile
-        //     registMaterialInstanceData rendererData (_materialInstanceDataMap resources) materialInstanceName contents
-        // where
-        //     registMaterialInstanceData rendererData materialInstanceDataMap materialInstanceName contents = do
-        //         let Just (Aeson.Object materialInstanceCreateInfoMap) = Aeson.decodeStrict contents
-        //             Just (Aeson.String materialDataName) = HashMap.lookup "material_name" materialInstanceCreateInfoMap
-        //             Just (Aeson.Object materialParameterMap) = HashMap.lookup "material_parameters" materialInstanceCreateInfoMap
-        //
-        //         materialData <- getMaterialData resources materialDataName
-        //         let defaultMaterialParameterMap = Material._materialParameterMap materialData
-        //         pipelineBindingCreateInfoList <- forM (Map.toList $ Material._renderPassPipelineDataMap materialData) $ \(key, (renderPassData, pipelineData)) -> do
-        //             let descriptorDataCreateInfoList = Descriptor._descriptorDataCreateInfoList $ _descriptorData pipelineData
-        //             descriptorResourceInfosList <- forM Constants.swapChainImageIndices $ \swapChainIndex -> do
-        //                 descriptorResourceInfos <- forM descriptorDataCreateInfoList $ \descriptorDataCreateInfo -> do
-        //                     let materialParameterName = Descriptor._descriptorName' descriptorDataCreateInfo
-        //                         materialParameterType = Descriptor._descriptorType' descriptorDataCreateInfo
-        //                         materialParameterResourceType = Descriptor._descriptorResourceType' descriptorDataCreateInfo
-        //                         maybeMaterialParameter = lookupWithDefaultMap materialParameterName materialParameterMap defaultMaterialParameterMap
-        //                     case (materialParameterType, materialParameterResourceType) of
-        //                         (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Descriptor.DescriptorResourceType_UniformBuffer) -> do
-        //                             uniformBufferData <- getUniformBufferData rendererData (fromText materialParameterName)
-        //                             return $ Descriptor.DescriptorBufferInfo (atSwapchainIndex swapChainIndex (_descriptorBufferInfos uniformBufferData))
-        //                         (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_Texture) -> do
-        //                             textureData <- case maybeMaterialParameter of
-        //                                 Just (Aeson.String value) -> getTextureData resources value
-        //                                 otherwise -> getTextureData resources defaultTextureName
-        //                             return $ Descriptor.DescriptorImageInfo (_descriptorImageInfo textureData)
-        //                         (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_RenderTarget) -> do
-        //                             textureData <- getRenderTarget rendererData (fromText materialParameterName)
-        //                             return $ Descriptor.DescriptorImageInfo (_descriptorImageInfo textureData)
-        //                         otherwise -> return Descriptor.InvalidDescriptorInfo
-        //                 return $ filter (/= Descriptor.InvalidDescriptorInfo) descriptorResourceInfos
-        //             return (renderPassData, pipelineData, descriptorResourceInfosList)
-        //         materialInstance <- MaterialInstance.createMaterialInstance (getDevice rendererData) materialInstanceName materialData pipelineBindingCreateInfoList
-        //         HashTable.insert (_materialInstanceDataMap resources) materialInstanceName materialInstance
+        let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_FILE_PATH);
+        let material_instance_files = system::walk_directory(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
+        for material_instance_file in material_instance_files.iter() {
+            let material_instance_name = get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file);
+            let loaded_contents = fs::File::open(material_instance_file).expect("Failed to create file");
+            let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let empty_object = json!({});
+            let material_instance_create_info = match contents {
+                Value::Object(material__instance_create_info) => material__instance_create_info,
+                _ => panic!("material instance parsing error"),
+            };
+            let material_data_name = match material_instance_create_info.get("material_name").unwrap() {
+                Value::String(material_data_name) => material_data_name,
+                _ => panic!("material name parsing error")
+            };
+            let material_parameter_map = match material_instance_create_info.get("material_parameters").unwrap() {
+                Value::Object(material_parameter_map) => material_parameter_map,
+                _ => panic!("material parameters parsing error")
+            };
+            let material_data = self.get_material_data(&material_data_name);
+            let default_material_parameter_map = &material_data.borrow()._material_parameter_map;
+            let pipeline_binding_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
+                let descriptor_data_create_infos = &render_pass_pipeline_data._pipieline_data.borrow()._descriptor_data._descriptor_data_create_infos;
+                let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
+                    let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+                        let material_parameter_name = &descriptor_data_create_info._descriptor_name;
+                        let material_parameter_type = &descriptor_data_create_info._descriptor_type;
+                        let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
+                        let maybe_material_parameter = match material_parameter_map.get(&material_parameter_name)
+                    }).collect();
+                }).collect();
+            }).collect();
+        }
+                                maybeMaterialParameter = lookupWithDefaultMap materialParameterName materialParameterMap defaultMaterialParameterMap
+                            case (materialParameterType, materialParameterResourceType) of
+                                (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Descriptor.DescriptorResourceType_UniformBuffer) -> do
+                                    uniformBufferData <- getUniformBufferData rendererData (fromText materialParameterName)
+                                    return $ Descriptor.DescriptorBufferInfo (atSwapchainIndex swapChainIndex (_descriptorBufferInfos uniformBufferData))
+                                (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_Texture) -> do
+                                    textureData <- case maybeMaterialParameter of
+                                        Just (Aeson.String value) -> getTextureData resources value
+                                        otherwise -> getTextureData resources defaultTextureName
+                                    return $ Descriptor.DescriptorImageInfo (_descriptorImageInfo textureData)
+                                (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_RenderTarget) -> do
+                                    textureData <- getRenderTarget rendererData (fromText materialParameterName)
+                                    return $ Descriptor.DescriptorImageInfo (_descriptorImageInfo textureData)
+                                otherwise -> return Descriptor.InvalidDescriptorInfo
+                        return $ filter (/= Descriptor.InvalidDescriptorInfo) descriptorResourceInfos
+                    return (renderPassData, pipelineData, descriptorResourceInfosList)
+                materialInstance <- MaterialInstance.createMaterialInstance (getDevice rendererData) materialInstanceName materialData pipelineBindingCreateInfoList
+                HashTable.insert (_materialInstanceDataMap resources) materialInstanceName materialInstance
     }
 
     pub fn unload_material_instance_datas(&mut self, _renderer_data: &RendererData) {
