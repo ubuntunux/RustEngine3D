@@ -183,7 +183,7 @@ impl Resources {
         self.load_framebuffer_datas(renderer_data);
         self.load_material_datas(renderer_data);
         self.load_material_instance_datas(renderer_data);
-        self.update_material_instance_datas(renderer_data);
+        self.update_material_instance_datas();
     }
 
     pub fn unload_graphics_datas(&mut self, renderer_data: &RendererData) {
@@ -658,15 +658,18 @@ impl Resources {
         }
     }
 
-    pub fn update_material_instance_datas(&mut self, _renderer_data: &RendererData) {
-        // flip HashTable.mapM_ (_modelDataMap resources) $ \(k, modelData) -> do
-        //     materialInstances <- Model.getMaterialInstanceDataList modelData
-        //     newMaterialInstances <- forM materialInstances $ \materialInstance ->
-        //         getMaterialInstanceData resources (MaterialInstance._materialInstanceDataName materialInstance)
-        //     Model.setMaterialInstanceDataList modelData newMaterialInstances
+    pub fn update_material_instance_datas(&mut self) {
+        for (_key, model_data) in self._model_data_map.iter() {
+            let mut model_data = model_data.borrow_mut();
+            let material_instances = model_data.get_material_instance_datas();
+            let new_material_instances = material_instances.iter().map(|material_instance| {
+                self.get_material_instance_data(&material_instance.borrow()._material_instance_data_name).clone()
+            }).collect();
+            model_data.set_material_instance_datas(new_material_instances);
+        }
     }
 
-    pub fn get_material_instance_data(&self, resource_name: &String) ->  &RcRefCell<MaterialInstanceData> {
+    pub fn get_material_instance_data(&self, resource_name: &String) -> &RcRefCell<MaterialInstanceData> {
         get_resource_data(&self._material_instance_data_map, resource_name, DEFAULT_MATERIAL_INSTANCE_NAME)
     }
 

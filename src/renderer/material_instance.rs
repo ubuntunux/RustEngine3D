@@ -28,9 +28,9 @@ type PipelineBindingDataMap = HashMap<render_pass::RenderPassPipelineDataName, P
 
 #[derive(Clone, Debug)]
 pub struct MaterialInstanceData {
-    _material_instance_data_name: String,
-    _material_data: RcRefCell<MaterialData>,
-    _pipeline_binding_data_map: PipelineBindingDataMap,
+    pub _material_instance_data_name: String,
+    pub _material_data: RcRefCell<MaterialData>,
+    pub _pipeline_binding_data_map: PipelineBindingDataMap,
 }
 
 impl MaterialInstanceData {

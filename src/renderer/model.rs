@@ -1,6 +1,7 @@
 
 use crate::renderer::material_instance::MaterialInstanceData;
 use crate::renderer::mesh::MeshData;
+use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
 pub struct ModelCreateInfo {
@@ -13,7 +14,7 @@ pub struct ModelCreateInfo {
 pub struct ModelData {
     _model_data_name: String,
     _mesh_data: MeshData,
-    _material_instance_datas: Vec<MaterialInstanceData>,
+    _material_instance_datas: Vec<RcRefCell<MaterialInstanceData>>,
 }
 
 
@@ -21,7 +22,7 @@ impl ModelData {
     pub fn new_model_data(
         model_name: String,
         mesh_data: MeshData,
-        material_instance_datas: Vec<MaterialInstanceData>
+        material_instance_datas: Vec<RcRefCell<MaterialInstanceData>>
     ) -> ModelData {
         log::info!("newModelData: {}", model_name);
         ModelData {
@@ -42,15 +43,15 @@ impl ModelData {
         self._material_instance_datas.len()
     }
 
-    pub fn get_material_instance_datas(&self) -> &Vec<MaterialInstanceData> {
+    pub fn get_material_instance_datas(&self) -> &Vec<RcRefCell<MaterialInstanceData>> {
         &self._material_instance_datas
     }
 
-    pub fn set_material_instance_datas(&mut self, material_instance_datas: Vec<MaterialInstanceData>) {
+    pub fn set_material_instance_datas(&mut self, material_instance_datas: Vec<RcRefCell<MaterialInstanceData>>) {
         self._material_instance_datas = material_instance_datas;
     }
 
-    pub fn get_material_instance_data(&self, index: usize) -> &MaterialInstanceData {
+    pub fn get_material_instance_data(&self, index: usize) -> &RcRefCell<MaterialInstanceData> {
         &self._material_instance_datas[index]
     }
 
