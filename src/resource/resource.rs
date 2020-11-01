@@ -608,7 +608,7 @@ impl Resources {
                         let material_parameter_name = &descriptor_data_create_info._descriptor_name;
                         let material_parameter_type = &descriptor_data_create_info._descriptor_type;
                         let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
-                        let maybe_material_parameter = match material_parameter_map.get(&material_parameter_name)
+                        let maybe_material_parameter = system::lookpu_with_default_map(&material_parameter_name, &material_parameter_map, &default_material_parameter_map);
                     }).collect();
                 }).collect();
             }).collect();
