@@ -28,6 +28,32 @@ pub enum RenderTargetType {
     MaxBound,
 }
 
+impl std::fmt::Display for RenderTargetType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::str::FromStr for RenderTargetType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "SceneColor" => Ok(RenderTargetType::SceneColor),
+            "SceneColorCopy" => Ok(RenderTargetType::SceneColorCopy),
+            "SceneDepth" => Ok(RenderTargetType::SceneDepth),
+            "BackBuffer" => Ok(RenderTargetType::BackBuffer),
+            "BackBufferCopy" => Ok(RenderTargetType::BackBufferCopy),
+            "SceneAlbedo" => Ok(RenderTargetType::SceneAlbedo),
+            "SceneNormal" => Ok(RenderTargetType::SceneNormal),
+            "SceneMaterial" => Ok(RenderTargetType::SceneMaterial),
+            "SceneVelocity" => Ok(RenderTargetType::SceneVelocity),
+            "SSAO" => Ok(RenderTargetType::SSAO),
+            "Shadow" => Ok(RenderTargetType::Shadow),
+            _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
+        }
+    }
+}
+
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
 pub fn regist_render_target<T>(

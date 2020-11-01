@@ -35,12 +35,22 @@ pub enum UniformBufferType {
     SSAOConstants,
 }
 
-pub fn uniform_buffer_type_to_string(uniform_buffer_type: &UniformBufferType) -> &'static str {
-    match uniform_buffer_type {
-        UniformBufferType::SceneConstants => "SceneConstants",
-        UniformBufferType::ViewConstants => "ViewConstants",
-        UniformBufferType::LightConstant => "LightConstant",
-        UniformBufferType::SSAOConstants => "SSAOConstants",
+impl std::fmt::Display for UniformBufferType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
+}
+
+impl std::str::FromStr for UniformBufferType {
+    type Err = String;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "SceneConstants" => Ok(UniformBufferType::SceneConstants),
+            "ViewConstants" => Ok(UniformBufferType::ViewConstants),
+            "LightConstant" => Ok(UniformBufferType::LightConstant),
+            "SSAOConstants" => Ok(UniformBufferType::SSAOConstants),
+            _ => Err(format!("'{}' is not a valid value for UniformBufferType", s)),
+        }
     }
 }
 
@@ -132,7 +142,7 @@ pub fn regist_uniform_data(
     let uniform_buffer_data = uniform_buffer::create_uniform_buffer_data(
         device,
         memory_properties,
-        &String::from(uniform_buffer_type_to_string(&uniform_buffer_data_type)),
+        &String::from(format!("{:?}", uniform_buffer_data_type)),
         uniform_buffer_data_size as vk::DeviceSize
     );
     uniform_buffer_data_map.insert(uniform_buffer_data_type.clone(), uniform_buffer_data);

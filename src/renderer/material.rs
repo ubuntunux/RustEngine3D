@@ -25,7 +25,7 @@ impl MaterialData {
         for render_pass_pipeline_data in render_pass_pipeline_datas {
             let render_pass_pipeline_data_name = RenderPassPipelineDataName {
                 _render_pass_data_name: render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name.clone(),
-                _pipeline_data_name: render_pass_pipeline_data._pipieline_data.borrow()._pipeline_data_name.clone(),
+                _pipeline_data_name: render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name.clone(),
             };
             log::info!("    renderPass, pipeline: {:?}", render_pass_pipeline_data_name);
             render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, render_pass_pipeline_data.clone());

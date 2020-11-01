@@ -57,10 +57,3 @@ pub fn generate_unique_name<T>(data_map: &HashMap<String, T>, data_name: &String
         None => data_name.clone(),
     }
 }
-
-pub fn lookpu_with_default_map<K, T>(key: &k, map: &HashMap<K, T>, default_map: &HashMap<K, T>) -> Option<&T> {
-    match map.get(key) {
-        None => default_map.get(key),
-        value => value
-    }
-}

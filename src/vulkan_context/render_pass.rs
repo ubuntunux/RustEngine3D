@@ -36,7 +36,7 @@ pub struct RenderPassPipelineDataName {
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
     pub _render_pass_data: RcRefCell<RenderPassData>,
-    pub _pipieline_data: RcRefCell<PipelineData>,
+    pub _pipeline_data: RcRefCell<PipelineData>,
 }
 
 #[derive(Clone)]

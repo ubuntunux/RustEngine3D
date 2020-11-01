@@ -9,10 +9,10 @@ use crate::vulkan_context::vulkan_context::{ SwapchainIndexMap };
 
 #[derive(Debug, Clone)]
 pub struct UniformBufferData {
-    _uniform_buffer_name: String,
-    _uniform_buffers: SwapchainIndexMap<buffer::BufferData>,
-    _uniform_buffer_data_size: vk::DeviceSize,
-    _descriptor_buffer_infos: SwapchainIndexMap<vk::DescriptorBufferInfo>
+    pub _uniform_buffer_name: String,
+    pub _uniform_buffers: SwapchainIndexMap<buffer::BufferData>,
+    pub _uniform_buffer_data_size: vk::DeviceSize,
+    pub _descriptor_buffer_infos: SwapchainIndexMap<vk::DescriptorBufferInfo>
 }
 
 pub fn create_uniform_buffer(

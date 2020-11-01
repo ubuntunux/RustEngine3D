@@ -1,6 +1,7 @@
 use std::fs::{ self, File };
+use std::str::FromStr;
 use std::io::prelude::*;
-use std::path::{ Path, PathBuf };
+use std::path::{ PathBuf };
 use std::collections::HashMap;
 
 use serde_json::{ self, Value, json };
@@ -18,12 +19,14 @@ use crate::constants;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
 use crate::renderer::mesh::{ MeshData };
-use crate::renderer::model::{ self, ModelData };
+use crate::renderer::model::{ ModelData };
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
+use crate::renderer::render_target::{ RenderTargetType };
 use crate::renderer::render_pass_create_info;
-use crate::vulkan_context::descriptor::{ self, DescriptorData };
+use crate::renderer::uniform_buffer_data::{ UniformBufferType };
+use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
 use crate::vulkan_context::render_pass::{
@@ -71,7 +74,7 @@ pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
 pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>;
 pub type MeshDataMap = ResourceDataMap<MeshData>;
-pub type ModelDataMap = ResourceDataMap<model::ModelData>;
+pub type ModelDataMap = ResourceDataMap<ModelData>;
 pub type TextureDataMap = ResourceDataMap<TextureData>;
 pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
 pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
@@ -526,7 +529,7 @@ impl Resources {
         let pipeline_data = render_pass_data.get_pipeline_data(&render_pass_pipeline_data_name._pipeline_data_name);
         RenderPassPipelineData {
             _render_pass_data: render_pass_data_refcell.clone(),
-             _pipieline_data: pipeline_data.clone(),
+             _pipeline_data: pipeline_data.clone(),
         }
     }
 
@@ -579,16 +582,15 @@ impl Resources {
     }
 
     // MaterialInstance_datas
-    pub fn load_material_instance_datas(&mut self, _renderer_data: &RendererData) {
+    pub fn load_material_instance_datas(&mut self, renderer_data: &RendererData) {
         let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_FILE_PATH);
         let material_instance_files = system::walk_directory(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
             let material_instance_name = get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file);
             let loaded_contents = fs::File::open(material_instance_file).expect("Failed to create file");
             let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let empty_object = json!({});
             let material_instance_create_info = match contents {
-                Value::Object(material__instance_create_info) => material__instance_create_info,
+                Value::Object(material_instance_create_info) => material_instance_create_info,
                 _ => panic!("material instance parsing error"),
             };
             let material_data_name = match material_instance_create_info.get("material_name").unwrap() {
@@ -599,38 +601,55 @@ impl Resources {
                 Value::Object(material_parameter_map) => material_parameter_map,
                 _ => panic!("material parameters parsing error")
             };
-            let material_data = self.get_material_data(&material_data_name);
+            let material_data = self.get_material_data(&material_data_name).clone();
             let default_material_parameter_map = &material_data.borrow()._material_parameter_map;
-            let pipeline_binding_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
-                let descriptor_data_create_infos = &render_pass_pipeline_data._pipieline_data.borrow()._descriptor_data._descriptor_data_create_infos;
+            let pipeline_bind_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
+                let descriptor_data_create_infos = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data._descriptor_data_create_infos;
                 let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
                     let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                         let material_parameter_name = &descriptor_data_create_info._descriptor_name;
                         let material_parameter_type = &descriptor_data_create_info._descriptor_type;
                         let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
-                        let maybe_material_parameter = system::lookpu_with_default_map(&material_parameter_name, &material_parameter_map, &default_material_parameter_map);
+                        let maybe_material_parameter = match material_parameter_map.get(material_parameter_name) {
+                            None => default_material_parameter_map.get(material_parameter_name),
+                            value => value,
+                        };
+                        let descriptor_resource_info = match (*material_parameter_type, material_parameter_resource_type) {
+                            (vk::DescriptorType::UNIFORM_BUFFER, DescriptorResourceType::UniformBuffer) => {
+                                let uniform_buffer_data = renderer_data.get_uniform_buffer_data(UniformBufferType::from_str(&material_parameter_name.as_str()).unwrap());
+                                DescriptorResourceInfo::DescriptorBufferInfo(uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone())
+                            },
+                            (vk::DescriptorType::COMBINED_IMAGE_SAMPLER, DescriptorResourceType::Texture) => {
+                                let texture_data = match maybe_material_parameter {
+                                    Some(Value::String(value)) => self.get_texture_data(value),
+                                    _ => self.get_texture_data(&String::from(DEFAULT_TEXTURE_NAME)),
+                                };
+                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow()._descriptor_image_info)
+                            },
+                            (vk::DescriptorType::COMBINED_IMAGE_SAMPLER, DescriptorResourceType::RenderTarget) => {
+                                let texture_data = renderer_data.get_render_target(RenderTargetType::from_str(&material_parameter_name.as_str()).unwrap());
+                                DescriptorResourceInfo::DescriptorImageInfo(texture_data._descriptor_image_info)
+                            },
+                            _ => DescriptorResourceInfo::InvalidDescriptorInfo,
+                        };
+                        return descriptor_resource_info;
+                    }).filter(|descriptor_resource_info| match *descriptor_resource_info {
+                        DescriptorResourceInfo::InvalidDescriptorInfo => false,
+                        _ => true,
                     }).collect();
+                    return descriptor_resource_infos;
                 }).collect();
+                return (render_pass_pipeline_data.clone(), descriptor_resource_infos_list);
             }).collect();
+
+            let material_instance_data = MaterialInstanceData::create_material_instance(
+                renderer_data.get_device(),
+                &material_instance_name,
+                material_data.clone(),
+                &pipeline_bind_create_infos
+            );
+            self._material_instance_data_map.insert(material_instance_name.clone(), newRcRefCell(material_instance_data));
         }
-                                maybeMaterialParameter = lookupWithDefaultMap materialParameterName materialParameterMap defaultMaterialParameterMap
-                            case (materialParameterType, materialParameterResourceType) of
-                                (VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, Descriptor.DescriptorResourceType_UniformBuffer) -> do
-                                    uniformBufferData <- getUniformBufferData rendererData (fromText materialParameterName)
-                                    return $ Descriptor.DescriptorBufferInfo (atSwapchainIndex swapChainIndex (_descriptorBufferInfos uniformBufferData))
-                                (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_Texture) -> do
-                                    textureData <- case maybeMaterialParameter of
-                                        Just (Aeson.String value) -> getTextureData resources value
-                                        otherwise -> getTextureData resources defaultTextureName
-                                    return $ Descriptor.DescriptorImageInfo (_descriptorImageInfo textureData)
-                                (VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, Descriptor.DescriptorResourceType_RenderTarget) -> do
-                                    textureData <- getRenderTarget rendererData (fromText materialParameterName)
-                                    return $ Descriptor.DescriptorImageInfo (_descriptorImageInfo textureData)
-                                otherwise -> return Descriptor.InvalidDescriptorInfo
-                        return $ filter (/= Descriptor.InvalidDescriptorInfo) descriptorResourceInfos
-                    return (renderPassData, pipelineData, descriptorResourceInfosList)
-                materialInstance <- MaterialInstance.createMaterialInstance (getDevice rendererData) materialInstanceName materialData pipelineBindingCreateInfoList
-                HashTable.insert (_materialInstanceDataMap resources) materialInstanceName materialInstance
     }
 
     pub fn unload_material_instance_datas(&mut self, _renderer_data: &RendererData) {
