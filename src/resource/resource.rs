@@ -129,7 +129,11 @@ pub fn create_resources() -> RcRefCell<Resources> {
 fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &String, default_resource_name: &str) -> &'a RcRefCell<T> {
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
-        None => resource_data_map.get(default_resource_name).unwrap(),
+        None => {
+            log::info!("{:?}", resource_data_map.keys());
+            log::info!("{:?}", default_resource_name);
+            resource_data_map.get(default_resource_name).unwrap()
+        },
         _ => maybe_data.unwrap(),
     }
 }
@@ -137,7 +141,8 @@ fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_
 fn get_resource_name_from_file_path(resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
     let mut resource_name = PathBuf::from(resource_file_path.parent().unwrap());
     resource_name.push(resource_file_path.file_stem().unwrap());
-    String::from(system::get_relative_path(resource_root_path, &resource_name).to_str().unwrap())
+    let resource_name = String::from(system::get_relative_path(resource_root_path, &resource_name).to_str().unwrap());
+    resource_name.replace("\\", "/")
 }
 
 fn get_unique_resource_name<T>(resource_map: &ResourceDataMap<T>, resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
