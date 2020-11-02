@@ -15,7 +15,7 @@ pub fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFami
         queue_family_index,
         ..Default::default()
     };
-    log::info!("Create Command Pool: queueFamilyIndex({:?})", command_pool_create_info.queue_family_index);
+    log::info!("create_command_pool: queueFamilyIndex({:?})", command_pool_create_info.queue_family_index);
     unsafe {
         device.create_command_pool(&command_pool_create_info, None).expect("vkCreateCommandPool failed!")
     }
@@ -23,7 +23,7 @@ pub fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFami
 
 
 pub fn destroy_command_pool(device: &Device, command_pool: vk::CommandPool) {
-    log::info!("Destroy Command Pool: {:?}", command_pool);
+    log::info!("destroy_command_pool: {:?}", command_pool);
     unsafe {
         device.destroy_command_pool(command_pool, None);
     }
@@ -38,13 +38,13 @@ pub fn create_command_buffers(device: &Device, command_pool: vk::CommandPool, co
     };
     unsafe {
         let command_buffers = device.allocate_command_buffers(&allocation_info).expect("vkAllocateCommandBuffers failed!");
-        log::info!("Create Command Buffer: {:?}", command_buffers);
+        log::info!("create_command_buffers: {:?}", command_buffers);
         command_buffers
     }
 }
 
 pub fn destroy_command_buffers(device: &Device, command_pool: vk::CommandPool, command_buffers: &Vec<vk::CommandBuffer>) {
-    log::info!("Destroy Command Buffers: {:?}", command_buffers);
+    log::info!("destroy_command_buffers: {:?}", command_buffers);
     unsafe {
         device.free_command_buffers(command_pool, command_buffers);
     }

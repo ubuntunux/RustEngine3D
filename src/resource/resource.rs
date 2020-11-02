@@ -129,11 +129,7 @@ pub fn create_resources() -> RcRefCell<Resources> {
 fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &String, default_resource_name: &str) -> &'a RcRefCell<T> {
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
-        None => {
-            log::info!("{:?}", resource_data_map.keys());
-            log::info!("{:?}", default_resource_name);
-            resource_data_map.get(default_resource_name).unwrap()
-        },
+        None => resource_data_map.get(default_resource_name).unwrap(),
         _ => maybe_data.unwrap(),
     }
 }
@@ -222,34 +218,45 @@ impl Resources {
     }
 
     // ModelData
-    pub fn load_model_datas(&mut self, renderer_data: &RendererData) {
-        let model_file_path = PathBuf::from(MODEL_FILE_PATH);
-        let model_files: Vec<PathBuf> = system::walk_directory(&model_file_path, &[EXT_MODEL]);
+    pub fn load_model_datas(&mut self, _renderer_data: &RendererData) {
+        let model_directory = PathBuf::from(MODEL_FILE_PATH);
+        let model_files: Vec<PathBuf> = system::walk_directory(&model_directory, &[EXT_MODEL]);
+        let default_material_instance_name = String::from(DEFAULT_MATERIAL_INSTANCE_NAME);
         for model_file in model_files {
-            let model_name = get_unique_resource_name(&self._model_data_map, &model_file_path, &model_file);
-            let contents = fs::read_to_string(model_file).expect("Something went wrong reading the file");
-            // let mut lines = contents.lines();
-            // let line = lines.next();
-            // while None != line {
-            // }
+            let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
+            let loaded_contents = fs::File::open(&model_file).expect("Failed to create file");
+            let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let model_create_info = match contents {
+                Value::Object(model_create_info) => model_create_info,
+                _ => panic!("model parsing error.")
+            };
+            log::info!("try to match model_create_info");
+            let material_instance_names = match model_create_info.get("material_instances").unwrap() {
+                Value::Array(material_instance_names) => material_instance_names,
+                _ => panic!("model material_instance_names parsing error.")
+            };
+            let material_instance_count = material_instance_names.len();
+            let mesh_name = match model_create_info.get("mesh").unwrap() {
+                Value::String(mesh_name) => mesh_name,
+                _ => panic!("failed to parsing mesh_name"),
+            };
+            let mesh_data = self.get_mesh_data(mesh_name);
+            let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
+            let material_instance_datas: Vec<RcRefCell<MaterialInstanceData>> = (0..geometry_data_count).map(|index| {
+                if index < material_instance_count {
+                    match &material_instance_names[index] {
+                        Value::String(material_instance_name) => {
+                            self.get_material_instance_data(&material_instance_name).clone()
+                        },
+                        _ => panic!("failed to parsing material_instance_names"),
+                    }
+                } else {
+                    self.get_material_instance_data(&default_material_instance_name).clone()
+                }
+            }).collect();
+            let model_data = ModelData::new_model_data(&model_name, mesh_data.clone(), material_instance_datas);
+            self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
         }
-        // forM_ modelFiles $ \modelFile -> do
-        //     modelName <- getUniqueResourceName (_modelDataMap resources) modelPathBuf modelFile
-        //     contents <- ByteString.readFile modelFile
-        //     registModelData (_modelDataMap resources) modelName contents
-        // where
-        //     registModelData modelDataMap modelName contents = do
-        //         let Just (Aeson.Object modelCreateInfoMap) = Aeson.decodeStrict contents
-        //             Just (Aeson.Array materialInstanceNames) = HashMap.lookup "material_instances" modelCreateInfoMap
-        //             materialInstanceCount = Vector.length materialInstanceNames
-        //             Just (Aeson.String meshName) = HashMap.lookup "mesh" modelCreateInfoMap
-        //         meshData <- getMeshData resources meshName
-        //         geometryDataCount <- getGeometryDataCount meshData
-        //         let materialInstanceNameList = (Vector.take geometryDataCount materialInstanceNames) Vector.++ (Vector.replicate (max 0 (geometryDataCount - materialInstanceCount)) (Aeson.String defaultMaterialInstanceName))
-        //         materialInstanceDatas <- forM (Vector.toList materialInstanceNameList) $ \(Aeson.String materialInstanceName) ->
-        //             getMaterialInstanceData resources materialInstanceName
-        //         modelData <- Model.newModelData modelName meshData materialInstanceDatas
-        //         HashTable.insert modelDataMap modelName modelData
     }
 
     pub fn unload_model_datas(&mut self, _renderer_data: &RendererData) {
@@ -552,8 +559,8 @@ impl Resources {
             };
             let pipeline_create_infos = material_create_info.get("pipelines").unwrap().as_array().unwrap();
             let empty_object = json!({});
-            let material_parameter_map = match material_create_info.get("material_parameters") {
-                Some(material_parameter_map) => material_parameter_map,
+            let material_parameters = match material_create_info.get("material_parameters") {
+                Some(material_parameters) => material_parameters,
                 _ => &empty_object,
             };
             let render_pass_pipeline_datas: Vec<RenderPassPipelineData> = pipeline_create_infos.iter().map(|pipeline_create_info| {
@@ -570,7 +577,7 @@ impl Resources {
                     _pipeline_data_name: pipeline_data_name.clone(),
                 })
             }).collect();
-            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameter_map);
+            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
@@ -665,12 +672,10 @@ impl Resources {
 
     pub fn update_material_instance_datas(&mut self) {
         for (_key, model_data) in self._model_data_map.iter() {
-            let mut model_data = model_data.borrow_mut();
-            let material_instances = model_data.get_material_instance_datas();
-            let new_material_instances = material_instances.iter().map(|material_instance| {
+            let new_material_instances = model_data.borrow().get_material_instance_datas().iter().map(|material_instance| {
                 self.get_material_instance_data(&material_instance.borrow()._material_instance_data_name).clone()
             }).collect();
-            model_data.set_material_instance_datas(new_material_instances);
+            model_data.borrow_mut().set_material_instance_datas(new_material_instances);
         }
     }
 

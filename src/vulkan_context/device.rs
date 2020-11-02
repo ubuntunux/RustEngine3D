@@ -36,7 +36,6 @@ pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::
     for available_extension in available_extensions {
         unsafe {
             let extension_name = CString::from(CStr::from_ptr(available_extension.extension_name.as_ptr() as *const c_char));
-            //log::info!("    {}", extension_name.to_str().unwrap());
             extension_names.push(extension_name);
         }
     }
@@ -143,7 +142,7 @@ pub fn create_vk_instance(
     };
 
     log::info!(
-        "Create Vulkan Instance: {:?}, api version: {}.{}.{}",
+        "create_vk_instance: {:?}, api version: {}.{}.{}",
         app_name,
         vk::version_major(constants::API_VERSION),
         vk::version_minor(constants::API_VERSION),
@@ -156,21 +155,21 @@ pub fn create_vk_instance(
 }
 
 pub fn destroy_vk_instance(instance: &Instance) {
-    log::info!("Destroy Vulkan Instance");
+    log::info!("destroy_vk_instance");
     unsafe {
         instance.destroy_instance(None);
     }
 }
 
 pub fn create_vk_surface(entry: &Entry, instance: &Instance, window: &Window) -> vk::SurfaceKHR {
-    log::info!("Create VkSurfaceKHR");
+    log::info!("create_vk_surface");
     unsafe {
         ash_window::create_surface(entry, instance, window, None).unwrap()
     }
 }
 
 pub fn destroy_vk_surface(surface_interface: &Surface, surface: vk::SurfaceKHR) {
-    log::info!("Destroy VkSurfaceKHR");
+    log::info!("destroy_vk_surface");
     unsafe {
         surface_interface.destroy_surface(surface, None);
     }
@@ -247,13 +246,13 @@ pub fn create_device(
     };
     unsafe {
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
-        log::info!("Created Device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
+        log::info!("create_device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
         device
     }
 }
 
 pub fn destroy_device(device: &Device) {
-    log::info!("Destroy VkDevice");
+    log::info!("destroy_device");
     unsafe {
         device.destroy_device(None);
     }

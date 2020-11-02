@@ -144,14 +144,14 @@ pub fn create_swapchain_data(
         let swapchain_images: SwapchainIndexMap<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
         let swapchain_image_views = create_swapchain_image_views(&device, &swapchain_images, swapchain_create_info.image_format);
 
-        log::info!("Create Swapchain : {:?}", swapchain);
-        log::info!("    presentMode : {:?}", present_mode);
+        log::info!("create_swapchain_data : {:?}", swapchain);
+        log::info!("    present_mode : {:?}", present_mode);
         log::info!("    image_count : {} {:?}", image_count, swapchain_images);
-        log::info!("    imageFormat : {:?}", surface_format.format);
-        log::info!("    imageColorSpace : {:?}", surface_format.color_space);
-        log::info!("    imageViews : {:?}", swapchain_image_views);
+        log::info!("    image_format : {:?}", surface_format.format);
+        log::info!("    color_space : {:?}", surface_format.color_space);
+        log::info!("    image_views : {:?}", swapchain_image_views);
         log::info!("    image_extent : {:?}", image_extent);
-        log::info!("    imageSharingMode : {:?}", swapchain_create_info.image_sharing_mode);
+        log::info!("    image_sharing_mode : {:?}", swapchain_create_info.image_sharing_mode);
 
         SwapchainData {
             _swapchain: swapchain,
@@ -165,7 +165,7 @@ pub fn create_swapchain_data(
 
 pub fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, swapchain_data: &SwapchainData) {
     destroy_swapchain_image_views(device, &swapchain_data._swapchain_image_views);
-    log::info!("Destroy Swapchain");
+    log::info!("destroy_swapchain_data");
     unsafe {
         swapchain_interface.destroy_swapchain(swapchain_data._swapchain, None);
     }
