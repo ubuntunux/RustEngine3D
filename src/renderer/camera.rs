@@ -56,7 +56,7 @@ pub struct CameraObjectData {
 
 impl CameraObjectData {
     pub fn create_camera_object_data(name: &String, camera_create_info: &CameraCreateInfo) -> CameraObjectData {
-        log::info!("createCameraObjectData: {:?}", name);
+        log::info!("create_camera_object_data: {:?}", name);
         let mut camera_object_data = CameraObjectData {
             _name: name.clone(),
             _meter_per_unit: camera_create_info.meter_per_unit,

@@ -1,43 +1,51 @@
-use crate::renderer;
-use crate::resource;
+use std::collections::HashMap;
+
+use crate::renderer::{self, RendererData};
+use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
+use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
+use crate::renderer::render_element::{ RenderElementData };
+use crate::renderer::render_object::{ RenderObjectCreateData, RenderObjectData };
+use crate::resource::{ self, Resources };
 use crate::utilities::system::{
     self,
     RcRefCell
 };
 
-// type CameraObjectMap = HashTable.BasicHashTable Text.Text Camera.CameraObjectData
-// type DirectionalLightObjectMap = HashTable.BasicHashTable Text.Text Light.DirectionalLightData
-// type RenderObjectMap = HashTable.BasicHashTable Text.Text RenderObject.RenderObjectData
+type CameraObjectMap = HashMap<String, RcRefCell<CameraObjectData>>;
+type DirectionalLightObjectMap = HashMap<String, RcRefCell<DirectionalLightData>>;
+type RenderObjectMap = HashMap<String, RcRefCell<RenderObjectData>>;
 
 #[derive(Clone)]
 pub struct SceneManagerData {
-    _renderer_data: RcRefCell<renderer::RendererData>,
-    _resources: RcRefCell<resource::Resources>,
-    _main_camera: bool, //Camera.CameraObjectData,
-    _main_light: bool, //Light.DirectionalLightData,
-    _camera_object_map: bool, //CameraObjectMap,
-    _directional_light_object_map: bool, //DirectionalLightObjectMap,
-    _static_render_object_map: bool, //RenderObjectMap,
-    _static_render_elements: bool, //[RenderElement.RenderElementData],
-    _skeletal_render_object_map: bool, //RenderObjectMap,
-    _skeletal_render_elements: bool, //[RenderElement.RenderElementData]
+    _renderer_data: RcRefCell<RendererData>,
+    _resources: RcRefCell<Resources>,
+    _main_camera: RcRefCell<CameraObjectData>,
+    _main_light: RcRefCell<DirectionalLightData>,
+    _camera_object_map: CameraObjectMap,
+    _directional_light_object_map: DirectionalLightObjectMap,
+    _static_render_object_map: RenderObjectMap,
+    _static_render_elements: Vec<RenderElementData>,
+    _skeletal_render_object_map: RenderObjectMap,
+    _skeletal_render_elements: Vec<RenderElementData>,
 }
 
 pub fn create_scene_manager_data(
     renderer_data: RcRefCell<renderer::RendererData>,
     resources: RcRefCell<resource::Resources>
 ) -> RcRefCell<SceneManagerData> {
+    let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
+    let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
     system::newRcRefCell(SceneManagerData {
         _renderer_data: renderer_data,
         _resources: resources,
-        _main_camera: false,
-        _main_light: false,
-        _camera_object_map: false,
-        _directional_light_object_map: false,
-        _static_render_object_map: false,
-        _static_render_elements: false,
-        _skeletal_render_object_map: false,
-        _skeletal_render_elements: false,
+        _main_camera: system::newRcRefCell(default_camera),
+        _main_light: system::newRcRefCell(default_light),
+        _camera_object_map: HashMap::new(),
+        _directional_light_object_map: HashMap::new(),
+        _static_render_object_map: HashMap::new(),
+        _static_render_elements: Vec::new(),
+        _skeletal_render_object_map: HashMap::new(),
+        _skeletal_render_elements: Vec::new(),
     })
 }
 
@@ -49,12 +57,12 @@ impl SceneManagerData {
 //     newSceneManagerData :: Renderer.RendererData -> Resource.Resources -> IO a
 //     openSceneManagerData :: a -> Camera.CameraCreateData -> IO ()
 //     getMainCamera :: a -> IO Camera.CameraObjectData
-//     addCameraObject :: a -> Text.Text -> Camera.CameraCreateData -> IO Camera.CameraObjectData
+//     addCameraObject :: a -> String -> Camera.CameraCreateData -> IO Camera.CameraObjectData
 //     getMainLight :: a -> IO Light.DirectionalLightData
-//     addDirectionalLightObject :: a -> Text.Text -> Light.LightCreateInfo -> IO Light.DirectionalLightData
-//     addRenderObject :: a -> Text.Text -> RenderObject.RenderObjectCreateData -> IO RenderObject.RenderObjectData
-//     getStaticRenderObject :: a -> Text.Text -> IO (Maybe RenderObject.RenderObjectData)
-//     getSkeletalRenderObject :: a -> Text.Text -> IO (Maybe RenderObject.RenderObjectData)
+//     addDirectionalLightObject :: a -> String -> Light.LightCreateInfo -> IO Light.DirectionalLightData
+//     addRenderObject :: a -> String -> RenderObject.RenderObjectCreateData -> IO RenderObject.RenderObjectData
+//     getStaticRenderObject :: a -> String -> IO (Maybe RenderObject.RenderObjectData)
+//     getSkeletalRenderObject :: a -> String -> IO (Maybe RenderObject.RenderObjectData)
 //     getStaticObjectRenderElements :: a -> IO [RenderElement.RenderElementData]
 //     getSkeletalObjectRenderElements :: a -> IO [RenderElement.RenderElementData]
 //     updateSceneManagerData :: a -> Double -> Float -> IO ()
@@ -115,7 +123,7 @@ impl SceneManagerData {
 //     getMainCamera :: SceneManagerData -> IO Camera.CameraObjectData
 //     getMainCamera sceneManagerData = readIORef (_mainCamera sceneManagerData)
 //
-//     addCameraObject :: SceneManagerData -> Text.Text -> Camera.CameraCreateData -> IO Camera.CameraObjectData
+//     addCameraObject :: SceneManagerData -> String -> Camera.CameraCreateData -> IO Camera.CameraObjectData
 //     addCameraObject sceneManagerData objectName cameraCreateData = do
 //         newObjectName <- System.generateUniqueName (_cameraObjectMap sceneManagerData) objectName
 //         cameraObjectData <- Camera.createCameraObjectData newObjectName cameraCreateData
@@ -125,14 +133,14 @@ impl SceneManagerData {
 //     getMainLight :: SceneManagerData -> IO Light.DirectionalLightData
 //     getMainLight sceneManagerData = readIORef (_mainLight sceneManagerData)
 //
-//     addDirectionalLightObject :: SceneManagerData -> Text.Text -> Light.LightCreateInfo -> IO Light.DirectionalLightData
+//     addDirectionalLightObject :: SceneManagerData -> String -> Light.LightCreateInfo -> IO Light.DirectionalLightData
 //     addDirectionalLightObject sceneManagerData objectName lightCreateInfo = do
 //         newObjectName <- System.generateUniqueName (_directionalLightObjectMap sceneManagerData) objectName
 //         lightObjectData <- Light.createLightData newObjectName lightCreateInfo
 //         HashTable.insert (_directionalLightObjectMap sceneManagerData) newObjectName lightObjectData
 //         return lightObjectData
 //
-//     addRenderObject :: SceneManagerData -> Text.Text -> RenderObject.RenderObjectCreateData -> IO RenderObject.RenderObjectData
+//     addRenderObject :: SceneManagerData -> String -> RenderObject.RenderObjectCreateData -> IO RenderObject.RenderObjectData
 //     addRenderObject sceneManagerData objectName renderObjectCreateData = do
 //         if (RenderObject._has_animation_data' renderObjectCreateData) then
 //             registRenderObject (_skeletalRenderObjectMap sceneManagerData) objectName
@@ -145,10 +153,10 @@ impl SceneManagerData {
 //                 HashTable.insert renderObjectMap newObjectName renderObjectData
 //                 return renderObjectData
 //
-//     getStaticRenderObject :: SceneManagerData -> Text.Text -> IO (Maybe RenderObject.RenderObjectData)
+//     getStaticRenderObject :: SceneManagerData -> String -> IO (Maybe RenderObject.RenderObjectData)
 //     getStaticRenderObject sceneManagerData objectName = HashTable.lookup (_staticRenderObjectMap sceneManagerData) objectName
 //
-//     getSkeletalRenderObject :: SceneManagerData -> Text.Text -> IO (Maybe RenderObject.RenderObjectData)
+//     getSkeletalRenderObject :: SceneManagerData -> String -> IO (Maybe RenderObject.RenderObjectData)
 //     getSkeletalRenderObject sceneManagerData objectName = HashTable.lookup (_skeletalRenderObjectMap sceneManagerData) objectName
 //
 //     getStaticObjectRenderElements :: SceneManagerData -> IO [RenderElement.RenderElementData]
