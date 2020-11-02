@@ -11,12 +11,12 @@ use crate::renderer::transform_object::TransformObjectData;
 
 #[derive(Clone, Debug)]
 pub struct CameraCreateInfo {
-    meter_per_unit: f32,
-    near: f32,
-    far: f32,
-    fov: f32,
-    aspect: f32,
-    position: Vector3<f32>,
+    pub meter_per_unit: f32,
+    pub near: f32,
+    pub far: f32,
+    pub fov: f32,
+    pub aspect: f32,
+    pub position: Vector3<f32>,
 }
 
 impl Default for CameraCreateInfo {
@@ -33,25 +33,25 @@ impl Default for CameraCreateInfo {
 }
 
 pub struct CameraObjectData {
-    _name: String,
-    _meter_per_unit: f32,
-    _near: f32,
-    _far: f32,
-    _fov: f32,
-    _aspect: f32,
-    _view_matrix: Matrix4<f32>,
-    _inv_view_matrix: Matrix4<f32>,
-    _view_origin_matrix: Matrix4<f32>,
-    _inv_view_origin_matrix: Matrix4<f32>,
-    _projection_matrix: Matrix4<f32>,
-    _inv_projection_matrix: Matrix4<f32>,
-    _view_projection_matrix: Matrix4<f32>,
-    _inv_view_projection_matrix: Matrix4<f32>,
-    _view_origin_projection_matrix: Matrix4<f32>,
-    _inv_view_origin_projection_matrix: Matrix4<f32>,
-    _view_origin_projection_matrix_prev: Matrix4<f32>,
-    _transform_object: TransformObjectData,
-    _updated: bool,
+    pub _name: String,
+    pub _meter_per_unit: f32,
+    pub _near: f32,
+    pub _far: f32,
+    pub _fov: f32,
+    pub _aspect: f32,
+    pub _view_matrix: Matrix4<f32>,
+    pub _inv_view_matrix: Matrix4<f32>,
+    pub _view_origin_matrix: Matrix4<f32>,
+    pub _inv_view_origin_matrix: Matrix4<f32>,
+    pub _projection_matrix: Matrix4<f32>,
+    pub _inv_projection_matrix: Matrix4<f32>,
+    pub _view_projection_matrix: Matrix4<f32>,
+    pub _inv_view_projection_matrix: Matrix4<f32>,
+    pub _view_origin_projection_matrix: Matrix4<f32>,
+    pub _inv_view_origin_projection_matrix: Matrix4<f32>,
+    pub _view_origin_projection_matrix_prev: Matrix4<f32>,
+    pub _transform_object: TransformObjectData,
+    pub _updated: bool,
 }
 
 impl CameraObjectData {

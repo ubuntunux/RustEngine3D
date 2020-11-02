@@ -230,7 +230,6 @@ impl Resources {
                 Value::Object(model_create_info) => model_create_info,
                 _ => panic!("model parsing error.")
             };
-            log::info!("try to match model_create_info");
             let material_instance_names = match model_create_info.get("material_instances").unwrap() {
                 Value::Array(material_instance_names) => material_instance_names,
                 _ => panic!("model material_instance_names parsing error.")
@@ -277,11 +276,11 @@ impl Resources {
         mesh_name: &String,
         geometry_create_infos: &Vec<GeometryCreateInfo>,
     ) {
-        let mut geometry_datas: Vec<GeometryData> = Vec::new();
+        let mut geometry_datas: Vec<RcRefCell<GeometryData>> = Vec::new();
         for (i, geometry_create_info) in geometry_create_infos.iter().enumerate() {
             let geomtery_name: String = format!("{}_{}", mesh_name, i);
             let geometry_data = renderer_data.create_geometry_buffer(&geomtery_name, geometry_create_info);
-            geometry_datas.push(geometry_data);
+            geometry_datas.push(newRcRefCell(geometry_data));
         }
         let mesh_data = MeshData::new_mesh_data(&mesh_name, geometry_datas);
         self._mesh_data_map.insert(mesh_name.clone(), newRcRefCell(mesh_data));
@@ -345,7 +344,7 @@ impl Resources {
     pub fn unload_mesh_datas(&mut self, renderer_data: &RendererData) {
         for mesh_data in self._mesh_data_map.values() {
             for geometry_data in (*mesh_data).borrow().get_geomtry_datas() {
-                renderer_data.destroy_geomtry_buffer(geometry_data);
+                renderer_data.destroy_geomtry_buffer(&geometry_data.borrow());
             }
         }
         self._mesh_data_map.clear();

@@ -1,6 +1,9 @@
 use std::time;
 use log;
 
+use nalgebra::{
+    Vector3,
+};
 use winit::event::{
     Event,
     VirtualKeyCode,
@@ -16,7 +19,7 @@ use crate::application::input;
 use crate::resource;
 use crate::renderer;
 use crate::utilities::system::{ self, RcRefCell };
-use crate::renderer::RendererData;
+use crate::renderer::{RendererData, CameraCreateInfo};
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -94,7 +97,8 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     let time_instance = time::Instant::now();
     let elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
-    let mouse_pos = (window_size.0/2, window_size.1/2);
+    let (width, height) = window_size;
+    let mouse_pos = (width / 2, height / 2);
     let resources = resource::create_resources();
     let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone());
     let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
@@ -118,6 +122,14 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     );
 
     resources.borrow_mut().initialize_resources(&renderer_data.borrow_mut());
+
+    let camera_data = CameraCreateInfo {
+        aspect: if 0 != height { width as f32 / height as f32 } else { 1.0 },
+        position: Vector3::new(0.0, 0.0, 10.0),
+        ..Default::default()
+    };
+
+    scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
 
     // main loop
     let mut render_scene: bool = false;

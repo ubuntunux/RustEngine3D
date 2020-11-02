@@ -5,16 +5,16 @@ use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
 pub struct ModelCreateInfo {
-    _model_data_name: String,
-    _mesh_data: MeshData,
-    _material_instance_datas: Vec<MaterialInstanceData>,
+    pub _model_data_name: String,
+    pub _mesh_data: MeshData,
+    pub _material_instance_datas: Vec<MaterialInstanceData>,
 }
 
 #[derive(Clone, Debug)]
 pub struct ModelData {
-    _model_data_name: String,
-    _mesh_data: RcRefCell<MeshData>,
-    _material_instance_datas: Vec<RcRefCell<MaterialInstanceData>>,
+    pub _model_data_name: String,
+    pub _mesh_data: RcRefCell<MeshData>,
+    pub _material_instance_datas: Vec<RcRefCell<MaterialInstanceData>>,
 }
 
 impl ModelData {

@@ -6,10 +6,11 @@ use nalgebra::{
 use crate::renderer::mesh::MeshData;
 use crate::renderer::model::ModelData;
 use crate::renderer::transform_object::TransformObjectData;
+use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
-pub struct RenderObjectCreateData {
-    pub _model_data: Option<ModelData>,
+pub struct RenderObjectCreateInfo {
+    pub _model_data: Option<RcRefCell<ModelData>>,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
@@ -19,7 +20,7 @@ pub struct RenderObjectCreateData {
 #[derive(Clone, Debug)]
 pub struct RenderObjectData {
     pub _render_object_name: String,
-    pub _model_data: ModelData,
+    pub _model_data: RcRefCell<ModelData>,
     pub _transform_object: TransformObjectData,
     pub _animation_play_info: Option<AnimationPlayInfo>,
 }
@@ -42,9 +43,9 @@ pub struct AnimationPlayInfo {
     pub _animation_mesh: Option<MeshData>,
 }
 
-impl Default for RenderObjectCreateData {
-    fn default() -> RenderObjectCreateData {
-        RenderObjectCreateData {
+impl Default for RenderObjectCreateInfo {
+    fn default() -> RenderObjectCreateInfo {
+        RenderObjectCreateInfo {
             _model_data: None,
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
@@ -78,7 +79,7 @@ impl Default for AnimationPlayInfo {
 impl RenderObjectData {
     pub fn create_render_object_data(
         render_object_name: &String,
-        render_object_create_data: RenderObjectCreateData
+        render_object_create_data: &RenderObjectCreateInfo
     ) -> RenderObjectData {
         log::info!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::new_transform_object_data();
@@ -87,7 +88,7 @@ impl RenderObjectData {
         transform_object_data.set_scale(&render_object_create_data._scale);
         RenderObjectData {
             _render_object_name: render_object_name.clone(),
-            _model_data: render_object_create_data._model_data.unwrap(),
+            _model_data: render_object_create_data._model_data.clone().unwrap(),
             _transform_object: transform_object_data,
             _animation_play_info: match render_object_create_data._has_animation_data {
                 true => Some(AnimationPlayInfo::default()),
@@ -96,7 +97,7 @@ impl RenderObjectData {
         }
     }
 
-    pub fn get_model_data(&self) -> &ModelData {
+    pub fn get_model_data(&self) -> &RcRefCell<ModelData> {
         &self._model_data
     }
 

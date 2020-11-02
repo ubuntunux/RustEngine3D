@@ -1,15 +1,18 @@
 use std::collections::HashMap;
 
+use nalgebra::{
+    Vector3
+};
+
 use crate::renderer::{self, RendererData};
 use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
 use crate::renderer::render_element::{ RenderElementData };
-use crate::renderer::render_object::{ RenderObjectCreateData, RenderObjectData };
+use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData };
+use crate::renderer::uniform_buffer_data::{ LightConstants };
 use crate::resource::{ self, Resources };
-use crate::utilities::system::{
-    self,
-    RcRefCell
-};
+use crate::utilities::system::{self, RcRefCell, newRcRefCell};
+use crate::vulkan_context::uniform_buffer::UniformBufferData;
 
 type CameraObjectMap = HashMap<String, RcRefCell<CameraObjectData>>;
 type DirectionalLightObjectMap = HashMap<String, RcRefCell<DirectionalLightData>>;
@@ -17,16 +20,16 @@ type RenderObjectMap = HashMap<String, RcRefCell<RenderObjectData>>;
 
 #[derive(Clone)]
 pub struct SceneManagerData {
-    _renderer_data: RcRefCell<RendererData>,
-    _resources: RcRefCell<Resources>,
-    _main_camera: RcRefCell<CameraObjectData>,
-    _main_light: RcRefCell<DirectionalLightData>,
-    _camera_object_map: CameraObjectMap,
-    _directional_light_object_map: DirectionalLightObjectMap,
-    _static_render_object_map: RenderObjectMap,
-    _static_render_elements: Vec<RenderElementData>,
-    _skeletal_render_object_map: RenderObjectMap,
-    _skeletal_render_elements: Vec<RenderElementData>,
+    pub _renderer_data: RcRefCell<RendererData>,
+    pub _resources: RcRefCell<Resources>,
+    pub _main_camera: RcRefCell<CameraObjectData>,
+    pub _main_light: RcRefCell<DirectionalLightData>,
+    pub _camera_object_map: CameraObjectMap,
+    pub _directional_light_object_map: DirectionalLightObjectMap,
+    pub _static_render_object_map: RenderObjectMap,
+    pub _static_render_elements: Vec<RenderElementData>,
+    pub _skeletal_render_object_map: RenderObjectMap,
+    pub _skeletal_render_elements: Vec<RenderElementData>,
 }
 
 pub fn create_scene_manager_data(
@@ -50,153 +53,123 @@ pub fn create_scene_manager_data(
 }
 
 impl SceneManagerData {
+    pub fn open_scene_manager_data(&mut self, camera_create_info: &CameraCreateInfo) {
+        self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
+        let pitch: f32 = -std::f32::consts::PI * 0.47;
+        self._main_light = self.add_light_object(&String::from("main_light"), &DirectionalLightCreateInfo {
+            _position: Vector3::zeros(),
+            _rotation: Vector3::new(pitch, 0.0, 0.3),
+            _light_constants: LightConstants {
+                _light_direction: Vector3::new(pitch, 0.0, 0.3),
+                ..Default::default()
+            },
+            ..Default::default()
+        });
+
+        let model_data0 = self._resources.borrow().get_model_data(&String::from("sponza/sponza")).clone();
+        let model_data1 = self._resources.borrow().get_model_data(&String::from("test_skeletal")).clone();
+        self.add_render_object(&String::from("sponza"), &RenderObjectCreateInfo {
+            _model_data: Some(model_data0),
+            _position: Vector3::new(0.0, 0.0, 0.0),
+            _scale: Vector3::new(0.1, 0.1, 0.1),
+            ..Default::default()
+        });
+        self.add_render_object(&String::from("test_skeletal"), &RenderObjectCreateInfo {
+            _model_data: Some(model_data1),
+            _position: Vector3::new(0.0, 1.5, 0.0),
+            _scale: Vector3::new(1.0, 1.0, 1.0),
+            _has_animation_data: true,
+            ..Default::default()
+        });
+    }
+
+    pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {
+        &self._main_camera
+    }
+
+    pub fn add_camera_object(&mut self, object_name: &String, camera_create_info: &CameraCreateInfo) -> RcRefCell<CameraObjectData> {
+        let new_object_name = system::generate_unique_name(&self._camera_object_map, object_name);
+        let camera_object_data = newRcRefCell(CameraObjectData::create_camera_object_data(&new_object_name, camera_create_info));
+        self._camera_object_map.insert(new_object_name, camera_object_data.clone());
+        camera_object_data
+    }
+
+    pub fn get_main_light(&self) -> &RcRefCell<DirectionalLightData> {
+        &self._main_light
+    }
+
+    pub fn add_light_object(&mut self, object_name: &String, light_create_info: &DirectionalLightCreateInfo) -> RcRefCell<DirectionalLightData> {
+        let new_object_name = system::generate_unique_name(&self._directional_light_object_map, object_name);
+        let light_object_data = newRcRefCell(DirectionalLightData::create_light_data(&new_object_name, light_create_info));
+        self._directional_light_object_map.insert(new_object_name, light_object_data.clone());
+        light_object_data
+    }
+
+    pub fn add_render_object(&mut self, object_name: &String, render_object_create_info: &RenderObjectCreateInfo) -> RcRefCell<RenderObjectData> {
+        if render_object_create_info._has_animation_data {
+            let new_object_name = system::generate_unique_name(&self._skeletal_render_object_map, &object_name);
+            let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(&new_object_name, render_object_create_info));
+            self._skeletal_render_object_map.insert(new_object_name, render_object_data.clone());
+            render_object_data
+        } else {
+            let new_object_name = system::generate_unique_name(&self._static_render_object_map, &object_name);
+            let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(&new_object_name, render_object_create_info));
+            self._static_render_object_map.insert(new_object_name, render_object_data.clone());
+            render_object_data
+        }
+    }
+
+    pub fn get_static_render_object(&self, object_name: &String) -> Option<&RcRefCell<RenderObjectData>> {
+        self._static_render_object_map.get(object_name)
+    }
+
+    pub fn get_skeletal_render_object(&self, object_name: &String) -> Option<&RcRefCell<RenderObjectData>> {
+        self._skeletal_render_object_map.get(object_name)
+    }
+
+    pub fn get_static_render_elements(&self) -> &Vec<RenderElementData> {
+        &self._static_render_elements
+    }
+
+    pub fn get_skeletal_render_elements(&self) -> &Vec<RenderElementData> {
+        &self._skeletal_render_elements
+    }
+
+    pub fn gather_render_elements(render_object_map: &RenderObjectMap, render_elements: &mut Vec<RenderElementData>) {
+        render_elements.clear();
+        for (_key, render_object_data) in render_object_map.iter() {
+            let render_object_data_ref = render_object_data.borrow();
+            let mode_data = render_object_data_ref.get_model_data().borrow();
+            let mesh_data = mode_data.get_mesh_data().borrow();
+            let geometry_datas = mesh_data.get_geomtry_datas();
+            let material_instance_datas = mode_data.get_material_instance_datas();
+            for index in 0..geometry_datas.len() {
+                render_elements.push(RenderElementData {
+                    _render_object: render_object_data.clone(),
+                    _geometry_data: geometry_datas[index].clone(),
+                    _material_instance_data: material_instance_datas[index].clone(),
+                })
+            }
+        }
+    }
+
+    pub fn update_scene_manager_data(&mut self, elapsed_time: f64, delta_time: f32) {
+        let mut main_camera = self._main_camera.borrow_mut();
+        main_camera.update_camera_object_data();
+        let camera_position = &main_camera.get_camera_position();
+
+        let mut main_light = self._main_light.borrow_mut();
+        main_light.update_light_data(camera_position);
+
+        for (_key, render_object_data) in self._static_render_object_map.iter() {
+            render_object_data.borrow_mut().update_render_object_data();
+        }
+
+        for (_key, render_object_data) in self._skeletal_render_object_map.iter() {
+            render_object_data.borrow_mut().update_render_object_data();
+        }
+
+        SceneManagerData::gather_render_elements(&self._static_render_object_map, &mut self._static_render_elements);
+        SceneManagerData::gather_render_elements(&self._skeletal_render_object_map, &mut self._skeletal_render_elements);
+    }
 }
-
-
-// class SceneManagerInterface a where
-//     newSceneManagerData :: Renderer.RendererData -> Resource.Resources -> IO a
-//     openSceneManagerData :: a -> Camera.CameraCreateData -> IO ()
-//     getMainCamera :: a -> IO Camera.CameraObjectData
-//     addCameraObject :: a -> String -> Camera.CameraCreateData -> IO Camera.CameraObjectData
-//     getMainLight :: a -> IO Light.DirectionalLightData
-//     addDirectionalLightObject :: a -> String -> Light.LightCreateInfo -> IO Light.DirectionalLightData
-//     addRenderObject :: a -> String -> RenderObject.RenderObjectCreateData -> IO RenderObject.RenderObjectData
-//     getStaticRenderObject :: a -> String -> IO (Maybe RenderObject.RenderObjectData)
-//     getSkeletalRenderObject :: a -> String -> IO (Maybe RenderObject.RenderObjectData)
-//     getStaticObjectRenderElements :: a -> IO [RenderElement.RenderElementData]
-//     getSkeletalObjectRenderElements :: a -> IO [RenderElement.RenderElementData]
-//     updateSceneManagerData :: a -> Double -> Float -> IO ()
-//
-// instance SceneManagerInterface SceneManagerData where
-//     newSceneManagerData :: Renderer.RendererData -> Resource.Resources -> IO SceneManagerData
-//     newSceneManagerData rendererData resources = do
-//         mainCamera <- newIORef (undefined::Camera.CameraObjectData)
-//         mainLight <- newIORef (undefined::Light.DirectionalLightData)
-//         cameraObjectMap <- HashTable.new
-//         directionalLightObjectMap <- HashTable.new
-//         staticRenderObjectMap <- HashTable.new
-//         staticRenderElements <- newIORef []
-//         skeletalRenderObjectMap <- HashTable.new
-//         skeletalRenderElements <- newIORef []
-//         return SceneManagerData
-//             { _rendererData = rendererData
-//             , _resources = resources
-//             , _mainCamera = mainCamera
-//             , _mainLight = mainLight
-//             , _cameraObjectMap = cameraObjectMap
-//             , _directionalLightObjectMap = directionalLightObjectMap
-//             , _staticRenderObjectMap = staticRenderObjectMap
-//             , _staticRenderElements = staticRenderElements
-//             , _skeletalRenderObjectMap = skeletalRenderObjectMap
-//             , _skeletalRenderElements = skeletalRenderElements
-//             }
-//
-//     openSceneManagerData :: SceneManagerData -> Camera.CameraCreateData -> IO ()
-//     openSceneManagerData sceneManagerData@SceneManagerData {..} cameraCreateData = do
-//         mainCamera <- addCameraObject sceneManagerData "MainCamera" cameraCreateData
-//         writeIORef _mainCamera mainCamera
-//
-//         mainLight <- addDirectionalLightObject sceneManagerData "MainLight" $ Light.defaultDirectionalLightCreateInfo
-//             { Light._directionalLightPosition' = vec3 0 0 0
-//             , Light._directionalLightRotation' = vec3 (-3.141592*0.47) 0 0.3
-//             , Light._directionalLightConstants' = UniformBufferDatas.defaultLightConstants
-//                 { UniformBufferDatas._LIGHT_DIRECTION = vec3 (-3.141592 * 0.47) 0 0.3
-//                 }
-//             }
-//         writeIORef _mainLight mainLight
-//
-//         modelData0 <- Resource.getModelData _resources "sponza/sponza"
-//         modelData1 <- Resource.getModelData _resources "test_skeletal"
-//         addRenderObject sceneManagerData "sponza" $ RenderObject.defaultRenderObjectCreateData
-//                     { RenderObject._modelData' = modelData0
-//                     , RenderObject._position' = vec3 0 0 0
-//                     , RenderObject._scale' = vec3 0.1 0.1 0.1
-//                     }
-//         addRenderObject sceneManagerData "test_skeletal" $ RenderObject.defaultRenderObjectCreateData
-//                     { RenderObject._modelData' = modelData1
-//                     , RenderObject._position' = vec3 0 1.5 0
-//                     , RenderObject._scale' = vec3 1.0 1.0 1.0
-//                     , RenderObject._has_animation_data' = True
-//                     }
-//         return ()
-//
-//     getMainCamera :: SceneManagerData -> IO Camera.CameraObjectData
-//     getMainCamera sceneManagerData = readIORef (_mainCamera sceneManagerData)
-//
-//     addCameraObject :: SceneManagerData -> String -> Camera.CameraCreateData -> IO Camera.CameraObjectData
-//     addCameraObject sceneManagerData objectName cameraCreateData = do
-//         newObjectName <- System.generateUniqueName (_cameraObjectMap sceneManagerData) objectName
-//         cameraObjectData <- Camera.createCameraObjectData newObjectName cameraCreateData
-//         HashTable.insert (_cameraObjectMap sceneManagerData) newObjectName cameraObjectData
-//         return cameraObjectData
-//
-//     getMainLight :: SceneManagerData -> IO Light.DirectionalLightData
-//     getMainLight sceneManagerData = readIORef (_mainLight sceneManagerData)
-//
-//     addDirectionalLightObject :: SceneManagerData -> String -> Light.LightCreateInfo -> IO Light.DirectionalLightData
-//     addDirectionalLightObject sceneManagerData objectName lightCreateInfo = do
-//         newObjectName <- System.generateUniqueName (_directionalLightObjectMap sceneManagerData) objectName
-//         lightObjectData <- Light.createLightData newObjectName lightCreateInfo
-//         HashTable.insert (_directionalLightObjectMap sceneManagerData) newObjectName lightObjectData
-//         return lightObjectData
-//
-//     addRenderObject :: SceneManagerData -> String -> RenderObject.RenderObjectCreateData -> IO RenderObject.RenderObjectData
-//     addRenderObject sceneManagerData objectName renderObjectCreateData = do
-//         if (RenderObject._has_animation_data' renderObjectCreateData) then
-//             registRenderObject (_skeletalRenderObjectMap sceneManagerData) objectName
-//         else
-//             registRenderObject (_staticRenderObjectMap sceneManagerData) objectName
-//         where
-//             registRenderObject renderObjectMap objectName = do
-//                 newObjectName <- System.generateUniqueName renderObjectMap objectName
-//                 renderObjectData <- RenderObject.createRenderObjectData newObjectName renderObjectCreateData
-//                 HashTable.insert renderObjectMap newObjectName renderObjectData
-//                 return renderObjectData
-//
-//     getStaticRenderObject :: SceneManagerData -> String -> IO (Maybe RenderObject.RenderObjectData)
-//     getStaticRenderObject sceneManagerData objectName = HashTable.lookup (_staticRenderObjectMap sceneManagerData) objectName
-//
-//     getSkeletalRenderObject :: SceneManagerData -> String -> IO (Maybe RenderObject.RenderObjectData)
-//     getSkeletalRenderObject sceneManagerData objectName = HashTable.lookup (_skeletalRenderObjectMap sceneManagerData) objectName
-//
-//     getStaticObjectRenderElements :: SceneManagerData -> IO [RenderElement.RenderElementData]
-//     getStaticObjectRenderElements sceneManagerData = readIORef (_staticRenderElements sceneManagerData)
-//
-//     getSkeletalObjectRenderElements :: SceneManagerData -> IO [RenderElement.RenderElementData]
-//     getSkeletalObjectRenderElements sceneManagerData = readIORef (_skeletalRenderElements sceneManagerData)
-//
-//     updateSceneManagerData :: SceneManagerData -> Double -> Float -> IO ()
-//     updateSceneManagerData sceneManagerData@SceneManagerData {..} elapsedTime deltaTime = do
-//         mainCamera <- getMainCamera sceneManagerData
-//         Camera.updateCameraObjectData mainCamera
-//         cameraPosition <- Camera.get_camera_position mainCamera
-//
-//         mainLight <- getMainLight sceneManagerData
-//         Light.updateLightData mainLight cameraPosition
-//
-//         flip HashTable.mapM_ _staticRenderObjectMap $ \(objectName, renderObjectData) -> do
-//             RenderObject.updateRenderObjectData renderObjectData
-//
-//         flip HashTable.mapM_ _skeletalRenderObjectMap $ \(objectName, renderObjectData) -> do
-//             RenderObject.updateRenderObjectData renderObjectData
-//
-//         gatherRenderElementsOfRenderObject _staticRenderObjectMap _staticRenderElements
-//         gatherRenderElementsOfRenderObject _skeletalRenderObjectMap _skeletalRenderElements
-//
-//         where
-//             gatherRenderElementsOfRenderObject :: RenderObjectMap -> IORef [RenderElement.RenderElementData] -> IO ()
-//             gatherRenderElementsOfRenderObject renderObjectMap renderElements = do
-//                 writeIORef renderElements []
-//                 flip HashTable.mapM_ renderObjectMap $ \(objectName, renderObjectData) -> do
-//                     renderObjectRenderElements <- readIORef renderElements
-//                     geometryBufferDatas <- readIORef (Mesh._geometryBufferDatas . Model._meshData . RenderObject._modelData $ renderObjectData)
-//                     materialInstanceDatas <- readIORef (Model._materialInstanceDatas . RenderObject._modelData $ renderObjectData)
-//                     renderElementList <- forM [0..(length geometryBufferDatas - 1)] $ \index -> do
-//                         return RenderElement.RenderElementData
-//                             { _renderObject = renderObjectData
-//                             , _geometryData = geometryBufferDatas !! index
-//                             , _materialInstanceData = materialInstanceDatas !! index
-//                             }
-//                     writeIORef renderElements (renderObjectRenderElements ++ renderElementList)
-//
-//

@@ -15,18 +15,18 @@ use crate::utilities::math::{
 
 #[derive(Clone, Debug)]
 pub struct DirectionalLightCreateInfo {
-    _position: Vector3<f32>,
-    _rotation: Vector3<f32>,
-    _light_constants: LightConstants,
+    pub _position: Vector3<f32>,
+    pub _rotation: Vector3<f32>,
+    pub _light_constants: LightConstants,
 }
 
 #[derive(Clone, Debug)]
 pub struct DirectionalLightData {
-    _light_name: String,
-    _light_constants: LightConstants,
-    _light_shadow_projection: Matrix4<f32>,
-    _transform_object: TransformObjectData,
-    _updated_light_data: bool,
+    pub _light_name: String,
+    pub _light_constants: LightConstants,
+    pub _light_shadow_projection: Matrix4<f32>,
+    pub _transform_object: TransformObjectData,
+    pub _updated_light_data: bool,
 }
 
 impl Default for DirectionalLightCreateInfo {
