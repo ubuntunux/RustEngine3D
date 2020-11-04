@@ -37,9 +37,9 @@ impl std::fmt::Debug for FramebufferDataCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct FramebufferData {
-    _framebuffer_info: FramebufferDataCreateInfo,
-    _framebuffers: SwapchainIndexMap<vk::Framebuffer>,
-    _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>
+    pub _framebuffer_info: FramebufferDataCreateInfo,
+    pub _framebuffers: SwapchainIndexMap<vk::Framebuffer>,
+    pub _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>
 }
 
 impl Default for FramebufferDataCreateInfo {
@@ -67,7 +67,7 @@ pub fn create_framebuffer_data(
     render_pass: vk::RenderPass,
     framebuffer_data_create_info: &FramebufferDataCreateInfo
 ) -> FramebufferData {
-    log::info!("Create Framebuffers : {:?} {} {} {}",
+    log::info!("create_framebuffer_data: {:?} {} {} {}",
         framebuffer_data_create_info._framebuffer_name,
         framebuffer_data_create_info._framebuffer_width,
         framebuffer_data_create_info._framebuffer_height,
@@ -120,7 +120,7 @@ pub fn create_framebuffer_data(
 }
 
 pub fn destroy_framebuffer_data(device: &Device, framebuffer_data: &FramebufferData) {
-    log::info!("Destroy Framebuffers: {:?} {:?}", framebuffer_data._framebuffer_info._framebuffer_name, framebuffer_data._framebuffers);
+    log::info!("destroy_framebuffer_data: {:?} {:?}", framebuffer_data._framebuffer_info._framebuffer_name, framebuffer_data._framebuffers);
     unsafe {
         for framebuffer in framebuffer_data._framebuffers.iter() {
             device.destroy_framebuffer(*framebuffer, None);

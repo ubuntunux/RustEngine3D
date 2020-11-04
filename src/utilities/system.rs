@@ -57,3 +57,9 @@ pub fn generate_unique_name<T>(data_map: &HashMap<String, T>, data_name: &String
         None => data_name.clone(),
     }
 }
+
+pub fn to_bytes<'a, T>(data: *const T) -> &'a [u8]{
+    unsafe {
+        std::slice::from_raw_parts(data as *mut u8, std::mem::size_of::<T>())
+    }
+}

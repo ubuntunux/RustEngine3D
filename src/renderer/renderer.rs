@@ -1,3 +1,4 @@
+use std::cell::Ref;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::vec::Vec;
@@ -12,9 +13,7 @@ use ash::extensions::khr::{
     Surface,
     Swapchain,
 };
-use ash::version::{
-    InstanceV1_0,
-};
+use ash::version::{InstanceV1_0, DeviceV1_0};
 use winit;
 use winit::dpi;
 use winit::window::{
@@ -28,43 +27,24 @@ use crate::resource;
 use crate::vulkan_context::{
     command_buffer,
     device,
-    geometry_buffer,
     queue,
-    swapchain,
     sync,
     texture,
-    uniform_buffer,
 };
-use crate::vulkan_context::swapchain::SwapchainData;
-use crate::vulkan_context::uniform_buffer::UniformBufferData;
-use crate::vulkan_context::vulkan_context::{
-    RenderFeatures,
-    SwapchainIndexMap,
-    FrameIndexMap,
-};
-use crate::renderer::{
-    image_sampler,
-    uniform_buffer_data,
-    render_target
-};
-use crate::renderer::render_target::{
-    RenderTargetType,
-    RenderTargetDataMap,
-};
-use crate::renderer::uniform_buffer_data::{
-    UniformBufferType,
-    UniformBufferDataMap,
-};
-use crate::renderer::post_process::{
-    PostProcessData_SSAO
-};
-use crate::renderer::image_sampler::{
-    ImageSamplerData
-};
-use crate::utilities::system::{
-    self,
-    RcRefCell,
-};
+use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
+use crate::vulkan_context::framebuffer::FramebufferData;
+use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
+use crate::vulkan_context::render_pass::{ RenderPassPipelineDataName, RenderPassPipelineData, RenderPassData, PipelineData };
+use crate::vulkan_context::swapchain::{ self, SwapchainData };
+use crate::vulkan_context::uniform_buffer::{ self, UniformBufferData };
+use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, FrameIndexMap };
+use crate::renderer::image_sampler::{ self, ImageSamplerData };
+use crate::renderer::material_instance::{ PipelineBindingData };
+use crate::renderer::render_target::{ self, RenderTargetType, RenderTargetDataMap };
+use crate::renderer::uniform_buffer_data::{ self, UniformBufferType, UniformBufferDataMap };
+use crate::renderer::post_process::{ PostProcessData_SSAO };
+use crate::resource::Resources;
+use crate::utilities::system::{ self, RcRefCell };
 
 // -- NOTE : sync with scene_constants.glsl
 #[derive(Clone, Debug, Copy)]
@@ -413,78 +393,117 @@ impl RendererData {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
     }
 
-    // renderPipeline :: RendererData -> VkCommandBuffer -> Int -> Text.Text -> Text.Text -> Text.Text -> GeometryData -> IO ()
-    // renderPipeline rendererData commandBuffer swapChainIndex renderPassName pipelineName materialInstanceName geometryData = do
-    //     materialInstanceData <- getMaterialInstanceData (_resources rendererData) materialInstanceName
-    //     let pipelineBindingData = MaterialInstance.getPipelineBindingData materialInstanceData (renderPassName, pipelineName)
-    //         renderPassData = MaterialInstance._renderPassData pipelineBindingData
-    //         pipelineData = MaterialInstance._pipelineData pipelineBindingData
-    //     beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderPassData pipelineData
-    //     bindDescriptorSets rendererData commandBuffer swapChainIndex pipelineBindingData
-    //     drawElements rendererData commandBuffer geometryData
-    //     endRenderPass rendererData commandBuffer
-    //
-    // renderPipeline1 :: RendererData -> VkCommandBuffer -> Int -> Text.Text -> GeometryData -> IO ()
-    // renderPipeline1 rendererData commandBuffer swapChainIndex renderPassName geometryData =
-    //     renderPipeline rendererData commandBuffer swapChainIndex renderPassName renderPassName renderPassName geometryData
-    //
-    // beginRenderPassPipeline :: RendererData -> VkCommandBuffer -> Int -> RenderPass.RenderPassData -> RenderPass.PipelineData -> IO ()
-    // beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderPassData pipelineData = do
-    //     Just frameBufferData <- getFrameBufferData (_resources rendererData) (RenderPass.getRenderPassFrameBufferName renderPassData)
-    //     let renderPassBeginInfo = atSwapChainIndex swapChainIndex (_renderPassBeginInfos frameBufferData)
-    //         pipelineDynamicStates = RenderPass._pipelineDynamicStates pipelineData
-    //     withPtr renderPassBeginInfo $ \renderPassBeginInfoPtr ->
-    //         vkCmdBeginRenderPass commandBuffer renderPassBeginInfoPtr VK_SUBPASS_CONTENTS_INLINE
-    //     when (elem VK_DYNAMIC_STATE_VIEWPORT pipelineDynamicStates) $
-    //         withPtr (_frameBufferViewPort . _frameBufferInfo $ frameBufferData) $ \viewPortPtr ->
-    //             vkCmdSetViewport commandBuffer 0 1 viewPortPtr
-    //     when (elem VK_DYNAMIC_STATE_SCISSOR pipelineDynamicStates) $
-    //         withPtr (_frameBufferScissorRect . _frameBufferInfo $ frameBufferData) $ \scissorRectPtr ->
-    //             vkCmdSetScissor commandBuffer 0 1 scissorRectPtr
-    //     vkCmdBindPipeline commandBuffer VK_PIPELINE_BIND_POINT_GRAPHICS (RenderPass._pipeline pipelineData)
-    //
-    // beginRenderPassPipeline' :: RendererData -> VkCommandBuffer -> Int -> RenderPass.RenderPassPipelineDataName -> IO (RenderPass.RenderPassData, RenderPass.PipelineData)
-    // beginRenderPassPipeline' rendererData commandBuffer swapChainIndex renderPassPipelineDataName = do
-    //     (renderPassData, pipelineData) <- getRenderPassPipelineData (_resources rendererData) renderPassPipelineDataName
-    //     beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderPassData pipelineData
-    //     return (renderPassData, pipelineData)
-    //
-    // bindDescriptorSets :: RendererData -> VkCommandBuffer -> Int -> MaterialInstance.PipelineBindingData -> IO ()
-    // bindDescriptorSets rendererData commandBuffer swapChainIndex pipelineBindingData = do
-    //     let pipelineLayout = RenderPass._pipelineLayout . MaterialInstance._pipelineData $ pipelineBindingData
-    //         descriptorSetsPtr = MaterialInstance._descriptorSetsPtr pipelineBindingData
-    //     vkCmdBindDescriptorSets commandBuffer VK_PIPELINE_BIND_POINT_GRAPHICS pipelineLayout 0 1 (ptrAtIndex descriptorSetsPtr swapChainIndex) 0 VK_NULL
-    //
-    // updateDescriptorSet :: RendererData -> Int -> MaterialInstance.PipelineBindingData -> Int -> Descriptor.DescriptorResourceInfo -> IO ()
-    // updateDescriptorSet rendererData swapChainIndex pipelineBindingData descriptorOffset descriptorResourceInfo = do
-    //     let writeDescriptorSetPtr = atSwapChainIndex swapChainIndex (MaterialInstance._writeDescriptorSetPtrs pipelineBindingData)
-    //         writeDescriptorSetPtrOffset = ptrAtIndex writeDescriptorSetPtr descriptorOffset
-    //     Descriptor.updateWriteDescriptorSet writeDescriptorSetPtr descriptorOffset descriptorResourceInfo
-    //     vkUpdateDescriptorSets (_device rendererData) 1 writeDescriptorSetPtrOffset 0 VK_NULL
-    //
-    // updateDescriptorSets :: RendererData -> Int -> MaterialInstance.PipelineBindingData -> [(Int, Descriptor.DescriptorResourceInfo)] -> IO ()
-    // updateDescriptorSets rendererData swapChainIndex pipelineBindingData descriptorInfos = do
-    //     let writeDescriptorSetPtr = atSwapChainIndex swapChainIndex (MaterialInstance._writeDescriptorSetPtrs pipelineBindingData)
-    //         descriptorWriteCount = MaterialInstance._descriptorSetCount pipelineBindingData
-    //     forM_ descriptorInfos $ \(descriptorOffset, descriptorResourceInfo) -> do
-    //         Descriptor.updateWriteDescriptorSet writeDescriptorSetPtr descriptorOffset descriptorResourceInfo
-    //     vkUpdateDescriptorSets (_device rendererData) (fromIntegral descriptorWriteCount) writeDescriptorSetPtr 0 VK_NULL
-    //
-    // uploadPushConstantData :: RendererData -> VkCommandBuffer -> RenderPass.PipelineData -> PushConstantData -> IO ()
-    // uploadPushConstantData rendererData commandBuffer pipelineData pushConstantData =
-    //     with pushConstantData $ \pushConstantDataPtr ->
-    //         vkCmdPushConstants commandBuffer (RenderPass._pipelineLayout pipelineData) VK_SHADER_STAGE_ALL 0 (bSizeOf pushConstantData) (castPtr pushConstantDataPtr)
-    //
-    // drawElements rendererData commandBuffer geometryData = do
-    //     vkCmdBindVertexBuffers commandBuffer 0 1 (_vertexBufferPtr geometryData) (_vertexOffsetPtr rendererData)
-    //     vkCmdBindIndexBuffer commandBuffer (_indexBuffer geometryData) 0 VK_INDEX_TYPE_UINT32
-    //     vkCmdDrawIndexed commandBuffer (_vertexIndexCount geometryData) 1 0 0 0
-    //
-    // endRenderPass _ commandBuffer = vkCmdEndRenderPass commandBuffer
-    //
-    // deviceWaitIdle rendererData =
-    //     throwingVK "vkDeviceWaitIdle failed!" (vkDeviceWaitIdle $ getDevice rendererData)
-    //
+    pub fn render_pipeline(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: usize,
+        render_pass_pipeline_data_name: &RenderPassPipelineDataName,
+        material_instance_name: &String,
+        geometry_data: &GeometryData
+    ) {
+        let resources = self._resources.borrow();
+        let material_instance_data = resources.get_material_instance_data(material_instance_name).borrow();
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
+        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.draw_elements(command_buffer, geometry_data);
+        self.end_render_pass(command_buffer);
+    }
+
+    pub fn begin_render_pass_pipeline(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: usize,
+        render_pass_data: &RcRefCell<RenderPassData>,
+        pipeline_data: &RcRefCell<PipelineData>
+    ) {
+        let resources: Ref<Resources> = self._resources.borrow();
+        let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
+        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_frame_buffer_name()).borrow();
+        let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index];
+        let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
+        unsafe {
+            self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+            if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
+                self._device.cmd_set_viewport(command_buffer, 0, &[frame_buffer_data._framebuffer_info._framebuffer_view_port]);
+            }
+            if pipeline_dynamic_states.contains(&vk::DynamicState::SCISSOR) {
+                self._device.cmd_set_scissor(command_buffer, 0, &[frame_buffer_data._framebuffer_info._framebuffer_scissor_rect]);
+            }
+            self._device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_data.borrow()._pipeline);
+        }
+    }
+
+    pub fn begin_render_pass_pipeline2(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: usize,
+        render_pass_pipeline_data_name: RenderPassPipelineDataName
+    ) -> RenderPassPipelineData {
+        let render_pass_pipeline_data = self._resources.borrow().get_render_pass_pipeline_data(&render_pass_pipeline_data_name);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, &render_pass_pipeline_data._render_pass_data, &render_pass_pipeline_data._pipeline_data);
+        render_pass_pipeline_data
+    }
+
+    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, swapchain_index: usize, pipeline_binding_data: &PipelineBindingData) {
+        let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
+        let descriptor_set = pipeline_binding_data._descriptor_sets[swapchain_index];
+        let dynamic_offsets: &[u32] = &[];
+        unsafe {
+            self._device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
+        }
+    }
+
+    pub fn update_descriptor_set(
+        &self,
+        swapchain_index: usize,
+        pipeline_binding_data: &mut PipelineBindingData,
+        descriptor_offset: usize,
+        descriptor_resource_info: &DescriptorResourceInfo
+    ) {
+        let wirte_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> = &mut pipeline_binding_data._write_descriptor_sets[swapchain_index];
+        descriptor::update_write_descriptor_set(wirte_descriptor_sets, descriptor_offset, descriptor_resource_info);
+        let wirte_descriptor_set_offset = wirte_descriptor_sets[descriptor_offset];
+        let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
+        unsafe {
+            self._device.update_descriptor_sets(&[wirte_descriptor_set_offset], descriptor_copies);
+        }
+    }
+
+    pub fn upload_push_constant_data<T>(&self, command_buffer: vk::CommandBuffer, pipeline_data: &PipelineData, push_constant_data: &T) {
+        let constants: &[u8] = system::to_bytes(push_constant_data);
+        unsafe {
+            self._device.cmd_push_constants(command_buffer, pipeline_data._pipeline_layout, vk::ShaderStageFlags::ALL, 0, constants);
+        }
+    }
+
+    pub fn draw_elements(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData) {
+        unsafe {
+            let offsets: &[vk::DeviceSize] = &[0];
+            const INSTANCE_COUNT: u32 = 1;
+            const FIRST_INDEX: u32 = 0;
+            const VERTEX_OFFSET: i32 = 0;
+            const FIRST_INSTANCE: u32 = 0;
+            self._device.cmd_bind_vertex_buffers(command_buffer, 0, &[geometry_data._vertex_buffer_data._buffer], offsets);
+            self._device.cmd_bind_index_buffer(command_buffer, geometry_data._index_buffer_data._buffer, 0, vk::IndexType::UINT32);
+            self._device.cmd_draw_indexed(command_buffer, geometry_data._vertex_index_count, INSTANCE_COUNT, FIRST_INDEX, VERTEX_OFFSET, FIRST_INSTANCE);
+        }
+    }
+
+    pub fn end_render_pass(&self, command_buffer: vk::CommandBuffer) {
+        unsafe {
+            self._device.cmd_end_render_pass(command_buffer);
+        }
+    }
+
+    pub fn device_wait_idle(&self) {
+        unsafe {
+            self._device.device_wait_idle().expect("vkDeviceWaitIdle failed!");
+        }
+    }
+
     pub fn initialize_renderer(&mut self) {
         self._swapchain_index = 0;
         self._frame_index = 0;
@@ -501,78 +520,6 @@ impl RendererData {
         render_target::create_render_targets(self);
     }
 
-    // createRenderer :: GLFW.Window
-    //                -> String
-    //                -> String
-    //                -> Bool
-    //                -> Bool
-    //                -> [CString]
-    //                -> Resources
-    //                -> IO RendererData
-    // createRenderer window progName engineName enableValidationLayer isConcurrentMode requireExtensions resources = do
-    //     let validationLayers = if enableValidationLayer then Constants.vulkanLayers else []
-    //     if enableValidationLayer
-    //     then logInfo $ "Enable validation layers : " ++ show validationLayers
-    //     else logInfo $ "Disabled validation layers"
-    //
-    //     defaultRendererData <- defaultRendererData resources
-    //
-    //     vkInstance <- createVulkanInstance progName engineName validationLayers requireExtensions
-    //     vkSurface <- createVkSurface vkInstance window
-    //     (physicalDevice, Just swapChainSupportDetails, supportedFeatures) <-
-    //         selectPhysicalDevice vkInstance (Just vkSurface)
-    //     deviceProperties <- getPhysicalDeviceProperties physicalDevice
-    //     msaaSamples <- getMaxUsableSampleCount deviceProperties
-    //     queueFamilyIndices <- getQueueFamilyIndices physicalDevice vkSurface isConcurrentMode
-    //     let renderFeatures = RenderFeatures
-    //             { _anisotropyEnable = getField @"samplerAnisotropy" supportedFeatures
-    //             , _msaaSamples = msaaSamples }
-    //     let graphicsQueueIndex = _graphicsQueueIndex queueFamilyIndices
-    //         presentQueueIndex = _presentQueueIndex queueFamilyIndices
-    //         queueFamilyIndexList = Set.toList $ Set.fromList [graphicsQueueIndex, presentQueueIndex]
-    //     device <- createDevice physicalDevice renderFeatures queueFamilyIndexList
-    //     queueMap <- createQueues device queueFamilyIndexList
-    //     let defaultQueue = (Map.elems queueMap) !! 0
-    //         queueFamilyDatas = QueueFamilyDatas
-    //             { _graphicsQueue = Maybe.fromMaybe defaultQueue $ Map.lookup graphicsQueueIndex queueMap
-    //             , _presentQueue = Maybe.fromMaybe defaultQueue $ Map.lookup presentQueueIndex queueMap
-    //             , _queueFamilyIndexList = queueFamilyIndexList
-    //             , _queueFamilyCount = fromIntegral $ length queueMap
-    //             , _queueFamilyIndices = queueFamilyIndices }
-    //     commandPool <- createCommandPool device queueFamilyDatas
-    //     imageAvailableSemaphores <- createSemaphores device
-    //     renderFinishedSemaphores <- createSemaphores device
-    //     frameFencesPtr <- createFrameFences device
-    //
-    //     swapChainData <- createSwapChainData device swapChainSupportDetails queueFamilyDatas vkSurface Constants.enableImmediateMode
-    //     swapChainDataRef <- newIORef swapChainData
-    //     swapChainSupportDetailsRef <- newIORef swapChainSupportDetails
-    //
-    //     let commandBufferCount = Constants.swapChainImageCount
-    //     commandBuffersPtr <- mallocArray commandBufferCount::IO (Ptr VkCommandBuffer)
-    //     createCommandBuffers device commandPool commandBufferCount commandBuffersPtr
-    //     commandBuffers <- peekArray commandBufferCount commandBuffersPtr
-    //
-    //     let rendererData = defaultRendererData
-    //             { _imageAvailableSemaphores = imageAvailableSemaphores
-    //             , _renderFinishedSemaphores = renderFinishedSemaphores
-    //             , _vkInstance = vkInstance
-    //             , _vkSurface = vkSurface
-    //             , _device = device
-    //             , _physicalDevice = physicalDevice
-    //             , _queueFamilyDatas = queueFamilyDatas
-    //             , _frameFencesPtr = frameFencesPtr
-    //             , _commandPool = commandPool
-    //             , _commandBuffersPtr = commandBuffersPtr
-    //             , _commandBufferCount = commandBufferCount
-    //             , _swapChainDataRef = swapChainDataRef
-    //             , _swapChainSupportDetailsRef = swapChainSupportDetailsRef
-    //             , _renderFeatures = renderFeatures
-    //             }
-    //
-    //     initializeRenderer rendererData
-    //
-    //
     // resizeWindow :: GLFW.Window -> RendererData -> IO ()
     // resizeWindow window rendererData@RendererData {..} = do
     //     logInfo "<< resizeWindow >>"

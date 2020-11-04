@@ -18,10 +18,10 @@ use crate::vulkan_context::render_pass::RenderPassPipelineData;
 
 #[derive(Clone, Debug)]
 pub struct PipelineBindingData {
-    _render_pass_pipeline_data: RenderPassPipelineData,
-    _descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
-    _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>>,
-    _descriptor_set_count: u32,
+    pub _render_pass_pipeline_data: RenderPassPipelineData,
+    pub _descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    pub _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>>,
+    pub _descriptor_set_count: u32,
 }
 
 type PipelineBindingDataMap = HashMap<render_pass::RenderPassPipelineDataName, PipelineBindingData>;

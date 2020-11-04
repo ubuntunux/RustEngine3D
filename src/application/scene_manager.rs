@@ -12,7 +12,6 @@ use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData }
 use crate::renderer::uniform_buffer_data::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
-use crate::vulkan_context::uniform_buffer::UniformBufferData;
 
 type CameraObjectMap = HashMap<String, RcRefCell<CameraObjectData>>;
 type DirectionalLightObjectMap = HashMap<String, RcRefCell<DirectionalLightData>>;
@@ -153,7 +152,7 @@ impl SceneManagerData {
         }
     }
 
-    pub fn update_scene_manager_data(&mut self, elapsed_time: f64, delta_time: f32) {
+    pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, _delta_time: f32) {
         let mut main_camera = self._main_camera.borrow_mut();
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();
