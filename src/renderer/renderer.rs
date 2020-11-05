@@ -1,3 +1,5 @@
+use std::str::FromStr;
+use std::collections::HashMap;
 use std::cell::Ref;
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -36,15 +38,18 @@ use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ RenderPassPipelineDataName, RenderPassPipelineData, RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
+use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::uniform_buffer::{ self, UniformBufferData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, FrameIndexMap };
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData };
-use crate::renderer::render_target::{ self, RenderTargetType, RenderTargetDataMap };
+use crate::renderer::render_target::{ self, RenderTargetType };
 use crate::renderer::uniform_buffer_data::{ self, UniformBufferType, UniformBufferDataMap };
 use crate::renderer::post_process::{ PostProcessData_SSAO };
 use crate::resource::Resources;
 use crate::utilities::system::{ self, RcRefCell };
+
+pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
 // -- NOTE : sync with scene_constants.glsl
 #[derive(Clone, Debug, Copy)]
@@ -261,45 +266,8 @@ pub fn create_renderer_data<T>(
 }
 
 impl RendererData {
-    pub fn get_need_recreate_swapchain(&self) -> bool {
-        self._need_recreate_swapchain
-    }
-
-    pub fn set_need_recreate_swapchain(&mut self, value: bool) {
-        self._need_recreate_swapchain = value;
-    }
-
-    pub fn recreate_swapchain(&self) {
-        log::info!("recreate_swapchain");
-    }
-
-    pub fn destroy_renderer_data(&mut self) {
-        unsafe {
-            for uniform_buffer_data in self._uniform_buffer_data_map.values() {
-                uniform_buffer::destroy_uniform_buffer_data(self.get_device(), uniform_buffer_data);
-            }
-            self._uniform_buffer_data_map.clear();
-
-            image_sampler::destroy_image_samplers(self.get_device(), &self._image_samplers);
-
-            for render_target_data in self._render_target_data_map.values() {
-                texture::destroy_texture_data(self.get_device(), render_target_data);
-            }
-            self._render_target_data_map.clear();
-
-            sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
-            sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
-            sync::destroy_fences(&self._device, &self._frame_fences);
-            command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
-            command_buffer::destroy_command_pool(&self._device, self._command_pool);
-            swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
-            device::destroy_device(&self._device);
-            device::destroy_vk_surface(&self._surface_interface, self._surface);
-            self._debug_util_interface.destroy_debug_utils_messenger(self._debug_call_back, None);
-            device::destroy_vk_instance(&self._instance);
-        }
-    }
-
+    pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
+    pub fn set_need_recreate_swapchain(&mut self, value: bool) { self._need_recreate_swapchain = value; }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties { &self._device_properties }
@@ -334,15 +302,26 @@ impl RendererData {
         self._debug_render_target = if 0 == enum_to_int {
             unsafe { std::mem::transmute(RenderTargetType::MaxBound as i32 - 1) }
         } else {
-
             unsafe { std::mem::transmute(enum_to_int - 1) }
         };
         log::info!("Current DebugRenderTarget: {:?}", self._debug_render_target);
     }
 
-    pub fn create_render_target<T>(&self, texture_data_name: &String, texture_create_info: &texture::TextureCreateInfo<T>) -> texture::TextureData {
+    pub fn get_render_target(&self, render_target_type: RenderTargetType) -> &TextureData {
+        &self._render_target_data_map.get(&render_target_type).unwrap()
+    }
+
+    pub fn create_render_targets(&mut self) {
+        let render_taget_create_infos = render_target::get_render_target_create_infos(self);
+        for render_taget_create_info in render_taget_create_infos.iter() {
+            let render_target_type: RenderTargetType = RenderTargetType::from_str(render_taget_create_info._texture_name.as_str()).unwrap();
+            let texture_data = self.create_render_target(render_taget_create_info);
+            self._render_target_data_map.insert(render_target_type, texture_data);
+        }
+    }
+
+    pub fn create_render_target<T>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_render_target(
-            texture_data_name,
             self.get_instance(),
             self.get_device(),
             self.get_physical_device(),
@@ -353,9 +332,8 @@ impl RendererData {
         )
     }
 
-    pub fn create_texture<T: Copy>(&self, texture_data_name: &String, texture_create_info: &texture::TextureCreateInfo<T>) -> texture::TextureData {
+    pub fn create_texture<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_texture_data(
-            texture_data_name,
             self.get_instance(),
             self.get_device(),
             self.get_physical_device(),
@@ -366,12 +344,22 @@ impl RendererData {
         )
     }
 
-    pub fn destroy_texture(&self, texture_data: &texture::TextureData) {
+    pub fn destroy_texture(&self, texture_data: &TextureData) {
         texture::destroy_texture_data(self.get_device(), texture_data);
     }
 
-    pub fn get_render_target(&self, render_target_type: RenderTargetType) -> &texture::TextureData {
-        &self._render_target_data_map.get(&render_target_type).unwrap()
+    pub fn destroy_render_targets(&mut self) {
+        for render_target_data in self._render_target_data_map.values() {
+            texture::destroy_texture_data(self.get_device(), render_target_data);
+        }
+        self._render_target_data_map.clear();
+    }
+
+    pub fn destroy_uniform_buffers(&mut self) {
+        for uniform_buffer_data in self._uniform_buffer_data_map.values() {
+            uniform_buffer::destroy_uniform_buffer_data(self.get_device(), uniform_buffer_data);
+        }
+        self._uniform_buffer_data_map.clear();
     }
 
     pub fn create_geometry_buffer(
@@ -391,6 +379,24 @@ impl RendererData {
 
     pub fn destroy_geomtry_buffer(&self, geometry_data: &geometry_buffer::GeometryData) {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
+    }
+
+    pub fn destroy_renderer_data(&mut self) {
+        unsafe {
+            self.destroy_uniform_buffers();
+            image_sampler::destroy_image_samplers(self.get_device(), &self._image_samplers);
+            self.destroy_render_targets();
+            sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
+            sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
+            sync::destroy_fences(&self._device, &self._frame_fences);
+            command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
+            command_buffer::destroy_command_pool(&self._device, self._command_pool);
+            swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
+            device::destroy_device(&self._device);
+            device::destroy_vk_surface(&self._surface_interface, self._surface);
+            self._debug_util_interface.destroy_debug_utils_messenger(self._debug_call_back, None);
+            device::destroy_vk_instance(&self._instance);
+        }
     }
 
     pub fn render_pipeline(
@@ -508,37 +514,33 @@ impl RendererData {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
-
         uniform_buffer_data::regist_uniform_datas(
             &self._device,
             &self._device_memory_properties,
             &mut self._uniform_buffer_data_map
         );
-
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
-
-        render_target::create_render_targets(self);
+        self.create_render_targets();
     }
 
-    // resizeWindow :: GLFW.Window -> RendererData -> IO ()
-    // resizeWindow window rendererData@RendererData {..} = do
-    //     logInfo "<< resizeWindow >>"
-    //
-    //     deviceWaitIdle rendererData
-    //
-    //     -- destroy swapchain & graphics resources
-    //     unloadGraphicsDatas _resources rendererData
-    //
-    //     destroyRenderTargets rendererData _renderTargetDataMap
-    //
-    //     -- recreate swapchain & graphics resources
-    //     recreateSwapChain rendererData window
-    //
-    //     renderTargets <- createRenderTargets rendererData _renderTargetDataMap
-    //
-    //     loadGraphicsDatas _resources rendererData
-    //
-    //
+    pub fn recreate_swapchain(&mut self) {
+        log::info!("\n=======================\nTODO : recreate_swapchain!!!!\n=======================\n");
+    }
+
+    pub fn resize_window(&mut self, _window: &Window) {
+        log::info!("<< resizeWindow >>");
+        self.device_wait_idle();
+
+        // destroy swapchain & graphics resources
+        self._resources.borrow_mut().unload_graphics_datas(self);
+        self.destroy_render_targets();
+
+        // recreate swapchain & graphics resources
+        self.recreate_swapchain();
+        self.create_render_targets();
+        self._resources.borrow_mut().load_graphics_datas(self);
+    }
+
     // recreateSwapChain :: RendererData -> GLFW.Window -> IO ()
     // recreateSwapChain rendererData@RendererData {..} window = do
     //     logInfo "<< recreateSwapChain >>"

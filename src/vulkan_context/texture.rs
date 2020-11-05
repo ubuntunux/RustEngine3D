@@ -19,6 +19,7 @@ use crate::vulkan_context::vulkan_context::run_commands_once;
 
 #[derive(Debug, Clone)]
 pub struct TextureCreateInfo<T> {
+    pub _texture_name: String,
     pub _texture_width: u32,
     pub _texture_height: u32,
     pub _texture_depth: u32,
@@ -72,6 +73,7 @@ pub struct TransitionDependent {
 impl<T> Default for TextureCreateInfo<T> {
     fn default() -> TextureCreateInfo<T> {
         TextureCreateInfo {
+            _texture_name: String::new(),
             _texture_width: 1,
             _texture_height: 1,
             _texture_depth: 1,
@@ -618,7 +620,6 @@ pub fn copy_buffer_to_image(
 }
 
 pub fn create_render_target<T>(
-    texture_data_name: &String,
     instance: &Instance,
     device: &Device,
     physical_device: vk::PhysicalDevice,
@@ -711,7 +712,7 @@ pub fn create_render_target<T>(
         image_layout: vk::ImageLayout::GENERAL
     };
     let texture_data = TextureData {
-        _texture_data_name: texture_data_name.clone(),
+        _texture_data_name: texture_create_info._texture_name.clone(),
         _image: image,
         _image_view: image_view,
         _image_memory: image_memory,
@@ -725,19 +726,18 @@ pub fn create_render_target<T>(
         _descriptor_image_info: descriptor_image_info
     };
     log::info!("create_render_target: {} {:?} {:?} {} {} {}",
-             texture_data_name,
-             texture_create_info._texture_view_type,
-             image_format,
-             texture_create_info._texture_width,
-             texture_create_info._texture_height,
-             texture_create_info._texture_depth
+               texture_create_info._texture_name,
+               texture_create_info._texture_view_type,
+               image_format,
+               texture_create_info._texture_width,
+               texture_create_info._texture_height,
+               texture_create_info._texture_depth
     );
     log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
     texture_data
 }
 
 pub fn create_texture_data<T: Copy>(
-    texture_data_name: &String,
     instance: &Instance,
     device: &Device,
     physical_device: vk::PhysicalDevice,
@@ -882,7 +882,7 @@ pub fn create_texture_data<T: Copy>(
         image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
     };
     let texture_data = TextureData {
-        _texture_data_name: texture_data_name.clone(),
+        _texture_data_name: texture_create_info._texture_name.clone(),
         _image: image.clone(),
         _image_view: image_view.clone(),
         _image_memory: image_memory,
@@ -897,7 +897,7 @@ pub fn create_texture_data<T: Copy>(
     };
 
     log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
-             texture_data_name,
+             texture_create_info._texture_name,
              texture_create_info._texture_view_type,
              texture_create_info._texture_format,
              texture_create_info._texture_width,

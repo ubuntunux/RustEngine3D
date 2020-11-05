@@ -448,6 +448,7 @@ impl Resources {
                 };
                 if vk::Format::UNDEFINED != image_format {
                     let texture_create_info = TextureCreateInfo {
+                        _texture_name: texture_data_name.clone(),
                         _texture_width: image_width,
                         _texture_height: image_height,
                         _texture_format: image_format,
@@ -455,7 +456,7 @@ impl Resources {
                         _texture_initial_datas: image_data,
                         ..Default::default()
                     };
-                    let texture_data = renderer_data.create_texture(&texture_data_name, &texture_create_info);
+                    let texture_data = renderer_data.create_texture(&texture_create_info);
                     self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
                 }
             }

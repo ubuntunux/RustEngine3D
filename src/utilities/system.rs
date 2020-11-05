@@ -12,7 +12,7 @@ pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {
 }
 
 pub fn enum_to_string<T: std::fmt::Debug>(e: &T) -> String {
-    String::from(format!("{:?}", e))
+    format!("{:?}", e)
 }
 
 pub fn get_relative_path(path_parent: &PathBuf, path_child: &PathBuf) -> PathBuf {

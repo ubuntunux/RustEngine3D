@@ -1,15 +1,10 @@
-use std::collections::HashMap;
-
 use ash::{
     vk,
 };
 
 use crate::constants;
 use crate::renderer::renderer::RendererData;
-use crate::vulkan_context::texture::{
-    TextureData,
-    TextureCreateInfo
-};
+use crate::vulkan_context::texture::{ TextureCreateInfo };
 
 #[repr(i32)]
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
@@ -54,22 +49,7 @@ impl std::str::FromStr for RenderTargetType {
     }
 }
 
-pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
-
-pub fn regist_render_target<T>(
-    renderer_data: &mut RendererData,
-    render_target_type: RenderTargetType,
-    texture_create_info: &TextureCreateInfo<T>
-) {
-    let texture_data_name = format!("{:?}", render_target_type);
-    let texture_data = renderer_data.create_render_target(
-        &texture_data_name,
-        &texture_create_info,
-    );
-    renderer_data._render_target_data_map.insert(render_target_type, texture_data);
-}
-
-pub fn create_render_targets(renderer_data: &mut RendererData) {
+pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<TextureCreateInfo<u8>> {
     let swapchain_data = &renderer_data._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
@@ -82,10 +62,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
     let _immutable = true;
     let mutable = false;
     let empty_data: Vec<u8> = Vec::new();
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneColor,
-        &TextureCreateInfo {
+    let texture_create_infos = vec![
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneColor.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
@@ -96,12 +75,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneColorCopy,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneColorCopy.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
@@ -112,12 +88,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneDepth,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneDepth.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::D32_SFLOAT,
@@ -130,12 +103,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::BackBuffer,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::BackBuffer.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
@@ -146,12 +116,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::BackBufferCopy,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::BackBufferCopy.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
@@ -162,12 +129,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneAlbedo,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneAlbedo.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
@@ -177,12 +141,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneMaterial,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneMaterial.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
@@ -194,12 +155,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneNormal,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneNormal.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
@@ -211,12 +169,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SceneVelocity,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SceneVelocity.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
             _texture_format: vk::Format::R16G16_SFLOAT,
@@ -228,12 +183,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::SSAO,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSAO.to_string(),
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
             _texture_format: vk::Format::R16_SFLOAT,
@@ -245,12 +197,9 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
-        }
-    );
-    regist_render_target(
-        renderer_data,
-        RenderTargetType::Shadow,
-        &TextureCreateInfo {
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::Shadow.to_string(),
             _texture_width: constants::SHADOW_MAP_SIZE,
             _texture_height: constants::SHADOW_MAP_SIZE,
             _texture_format: vk::Format::D32_SFLOAT,
@@ -263,5 +212,6 @@ pub fn create_render_targets(renderer_data: &mut RendererData) {
             _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         }
-    );
+    ];
+    texture_create_infos
 }
