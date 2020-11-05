@@ -1,6 +1,6 @@
 use std::str::FromStr;
 use std::collections::HashMap;
-use std::cell::Ref;
+use std::cell::{ Ref, RefMut };
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::vec::Vec;
@@ -24,6 +24,7 @@ use winit::window::{
     WindowBuilder
 };
 use winit::event_loop::EventLoop;
+use nalgebra::{ Vector2, Vector3, Matrix4 };
 
 use crate::constants;
 use crate::resource;
@@ -50,6 +51,7 @@ use crate::renderer::uniform_buffer_data::{ self, UniformBufferType, UniformBuff
 use crate::renderer::post_process::{ PostProcessData_SSAO };
 use crate::resource::Resources;
 use crate::utilities::system::{ self, RcRefCell };
+use crate::application::SceneManagerData;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -617,132 +619,127 @@ impl RendererData {
         buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
     }
 
-    pub fn render_scene(&self) {
-        // renderScene :: RendererData -> SceneManager.SceneManagerData -> Double -> Float -> IO ()
-        // renderScene rendererData@RendererData {..} sceneManagerData elapsedTime deltaTime = do
-        //     -- frame index
-        //     frameIndex <- readIORef _frameIndexRef
-        //     let frameFencePtr = ptrAtIndex _frameFencesPtr frameIndex
-        //         imageAvailableSemaphore = atFrameIndex frameIndex _imageAvailableSemaphores
-        //         renderFinishedSemaphore = atFrameIndex frameIndex _renderFinishedSemaphores
-        //     swapChainData@SwapChainData {..} <- get_swap_chain_data rendererData
-        //
-        //     -- Begin Render
-        //     acquireNextImageResult <- vkAcquireNextImageKHR _device _swapChain maxBound imageAvailableSemaphore VK_NULL_HANDLE _swapChainIndexPtr
-        //     swapChainIndex <- get_swap_chain_index rendererData
-        //     let commandBufferPtr = ptrAtIndex _commandBuffersPtr swapChainIndex
-        //     commandBuffer <- peek commandBufferPtr
-        //
-        //     result <- case acquireNextImageResult of
-        //         VK_SUCCESS -> do
-        //             mainCamera <- SceneManager.getMainCamera sceneManagerData
-        //             cameraPosition <- Camera.getCameraPosition mainCamera
-        //             cameraPositionPrev <- Camera.getCameraPositionPrev mainCamera
-        //             viewMatrix <- Camera.getViewMatrix mainCamera
-        //             invViewMatrix <- Camera.getInvViewMatrix mainCamera
-        //             viewOriginMatrix <- Camera.getViewOriginMatrix mainCamera
-        //             invViewOriginMatrix <- Camera.getInvViewOriginMatrix mainCamera
-        //             projectionMatrix <- Camera.getProjectionMatrix mainCamera
-        //             invProjectionMatrix <- Camera.getInvProjectionMatrix mainCamera
-        //             viewProjectionMatrix <- Camera.getViewProjectionMatrix mainCamera
-        //             invViewProjectionMatrix <- Camera.getInvViewProjectionMatrix mainCamera
-        //             viewOriginProjectionMatrix <- Camera.getViewOriginProjectionMatrix mainCamera
-        //             invViewOriginProjectionMatrix <- Camera.getInvViewOriginProjectionMatrix mainCamera
-        //             viewOriginProjectionMatrixPrev <- Camera.getViewOriginProjectionMatrixPrev mainCamera
-        //
-        //             mainLight <- SceneManager.getMainLight sceneManagerData
-        //             mainLightConstants <- Light.getLightConstants mainLight
-        //             quadGeometryData <- Mesh.getDefaultGeometryData =<< getMeshData _resources "quad"
-        //
-        //             rotation <- TransformObject.getRotation $ Light._directionalLightTransformObject mainLight
-        //
-        //             -- Upload Uniform Buffers
-        //             let screenWidth = fromIntegral $ getField @"width" _swapChainExtent :: Float
-        //                 screenHeight = fromIntegral $ getField @"height" _swapChainExtent :: Float
-        //                 sceneConstants = SceneConstants
-        //                     { _SCREEN_SIZE = vec2 screenWidth screenHeight
-        //                     , _BACKBUFFER_SIZE = vec2 screenWidth screenHeight
-        //                     , _TIME = realToFrac elapsedTime
-        //                     , _DELTA_TIME = scalar deltaTime
-        //                     , _JITTER_FRAME = float_zero
-        //                     , _SceneConstantsDummy0 = 0
-        //                     }
-        //                 viewConstants = ViewConstants
-        //                     { _VIEW  = viewMatrix
-        //                     , _INV_VIEW = invViewMatrix
-        //                     , _VIEW_ORIGIN = viewOriginffMatrix
-        //                     , _INV_VIEW_ORIGIN = invViewOriginMatrix
-        //                     , _PROJECTION = projectionMatrix
-        //                     , _INV_PROJECTION = invProjectionMatrix
-        //                     , _VIEW_PROJECTION = viewProjectionMatrix
-        //                     , _INV_VIEW_PROJECTION = invViewProjectionMatrix
-        //                     , _VIEW_ORIGIN_PROJECTION = viewOriginProjectionMatrix
-        //                     , _INV_VIEW_ORIGIN_PROJECTION = invViewOriginProjectionMatrix
-        //                     , _VIEW_ORIGIN_PROJECTION_PREV = viewOriginProjectionMatrixPrev
-        //                     , _CAMERA_POSITION = cameraPosition
-        //                     , _VIEWCONSTANTS_DUMMY0 = 0.0
-        //                     , _CAMERA_POSITION_PREV = cameraPositionPrev
-        //                     , _VIEWCONSTANTS_DUMMY1 = 0.0
-        //                     , _NEAR_FAR = vec2 Constants.near Constants.far
-        //                     , _JITTER_DELTA = vec2 0.0 0.0
-        //                     , _JITTER_OFFSET = vec2 0.0 0.0
-        //                     , _VIEWCONSTANTS_DUMMY2 = 0.0
-        //                     , _VIEWCONSTANTS_DUMMY3 = 0.0
-        //                     }
-        //             uploadUniformBufferData rendererData swapChainIndex UniformBuffer_SceneConstants sceneConstants
-        //             uploadUniformBufferData rendererData swapChainIndex UniformBuffer_ViewConstants viewConstants
-        //             uploadUniformBufferData rendererData swapChainIndex UniformBuffer_LightConstants mainLightConstants
-        //             uploadUniformBufferData rendererData swapChainIndex UniformBuffer_SSAOConstants (PostProcess._ssao_kernel_samples _postprocess_ssao)
-        //
-        //             -- Begin command buffer
-        //             let commandBufferBeginInfo = createVk @VkCommandBufferBeginInfo
-        //                     $  set @"sType" VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-        //                     &* set @"pNext" VK_NULL
-        //                     &* set @"flags" VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT
-        //             withPtr commandBufferBeginInfo $ \commandBufferBeginInfoPtr -> do
-        //                 result <- vkBeginCommandBuffer commandBuffer commandBufferBeginInfoPtr
-        //                 validationVK result "vkBeginCommandBuffer failed!"
-        //
-        //             -- Render
-        //             staticRenderElements <- SceneManager.getStaticObjectRenderElements sceneManagerData
-        //             skeletalRenderElements <- SceneManager.getSkeletalObjectRenderElements sceneManagerData
-        //             renderShadow rendererData commandBuffer swapChainIndex Constants.RenderObject_Static staticRenderElements
-        //             renderShadow rendererData commandBuffer swapChainIndex Constants.RenderObject_Skeletal skeletalRenderElements
-        //             renderSolid rendererData commandBuffer swapChainIndex Constants.RenderObject_Static staticRenderElements
-        //             renderSolid rendererData commandBuffer swapChainIndex Constants.RenderObject_Skeletal skeletalRenderElements
-        //             renderPostProcess rendererData commandBuffer swapChainIndex quadGeometryData
-        //
-        //             -- Render Final
-        //             renderPipeline1 rendererData commandBuffer swapChainIndex "render_final" quadGeometryData
-        //
-        //             -- Render Debug
-        //             --writeIORef _debugRenderTargetRef RenderTarget_Shadow
-        //             debugRenderTarget <- readIORef _debugRenderTargetRef
-        //             when (RenderTarget_BackBuffer /= debugRenderTarget) $ do
-        //                 renderDebugMaterialInstance <- getMaterialInstanceData _resources "render_debug"
-        //                 let renderDebugPipelineBindingData = MaterialInstance.getPipelineBindingData renderDebugMaterialInstance ("render_debug", "render_debug")
-        //                     renderDebugRenderPassData = MaterialInstance._renderPassData renderDebugPipelineBindingData
-        //                     renderDebugPipelineData = MaterialInstance._pipelineData renderDebugPipelineBindingData
-        //                 beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderDebugRenderPassData renderDebugPipelineData
-        //
-        //                 imageInfo <- getRenderTarget rendererData debugRenderTarget
-        //                 updateDescriptorSet rendererData swapChainIndex renderDebugPipelineBindingData 0 (Descriptor.DescriptorImageInfo $ Texture._descriptorImageInfo imageInfo)
-        //
-        //                 bindDescriptorSets rendererData commandBuffer swapChainIndex renderDebugPipelineBindingData
-        //                 drawElements rendererData commandBuffer quadGeometryData
-        //                 endRenderPass rendererData commandBuffer
-        //
-        //             -- End command buffer
-        //             vkEndCommandBuffer commandBuffer >>= flip validationVK "vkEndCommandBuffer failed!"
-        //
-        //             -- End Render
-        //             presentResult <- presentSwapChain rendererData commandBufferPtr frameFencePtr imageAvailableSemaphore renderFinishedSemaphore
-        //             return presentResult
-        //         otherwise -> return acquireNextImageResult
-        //
-        //     let needRecreateSwapChain = (VK_ERROR_OUT_OF_DATE_KHR == result || VK_SUBOPTIMAL_KHR == result)
-        //     writeIORef _needRecreateSwapChainRef needRecreateSwapChain
-        //     writeIORef _frameIndexRef $ mod (frameIndex + 1) Constants.maxFrameCount
+    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64) {
+        unsafe {
+            // frame index
+            let frame_index = self._frame_index as usize;
+            let frame_fence = &self._frame_fences[frame_index];
+            let image_available_semaphore = &self._image_available_semaphores[frame_index];
+            let render_finished_semaphore = &self._render_finished_semaphores[frame_index];
+
+            // Begin Render
+            let (swapchain_index, acquire_next_image_result) = self._swapchain_interface.acquire_next_image(
+                self._swapchain_data._swapchain,
+                std::u64::MAX,
+                *image_available_semaphore,
+                vk::Fence::null()
+            ).unwrap();
+
+            log::info!("swapchain_index: {}, next_image_result: {}", swapchain_index, acquire_next_image_result);
+
+            self._swapchain_index = swapchain_index;
+
+            let resources: Ref<Resources> = self._resources.borrow();
+            let command_buffer = &self._command_buffers[swapchain_index as usize];
+            let present_result: vk::Result = if false == acquire_next_image_result {
+                let main_camera =  scene_manager.get_main_camera().borrow();
+                let main_light = scene_manager.get_main_light().borrow();
+                let light_rotation = main_light._transform_object.get_rotation();
+                let quad_mesh = resources.get_mesh_data(&String::from("quad")).borrow();
+                let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
+
+                // Upload Uniform Buffers
+                let screen_width = self._swapchain_data._swapchain_extent.width as f32;
+                let screen_height = self._swapchain_data._swapchain_extent.height as f32;
+                let screen_size: Vector2<f32> = Vector2::new(screen_width, screen_height);
+                let scene_constants = uniform_buffer_data::SceneConstants {
+                    _screen_size: screen_size.clone() as Vector2<f32>,
+                    _backbuffer_size: screen_size.clone() as Vector2<f32>,
+                    _time: elapsed_time as f32,
+                    _delta_time: delta_time as f32,
+                    _jitter_frame: 0.0,
+                    _scene_constants_dummy0: 0,
+                };
+                let view_constants = uniform_buffer_data::ViewConstants {
+                    _view: main_camera._view_matrix.into(),
+                    _inv_view: main_camera._inv_view_matrix.into(),
+                    _view_origin: main_camera._view_origin_matrix.into(),
+                    _inv_view_origin: main_camera._inv_view_origin_matrix.into(),
+                    _projection: main_camera._projection_matrix.into(),
+                    _inv_projection: main_camera._inv_projection_matrix.into(),
+                    _view_projection: main_camera._view_projection_matrix.into(),
+                    _inv_view_projection: main_camera._inv_view_projection_matrix.into(),
+                    _view_origin_projection: main_camera._view_origin_projection_matrix.into(),
+                    _inv_view_origin_projection: main_camera._inv_view_origin_projection_matrix.into(),
+                    _view_origin_projection_prev: main_camera._view_origin_projection_matrix_prev.into(),
+                    _camera_position: main_camera._transform_object._position.clone() as Vector3<f32>,
+                    _viewconstants_dummy0: 0.0,
+                    _camera_position_prev: main_camera._transform_object._prev_position.clone() as Vector3<f32>,
+                    _viewconstants_dummy1: 0.0,
+                    _near_far: Vector2::new(constants::NEAR, constants::FAR),
+                    _jitter_delta: Vector2::zeros(),
+                    _jitter_offset: Vector2::zeros(),
+                    _viewconstants_dummy2: 0.0,
+                    _viewconstants_dummy3: 0.0,
+                };
+                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_SceneConstants sceneConstants
+                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_ViewConstants viewConstants
+                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_LightConstants main_light_constants
+                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_SSAOConstants (PostProcess._ssao_kernel_samples _postprocess_ssao)
+                //
+                // // Begin command buffer
+                // let commandBufferBeginInfo = createVk @VkCommandBufferBeginInfo
+                //         $  set @"sType" VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+                //         &* set @"pNext" VK_NULL
+                //         &* set @"flags" VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT
+                // withPtr commandBufferBeginInfo $ \commandBufferBeginInfoPtr -> do
+                //     result <- vkBeginCommandBuffer commandBuffer commandBufferBeginInfoPtr
+                //     validationVK result "vkBeginCommandBuffer failed!"
+                //
+                // // Render
+                // staticRenderElements <- SceneManager.getStaticObjectRenderElements sceneManagerData
+                // skeletalRenderElements <- SceneManager.getSkeletalObjectRenderElements sceneManagerData
+                // renderShadow rendererData commandBuffer swapChainIndex Constants.RenderObject_Static staticRenderElements
+                // renderShadow rendererData commandBuffer swapChainIndex Constants.RenderObject_Skeletal skeletalRenderElements
+                // renderSolid rendererData commandBuffer swapChainIndex Constants.RenderObject_Static staticRenderElements
+                // renderSolid rendererData commandBuffer swapChainIndex Constants.RenderObject_Skeletal skeletalRenderElements
+                // renderPostProcess rendererData commandBuffer swapChainIndex quad_geometry_data
+                //
+                // // Render Final
+                // renderPipeline1 rendererData commandBuffer swapChainIndex "render_final" quad_geometry_data
+                //
+                // // Render Debug
+                // // writeIORef _debugRenderTargetRef RenderTarget_Shadow
+                // debugRenderTarget <- readIORef _debugRenderTargetRef
+                // when (RenderTarget_BackBuffer /= debugRenderTarget) $ do
+                //     renderDebugMaterialInstance <- getMaterialInstanceData _resources "render_debug"
+                //     let renderDebugPipelineBindingData = MaterialInstance.getPipelineBindingData renderDebugMaterialInstance ("render_debug", "render_debug")
+                //         renderDebugRenderPassData = MaterialInstance._renderPassData renderDebugPipelineBindingData
+                //         renderDebugPipelineData = MaterialInstance._pipelineData renderDebugPipelineBindingData
+                //     beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderDebugRenderPassData renderDebugPipelineData
+                //
+                //     imageInfo <- getRenderTarget rendererData debugRenderTarget
+                //     updateDescriptorSet rendererData swapChainIndex renderDebugPipelineBindingData 0 (Descriptor.DescriptorImageInfo $ Texture._descriptorImageInfo imageInfo)
+                //
+                //     bindDescriptorSets rendererData commandBuffer swapChainIndex renderDebugPipelineBindingData
+                //     drawElements rendererData commandBuffer quad_geometry_data
+                //     endRenderPass rendererData commandBuffer
+                //
+                // // End command buffer
+                // vkEndCommandBuffer commandBuffer >>= flip validationVK "vkEndCommandBuffer failed!"
+                //
+                // // End Render
+                // presentResult <- presentSwapChain rendererData commandBufferPtr frameFencePtr imageAvailableSemaphore renderFinishedSemaphore
+                // return presentResult
+                vk::Result::SUCCESS
+            } else {
+                vk::Result::SUBOPTIMAL_KHR
+            };
+
+            // let needRecreateSwapChain = (VK_ERROR_OUT_OF_DATE_KHR == result || VK_SUBOPTIMAL_KHR == result)
+            // writeIORef _needRecreateSwapChainRef needRecreateSwapChain
+            // writeIORef _frameIndexRef $ mod (frameIndex + 1) Constants.maxFrameCount
+        }
     }
     //
     // renderSolid :: RendererData

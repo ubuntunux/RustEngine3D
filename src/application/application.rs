@@ -169,7 +169,11 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             }
 
             if render_scene {
-                renderer_data.borrow_mut().render_scene();
+                renderer_data.borrow_mut().render_scene(
+                    scene_manager_data.borrow_mut(),
+                    application_data.borrow_mut()._time_data._elapsed_time,
+                    application_data.borrow_mut()._time_data._delta_time,
+                );
             }
         }
     });
