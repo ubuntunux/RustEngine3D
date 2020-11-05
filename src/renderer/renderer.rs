@@ -10,6 +10,7 @@ use ash::{
     Entry,
     Instance,
 };
+use ash::prelude::VkResult;
 use ash::extensions::ext::DebugUtils;
 use ash::extensions::khr::{
     Surface,
@@ -27,6 +28,7 @@ use winit::event_loop::EventLoop;
 use crate::constants;
 use crate::resource;
 use crate::vulkan_context::{
+    buffer,
     command_buffer,
     device,
     queue,
@@ -523,10 +525,6 @@ impl RendererData {
         self.create_render_targets();
     }
 
-    pub fn recreate_swapchain(&mut self) {
-        log::info!("\n=======================\nTODO : recreate_swapchain!!!!\n=======================\n");
-    }
-
     pub fn resize_window(&mut self, _window: &Window) {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
@@ -541,74 +539,83 @@ impl RendererData {
         self._resources.borrow_mut().load_graphics_datas(self);
     }
 
-    // recreateSwapChain :: RendererData -> GLFW.Window -> IO ()
-    // recreateSwapChain rendererData@RendererData {..} window = do
-    //     logInfo "<< recreateSwapChain >>"
-    //     destroyCommandBuffers _device _commandPool _commandBufferCount _commandBuffersPtr
-    //     swapChainData <- get_swap_chain_data rendererData
-    //     destroySwapChainData _device swapChainData
-    //
-    //     newSwapChainSupportDetails <- querySwapChainSupport _physicalDevice _vkSurface
-    //     newSwapChainData <- createSwapChainData _device newSwapChainSupportDetails _queueFamilyDatas _vkSurface Constants.enableImmediateMode
-    //     writeIORef _swapChainDataRef newSwapChainData
-    //     writeIORef _swapChainSupportDetailsRef newSwapChainSupportDetails
-    //
-    //     createCommandBuffers _device _commandPool _commandBufferCount _commandBuffersPtr
-    //
-    //
-    // presentSwapChain :: RendererData -> Ptr VkCommandBuffer -> Ptr VkFence -> VkSemaphore -> VkSemaphore -> IO VkResult
-    // presentSwapChain rendererData@RendererData {..} commandBufferPtr frameFencePtr imageAvailableSemaphore renderFinishedSemaphore = do
-    //     let QueueFamilyDatas {..} = _queueFamilyDatas
-    //     swapChainData@SwapChainData {..} <- get_swap_chain_data rendererData
-    //
-    //     let submitInfo = createVk @VkSubmitInfo
-    //               $  set @"sType" VK_STRUCTURE_TYPE_SUBMIT_INFO
-    //               &* set @"pNext" VK_NULL
-    //               &* set @"waitSemaphoreCount" 1
-    //               &* setListRef @"pWaitSemaphores" [imageAvailableSemaphore]
-    //               &* setListRef @"pWaitDstStageMask" [VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT]
-    //               &* set @"commandBufferCount" 1
-    //               &* set @"pCommandBuffers" commandBufferPtr
-    //               &* set @"signalSemaphoreCount" 1
-    //               &* setListRef @"pSignalSemaphores" [renderFinishedSemaphore]
-    //
-    //     vkResetFences _device 1 frameFencePtr
-    //
-    //     frameFence <- peek frameFencePtr
-    //
-    //     let waitingForFence = False
-    //
-    //     withPtr submitInfo $ \submitInfoPtr ->
-    //         vkQueueSubmit _graphicsQueue 1 submitInfoPtr (if waitingForFence then frameFence else VK_NULL) >>=
-    //           flip validationVK "vkQueueSubmit failed!"
-    //
-    //     when waitingForFence $
-    //         vkWaitForFences _device 1 frameFencePtr VK_TRUE (maxBound :: Word64) >>=
-    //             flip validationVK "vkWaitForFences failed!"
-    //
-    //     let presentInfo = createVk @VkPresentInfoKHR
-    //           $  set @"sType" VK_STRUCTURE_TYPE_PRESENT_INFO_KHR
-    //           &* set @"pNext" VK_NULL
-    //           &* set @"pImageIndices" _swapChainIndexPtr
-    //           &* set @"waitSemaphoreCount" 1
-    //           &* setListRef @"pWaitSemaphores" [renderFinishedSemaphore]
-    //           &* set @"swapchainCount" 1
-    //           &* setListRef @"pSwapchains" [_swapChain]
-    //
-    //     result <- withPtr presentInfo $ \presentInfoPtr -> do
-    //         vkQueuePresentKHR _presentQueue presentInfoPtr
-    //
-    //     -- waiting
-    //     deviceWaitIdle rendererData
-    //     return result
-    //
-    //
-    // uploadUniformBufferData :: (Storable a) => RendererData -> Int -> UniformBufferType -> a -> IO ()
-    // uploadUniformBufferData rendererData@RendererData {..} swapChainIndex uniformBufferType uploadData = do
-    //     uniformBufferData <- getUniformBufferData rendererData uniformBufferType
-    //     let uniformBufferMemory = atSwapChainIndex swapChainIndex (_uniformBufferMemories uniformBufferData)
-    //     updateBufferData _device uniformBufferMemory uploadData
-    //
+    pub fn recreate_swapchain(&mut self) {
+        log::info!("<< recreateSwapChain >>");
+        command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
+        swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
+
+        self._swapchain_support_details = swapchain::query_swapchain_support(&self._surface_interface, self._physical_device, self._surface);
+        self._swapchain_data = swapchain::create_swapchain_data(
+            &self._device,
+            &self._swapchain_interface,
+            self._surface,
+            &self._swapchain_support_details,
+            &self._queue_family_datas,
+            constants::ENABLE_IMMEDIATE_MODE
+        );
+        self._command_buffers = command_buffer::create_command_buffers(&self._device, self._command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
+    }
+
+    pub fn present_swapchain(
+        &self,
+        command_buffers: Vec<vk::CommandBuffer>,
+        fence: vk::Fence,
+        image_available_semaphore: vk::Semaphore,
+        render_finished_semaphore: vk::Semaphore,
+    ) -> VkResult<bool> {
+        let wait_semaphores = [image_available_semaphore];
+        let wait_mask = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
+        let signal_semaphores = [render_finished_semaphore];
+        let submit_info = vk::SubmitInfo {
+            wait_semaphore_count: wait_semaphores.len() as u32,
+            p_wait_semaphores: wait_semaphores.as_ptr(),
+            p_wait_dst_stage_mask: wait_mask.as_ptr(),
+            command_buffer_count: command_buffers.len() as u32,
+            p_command_buffers: command_buffers.as_ptr(),
+            signal_semaphore_count: signal_semaphores.len() as u32,
+            p_signal_semaphores: signal_semaphores.as_ptr(),
+            ..Default::default()
+        };
+
+        unsafe {
+            let fences = &[fence];
+            self._device.reset_fences(fences).expect("failed to reset_fences");
+
+            let waiting_for_fence = false;
+            self._device.queue_submit(
+                self._queue_family_datas._graphics_queue,
+                &[submit_info],
+                if waiting_for_fence { fence } else { vk::Fence::null() }
+            ).expect("vkQueueSubmit failed!");
+
+            if waiting_for_fence {
+                self._device.wait_for_fences(fences, true, std::u64::MAX).expect("vkWaitForFences failed!");
+            }
+
+            let present_wait_semaphores = [render_finished_semaphore];
+            let swapchains = [self._swapchain_data._swapchain];
+            let image_indices = [self._swapchain_index];
+            let present_info = vk::PresentInfoKHR {
+                wait_semaphore_count: present_wait_semaphores.len() as u32,
+                p_wait_semaphores: present_wait_semaphores.as_ptr(),
+                swapchain_count: swapchains.len() as u32,
+                p_swapchains: swapchains.as_ptr(),
+                p_image_indices: image_indices.as_ptr(),
+                ..Default::default()
+            };
+
+            let result: VkResult<bool> = self._swapchain_interface.queue_present(self.get_present_queue(), &present_info);
+            // waiting
+            self._device.device_wait_idle().expect("failed to device_wait_idle");
+            result
+        }
+    }
+
+    pub fn upload_uniform_buffer_data<T>(&self, swapchain_index: usize, uniform_buffer_type: UniformBufferType, upload_data: &T) {
+        let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
+        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index];
+        buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
+    }
 
     pub fn render_scene(&self) {
         // renderScene :: RendererData -> SceneManager.SceneManagerData -> Double -> Float -> IO ()
