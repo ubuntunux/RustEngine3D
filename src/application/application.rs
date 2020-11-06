@@ -1,3 +1,4 @@
+use std::cell::RefMut;
 use std::time;
 use log;
 
@@ -14,7 +15,7 @@ use winit::event_loop::{
     EventLoop
 };
 
-use crate::application::scene_manager;
+use crate::application::{scene_manager, SceneManagerData};
 use crate::application::input;
 use crate::resource;
 use crate::renderer;
@@ -121,7 +122,8 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         }
     );
 
-    resources.borrow_mut().initialize_resources(&renderer_data.borrow_mut());
+
+    resources.borrow_mut().initialize_resources(&renderer_data.borrow());
 
     let camera_data = CameraCreateInfo {
         aspect: if 0 != height { width as f32 / height as f32 } else { 1.0 },
@@ -135,27 +137,31 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     let mut render_scene: bool = false;
     let mut run_application: bool = true;
     event_loop.run(move |event, __window_target, control_flow|{
+        let mut application_data: RefMut<ApplicationData> = application_data.borrow_mut();
+        let mut renderer_datq: RefMut<RendererData> = renderer_data.borrow_mut();
+        let mut scene_manager_data: RefMut<SceneManagerData> = scene_manager_data.borrow_mut();
+
         if run_application {
-            application_data.borrow_mut()._time_data.update_time_data(&time_instance);
+            application_data._time_data.update_time_data(&time_instance);
 
             render_scene = false;
             match event {
                 Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                     *control_flow = ControlFlow::Exit;
-                    application_data.borrow_mut().terminate_applicateion();
+                    application_data.terminate_applicateion();
                     run_application = false;
                     return;
                 },
                 Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
                     if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                         *control_flow = ControlFlow::Exit;
-                        application_data.borrow_mut().terminate_applicateion();
+                        application_data.terminate_applicateion();
                         run_application = false;
                         return;
                     }
                 },
                 Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                    renderer_data.borrow_mut().set_need_recreate_swapchain(true);
+                    renderer_datq.set_need_recreate_swapchain(true);
                 },
                 Event::RedrawEventsCleared => {
                     render_scene = true;
@@ -163,16 +169,16 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                 _ => { },
             }
 
-            if renderer_data.borrow_mut().get_need_recreate_swapchain() {
-                renderer_data.borrow_mut().recreate_swapchain();
-                renderer_data.borrow_mut().set_need_recreate_swapchain(false);
+            if renderer_datq.get_need_recreate_swapchain() {
+                renderer_datq.recreate_swapchain();
+                renderer_datq.set_need_recreate_swapchain(false);
             }
 
             if render_scene {
-                renderer_data.borrow_mut().render_scene(
-                    scene_manager_data.borrow_mut(),
-                    application_data.borrow_mut()._time_data._elapsed_time,
-                    application_data.borrow_mut()._time_data._delta_time,
+                renderer_datq.render_scene(
+                    scene_manager_data,
+                    application_data._time_data._elapsed_time,
+                    application_data._time_data._delta_time,
                 );
             }
         }
