@@ -29,6 +29,7 @@ pub struct TimeData {
     _average_frame_time: f64,
     _average_fps: f64,
     _current_time: f64,
+    _elapsed_time_prev: f64,
     _elapsed_time: f64,
     _delta_time: f64
 }
@@ -39,6 +40,7 @@ pub fn create_time_data(elapsed_time: f64) -> TimeData {
         _acc_frame_count: 0,
         _average_frame_time: 0.0,
         _average_fps: 0.0,
+        _elapsed_time_prev: elapsed_time,
         _current_time: elapsed_time,
         _elapsed_time: elapsed_time,
         _delta_time: 0.0
@@ -50,6 +52,7 @@ impl TimeData {
         let current_time = time_instance.elapsed().as_secs_f64();
         let previous_time = self._current_time;
         let delta_time = current_time - previous_time;
+        self._elapsed_time_prev = self._elapsed_time;
         let elapsed_time = self._elapsed_time + delta_time;
         let acc_frame_time = self._acc_frame_time + delta_time;
         let acc_frame_count = self._acc_frame_count + 1;
@@ -138,11 +141,13 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     let mut run_application: bool = true;
     event_loop.run(move |event, __window_target, control_flow|{
         let mut application_data: RefMut<ApplicationData> = application_data.borrow_mut();
-        let mut renderer_datq: RefMut<RendererData> = renderer_data.borrow_mut();
+        let mut renderer_data: RefMut<RendererData> = renderer_data.borrow_mut();
         let mut scene_manager_data: RefMut<SceneManagerData> = scene_manager_data.borrow_mut();
 
         if run_application {
             application_data._time_data.update_time_data(&time_instance);
+            let elapsed_time = application_data._time_data._elapsed_time;
+            let delta_time = application_data._time_data._delta_time;
 
             render_scene = false;
             match event {
@@ -161,7 +166,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     }
                 },
                 Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                    renderer_datq.set_need_recreate_swapchain(true);
+                    renderer_data.set_need_recreate_swapchain(true);
                 },
                 Event::RedrawEventsCleared => {
                     render_scene = true;
@@ -169,17 +174,25 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                 _ => { },
             }
 
-            if renderer_datq.get_need_recreate_swapchain() {
-                renderer_datq.recreate_swapchain();
-                renderer_datq.set_need_recreate_swapchain(false);
+            if renderer_data.get_need_recreate_swapchain() {
+                if false == renderer_data.get_is_first_resize_event() {
+                    renderer_data.resize_window();
+                    let window_size = renderer_data._window.inner_size();
+                    let aspect: f32 = if 0 != window_size.height {
+                        window_size.width as f32 / window_size.height as f32
+                    } else {
+                        1.0
+                    };
+                    scene_manager_data.get_main_camera().borrow_mut().set_aspect(aspect);
+                }
+                renderer_data.set_is_first_resize_event(false);
+                renderer_data.set_need_recreate_swapchain(false);
             }
 
+            scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
+
             if render_scene {
-                renderer_datq.render_scene(
-                    scene_manager_data,
-                    application_data._time_data._elapsed_time,
-                    application_data._time_data._delta_time,
-                );
+                renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
             }
         }
     });

@@ -156,7 +156,7 @@ pub fn get_render_pass_data_create_info(
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
-                    _descriptor_name: enum_to_string(&UniformBufferType::LightConstant),
+                    _descriptor_name: enum_to_string(&UniformBufferType::LightConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,

@@ -31,7 +31,7 @@ use crate::vulkan_context::uniform_buffer::{
 pub enum UniformBufferType {
     SceneConstants,
     ViewConstants,
-    LightConstant,
+    LightConstants,
     SSAOConstants,
 }
 
@@ -47,7 +47,7 @@ impl std::str::FromStr for UniformBufferType {
         match s {
             "SceneConstants" => Ok(UniformBufferType::SceneConstants),
             "ViewConstants" => Ok(UniformBufferType::ViewConstants),
-            "LightConstant" => Ok(UniformBufferType::LightConstant),
+            "LightConstants" => Ok(UniformBufferType::LightConstants),
             "SSAOConstants" => Ok(UniformBufferType::SSAOConstants),
             _ => Err(format!("'{}' is not a valid value for UniformBufferType", s)),
         }
@@ -57,7 +57,7 @@ impl std::str::FromStr for UniformBufferType {
 pub type UniformBufferDataMap = HashMap<UniformBufferType, UniformBufferData>;
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SceneConstants {
     pub _screen_size: Vector2<f32>,
     pub _backbuffer_size: Vector2<f32>,
@@ -68,7 +68,7 @@ pub struct SceneConstants {
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct ViewConstants {
     pub _view: Matrix4<f32>,
     pub _inv_view: Matrix4<f32>,
@@ -107,7 +107,7 @@ pub struct LightConstants {
 
 // render_ssao.frag - UBOSSAOKernel
 type Matrix4x64f = Matrix<f32, U4, U64, ArrayStorage<f32, U4, U64>>;
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SSAOConstants {
     pub _ssao_kernel_samples: Matrix4x64f,
 }
@@ -155,6 +155,6 @@ pub fn regist_uniform_datas(
 ) {
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::SceneConstants, std::mem::size_of::<SceneConstants>());
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::ViewConstants, std::mem::size_of::<ViewConstants>());
-    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::LightConstant, std::mem::size_of::<LightConstants>());
+    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::LightConstants, std::mem::size_of::<LightConstants>());
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::SSAOConstants, std::mem::size_of::<SSAOConstants>());
 }

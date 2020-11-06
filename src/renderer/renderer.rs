@@ -1,7 +1,7 @@
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
-use std::borrow::Cow;
+use std::borrow::{Cow};
 use std::ffi::CStr;
 use std::vec::Vec;
 use ash::{
@@ -24,10 +24,10 @@ use winit::window::{
     WindowBuilder
 };
 use winit::event_loop::EventLoop;
-use nalgebra::{ Vector2, Vector3, Matrix4 };
+use nalgebra::{ Vector2, Vector3 };
 
+use crate::application::SceneManagerData;
 use crate::constants;
-use crate::resource;
 use crate::vulkan_context::{
     buffer,
     command_buffer,
@@ -45,13 +45,14 @@ use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::uniform_buffer::{ self, UniformBufferData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, FrameIndexMap };
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
-use crate::renderer::material_instance::{ PipelineBindingData };
+use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::render_target::{ self, RenderTargetType };
 use crate::renderer::uniform_buffer_data::{ self, UniformBufferType, UniformBufferDataMap };
 use crate::renderer::post_process::{ PostProcessData_SSAO };
-use crate::resource::Resources;
+use crate::renderer::push_constants::{ PushConstants_StaticRenderObject, PushConstants_SkeletalRenderObject };
+use crate::renderer::render_element::{ RenderElementData };
+use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
-use crate::application::SceneManagerData;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -125,6 +126,7 @@ pub struct RendererData {
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
+    _is_first_resize_event: bool,
     pub _window: Window,
     pub _entry: Entry,
     pub _instance: Instance,
@@ -151,7 +153,7 @@ pub struct RendererData {
     pub _render_target_data_map: RenderTargetDataMap,
     pub _uniform_buffer_data_map: UniformBufferDataMap,
     pub _postprocess_ssao: PostProcessData_SSAO,
-    pub _resources: RcRefCell<resource::Resources>
+    pub _resources: RcRefCell<Resources>
 }
 
 pub fn create_renderer_data<T>(
@@ -159,7 +161,7 @@ pub fn create_renderer_data<T>(
     app_version: u32,
     (window_width, window_height): (u32, u32),
     event_loop: &EventLoop<T>,
-    resources: RcRefCell<resource::Resources>
+    resources: RcRefCell<Resources>
 ) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
@@ -234,6 +236,7 @@ pub fn create_renderer_data<T>(
             _frame_index: 0,
             _swapchain_index: 0,
             _need_recreate_swapchain: false,
+            _is_first_resize_event: true,
             _window: window,
             _entry: entry,
             _instance: instance,
@@ -272,6 +275,8 @@ pub fn create_renderer_data<T>(
 impl RendererData {
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) { self._need_recreate_swapchain = value; }
+    pub fn get_is_first_resize_event(&self) -> bool { self._is_first_resize_event }
+    pub fn set_is_first_resize_event(&mut self, value: bool) { self._is_first_resize_event = value; }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties { &self._device_properties }
@@ -406,13 +411,13 @@ impl RendererData {
     pub fn render_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
-        swapchain_index: usize,
+        swapchain_index: u32,
         render_pass_pipeline_data_name: &RenderPassPipelineDataName,
         material_instance_name: &String,
         geometry_data: &GeometryData
     ) {
-        let resources = self._resources.borrow();
-        let material_instance_data = resources.get_material_instance_data(material_instance_name).borrow();
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
@@ -425,14 +430,14 @@ impl RendererData {
     pub fn begin_render_pass_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
-        swapchain_index: usize,
+        swapchain_index: u32,
         render_pass_data: &RcRefCell<RenderPassData>,
         pipeline_data: &RcRefCell<PipelineData>
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
         let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_frame_buffer_name()).borrow();
-        let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index];
+        let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index as usize];
         let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
         unsafe {
             self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
@@ -449,17 +454,17 @@ impl RendererData {
     pub fn begin_render_pass_pipeline2(
         &self,
         command_buffer: vk::CommandBuffer,
-        swapchain_index: usize,
-        render_pass_pipeline_data_name: RenderPassPipelineDataName
+        swapchain_index: u32,
+        render_pass_pipeline_data_name: &RenderPassPipelineDataName
     ) -> RenderPassPipelineData {
         let render_pass_pipeline_data = self._resources.borrow().get_render_pass_pipeline_data(&render_pass_pipeline_data_name);
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, &render_pass_pipeline_data._render_pass_data, &render_pass_pipeline_data._pipeline_data);
         render_pass_pipeline_data
     }
 
-    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, swapchain_index: usize, pipeline_binding_data: &PipelineBindingData) {
+    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, pipeline_binding_data: &PipelineBindingData) {
         let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
-        let descriptor_set = pipeline_binding_data._descriptor_sets[swapchain_index];
+        let descriptor_set = pipeline_binding_data._descriptor_sets[swapchain_index as usize];
         let dynamic_offsets: &[u32] = &[];
         unsafe {
             self._device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
@@ -468,12 +473,12 @@ impl RendererData {
 
     pub fn update_descriptor_set(
         &self,
-        swapchain_index: usize,
+        swapchain_index: u32,
         pipeline_binding_data: &mut PipelineBindingData,
         descriptor_offset: usize,
         descriptor_resource_info: &DescriptorResourceInfo
     ) {
-        let wirte_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> = &mut pipeline_binding_data._write_descriptor_sets[swapchain_index];
+        let wirte_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> = &mut pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
         descriptor::update_write_descriptor_set(wirte_descriptor_sets, descriptor_offset, descriptor_resource_info);
         let wirte_descriptor_set_offset = wirte_descriptor_sets[descriptor_offset];
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
@@ -527,7 +532,7 @@ impl RendererData {
         self.create_render_targets();
     }
 
-    pub fn resize_window(&mut self, _window: &Window) {
+    pub fn resize_window(&mut self) {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
 
@@ -560,7 +565,7 @@ impl RendererData {
 
     pub fn present_swapchain(
         &self,
-        command_buffers: Vec<vk::CommandBuffer>,
+        command_buffers: &[vk::CommandBuffer],
         fence: vk::Fence,
         image_available_semaphore: vk::Semaphore,
         render_finished_semaphore: vk::Semaphore,
@@ -606,16 +611,16 @@ impl RendererData {
                 ..Default::default()
             };
 
-            let result: VkResult<bool> = self._swapchain_interface.queue_present(self.get_present_queue(), &present_info);
+            let is_swapchain_suboptimal: VkResult<bool> = self._swapchain_interface.queue_present(self.get_present_queue(), &present_info);
             // waiting
             self._device.device_wait_idle().expect("failed to device_wait_idle");
-            result
+            is_swapchain_suboptimal
         }
     }
 
-    pub fn upload_uniform_buffer_data<T>(&self, swapchain_index: usize, uniform_buffer_type: UniformBufferType, upload_data: &T) {
+    pub fn upload_uniform_buffer_data<T>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &T) {
         let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
-        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index];
+        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
         buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
     }
 
@@ -623,32 +628,31 @@ impl RendererData {
         unsafe {
             // frame index
             let frame_index = self._frame_index as usize;
-            let frame_fence = &self._frame_fences[frame_index];
-            let image_available_semaphore = &self._image_available_semaphores[frame_index];
-            let render_finished_semaphore = &self._render_finished_semaphores[frame_index];
+            let frame_fence = self._frame_fences[frame_index];
+            let image_available_semaphore = self._image_available_semaphores[frame_index];
+            let render_finished_semaphore = self._render_finished_semaphores[frame_index];
 
             // Begin Render
-            let (swapchain_index, acquire_next_image_result) = self._swapchain_interface.acquire_next_image(
+            let (swapchain_index, is_swapchain_suboptimal) = self._swapchain_interface.acquire_next_image(
                 self._swapchain_data._swapchain,
                 std::u64::MAX,
-                *image_available_semaphore,
+                image_available_semaphore,
                 vk::Fence::null()
             ).unwrap();
 
-            log::info!("swapchain_index: {}, next_image_result: {}", swapchain_index, acquire_next_image_result);
-
             self._swapchain_index = swapchain_index;
 
-            let resources: Ref<Resources> = self._resources.borrow();
-            let command_buffer = &self._command_buffers[swapchain_index as usize];
-            let present_result: vk::Result = if false == acquire_next_image_result {
+            let command_buffer = self._command_buffers[swapchain_index as usize];
+            let present_result: vk::Result = if false == is_swapchain_suboptimal {
+                let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
                 let main_light = scene_manager.get_main_light().borrow();
-                let light_rotation = main_light._transform_object.get_rotation();
                 let quad_mesh = resources.get_mesh_data(&String::from("quad")).borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
 
                 // Upload Uniform Buffers
+                let ssao_constants = &self._postprocess_ssao._ssao_constants;
+                let light_constants = main_light.get_light_constants();
                 let screen_width = self._swapchain_data._swapchain_extent.width as f32;
                 let screen_height = self._swapchain_data._swapchain_extent.height as f32;
                 let screen_size: Vector2<f32> = Vector2::new(screen_width, screen_height);
@@ -682,134 +686,255 @@ impl RendererData {
                     _viewconstants_dummy2: 0.0,
                     _viewconstants_dummy3: 0.0,
                 };
-                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_SceneConstants sceneConstants
-                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_ViewConstants viewConstants
-                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_LightConstants main_light_constants
-                // uploadUniformBufferData rendererData swapChainIndex UniformBuffer_SSAOConstants (PostProcess._ssao_kernel_samples _postprocess_ssao)
-                //
-                // // Begin command buffer
-                // let commandBufferBeginInfo = createVk @VkCommandBufferBeginInfo
-                //         $  set @"sType" VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-                //         &* set @"pNext" VK_NULL
-                //         &* set @"flags" VK_COMMAND_BUFFER_USAGE_SIMULTANEOUS_USE_BIT
-                // withPtr commandBufferBeginInfo $ \commandBufferBeginInfoPtr -> do
-                //     result <- vkBeginCommandBuffer commandBuffer commandBufferBeginInfoPtr
-                //     validationVK result "vkBeginCommandBuffer failed!"
-                //
-                // // Render
-                // staticRenderElements <- SceneManager.getStaticObjectRenderElements sceneManagerData
-                // skeletalRenderElements <- SceneManager.getSkeletalObjectRenderElements sceneManagerData
-                // renderShadow rendererData commandBuffer swapChainIndex Constants.RenderObject_Static staticRenderElements
-                // renderShadow rendererData commandBuffer swapChainIndex Constants.RenderObject_Skeletal skeletalRenderElements
-                // renderSolid rendererData commandBuffer swapChainIndex Constants.RenderObject_Static staticRenderElements
-                // renderSolid rendererData commandBuffer swapChainIndex Constants.RenderObject_Skeletal skeletalRenderElements
-                // renderPostProcess rendererData commandBuffer swapChainIndex quad_geometry_data
-                //
-                // // Render Final
-                // renderPipeline1 rendererData commandBuffer swapChainIndex "render_final" quad_geometry_data
-                //
-                // // Render Debug
-                // // writeIORef _debugRenderTargetRef RenderTarget_Shadow
-                // debugRenderTarget <- readIORef _debugRenderTargetRef
-                // when (RenderTarget_BackBuffer /= debugRenderTarget) $ do
-                //     renderDebugMaterialInstance <- getMaterialInstanceData _resources "render_debug"
-                //     let renderDebugPipelineBindingData = MaterialInstance.getPipelineBindingData renderDebugMaterialInstance ("render_debug", "render_debug")
-                //         renderDebugRenderPassData = MaterialInstance._renderPassData renderDebugPipelineBindingData
-                //         renderDebugPipelineData = MaterialInstance._pipelineData renderDebugPipelineBindingData
-                //     beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderDebugRenderPassData renderDebugPipelineData
-                //
-                //     imageInfo <- getRenderTarget rendererData debugRenderTarget
-                //     updateDescriptorSet rendererData swapChainIndex renderDebugPipelineBindingData 0 (Descriptor.DescriptorImageInfo $ Texture._descriptorImageInfo imageInfo)
-                //
-                //     bindDescriptorSets rendererData commandBuffer swapChainIndex renderDebugPipelineBindingData
-                //     drawElements rendererData commandBuffer quad_geometry_data
-                //     endRenderPass rendererData commandBuffer
-                //
-                // // End command buffer
-                // vkEndCommandBuffer commandBuffer >>= flip validationVK "vkEndCommandBuffer failed!"
-                //
-                // // End Render
-                // presentResult <- presentSwapChain rendererData commandBufferPtr frameFencePtr imageAvailableSemaphore renderFinishedSemaphore
-                // return presentResult
-                vk::Result::SUCCESS
+
+                self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::SceneConstants, &scene_constants);
+                self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::ViewConstants, &view_constants);
+                self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::LightConstants, light_constants);
+                self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::SSAOConstants, ssao_constants);
+
+                // Begin command buffer
+                let command_buffer_begin_info = vk::CommandBufferBeginInfo {
+                    flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
+                    ..Default::default()
+                };
+                self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
+
+                // Render
+                let static_render_elements = scene_manager.get_static_render_elements();
+                let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
+                self.render_shadow(command_buffer, swapchain_index, RenderObjectType::Static, &static_render_elements);
+                self.render_shadow(command_buffer, swapchain_index, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid(command_buffer, swapchain_index, RenderObjectType::Static, &static_render_elements);
+                self.render_solid(command_buffer, swapchain_index, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
+
+                // Render Final
+                let render_final_material_instance_name = String::from("render_debug");
+                let render_final_render_pass_pipeline_name = RenderPassPipelineDataName {
+                    _render_pass_data_name: String::from("render_debug"),
+                    _pipeline_data_name: String::from("render_debug"),
+                };
+                self.render_pipeline(
+                    command_buffer,
+                    swapchain_index,
+                    &render_final_render_pass_pipeline_name,
+                    &render_final_material_instance_name,
+                    &quad_geometry_data
+                );
+
+                // Render Debug
+                //self._debug_render_target = RenderTargetType::Shadow;
+                if RenderTargetType::BackBuffer != self._debug_render_target {
+                    let render_debug_material_instance_name = String::from("render_debug");
+                    let render_debug_render_pass_pipeline_name = RenderPassPipelineDataName {
+                        _render_pass_data_name: String::from("render_debug"),
+                        _pipeline_data_name: String::from("render_debug"),
+                    };
+
+                    let render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
+
+                    // TODO!! : clone 꼭해야되나...
+                    let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_pipeline_binding_data(&render_debug_render_pass_pipeline_name).clone();
+                    self.begin_render_pass_pipeline(
+                        command_buffer,
+                        swapchain_index,
+                        &render_debug_pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
+                        &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                    );
+                    // self.begin_render_pass_pipeline2(command_buffer, swapchain_index, &render_debug_render_pass_pipeline_name);
+
+                    let image_info = self.get_render_target(self._debug_render_target);
+                    self.update_descriptor_set(
+                        swapchain_index,
+                        &mut render_debug_pipeline_binding_data,
+                        0,
+                        &DescriptorResourceInfo::DescriptorImageInfo(image_info._descriptor_image_info),
+                    );
+
+                    self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data);
+                    self.draw_elements(command_buffer, &quad_geometry_data);
+                    self.end_render_pass(command_buffer);
+                }
+
+                // End command buffer
+                self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
+
+                // End Render
+                let is_swapchain_suboptimal = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore).unwrap();
+                if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS }
             } else {
                 vk::Result::SUBOPTIMAL_KHR
             };
 
-            // let needRecreateSwapChain = (VK_ERROR_OUT_OF_DATE_KHR == result || VK_SUBOPTIMAL_KHR == result)
-            // writeIORef _needRecreateSwapChainRef needRecreateSwapChain
-            // writeIORef _frameIndexRef $ mod (frameIndex + 1) Constants.maxFrameCount
+            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
+                self.set_need_recreate_swapchain(true);
+            }
+
+            self._frame_index = (self._frame_index + 1) % (constants::MAX_FRAME_COUNT as i32);
         }
     }
-    //
-    // renderSolid :: RendererData
-    //             -> VkCommandBuffer
-    //             -> Int
-    //             -> Constants.RenderObjectType
-    //             -> [RenderElement.RenderElementData]
-    //             -> IO ()
-    // renderSolid rendererData commandBuffer swapChainIndex renderObjectType renderElements = do
-    //     let renderPassPipelineDataName = case renderObjectType of
-    //             Constants.RenderObject_Static -> ("render_pass_static_opaque", "render_object")
-    //             Constants.RenderObject_Skeletal -> ("render_pass_skeletal_opaque", "render_object")
-    //     forM_ (zip [(0::Int)..] renderElements) $ \(index, renderElement) -> do
-    //         let renderObject = RenderElement._renderObject renderElement
-    //             geometryBufferData = RenderElement._geometryData renderElement
-    //             materialInstanceData = RenderElement._materialInstanceData renderElement
-    //             pipelineBindingData = MaterialInstance.getPipelineBindingData materialInstanceData renderPassPipelineDataName
-    //             renderPassData = MaterialInstance._renderPassData pipelineBindingData
-    //             pipelineData = MaterialInstance._pipelineData pipelineBindingData
-    //             pipelineLayout = RenderPass._pipelineLayout pipelineData
-    //
-    //         when (0 == index) $ do
-    //             beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderPassData pipelineData
-    //
-    //         bindDescriptorSets rendererData commandBuffer swapChainIndex pipelineBindingData
-    //
-    //         modelMatrix <- TransformObject.getMatrix (RenderObject._transformObject renderObject)
-    //         let pushConstantData = PushConstantData { modelMatrix = modelMatrix }
-    //         uploadPushConstantData rendererData commandBuffer pipelineData pushConstantData
-    //
-    //         drawElements rendererData commandBuffer geometryBufferData
-    //     endRenderPass rendererData commandBuffer
-    //
-    //
-    // renderShadow :: RendererData
-    //              -> VkCommandBuffer
-    //              -> Int
-    //              -> Constants.RenderObjectType
-    //              -> [RenderElement.RenderElementData]
-    //              -> IO ()
-    // renderShadow rendererData commandBuffer swapChainIndex renderObjectType renderElements = do
-    //     let (renderPassPipelineDataName, materialInstanceName) = case renderObjectType of
-    //             Constants.RenderObject_Static -> (("render_pass_static_shadow", "render_object"), "render_static_shadow")
-    //             Constants.RenderObject_Skeletal -> (("render_pass_skeletal_shadow", "render_object"), "render_skeletal_shadow")
-    //     materialInstance <- getMaterialInstanceData (_resources rendererData) materialInstanceName
-    //     let pipelineBindingData = MaterialInstance.getPipelineBindingData materialInstance renderPassPipelineDataName
-    //         renderPassData = MaterialInstance._renderPassData pipelineBindingData
-    //         pipelineData = MaterialInstance._pipelineData pipelineBindingData
-    //     beginRenderPassPipeline rendererData commandBuffer swapChainIndex renderPassData pipelineData
-    //     bindDescriptorSets rendererData commandBuffer swapChainIndex pipelineBindingData
-    //
-    //     forM_ (zip [(0::Int)..] renderElements) $ \(index, renderElement) -> do
-    //         let renderObject = RenderElement._renderObject renderElement
-    //             geometryBufferData = RenderElement._geometryData renderElement
-    //
-    //         modelMatrix <- TransformObject.getMatrix (RenderObject._transformObject renderObject)
-    //         let pushConstantData = PushConstantData { modelMatrix = modelMatrix }
-    //         uploadPushConstantData rendererData commandBuffer pipelineData pushConstantData
-    //
-    //         drawElements rendererData commandBuffer geometryBufferData
-    //     endRenderPass rendererData commandBuffer
-    //
-    //
-    // renderPostProcess :: RendererData
-    //                   -> VkCommandBuffer
-    //                   -> Int
-    //                   -> GeometryData
-    //                   -> IO ()
-    // renderPostProcess rendererData@RendererData {..} commandBuffer swapChainIndex quadGeometryData = do
-    //     renderPipeline1 rendererData commandBuffer swapChainIndex "render_ssao" quadGeometryData
-    //     renderPipeline1 rendererData commandBuffer swapChainIndex "composite_gbuffer" quadGeometryData
-    //     renderPipeline1 rendererData commandBuffer swapChainIndex "render_motion_blur" quadGeometryData
+
+    pub fn render_solid(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        render_object_type: RenderObjectType,
+        render_elements: &Vec<RenderElementData>
+    ) {
+        let render_pass_pipeline_data_name = match render_object_type {
+            RenderObjectType::Static => RenderPassPipelineDataName {
+                _render_pass_data_name: String::from("render_pass_static_opaque"),
+                _pipeline_data_name: String::from("render_object"),
+            },
+            RenderObjectType::Skeletal => RenderPassPipelineDataName {
+                _render_pass_data_name: String::from("render_pass_skeletal_opaque"),
+                _pipeline_data_name: String::from("render_object"),
+            },
+        };
+
+        for (index, render_element) in render_elements.iter().enumerate() {
+            let material_instance_data = render_element._material_instance_data.borrow();
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_data_name);
+            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+
+            if 0 == index {
+                self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+            }
+
+            self.bind_descriptor_sets(command_buffer, swapchain_index, &pipeline_binding_data);
+
+            match render_object_type {
+                RenderObjectType::Static => {
+                    self.upload_push_constant_data(
+                        command_buffer,
+                        &pipeline_data.borrow(),
+                        &PushConstants_StaticRenderObject {
+                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                        }
+                    );
+                },
+                RenderObjectType::Skeletal => {
+                    self.upload_push_constant_data(
+                        command_buffer,
+                        &pipeline_data.borrow(),
+                        &PushConstants_SkeletalRenderObject {
+                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                        }
+                    );
+                },
+            };
+
+            self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
+        }
+        self.end_render_pass(command_buffer);
+    }
+
+    pub fn render_shadow(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        render_object_type: RenderObjectType,
+        render_elements: &Vec<RenderElementData>
+    ) {
+        let (render_pass_pipeline_data_name, material_instance_name) = match render_object_type {
+            RenderObjectType::Static => (
+                RenderPassPipelineDataName {
+                    _render_pass_data_name: String::from("render_pass_static_shadow"),
+                    _pipeline_data_name: String::from("render_object"),
+                },
+                String::from("render_static_shadow")
+            ),
+            RenderObjectType::Skeletal => (
+                RenderPassPipelineDataName {
+                    _render_pass_data_name: String::from("render_pass_skeletal_shadow"),
+                    _pipeline_data_name: String::from("render_object"),
+                },
+                String::from("render_skeletal_shadow")
+            )
+        };
+
+        let resources = self._resources.borrow();
+        let material_instance_data = resources.get_material_instance_data(&material_instance_name).borrow();
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_data_name);
+        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, &pipeline_binding_data);
+
+        for render_element in render_elements.iter() {
+            match render_object_type {
+                RenderObjectType::Static => {
+                    self.upload_push_constant_data(
+                        command_buffer,
+                        &pipeline_data.borrow(),
+                        &PushConstants_StaticRenderObject {
+                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                        }
+                    );
+                },
+                RenderObjectType::Skeletal => {
+                    self.upload_push_constant_data(
+                        command_buffer,
+                        &pipeline_data.borrow(),
+                        &PushConstants_SkeletalRenderObject {
+                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                        }
+                    );
+                },
+            };
+            self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
+        }
+        self.end_render_pass(command_buffer);
+    }
+
+    pub fn render_post_process(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData
+    ) {
+        // SSAO
+        let render_ssao_material_instance_name = String::from("render_ssao");
+        let render_ssao_render_pass_pipeline_name = RenderPassPipelineDataName {
+            _render_pass_data_name: String::from("render_ssao"),
+            _pipeline_data_name: String::from("render_ssao"),
+        };
+        self.render_pipeline(
+            command_buffer,
+            swapchain_index,
+            &render_ssao_render_pass_pipeline_name,
+            &render_ssao_material_instance_name,
+            &quad_geometry_data
+        );
+
+        // Composite GBuffer
+        let render_composite_gbuffer_material_instance_name = String::from("composite_gbuffer");
+        let render_composite_gbuffer_render_pass_pipeline_name = RenderPassPipelineDataName {
+            _render_pass_data_name: String::from("composite_gbuffer"),
+            _pipeline_data_name: String::from("composite_gbuffer"),
+        };
+        self.render_pipeline(
+            command_buffer,
+            swapchain_index,
+            &render_composite_gbuffer_render_pass_pipeline_name,
+            &render_composite_gbuffer_material_instance_name,
+            &quad_geometry_data
+        );
+
+        // Motion Blur
+        let render_motion_blur_material_instance_name = String::from("render_motion_blur");
+        let render_motion_blur_render_pass_pipeline_name = RenderPassPipelineDataName {
+            _render_pass_data_name: String::from("render_motion_blur"),
+            _pipeline_data_name: String::from("render_motion_blur"),
+        };
+        self.render_pipeline(
+            command_buffer,
+            swapchain_index,
+            &render_motion_blur_render_pass_pipeline_name,
+            &render_motion_blur_material_instance_name,
+            &quad_geometry_data
+        );
+    }
 }
