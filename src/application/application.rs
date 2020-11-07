@@ -17,7 +17,7 @@ use winit::event_loop::{
 
 use crate::application::{scene_manager, SceneManagerData};
 use crate::application::input;
-use crate::resource;
+use crate::resource::{self, Resources};
 use crate::renderer;
 use crate::utilities::system::{ self, RcRefCell };
 use crate::renderer::{RendererData, CameraCreateInfo};
@@ -89,9 +89,15 @@ pub struct ApplicationData {
 }
 
 impl ApplicationData {
-    pub fn terminate_applicateion(&mut self) {
-        self._resources.borrow_mut().destroy_resources(&self._renderer_data.borrow_mut());
-        self._renderer_data.borrow_mut().destroy_renderer_data();
+    pub fn terminate_applicateion(
+        &mut self,
+        scene_manager_data: &mut SceneManagerData,
+        resources: &mut Resources,
+        renderer_data: &mut RendererData,
+    ) {
+        scene_manager_data.close_scene_manager_data();
+        resources.destroy_resources(renderer_data);
+        renderer_data.destroy_renderer_data();
     }
 }
 
@@ -153,14 +159,22 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             match event {
                 Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
                     *control_flow = ControlFlow::Exit;
-                    application_data.terminate_applicateion();
+                    application_data.terminate_applicateion(
+                        &mut scene_manager_data,
+                        &mut resources.borrow_mut(),
+                        &mut renderer_data,
+                    );
                     run_application = false;
                     return;
                 },
                 Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
                     if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                         *control_flow = ControlFlow::Exit;
-                        application_data.terminate_applicateion();
+                        application_data.terminate_applicateion(
+                            &mut scene_manager_data,
+                            &mut resources.borrow_mut(),
+                            &mut renderer_data,
+                        );
                         run_application = false;
                         return;
                     }

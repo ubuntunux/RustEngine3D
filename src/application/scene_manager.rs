@@ -82,6 +82,9 @@ impl SceneManagerData {
         });
     }
 
+    pub fn close_scene_manager_data(&mut self) {
+    }
+
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {
         &self._main_camera
     }
