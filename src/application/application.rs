@@ -14,7 +14,9 @@ use winit::event_loop::{
     ControlFlow,
     EventLoop
 };
+use winit_input_helper::WinitInputHelper;
 
+use crate::constants;
 use crate::application::{scene_manager, SceneManagerData};
 use crate::application::input;
 use crate::resource::{self, Resources};
@@ -99,11 +101,94 @@ impl ApplicationData {
         resources.destroy_resources(renderer_data);
         renderer_data.destroy_renderer_data();
     }
+
+    pub fn update_event(&mut self, scene_manager_data: &SceneManagerData, input_helper: &WinitInputHelper) {
+        // TODO: Use Queue or Stack for IO Events
+        // let keyboard_input_data = self._keyboard_input_data.borrow();
+        //let mouse_move_data: &mut input::MouseMoveData = &mut self._mouse_move_data;
+        // let mouse_input_data = self._mouse_input_data.borrow_mut();
+
+        let delta_time = self._time_data._delta_time;
+        let mouse_delta = input_helper.mouse_diff();
+        let mouse_pos = input_helper.mouse();
+
+        let pressed_key_A = input_helper.key_pressed(VirtualKeyCode::A);
+        let pressed_key_D = input_helper.key_pressed(VirtualKeyCode::D);
+        let pressed_key_W = input_helper.key_pressed(VirtualKeyCode::W);
+        let pressed_key_S = input_helper.key_pressed(VirtualKeyCode::S);
+        let pressed_key_Q = input_helper.key_pressed(VirtualKeyCode::Q);
+        let pressed_key_E = input_helper.key_pressed(VirtualKeyCode::E);
+        let pressed_key_Z = input_helper.key_pressed(VirtualKeyCode::Z);
+        let pressed_key_C = input_helper.key_pressed(VirtualKeyCode::C);
+
+        let mut main_camera = scene_manager_data._main_camera.borrow_mut();
+        let camera_move_speed = self._camera_move_speed;
+
+        // released_key_LeftBracket <- getKeyReleased keyboardInputData GLFW.Key'LeftBracket
+        // released_key_RightBracket <- getKeyReleased keyboardInputData GLFW.Key'RightBracket
+        // let mousePosDelta = _mousePosDelta mouseMoveData
+        //     mousePosDeltaX = fromIntegral . unScalar $ (mousePosDelta .! Idx 0) :: Float
+        //     mousePosDeltaY = fromIntegral . unScalar $ (mousePosDelta .! Idx 1) :: Float
+        //     scroll_xoffset = _scroll_xoffset mouseMoveData
+        //     scroll_yoffset = _scroll_yoffset mouseMoveData
+        //     btn_left = _btn_l_down mouseInputData
+        //     btn_middle = _btn_m_down mouseInputData
+        //     btn_right = _btn_r_down mouseInputData
+        let modifier_keys_shift = input_helper.key_held(VirtualKeyCode::LShift);
+        let modified_camera_move_speed = camera_move_speed; // max 0.1 $ min 100.0 (cameraMoveSpeed + scroll_yoffset)
+        let camera_move_speed_multiplier = if modifier_keys_shift { 200.0 } else { 1.0 } * modified_camera_move_speed;
+        let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
+        //     panSpeed = Constants.cameraPanSpeed * cameraMoveSpeedMiltiplier
+        //     rotationSpeed = Constants.cameraRotationSpeed
+        //     cameraTransformObject = _transformObject mainCamera
+        //
+        // if released_key_LeftBracket then
+        //     Renderer.prevDebugRenderTarget _rendererData
+        // else when released_key_RightBracket $ do
+        //     Renderer.nextDebugRenderTarget _rendererData
+        //
+        // when (0.0 /= scroll_yoffset) $
+        //     writeIORef _cameraMoveSpeed modifiedCameraMoveSpeed
+        //
+        // if btn_left && btn_right then do
+        //     moveLeft cameraTransformObject (-panSpeed * mousePosDeltaX)
+        //     moveUp cameraTransformObject (panSpeed * mousePosDeltaY)
+        // else when btn_right $ do
+        //     rotationPitch cameraTransformObject (-rotationSpeed * mousePosDeltaY)
+        //     rotationYaw cameraTransformObject (-rotationSpeed * mousePosDeltaX)
+        //
+        // if pressed_key_Z then
+        //     rotationRoll cameraTransformObject (-rotationSpeed * 0.5)
+        // else when pressed_key_C $
+        //     rotationRoll cameraTransformObject (rotationSpeed * 0.5)
+        //
+        if pressed_key_W {
+            main_camera._transform_object.move_front(-move_speed);
+        }
+        else if pressed_key_S {
+            main_camera._transform_object.move_front(move_speed);
+        }
+
+        if pressed_key_A {
+            main_camera._transform_object.move_left(-move_speed);
+        }
+        else if pressed_key_D {
+            main_camera._transform_object.move_left(move_speed);
+        }
+
+        if pressed_key_Q {
+            main_camera._transform_object.move_up(-move_speed);
+        }
+        else if pressed_key_E {
+            main_camera._transform_object.move_up(move_speed);
+        }
+    }
 }
 
 
 pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)) {
     log::info!("run_application");
+    let mut input_helper = WinitInputHelper::new();
     let time_instance = time::Instant::now();
     let elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
@@ -155,9 +240,8 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             let elapsed_time = application_data._time_data._elapsed_time;
             let delta_time = application_data._time_data._delta_time;
 
-            render_scene = false;
-            match event {
-                Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => {
+            if input_helper.update(&event) {
+                if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
                     *control_flow = ControlFlow::Exit;
                     application_data.terminate_applicateion(
                         &mut scene_manager_data,
@@ -166,17 +250,16 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     );
                     run_application = false;
                     return;
-                },
+                }
+                application_data.update_event(&scene_manager_data, &input_helper);
+            }
+
+            match event {
+                Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => { },
                 Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
-                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
-                        *control_flow = ControlFlow::Exit;
-                        application_data.terminate_applicateion(
-                            &mut scene_manager_data,
-                            &mut resources.borrow_mut(),
-                            &mut renderer_data,
-                        );
-                        run_application = false;
-                        return;
+                    match input.virtual_keycode {
+                        Some(VirtualKeyCode::Escape) => { /* keyboard event */ },
+                        _ => {}
                     }
                 },
                 Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
@@ -203,10 +286,10 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                 renderer_data.set_need_recreate_swapchain(false);
             }
 
-            scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
-
             if render_scene {
+                scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
                 renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
+                render_scene = false;
             }
         }
     });

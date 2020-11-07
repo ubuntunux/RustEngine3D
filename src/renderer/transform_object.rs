@@ -148,17 +148,17 @@ impl TransformObjectData {
         self._prev_position_store.copy_from(&self._prev_position);
         let updated_position = force_update || self._prev_position != self._position;
         if updated_position {
-            self._position.copy_from(&self._prev_position);
+            self._prev_position.copy_from(&self._position);
         }
 
         let updated_rotation = force_update || self._prev_rotation != self._rotation;
         if updated_rotation {
-            self._rotation.copy_from(&self._prev_rotation);
+            self._prev_rotation.copy_from(&self._rotation);
         }
 
         let updated_scale = force_update || self._prev_scale != self._scale;
         if updated_scale {
-            self._scale.copy_from(&self._prev_scale);
+            self._prev_scale.copy_from(&self._scale);
         }
 
         let updated = updated_position || updated_rotation || updated_scale;
