@@ -370,7 +370,8 @@ impl Resources {
                 .filter(|cube_texture_file| { cube_texture_file.is_file() })
                 .collect();
             if constants::CUBE_TEXTURE_FACES.len() == cube_face_files.len() {
-                return (texture_data_name, cube_face_files);
+                let cube_texture_data_name = get_resource_name_from_file_path(texture_source_directory, &PathBuf::from(texture_file_name));
+                return (cube_texture_data_name, cube_face_files);
             }
         }
         (texture_data_name, Vec::new())

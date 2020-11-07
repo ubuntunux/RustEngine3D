@@ -709,10 +709,10 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                let render_final_material_instance_name = String::from("render_debug");
+                let render_final_material_instance_name = String::from("render_final");
                 let render_final_render_pass_pipeline_name = RenderPassPipelineDataName {
-                    _render_pass_data_name: String::from("render_debug"),
-                    _pipeline_data_name: String::from("render_debug"),
+                    _render_pass_data_name: String::from("render_final"),
+                    _pipeline_data_name: String::from("render_final"),
                 };
                 self.render_pipeline(
                     command_buffer,
@@ -824,7 +824,6 @@ impl RendererData {
                     );
                 },
             };
-
             self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
         }
         self.end_render_pass(command_buffer);
