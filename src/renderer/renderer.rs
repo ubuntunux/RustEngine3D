@@ -760,8 +760,11 @@ impl RendererData {
                 self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
 
                 // End Render
-                let is_swapchain_suboptimal = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore).unwrap();
-                if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS }
+                let present_result = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore);
+                match present_result {
+                    Ok(is_swapchain_suboptimal) => if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS },
+                    Err(err) => err,
+                }
             } else {
                 vk::Result::SUBOPTIMAL_KHR
             };
