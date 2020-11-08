@@ -63,3 +63,15 @@ pub fn to_bytes<'a, T>(data: *const T) -> &'a [u8]{
         std::slice::from_raw_parts(data as *mut u8, std::mem::size_of::<T>())
     }
 }
+
+pub fn convert_vec<S, D>(src: Vec<S>) -> Vec<D> {
+    unsafe {
+        let size_of_src = std::mem::size_of::<S>();
+        let size_of_dst = std::mem::size_of::<D>();
+        let length = src.len() * size_of_src / size_of_dst;
+        let capacity = src.capacity() * size_of_src / size_of_dst;
+        let ptr = src.as_ptr() as *mut D;
+        std::mem::forget(src); // Don't run the destructor for vec32
+        Vec::from_raw_parts(ptr, length, capacity) // Construct new Vec
+    }
+}

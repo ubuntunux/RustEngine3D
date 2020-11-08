@@ -784,6 +784,10 @@ impl RendererData {
         render_object_type: RenderObjectType,
         render_elements: &Vec<RenderElementData>
     ) {
+        if 0 == render_elements.len() {
+            return;
+        }
+
         let render_pass_pipeline_data_name = match render_object_type {
             RenderObjectType::Static => RenderPassPipelineDataName {
                 _render_pass_data_name: String::from("render_pass_static_opaque"),
@@ -839,6 +843,10 @@ impl RendererData {
         render_object_type: RenderObjectType,
         render_elements: &Vec<RenderElementData>
     ) {
+        if 0 == render_elements.len() {
+            return;
+        }
+
         let (render_pass_pipeline_data_name, material_instance_name) = match render_object_type {
             RenderObjectType::Static => (
                 RenderPassPipelineDataName {
