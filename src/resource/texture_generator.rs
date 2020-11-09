@@ -157,7 +157,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
         _texture_height: 2,
         _texture_min_filter: vk::Filter::NEAREST,
         _texture_mag_filter: vk::Filter::NEAREST,
-        _texture_initial_datas: vec![white, black, white, black],
+        _texture_initial_datas: vec![white, black, black, white],
         ..Default::default()
     });
     let texture_color_cube = renderer_data.create_texture(&TextureCreateInfo {
