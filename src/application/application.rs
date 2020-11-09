@@ -280,14 +280,14 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             if renderer_data.get_need_recreate_swapchain() {
                 if false == renderer_data.get_is_first_resize_event() {
                     renderer_data.resize_window();
-                    let window_size = renderer_data._window.inner_size();
-                    let aspect: f32 = if 0 != window_size.height {
-                        window_size.width as f32 / window_size.height as f32
-                    } else {
-                        1.0
-                    };
-                    scene_manager_data.get_main_camera().borrow_mut().set_aspect(aspect);
                 }
+                let window_size = renderer_data._window.inner_size();
+                let aspect: f32 = if 0 != window_size.height {
+                    window_size.width as f32 / window_size.height as f32
+                } else {
+                    1.0
+                };
+                scene_manager_data.get_main_camera().borrow_mut().set_aspect(aspect);
                 renderer_data.set_is_first_resize_event(false);
                 renderer_data.set_need_recreate_swapchain(false);
             }
