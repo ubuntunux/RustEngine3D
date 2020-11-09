@@ -158,7 +158,7 @@ impl ApplicationData {
         if btn_left && btn_right {
             main_camera._transform_object.move_left(-pan_speed * mouse_delta_x);
             main_camera._transform_object.move_up(pan_speed * mouse_delta_y);
-        } else {
+        } else if btn_right {
             main_camera._transform_object.rotation_pitch(-rotation_speed * mouse_delta_y);
             main_camera._transform_object.rotation_yaw(rotation_speed * mouse_delta_x);
         }

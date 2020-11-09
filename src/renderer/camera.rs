@@ -126,13 +126,11 @@ impl CameraObjectData {
         self._aspect = aspect;
         self.update_projection_matrix();
     }
-
     pub fn update_projection_matrix(&mut self) {
         self._updated = true;
         self._projection_matrix = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
         linalg::try_invert_to(self._projection_matrix.into(), &mut self._inv_projection_matrix);
     }
-
     pub fn update_camera_object_data(&mut self) {
         let updated = self._transform_object.update_transform_object();
         if updated || self._updated {

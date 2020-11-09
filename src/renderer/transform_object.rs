@@ -169,10 +169,10 @@ impl TransformObjectData {
 
         if updated_rotation {
             // just rotation
-            let rotation_matrix = make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
-            let left: Vector4<f32> = rotation_matrix.column(0).clone().into();
-            let up: Vector4<f32> = rotation_matrix.column(1).clone().into();
-            let front: Vector4<f32> = rotation_matrix.column(2).clone().into();
+            self._rotation_matrix = make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
+            let left: Vector4<f32> = self._rotation_matrix.column(0).into();
+            let up: Vector4<f32> = self._rotation_matrix.column(1).into();
+            let front: Vector4<f32> = self._rotation_matrix.column(2).into();
 //          look at algorithm
 //             let sin_pitch = self._rotation._x.sin();
 //             let cos_pitch = self._rotation._x.cos();
