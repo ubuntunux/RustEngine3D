@@ -91,6 +91,9 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
         match command.output() {
             Ok(output) => {
                 let msg = String::from_utf8(output.stdout).unwrap();
+                if msg.contains("ERROR") {
+                    panic!("Compile error: {}", msg);
+                }
                 if msg.trim() != shader_file_path.to_str().unwrap() {
                     log::info!("{}", msg);
                 }
