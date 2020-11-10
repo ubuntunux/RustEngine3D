@@ -377,7 +377,7 @@ impl Resources {
         (texture_data_name, Vec::new())
     }
 
-    pub fn load_image_data(texture_file: &PathBuf) -> (u32, u32, Vec<u32>, vk::Format) {
+    pub fn load_image_data(texture_file: &PathBuf) -> (u32, u32, Vec<u8>, vk::Format) {
         let image_file = image::io::Reader::open(texture_file).unwrap().decode();
         if image_file.is_err() {
             log::error!("load_image_data error: {:?}", texture_file);
@@ -396,24 +396,24 @@ impl Resources {
             }
         };
 
-        let image_data: Vec<u32> = system::convert_vec(image_data_raw);
-        (image_width, image_height, image_data, image_format)
+        //let image_data: Vec<u32> = system::convert_vec(image_data_raw);
+        (image_width, image_height, image_data_raw, image_format)
     }
 
-    pub fn load_image_datas(texture_files: &Vec<PathBuf>) -> (u32, u32, Vec<u32>, vk::Format) {
+    pub fn load_image_datas(texture_files: &Vec<PathBuf>) -> (u32, u32, Vec<u8>, vk::Format) {
         let mut image_width: u32 = 0;
         let mut image_height: u32 = 0;
         let mut image_format: vk::Format = vk::Format::UNDEFINED;
-        let mut image_datas: Vec<Vec<u32>> = Vec::new();
+        let mut image_datas: Vec<Vec<u8>> = Vec::new();
         for texture_file in texture_files.iter() {
-            let (width, height, image_data, format): (u32, u32, Vec<u32>, vk::Format) = Resources::load_image_data(texture_file);
+            let (width, height, image_data, format): (u32, u32, Vec<u8>, vk::Format) = Resources::load_image_data(texture_file);
             image_width = width;
             image_height = height;
             image_format = format;
             image_datas.push(image_data.clone());
         }
-        let xs: Vec<u32> = image_datas.concat();
-        (image_width, image_height, xs, image_format)
+        let image_datas = image_datas.concat();
+        (image_width, image_height, image_datas, image_format)
     }
 
     pub fn load_texture_datas(&mut self, renderer_data: &RendererData) {
@@ -438,7 +438,7 @@ impl Resources {
             let is_cube_texture: bool = false == cube_texture_files.is_empty();
             let existing_resource_data: Option<&RcRefCell<TextureData>> = self._texture_data_map.get(&texture_data_name);
             if existing_resource_data.is_none() {
-                let (image_width, image_height, image_data, image_format): (u32, u32, Vec<u32>, vk::Format) =
+                let (image_width, image_height, image_data, image_format): (u32, u32, Vec<u8>, vk::Format) =
                     if is_cube_texture {
                         Resources::load_image_datas(&cube_texture_files)
                     } else {

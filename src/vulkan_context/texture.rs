@@ -747,7 +747,7 @@ pub fn create_texture_data<T: Copy>(
     texture_create_info: &TextureCreateInfo<T>,
 ) -> TextureData {
     let image_datas = &texture_create_info._texture_initial_datas;
-    let buffer_size = (std::mem::size_of::<T>() * image_datas.len()) as vk::DeviceSize;
+    let buffer_size = (image_datas.len() * std::mem::size_of::<T>()) as vk::DeviceSize;
     let enable_anisotropy = match texture_create_info._enable_anisotropy {
         true => vk::TRUE,
         _ => vk::FALSE
@@ -816,7 +816,7 @@ pub fn create_texture_data<T: Copy>(
         ).expect("Failed to map_memory!");
         let mut stageing_buffer_slice = Align::new(
             stageing_buffer_ptr,
-            align_of::<u32>() as u64,
+            align_of::<T>() as u64,
             staging_buffer_data._buffer_memory_requirements.size,
         );
         stageing_buffer_slice.copy_from_slice(image_datas);
