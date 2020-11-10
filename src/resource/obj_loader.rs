@@ -1,3 +1,4 @@
+
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::fs;
@@ -255,8 +256,70 @@ impl WaveFrontOBJ {
         geometry_datas
     }
 
+    // use tobj library
+    // fn parse_using_library(&mut self, filename: &PathBuf) {
+    //     use std::io::Cursor;
+    //     use std::fs::File;
+    //     use std::io::Read;
+    //
+    //     let mut buf = Vec::new();
+    //     let mut file = File::open(filename).unwrap();
+    //     file.read_to_end(&mut buf).unwrap();
+    //     let mut cursor = Cursor::new(buf);
+    //     let (models, _) = tobj::load_obj_buf(&mut cursor, true, |_| {
+    //         Ok((vec![], std::collections::HashMap::new()))
+    //     }).unwrap();
+    //
+    //     let mut index_offset: u32 = 0;
+    //     for model in models.iter() {
+    //         let mesh = &model.mesh;
+    //         let mut mesh_object = MeshObject {
+    //             name: model.name.clone(),
+    //             group_name: String::from("default"),
+    //             mtl_name: String::from("default"),
+    //             indices: Vec::new(),
+    //         };
+    //
+    //         let positions = mesh.positions.as_slice();
+    //         let coords = mesh.texcoords.as_slice();
+    //         let normals = mesh.normals.as_slice();
+    //         let vertex_count = mesh.positions.len() / 3;
+    //
+    //         for index in (0..mesh.indices.len()).step_by(3) {
+    //             let point = [mesh.indices[index] + index_offset, mesh.indices[index+1] + index_offset, mesh.indices[index+2] + index_offset];
+    //             mesh_object.indices.push((
+    //                 point.clone(),
+    //                 if normals.is_empty() { [0,0,0] } else { point.clone() },
+    //                 point.clone())
+    //             );
+    //         }
+    //         index_offset += mesh.positions.len() as u32;
+    //
+    //         for i in 0..vertex_count {
+    //             let x = positions[i * 3];
+    //             let y = positions[i * 3 + 1];
+    //             let z = positions[i * 3 + 2];
+    //             let u = coords[i * 2];
+    //             let v = coords[i * 2 + 1];
+    //             self.positions.push(Vector3::new(x,y,z));
+    //             self.texcoords.push(Vector2::new(u,v));
+    //             if false == normals.is_empty() {
+    //                 self.normals.push(
+    //                     Vector3::new(
+    //                         normals[i * 3],
+    //                         normals[i * 3 + 1],
+    //                         normals[i * 3 + 2]
+    //                     )
+    //                 );
+    //             }
+    //         }
+    //         self.meshes.push(mesh_object);
+    //     }
+    // }
+
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = WaveFrontOBJ::initialize(filename);
+        //obj.parse_using_library(filename);
         obj.parse(filename, 1.0, false);
         obj.generate_geometry_datas()
     }
