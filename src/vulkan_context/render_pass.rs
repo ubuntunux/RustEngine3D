@@ -250,7 +250,7 @@ pub fn create_render_pass(
             initial_layout: attachment_description._attachment_initial_layout,
             final_layout: attachment_description._attachment_final_layout,
             ..Default::default()
-    }
+        }
     };
     let create_image_attachment_reference = | attachment_description: &ImageAttachmentDescription, index: u32 | -> vk::AttachmentReference {
         vk::AttachmentReference {
