@@ -122,15 +122,6 @@ impl WaveFrontOBJ {
                     let mut normal_indices: Vec<u32> = Vec::new();
                     let mut tex_indices: Vec<u32> = Vec::new();
 
-                    // If texcoord is empty, add the default texcoord.
-                    if self.texcoords.len() < 1 {
-                        self.texcoords.push(Vector2::new(0.0, 0.0));
-                    }
-                    // If normal is empty, add the default normal.
-                    if self.normals.len() < 1 {
-                        self.normals.push(Vector3::new(0.0, 0.0, 0.0));
-                    }
-
                     // parsing index data
                     for indices in values.iter() {
                         let indices: Vec<u32> = indices
@@ -139,9 +130,20 @@ impl WaveFrontOBJ {
                             .map(|x| if x.is_empty() { 0 } else { x.trim().parse::<u32>().unwrap() - 1 })
                             .collect();
                         // insert vertex, texcoord, normal index
+                        let len_index = indices.len();
                         pos_indices.push(indices[0]);
-                        tex_indices.push(indices[1]);
-                        normal_indices.push(indices[2]);
+
+                        if 1 < len_index {
+                            tex_indices.push(indices[1]);
+                        } else {
+                            tex_indices.push(0);
+                        }
+
+                        if 2 < len_index {
+                            normal_indices.push(indices[2]);
+                        } else {
+                            normal_indices.push(0);
+                        }
                     }
 
                     // push face list
@@ -171,6 +173,15 @@ impl WaveFrontOBJ {
     }
 
     fn generate_geometry_datas(&mut self) -> Vec<GeometryCreateInfo> {
+        // If texcoord is empty, add the default texcoord.
+        if self.texcoords.len() < 1 {
+            self.texcoords.push(Vector2::new(0.0, 0.0));
+        }
+        // If normal is empty, add the default normal.
+        if self.normals.len() < 1 {
+            self.normals.push(Vector3::new(0.0, 0.0, 0.0));
+        }
+
         let mut geometry_datas: Vec<GeometryCreateInfo> = Vec::new();
         for mesh in self.meshes.iter() {
             let mut positions: Vec<Vector3<f32>> = Vec::new();
