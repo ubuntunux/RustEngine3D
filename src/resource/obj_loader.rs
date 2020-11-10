@@ -45,7 +45,7 @@ impl WaveFrontOBJ {
         }
     }
 
-    fn parse(&mut self, filename: &PathBuf, scale: f32, _swap_yz: bool) {
+    fn parse(&mut self, filename: &PathBuf, scale: f32, invert_texcoord_y: bool) {
         // check is exist file
         if filename.is_file() {
             // load OBJ file
@@ -107,9 +107,10 @@ impl WaveFrontOBJ {
                     ));
                 } else if "vt" == pre_fix && 2 <= values.len() {
                     // texture coordinate
+                    let texcoord_y = values[1].parse::<f32>().unwrap();
                     self.texcoords.push(Vector2::new(
                         values[0].parse::<f32>().unwrap(),
-                        values[1].parse::<f32>().unwrap(),
+                        if invert_texcoord_y { 1.0 - texcoord_y } else { texcoord_y },
                     ));
                 } else if "usemtl" == pre_fix || "usemat" == pre_fix {
                     // material name
@@ -320,7 +321,8 @@ impl WaveFrontOBJ {
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = WaveFrontOBJ::initialize(filename);
         //obj.parse_using_library(filename);
-        obj.parse(filename, 1.0, false);
+        let texcoord_y = true;
+        obj.parse(filename, 1.0, texcoord_y);
         obj.generate_geometry_datas()
     }
 }
