@@ -1,3 +1,4 @@
+use std::thread;
 use std::cell::RefMut;
 use std::time;
 use log;
@@ -242,10 +243,6 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         let mut scene_manager_data: RefMut<SceneManagerData> = scene_manager_data.borrow_mut();
 
         if run_application {
-            application_data._time_data.update_time_data(&time_instance);
-            let elapsed_time = application_data._time_data._elapsed_time;
-            let delta_time = application_data._time_data._delta_time;
-
             if input_helper.update(&event) {
                 if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
                     *control_flow = ControlFlow::Exit;
@@ -261,41 +258,61 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
             }
 
             match event {
-                Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => { },
-                Event::WindowEvent { event: WindowEvent::KeyboardInput { input, .. }, .. } => {
-                    match input.virtual_keycode {
-                        Some(VirtualKeyCode::Escape) => { /* keyboard event */ },
-                        _ => {}
+                Event::MainEventsCleared => {
+                    application_data._time_data.update_time_data(&time_instance);
+                    let elapsed_time = application_data._time_data._elapsed_time;
+                    let delta_time = application_data._time_data._delta_time;
+
+                    if renderer_data.get_need_recreate_swapchain() {
+                        if false == renderer_data.get_is_first_resize_event() {
+                            renderer_data.resize_window();
+                        }
+                        let window_size = renderer_data._window.inner_size();
+                        let aspect: f32 = if 0 != window_size.height {
+                            window_size.width as f32 / window_size.height as f32
+                        } else {
+                            1.0
+                        };
+                        scene_manager_data.get_main_camera().borrow_mut().set_aspect(aspect);
+                        renderer_data.set_is_first_resize_event(false);
+                        renderer_data.set_need_recreate_swapchain(false);
                     }
-                },
-                Event::WindowEvent { event: WindowEvent::Resized(_), .. } => {
-                    renderer_data.set_need_recreate_swapchain(true);
-                },
-                Event::RedrawEventsCleared => {
-                    render_scene = true;
-                },
-                _ => { },
-            }
 
-            if renderer_data.get_need_recreate_swapchain() {
-                if false == renderer_data.get_is_first_resize_event() {
-                    renderer_data.resize_window();
+                    scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
+                    renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
                 }
-                let window_size = renderer_data._window.inner_size();
-                let aspect: f32 = if 0 != window_size.height {
-                    window_size.width as f32 / window_size.height as f32
-                } else {
-                    1.0
-                };
-                scene_manager_data.get_main_camera().borrow_mut().set_aspect(aspect);
-                renderer_data.set_is_first_resize_event(false);
-                renderer_data.set_need_recreate_swapchain(false);
-            }
-
-            if render_scene {
-                scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
-                renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
-                render_scene = false;
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => {
+                    },
+                    WindowEvent::Resized { .. } => {
+                        renderer_data.set_need_recreate_swapchain(true);
+                    },
+                    // WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
+                    //     if state == ElementState::Pressed {
+                    //         is_left_clicked = Some(true);
+                    //     } else {
+                    //         is_left_clicked = Some(false);
+                    //     }
+                    // }
+                    // WindowEvent::CursorMoved { position, .. } => {
+                    //     let position: (i32, i32) = position.into();
+                    //     cursor_position = Some([position.0, position.1]);
+                    // }
+                    // WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, v_lines), .. } => {
+                    //     wheel_delta = Some(v_lines);
+                    // }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        match input.virtual_keycode {
+                            Some(VirtualKeyCode::Escape) => {
+                                /* keyboard event */
+                            },
+                            _ => { }
+                        }
+                    }
+                    _ => { },
+                },
+                Event::RedrawEventsCleared => { },
+                _ => { },
             }
         }
     });
