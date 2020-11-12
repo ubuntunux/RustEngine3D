@@ -320,9 +320,6 @@ pub fn generate_mipmaps(
         let mut mip_height: i32 = height;
         let mut mip_depth: i32 = depth;
         for mip_level in 1..mip_levels {
-            mip_width = next_mipmap_size(mip_width);
-            mip_height = next_mipmap_size(mip_height);
-            mip_depth = next_mipmap_size(mip_depth);
             create_mipmap(
                 device,
                 command_buffer,
@@ -334,6 +331,10 @@ pub fn generate_mipmaps(
                 mip_depth,
                 layer_count
             );
+
+            mip_width = next_mipmap_size(mip_width);
+            mip_height = next_mipmap_size(mip_height);
+            mip_depth = next_mipmap_size(mip_depth);
         }
 
         let barriers: [vk::ImageMemoryBarrier; 1] = [
