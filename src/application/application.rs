@@ -109,10 +109,6 @@ impl ApplicationData {
         //let mouse_move_data: &mut input::MouseMoveData = &mut self._mouse_move_data;
         // let mouse_input_data = self._mouse_input_data.borrow_mut();
 
-        self._keyboard_input_data.get_key_pressed()
-
-
-
         let delta_time = self._time_data._delta_time;
         let (mouse_delta_x, mouse_delta_y)  = input_helper.mouse_diff();
         let mouse_pos = input_helper.mouse();
