@@ -109,6 +109,10 @@ impl ApplicationData {
         //let mouse_move_data: &mut input::MouseMoveData = &mut self._mouse_move_data;
         // let mouse_input_data = self._mouse_input_data.borrow_mut();
 
+        self._keyboard_input_data.get_key_pressed()
+
+
+
         let delta_time = self._time_data._delta_time;
         let (mouse_delta_x, mouse_delta_y)  = input_helper.mouse_diff();
         let mouse_pos = input_helper.mouse();
@@ -129,7 +133,7 @@ impl ApplicationData {
         let pressed_key_C = input_helper.key_pressed(VirtualKeyCode::C);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
-        let camera_move_speed = self._camera_move_speed;
+        let camera_move_speed = self._camera_move_speed * 5.0;
 
         // released_key_LeftBracket <- getKeyReleased keyboardInputData GLFW.Key'LeftBracket
         // released_key_RightBracket <- getKeyReleased keyboardInputData GLFW.Key'RightBracket
@@ -143,7 +147,7 @@ impl ApplicationData {
         //     btn_right = _btn_r_down mouseInputData
         let modifier_keys_shift = input_helper.key_held(VirtualKeyCode::LShift);
         let modified_camera_move_speed = camera_move_speed; // max 0.1 $ min 100.0 (cameraMoveSpeed + scroll_yoffset)
-        let camera_move_speed_multiplier = if modifier_keys_shift { 200.0 } else { 1.0 } * modified_camera_move_speed;
+        let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 } * modified_camera_move_speed;
         let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
         let pan_speed = constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
         let rotation_speed = constants::CAMERA_ROTATION_SPEED;
@@ -159,16 +163,19 @@ impl ApplicationData {
         if btn_left && btn_right {
             main_camera._transform_object.move_left(-pan_speed * mouse_delta_x);
             main_camera._transform_object.move_up(pan_speed * mouse_delta_y);
-        } else if btn_right {
+        }
+        else if btn_right {
             main_camera._transform_object.rotation_pitch(-rotation_speed * mouse_delta_y);
-            main_camera._transform_object.rotation_yaw(rotation_speed * mouse_delta_x);
+            main_camera._transform_object.rotation_yaw(-rotation_speed * mouse_delta_x);
         }
 
-        // if pressed_key_Z then
-        //     rotationRoll cameraTransformObject (-rotationSpeed * 0.5)
-        // else when pressed_key_C $
-        //     rotationRoll cameraTransformObject (rotationSpeed * 0.5)
-        //
+        if pressed_key_Z {
+            main_camera._transform_object.rotation_roll(-rotation_speed * delta_time as f32);
+        }
+        else if pressed_key_C {
+            main_camera._transform_object.rotation_roll(rotation_speed * delta_time as f32);
+        }
+
         if pressed_key_W {
             main_camera._transform_object.move_front(-move_speed);
         }

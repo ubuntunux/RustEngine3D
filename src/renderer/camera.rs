@@ -132,6 +132,8 @@ impl CameraObjectData {
         linalg::try_invert_to(self._projection_matrix.into(), &mut self._inv_projection_matrix);
     }
     pub fn update_camera_object_data(&mut self) {
+        self._view_origin_projection_matrix_prev = self._view_origin_projection_matrix.clone() as Matrix4<f32>;
+
         let updated = self._transform_object.update_transform_object();
         if updated || self._updated {
             // view matrix is inverse matrix of transform, cause it's camera.
@@ -144,7 +146,6 @@ impl CameraObjectData {
             self._inv_view_origin_matrix = self._view_origin_matrix.transpose();
             self._view_projection_matrix = &self._projection_matrix * &self._view_matrix;
             self._inv_view_projection_matrix = &self._inv_view_matrix * &self._inv_projection_matrix;
-            self._view_origin_projection_matrix_prev = self._view_origin_projection_matrix.clone() as Matrix4<f32>;
             self._view_origin_projection_matrix = &self._projection_matrix * &self._view_origin_matrix;
             self._inv_view_origin_projection_matrix = &self._inv_view_origin_matrix * &self._inv_projection_matrix;
             self._updated = false;

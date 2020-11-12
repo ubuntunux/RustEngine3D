@@ -45,11 +45,13 @@ pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
     let cb = pitch.cos();
     let sb = pitch.sin();
     Matrix4::from_columns(&[
-        Vector4::new(ch*ca, sh*sb - ch*sa*cb, ch*sa*sb + sh*cb, 0.0),
-        Vector4::new(sa, ca*cb, -ca*sb, 0.0),
-        Vector4::new(-sh*ca, sh*sa*cb + ch*sb, -sh*sa*sb + ch*cb, 0.0),
+        Vector4::new(ch*ca, sa, -sh*ca, 0.0),
+        Vector4::new(sh*sb - ch*sa*cb, ca*cb, sh*sa*cb + ch*sb, 0.0),
+        Vector4::new(ch*sa*sb + sh*cb, -ca*sb, -sh*sa*sb + ch*cb, 0.0),
         Vector4::new(0.0, 0.0, 0.0, 1.0),
     ])
+
+
 }
 
 pub fn make_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {

@@ -126,7 +126,7 @@ pub fn get_render_pass_data_create_info(
             _pipeline_sample_count: sample_count,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
-            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
+            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             _pipeline_viewport: framebuffer_data_create_info._framebuffer_view_port,
             _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
             _pipeline_color_blend_modes: Vec::new(),

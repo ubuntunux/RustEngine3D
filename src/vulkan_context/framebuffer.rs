@@ -35,11 +35,12 @@ impl std::fmt::Debug for FramebufferDataCreateInfo {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct FramebufferData {
     pub _framebuffer_info: FramebufferDataCreateInfo,
     pub _framebuffers: SwapchainIndexMap<vk::Framebuffer>,
-    pub _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>
+    pub _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>,
+    pub _framebuffer_clear_values_for_prevent_ptr_dangling: Vec<vk::ClearValue>,
 }
 
 impl Default for FramebufferDataCreateInfo {
@@ -93,9 +94,12 @@ pub fn create_framebuffer_data(
                 device.create_framebuffer(&get_framebuffer_create_info(*index), None).expect("vkCreateFramebuffer failed!")
             }).collect();
 
+        let framebuffer_clear_values_for_prevent_ptr_dangling = framebuffer_data_create_info._framebuffer_clear_values.clone();
+
         let render_pass_begin_infos: Vec<vk::RenderPassBeginInfo> = framebuffers
             .iter()
             .map(|framebuffer| {
+
                 vk::RenderPassBeginInfo {
                     render_pass,
                     framebuffer: *framebuffer,
@@ -105,8 +109,8 @@ pub fn create_framebuffer_data(
                         framebuffer_data_create_info._framebuffer_width,
                         framebuffer_data_create_info._framebuffer_height
                     ),
-                    clear_value_count: framebuffer_data_create_info._framebuffer_clear_values.len() as u32,
-                    p_clear_values: framebuffer_data_create_info._framebuffer_clear_values.as_ptr(),
+                    clear_value_count: framebuffer_clear_values_for_prevent_ptr_dangling.len() as u32,
+                    p_clear_values: framebuffer_clear_values_for_prevent_ptr_dangling.as_ptr(),
                     ..Default::default()
                 }
             }).collect();
@@ -114,7 +118,8 @@ pub fn create_framebuffer_data(
         FramebufferData {
             _framebuffer_info: (*framebuffer_data_create_info).clone(),
             _framebuffers: framebuffers,
-            _render_pass_begin_infos: render_pass_begin_infos
+            _render_pass_begin_infos: render_pass_begin_infos,
+            _framebuffer_clear_values_for_prevent_ptr_dangling: framebuffer_clear_values_for_prevent_ptr_dangling,
         }
     }
 }

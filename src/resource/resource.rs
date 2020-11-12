@@ -99,7 +99,7 @@ pub enum ResourceData {
     ResourceDataMesh,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Resources {
     pub _meta_data_map: MetaDataMap,
     pub _mesh_data_map: MeshDataMap,
