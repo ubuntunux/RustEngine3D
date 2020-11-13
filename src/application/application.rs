@@ -105,6 +105,11 @@ impl ApplicationData {
         renderer_data.destroy_renderer_data();
     }
 
+    pub fn clear_keyboard_events(&mut self) {
+        self._keyboard_input_data.clear_key_pressed();
+        self._keyboard_input_data.clear_key_released();
+    }
+
     pub fn update_event(&mut self, scene_manager_data: &SceneManagerData, input_helper: &WinitInputHelper) {
         // TODO: Use Queue or Stack for IO Events
         // let keyboard_input_data = self._keyboard_input_data.borrow();
@@ -194,9 +199,6 @@ impl ApplicationData {
         else if pressed_key_E {
             main_camera._transform_object.move_up(move_speed);
         }
-
-        self._keyboard_input_data.clear_key_pressed();
-        self._keyboard_input_data.clear_key_released();
     }
 }
 
@@ -321,6 +323,8 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                 Event::RedrawEventsCleared => { },
                 _ => { },
             }
+
+            application_data.clear_keyboard_events();
         }
     });
 }
