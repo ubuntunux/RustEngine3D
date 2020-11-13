@@ -10,6 +10,8 @@ use winit::event::{
     Event,
     VirtualKeyCode,
     WindowEvent,
+    ModifiersState,
+    ElementState,
 };
 use winit::event_loop::{
     ControlFlow,
@@ -119,14 +121,14 @@ impl ApplicationData {
         let btn_right: bool = input_helper.mouse_held(MOUSE_RIGHT);
         let btn_middle: bool = input_helper.mouse_held(MOUSE_MIDDLE);
 
-        let pressed_key_A = input_helper.key_pressed(VirtualKeyCode::A);
-        let pressed_key_D = input_helper.key_pressed(VirtualKeyCode::D);
-        let pressed_key_W = input_helper.key_pressed(VirtualKeyCode::W);
-        let pressed_key_S = input_helper.key_pressed(VirtualKeyCode::S);
-        let pressed_key_Q = input_helper.key_pressed(VirtualKeyCode::Q);
-        let pressed_key_E = input_helper.key_pressed(VirtualKeyCode::E);
-        let pressed_key_Z = input_helper.key_pressed(VirtualKeyCode::Z);
-        let pressed_key_C = input_helper.key_pressed(VirtualKeyCode::C);
+        let pressed_key_A = self._keyboard_input_data.get_key_hold(VirtualKeyCode::A);
+        let pressed_key_D = self._keyboard_input_data.get_key_hold(VirtualKeyCode::D);
+        let pressed_key_W = self._keyboard_input_data.get_key_hold(VirtualKeyCode::W);
+        let pressed_key_S = self._keyboard_input_data.get_key_hold(VirtualKeyCode::S);
+        let pressed_key_Q = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Q);
+        let pressed_key_E = self._keyboard_input_data.get_key_hold(VirtualKeyCode::E);
+        let pressed_key_Z = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Z);
+        let pressed_key_C = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
         let camera_move_speed = self._camera_move_speed * 5.0;
@@ -192,6 +194,9 @@ impl ApplicationData {
         else if pressed_key_E {
             main_camera._transform_object.move_up(move_speed);
         }
+
+        self._keyboard_input_data.clear_key_pressed();
+        self._keyboard_input_data.clear_key_released();
     }
 }
 
@@ -305,11 +310,10 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     //     wheel_delta = Some(v_lines);
                     // }
                     WindowEvent::KeyboardInput { input, .. } => {
-                        match input.virtual_keycode {
-                            Some(VirtualKeyCode::Escape) => {
-                                /* keyboard event */
-                            },
-                            _ => { }
+                        if ElementState::Pressed == input.state {
+                            application_data._keyboard_input_data.set_key_pressed(input.virtual_keycode.unwrap());
+                        } else {
+                            application_data._keyboard_input_data.set_key_released(input.virtual_keycode.unwrap());
                         }
                     }
                     _ => { },
