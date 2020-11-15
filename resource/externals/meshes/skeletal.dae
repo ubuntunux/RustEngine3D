@@ -2,10 +2,7 @@
 <COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
   <asset>
     <contributor>
-      <author x=99>Blender User</author>
-      <author z=22 y=11>Blender User2</author>
-      <author></author>
-      <author/>
+      <author>Blender User</author>
       <authoring_tool>Blender 2.78.0 commit date:2016-09-26, commit time:12:42, hash:4bb1e22</authoring_tool>
     </contributor>
     <created>2017-12-20T04:20:19</created>
