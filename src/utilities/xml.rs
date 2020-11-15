@@ -81,7 +81,7 @@ impl XmlTree {
                 if (index + 1) == paths.len() {
                     maybe_children
                 } else {
-                    maybe_children.unwrap().get(0).unwrap().get_children_from_paths(paths, index + 1)
+                    maybe_children.unwrap().get(0).unwrap().get_elements_from_paths(paths, index + 1)
                 }
             }
         }
