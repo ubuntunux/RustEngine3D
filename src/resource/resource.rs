@@ -16,6 +16,7 @@ use ash::{
 
 use crate::application::SceneManagerData;
 use crate::constants;
+use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
 use crate::renderer::mesh::{ MeshData };
@@ -156,11 +157,11 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 impl Resources {
     pub fn initialize_resources(&mut self, renderer_data: &RendererData) {
         log::info!("initialize_resources");
-        self.load_texture_datas(renderer_data);
-        self.load_render_pass_datas(renderer_data);
-        self.load_framebuffer_datas(renderer_data);
-        self.load_material_datas(renderer_data);
-        self.load_material_instance_datas(renderer_data);
+        // self.load_texture_datas(renderer_data);
+        // self.load_render_pass_datas(renderer_data);
+        // self.load_framebuffer_datas(renderer_data);
+        // self.load_material_datas(renderer_data);
+        // self.load_material_instance_datas(renderer_data);
         self.load_mesh_datas(renderer_data);
         self.load_model_datas(renderer_data);
     }
@@ -318,7 +319,7 @@ impl Resources {
                     // Convert to mesh from source
                     let geometry_create_infos = match src_file_ext.as_str() {
                         EXT_OBJ => WaveFrontOBJ::get_geometry_datas(&mesh_source_file),
-                        EXT_COLLADA => Vec::new(), // ColladaLoader.loadCollada meshSourceFile
+                        EXT_COLLADA => Collada::get_geometry_datas(&mesh_source_file),
                         _ => panic!("error")
                     };
                     // Save mesh

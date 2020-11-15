@@ -91,4 +91,9 @@ impl XmlTree {
         let paths: Vec<&str> = path.split("/").collect();
         self.get_elements_from_paths(&paths, 0)
     }
+
+    pub fn get_element(&self, path: &str) -> &XmlTree {
+        let paths: Vec<&str> = path.split("/").collect();
+        &self.get_elements_from_paths(&paths, 0).unwrap()[0]
+    }
 }

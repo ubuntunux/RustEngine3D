@@ -3,6 +3,7 @@ use nalgebra::{
     Vector4,
     Matrix4,
 };
+use cgmath::Matrix;
 
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
 
@@ -50,8 +51,6 @@ pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
         Vector4::new(ch*sa*sb + sh*cb, -ca*sb, -sh*sa*sb + ch*cb, 0.0),
         Vector4::new(0.0, 0.0, 0.0, 1.0),
     ])
-
-
 }
 
 pub fn make_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
@@ -367,13 +366,8 @@ def slerp(quaternion1, quaternion2, amount):
     return (num3 * quaternion1) + (num2 * quaternion2)
 
 
-def set_identity_matrix(M):
-    M[...] = [[1.0, 0.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0, 0.0],
-            [0.0, 0.0, 1.0, 0.0],
-            [0.0, 0.0, 0.0, 1.0]]
-
 */
+
 pub fn make_translate_matrix(position: &Vector3<f32>) -> Matrix4<f32> {
     Matrix4::new(
         1.0, 0.0, 0.0, position.x,
@@ -382,19 +376,20 @@ pub fn make_translate_matrix(position: &Vector3<f32>) -> Matrix4<f32> {
         0.0, 0.0, 0.0, 1.0
     )
 }
+
+pub fn set_matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+    m.m14 = x;
+    m.m24 = y;
+    m.m34 = z;
+}
+
+pub fn matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+    m.m14 += x;
+    m.m24 += y;
+    m.m34 += z;
+}
+
 /*
-def set_translate_matrix(M, x, y, z):
-    M[:] = [[1, 0, 0, 0],
-            [0, 1, 0, 0],
-            [0, 0, 1, 0],
-            [x, y, z, 1]]
-
-
-def matrix_translate(M, x, y, z):
-    M[3][0] += x
-    M[3][1] += y
-    M[3][2] += z
-
 def get_scale_matrix(x, y, z):
     S = [[x, 0, 0, 0],
          [0, y, 0, 0],
@@ -402,20 +397,30 @@ def get_scale_matrix(x, y, z):
          [0, 0, 0, 1]]
     return np.array(S, dtype=np.float32)
 
+*/
 
-def set_scale_matrix(M, x, y, z):
-    M[:] = [[x, 0, 0, 0],
-            [0, y, 0, 0],
-            [0, 0, z, 0],
-            [0, 0, 0, 1]]
+pub fn set_scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+    m.copy_from_slice(&[
+        x, 0.0, 0.0, 0.0,
+        0.0, y, 0.0, 0.0,
+        0.0, 0.0, z, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    ]);
+}
 
+pub fn matrix_scale(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+    m.m11 *= x;
+    m.m12 *= x;
+    m.m13 *= x;
+    m.m21 *= y;
+    m.m22 *= y;
+    m.m23 *= y;
+    m.m31 *= z;
+    m.m32 *= z;
+    m.m33 *= z;
+}
 
-def matrix_scale(M, x, y, z):
-    M[0] *= x
-    M[1] *= y
-    M[2] *= z
-
-
+/*
 def get_rotation_matrix_x(radian):
     cosT = math.cos(radian)
     sinT = math.sin(radian)
@@ -448,40 +453,45 @@ def get_rotation_matrix_z(radian):
          [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
     return R
 
+*/
 
-def matrix_rotate_x(M, radian):
-    cosT = math.cos(radian)
-    sinT = math.sin(radian)
-    R = np.array(
-        [[1.0, 0.0, 0.0, 0.0],
-         [0.0, cosT, sinT, 0.0],
-         [0.0, -sinT, cosT, 0.0],
-         [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-    M[...] = np.dot(M, R)
+pub fn matrix_rotate_x(m: &mut Matrix4<f32>, radian: f32) {
+    let cos_t = radian.cos();
+    let sin_t = radian.sin();
+    let r: Matrix4<f32> = Matrix4::from_columns(&[
+        Vector4::new(1.0, 0.0, 0.0, 0.0),
+        Vector4::new(0.0, cos_t, -sin_t, 0.0),
+        Vector4::new(0.0, sin_t, cos_t, 0.0),
+        Vector4::new(0.0, 0.0, 0.0, 1.0),
+    ]) * (&m as &Matrix4<f32>);
+    m.copy_from(&r);
+}
 
+pub fn matrix_rotate_y(m: &mut Matrix4<f32>, radian: f32) {
+    let cos_t = radian.cos();
+    let sin_t = radian.sin();
+    let r: Matrix4<f32> = Matrix4::from_columns(&[
+        Vector4::new(cos_t, 0.0, sin_t, 0.0),
+        Vector4::new(0.0, 1.0, 0.0, 0.0),
+        Vector4::new(-sin_t, 0.0, cos_t, 0.0),
+        Vector4::new(0.0, 0.0, 0.0, 1.0),
+    ]) * (&m as &Matrix4<f32>);
+    m.copy_from(&r);
+}
 
-def matrix_rotate_y(M, radian):
-    cosT = math.cos(radian)
-    sinT = math.sin(radian)
-    R = np.array(
-        [[cosT, 0.0, -sinT, 0.0],
-         [0.0, 1.0, 0.0, 0.0],
-         [sinT, 0.0, cosT, 0.0],
-         [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-    M[...] = np.dot(M, R)
+pub fn matrix_rotate_z(m: &mut Matrix4<f32>, radian: f32) {
+    let cos_t = radian.cos();
+    let sin_t = radian.sin();
+    let r: Matrix4<f32> = Matrix4::from_columns(&[
+        Vector4::new(cos_t, -sin_t, 0.0, 0.0),
+        Vector4::new(sin_t, cos_t, 0.0, 0.0),
+        Vector4::new(0.0, 0.0, 1.0, 0.0),
+        Vector4::new(0.0, 0.0, 0.0, 1.0),
+    ]) * (&m as &Matrix4<f32>);
+    m.copy_from(&r);
+}
 
-
-def matrix_rotate_z(M, radian):
-    cosT = math.cos(radian)
-    sinT = math.sin(radian)
-    R = np.array(
-        [[cosT, sinT, 0.0, 0.0],
-         [-sinT, cosT, 0.0, 0.0],
-         [0.0, 0.0, 1.0, 0.0],
-         [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-    M[...] = np.dot(M, R)
-
-
+/*
 def matrix_rotate_axis(M, radian, x, y, z):
     c, s = math.cos(radian), math.sin(radian)
     n = math.sqrt(x * x + y * y + z * z)
