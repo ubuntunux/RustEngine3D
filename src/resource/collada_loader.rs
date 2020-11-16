@@ -691,11 +691,28 @@ impl Collada {
                 collada._controllers.push(controller);
             }
         }
-        // xml_animations = xml_root.findall('library_animations/animation')
-        // if 0 < len(xml_animations):
-        //     temp = xml_animations[0].findall('animation')
-        //     if 0 < len(temp):
-        //         xml_animations = temp
+
+        /*
+        xml_animations = xml_root.findall('library_animations/animation')
+        if 0 < len(xml_animations):
+            temp = xml_animations[0].findall('animation')
+            if 0 < len(temp):
+                xml_animations = temp
+        */
+
+        let emptry_xml_animations: Vec<XmlTree> = Vec::new();
+        let xml_animations: &Vec<XmlTree> = match xml_root.get_elements("library_animations/animation") {
+            Some(xml_animations) => {
+                match xml_animations[0].get_elements("animation") {
+                    Some(xml_animations) => xml_animations,
+                    None => xml_animations,
+                }
+            },
+            None => &emptry_xml_animations,
+        };
+        println!("{:#?}", xml_animations);
+
+
         //
         // for xml_animation in xml_animations:
         //     animation = ColladaAnimation(xml_animation, self.node_name_map)
@@ -900,7 +917,7 @@ impl Collada {
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = Collada::create_collada(filename);
-        println!("{:#?}", obj);
+        //println!("{:#?}", obj);
         //obj.parse(filename, 1.0, texcoord_y);
         //obj.generate_geometry_datas()
         panic!("get_geometry_datas");
