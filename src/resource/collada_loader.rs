@@ -61,7 +61,7 @@ pub struct ColladaContoller {
     pub _id: String,
     pub _skin_source: String,
     pub _bind_shape_matrix: Matrix4<f32>,
-    pub _bone_names: Vec<Vec<String>>,
+    pub _bone_names: Vec<String>,
     pub _bone_indicies: Vec<Vec<u32>>,
     pub _bone_weights: Vec<Vec<f32>>,
     pub _inv_bind_matrices: Vec<Matrix4<f32>>,
@@ -83,7 +83,7 @@ pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
 
 pub fn parse_list<T: std::str::FromStr>(datas: &str) -> Vec<T> {
     let datas = datas.replace("[", "").replace("]", "");
-    let data_list = datas.split(",").map(|data| data.trim().parse::<T>());
+    let data_list = datas.split(" ").map(|data| data.trim().parse::<T>());
     let mut values: Vec<T> = Vec::new();
     for data in data_list {
         match data {
@@ -97,7 +97,7 @@ pub fn parse_list<T: std::str::FromStr>(datas: &str) -> Vec<T> {
 #[derive(Debug, Clone)]
 pub enum ColladaSourceData {
     FloatArray(Vec<Vec<f32>>),
-    NameArray(Vec<Vec<String>>),
+    NameArray(Vec<String>),
 }
 
 pub fn parse_vector_list<T: std::str::FromStr + Clone>(datas: &str, component_count: usize) -> Vec<Vec<T>> {
@@ -138,7 +138,7 @@ pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSour
             if name_array_elements.is_some() {
                 let source_text = &name_array_elements.unwrap()[0].text;
                 if false == source_text.is_empty() {
-                    let source_data = ColladaSourceData::NameArray(parse_vector_list::<String>(source_text.as_str(), stride));
+                    let source_data = ColladaSourceData::NameArray(parse_list::<String>(source_text.as_str()));
                     sources.insert(source_id.clone(), source_data);
                 }
             }
@@ -158,17 +158,34 @@ pub fn parsing_sematic(xml_element: &XmlTree) -> HashMap<String, SematicInfo> {
                 None => "0",
                 Some(set_number) => set_number.as_str(),
             };
-            let mut semantic: String = xml_semantic.attributes.get("semantic").unwrap().clone();
-            if false == set_number.is_empty() && "0" != set_number {
-                semantic = semantic.add(set_number); // ex) VERTEX0, TEXCOORD0
-            }
-            let source: String = xml_semantic.attributes.get("source").unwrap().clone();
-            let source: &str = if source.starts_with("#") {
-                source.get(1..).unwrap()
-            } else {
-                source.as_str()
+
+            let semantic: String = match xml_semantic.attributes.get("semantic") {
+                Some(semantic) => {
+                    let mut semantic: String = semantic.clone();
+                    if false == set_number.is_empty() && "0" != set_number {
+                        semantic = semantic.add(set_number); // ex) VERTEX0, TEXCOORD0
+                    }
+                    semantic
+                },
+                None => String::from(""),
             };
-            let offset: usize = parse_value(xml_semantic.attributes.get("offset").unwrap(), 0);
+
+            let source: &str = match xml_semantic.attributes.get("source") {
+                Some(source) => {
+                    if source.starts_with("#") {
+                        source.get(1..).unwrap()
+                    } else {
+                        source.as_str()
+                    }
+                },
+                None => "",
+            };
+
+            let offset: usize = match xml_semantic.attributes.get("offset") {
+                Some(offset) => parse_value(offset, 0),
+                None => 0,
+            };
+
             semantics.insert(semantic, SematicInfo {
                 _source: String::from(source),
                 _offset: offset,
@@ -321,7 +338,8 @@ impl ColladaContoller {
             let bind_shape_matrix = xml_skin.get_elements("bind_shape_matrix");
             if bind_shape_matrix.is_some() {
                 let bind_shape_matrix = &bind_shape_matrix.unwrap()[0];
-                self._bind_shape_matrix.copy_from_slice(&parse_list::<f32>(bind_shape_matrix.text.as_str()));
+                let float_array = parse_list::<f32>(bind_shape_matrix.text.as_str());
+                self._bind_shape_matrix.copy_from_slice(&float_array);
                 self._bind_shape_matrix.transpose_mut();
             } else {
                 self._bind_shape_matrix = Matrix4::identity();
@@ -409,7 +427,7 @@ impl ColladaContoller {
         if joint.is_some() {
             let joints_source = sources.get(&joint.unwrap()._source);
             if joints_source.is_some() {
-                let bone_names: &Vec<Vec<String>> = match joints_source.unwrap() {
+                let bone_names: &Vec<String> = match joints_source.unwrap() {
                     ColladaSourceData::NameArray(bone_names) => bone_names,
                     ColladaSourceData::FloatArray(_) => panic!("bone_names parsing error."),
                 };
@@ -882,7 +900,7 @@ impl Collada {
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = Collada::create_collada(filename);
-        //println!("{:#?}", obj);
+        println!("{:#?}", obj);
         //obj.parse(filename, 1.0, texcoord_y);
         //obj.generate_geometry_datas()
         panic!("get_geometry_datas");
