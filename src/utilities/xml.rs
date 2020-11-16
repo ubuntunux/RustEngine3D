@@ -28,6 +28,23 @@ impl Default for XmlTree {
     }
 }
 
+pub fn get_xml_attribute(xml_tree: &Option<&Vec<XmlTree>>, attribute_name: &str, default_value: &str) -> String {
+    if xml_tree.is_some() {
+        let attribute_value = xml_tree.unwrap()[0].attributes.get(attribute_name);
+        if attribute_value.is_some() {
+            return attribute_value.unwrap().clone();
+        }
+    }
+    String::from(default_value)
+}
+
+pub fn get_xml_text(xml_tree: &Option<&Vec<XmlTree>>, default_value: &str) -> String {
+    match xml_tree {
+        Some(xml_elements) => xml_elements[0].text.clone(),
+        None => String::from(default_value),
+    }
+}
+
 impl XmlTree {
     pub fn parse(filepath: &PathBuf) -> XmlTree {
         let file = File::open(filepath).unwrap();
@@ -95,5 +112,12 @@ impl XmlTree {
     pub fn get_element(&self, path: &str) -> &XmlTree {
         let paths: Vec<&str> = path.split("/").collect();
         &self.get_elements_from_paths(&paths, 0).unwrap()[0]
+    }
+
+    pub fn get_attribute(&self, attribute_name: &str, default_value: &str) -> String {
+        match self.attributes.get(attribute_name) {
+            Some(attribute_value) => attribute_value.clone(),
+            None => String::from(default_value),
+        }
     }
 }

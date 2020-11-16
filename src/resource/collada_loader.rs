@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Add;
 use std::path::PathBuf;
 
 use nalgebra::{
@@ -16,10 +17,29 @@ use crate::vulkan_context::geometry_buffer::{
     VertexData,
 };
 use crate::utilities::xml::{
+    self,
     XmlTree,
 };
 use crate::utilities::math;
-use std::ops::Add;
+
+
+#[derive(Debug, Clone)]
+pub struct Collada {
+    pub _name: String,
+    pub _collada_version: String,
+    pub _author: String,
+    pub _authoring_tool: String,
+    pub _created: String,
+    pub _modified: String,
+    pub _unit_name: String,
+    pub _unit_meter: f32,
+    pub _up_axis: String,
+    pub _nodes: Vec<ColladaNode>,
+    pub _node_name_map: HashMap::<String, String>,
+    pub _geometries: Vec<bool>,
+    pub _controllers: Vec<ColladaContoller>,
+    pub _animations: Vec<bool>,
+}
 
 #[derive(Debug, Clone)]
 pub struct ColladaNode {
@@ -35,21 +55,16 @@ pub struct ColladaNode {
 }
 
 #[derive(Debug, Clone)]
-pub struct Collada {
+pub struct ColladaContoller {
+    pub _valid: bool,
     pub _name: String,
-    pub _collada_version: String,
-    pub _author: String,
-    pub _authoring_tool: String,
-    pub _created: String,
-    pub _modified: String,
-    pub _unit_name: String,
-    pub _unit_meter: f32,
-    pub _up_axis: String,
-    pub _nodes: Vec<ColladaNode>,
-    pub _node_name_map: HashMap::<String, *mut ColladaNode>,
-    pub _geometries: Vec<bool>,
-    pub _controllers: Vec<bool>,
-    pub _animations: Vec<bool>,
+    pub _id: String,
+    pub _skin_source: String,
+    pub _bind_shape_matrix: Matrix4<f32>,
+    pub _bone_names: Vec<Vec<String>>,
+    pub _bone_indicies: Vec<Vec<u32>>,
+    pub _bone_weights: Vec<Vec<f32>>,
+    pub _inv_bind_matrices: Vec<Matrix4<f32>>,
 }
 
 #[derive(Debug, Clone)]
@@ -79,7 +94,13 @@ pub fn parse_list<T: std::str::FromStr>(datas: &str) -> Vec<T> {
     values
 }
 
-pub fn parse_vector_list<T: std::str::FromStr + Copy>(datas: &str, component_count: usize) -> Vec<Vec<T>> {
+#[derive(Debug, Clone)]
+pub enum ColladaSourceData {
+    FloatArray(Vec<Vec<f32>>),
+    NameArray(Vec<Vec<String>>),
+}
+
+pub fn parse_vector_list<T: std::str::FromStr + Clone>(datas: &str, component_count: usize) -> Vec<Vec<T>> {
     let data_list: Vec<Result<T, T::Err>> = datas.replace("[", "").replace("]", "").split(",").map(|data| data.trim().parse::<T>()).collect();
     let mut values: Vec<Vec<T>> = Vec::new();
     let len = data_list.len() / component_count;
@@ -87,7 +108,7 @@ pub fn parse_vector_list<T: std::str::FromStr + Copy>(datas: &str, component_cou
         let mut components: Vec<T> = Vec::new();
         for j in 0..component_count {
             match &data_list[i * component_count + j] {
-                Ok(value) => components.push(*value),
+                Ok(value) => components.push(value.clone()),
                 Err(_) => return Vec::new(),
             }
         }
@@ -96,22 +117,31 @@ pub fn parse_vector_list<T: std::str::FromStr + Copy>(datas: &str, component_cou
     values
 }
 
-// tag = "float_array" or "Name_array"
-pub fn parsing_source_data<T: std::str::FromStr + Copy>(xml_element: &XmlTree, tag: &str) -> HashMap<String, Vec<Vec<T>>> {
-    let mut sources: HashMap<String, Vec<Vec<T>>> = HashMap::new();
-    for xml_source in xml_element.get_elements("source").unwrap().iter() {
-        let source_id: String = xml_source.attributes.get("id").unwrap().clone();
-        let accessor_element = xml_source.get_element("technique_common/accessor");
-        let stride = parse_value::<usize>(&accessor_element.attributes.get("stride").unwrap(), 0);
-        match xml_source.get_elements(tag) {
-            Some(elements) => {
-                let source_text = &elements[0].text;
+pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSourceData> {
+    let mut sources: HashMap<String, ColladaSourceData> = HashMap::new();
+    let source_elements = xml_element.get_elements("source");
+    if source_elements.is_some() {
+        for xml_source in source_elements.unwrap().iter() {
+            let source_id: &String = &xml_source.attributes.get("id").unwrap();
+            let accessor_element = xml_source.get_element("technique_common/accessor");
+            let stride = parse_value::<usize>(&accessor_element.attributes.get("stride").unwrap(), 0);
+            let float_array_elements = xml_source.get_elements("float_array");
+            if float_array_elements.is_some() {
+                let source_text = &float_array_elements.unwrap()[0].text;
                 if false == source_text.is_empty() {
-                    let source_data = parse_vector_list(source_text.as_str(), stride);
-                    sources.insert(source_id, source_data);
+                    let source_data = ColladaSourceData::FloatArray(parse_vector_list::<f32>(source_text.as_str(), stride));
+                    sources.insert(source_id.clone(), source_data);
                 }
-            },
-            None => {},
+            }
+
+            let name_array_elements = xml_source.get_elements("Name_array");
+            if name_array_elements.is_some() {
+                let source_text = &name_array_elements.unwrap()[0].text;
+                if false == source_text.is_empty() {
+                    let source_data = ColladaSourceData::NameArray(parse_vector_list::<String>(source_text.as_str(), stride));
+                    sources.insert(source_id.clone(), source_data);
+                }
+            }
         }
     }
     sources
@@ -121,27 +151,30 @@ pub fn parsing_source_data<T: std::str::FromStr + Copy>(xml_element: &XmlTree, t
 //     :return: {'semantic':{'source', 'offset', 'set'}
 pub fn parsing_sematic(xml_element: &XmlTree) -> HashMap<String, SematicInfo> {
     let mut semantics: HashMap<String, SematicInfo> = HashMap::new();
-    for xml_semantic in xml_element.get_elements("input").unwrap().iter() {
-        let set_number: &str = match xml_semantic.attributes.get("set") {
-            None => "0",
-            Some(set_number) => set_number.as_str(),
-        };
-        let mut semantic: String = xml_semantic.attributes.get("semantic").unwrap().clone();
-        if false == set_number.is_empty() && "0" != set_number {
-            semantic = semantic.add(set_number); // ex) VERTEX0, TEXCOORD0
+    let input_elements = xml_element.get_elements("input");
+    if input_elements.is_some() {
+        for xml_semantic in input_elements.unwrap().iter() {
+            let set_number: &str = match xml_semantic.attributes.get("set") {
+                None => "0",
+                Some(set_number) => set_number.as_str(),
+            };
+            let mut semantic: String = xml_semantic.attributes.get("semantic").unwrap().clone();
+            if false == set_number.is_empty() && "0" != set_number {
+                semantic = semantic.add(set_number); // ex) VERTEX0, TEXCOORD0
+            }
+            let source: String = xml_semantic.attributes.get("source").unwrap().clone();
+            let source: &str = if source.starts_with("#") {
+                source.get(1..).unwrap()
+            } else {
+                source.as_str()
+            };
+            let offset: usize = parse_value(xml_semantic.attributes.get("offset").unwrap(), 0);
+            semantics.insert(semantic, SematicInfo {
+                _source: String::from(source),
+                _offset: offset,
+                _set_number: String::from(set_number),
+            });
         }
-        let source: String = xml_semantic.attributes.get("source").unwrap().clone();
-        let source: &str = if source.starts_with("#") {
-            source.get(1..).unwrap()
-        } else {
-            source.as_str()
-        };
-        let offset: usize = parse_value(xml_semantic.attributes.get("offset").unwrap(), 0);
-        semantics.insert(semantic, SematicInfo {
-            _source: String::from(source),
-            _offset: offset,
-            _set_number: String::from(set_number),
-        });
     }
     semantics
 }
@@ -256,100 +289,154 @@ impl ColladaNode {
     }
 }
 
+impl ColladaContoller {
+    pub fn create_collada_controller(xml_controller: &XmlTree) -> ColladaContoller {
+        let mut collada_controlelr = ColladaContoller {
+            _valid: false,
+            _name: xml_controller.attributes.get("name").unwrap().replace(".", "_"),
+            _id: xml_controller.attributes.get("id").unwrap().replace(".", "_"),
+            _skin_source: String::new(),
+            _bind_shape_matrix: Matrix4::identity(),
+            _bone_names: Vec::new(),
+            _bone_indicies: Vec::new(),
+            _bone_weights: Vec::new(),
+            _inv_bind_matrices: Vec::new(),
+        };
+
+        collada_controlelr.parsing(xml_controller);
+        collada_controlelr
+    }
+
+    pub fn parsing(&mut self, xml_controller: &XmlTree) {
+        let xml_skin = xml_controller.get_elements("skin");
+        if xml_skin.is_some() {
+            let xml_skin = &xml_skin.unwrap()[0];
+
+            self._skin_source = xml_skin.get_attribute("source", "");
+            if false == self._skin_source.is_empty() && self._skin_source.starts_with("#") {
+                self._skin_source = String::from(self._skin_source.get(1..).unwrap());
+            }
+
+            // parsing bind_shape_matrix
+            let bind_shape_matrix = xml_skin.get_elements("bind_shape_matrix");
+            if bind_shape_matrix.is_some() {
+                let bind_shape_matrix = &bind_shape_matrix.unwrap()[0];
+                self._bind_shape_matrix.copy_from_slice(&parse_list::<f32>(bind_shape_matrix.text.as_str()));
+                self._bind_shape_matrix.transpose_mut();
+            } else {
+                self._bind_shape_matrix = Matrix4::identity();
+            }
+
+            // parse sources
+            let sources: HashMap<String, ColladaSourceData> = parsing_source_data(&xml_skin);
+
+            // get vertex position source id
+            let mut joins_semantics: HashMap<String, SematicInfo> = HashMap::new();
+            let xml_joints = xml_skin.get_elements("joints");
+            if xml_joints.is_some() {
+                joins_semantics = parsing_sematic(&xml_joints.unwrap()[0]);
+            }
+
+            // parse vertex weights
+            let xml_vertex_weights = xml_skin.get_elements("vertex_weights");
+            if xml_vertex_weights.is_some() {
+                let xml_vertex_weights = &xml_vertex_weights.unwrap()[0];
+                // parse semantic
+                let weights_semantics = parsing_sematic(xml_vertex_weights);
+
+                // parse vertex weights
+                let vcount_text = xml::get_xml_text(&xml_vertex_weights.get_elements("vcount"), "");
+                let v_text = xml::get_xml_text(&xml_vertex_weights.get_elements("v"), "");
+                let vcount_list = parse_list::<i32>(&vcount_text);
+                let v_list = parse_list::<i32>(&v_text);
+
+                // make geomtry data
+                self.build(&sources, &joins_semantics, &weights_semantics, &vcount_list, &v_list);
+            }
+        }
+    }
+
+    pub fn build(
+        &mut self,
+        sources: &HashMap<String, ColladaSourceData>,
+        joins_semantics: &HashMap<String, SematicInfo>,
+        weights_semantics: &HashMap<String, SematicInfo>,
+        vcount_list: &Vec<i32>,
+        v_list: &Vec<i32>,
+    ) {
+        let semantic_stride: usize = weights_semantics.len();
+        // build weights and indicies
+        let max_bone: usize = 4; // max influence bone count per vertex
+        let weight_source_id: &String = &weights_semantics.get("WEIGHT").unwrap()._source;
+        let weight_sources: &Vec<Vec<f32>> = match sources.get(weight_source_id).unwrap() {
+            ColladaSourceData::FloatArray(weight_sources) => weight_sources,
+            ColladaSourceData::NameArray(_) => panic!("weight_sources parsing error."),
+        };
+        let mut index: usize = 0;
+        for vcount in vcount_list.iter() {
+            let vcount: usize = (*vcount) as usize;
+            let mut bone_indicies: Vec<u32> = Vec::new();
+            let mut bone_weights: Vec<f32> = Vec::new();
+            let index_end: usize = index + vcount * semantic_stride;
+            let indicies: &[i32] = v_list.get(index..index_end).unwrap();
+            index += vcount * semantic_stride;
+            for v in 0..max_bone {
+                let joint = weights_semantics.get("JOINT");
+                if joint.is_some() {
+                    let offset = joint.unwrap()._offset;
+                    if v < vcount {
+                        bone_indicies.push(indicies[offset + v * semantic_stride] as u32);
+                    } else {
+                        bone_indicies.push(0);
+                    }
+                }
+                let weight = weights_semantics.get("WEIGHT");
+                if joint.is_some() {
+                    let offset = weight.unwrap()._offset;
+                    if v < vcount {
+                        bone_weights.push(weight_sources[indicies[offset + v * semantic_stride] as usize][0].clone());
+                    } else {
+                        bone_weights.push(0.0);
+                    }
+                }
+            }
+            self._bone_indicies.push(bone_indicies);
+            self._bone_weights.push(bone_weights);
+        }
+
+        // joints
+        let joint = joins_semantics.get("JOINT");
+        if joint.is_some() {
+            let joints_source = sources.get(&joint.unwrap()._source);
+            if joints_source.is_some() {
+                let bone_names: &Vec<Vec<String>> = match joints_source.unwrap() {
+                    ColladaSourceData::NameArray(bone_names) => bone_names,
+                    ColladaSourceData::FloatArray(_) => panic!("bone_names parsing error."),
+                };
+                self._bone_names = bone_names.clone();
+            }
+        }
+
+        // INV_BIND_MATRIX
+        let inv_bind_matrix = joins_semantics.get("INV_BIND_MATRIX");
+        if inv_bind_matrix.is_some() {
+            let inv_bind_matrices = sources.get(&inv_bind_matrix.unwrap()._source);
+            if inv_bind_matrices.is_some() {
+                let inv_bind_matrices: &Vec<Vec<f32>> = match inv_bind_matrices.unwrap() {
+                    ColladaSourceData::FloatArray(inv_bind_matrices) => inv_bind_matrices,
+                    ColladaSourceData::NameArray(_) => panic!("inv_bind_matrices parsing error."),
+                };
+                self._inv_bind_matrices = inv_bind_matrices.iter().map(|inv_bind_matrix_float_array| {
+                    let mut inv_bind_matrix: Matrix4<f32> = Matrix4::identity();
+                    inv_bind_matrix.copy_from_slice(&inv_bind_matrix_float_array);
+                    inv_bind_matrix
+                }).collect();
+            }
+        }
+        self._valid = true;
+    }
+}
 /*
-class ColladaContoller:
-    def __init__(self, xml_controller):
-        self.valid = False
-        self.name = get_xml_attrib(xml_controller, 'name').replace('.', '_')
-        self.id = get_xml_attrib(xml_controller, 'id').replace('.', '_')
-        self.skin_source = ""
-        self.bind_shape_matrix = Matrix4()
-
-        self.bone_names = []
-        self.bone_indicies = []
-        self.bone_weights = []
-        self.inv_bind_matrices = []
-
-        self.parsing(xml_controller)
-
-    def parsing(self, xml_controller):
-        xml_skin = xml_controller.find('skin')
-        if xml_skin is not None:
-            self.skin_source = get_xml_attrib(xml_skin, 'source', "")
-            if self.skin_source and self.skin_source.startswith('#'):
-                self.skin_source = self.skin_source[1:]
-
-            # parsing bind_shape_matrix
-            bind_shape_matrix = get_xml_text(xml_skin.find('bind_shape_matrix'), None)
-            if bind_shape_matrix:
-                self.bind_shape_matrix = np.array(convert_list(bind_shape_matrix), dtype=np.float32).reshape(4, 4)
-            else:
-                self.bind_shape_matrix = Matrix4()
-
-            # parse sources
-            sources = parsing_source_data(xml_skin)
-
-            # get vertex position source id
-            xml_joints = xml_skin.find('joints')
-            joins_semantics = {}
-            if xml_joints is not None:
-                joins_semantics = parsing_sematic(xml_joints)
-
-            # parse vertex weights
-            xml_vertex_weights = xml_skin.find('vertex_weights')
-            if xml_vertex_weights is not None:
-                # parse semantic
-                weights_semantics = parsing_sematic(xml_vertex_weights)
-
-                # parse vertex weights
-                vcount_text = get_xml_text(xml_vertex_weights.find('vcount'))
-                v_text = get_xml_text(xml_vertex_weights.find('v'))
-                vcount_list = convert_list(vcount_text, int)
-                v_list = convert_list(v_text, int)
-
-                # make geomtry data
-                self.build(sources, joins_semantics, weights_semantics, vcount_list, v_list)
-                return  # done
-
-    def build(self, sources, joins_semantics, weights_semantics, vcount_list, v_list):
-        semantic_stride = len(weights_semantics)
-        # build weights and indicies
-        max_bone = 4  # max influence bone count per vertex
-        weight_source_id = weights_semantics['WEIGHT']['source']
-        weight_sources = sources[weight_source_id]
-        index = 0
-        for vcount in vcount_list:
-            bone_indicies = []
-            bone_weights = []
-            indicies = v_list[index: index + vcount * semantic_stride]
-            index += vcount * semantic_stride
-            for v in range(max_bone):
-                if 'JOINT' in weights_semantics:
-                    offset = weights_semantics['JOINT']['offset']
-                    if v < vcount:
-                        bone_indicies.append(indicies[offset + v * semantic_stride])
-                    else:
-                        bone_indicies.append(0)
-                if 'WEIGHT' in weights_semantics:
-                    offset = weights_semantics['WEIGHT']['offset']
-                    if v < vcount:
-                        bone_weights.append(weight_sources[indicies[offset + v * semantic_stride]])
-                    else:
-                        bone_weights.append(0.0)
-            self.bone_indicies.append(bone_indicies)
-            self.bone_weights.append(bone_weights)
-        # joints
-        if 'JOINT' in joins_semantics:
-            joints_source = joins_semantics['JOINT'].get('source', '')
-            self.bone_names = sources.get(joints_source, [])
-        # INV_BIND_MATRIX
-        if 'INV_BIND_MATRIX' in joins_semantics:
-            inv_bind_matrix_source = joins_semantics['INV_BIND_MATRIX'].get('source', '')
-            self.inv_bind_matrices = sources.get(inv_bind_matrix_source, [])
-            self.inv_bind_matrices = [np.array(inv_bind_matrix, dtype=np.float32).reshape(4, 4) for inv_bind_matrix in self.inv_bind_matrices]
-        self.valid = True
-
-
 class ColladaAnimation:
     def __init__(self, xml_animation, node_name_map):
         self.valid = False
@@ -576,17 +663,16 @@ impl Collada {
         for xml_node in xml_root.get_elements("library_visual_scenes/visual_scene/node").unwrap().iter() {
             collada._nodes.push(ColladaNode::create_collada_node(xml_node, std::ptr::null(), 0));
         }
-        //
-        // def gather_node_name_map(nodes, node_name_map):
-        //     for node in nodes:
-        //         node_name_map[node.id] = node.name
-        //         gather_node_name_map(node.children, node_name_map)
-        // gather_node_name_map(self.nodes, self.node_name_map)
-        //
-        // for xml_controller in xml_root.findall('library_controllers/controller'):
-        //     controller = ColladaContoller(xml_controller)
-        //     self.controllers.append(controller)
-        //
+
+        Collada::gather_node_name_map(&collada._nodes, &mut collada._node_name_map);
+
+        let xml_controllers = xml_root.get_elements("library_controllers/controller");
+        if xml_controllers.is_some() {
+            for xml_controller in xml_controllers.unwrap().iter() {
+                let controller = ColladaContoller::create_collada_controller(xml_controller);
+                collada._controllers.push(controller);
+            }
+        }
         // xml_animations = xml_root.findall('library_animations/animation')
         // if 0 < len(xml_animations):
         //     temp = xml_animations[0].findall('animation')
@@ -603,6 +689,14 @@ impl Collada {
         //     self.geometries.append(geometry)
         collada
     }
+
+    fn gather_node_name_map(nodes: &Vec<ColladaNode>, node_name_map: &mut HashMap<String, String>) {
+        for node in nodes.iter() {
+            node_name_map.insert(node._id.clone(), node._name.clone());
+            Collada::gather_node_name_map(&node._children, node_name_map);
+        }
+    }
+
 //     def get_mesh_data(self):
 //         geometry_datas = self.get_geometry_data()
 //         skeleton_datas = self.get_skeleton_data()
