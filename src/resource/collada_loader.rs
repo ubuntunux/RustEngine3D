@@ -581,7 +581,6 @@ impl ColladaAnimation {
 
         if let Some(output) = joins_semantics.get("OUTPUT") {
             if let Some(output_source) = sources.get(&output._source) {
-                println!("{:#?}", output_source);
                 self._outputs = output_source.get_float_array();
             }
         }
@@ -1018,7 +1017,7 @@ impl Collada {
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = Collada::create_collada(filename);
-        //println!("{:#?}", obj);
+        println!("{:#?}", obj);
         //obj.parse(filename, 1.0, texcoord_y);
         //obj.generate_geometry_datas()
         panic!("get_geometry_datas");
