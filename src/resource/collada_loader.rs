@@ -38,7 +38,7 @@ pub struct Collada {
     pub _node_name_map: HashMap::<String, String>,
     pub _geometries: Vec<bool>,
     pub _controllers: Vec<ColladaContoller>,
-    pub _animations: Vec<bool>,
+    pub _animations: Vec<ColladaAnimation>,
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +74,26 @@ pub struct SematicInfo {
     pub _set_number: String,
 }
 
+#[derive(Debug, Clone)]
+pub struct ColladaAnimation {
+    pub _valid: bool,
+    pub _id: String,
+    pub _target: String,
+    pub _type: String,
+    pub _inputs: Vec<f32>,
+    pub _outputs: Vec<f32>,
+    pub _interpolations: Vec<String>,
+    pub _in_tangents: Vec<Vec<f32>>,
+    pub _out_tangents: Vec<Vec<f32>>,
+}
+
+#[derive(Debug, Clone)]
+pub enum ColladaSourceData {
+    FloatArray(Vec<f32>),
+    VectorArray(Vec<Vec<f32>>),
+    NameArray(Vec<String>),
+}
+
 pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
     match data.parse::<T>() {
         Ok(value) => value,
@@ -92,12 +112,6 @@ pub fn parse_list<T: std::str::FromStr>(datas: &str) -> Vec<T> {
         }
     }
     values
-}
-
-#[derive(Debug, Clone)]
-pub enum ColladaSourceData {
-    FloatArray(Vec<Vec<f32>>),
-    NameArray(Vec<String>),
 }
 
 pub fn parse_vector_list<T: std::str::FromStr + Clone>(datas: &str, component_count: usize) -> Vec<Vec<T>> {
@@ -129,8 +143,13 @@ pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSour
             if float_array_elements.is_some() {
                 let source_text = &float_array_elements.unwrap()[0].text;
                 if false == source_text.is_empty() {
-                    let source_data = ColladaSourceData::FloatArray(parse_vector_list::<f32>(source_text.as_str(), stride));
-                    sources.insert(source_id.clone(), source_data);
+                    if 1 < stride {
+                        let source_data = ColladaSourceData::VectorArray(parse_vector_list::<f32>(source_text.as_str(), stride));
+                        sources.insert(source_id.clone(), source_data);
+                    } else {
+                        let source_data = ColladaSourceData::FloatArray(parse_list::<f32>(source_text.as_str()));
+                        sources.insert(source_id.clone(), source_data);
+                    }
                 }
             }
 
@@ -194,6 +213,49 @@ pub fn parsing_sematic(xml_element: &XmlTree) -> HashMap<String, SematicInfo> {
         }
     }
     semantics
+}
+
+impl ColladaSourceData {
+    pub fn is_empty(&self) -> bool {
+        match self {
+            ColladaSourceData::FloatArray(xs) => xs.is_empty(),
+            ColladaSourceData::VectorArray(xs) => xs.is_empty(),
+            ColladaSourceData::NameArray(xs) => xs.is_empty(),
+        }
+    }
+
+    pub fn get_float_array(&self) -> Vec<f32> {
+        if self.is_empty() {
+            return Vec::new();
+        }
+
+        match self {
+            ColladaSourceData::FloatArray(xs) => xs.clone(),
+            _ => panic!("get_float_array error."),
+        }
+    }
+
+    pub fn get_vector_array(&self) -> Vec<Vec<f32>> {
+        if self.is_empty() {
+            return Vec::new();
+        }
+
+        match self {
+            ColladaSourceData::VectorArray(xs) => xs.clone(),
+            _ => panic!("get_vector_array error."),
+        }
+    }
+
+    pub fn get_name_array(&self) -> Vec<String> {
+        if self.is_empty() {
+            return Vec::new();
+        }
+
+        match self {
+            ColladaSourceData::NameArray(xs) => xs.clone(),
+            _ => panic!("get_name_array error."),
+        }
+    }
 }
 
 
@@ -386,9 +448,9 @@ impl ColladaContoller {
         // build weights and indicies
         let max_bone: usize = 4; // max influence bone count per vertex
         let weight_source_id: &String = &weights_semantics.get("WEIGHT").unwrap()._source;
-        let weight_sources: &Vec<Vec<f32>> = match sources.get(weight_source_id).unwrap() {
+        let weight_sources: &Vec<f32> = match sources.get(weight_source_id).unwrap() {
             ColladaSourceData::FloatArray(weight_sources) => weight_sources,
-            ColladaSourceData::NameArray(_) => panic!("weight_sources parsing error."),
+            _ => panic!("weight_sources parsing error."),
         };
         let mut index: usize = 0;
         for vcount in vcount_list.iter() {
@@ -412,7 +474,7 @@ impl ColladaContoller {
                 if joint.is_some() {
                     let offset = weight.unwrap()._offset;
                     if v < vcount {
-                        bone_weights.push(weight_sources[indicies[offset + v * semantic_stride] as usize][0].clone());
+                        bone_weights.push(weight_sources[indicies[offset + v * semantic_stride] as usize]);
                     } else {
                         bone_weights.push(0.0);
                     }
@@ -429,7 +491,7 @@ impl ColladaContoller {
             if joints_source.is_some() {
                 let bone_names: &Vec<String> = match joints_source.unwrap() {
                     ColladaSourceData::NameArray(bone_names) => bone_names,
-                    ColladaSourceData::FloatArray(_) => panic!("bone_names parsing error."),
+                    _ => panic!("bone_names parsing error."),
                 };
                 self._bone_names = bone_names.clone();
             }
@@ -441,8 +503,8 @@ impl ColladaContoller {
             let inv_bind_matrices = sources.get(&inv_bind_matrix.unwrap()._source);
             if inv_bind_matrices.is_some() {
                 let inv_bind_matrices: &Vec<Vec<f32>> = match inv_bind_matrices.unwrap() {
-                    ColladaSourceData::FloatArray(inv_bind_matrices) => inv_bind_matrices,
-                    ColladaSourceData::NameArray(_) => panic!("inv_bind_matrices parsing error."),
+                    ColladaSourceData::VectorArray(inv_bind_matrices) => inv_bind_matrices,
+                    _ => panic!("inv_bind_matrices parsing error."),
                 };
                 self._inv_bind_matrices = inv_bind_matrices.iter().map(|inv_bind_matrix_float_array| {
                     let mut inv_bind_matrix: Matrix4<f32> = Matrix4::identity();
@@ -454,202 +516,220 @@ impl ColladaContoller {
         self._valid = true;
     }
 }
-/*
-class ColladaAnimation:
-    def __init__(self, xml_animation, node_name_map):
-        self.valid = False
-        self.id = get_xml_attrib(xml_animation, 'id').replace('.', '_')
-
-        self.target = ""  # target bone name
-        self.type = ""  # transform(Matrix), location.X ... scale.z
-        self.inputs = []
-        self.outputs = []
-        self.interpolations = []
-        self.in_tangents = []
-        self.out_tangents = []
-
-        self.parsing(xml_animation, node_name_map)
-
-    def parsing(self, xml_animation, node_name_map):
-        sources = parsing_source_data(xml_animation)
-
-        joins_semantics = {}
-        xml_sampler = xml_animation.find('sampler')
-        if xml_sampler is not None:
-            joins_semantics = parsing_sematic(xml_sampler)
-
-        xml_channel = xml_animation.find('channel')
-        target = get_xml_attrib(xml_channel, 'target')
-        if '/' in target:
-            self.target, self.type = target.split('/', 1)
-            self.target = node_name_map.get(self.target, self.target)
-
-        if 'INPUT' in joins_semantics:
-            source_name = joins_semantics['INPUT'].get('source', '')
-            self.inputs = sources.get(source_name, [])
-
-        if 'OUTPUT' in joins_semantics:
-            source_name = joins_semantics['OUTPUT'].get('source', '')
-            self.outputs = sources.get(source_name, [])
-
-        if 'INTERPOLATION' in joins_semantics:
-            source_name = joins_semantics['INTERPOLATION'].get('source', '')
-            self.interpolations = sources.get(source_name, [])
-
-        if 'IN_TANGENT' in joins_semantics:
-            source_name = joins_semantics['IN_TANGENT'].get('source', '')
-            self.in_tangents = sources.get(source_name, [])
-
-        if 'OUT_TANGENT' in joins_semantics:
-            source_name = joins_semantics['OUT_TANGENT'].get('source', '')
-            self.out_tangents = sources.get(source_name, [])
-
-        if self.type == "" or self.target == "" or self.target is None or 0 == len(self.inputs):
-            self.valid = False
-            logger.error('%s has a invalid animation.\n%s' % (self.target, sources))
-        else:
-            self.valid = True
-
-        # print()
-        # for key in self.__dict__:
-        #     print(key, self.__dict__[key])
 
 
-class ColladaGeometry:
-    def __init__(self, xml_geometry, controllers, nodes):
-        self.valid = False
-        self.name = get_xml_attrib(xml_geometry, 'name').replace('.', '_')
-        self.id = get_xml_attrib(xml_geometry, 'id').replace('.', '_')
+impl ColladaAnimation {
+    pub fn create_collada_animation(xml_animation: &XmlTree, node_name_map: &HashMap<String, String>) -> ColladaAnimation {
+        let mut collada_animation = ColladaAnimation {
+            _valid: false,
+            _id: xml_animation.get_attribute("id", "").replace(".", "_"),
+            _target: String::new(),  // target bone name
+            _type: String::new(),  // transform(Matrix), location.X ... scale.z
+            _inputs: Vec::new(),
+            _outputs: Vec::new(),
+            _interpolations: Vec::new(),
+            _in_tangents: Vec::new(),
+            _out_tangents: Vec::new(),
+        };
 
-        self.positions = []
-        self.bone_indicies = []
-        self.bone_weights = []
-        self.normals = []
-        self.colors = []
-        self.texcoords = []
-        self.indices = []
+        collada_animation.parsing(xml_animation, node_name_map);
+        collada_animation
+    }
 
-        # find matched controller
-        self.controller = None
-        for controller in controllers:
-            if self.id == controller.skin_source:
-                self.controller = controller
-                break
+    pub fn parsing(&mut self, xml_animation: &XmlTree, node_name_map: &HashMap<String, String>) {
+        let sources = parsing_source_data(xml_animation);
 
-        # find matrix
-        self.bind_shape_matrix = Matrix4()
-        for node in nodes:
-            if self.name == node.name:
-                self.bind_shape_matrix = node.matrix
-                break
+        let mut joins_semantics: HashMap<String, SematicInfo> = HashMap::new();
+        let xml_sampler = xml_animation.get_elements("sampler");
+        if xml_sampler.is_some() {
+            joins_semantics = parsing_sematic(&xml_sampler.unwrap()[0]);
+        }
 
-        if self.controller:
-            # precompute bind_shape_matrix as coulmn-major matrix calculation.
-            self.bind_shape_matrix = np.dot(controller.bind_shape_matrix, self.bind_shape_matrix)
+        let xml_channel = xml_animation.get_elements("channel");
+        let target: String = xml::get_xml_attribute(&xml_channel, "target", "");
+        if target.contains("/") {
+            let target: Vec<&str> = target.splitn(2, "/").collect();
+            self._type = String::from(target[1]);
+            self._target = match node_name_map.get(target[0]) {
+                Some(target) => target.clone(),
+                None => String::from(target[0]),
+            };
+        }
 
-        self.parsing(xml_geometry)
+        if let Some(input) = joins_semantics.get("INPUT") {
+            if let Some(input_source) = sources.get(&input._source) {
+                self._inputs = input_source.get_float_array();
+            }
+        }
 
-    def parsing(self, xml_geometry):
-        xml_mesh = xml_geometry.find('mesh')
-        if xml_mesh is not None:
-            # parse sources
-            sources = parsing_source_data(xml_mesh)
+        if let Some(output) = joins_semantics.get("OUTPUT") {
+            if let Some(output_source) = sources.get(&output._source) {
+                println!("{:#?}", output_source);
+                self._outputs = output_source.get_float_array();
+            }
+        }
 
-            # get vertex position source id
-            position_source_id = ""
-            for xml_position in xml_mesh.findall('vertices/input'):
-                if get_xml_attrib(xml_position, 'semantic') == 'POSITION':
-                    position_source_id = get_xml_attrib(xml_position, 'source')
-                    if position_source_id.startswith("#"):
-                        position_source_id = position_source_id[1:]
-                    break
+        if let Some(interpolation) = joins_semantics.get("INTERPOLATION") {
+            if let Some(interpolation_source) = sources.get(&interpolation._source) {
+                self._interpolations = interpolation_source.get_name_array();
+            }
+        }
 
-            # parse polygons
-            for tag in ('polygons', 'polylist', 'triangles'):
-                xml_polygons = xml_mesh.find(tag)
-                if xml_polygons is not None:
-                    # parse semantic
-                    semantics = parsing_sematic(xml_polygons)
-                    semantic_stride = len(semantics)
+        if let Some(in_tangent) = joins_semantics.get("IN_TANGENT") {
+            if let Some(in_tangent_source) = sources.get(&in_tangent._source) {
+                self._in_tangents = in_tangent_source.get_vector_array();
+            }
+        }
 
-                    # parse polygon indices
-                    vertex_index_list = []  # flatten vertex list as triangle
-                    if tag == 'triangles':
-                        vertex_index_list = get_xml_text(xml_polygons.find('p'))
-                        vertex_index_list = convert_list(vertex_index_list, int)
-                    elif tag == 'polylist' or tag == 'polygons':
-                        vcount_list = []
-                        polygon_index_list = []
-                        if tag == 'polylist':
-                            vcount_list = convert_list(get_xml_text(xml_polygons.find('vcount')), int)
-                            # flatten list
-                            polygon_index_list = convert_list(get_xml_text(xml_polygons.find('p')), int)
-                        elif tag == 'polygons':
-                            for xml_p in xml_polygons.findall('p'):
-                                polygon_indices = convert_list(get_xml_text(xml_p), int)
-                                # flatten list
-                                polygon_index_list += polygon_indices
-                                vcount_list.append(int(len(polygon_indices) / semantic_stride))
-                        # triangulate
-                        elapsed_vindex = 0
-                        for vcount in vcount_list:
-                            if vcount == 3:
-                                vertex_index_list += polygon_index_list[
-                                                     elapsed_vindex: elapsed_vindex + vcount * semantic_stride]
-                            else:
-                                polygon_indices = polygon_index_list[
-                                                  elapsed_vindex: elapsed_vindex + vcount * semantic_stride]
-                                vertex_index_list += convert_triangulate(polygon_indices, vcount, semantic_stride)
-                            elapsed_vindex += vcount * semantic_stride
-                    # make geomtry data
-                    self.build(sources, position_source_id, semantics, semantic_stride, vertex_index_list)
-                    return  # done
+        if let Some(out_tangent) = joins_semantics.get("OUT_TANGENT") {
+            if let Some(out_tangent_source) = sources.get(&out_tangent._source) {
+                self._out_tangents = out_tangent_source.get_vector_array();
+            }
+        }
 
-    def build(self, sources, position_source_id, semantics, semantic_stride, vertex_index_list):
-        # check vertex count with bone weight count
-        if self.controller:
-            vertex_count = len(sources[position_source_id]) if position_source_id  else 0
-            bone_weight_count = len(self.controller.bone_indicies)
-            if vertex_count != bone_weight_count:
-                logger.error(
-                    "Different count. vertex_count : %d, bone_weight_count : %d" % (vertex_count, bone_weight_count))
-                return
-
-        indexMap = {}
-        for i in range(int(len(vertex_index_list) / semantic_stride)):
-            vertIndices = tuple(vertex_index_list[i * semantic_stride: i * semantic_stride + semantic_stride])
-            if vertIndices in indexMap:
-                self.indices.append(indexMap[vertIndices])
-            else:
-                self.indices.append(len(indexMap))
-                indexMap[vertIndices] = len(indexMap)
-
-                if 'VERTEX' in semantics:
-                    source_id = position_source_id
-                    offset = semantics['VERTEX']['offset']
-                    posisiton = sources[source_id][vertIndices[offset]]
-                    self.positions.append(posisiton)
-                    if self.controller:
-                        self.bone_indicies.append(self.controller.bone_indicies[vertIndices[offset]])
-                        self.bone_weights.append(self.controller.bone_weights[vertIndices[offset]])
-
-                if 'NORMAL' in semantics:
-                    source_id = semantics['NORMAL']['source']
-                    offset = semantics['NORMAL']['offset']
-                    normal = sources[source_id][vertIndices[offset]]
-                    self.normals.append(normal)
-
-                if 'COLOR' in semantics:
-                    source_id = semantics['COLOR']['source']
-                    offset = semantics['COLOR']['offset']
-                    self.colors.append(sources[source_id][vertIndices[offset]])
-
-                if 'TEXCOORD' in semantics:
-                    source_id = semantics['TEXCOORD']['source']
-                    offset = semantics['TEXCOORD']['offset']
-                    self.texcoords.append(sources[source_id][vertIndices[offset]])
-        self.valid = True
-*/
+        if self._type.is_empty() || self._target.is_empty() || self._inputs.is_empty() {
+            self._valid = false;
+            log::error!("{:?} has a invalid animation.\n{:?}", self._target, sources);
+        } else {
+            self._valid = true;
+        }
+    }
+}
+//
+// class ColladaGeometry:
+//     def __init__(self, xml_geometry, controllers, nodes):
+//         self.valid = False
+//         self.name = get_xml_attrib(xml_geometry, 'name').replace('.', '_')
+//         self.id = get_xml_attrib(xml_geometry, 'id').replace('.', '_')
+//
+//         self.positions = []
+//         self.bone_indicies = []
+//         self.bone_weights = []
+//         self.normals = []
+//         self.colors = []
+//         self.texcoords = []
+//         self.indices = []
+//
+//         # find matched controller
+//         self.controller = None
+//         for controller in controllers:
+//             if self.id == controller.skin_source:
+//                 self.controller = controller
+//                 break
+//
+//         # find matrix
+//         self.bind_shape_matrix = Matrix4()
+//         for node in nodes:
+//             if self.name == node.name:
+//                 self.bind_shape_matrix = node.matrix
+//                 break
+//
+//         if self.controller:
+//             # precompute bind_shape_matrix as coulmn-major matrix calculation.
+//             self.bind_shape_matrix = np.dot(controller.bind_shape_matrix, self.bind_shape_matrix)
+//
+//         self.parsing(xml_geometry)
+//
+//     def parsing(self, xml_geometry):
+//         xml_mesh = xml_geometry.find('mesh')
+//         if xml_mesh is not None:
+//             # parse sources
+//             sources = parsing_source_data(xml_mesh)
+//
+//             # get vertex position source id
+//             position_source_id = ""
+//             for xml_position in xml_mesh.findall('vertices/input'):
+//                 if get_xml_attrib(xml_position, 'semantic') == 'POSITION':
+//                     position_source_id = get_xml_attrib(xml_position, 'source')
+//                     if position_source_id.startswith("#"):
+//                         position_source_id = position_source_id[1:]
+//                     break
+//
+//             # parse polygons
+//             for tag in ('polygons', 'polylist', 'triangles'):
+//                 xml_polygons = xml_mesh.find(tag)
+//                 if xml_polygons is not None:
+//                     # parse semantic
+//                     semantics = parsing_sematic(xml_polygons)
+//                     semantic_stride = len(semantics)
+//
+//                     # parse polygon indices
+//                     vertex_index_list = []  # flatten vertex list as triangle
+//                     if tag == 'triangles':
+//                         vertex_index_list = get_xml_text(xml_polygons.find('p'))
+//                         vertex_index_list = convert_list(vertex_index_list, int)
+//                     elif tag == 'polylist' or tag == 'polygons':
+//                         vcount_list = []
+//                         polygon_index_list = []
+//                         if tag == 'polylist':
+//                             vcount_list = convert_list(get_xml_text(xml_polygons.find('vcount')), int)
+//                             # flatten list
+//                             polygon_index_list = convert_list(get_xml_text(xml_polygons.find('p')), int)
+//                         elif tag == 'polygons':
+//                             for xml_p in xml_polygons.findall('p'):
+//                                 polygon_indices = convert_list(get_xml_text(xml_p), int)
+//                                 # flatten list
+//                                 polygon_index_list += polygon_indices
+//                                 vcount_list.append(int(len(polygon_indices) / semantic_stride))
+//                         # triangulate
+//                         elapsed_vindex = 0
+//                         for vcount in vcount_list:
+//                             if vcount == 3:
+//                                 vertex_index_list += polygon_index_list[
+//                                                      elapsed_vindex: elapsed_vindex + vcount * semantic_stride]
+//                             else:
+//                                 polygon_indices = polygon_index_list[
+//                                                   elapsed_vindex: elapsed_vindex + vcount * semantic_stride]
+//                                 vertex_index_list += convert_triangulate(polygon_indices, vcount, semantic_stride)
+//                             elapsed_vindex += vcount * semantic_stride
+//                     # make geomtry data
+//                     self.build(sources, position_source_id, semantics, semantic_stride, vertex_index_list)
+//                     return  # done
+//
+//     def build(self, sources, position_source_id, semantics, semantic_stride, vertex_index_list):
+//         # check vertex count with bone weight count
+//         if self.controller:
+//             vertex_count = len(sources[position_source_id]) if position_source_id  else 0
+//             bone_weight_count = len(self.controller.bone_indicies)
+//             if vertex_count != bone_weight_count:
+//                 logger.error(
+//                     "Different count. vertex_count : %d, bone_weight_count : %d" % (vertex_count, bone_weight_count))
+//                 return
+//
+//         indexMap = {}
+//         for i in range(int(len(vertex_index_list) / semantic_stride)):
+//             vertIndices = tuple(vertex_index_list[i * semantic_stride: i * semantic_stride + semantic_stride])
+//             if vertIndices in indexMap:
+//                 self.indices.append(indexMap[vertIndices])
+//             else:
+//                 self.indices.append(len(indexMap))
+//                 indexMap[vertIndices] = len(indexMap)
+//
+//                 if 'VERTEX' in semantics:
+//                     source_id = position_source_id
+//                     offset = semantics['VERTEX']['offset']
+//                     posisiton = sources[source_id][vertIndices[offset]]
+//                     self.positions.append(posisiton)
+//                     if self.controller:
+//                         self.bone_indicies.append(self.controller.bone_indicies[vertIndices[offset]])
+//                         self.bone_weights.append(self.controller.bone_weights[vertIndices[offset]])
+//
+//                 if 'NORMAL' in semantics:
+//                     source_id = semantics['NORMAL']['source']
+//                     offset = semantics['NORMAL']['offset']
+//                     normal = sources[source_id][vertIndices[offset]]
+//                     self.normals.append(normal)
+//
+//                 if 'COLOR' in semantics:
+//                     source_id = semantics['COLOR']['source']
+//                     offset = semantics['COLOR']['offset']
+//                     self.colors.append(sources[source_id][vertIndices[offset]])
+//
+//                 if 'TEXCOORD' in semantics:
+//                     source_id = semantics['TEXCOORD']['source']
+//                     offset = semantics['TEXCOORD']['offset']
+//                     self.texcoords.append(sources[source_id][vertIndices[offset]])
+//         self.valid = True
 
 impl Collada {
     fn create_collada(filepath: &PathBuf) -> Collada {
@@ -692,14 +772,6 @@ impl Collada {
             }
         }
 
-        /*
-        xml_animations = xml_root.findall('library_animations/animation')
-        if 0 < len(xml_animations):
-            temp = xml_animations[0].findall('animation')
-            if 0 < len(temp):
-                xml_animations = temp
-        */
-
         let emptry_xml_animations: Vec<XmlTree> = Vec::new();
         let xml_animations: &Vec<XmlTree> = match xml_root.get_elements("library_animations/animation") {
             Some(xml_animations) => {
@@ -710,18 +782,21 @@ impl Collada {
             },
             None => &emptry_xml_animations,
         };
-        println!("{:#?}", xml_animations);
 
+        for xml_animation in xml_animations.iter() {
+            let animation = ColladaAnimation::create_collada_animation(xml_animation, &collada._node_name_map);
+            if animation._valid {
+                collada._animations.push(animation);
+            }
+        }
 
-        //
-        // for xml_animation in xml_animations:
-        //     animation = ColladaAnimation(xml_animation, self.node_name_map)
-        //     if animation.valid:
-        //         self.animations.append(animation)
-        //
-        // for xml_geometry in xml_root.findall('library_geometries/geometry'):
-        //     geometry = ColladaGeometry(xml_geometry, self.controllers, self.nodes)
-        //     self.geometries.append(geometry)
+        println!("{:#?}", collada._animations);
+
+        // for xml_geometry in xml_root.get_elements("library_geometries/geometry") {
+        //     let geometry = ColladaGeometry(xml_geometry, &collada._controllers, &collada._nodes);
+        //     collada._geometries.push(geometry);
+        // }
+
         collada
     }
 
