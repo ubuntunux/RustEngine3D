@@ -36,7 +36,7 @@ pub struct Collada {
     pub _up_axis: String,
     pub _nodes: Vec<ColladaNode>,
     pub _node_name_map: HashMap::<String, String>,
-    pub _geometries: Vec<bool>,
+    pub _geometries: Vec<ColladaGeometry>,
     pub _controllers: Vec<ColladaContoller>,
     pub _animations: Vec<ColladaAnimation>,
 }
@@ -88,11 +88,28 @@ pub struct ColladaAnimation {
 }
 
 #[derive(Debug, Clone)]
+pub struct ColladaGeometry {
+    pub _valid: bool,
+    pub _name: String,
+    pub _id: String,
+    pub _positions: Vec<Vector3<f32>>,
+    pub _bone_indicies: Vec<u32>,
+    pub _bone_weights: Vec<f32>,
+    pub _normals: Vec<Vector3<f32>>,
+    pub _colors: Vec<u32>,
+    pub _texcoords: Vec<Vector2<f32>>,
+    pub _indices: Vec<u32>,
+    pub _bind_shape_matrix: Matrix4<f32>,
+    pub _controller: *const ColladaContoller,
+}
+
+#[derive(Debug, Clone)]
 pub enum ColladaSourceData {
     FloatArray(Vec<f32>),
     VectorArray(Vec<Vec<f32>>),
     NameArray(Vec<String>),
 }
+
 
 pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
     match data.parse::<T>() {
@@ -595,40 +612,50 @@ impl ColladaAnimation {
         }
     }
 }
-//
-// class ColladaGeometry:
-//     def __init__(self, xml_geometry, controllers, nodes):
-//         self.valid = False
-//         self.name = get_xml_attrib(xml_geometry, 'name').replace('.', '_')
-//         self.id = get_xml_attrib(xml_geometry, 'id').replace('.', '_')
-//
-//         self.positions = []
-//         self.bone_indicies = []
-//         self.bone_weights = []
-//         self.normals = []
-//         self.colors = []
-//         self.texcoords = []
-//         self.indices = []
-//
-//         # find matched controller
-//         self.controller = None
-//         for controller in controllers:
-//             if self.id == controller.skin_source:
-//                 self.controller = controller
-//                 break
-//
-//         # find matrix
-//         self.bind_shape_matrix = Matrix4()
-//         for node in nodes:
-//             if self.name == node.name:
-//                 self.bind_shape_matrix = node.matrix
-//                 break
-//
-//         if self.controller:
-//             # precompute bind_shape_matrix as coulmn-major matrix calculation.
-//             self.bind_shape_matrix = np.dot(controller.bind_shape_matrix, self.bind_shape_matrix)
-//
-//         self.parsing(xml_geometry)
+
+impl ColladaGeometry {
+    pub fn create_collada_geometry(xml_geometry: &XmlTree, controllers: &Vec<ColladaContoller>, nodes: &Vec<ColladaNode>) -> ColladaGeometry {
+        let mut collada_geometry = ColladaGeometry {
+            _valid: false,
+            _name: xml_geometry.get_attribute("name", "").replace(".", "_"),
+            _id: xml_geometry.get_attribute("id", "").replace(".", "_"),
+            _positions: Vec::new(),
+            _bone_indicies: Vec::new(),
+            _bone_weights: Vec::new(),
+            _normals: Vec::new(),
+            _colors: Vec::new(),
+            _texcoords: Vec::new(),
+            _indices: Vec::new(),
+            _bind_shape_matrix: Matrix4::identity(),
+            _controller: std::ptr::null()
+        };
+
+        // find matched controller
+        for controller in controllers.iter() {
+            if controller._skin_source == collada_geometry._id {
+                collada_geometry._controller = controller;
+                break;
+            }
+        }
+
+        // find matrix
+        for node in nodes.iter() {
+            if node._name == collada_geometry._name {
+                collada_geometry._bind_shape_matrix = node._matrix.clone() as Matrix4<f32>;
+                break;
+            }
+        }
+
+        if false == collada_geometry._controller.is_null() {
+            unsafe {
+                // precompute bind_shape_matrix as coulmn-major matrix calculation.
+                collada_geometry._bind_shape_matrix = &collada_geometry._bind_shape_matrix * &(*collada_geometry._controller)._bind_shape_matrix;
+            }
+        }
+
+        //collada_geometry.parsing(xml_geometry);
+        collada_geometry
+    }
 //
 //     def parsing(self, xml_geometry):
 //         xml_mesh = xml_geometry.find('mesh')
@@ -730,6 +757,7 @@ impl ColladaAnimation {
 //                     offset = semantics['TEXCOORD']['offset']
 //                     self.texcoords.append(sources[source_id][vertIndices[offset]])
 //         self.valid = True
+}
 
 impl Collada {
     fn create_collada(filepath: &PathBuf) -> Collada {
@@ -790,12 +818,10 @@ impl Collada {
             }
         }
 
-        println!("{:#?}", collada._animations);
-
-        // for xml_geometry in xml_root.get_elements("library_geometries/geometry") {
-        //     let geometry = ColladaGeometry(xml_geometry, &collada._controllers, &collada._nodes);
-        //     collada._geometries.push(geometry);
-        // }
+        for xml_geometry in xml_root.get_elements("library_geometries/geometry").unwrap() {
+            let geometry = ColladaGeometry::create_collada_geometry(xml_geometry, &collada._controllers, &collada._nodes);
+            collada._geometries.push(geometry);
+        }
 
         collada
     }
