@@ -1,3 +1,4 @@
+use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Add;
 use std::path::PathBuf;
@@ -6,6 +7,7 @@ use nalgebra::{
     self,
     Vector2,
     Vector3,
+    Vector4,
     Matrix4,
 };
 
@@ -21,6 +23,7 @@ use crate::utilities::xml::{
     XmlTree,
 };
 use crate::utilities::math;
+use crate::vulkan_context::vulkan_context::get_color32;
 
 
 #[derive(Debug, Clone)]
@@ -62,8 +65,8 @@ pub struct ColladaContoller {
     pub _skin_source: String,
     pub _bind_shape_matrix: Matrix4<f32>,
     pub _bone_names: Vec<String>,
-    pub _bone_indicies: Vec<Vec<u32>>,
-    pub _bone_weights: Vec<Vec<f32>>,
+    pub _bone_indicies: Vec<Vector4<u32>>,
+    pub _bone_weights: Vec<Vector4<f32>>,
     pub _inv_bind_matrices: Vec<Matrix4<f32>>,
 }
 
@@ -81,7 +84,7 @@ pub struct ColladaAnimation {
     pub _target: String,
     pub _type: String,
     pub _inputs: Vec<f32>,
-    pub _outputs: Vec<f32>,
+    pub _outputs: Vec<Matrix4<f32>>,
     pub _interpolations: Vec<String>,
     pub _in_tangents: Vec<Vec<f32>>,
     pub _out_tangents: Vec<Vec<f32>>,
@@ -93,8 +96,8 @@ pub struct ColladaGeometry {
     pub _name: String,
     pub _id: String,
     pub _positions: Vec<Vector3<f32>>,
-    pub _bone_indicies: Vec<u32>,
-    pub _bone_weights: Vec<f32>,
+    pub _bone_indicies: Vec<Vector4<u32>>,
+    pub _bone_weights: Vec<Vector4<f32>>,
     pub _normals: Vec<Vector3<f32>>,
     pub _colors: Vec<u32>,
     pub _texcoords: Vec<Vector2<f32>>,
@@ -118,21 +121,24 @@ pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
     }
 }
 
-pub fn parse_list<T: std::str::FromStr>(datas: &str) -> Vec<T> {
+pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(datas: &str) -> Vec<T> {
     let datas = datas.replace("[", "").replace("]", "");
-    let data_list = datas.split(" ").map(|data| data.trim().parse::<T>());
+    let data_list = datas.trim().split(" ").map(|data| {
+        data.trim().parse::<T>()
+    });
+
     let mut values: Vec<T> = Vec::new();
     for data in data_list {
         match data {
             Ok(value) => values.push(value),
-            Err(_) => return Vec::new(),
+            Err(_) => { },
         }
     }
     values
 }
 
 pub fn parse_vector_list<T: std::str::FromStr + Clone>(datas: &str, component_count: usize) -> Vec<Vec<T>> {
-    let data_list: Vec<Result<T, T::Err>> = datas.replace("[", "").replace("]", "").split(",").map(|data| data.trim().parse::<T>()).collect();
+    let data_list: Vec<Result<T, T::Err>> = datas.replace("[", "").replace("]", "").trim().split(" ").map(|data| data.trim().parse::<T>()).collect();
     let mut values: Vec<Vec<T>> = Vec::new();
     let len = data_list.len() / component_count;
     for i in 0..len {
@@ -140,7 +146,7 @@ pub fn parse_vector_list<T: std::str::FromStr + Clone>(datas: &str, component_co
         for j in 0..component_count {
             match &data_list[i * component_count + j] {
                 Ok(value) => components.push(value.clone()),
-                Err(_) => return Vec::new(),
+                Err(_) => { },
             }
         }
         values.push(components);
@@ -154,7 +160,7 @@ pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSour
     if source_elements.is_some() {
         for xml_source in source_elements.unwrap().iter() {
             let source_id: &String = &xml_source.attributes.get("id").unwrap();
-            let accessor_element = xml_source.get_element("technique_common/accessor");
+            let accessor_element = xml_source.get_element("technique_common/accessor").unwrap();
             let stride = parse_value::<usize>(&accessor_element.attributes.get("stride").unwrap(), 0);
             let float_array_elements = xml_source.get_elements("float_array");
             if float_array_elements.is_some() {
@@ -442,8 +448,8 @@ impl ColladaContoller {
                 let weights_semantics = parsing_sematic(xml_vertex_weights);
 
                 // parse vertex weights
-                let vcount_text = xml::get_xml_text(&xml_vertex_weights.get_elements("vcount"), "");
-                let v_text = xml::get_xml_text(&xml_vertex_weights.get_elements("v"), "");
+                let vcount_text = xml::get_elements_text(&xml_vertex_weights.get_elements("vcount"), "");
+                let v_text = xml::get_elements_text(&xml_vertex_weights.get_elements("v"), "");
                 let vcount_list = parse_list::<i32>(&vcount_text);
                 let v_list = parse_list::<i32>(&v_text);
 
@@ -469,6 +475,7 @@ impl ColladaContoller {
             ColladaSourceData::FloatArray(weight_sources) => weight_sources,
             _ => panic!("weight_sources parsing error."),
         };
+
         let mut index: usize = 0;
         for vcount in vcount_list.iter() {
             let vcount: usize = (*vcount) as usize;
@@ -497,8 +504,8 @@ impl ColladaContoller {
                     }
                 }
             }
-            self._bone_indicies.push(bone_indicies);
-            self._bone_weights.push(bone_weights);
+            self._bone_indicies.push(Vector4::new(bone_indicies[0], bone_indicies[1], bone_indicies[2], bone_indicies[3]));
+            self._bone_weights.push(Vector4::new(bone_weights[0], bone_weights[1], bone_weights[2], bone_weights[3]));
         }
 
         // joints
@@ -563,7 +570,7 @@ impl ColladaAnimation {
         }
 
         let xml_channel = xml_animation.get_elements("channel");
-        let target: String = xml::get_xml_attribute(&xml_channel, "target", "");
+        let target: String = xml::get_elements_attribute(&xml_channel, "target", "");
         if target.contains("/") {
             let target: Vec<&str> = target.splitn(2, "/").collect();
             self._type = String::from(target[1]);
@@ -581,7 +588,19 @@ impl ColladaAnimation {
 
         if let Some(output) = joins_semantics.get("OUTPUT") {
             if let Some(output_source) = sources.get(&output._source) {
-                self._outputs = output_source.get_float_array();
+                match output_source {
+                    ColladaSourceData::VectorArray(matrices) => {
+                        for matrix in matrices.iter() {
+                            self._outputs.push(Matrix4::identity());
+                            self._outputs.last_mut().unwrap().copy_from_slice(&matrix);
+                        }
+                    },
+                    ColladaSourceData::FloatArray(data) => {
+                        log::info!("ignore animation OUTPUT: {:?} {:?}", output._source, data);
+                    },
+                    _ => {},
+                }
+
             }
         }
 
@@ -605,7 +624,7 @@ impl ColladaAnimation {
 
         if self._type.is_empty() || self._target.is_empty() || self._inputs.is_empty() {
             self._valid = false;
-            log::error!("{:?} has a invalid animation.\n{:?}", self._target, sources);
+            panic!("{:?} has a invalid animation.\n{:?}", self._target, sources);
         } else {
             self._valid = true;
         }
@@ -652,110 +671,167 @@ impl ColladaGeometry {
             }
         }
 
-        //collada_geometry.parsing(xml_geometry);
+        collada_geometry.parsing(xml_geometry);
         collada_geometry
     }
-//
-//     def parsing(self, xml_geometry):
-//         xml_mesh = xml_geometry.find('mesh')
-//         if xml_mesh is not None:
-//             # parse sources
-//             sources = parsing_source_data(xml_mesh)
-//
-//             # get vertex position source id
-//             position_source_id = ""
-//             for xml_position in xml_mesh.findall('vertices/input'):
-//                 if get_xml_attrib(xml_position, 'semantic') == 'POSITION':
-//                     position_source_id = get_xml_attrib(xml_position, 'source')
-//                     if position_source_id.startswith("#"):
-//                         position_source_id = position_source_id[1:]
-//                     break
-//
-//             # parse polygons
-//             for tag in ('polygons', 'polylist', 'triangles'):
-//                 xml_polygons = xml_mesh.find(tag)
-//                 if xml_polygons is not None:
-//                     # parse semantic
-//                     semantics = parsing_sematic(xml_polygons)
-//                     semantic_stride = len(semantics)
-//
-//                     # parse polygon indices
-//                     vertex_index_list = []  # flatten vertex list as triangle
-//                     if tag == 'triangles':
-//                         vertex_index_list = get_xml_text(xml_polygons.find('p'))
-//                         vertex_index_list = convert_list(vertex_index_list, int)
-//                     elif tag == 'polylist' or tag == 'polygons':
-//                         vcount_list = []
-//                         polygon_index_list = []
-//                         if tag == 'polylist':
-//                             vcount_list = convert_list(get_xml_text(xml_polygons.find('vcount')), int)
-//                             # flatten list
-//                             polygon_index_list = convert_list(get_xml_text(xml_polygons.find('p')), int)
-//                         elif tag == 'polygons':
-//                             for xml_p in xml_polygons.findall('p'):
-//                                 polygon_indices = convert_list(get_xml_text(xml_p), int)
-//                                 # flatten list
-//                                 polygon_index_list += polygon_indices
-//                                 vcount_list.append(int(len(polygon_indices) / semantic_stride))
-//                         # triangulate
-//                         elapsed_vindex = 0
-//                         for vcount in vcount_list:
-//                             if vcount == 3:
-//                                 vertex_index_list += polygon_index_list[
-//                                                      elapsed_vindex: elapsed_vindex + vcount * semantic_stride]
-//                             else:
-//                                 polygon_indices = polygon_index_list[
-//                                                   elapsed_vindex: elapsed_vindex + vcount * semantic_stride]
-//                                 vertex_index_list += convert_triangulate(polygon_indices, vcount, semantic_stride)
-//                             elapsed_vindex += vcount * semantic_stride
-//                     # make geomtry data
-//                     self.build(sources, position_source_id, semantics, semantic_stride, vertex_index_list)
-//                     return  # done
-//
-//     def build(self, sources, position_source_id, semantics, semantic_stride, vertex_index_list):
-//         # check vertex count with bone weight count
-//         if self.controller:
-//             vertex_count = len(sources[position_source_id]) if position_source_id  else 0
-//             bone_weight_count = len(self.controller.bone_indicies)
-//             if vertex_count != bone_weight_count:
-//                 logger.error(
-//                     "Different count. vertex_count : %d, bone_weight_count : %d" % (vertex_count, bone_weight_count))
-//                 return
-//
-//         indexMap = {}
-//         for i in range(int(len(vertex_index_list) / semantic_stride)):
-//             vertIndices = tuple(vertex_index_list[i * semantic_stride: i * semantic_stride + semantic_stride])
-//             if vertIndices in indexMap:
-//                 self.indices.append(indexMap[vertIndices])
-//             else:
-//                 self.indices.append(len(indexMap))
-//                 indexMap[vertIndices] = len(indexMap)
-//
-//                 if 'VERTEX' in semantics:
-//                     source_id = position_source_id
-//                     offset = semantics['VERTEX']['offset']
-//                     posisiton = sources[source_id][vertIndices[offset]]
-//                     self.positions.append(posisiton)
-//                     if self.controller:
-//                         self.bone_indicies.append(self.controller.bone_indicies[vertIndices[offset]])
-//                         self.bone_weights.append(self.controller.bone_weights[vertIndices[offset]])
-//
-//                 if 'NORMAL' in semantics:
-//                     source_id = semantics['NORMAL']['source']
-//                     offset = semantics['NORMAL']['offset']
-//                     normal = sources[source_id][vertIndices[offset]]
-//                     self.normals.append(normal)
-//
-//                 if 'COLOR' in semantics:
-//                     source_id = semantics['COLOR']['source']
-//                     offset = semantics['COLOR']['offset']
-//                     self.colors.append(sources[source_id][vertIndices[offset]])
-//
-//                 if 'TEXCOORD' in semantics:
-//                     source_id = semantics['TEXCOORD']['source']
-//                     offset = semantics['TEXCOORD']['offset']
-//                     self.texcoords.append(sources[source_id][vertIndices[offset]])
-//         self.valid = True
+
+    pub fn parsing(&mut self, xml_geometry: &XmlTree) {
+        if let Some(xml_mesh) = xml_geometry.get_element("mesh") {
+
+            // parse sources
+            let sources = parsing_source_data(xml_mesh);
+
+            // get vertex position source id
+            let mut position_source_id = String::new();
+            for xml_position in xml_mesh.get_elements("vertices/input").unwrap() {
+                if "POSITION" == xml_position.get_attribute("semantic", "") {
+                    position_source_id = xml_position.get_attribute("source", "");
+                    if position_source_id.starts_with("#") {
+                        position_source_id = String::from(position_source_id.get(1..).unwrap());
+                    }
+                    break;
+                }
+            }
+
+            // parse polygons
+            for tag in ["polygons", "polylist", "triangles"].iter() {
+                if let Some(xml_polygons) = xml_mesh.get_element(tag) {
+                    // parse semantic
+                    let semantics: HashMap<String, SematicInfo> = parsing_sematic(xml_polygons);
+                    let semantic_stride: u32 = semantics.len() as u32;
+
+                    // parse polygon indices
+                    let mut vertex_index_list: Vec<u32> = Vec::new();  // flatten vertex list as triangle
+                    if "triangles" == *tag {
+                        if let Some(polygon) = xml_polygons.get_element("p") {
+                            vertex_index_list = parse_list::<u32>(&polygon.text);
+                        }
+                    } else if "polylist" == *tag || "polygons" == *tag {
+                        let mut vcount_list: Vec<u32> = Vec::new();
+                        let mut polygon_index_list: Vec<u32> = Vec::new();
+                        if "polylist" == *tag {
+                            vcount_list = parse_list::<u32>(xml::get_element_text(&xml_polygons.get_element("vcount"), "").as_str());
+                            // flatten list
+                            polygon_index_list = parse_list::<u32>(xml::get_element_text(&xml_polygons.get_element("p"), "").as_str())
+                        } else if "polygons" == *tag {
+                            for xml_p in xml_polygons.get_elements("p").unwrap() {
+                                let polygon_indices = parse_list::<u32>(xml_p.text.as_str());
+                                // flatten list
+                                polygon_index_list.extend(polygon_indices.iter());
+                                vcount_list.push(polygon_indices.len() as u32 / semantic_stride);
+                            }
+                        }
+                        // triangulate
+                        let mut elapsed_vindex = 0 as u32;
+                        for vcount in vcount_list.iter() {
+                            let index_end: usize = (elapsed_vindex + vcount * semantic_stride) as usize;
+                            let vertex_indices = Vec::from(polygon_index_list.get(elapsed_vindex as usize..index_end).unwrap());
+                            if 3 == (*vcount) {
+                                vertex_index_list.extend(vertex_indices);
+                            } else if 4 == (*vcount) {
+                                vertex_index_list.extend(math::convert_triangulate(&vertex_indices));
+                            } else {
+                                panic!("too many polygon shape.")
+                            }
+                            elapsed_vindex += (*vcount) * semantic_stride;
+                        }
+                    }
+
+                    // make geomtry data
+                    self.build(&sources, &position_source_id, &semantics, semantic_stride, &vertex_index_list);
+                    return;
+                }
+            }
+        }
+    }
+
+    pub fn build(
+        &mut self,
+        sources: &HashMap<String, ColladaSourceData>,
+        position_source_id: &String,
+        semantics: &HashMap<String, SematicInfo>,
+        semantic_stride: u32,
+        vertex_index_list: &Vec<u32>,
+    ) {
+        // check vertex count with bone weight count
+        if false == self._controller.is_null() {
+            let vertex_count = match sources.get(position_source_id) {
+                Some(ColladaSourceData::VectorArray(positions)) => positions.len(),
+                _ => 0,
+            };
+            unsafe {
+                let bone_weight_count = (*self._controller)._bone_indicies.len();
+                if vertex_count != bone_weight_count {
+                    panic!("Different count. vertex_count : {}, bone_weight_count : {}", vertex_count, bone_weight_count);
+                }
+            }
+        }
+
+        let mut index_map: HashMap<&[u32], u32> = HashMap::new();
+        for i in 0..(vertex_index_list.len() / semantic_stride as usize) {
+            let index_begin: usize = i * semantic_stride as usize;
+            let index_end: usize = index_begin + semantic_stride as usize;
+            let vert_indices: &[u32] = vertex_index_list.get(index_begin..index_end).unwrap();
+            if index_map.contains_key(vert_indices) {
+                self._indices.push(*index_map.get(vert_indices).unwrap());
+            } else {
+                let vertex_index = index_map.len() as u32;
+                self._indices.push(vertex_index);
+                index_map.insert(vert_indices, vertex_index);
+
+                if let Some(vertex) = semantics.get("VERTEX") {
+                    let vertex_index = vert_indices[vertex._offset];
+                    let posisiton: Vector3<f32> = match sources.get(position_source_id).unwrap() {
+                        ColladaSourceData::VectorArray(vector_array) => {
+                            let v: &Vec<f32> = &vector_array[vertex_index as usize];
+                            Vector3::new(v[0], v[1], v[2])
+                        },
+                        _ => panic!("VERTEX parsing error."),
+                    };
+                    self._positions.push(posisiton);
+
+                    if false == self._controller.is_null() {
+                        unsafe {
+                            self._bone_indicies.push((*self._controller)._bone_indicies[vertex_index as usize].into());
+                            self._bone_weights.push((*self._controller)._bone_weights[vertex_index as usize].into());
+                        }
+                    }
+                }
+
+                if let Some(normal) = semantics.get("NORMAL") {
+                    let source_id = &normal._source;
+                    let offset = normal._offset;
+                    if let ColladaSourceData::VectorArray(normal) = sources.get(source_id).unwrap() {
+                        let normal = &normal[vert_indices[offset] as usize];
+                        self._normals.push(Vector3::new(normal[0], normal[1], normal[2]));
+                    }
+                }
+
+                if let Some(color) = semantics.get("COLOR") {
+                    let source_id = &color._source;
+                    let offset = color._offset;
+                    if let ColladaSourceData::VectorArray(color) = sources.get(source_id).unwrap() {
+                        let color = &color[vert_indices[offset] as usize];
+                        let r = min((color[0] * 255.0) as u32, 255);
+                        let g = min((color[1] * 255.0) as u32, 255);
+                        let b = min((color[2] * 255.0) as u32, 255);
+                        let a = min((color[3] * 255.0) as u32, 255);
+                        self._colors.push(vulkan_context::get_color32(r, g, b, a));
+                    }
+                }
+
+                if let Some(texcoord) = semantics.get("TEXCOORD") {
+                    let source_id = &texcoord._source;
+                    let offset = texcoord._offset;
+                    if let ColladaSourceData::VectorArray(texcoord) = sources.get(source_id).unwrap() {
+                        let texcoord = &texcoord[vert_indices[offset] as usize];
+                        self._texcoords.push(Vector2::new(texcoord[0], texcoord[1]));
+                    }
+                }
+            }
+        }
+        self._valid = true;
+    }
 }
 
 impl Collada {
@@ -852,7 +928,7 @@ impl Collada {
 //
 //                 hierachy = {}
 //                 root_node = None
-//                 # find root amature
+//                 // find root amature
 //                 for node in self.nodes:
 //                     if node.name == controller.name:
 //                         root_node = node
@@ -865,16 +941,16 @@ impl Collada {
 //                             build_hierachy(child, hierachy_tree[child.name])
 //
 //                 if root_node:
-//                     # recursive build hierachy of bones
+//                     // recursive build hierachy of bones
 //                     build_hierachy(root_node, hierachy)
 //
 //                 inv_bind_matrices = [swap_up_axis_matrix(matrix, True, True, self.up_axis) for matrix in controller.inv_bind_matrices]
 //
 //                 skeleton_data = dict(
 //                     name=controller.name,
-//                     hierachy=hierachy,  # bone names map as hierachy
-//                     bone_names=controller.bone_names,  # bone name list ordered by index
-//                     inv_bind_matrices=inv_bind_matrices  # inverse matrix of bone
+//                     hierachy=hierachy,  // bone names map as hierachy
+//                     bone_names=controller.bone_names,  // bone name list ordered by index
+//                     inv_bind_matrices=inv_bind_matrices  // inverse matrix of bone
 //                 )
 //                 skeleton_datas.append(skeleton_data)
 //         return skeleton_datas
@@ -896,7 +972,7 @@ impl Collada {
 //                 precompute_inv_bind_matrix=precompute_inv_bind_matrix,
 //                 target=animation_node.target,
 //                 times=animation_node.inputs,
-//                 # transforms=[matrix for matrix in transforms],
+//                 // transforms=[matrix for matrix in transforms],
 //                 locations=[extract_location(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
 //                 rotations=[extract_quaternion(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
 //                 scales=[np.array([1.0, 1.0, 1.0], dtype=np.float32) for matrix in animation_node.outputs],
@@ -909,7 +985,7 @@ impl Collada {
 //             for child in children_hierachy:
 //                 for child_anim in self.animations:
 //                     if child_anim.target == child:
-//                         # just Transpose child bones, no swap y-z.
+//                         // just Transpose child bones, no swap y-z.
 //                         child_transform = np.array(child_anim.outputs[frame], dtype=np.float32).reshape(4, 4).T
 //                         if precompute_parent_matrix:
 //                             child_transform = np.dot(child_transform, parent_matrix)
@@ -920,27 +996,27 @@ impl Collada {
 //                             child_anim.outputs[frame] = np.dot(child_inv_bind_matrix, child_transform)
 //                         else:
 //                             child_anim.outputs[frame] = child_transform
-//                         # recursive precompute animation
+//                         // recursive precompute animation
 //                         precompute_animation(children_hierachy[child_anim.target], bone_names, inv_bind_matrices, child_transform, frame)
 //                         break
 //
-//         # precompute_animation
+//         // precompute_animation
 //         animation_datas = []
 //         for skeleton_data in skeleton_datas:
-//             hierachy = skeleton_data['hierachy']  # tree data
+//             hierachy = skeleton_data['hierachy']  // tree data
 //             bone_names = skeleton_data['bone_names']
 //             inv_bind_matrices = skeleton_data['inv_bind_matrices']
 //
 //             for animation in self.animations:
-//                 # Currently, parsing only Transform Matrix. Future will parsing from location, rotation, scale.
+//                 // Currently, parsing only Transform Matrix. Future will parsing from location, rotation, scale.
 //                 if animation.type != 'transform':
 //                     continue
 //
-//                 # Find root bone and skeleton data
+//                 // Find root bone and skeleton data
 //                 if animation.target in hierachy:
-//                     # precompute all animation frames
+//                     // precompute all animation frames
 //                     for frame, transform in enumerate(animation.outputs):
-//                         # only root bone adjust convert_matrix for swap Y-Z Axis
+//                         // only root bone adjust convert_matrix for swap Y-Z Axis
 //                         transform = swap_up_axis_matrix(np.array(transform, dtype=np.float32).reshape(4, 4), True, False, self.up_axis)
 //                         if precompute_inv_bind_matrix:
 //                             bone_index = bone_names.index(animation.target)
@@ -948,10 +1024,10 @@ impl Collada {
 //                             animation.outputs[frame] = np.dot(inv_bind_matrix, transform)
 //                         else:
 //                             animation.outputs[frame] = transform
-//                         # recursive precompute animation
+//                         // recursive precompute animation
 //                         precompute_animation(hierachy[animation.target], bone_names, inv_bind_matrices, transform, frame)
-//             # generate animation data
-//             animation_data = []  # bone animation data list order by bone index
+//             // generate animation data
+//             animation_data = []  // bone animation data list order by bone index
 //             animation_datas.append(animation_data)
 //             for bone_name in bone_names:
 //                 for animation in self.animations:
@@ -978,10 +1054,10 @@ impl Collada {
 //                 bone_indicies = copy.deepcopy(geometry.bone_indicies)
 //                 bone_weights = copy.deepcopy(geometry.bone_weights)
 //
-//             # swap y and z
+//             // swap y and z
 //             geometry.bind_shape_matrix = swap_up_axis_matrix(geometry.bind_shape_matrix, True, False, self.up_axis)
 //
-//             # precompute bind_shape_matrix
+//             // precompute bind_shape_matrix
 //             bound_min = Float3(FLOAT32_MAX, FLOAT32_MAX, FLOAT32_MAX)
 //             bound_max = Float3(FLOAT32_MIN, FLOAT32_MIN, FLOAT32_MIN)
 //             for i, position in enumerate(geometry.positions):
@@ -1017,7 +1093,7 @@ impl Collada {
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut obj = Collada::create_collada(filename);
-        println!("{:#?}", obj);
+        println!("{:#?}", obj._geometries);
         //obj.parse(filename, 1.0, texcoord_y);
         //obj.generate_geometry_datas()
         panic!("get_geometry_datas");

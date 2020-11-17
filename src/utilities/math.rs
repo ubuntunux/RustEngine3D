@@ -572,3 +572,14 @@ def extract_scale(matrix):
     sZ = np.linalg.norm(matrix[2, :])
     return Float3(sX, sY, sZ)
 */
+
+pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {
+    let mut triangulated_list: Vec<u32> = Vec::new();
+    triangulated_list.push(quad[0]);
+    triangulated_list.push(quad[1]);
+    triangulated_list.push(quad[2]);
+    triangulated_list.push(quad[2]);
+    triangulated_list.push(quad[1]);
+    triangulated_list.push(quad[3]);
+    triangulated_list
+}
