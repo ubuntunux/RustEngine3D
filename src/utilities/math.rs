@@ -5,6 +5,7 @@ use nalgebra::{
 };
 use cgmath::Matrix;
 
+pub const HALF_PI: f32 = std::f32::consts::PI as f32 * 0.5;
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
 
 pub fn get_clip_space_matrix() -> Matrix4<f32> {
@@ -420,75 +421,49 @@ pub fn matrix_scale(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.m33 *= z;
 }
 
-/*
-def get_rotation_matrix_x(radian):
-    cosT = math.cos(radian)
-    sinT = math.sin(radian)
-    R = np.array(
-        [[1.0, 0.0, 0.0, 0.0],
-         [0.0, cosT, sinT, 0.0],
-         [0.0, -sinT, cosT, 0.0],
-         [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-    return R
-
-
-def get_rotation_matrix_y(radian):
-    cosT = math.cos(radian)
-    sinT = math.sin(radian)
-    R = np.array(
-        [[cosT, 0.0, -sinT, 0.0],
-         [0.0, 1.0, 0.0, 0.0],
-         [sinT, 0.0, cosT, 0.0],
-         [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-    return R
-
-
-def get_rotation_matrix_z(radian):
-    cosT = math.cos(radian)
-    sinT = math.sin(radian)
-    R = np.array(
-        [[cosT, sinT, 0.0, 0.0],
-         [-sinT, cosT, 0.0, 0.0],
-         [0.0, 0.0, 1.0, 0.0],
-         [0.0, 0.0, 0.0, 1.0]], dtype=np.float32)
-    return R
-
-*/
-
-pub fn matrix_rotate_x(m: &mut Matrix4<f32>, radian: f32) {
+pub fn get_rotation_matrix_x(radian: f32) -> Matrix4<f32> {
     let cos_t = radian.cos();
     let sin_t = radian.sin();
-    let r: Matrix4<f32> = Matrix4::from_columns(&[
-        Vector4::new(1.0, 0.0, 0.0, 0.0),
-        Vector4::new(0.0, cos_t, -sin_t, 0.0),
-        Vector4::new(0.0, sin_t, cos_t, 0.0),
-        Vector4::new(0.0, 0.0, 0.0, 1.0),
-    ]) * (&m as &Matrix4<f32>);
-    m.copy_from(&r);
+    Matrix4::new(
+        1.0, 0.0, 0.0, 0.0,
+        0.0, cos_t, -sin_t, 0.0,
+        0.0, sin_t, cos_t, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    )
+}
+
+pub fn get_rotation_matrix_y(radian: f32) -> Matrix4<f32> {
+    let cos_t = radian.cos();
+    let sin_t = radian.sin();
+    Matrix4::new(
+        cos_t, 0.0, sin_t, 0.0,
+        0.0, 1.0, 0.0, 0.0,
+        -sin_t, 0.0, cos_t, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    )
+}
+
+pub fn get_rotation_matrix_z(radian: f32) -> Matrix4<f32> {
+    let cos_t = radian.cos();
+    let sin_t = radian.sin();
+    Matrix4::new(
+        cos_t, -sin_t, 0.0, 0.0,
+        sin_t, cos_t, 0.0, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    )
+}
+
+pub fn matrix_rotate_x(m: &mut Matrix4<f32>, radian: f32) {
+    m.copy_from(&(get_rotation_matrix_x(radian) * (&m as &Matrix4<f32>)));
 }
 
 pub fn matrix_rotate_y(m: &mut Matrix4<f32>, radian: f32) {
-    let cos_t = radian.cos();
-    let sin_t = radian.sin();
-    let r: Matrix4<f32> = Matrix4::from_columns(&[
-        Vector4::new(cos_t, 0.0, sin_t, 0.0),
-        Vector4::new(0.0, 1.0, 0.0, 0.0),
-        Vector4::new(-sin_t, 0.0, cos_t, 0.0),
-        Vector4::new(0.0, 0.0, 0.0, 1.0),
-    ]) * (&m as &Matrix4<f32>);
-    m.copy_from(&r);
+    m.copy_from(&(get_rotation_matrix_y(radian) * (&m as &Matrix4<f32>)));
 }
 
 pub fn matrix_rotate_z(m: &mut Matrix4<f32>, radian: f32) {
-    let cos_t = radian.cos();
-    let sin_t = radian.sin();
-    let r: Matrix4<f32> = Matrix4::from_columns(&[
-        Vector4::new(cos_t, -sin_t, 0.0, 0.0),
-        Vector4::new(sin_t, cos_t, 0.0, 0.0),
-        Vector4::new(0.0, 0.0, 1.0, 0.0),
-        Vector4::new(0.0, 0.0, 0.0, 1.0),
-    ]) * (&m as &Matrix4<f32>);
-    m.copy_from(&r);
+    m.copy_from(&(get_rotation_matrix_z(radian) * (&m as &Matrix4<f32>)));
 }
 
 /*
@@ -510,32 +485,39 @@ def matrix_rotate(M, rx, ry, rz):
     R = MATRIX4_IDENTITY.copy()
     matrix_rotation(R, rx, ry, rz)
     M[...] = np.dot(M, R)
+*/
 
+pub fn swap_up_axis_matrix(matrix: &mut Matrix4<f32>, transpose: bool, is_inverse_matrix: bool, up_axis: &str) {
+    if transpose {
+        matrix.transpose_mut();
+    }
 
-def swap_up_axis_matrix(matrix, transpose, isInverseMatrix, up_axis):
-    if transpose:
-        matrix = matrix.T
-    if up_axis == 'Z_UP':
-        if isInverseMatrix:
-            return np.dot(get_rotation_matrix_x(HALF_PI), matrix)
-        else:
-            return np.dot(matrix, get_rotation_matrix_x(-HALF_PI))
-    return matrix
+    if "Z_UP" == up_axis {
+        if is_inverse_matrix {
+            let other = matrix as &Matrix4<f32> * get_rotation_matrix_x(HALF_PI);
+            matrix.copy_from(&other);
+        } else {
+            let other = get_rotation_matrix_x(-HALF_PI) * matrix as &Matrix4<f32>;
+            matrix.copy_from(&other);
+        }
+    }
+}
 
+pub fn swap_matrix(matrix: &mut Matrix4<f32>, transpose: bool, up_axis: &str) {
+    if transpose {
+        matrix.transpose_mut();
+    }
 
-def swap_matrix(matrix, transpose, up_axis):
-    if transpose:
-        matrix = matrix.T
-    if up_axis == 'Z_UP':
-        return np.array(
-            [matrix[0, :].copy(),
-             matrix[2, :].copy(),
-             -matrix[1, :].copy(),
-             matrix[3, :].copy()]
-        )
-    return matrix
+    if "Z_UP" == up_axis {
+        let other: Matrix4<f32> = matrix.clone() as Matrix4<f32>;
+        matrix.set_column(0, &other.column(0));
+        matrix.set_column(1, &other.column(2));
+        matrix.set_column(2, &(other.column(1).clone() * -1.0));
+        matrix.set_column(3, &other.column(3));
+    }
+}
 
-
+/*
 def transform_matrix(M, translation, rotation_matrix, scale):
     matrix_scale(M, *scale)
     M[...] = np.dot(M, rotation_matrix)

@@ -1,3 +1,4 @@
+pub mod animation;
 pub mod camera;
 pub mod image_sampler;
 pub mod light;
@@ -14,6 +15,9 @@ pub mod renderer;
 pub mod render_pass_create_info;
 pub mod transform_object;
 pub mod uniform_buffer_data;
+
+#[allow(unused_imports)]
+pub use self::animation::*;
 
 #[allow(unused_imports)]
 pub use self::camera::*;

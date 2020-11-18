@@ -11,19 +11,23 @@ use nalgebra::{
     Matrix4,
 };
 
-use crate::vulkan_context::vulkan_context;
+use crate::renderer::animation::{
+    AnimationNodeData,
+    SkeletonHierachyTree,
+    SkeletonData,
+};
 use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::math;
+use crate::utilities::xml::{
+    self,
+    XmlTree,
+};
+use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{
     self,
     GeometryCreateInfo,
     VertexData,
 };
-use crate::utilities::xml::{
-    self,
-    XmlTree,
-};
-use crate::utilities::math;
-use crate::vulkan_context::vulkan_context::get_color32;
 
 
 #[derive(Debug, Clone)]
@@ -600,7 +604,6 @@ impl ColladaAnimation {
                     },
                     _ => {},
                 }
-
             }
         }
 
@@ -908,98 +911,78 @@ impl Collada {
         }
     }
 
-//     def get_mesh_data(self):
-//         geometry_datas = self.get_geometry_data()
-//         skeleton_datas = self.get_skeleton_data()
-//         animation_datas = self.get_animation_data(skeleton_datas)
-//         mesh_data = dict(
-//             geometry_datas=geometry_datas,
-//             skeleton_datas=skeleton_datas,
-//             animation_datas=animation_datas
-//         )
-//         return mesh_data
-//
-//     def get_skeleton_data(self):
-//         skeleton_datas = []
-//         check_duplicated = []
-//         for controller in self.controllers:
-//             if controller.name not in check_duplicated:
-//                 check_duplicated.append(controller.name)
-//
-//                 hierachy = {}
-//                 root_node = None
-//                 // find root amature
-//                 for node in self.nodes:
-//                     if node.name == controller.name:
-//                         root_node = node
-//                         break
-//
-//                 def build_hierachy(parent_node, hierachy_tree):
-//                     for child in parent_node.children:
-//                         if child.name in controller.bone_names:
-//                             hierachy_tree[child.name] = dict()
-//                             build_hierachy(child, hierachy_tree[child.name])
-//
-//                 if root_node:
-//                     // recursive build hierachy of bones
-//                     build_hierachy(root_node, hierachy)
-//
-//                 inv_bind_matrices = [swap_up_axis_matrix(matrix, True, True, self.up_axis) for matrix in controller.inv_bind_matrices]
-//
-//                 skeleton_data = dict(
-//                     name=controller.name,
-//                     hierachy=hierachy,  // bone names map as hierachy
-//                     bone_names=controller.bone_names,  // bone name list ordered by index
-//                     inv_bind_matrices=inv_bind_matrices  // inverse matrix of bone
-//                 )
-//                 skeleton_datas.append(skeleton_data)
-//         return skeleton_datas
-//
-//     def get_animation_data(self, skeleton_datas):
+    pub fn build_hierachy(controller: &ColladaContoller, parent_node: &ColladaNode, hierachy_tree: &mut SkeletonHierachyTree) {
+        for child in parent_node._children.iter() {
+            if controller._bone_names.contains(&child._name) {
+                hierachy_tree._children.insert(child._name.clone(), SkeletonHierachyTree::default());
+                Collada::build_hierachy(controller, child, &mut hierachy_tree._children.get_mut(&child._name).unwrap());
+            }
+        }
+    }
+
+    pub fn get_skeleton_data(&mut self) -> Vec<SkeletonData> {
+        let mut skeleton_datas: Vec<SkeletonData> = Vec::new();
+        let mut check_duplicated: Vec<&str> = Vec::new();
+        for controller in self._controllers.iter_mut() {
+            if false == check_duplicated.contains(&controller._name.as_str()) {
+                check_duplicated.push(controller._name.as_str());
+
+                let mut hierachy: SkeletonHierachyTree = SkeletonHierachyTree::default();
+                let mut root_node: Option<&ColladaNode> = None;
+                // find root amature
+                for node in self._nodes.iter() {
+                    if node._name.as_str() == controller._name.as_str() {
+                        root_node = Some(node);
+                        break;
+                    }
+                }
+
+                if let Some(root_node) = root_node {
+                    // recursive build hierachy of bones
+                    Collada::build_hierachy(controller, &root_node, &mut hierachy);
+                }
+
+                const TRANSPOSE: bool = true;
+                const IS_INVERSE_MATRIX: bool = true;
+                for matrix in controller._inv_bind_matrices.iter_mut() {
+                    math::swap_up_axis_matrix(matrix, TRANSPOSE, IS_INVERSE_MATRIX, self._up_axis.as_str());
+                }
+
+                let skeleton_data = SkeletonData {
+                    _name: controller._name.clone(),
+                    _hierachy: hierachy, // bone names map as hierachy
+                    _bone_names: controller._bone_names.clone(), // bone name list ordered by index
+                    _inv_bind_matrices: controller._inv_bind_matrices.clone(), // inverse matrix of bone
+                };
+                skeleton_datas.push(skeleton_data);
+            }
+        }
+        skeleton_datas
+    }
+
+    // pub fn precompute_animation(children_hierachy, bone_names, inv_bind_matrices, parent_matrix, frame=0):
+    //     for child in children_hierachy:
+    //         for child_anim in self.animations:
+    //             if child_anim.target == child:
+    //                 // just Transpose child bones, no swap y-z.
+    //                 child_transform = np.array(child_anim.outputs[frame], dtype=np.float32).reshape(4, 4).T
+    //                 if precompute_parent_matrix:
+    //                     child_transform = np.dot(child_transform, parent_matrix)
+    //
+    //                 if precompute_inv_bind_matrix:
+    //                     child_bone_index = bone_names.index(child_anim.target)
+    //                     child_inv_bind_matrix = inv_bind_matrices[child_bone_index]
+    //                     child_anim.outputs[frame] = np.dot(child_inv_bind_matrix, child_transform)
+    //                 else:
+    //                     child_anim.outputs[frame] = child_transform
+    //                 // recursive precompute animation
+    //                 precompute_animation(children_hierachy[child_anim.target], bone_names, inv_bind_matrices, child_transform, frame)
+    //                 break
+
+//     pub fn get_animation_data(self, skeleton_datas):
 //         precompute_parent_matrix = True
 //         precompute_inv_bind_matrix = True
-//
-//         def get_empty_animation_node_data(animation_node_name, bone_name):
-//             return dict(
-//                 name=animation_node_name,
-//                 target=bone_name
-//             )
-//
-//         def get_animation_node_data(animation_node_name, animation_node):
-//             return dict(
-//                 name=animation_node_name,
-//                 precompute_parent_matrix=precompute_parent_matrix,
-//                 precompute_inv_bind_matrix=precompute_inv_bind_matrix,
-//                 target=animation_node.target,
-//                 times=animation_node.inputs,
-//                 // transforms=[matrix for matrix in transforms],
-//                 locations=[extract_location(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
-//                 rotations=[extract_quaternion(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
-//                 scales=[np.array([1.0, 1.0, 1.0], dtype=np.float32) for matrix in animation_node.outputs],
-//                 interpoations=animation_node.interpolations,
-//                 in_tangents=animation_node.in_tangents,
-//                 out_tangents=animation_node.out_tangents
-//             )
-//
-//         def precompute_animation(children_hierachy, bone_names, inv_bind_matrices, parent_matrix, frame=0):
-//             for child in children_hierachy:
-//                 for child_anim in self.animations:
-//                     if child_anim.target == child:
-//                         // just Transpose child bones, no swap y-z.
-//                         child_transform = np.array(child_anim.outputs[frame], dtype=np.float32).reshape(4, 4).T
-//                         if precompute_parent_matrix:
-//                             child_transform = np.dot(child_transform, parent_matrix)
-//
-//                         if precompute_inv_bind_matrix:
-//                             child_bone_index = bone_names.index(child_anim.target)
-//                             child_inv_bind_matrix = inv_bind_matrices[child_bone_index]
-//                             child_anim.outputs[frame] = np.dot(child_inv_bind_matrix, child_transform)
-//                         else:
-//                             child_anim.outputs[frame] = child_transform
-//                         // recursive precompute animation
-//                         precompute_animation(children_hierachy[child_anim.target], bone_names, inv_bind_matrices, child_transform, frame)
-//                         break
-//
+
 //         // precompute_animation
 //         animation_datas = []
 //         for skeleton_data in skeleton_datas:
@@ -1030,19 +1013,36 @@ impl Collada {
 //             animation_data = []  // bone animation data list order by bone index
 //             animation_datas.append(animation_data)
 //             for bone_name in bone_names:
-//                 for animation in self.animations:
-//                     if animation.target == bone_name:
+//                 for animation_node in self.animations:
+//                     if animation_node.target == bone_name:
 //                         animation_node_name = "%s_%s_%s" % (self.name, skeleton_data['name'], bone_name)
-//                         animation_data.append(get_animation_node_data(animation_node_name, animation))
+//                         let animation_node_data = AnimationNodeData {
+//                              name: animation_node_name,
+//                              precompute_parent_matrix=precompute_parent_matrix,
+//                              precompute_inv_bind_matrix=precompute_inv_bind_matrix,
+//                              target=animation_node.target,
+//                              times=animation_node.inputs,
+//                              // transforms=[matrix for matrix in transforms],
+//                              locations=[extract_location(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
+//                              rotations=[extract_quaternion(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
+//                              scales=[np.array([1.0, 1.0, 1.0], dtype=np.float32) for matrix in animation_node.outputs],
+//                              interpoations=animation_node.interpolations,
+//                              in_tangents=animation_node.in_tangents,
+//                              out_tangents=animation_node.out_tangents
+//                         }
+//                         animation_data.push(animation_node_data)
 //                         break
 //                 else:
 //                     logger.warn('not found %s animation datas' % bone_name)
-//                     animation_node_name = "%s_%s_%s" % (self.name, skeleton_data['name'], bone_name)
-//                     animation_data.append(get_empty_animation_node_data(animation_node_name, bone_name))
+//                     let animation_node_data = AnimationNodeData (
+//                      _name: format!("{}_{}_{}", self.name, skeleton_data['name'], bone_name),
+//                      _target: bone_name.clone()
+//                      );
+//                     animation_data.push(animation_node_data);
 //
 //         return animation_datas
 //
-//     def get_geometry_data(self):
+//     pub fn get_geometry_data(self):
 //         geometry_datas = []
 //         for geometry in self.geometries:
 //             skeleton_name = ""
@@ -1092,11 +1092,19 @@ impl Collada {
 //         return geometry_datas
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
-        let mut obj = Collada::create_collada(filename);
-        println!("{:#?}", obj._geometries);
-        //obj.parse(filename, 1.0, texcoord_y);
-        //obj.generate_geometry_datas()
+        let mut collada = Collada::create_collada(filename);
+        // let geometry_datas = self.get_geometry_data();
+        let skeleton_datas = collada.get_skeleton_data();
+        // animation_datas = self.get_animation_data(skeleton_datas)
+        // mesh_data = dict(
+        //     geometry_datas = geometry_datas,
+        //     skeleton_datas = skeleton_datas,
+        //     animation_datas = animation_datas
+        // )
+
+        println!("{:#?}", skeleton_datas);
         panic!("get_geometry_datas");
+
         Vec::new()
     }
 }
