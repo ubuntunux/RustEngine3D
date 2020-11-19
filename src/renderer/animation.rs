@@ -4,8 +4,8 @@ use nalgebra::{Matrix4, Vector3, Quaternion};
 #[derive(Debug, Clone)]
 pub struct AnimationNodeData {
     pub _name: String,
-    pub _precompute_parent_matrix: Matrix4<f32>,
-    pub _precompute_inv_bind_matrix: Matrix4<f32>,
+    pub _precompute_parent_matrix: bool,
+    pub _precompute_inv_bind_matrix: bool,
     pub _target: String,
     pub _times: Vec<f32>,
     pub _locations: Vec<Vector3<f32>>,
@@ -33,8 +33,8 @@ impl Default for AnimationNodeData {
     fn default() -> AnimationNodeData {
         AnimationNodeData {
             _name: String::new(),
-            _precompute_parent_matrix: Matrix4::identity(),
-            _precompute_inv_bind_matrix: Matrix4::identity(),
+            _precompute_parent_matrix: false,
+            _precompute_inv_bind_matrix: false,
             _target: String::new(),
             _times: Vec::new(),
             _locations: Vec::new(),

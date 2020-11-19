@@ -3,7 +3,7 @@ use nalgebra::{
     Vector4,
     Matrix4,
 };
-use cgmath::Matrix;
+use cgmath::Quaternion;
 
 pub const HALF_PI: f32 = std::f32::consts::PI as f32 * 0.5;
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
@@ -137,7 +137,7 @@ pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) -> Matrix4<f32> {
 
 /*
 # Checks if a matrix is a valid rotation matrix.
-def is_rotation_matrix(R):
+pub fn is_rotation_matrix(R):
     Rt = np.transpose(R)
     shouldBeIdentity = np.dot(Rt, R)
     I = np.identity(3, dtype=R.dtype)
@@ -145,7 +145,7 @@ def is_rotation_matrix(R):
     return n < 1e-6
 
 
-def rotation_maxtrix_to_euler_angles(R, check_valid=False):
+pub fn rotation_maxtrix_to_euler_angles(R, check_valid=False):
     if check_valid:
         assert (is_rotation_matrix(R))
 
@@ -165,7 +165,7 @@ def rotation_maxtrix_to_euler_angles(R, check_valid=False):
     return Float3(x, y, z)
 
 
-def matrix_rotation(rotation_matrix, rx, ry, rz):
+pub fn matrix_rotation(rotation_matrix, rx, ry, rz):
     ch = math.cos(ry)
     sh = math.sin(ry)
     ca = math.cos(rz)
@@ -178,7 +178,7 @@ def matrix_rotation(rotation_matrix, rx, ry, rz):
     rotation_matrix[:, 2] = [-sh*ca, sh*sa*cb + ch*sb, -sh*sa*sb + ch*cb, 0.0]
 
 
-def matrix_to_vectors(rotation_matrix, axis_x, axis_y, axis_z, do_normalize=False):
+pub fn matrix_to_vectors(rotation_matrix, axis_x, axis_y, axis_z, do_normalize=False):
     if do_normalize:
         rotation_matrix[0, 0:3] = normalize(rotation_matrix[0, 0:3])
         rotation_matrix[1, 0:3] = normalize(rotation_matrix[1, 0:3])
@@ -188,7 +188,7 @@ def matrix_to_vectors(rotation_matrix, axis_x, axis_y, axis_z, do_normalize=Fals
     axis_z[:] = rotation_matrix[2, 0:3]
 
 
-def getYawPitchRoll(m):
+pub fn getYawPitchRoll(m):
     pitch = arcsin(-m[2][1])
     threshold = 1e-8
     test = cos(pitch)
@@ -201,13 +201,13 @@ def getYawPitchRoll(m):
     return yaw, pitch, roll
 
 
-def axis_rotation(axis, radian):
+pub fn axis_rotation(axis, radian):
     angle = radian * 0.5
     s = math.sin(angle)
     return Float4(math.cos(angle), axis[0]*s, axis[1]*s, axis[2]*s)
 
 
-def muliply_quaternion(quaternion1, quaternion2):
+pub fn muliply_quaternion(quaternion1, quaternion2):
     w1, x1, y1, z1 = quaternion1
     w2, x2, y2, z2 = quaternion2
     qX = (y1 * z2) - (z1 * y2)
@@ -221,16 +221,16 @@ def muliply_quaternion(quaternion1, quaternion2):
     return Float4(qW, qX, qY, qZ)
 
 
-def muliply_quaternions(*quaternions):
+pub fn muliply_quaternions(*quaternions):
     return reduce(muliply_quaternion, quaternions)
 
 
-def vector_multiply_quaternion(vector, quaternion):
+pub fn vector_multiply_quaternion(vector, quaternion):
     u = np.cross(vector, quaternion[1:])
     return vector + u * 2.0 * quaternion[0] + np.cross(quaternion[1:], u) * 2.0
 
 
-def euler_to_quaternion(rx, ry, rz, quat):
+pub fn euler_to_quaternion(rx, ry, rz, quat):
     t0 = math.cos(rz * 0.5)
     t1 = math.sin(rz * 0.5)
     t2 = math.cos(rx * 0.5)
@@ -252,7 +252,7 @@ def euler_to_quaternion(rx, ry, rz, quat):
     quat[3] = qz * n
 
 
-def matrix_to_quaternion(matrix):
+pub fn matrix_to_quaternion(matrix):
     m00, m01, m02, m03 = matrix[0, :]
     m10, m11, m12, m13 = matrix[1, :]
     m20, m21, m22, m23 = matrix[2, :]
@@ -285,7 +285,7 @@ def matrix_to_quaternion(matrix):
     return normalize(Float4(qw, qx, qy, qz))
 
 
-def quaternion_to_matrix(quat, rotation_matrix):
+pub fn quaternion_to_matrix(quat, rotation_matrix):
     qw, qx, qy, qz = quat[:]
     # inhomogeneous expression
     qxqx = qx * qx * 2.0
@@ -320,7 +320,7 @@ def quaternion_to_matrix(quat, rotation_matrix):
     '''
 
 
-def quaternion_to_euler(q):
+pub fn quaternion_to_euler(q):
     sqw = w * w
     sqx = x * x
     sqy = y * y
@@ -343,11 +343,11 @@ def quaternion_to_euler(q):
     m[2][1] = 2.0 * (tmp1 - tmp2)
 
 
-def lerp(vector1, vector2, t):
+pub fn lerp(vector1, vector2, t):
     return vector1 * (1.0 - t) + vector2 * t
 
 
-def slerp(quaternion1, quaternion2, amount):
+pub fn slerp(quaternion1, quaternion2, amount):
     num = amount
     num2 = 0.0
     num3 = 0.0
@@ -391,7 +391,7 @@ pub fn matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
 }
 
 /*
-def get_scale_matrix(x, y, z):
+pub fn get_scale_matrix(x, y, z):
     S = [[x, 0, 0, 0],
          [0, y, 0, 0],
          [0, 0, z, 0],
@@ -411,13 +411,13 @@ pub fn set_scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
 
 pub fn matrix_scale(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.m11 *= x;
-    m.m12 *= x;
-    m.m13 *= x;
-    m.m21 *= y;
+    m.m21 *= x;
+    m.m31 *= x;
+    m.m12 *= y;
     m.m22 *= y;
-    m.m23 *= y;
-    m.m31 *= z;
-    m.m32 *= z;
+    m.m32 *= y;
+    m.m13 *= z;
+    m.m23 *= z;
     m.m33 *= z;
 }
 
@@ -467,7 +467,7 @@ pub fn matrix_rotate_z(m: &mut Matrix4<f32>, radian: f32) {
 }
 
 /*
-def matrix_rotate_axis(M, radian, x, y, z):
+pub fn matrix_rotate_axis(M, radian, x, y, z):
     c, s = math.cos(radian), math.sin(radian)
     n = math.sqrt(x * x + y * y + z * z)
     x /= n
@@ -481,7 +481,7 @@ def matrix_rotate_axis(M, radian, x, y, z):
     M[...] = np.dot(M, R)
 
 
-def matrix_rotate(M, rx, ry, rz):
+pub fn matrix_rotate(M, rx, ry, rz):
     R = MATRIX4_IDENTITY.copy()
     matrix_rotation(R, rx, ry, rz)
     M[...] = np.dot(M, R)
@@ -518,42 +518,59 @@ pub fn swap_matrix(matrix: &mut Matrix4<f32>, transpose: bool, up_axis: &str) {
 }
 
 /*
-def transform_matrix(M, translation, rotation_matrix, scale):
+pub fn transform_matrix(M, translation, rotation_matrix, scale):
     matrix_scale(M, *scale)
     M[...] = np.dot(M, rotation_matrix)
     matrix_translate(M, *translation)
 
 
-def inverse_transform_matrix(M, translation, rotation_matrix, scale):
+pub fn inverse_transform_matrix(M, translation, rotation_matrix, scale):
     matrix_translate(M, *(-translation))
     M[...] = np.dot(M, rotation_matrix.T)
     if all(0.0 != scale):
         matrix_scale(M, *(1.0 / scale))
 
-
-def extract_location(matrix):
-    return Float3(matrix[3, 0], matrix[3, 1], matrix[3, 2])
-
-
-def extract_rotation(matrix):
-    scale = extract_scale(matrix)
-    rotation = Matrix4()
-    rotation[0, :] = matrix[0, :] / scale[0]
-    rotation[1, :] = matrix[1, :] / scale[1]
-    rotation[2, :] = matrix[2, :] / scale[2]
-    return rotation
-
-
-def extract_quaternion(matrix):
-    return matrix_to_quaternion(extract_rotation(matrix))
-
-
-def extract_scale(matrix):
-    sX = np.linalg.norm(matrix[0, :])
-    sY = np.linalg.norm(matrix[1, :])
-    sZ = np.linalg.norm(matrix[2, :])
-    return Float3(sX, sY, sZ)
 */
+
+pub fn extract_location(matrix: &Matrix4<f32>) -> Vector3<f32> {
+    Vector3::new(matrix.m14, matrix.m24, matrix.m34)
+}
+
+
+pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
+    let scale: Vector3<f32> = extract_scale(matrix);
+    let mut rotation = matrix.clone() as Matrix4<f32>;
+    rotation.m11 /= scale.x;
+    rotation.m21 /= scale.x;
+    rotation.m31 /= scale.x;
+    rotation.m41 = 0.0;
+    rotation.m12 /= scale.y;
+    rotation.m22 /= scale.y;
+    rotation.m32 /= scale.y;
+    rotation.m42 = 0.0;
+    rotation.m13 /= scale.z;
+    rotation.m23 /= scale.z;
+    rotation.m33 /= scale.z;
+    rotation.m43 = 0.0;
+    rotation.m14 = 0.0;
+    rotation.m24 = 0.0;
+    rotation.m34 = 0.0;
+    rotation.m44 = 1.0;
+    rotation
+}
+
+
+// pub fn extract_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
+//     matrix_to_quaternion(&extract_rotation(matrix))
+// }
+
+
+pub fn extract_scale(matrix: &Matrix4<f32>) -> Vector3<f32> {
+    let sx = matrix.column(0).norm_squared();
+    let sy = matrix.column(1).norm_squared();
+    let sz = matrix.column(2).norm_squared();
+    Vector3::new(sx, sy, sz)
+}
 
 pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {
     let mut triangulated_list: Vec<u32> = Vec::new();

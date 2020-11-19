@@ -22,6 +22,10 @@ use crate::utilities::xml::{
     self,
     XmlTree,
 };
+use crate::utilities::system::{
+    newRcRefCell,
+    RcRefCell,
+};
 use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{
     self,
@@ -343,7 +347,6 @@ impl ColladaNode {
             }).collect();
             if 16 == matrix.len() {
                 self._matrix.copy_from_slice(&matrix);
-                self._matrix.transpose_mut();
             } else {
                 panic!("parsing matrix error.");
             }
@@ -429,7 +432,6 @@ impl ColladaContoller {
                 let bind_shape_matrix = &bind_shape_matrix.unwrap()[0];
                 let float_array = parse_list::<f32>(bind_shape_matrix.text.as_str());
                 self._bind_shape_matrix.copy_from_slice(&float_array);
-                self._bind_shape_matrix.transpose_mut();
             } else {
                 self._bind_shape_matrix = Matrix4::identity();
             }
@@ -960,87 +962,142 @@ impl Collada {
         skeleton_datas
     }
 
-    // pub fn precompute_animation(children_hierachy, bone_names, inv_bind_matrices, parent_matrix, frame=0):
-    //     for child in children_hierachy:
-    //         for child_anim in self.animations:
-    //             if child_anim.target == child:
-    //                 // just Transpose child bones, no swap y-z.
-    //                 child_transform = np.array(child_anim.outputs[frame], dtype=np.float32).reshape(4, 4).T
-    //                 if precompute_parent_matrix:
-    //                     child_transform = np.dot(child_transform, parent_matrix)
-    //
-    //                 if precompute_inv_bind_matrix:
-    //                     child_bone_index = bone_names.index(child_anim.target)
-    //                     child_inv_bind_matrix = inv_bind_matrices[child_bone_index]
-    //                     child_anim.outputs[frame] = np.dot(child_inv_bind_matrix, child_transform)
-    //                 else:
-    //                     child_anim.outputs[frame] = child_transform
-    //                 // recursive precompute animation
-    //                 precompute_animation(children_hierachy[child_anim.target], bone_names, inv_bind_matrices, child_transform, frame)
-    //                 break
+    pub fn precompute_animation(
+        animations: &mut Vec<ColladaAnimation>,
+        children_hierachy: &SkeletonHierachyTree,
+        bone_names: &Vec<String>,
+        precompute_inv_bind_matrix: bool,
+        inv_bind_matrices: &Vec<Matrix4<f32>>,
+        precompute_parent_matrix: bool,
+        parent_matrix: &Matrix4<f32>,
+        frame: usize)
+    {
+        for child in children_hierachy._children.keys() {
+            for i in 0..animations.len() {
+                if *child == animations[i]._target {
+                    // just Transpose child bones, no swap y-z.
+                    let mut child_transform: Matrix4<f32> = animations[i]._outputs[frame].transpose();
+                    if precompute_parent_matrix {
+                        child_transform = parent_matrix * child_transform;
+                    }
 
-//     pub fn get_animation_data(self, skeleton_datas):
-//         precompute_parent_matrix = True
-//         precompute_inv_bind_matrix = True
+                    if precompute_inv_bind_matrix {
+                        let child_bone_index = bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap() as usize;
+                        let child_inv_bind_matrix = &inv_bind_matrices[child_bone_index];
+                        animations[i]._outputs[frame] = child_transform * child_inv_bind_matrix;
+                    } else {
+                        animations[i]._outputs[frame] = child_transform;
+                    }
+                    // recursive precompute animation
+                    Collada::precompute_animation(
+                        animations,
+                        children_hierachy._children.get(&animations[i]._target).unwrap(),
+                        bone_names,
+                        precompute_inv_bind_matrix,
+                        inv_bind_matrices,
+                        precompute_parent_matrix,
+                        &child_transform,
+                        frame,
+                    );
+                    break;
+                }
+            }
+        }
+    }
 
-//         // precompute_animation
-//         animation_datas = []
-//         for skeleton_data in skeleton_datas:
-//             hierachy = skeleton_data['hierachy']  // tree data
-//             bone_names = skeleton_data['bone_names']
-//             inv_bind_matrices = skeleton_data['inv_bind_matrices']
-//
-//             for animation in self.animations:
-//                 // Currently, parsing only Transform Matrix. Future will parsing from location, rotation, scale.
-//                 if animation.type != 'transform':
-//                     continue
-//
-//                 // Find root bone and skeleton data
-//                 if animation.target in hierachy:
-//                     // precompute all animation frames
-//                     for frame, transform in enumerate(animation.outputs):
-//                         // only root bone adjust convert_matrix for swap Y-Z Axis
-//                         transform = swap_up_axis_matrix(np.array(transform, dtype=np.float32).reshape(4, 4), True, False, self.up_axis)
-//                         if precompute_inv_bind_matrix:
-//                             bone_index = bone_names.index(animation.target)
-//                             inv_bind_matrix = inv_bind_matrices[bone_index]
-//                             animation.outputs[frame] = np.dot(inv_bind_matrix, transform)
-//                         else:
-//                             animation.outputs[frame] = transform
-//                         // recursive precompute animation
-//                         precompute_animation(hierachy[animation.target], bone_names, inv_bind_matrices, transform, frame)
-//             // generate animation data
-//             animation_data = []  // bone animation data list order by bone index
-//             animation_datas.append(animation_data)
-//             for bone_name in bone_names:
-//                 for animation_node in self.animations:
-//                     if animation_node.target == bone_name:
-//                         animation_node_name = "%s_%s_%s" % (self.name, skeleton_data['name'], bone_name)
-//                         let animation_node_data = AnimationNodeData {
-//                              name: animation_node_name,
-//                              precompute_parent_matrix=precompute_parent_matrix,
-//                              precompute_inv_bind_matrix=precompute_inv_bind_matrix,
-//                              target=animation_node.target,
-//                              times=animation_node.inputs,
-//                              // transforms=[matrix for matrix in transforms],
-//                              locations=[extract_location(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
-//                              rotations=[extract_quaternion(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
-//                              scales=[np.array([1.0, 1.0, 1.0], dtype=np.float32) for matrix in animation_node.outputs],
-//                              interpoations=animation_node.interpolations,
-//                              in_tangents=animation_node.in_tangents,
-//                              out_tangents=animation_node.out_tangents
-//                         }
-//                         animation_data.push(animation_node_data)
-//                         break
-//                 else:
-//                     logger.warn('not found %s animation datas' % bone_name)
-//                     let animation_node_data = AnimationNodeData (
-//                      _name: format!("{}_{}_{}", self.name, skeleton_data['name'], bone_name),
-//                      _target: bone_name.clone()
-//                      );
-//                     animation_data.push(animation_node_data);
-//
-//         return animation_datas
+    pub fn get_animation_data(&mut self, skeleton_datas: &Vec<SkeletonData>) -> Vec<Vec<AnimationNodeData>> {
+        let precompute_parent_matrix = true;
+        let precompute_inv_bind_matrix = true;
+
+        // precompute_animation
+        let mut animation_datas: Vec<Vec<AnimationNodeData>> = Vec::new();
+        for skeleton_data in skeleton_datas.iter() {
+            let hierachy = &skeleton_data._hierachy;
+            let bone_names = &skeleton_data._bone_names;
+            let inv_bind_matrices = &skeleton_data._inv_bind_matrices;
+            let animations: &mut Vec<ColladaAnimation> = &mut self._animations;
+            for i in 0..animations.len() {
+                // Currently, parsing only Transform Matrix. Future will parsing from location, rotation, scale.
+                if "transform" != animations[i]._type.as_str() {
+                    continue;
+                }
+
+                // Find root bone and skeleton data
+                if hierachy._children.contains_key(&animations[i]._target) {
+                    // precompute all animation frames
+                    for frame in 0..animations[i]._outputs.len() {
+                        // only root bone adjust convert_matrix for swap Y-Z Axis
+                        let transpose: bool = true;
+                        let is_inverse_matrix: bool = false;
+                        let mut transform: Matrix4<f32> = animations[i]._outputs[frame].clone() as Matrix4<f32>;
+                        math::swap_up_axis_matrix(&mut transform, transpose, is_inverse_matrix, self._up_axis.as_str());
+                        if precompute_inv_bind_matrix {
+                            let bone_index = bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap() as usize;
+                            let inv_bind_matrix: &Matrix4<f32> = &inv_bind_matrices[bone_index];
+                            animations[i]._outputs[frame] = transform * inv_bind_matrix;
+                        } else {
+                            animations[i]._outputs[frame] = transform;
+                        }
+                        // recursive precompute animation
+                        Collada::precompute_animation(
+                            animations,
+                            hierachy._children.get(&animations[i]._target).unwrap(),
+                            bone_names,
+                            precompute_inv_bind_matrix,
+                            inv_bind_matrices,
+                            precompute_parent_matrix,
+                            &transform,
+                            frame
+                        );
+                    }
+                }
+            }
+
+            // generate animation data
+            // let animation_data: Vec<AnimationNodeData> = Vec::new();  // bone animation data list order by bone index
+            // for bone_name in bone_names.iter() {
+            //     let mut find_animation_node: bool = false;
+            //     for animation_node in self._animations.iter() {
+            //         if bone_name == animation_node._target {
+            //             let animation_node_data = AnimationNodeData {
+            //                 _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
+            //                 _precompute_parent_matrix: precompute_parent_matrix,
+            //                 _precompute_inv_bind_matrix: precompute_inv_bind_matrix,
+            //                 _target: animation_node._target.clone(),
+            //                 _times: animation_node._inputs.clone(),
+            //                 _locations: Vec<Vector3<f32>>,
+            //                 _rotations: Vec<Quaternion<f32>>,
+            //                 _scales: Vec<Vector3<f32>>,
+            //                 _interpoations: Vec<String>,
+            //                 _in_tangents: Vec<Vec<f32>>,
+            //                 _out_tangents: Vec<Vec<f32>>,
+            //
+            //                  locations=[extract_location(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
+            //                  rotations=[extract_quaternion(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
+            //                  scales=[np.array([1.0, 1.0, 1.0], dtype=np.float32) for matrix in animation_node.outputs],
+            //                  interpoations=animation_node.interpolations,
+            //                  in_tangents=animation_node.in_tangents,
+            //                  out_tangents=animation_node.out_tangents
+            //             }
+            //             animation_data.push(animation_node_data)
+            //             find_animation_node = true;
+            //             break;
+            //         }
+            //     }
+            //
+            //     if false == find_animation_node {
+            //         logger.warn('not found %s animation datas' % bone_name)
+            //         let animation_node_data = AnimationNodeData (
+            //             _name: format!("{}_{}_{}", self.name, skeleton_data['name'], bone_name),
+            //             _target: bone_name.clone()
+            //         );
+            //         animation_data.push(animation_node_data);
+            //     }
+            // }
+            // animation_datas.push(animation_data);
+        }
+        animation_datas
+    }
 //
 //     pub fn get_geometry_data(self):
 //         geometry_datas = []
@@ -1095,14 +1152,14 @@ impl Collada {
         let mut collada = Collada::create_collada(filename);
         // let geometry_datas = self.get_geometry_data();
         let skeleton_datas = collada.get_skeleton_data();
-        // animation_datas = self.get_animation_data(skeleton_datas)
+        let animation_datas = collada.get_animation_data(&skeleton_datas);
         // mesh_data = dict(
         //     geometry_datas = geometry_datas,
         //     skeleton_datas = skeleton_datas,
         //     animation_datas = animation_datas
         // )
 
-        println!("{:#?}", skeleton_datas);
+        println!("{:#?}", collada);
         panic!("get_geometry_datas");
 
         Vec::new()
