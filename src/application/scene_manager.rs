@@ -66,17 +66,17 @@ impl SceneManagerData {
         });
 
         let model_data0 = self._resources.borrow().get_model_data(&String::from("sponza/sponza")).clone();
-        let model_data1 = self._resources.borrow().get_model_data(&String::from("sphere")).clone();
+        let model_data1 = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
         self.add_render_object(&String::from("sponza"), &RenderObjectCreateInfo {
             _model_data: Some(model_data0),
             _position: Vector3::new(0.0, 0.0, 0.0),
             _scale: Vector3::new(0.1, 0.1, 0.1),
             ..Default::default()
         });
-        self.add_render_object(&String::from("sphere"), &RenderObjectCreateInfo {
+        self.add_render_object(&String::from("skeletal"), &RenderObjectCreateInfo {
             _model_data: Some(model_data1),
             _position: Vector3::new(0.0, 1.5, 0.0),
-            _scale: Vector3::new(1.0, 1.0, 1.0),
+            _scale: Vector3::new(0.01, 0.01, 0.01),
             ..Default::default()
         });
     }

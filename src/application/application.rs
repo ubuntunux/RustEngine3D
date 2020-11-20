@@ -136,7 +136,7 @@ impl ApplicationData {
         let pressed_key_C = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
-        let camera_move_speed = self._camera_move_speed * 5.0;
+        let camera_move_speed = self._camera_move_speed;
 
         // released_key_LeftBracket <- getKeyReleased keyboardInputData GLFW.Key'LeftBracket
         // released_key_RightBracket <- getKeyReleased keyboardInputData GLFW.Key'RightBracket

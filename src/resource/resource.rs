@@ -157,11 +157,11 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 impl Resources {
     pub fn initialize_resources(&mut self, renderer_data: &RendererData) {
         log::info!("initialize_resources");
-        // self.load_texture_datas(renderer_data);
-        // self.load_render_pass_datas(renderer_data);
-        // self.load_framebuffer_datas(renderer_data);
-        // self.load_material_datas(renderer_data);
-        // self.load_material_instance_datas(renderer_data);
+        self.load_texture_datas(renderer_data);
+        self.load_render_pass_datas(renderer_data);
+        self.load_framebuffer_datas(renderer_data);
+        self.load_material_datas(renderer_data);
+        self.load_material_instance_datas(renderer_data);
         self.load_mesh_datas(renderer_data);
         self.load_model_datas(renderer_data);
     }

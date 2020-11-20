@@ -340,15 +340,14 @@ pub fn matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.m34 += z;
 }
 
-/*
-pub fn get_scale_matrix(x, y, z):
-    S = [[x, 0, 0, 0],
-         [0, y, 0, 0],
-         [0, 0, z, 0],
-         [0, 0, 0, 1]]
-    return np.array(S, dtype=np.float32)
-
-*/
+pub fn make_scale_matrix(scale: &Vector3<f32>) -> Matrix4<f32> {
+    Matrix4::new(
+        scale.x, 0.0, 0.0, 0.0,
+        0.0, scale.y, 0.0, 0.0,
+        0.0, 0.0, scale.z, 0.0,
+        0.0, 0.0, 0.0, 1.0
+    )
+}
 
 pub fn set_scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.copy_from_slice(&[
@@ -486,7 +485,6 @@ pub fn extract_location(matrix: &Matrix4<f32>) -> Vector3<f32> {
     Vector3::new(matrix.m14, matrix.m24, matrix.m34)
 }
 
-
 pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
     let scale: Vector3<f32> = extract_scale(matrix);
     let mut rotation = matrix.clone() as Matrix4<f32>;
@@ -509,16 +507,14 @@ pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
     rotation
 }
 
-
 pub fn extract_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
     matrix_to_quaternion(&extract_rotation(matrix))
 }
 
-
 pub fn extract_scale(matrix: &Matrix4<f32>) -> Vector3<f32> {
-    let sx = matrix.column(0).norm_squared();
-    let sy = matrix.column(1).norm_squared();
-    let sz = matrix.column(2).norm_squared();
+    let sx = matrix.column(0).norm();
+    let sy = matrix.column(1).norm();
+    let sz = matrix.column(2).norm();
     Vector3::new(sx, sy, sz)
 }
 

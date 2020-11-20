@@ -10,13 +10,17 @@ use nalgebra::{
     Vector4,
     Matrix4,
 };
+use nalgebra_glm as glm;
 
 use crate::renderer::animation::{
     AnimationNodeData,
     SkeletonHierachyTree,
     SkeletonData,
 };
-use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::bounding_box::{
+    self,
+    BoundingBox,
+};
 use crate::utilities::math;
 use crate::utilities::xml::{
     self,
@@ -32,6 +36,7 @@ use crate::vulkan_context::geometry_buffer::{
     GeometryCreateInfo,
     VertexData,
 };
+use std::io::Write;
 
 
 #[derive(Debug, Clone)]
@@ -1054,114 +1059,116 @@ impl Collada {
             }
 
             // generate animation data
-            // let animation_data: Vec<AnimationNodeData> = Vec::new();  // bone animation data list order by bone index
-            // for bone_name in bone_names.iter() {
-            //     let mut find_animation_node: bool = false;
-            //     for animation_node in self._animations.iter() {
-            //         if bone_name == animation_node._target {
-            //             let animation_node_data = AnimationNodeData {
-            //                 _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
-            //                 _precompute_parent_matrix: precompute_parent_matrix,
-            //                 _precompute_inv_bind_matrix: precompute_inv_bind_matrix,
-            //                 _target: animation_node._target.clone(),
-            //                 _times: animation_node._inputs.clone(),
-            //                 _locations: Vec<Vector3<f32>>,
-            //                 _rotations: Vec<Quaternion<f32>>,
-            //                 _scales: Vec<Vector3<f32>>,
-            //                 _interpoations: Vec<String>,
-            //                 _in_tangents: Vec<Vec<f32>>,
-            //                 _out_tangents: Vec<Vec<f32>>,
-            //
-            //                  locations=[extract_location(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
-            //                  rotations=[extract_quaternion(np.array(matrix, dtype=np.float32).reshape(4, 4)) for matrix in animation_node.outputs],
-            //                  scales=[np.array([1.0, 1.0, 1.0], dtype=np.float32) for matrix in animation_node.outputs],
-            //                  interpoations=animation_node.interpolations,
-            //                  in_tangents=animation_node.in_tangents,
-            //                  out_tangents=animation_node.out_tangents
-            //             }
-            //             animation_data.push(animation_node_data)
-            //             find_animation_node = true;
-            //             break;
-            //         }
-            //     }
-            //
-            //     if false == find_animation_node {
-            //         logger.warn('not found %s animation datas' % bone_name)
-            //         let animation_node_data = AnimationNodeData (
-            //             _name: format!("{}_{}_{}", self.name, skeleton_data['name'], bone_name),
-            //             _target: bone_name.clone()
-            //         );
-            //         animation_data.push(animation_node_data);
-            //     }
-            // }
-            // animation_datas.push(animation_data);
+            let mut animation_data: Vec<AnimationNodeData> = Vec::new();  // bone animation data list order by bone index
+            for bone_name in bone_names.iter() {
+                let mut find_animation_node: bool = false;
+                for animation_node in self._animations.iter() {
+                    if *bone_name == animation_node._target {
+                        let animation_node_data = AnimationNodeData {
+                            _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
+                            _precompute_parent_matrix: precompute_parent_matrix,
+                            _precompute_inv_bind_matrix: precompute_inv_bind_matrix,
+                            _target: animation_node._target.clone(),
+                            _times: animation_node._inputs.clone(),
+                            _locations: animation_node._outputs.iter().map(|output| { math::extract_location(output) }).collect(),
+                            _rotations: animation_node._outputs.iter().map(|output| { math::extract_quaternion(output) }).collect(),
+                            _scales: animation_node._outputs.iter().map(|output| { math::extract_scale(output) }).collect(),
+                            _interpoations: animation_node._interpolations.clone(),
+                            _in_tangents: animation_node._in_tangents.clone(),
+                            _out_tangents: animation_node._out_tangents.clone(),
+                        };
+                        animation_data.push(animation_node_data);
+                        find_animation_node = true;
+                        break;
+                    }
+                }
+
+                if false == find_animation_node {
+                    log::info!("not found {} animation datas", bone_name);
+                    let animation_node_data = AnimationNodeData {
+                        _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
+                        _target: bone_name.clone(),
+                        ..Default::default()
+                    };
+                    animation_data.push(animation_node_data);
+                }
+            }
+            animation_datas.push(animation_data);
         }
         animation_datas
     }
-//
-//     pub fn get_geometry_data(self):
-//         geometry_datas = []
-//         for geometry in self.geometries:
-//             skeleton_name = ""
-//             bone_indicies = []
-//             bone_weights = []
-//
-//             if geometry.controller:
-//                 skeleton_name = geometry.controller.name
-//                 bone_indicies = copy.deepcopy(geometry.bone_indicies)
-//                 bone_weights = copy.deepcopy(geometry.bone_weights)
-//
-//             // swap y and z
-//             geometry.bind_shape_matrix = swap_up_axis_matrix(geometry.bind_shape_matrix, True, False, self.up_axis)
-//
-//             // precompute bind_shape_matrix
-//             bound_min = Float3(FLOAT32_MAX, FLOAT32_MAX, FLOAT32_MAX)
-//             bound_max = Float3(FLOAT32_MIN, FLOAT32_MIN, FLOAT32_MIN)
-//             for i, position in enumerate(geometry.positions):
-//                 geometry.positions[i] = np.dot([position[0], position[1], position[2], 1.0], geometry.bind_shape_matrix)[:3]
-//                 position = geometry.positions[i]
-//                 for j in range(3):
-//                     if bound_min[j] > position[j]:
-//                         bound_min[j] = position[j]
-//                     if bound_max[j] < position[j]:
-//                         bound_max[j] = position[j]
-//
-//             for i, normal in enumerate(geometry.normals):
-//                 geometry.normals[i] = np.dot([normal[0], normal[1], normal[2], 0.0], geometry.bind_shape_matrix)[:3]
-//                 geometry.normals[i] = normalize(geometry.normals[i])
-//
-//             geometry_data = dict(
-//                 name=geometry.name,
-//                 positions=copy.deepcopy(geometry.positions),
-//                 normals=copy.deepcopy(geometry.normals),
-//                 colors=copy.deepcopy(geometry.colors),
-//                 texcoords=copy.deepcopy(geometry.texcoords),
-//                 indices=copy.deepcopy(geometry.indices),
-//                 skeleton_name=skeleton_name,
-//                 bone_indicies=copy.deepcopy(bone_indicies),
-//                 bone_weights=copy.deepcopy(bone_weights),
-//                 bound_min=copy.deepcopy(bound_min),
-//                 bound_max=copy.deepcopy(bound_max),
-//                 radius=length(bound_max - bound_min)
-//             )
-//
-//             geometry_datas.append(geometry_data)
-//         return geometry_datas
+
+    pub fn get_geometry_data(&mut self) -> Vec<GeometryCreateInfo> {
+        let mut geometry_datas: Vec<GeometryCreateInfo> = Vec::new();
+        for i in 0..self._geometries.len() {
+            let geometry: &mut ColladaGeometry = &mut self._geometries[i];
+
+            // swap y and z
+            let transpose: bool = true;
+            let is_inverse_matrix: bool = false;
+            math::swap_up_axis_matrix(&mut geometry._bind_shape_matrix, transpose, is_inverse_matrix, self._up_axis.as_str());
+
+            // precompute bind_shape_matrix
+            for position_index in 0..geometry._positions.len() {
+                let position: Vector4<f32> = Vector4::new(
+                    geometry._positions[position_index].x,
+                    geometry._positions[position_index].y,
+                    geometry._positions[position_index].z,
+                    1.0
+                );
+                geometry._positions[position_index] = glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &position));
+            }
+
+            let bounding_box: BoundingBox =  bounding_box::calc_bounding_box(&geometry._positions);
+
+            for normal_index in 0..geometry._normals.len() {
+                let normal = Vector4::new(
+                    geometry._normals[normal_index].x,
+                    geometry._normals[normal_index].y,
+                    geometry._normals[normal_index].z,
+                    0.0
+                );
+                geometry._normals[normal_index] = glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &normal)).normalize();
+            }
+
+            let tangents = geometry_buffer::compute_tangent(
+                &geometry._positions,
+                &geometry._normals,
+                &geometry._texcoords,
+                &geometry._indices,
+            );
+
+            let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
+
+            let vertex_datas: Vec<VertexData> = geometry._positions
+                .iter()
+                .enumerate()
+                .map(|(index, position)| {
+                    VertexData {
+                        _position: position.clone() as Vector3<f32>,
+                        _normal: geometry._normals[index].clone() as Vector3<f32>,
+                        _tangent: tangents[index].clone() as Vector3<f32>,
+                        _color: vertex_color,
+                        _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
+                    }
+                }).collect();
+
+            geometry_datas.push(GeometryCreateInfo {
+                _vertex_datas: vertex_datas,
+                _indices: geometry._indices.clone(),
+                _bounding_box: bounding_box,
+            });
+        }
+
+        geometry_datas
+    }
 
     pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
         let mut collada = Collada::create_collada(filename);
-        // let geometry_datas = self.get_geometry_data();
+        let geometry_datas = collada.get_geometry_data();
         let skeleton_datas = collada.get_skeleton_data();
         let animation_datas = collada.get_animation_data(&skeleton_datas);
-        // mesh_data = dict(
-        //     geometry_datas = geometry_datas,
-        //     skeleton_datas = skeleton_datas,
-        //     animation_datas = animation_datas
-        // )
 
-        println!("{:#?}", collada);
-        panic!("get_geometry_datas");
-
-        Vec::new()
+        geometry_datas
     }
 }
