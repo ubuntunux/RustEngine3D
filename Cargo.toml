@@ -13,7 +13,8 @@ chrono = "0.4.15"
 env_logger = "0.7.1"
 image = "0.23.9"
 log = "0.4"
-nalgebra = {version = "0.22", features = ["serde-serialize"]}
+nalgebra = {version = "0.23.1", features = ["serde-serialize"]}
+nalgebra-glm = "0.9"
 time = "0.1.38"
 rand = "0.7"
 serde = { version = "1.0", features = ["derive"] }

@@ -1,9 +1,12 @@
+// https://docs.rs/nalgebra-glm/0.9.0/nalgebra_glm/
 use nalgebra::{
     Vector3,
     Vector4,
     Matrix4,
+    Quaternion,
+    UnitQuaternion,
 };
-use cgmath::Quaternion;
+use nalgebra_glm as glm;
 
 pub const HALF_PI: f32 = std::f32::consts::PI as f32 * 0.5;
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
@@ -228,146 +231,93 @@ pub fn muliply_quaternions(*quaternions):
 pub fn vector_multiply_quaternion(vector, quaternion):
     u = np.cross(vector, quaternion[1:])
     return vector + u * 2.0 * quaternion[0] + np.cross(quaternion[1:], u) * 2.0
-
-
-pub fn euler_to_quaternion(rx, ry, rz, quat):
-    t0 = math.cos(rz * 0.5)
-    t1 = math.sin(rz * 0.5)
-    t2 = math.cos(rx * 0.5)
-    t3 = math.sin(rx * 0.5)
-    t4 = math.cos(ry * 0.5)
-    t5 = math.sin(ry * 0.5)
-    t0t2 = t0 * t2
-    t0t3 = t0 * t3
-    t1t2 = t1 * t2
-    t1t3 = t1 * t3
-    qw = t0t2 * t4 + t1t3 * t5
-    qx = t0t3 * t4 - t1t2 * t5
-    qy = t0t2 * t5 + t1t3 * t4
-    qz = t1t2 * t4 - t0t3 * t5
-    n = 1.0 / math.sqrt(qw * qw + qx * qx + qy * qy + qz * qz)
-    quat[0] = qw * n
-    quat[1] = qx * n
-    quat[2] = qy * n
-    quat[3] = qz * n
-
-
-pub fn matrix_to_quaternion(matrix):
-    m00, m01, m02, m03 = matrix[0, :]
-    m10, m11, m12, m13 = matrix[1, :]
-    m20, m21, m22, m23 = matrix[2, :]
-
-    tr = m00 + m11 + m22
-    if tr > 0.0:
-        S = math.sqrt(tr+1.0) * 2.0
-        qw = 0.25 * S
-        qx = (m12 - m21) / S
-        qy = (m20 - m02) / S
-        qz = (m01 - m10) / S
-    elif m00 > m11 and m00 > m22:
-        S = math.sqrt(1.0 + m00 - m11 - m22) * 2.0
-        qw = (m12 - m21) / S
-        qx = 0.25 * S
-        qy = (m10 + m01) / S
-        qz = (m20 + m02) / S
-    elif m11 > m22:
-        S = math.sqrt(1.0 + m11 - m00 - m22) * 2.0
-        qw = (m20 - m02) / S
-        qx = (m10 + m01) / S
-        qy = 0.25 * S
-        qz = (m21 + m12) / S
-    else:
-        S = math.sqrt(1.0 + m22 - m00 - m11) * 2.0
-        qw = (m01 - m10) / S
-        qx = (m20 + m02) / S
-        qy = (m21 + m12) / S
-        qz = 0.25 * S
-    return normalize(Float4(qw, qx, qy, qz))
-
-
-pub fn quaternion_to_matrix(quat, rotation_matrix):
-    qw, qx, qy, qz = quat[:]
-    # inhomogeneous expression
-    qxqx = qx * qx * 2.0
-    qxqy = qx * qy * 2.0
-    qxqz = qx * qz * 2.0
-    qxqw = qx * qw * 2.0
-    qyqy = qy * qy * 2.0
-    qyqz = qy * qz * 2.0
-    qyqw = qy * qw * 2.0
-    qzqw = qz * qw * 2.0
-    qzqz = qz * qz * 2.0
-    rotation_matrix[0, :] = [1.0 - qyqy - qzqz, qxqy + qzqw, qxqz - qyqw, 0.0]
-    rotation_matrix[1, :] = [qxqy - qzqw, 1.0 - qxqx - qzqz, qyqz + qxqw, 0.0]
-    rotation_matrix[2, :] = [qxqz + qyqw, qyqz - qxqw, 1.0 - qxqx - qyqy, 0.0]
-    rotation_matrix[3, :] = [0.0, 0.0, 0.0, 1.0]
-    '''
-    # homogeneous expression
-    qxqx = qx * qx
-    qxqy = qx * qy * 2.0
-    qxqz = qx * qz * 2.0
-    qxqw = qx * qw * 2.0
-    qyqy = qy * qy
-    qyqz = qy * qz * 2.0
-    qyqw = qy * qw * 2.0
-    qzqw = qz * qw * 2.0
-    qzqz = qz * qz
-    qwqw = qw * qw
-    rotation_matrix[0, :] = [qwqw + qxqx - qyqy - qzqz, qxqy + qzqw, qxqz - qyqw, 0.0]
-    rotation_matrix[1, :] = [qxqy - qzqw, qwqw - qxqx + qyqy - qzqz, qyqz + qxqw, 0.0]
-    rotation_matrix[2, :] = [qxqz + qyqw, qyqz - qxqw, qwqw - qxqx - qyqy + qzqz, 0.0]
-    rotation_matrix[3, :] = [0.0, 0.0, 0.0, 1.0]
-    '''
-
-
-pub fn quaternion_to_euler(q):
-    sqw = w * w
-    sqx = x * x
-    sqy = y * y
-    sqz = z * z
-    m = Matrix3()
-    m[0][0] = sqx - sqy - sqz + sqw
-    m[1][1] = -sqx + sqy - sqz + sqw
-    m[2][2] = -sqx - sqy + sqz + sqw
-    tmp1 = x * y
-    tmp2 = z * w
-    m[0][1] = 2.0 * (tmp1 + tmp2)
-    m[1][0] = 2.0 * (tmp1 - tmp2)
-    tmp1 = x * z
-    tmp2 = y * w
-    m[0][2] = 2.0 * (tmp1 - tmp2)
-    m[2][0] = 2.0 * (tmp1 + tmp2)
-    tmp1 = y * z
-    tmp2 = x * w
-    m[1][2] = 2.0 * (tmp1 + tmp2)
-    m[2][1] = 2.0 * (tmp1 - tmp2)
-
-
-pub fn lerp(vector1, vector2, t):
-    return vector1 * (1.0 - t) + vector2 * t
-
-
-pub fn slerp(quaternion1, quaternion2, amount):
-    num = amount
-    num2 = 0.0
-    num3 = 0.0
-    num4 = np.dot(quaternion1, quaternion2)
-    flag = False
-    if num4 < 0.0:
-        flag = True
-        num4 = -num4
-    if num4 > 0.999999:
-        num3 = 1.0 - num
-        num2 = -num if flag else num
-    else:
-        num5 = math.acos(num4)
-        num6 = 1.0 / math.sin(num5)
-        num3 = math.sin((1.0 - num) * num5) * num6
-        num2 = (-math.sin(num * num5) * num6) if flag else (math.sin(num * num5) * num6)
-    return (num3 * quaternion1) + (num2 * quaternion2)
-
-
 */
+
+pub fn quaternion_to_euler(quat: &Quaternion<f32>) -> Vector3<f32> {
+    // convert to (pitch, yaw, roll)
+    glm::quat_euler_angles(quat).zyx()
+}
+
+pub fn euler_to_quaternion(pitch: f32, yaw: f32, roll: f32) -> Quaternion<f32> {
+    UnitQuaternion::from_euler_angles(pitch, yaw, roll).into_inner()
+
+    // let t0 = (rz * 0.5).cos();
+    // let t1 = (rz * 0.5).sin();
+    // let t2 = (rx * 0.5).cos();
+    // let t3 = (rx * 0.5).sin();
+    // let t4 = (ry * 0.5).cos();
+    // let t5 = (ry * 0.5).sin();
+    // let t0t2 = t0 * t2;
+    // let t0t3 = t0 * t3;
+    // let t1t2 = t1 * t2;
+    // let t1t3 = t1 * t3;
+    // let qw = t0t2 * t4 + t1t3 * t5;
+    // let qx = t0t3 * t4 - t1t2 * t5;
+    // let qy = t0t2 * t5 + t1t3 * t4;
+    // let qz = t1t2 * t4 - t0t3 * t5;
+    // let n = 1.0 / (qw * qw + qx * qx + qy * qy + qz * qz).sqrt();
+    // Quaternion::new(qw, qx, qy, qz) * n
+}
+
+pub fn matrix_to_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
+    glm::to_quat(&matrix)
+
+    // let tr = matrix.m11 + matrix.m22 + matrix.m33;
+    // if tr > 0.0 {
+    //     let s = (tr + 1.0).sqrt() * 2.0;
+    //     Quaternion::new(
+    //         0.25 * s,
+    //         (matrix.m32 - matrix.m23) / s,
+    //         (matrix.m13 - matrix.m31) / s,
+    //         (matrix.m21 - matrix.m12) / s,
+    //     )
+    // } else if matrix.m11 > matrix.m22 && matrix.m11 > matrix.m33 {
+    //     let s = (1.0 + matrix.m11 - matrix.m22 - matrix.m33).sqrt() * 2.0;
+    //     Quaternion::new(
+    //         (matrix.m32 - matrix.m23) / s,
+    //         0.25 * s,
+    //         (matrix.m12 + matrix.m21) / s,
+    //         (matrix.m13 + matrix.m31) / s,
+    //     )
+    // } else if matrix.m22 > matrix.m33 {
+    //     let s = (1.0 + matrix.m22 - matrix.m11 - matrix.m33).sqrt() * 2.0;
+    //     Quaternion::new(
+    //         (matrix.m13 - matrix.m31) / s,
+    //         (matrix.m12 + matrix.m21) / s,
+    //         0.25 * s,
+    //         (matrix.m23 + matrix.m32) / s,
+    //     )
+    // } else {
+    //     let s = (1.0 + matrix.m33 - matrix.m11 - matrix.m22).sqrt() * 2.0;
+    //     Quaternion::new(
+    //         (matrix.m21 - matrix.m12) / s,
+    //         (matrix.m13 + matrix.m31) / s,
+    //         (matrix.m23 + matrix.m32) / s,
+    //         0.25 * s,
+    //     )
+    // }
+}
+
+pub fn quaternion_to_matrix(quat: &Quaternion<f32>) -> Matrix4<f32> {
+    glm::quat_to_mat4(&quat)
+
+    // inhomogeneous expression
+    // let qxqx = quat.i * quat.i * 2.0;
+    // let qxqy = quat.i * quat.j * 2.0;
+    // let qxqz = quat.i * quat.k * 2.0;
+    // let qxqw = quat.i * quat.w * 2.0;
+    // let qyqy = quat.j * quat.j * 2.0;
+    // let qyqz = quat.j * quat.k * 2.0;
+    // let qyqw = quat.j * quat.w * 2.0;
+    // let qzqw = quat.k * quat.w * 2.0;
+    // let qzqz = quat.k * quat.k * 2.0;
+    // Matrix4::from_columns(&[
+    //     Vector4::new(1.0 - qyqy - qzqz, qxqy + qzqw, qxqz - qyqw, 0.0),
+    //     Vector4::new(qxqy - qzqw, 1.0 - qxqx - qzqz, qyqz + qxqw, 0.0),
+    //     Vector4::new(qxqz + qyqw, qyqz - qxqw, 1.0 - qxqx - qyqy, 0.0),
+    //     Vector4::new(0.0, 0.0, 0.0, 1.0),
+    // ])
+}
 
 pub fn make_translate_matrix(position: &Vector3<f32>) -> Matrix4<f32> {
     Matrix4::new(
@@ -560,9 +510,9 @@ pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
 }
 
 
-// pub fn extract_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
-//     matrix_to_quaternion(&extract_rotation(matrix))
-// }
+pub fn extract_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
+    matrix_to_quaternion(&extract_rotation(matrix))
+}
 
 
 pub fn extract_scale(matrix: &Matrix4<f32>) -> Vector3<f32> {
