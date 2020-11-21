@@ -273,7 +273,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     let elapsed_time = application_data._time_data._elapsed_time;
                     let delta_time = application_data._time_data._delta_time;
 
-                    if renderer_data.get_need_recreate_swapchain() {
+                    if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
                         if false == renderer_data.get_is_first_resize_event() {
                             renderer_data.resize_window();
                         }
@@ -312,10 +312,15 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     //     wheel_delta = Some(v_lines);
                     // }
                     WindowEvent::KeyboardInput { input, .. } => {
-                        if ElementState::Pressed == input.state {
-                            application_data._keyboard_input_data.set_key_pressed(input.virtual_keycode.unwrap());
-                        } else {
-                            application_data._keyboard_input_data.set_key_released(input.virtual_keycode.unwrap());
+                        match input.virtual_keycode {
+                            Some(key) => {
+                                if ElementState::Pressed == input.state {
+                                    application_data._keyboard_input_data.set_key_pressed(key);
+                                } else {
+                                    application_data._keyboard_input_data.set_key_released(key);
+                                }
+                            }
+                            None => {}
                         }
                     }
                     _ => { },

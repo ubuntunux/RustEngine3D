@@ -42,6 +42,7 @@ use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 
 const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;
+const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
 const MATERIAL_FILE_PATH: &str = "resource/materials";
 const MATERIAL_INSTANCE_FILE_PATH: &str = "resource/material_instances";
@@ -303,8 +304,8 @@ impl Resources {
         for mesh_source_file in mesh_source_files {
             let mesh_name = get_unique_resource_name(&self._mesh_data_map, &mesh_source_directory, &mesh_source_file);
             let src_file_ext: String = String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
-            let geometry_create_infos = match mesh_file_map.get(&mesh_name) {
-                Some(mesh_file) => {
+            let geometry_create_infos = match (LOAD_FROM_EXTERNAL_FOR_MESH, mesh_file_map.get(&mesh_name)) {
+                (false, Some(mesh_file)) => {
                     // Load mesh
                     let loaded_contents = fs::File::open(mesh_file).expect("Failed to create file");
                     let geometry_create_infos: Vec<GeometryCreateInfo>;
@@ -315,26 +316,30 @@ impl Resources {
                     }
                     geometry_create_infos
                 },
-                None => {
+                _ => {
                     // Convert to mesh from source
                     let geometry_create_infos = match src_file_ext.as_str() {
                         EXT_OBJ => WaveFrontOBJ::get_geometry_datas(&mesh_source_file),
                         EXT_COLLADA => Collada::get_geometry_datas(&mesh_source_file),
                         _ => panic!("error")
                     };
+
                     // Save mesh
-                    let mut mesh_file_path: PathBuf = mesh_directory.clone();
-                    mesh_file_path.push(&mesh_name);
-                    mesh_file_path.set_extension(resource_ext);
-                    fs::create_dir_all(mesh_file_path.parent().unwrap()).expect("Failed to create directories.");
-                    let mut write_file = File::create(mesh_file_path).expect("Failed to create file");
-                    if USE_JSON_FOR_MESH {
-                        let write_contents: String = serde_json::to_string(&geometry_create_infos).expect("Failed to serialize.");
-                        write_file.write(write_contents.as_bytes()).expect("Failed to write");
-                    } else {
-                        let write_contents: Vec<u8> = bincode::serialize(&geometry_create_infos).unwrap();
-                        write_file.write(&write_contents).expect("Failed to write");
+                    if false == LOAD_FROM_EXTERNAL_FOR_MESH {
+                        let mut mesh_file_path: PathBuf = mesh_directory.clone();
+                        mesh_file_path.push(&mesh_name);
+                        mesh_file_path.set_extension(resource_ext);
+                        fs::create_dir_all(mesh_file_path.parent().unwrap()).expect("Failed to create directories.");
+                        let mut write_file = File::create(mesh_file_path).expect("Failed to create file");
+                        if USE_JSON_FOR_MESH {
+                            let write_contents: String = serde_json::to_string(&geometry_create_infos).expect("Failed to serialize.");
+                            write_file.write(write_contents.as_bytes()).expect("Failed to write");
+                        } else {
+                            let write_contents: Vec<u8> = bincode::serialize(&geometry_create_infos).unwrap();
+                            write_file.write(&write_contents).expect("Failed to write");
+                        }
                     }
+
                     geometry_create_infos
                 },
             };
