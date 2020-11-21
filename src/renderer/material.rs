@@ -38,7 +38,7 @@ impl MaterialData {
     }
 
     pub fn destroy_material(&self) {
-        // nothing
+        log::info!("create_material: {}", self._material_data_name);
     }
 
     pub fn get_render_pass_pipeline_data(

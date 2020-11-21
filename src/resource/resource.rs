@@ -678,6 +678,7 @@ impl Resources {
         for material_instance_data in self._material_instance_data_map.values() {
             (*material_instance_data).borrow().destroy_material_instance();
         }
+        self._material_instance_data_map.clear();
     }
 
     pub fn update_material_instance_datas(&mut self) {

@@ -95,7 +95,7 @@ impl MaterialInstanceData {
     }
 
     pub fn destroy_material_instance(&self) {
-        // nothing..
+        log::info!("destroy_material_instance: {}", self._material_instance_data_name);
     }
 
     pub fn get_pipeline_binding_data(
