@@ -19,7 +19,7 @@ use crate::constants;
 use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
-use crate::renderer::mesh::{ MeshData };
+use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::{ ModelData };
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
@@ -276,21 +276,22 @@ impl Resources {
         &mut self,
         renderer_data: &RendererData,
         mesh_name: &String,
-        geometry_create_infos: &Vec<GeometryCreateInfo>,
+        mesh_data_create_info: MeshDataCreateInfo,
     ) {
         let mut geometry_datas: Vec<RcRefCell<GeometryData>> = Vec::new();
-        for (i, geometry_create_info) in geometry_create_infos.iter().enumerate() {
+        for (i, geometry_create_info) in mesh_data_create_info._geometry_create_infos.iter().enumerate() {
             let geomtery_name: String = format!("{}_{}", mesh_name, i);
             let geometry_data = renderer_data.create_geometry_buffer(&geomtery_name, geometry_create_info);
             geometry_datas.push(newRcRefCell(geometry_data));
         }
-        let mesh_data = MeshData::new_mesh_data(&mesh_name, geometry_datas);
-        self._mesh_data_map.insert(mesh_name.clone(), newRcRefCell(mesh_data));
+
+        let mesh_data = newRcRefCell(MeshData::create_mesh_data(&mesh_name, mesh_data_create_info, geometry_datas));
+        self._mesh_data_map.insert(mesh_name.clone(), mesh_data.clone());
     }
 
     pub fn load_mesh_datas(&mut self, renderer_data: &RendererData) {
-        self.regist_mesh_data(renderer_data, &String::from("quad"), &geometry_buffer::quad_geometry_create_infos());
-        self.regist_mesh_data(renderer_data, &String::from("cube"), &geometry_buffer::cube_geometry_create_infos());
+        self.regist_mesh_data(renderer_data, &String::from("quad"), geometry_buffer::quad_mesh_create_info());
+        self.regist_mesh_data(renderer_data, &String::from("cube"), geometry_buffer::cube_mesh_create_info());
         let mesh_directory = PathBuf::from(MESH_FILE_PATH);
         let mesh_source_directory = PathBuf::from(MESH_SOURCE_FILE_PATH);
         let resource_ext = if USE_JSON_FOR_MESH { EXT_JSON } else { EXT_MESH };
@@ -304,23 +305,21 @@ impl Resources {
         for mesh_source_file in mesh_source_files {
             let mesh_name = get_unique_resource_name(&self._mesh_data_map, &mesh_source_directory, &mesh_source_file);
             let src_file_ext: String = String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
-            let geometry_create_infos = match (LOAD_FROM_EXTERNAL_FOR_MESH, mesh_file_map.get(&mesh_name)) {
+            let mesh_data_create_info = match (LOAD_FROM_EXTERNAL_FOR_MESH, mesh_file_map.get(&mesh_name)) {
                 (false, Some(mesh_file)) => {
                     // Load mesh
                     let loaded_contents = fs::File::open(mesh_file).expect("Failed to create file");
-                    let geometry_create_infos: Vec<GeometryCreateInfo>;
                     if USE_JSON_FOR_MESH {
-                        geometry_create_infos = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+                        serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
                     } else {
-                        geometry_create_infos = bincode::deserialize_from(loaded_contents).unwrap();
+                        bincode::deserialize_from(loaded_contents).unwrap()
                     }
-                    geometry_create_infos
                 },
                 _ => {
                     // Convert to mesh from source
-                    let geometry_create_infos = match src_file_ext.as_str() {
-                        EXT_OBJ => WaveFrontOBJ::get_geometry_datas(&mesh_source_file),
-                        EXT_COLLADA => Collada::get_geometry_datas(&mesh_source_file),
+                    let mesh_data_create_info = match src_file_ext.as_str() {
+                        EXT_OBJ => WaveFrontOBJ::get_mesh_data_create_infos(&mesh_source_file),
+                        EXT_COLLADA => Collada::get_mesh_data_create_infos(&mesh_source_file),
                         _ => panic!("error")
                     };
 
@@ -332,18 +331,18 @@ impl Resources {
                         fs::create_dir_all(mesh_file_path.parent().unwrap()).expect("Failed to create directories.");
                         let mut write_file = File::create(mesh_file_path).expect("Failed to create file");
                         if USE_JSON_FOR_MESH {
-                            let write_contents: String = serde_json::to_string(&geometry_create_infos).expect("Failed to serialize.");
+                            let write_contents: String = serde_json::to_string(&mesh_data_create_info).expect("Failed to serialize.");
                             write_file.write(write_contents.as_bytes()).expect("Failed to write");
                         } else {
-                            let write_contents: Vec<u8> = bincode::serialize(&geometry_create_infos).unwrap();
+                            let write_contents: Vec<u8> = bincode::serialize(&mesh_data_create_info).unwrap();
                             write_file.write(&write_contents).expect("Failed to write");
                         }
                     }
 
-                    geometry_create_infos
+                    mesh_data_create_info
                 },
             };
-            self.regist_mesh_data(renderer_data, &mesh_name, &geometry_create_infos);
+            self.regist_mesh_data(renderer_data, &mesh_name, mesh_data_create_info);
         }
     }
 

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+
+use serde::{ Serialize, Deserialize };
 use nalgebra::{Matrix4, Vector3, Quaternion};
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct AnimationNodeData {
     pub _name: String,
     pub _precompute_parent_matrix: bool,
@@ -16,12 +18,12 @@ pub struct AnimationNodeData {
     pub _out_tangents: Vec<Vec<f32>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct SkeletonHierachyTree {
     pub _children: HashMap<String, SkeletonHierachyTree>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct SkeletonData {
     pub _name: String,
     pub _hierachy: SkeletonHierachyTree, // bone names map as hierachy

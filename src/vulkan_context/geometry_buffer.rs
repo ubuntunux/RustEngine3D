@@ -13,6 +13,7 @@ use nalgebra::{
     Vector3,
 };
 
+use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::{
     get_color32,
@@ -222,7 +223,7 @@ pub fn compute_tangent(
     tangents
 }
 
-pub fn quad_geometry_create_infos() -> Vec<GeometryCreateInfo> {
+pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
     let positions: Vec<Vector3<f32>> = vec![(-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (1.0, 1.0, 0.0), (-1.0, 1.0, 0.0)]
         .iter()
         .map(|(x, y, z)| {
@@ -247,14 +248,17 @@ pub fn quad_geometry_create_infos() -> Vec<GeometryCreateInfo> {
             }
         }).collect();
 
-    vec![GeometryCreateInfo {
-        _vertex_datas: vertex_datas,
-        _indices: indices,
-        _bounding_box: calc_bounding_box(&positions)
-    }]
+    MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+        _geometry_create_infos: vec![GeometryCreateInfo {
+            _vertex_datas: vertex_datas,
+            _indices: indices,
+            _bounding_box: calc_bounding_box(&positions)
+        }],
+        ..Default::default()
+    })
 }
 
-pub fn cube_geometry_create_infos() -> Vec<GeometryCreateInfo> {
+pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
     let positions: Vec<Vector3<f32>> =
         vec![(-0.5, 0.5, 0.5), (-0.5, -0.5, 0.5), (0.5, -0.5, 0.5), (0.5, 0.5, 0.5),
              (0.5, 0.5, 0.5), (0.5, -0.5, 0.5), (0.5, -0.5, -0.5), (0.5, 0.5, -0.5),
@@ -298,9 +302,12 @@ pub fn cube_geometry_create_infos() -> Vec<GeometryCreateInfo> {
             }
         }).collect();
 
-    vec![GeometryCreateInfo {
-        _vertex_datas: vertex_datas,
-        _indices: indices,
-        _bounding_box: calc_bounding_box(&positions)
-    }]
+    MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+        _geometry_create_infos: vec![GeometryCreateInfo {
+            _vertex_datas: vertex_datas,
+            _indices: indices,
+            _bounding_box: calc_bounding_box(&positions)
+        }],
+        ..Default::default()
+    })
 }

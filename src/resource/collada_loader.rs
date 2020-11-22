@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::cmp::min;
 use std::collections::HashMap;
 use std::ops::Add;
@@ -12,31 +13,14 @@ use nalgebra::{
 };
 use nalgebra_glm as glm;
 
-use crate::renderer::animation::{
-    AnimationNodeData,
-    SkeletonHierachyTree,
-    SkeletonData,
-};
-use crate::utilities::bounding_box::{
-    self,
-    BoundingBox,
-};
+use crate::renderer::mesh::{ MeshDataCreateInfo };
+use crate::renderer::animation::{ AnimationNodeData, SkeletonHierachyTree, SkeletonData };
+use crate::utilities::bounding_box::{ self, BoundingBox, };
 use crate::utilities::math;
-use crate::utilities::xml::{
-    self,
-    XmlTree,
-};
-use crate::utilities::system::{
-    newRcRefCell,
-    RcRefCell,
-};
+use crate::utilities::xml::{ self, XmlTree, };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::geometry_buffer::{
-    self,
-    GeometryCreateInfo,
-    VertexData,
-};
-use std::io::Write;
+use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, };
+
 
 
 #[derive(Debug, Clone)]
@@ -1163,12 +1147,17 @@ impl Collada {
         geometry_datas
     }
 
-    pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
+    pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         let mut collada = Collada::create_collada(filename);
         let geometry_datas = collada.get_geometry_data();
         let skeleton_datas = collada.get_skeleton_data();
         let animation_datas = collada.get_animation_data(&skeleton_datas);
 
-        geometry_datas
+        MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+            _skeleton_datas: skeleton_datas,
+            _animation_datas: animation_datas,
+            _geometry_create_infos: geometry_datas,
+            ..Default::default()
+        })
     }
 }

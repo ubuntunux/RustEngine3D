@@ -9,13 +9,14 @@ use nalgebra::{
     Vector3,
 };
 
+use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::vulkan_context::vulkan_context;
-use crate::utilities::bounding_box::BoundingBox;
 use crate::vulkan_context::geometry_buffer::{
     self,
     GeometryCreateInfo,
     VertexData,
 };
+use crate::utilities::bounding_box::BoundingBox;
 
 type Point3 = [u32; 3];
 
@@ -318,11 +319,16 @@ impl WaveFrontOBJ {
     //     }
     // }
 
-    pub fn get_geometry_datas(filename: &PathBuf) -> Vec<GeometryCreateInfo> {
+    pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         let mut obj = WaveFrontOBJ::initialize(filename);
         //obj.parse_using_library(filename);
         let texcoord_y = true;
         obj.parse(filename, 1.0, texcoord_y);
-        obj.generate_geometry_datas()
+        let geometry_create_infos = obj.generate_geometry_datas();
+
+        MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+            _geometry_create_infos: geometry_create_infos,
+            ..Default::default()
+        })
     }
 }
