@@ -104,4 +104,11 @@ impl MaterialInstanceData {
     ) -> &PipelineBindingData {
         self._pipeline_binding_data_map.get(render_pass_pipeline_data_name).unwrap()
     }
+
+    pub fn get_pipeline_binding_data_mut(
+        &mut self,
+        render_pass_pipeline_data_name: &render_pass::RenderPassPipelineDataName,
+    ) -> &mut PipelineBindingData {
+        self._pipeline_binding_data_map.get_mut(render_pass_pipeline_data_name).unwrap()
+    }
 }

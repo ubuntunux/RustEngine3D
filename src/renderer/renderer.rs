@@ -731,10 +731,8 @@ impl RendererData {
                         _pipeline_data_name: String::from("render_debug"),
                     };
 
-                    let render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
-
-                    // TODO!! : clone 꼭해야되나...
-                    let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_pipeline_binding_data(&render_debug_render_pass_pipeline_name).clone();
+                    let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
+                    let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_pipeline_binding_data_mut(&render_debug_render_pass_pipeline_name);
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
