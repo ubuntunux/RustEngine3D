@@ -8,13 +8,13 @@ use crate::renderer::model::ModelData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::RcRefCell;
 
+
 #[derive(Clone, Debug)]
 pub struct RenderObjectCreateInfo {
     pub _model_data: Option<RcRefCell<ModelData>>,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
-    pub _has_animation_data: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -50,7 +50,6 @@ impl Default for RenderObjectCreateInfo {
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
             _scale: Vector3::new(1.0, 1.0, 1.0),
-            _has_animation_data: false,
         }
     } 
 }
@@ -79,21 +78,26 @@ impl Default for AnimationPlayInfo {
 impl RenderObjectData {
     pub fn create_render_object_data(
         render_object_name: &String,
-        render_object_create_data: &RenderObjectCreateInfo
+        render_object_create_data: RenderObjectCreateInfo
     ) -> RenderObjectData {
         log::info!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::new_transform_object_data();
         transform_object_data.set_position(&render_object_create_data._position);
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
+
+        let model_data = render_object_create_data._model_data.unwrap();
+        let has_animation_data = model_data.borrow()._mesh_data.borrow().has_animation_data();
+
         RenderObjectData {
             _render_object_name: render_object_name.clone(),
-            _model_data: render_object_create_data._model_data.clone().unwrap(),
+            _model_data: model_data,
             _transform_object: transform_object_data,
-            _animation_play_info: match render_object_create_data._has_animation_data {
-                true => Some(AnimationPlayInfo::default()),
-                _ => None
-            }
+            _animation_play_info: if has_animation_data {
+                Some(AnimationPlayInfo::default())
+            } else {
+                None
+            },
         }
     }
 

@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::BufReader;
 use xml::reader::{ EventReader, XmlEvent };
-use serde::export::fmt::Display;
 
 type XmlTreeMap = HashMap<String, Vec<XmlTree>>;
 

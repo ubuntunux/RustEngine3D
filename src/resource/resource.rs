@@ -6,13 +6,8 @@ use std::collections::HashMap;
 
 use serde_json::{ self, Value, json };
 use bincode;
-use image::{
-    self,
-    GenericImageView,
-};
-use ash::{
-    vk
-};
+use image::{ self, GenericImageView, };
+use ash::{ vk };
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -29,7 +24,7 @@ use crate::renderer::render_pass_create_info;
 use crate::renderer::uniform_buffer_data::{ UniformBufferType };
 use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
-use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, GeometryData };
+use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{
     self,
     PipelineDataCreateInfo,

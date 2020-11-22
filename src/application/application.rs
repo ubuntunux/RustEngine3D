@@ -245,7 +245,6 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
 
     // main loop
-    let mut render_scene: bool = false;
     let mut run_application: bool = true;
     event_loop.run(move |event, __window_target, control_flow|{
         let mut application_data: RefMut<ApplicationData> = application_data.borrow_mut();

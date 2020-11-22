@@ -5,7 +5,6 @@ use crate::renderer::animation::{ AnimationNodeData, SkeletonData };
 use crate::vulkan_context::geometry_buffer::{ GeometryData, GeometryCreateInfo };
 use crate::utilities::system::{ RcRefCell };
 use crate::utilities::bounding_box::{ BoundingBox };
-use std::borrow::Borrow;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct MeshDataCreateInfo {
@@ -75,6 +74,10 @@ impl MeshData {
             _animation_datas: mesh_data_create_info._animation_datas,
             _geometry_datas: geometry_datas,
         }
+    }
+
+    pub fn has_animation_data(&self) -> bool {
+        false == self._animation_datas.is_empty()
     }
 
     pub fn get_geometry_data_count(&self) -> usize {

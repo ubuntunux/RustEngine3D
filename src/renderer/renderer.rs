@@ -24,7 +24,7 @@ use winit::window::{
     WindowBuilder
 };
 use winit::event_loop::EventLoop;
-use nalgebra::{ Vector2, Vector3 };
+use nalgebra::{Vector2, Vector3, Matrix4};
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -880,7 +880,7 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_StaticRenderObject {
-                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>
                         }
                     );
                 },
@@ -889,7 +889,7 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_SkeletalRenderObject {
-                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>
                         }
                     );
                 },
