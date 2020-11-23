@@ -11,6 +11,7 @@ use nalgebra;
 use nalgebra::{
     Vector2,
     Vector3,
+    Vector4,
 };
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
@@ -25,7 +26,6 @@ use crate::utilities::bounding_box::{
     calc_bounding_box
 };
 
-
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct VertexData {
     pub _position: Vector3<f32>,
@@ -33,6 +33,17 @@ pub struct VertexData {
     pub _tangent: Vector3<f32>,
     pub _color: u32,
     pub _texcoord: Vector2<f32>
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct SkeletalVertexData {
+    pub _position: Vector3<f32>,
+    pub _normal: Vector3<f32>,
+    pub _tangent: Vector3<f32>,
+    pub _color: u32,
+    pub _texcoord: Vector2<f32>,
+    pub _bone_indices: Vector4<i32>,
+    pub _bone_weights: Vector4<f32>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

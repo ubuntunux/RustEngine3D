@@ -197,18 +197,18 @@ impl WaveFrontOBJ {
             let mut bound_max: Vector3<f32> = Vector3::new(std::f32::MIN, std::f32::MIN, std::f32::MIN);
             for mesh_indices in mesh.indices.iter() {
                 // exclude material
-                let (postion_indicies, normal_indicies, texcoord_indicies) = mesh_indices;
-                for i in 0..postion_indicies.len() {
-                    let index_key = (postion_indicies[i], normal_indicies[i], texcoord_indicies[i]);
+                let (postion_indices, normal_indices, texcoord_indices) = mesh_indices;
+                for i in 0..postion_indices.len() {
+                    let index_key = (postion_indices[i], normal_indices[i], texcoord_indices[i]);
                     match index_map.get(&index_key) {
                         Some(index) => indices.push(*index),
                         None => {
                             let index: u32 = index_map.len() as u32;
                             indices.push(index);
                             index_map.insert(index_key, index);
-                            positions.push(self.positions[postion_indicies[i] as usize].clone() as Vector3<f32>);
-                            normals.push(self.normals[normal_indicies[i] as usize].clone() as Vector3<f32>);
-                            texcoords.push(self.texcoords[texcoord_indicies[i] as usize].clone() as Vector2<f32>);
+                            positions.push(self.positions[postion_indices[i] as usize].clone() as Vector3<f32>);
+                            normals.push(self.normals[normal_indices[i] as usize].clone() as Vector3<f32>);
+                            texcoords.push(self.texcoords[texcoord_indices[i] as usize].clone() as Vector2<f32>);
                             // bounding box
                             let position: &Vector3<f32> = positions.last().unwrap();
                             for j in 0..3 {

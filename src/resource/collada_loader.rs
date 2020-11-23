@@ -61,7 +61,7 @@ pub struct ColladaContoller {
     pub _skin_source: String,
     pub _bind_shape_matrix: Matrix4<f32>,
     pub _bone_names: Vec<String>,
-    pub _bone_indicies: Vec<Vector4<u32>>,
+    pub _bone_indices: Vec<Vector4<u32>>,
     pub _bone_weights: Vec<Vector4<f32>>,
     pub _inv_bind_matrices: Vec<Matrix4<f32>>,
 }
@@ -92,7 +92,7 @@ pub struct ColladaGeometry {
     pub _name: String,
     pub _id: String,
     pub _positions: Vec<Vector3<f32>>,
-    pub _bone_indicies: Vec<Vector4<u32>>,
+    pub _bone_indices: Vec<Vector4<u32>>,
     pub _bone_weights: Vec<Vector4<f32>>,
     pub _normals: Vec<Vector3<f32>>,
     pub _colors: Vec<u32>,
@@ -395,7 +395,7 @@ impl ColladaContoller {
             _skin_source: String::new(),
             _bind_shape_matrix: Matrix4::identity(),
             _bone_names: Vec::new(),
-            _bone_indicies: Vec::new(),
+            _bone_indices: Vec::new(),
             _bone_weights: Vec::new(),
             _inv_bind_matrices: Vec::new(),
         };
@@ -462,7 +462,7 @@ impl ColladaContoller {
         v_list: &Vec<i32>,
     ) {
         let semantic_stride: usize = weights_semantics.len();
-        // build weights and indicies
+        // build weights and indices
         let max_bone: usize = 4; // max influence bone count per vertex
         let weight_source_id: &String = &weights_semantics.get("WEIGHT").unwrap()._source;
         let weight_sources: &Vec<f32> = match sources.get(weight_source_id).unwrap() {
@@ -473,32 +473,32 @@ impl ColladaContoller {
         let mut index: usize = 0;
         for vcount in vcount_list.iter() {
             let vcount: usize = (*vcount) as usize;
-            let mut bone_indicies: Vec<u32> = Vec::new();
+            let mut bone_indices: Vec<u32> = Vec::new();
             let mut bone_weights: Vec<f32> = Vec::new();
             let index_end: usize = index + vcount * semantic_stride;
-            let indicies: &[i32] = v_list.get(index..index_end).unwrap();
+            let indices: &[i32] = v_list.get(index..index_end).unwrap();
             index += vcount * semantic_stride;
             for v in 0..max_bone {
                 let joint = weights_semantics.get("JOINT");
                 if joint.is_some() {
                     let offset = joint.unwrap()._offset;
                     if v < vcount {
-                        bone_indicies.push(indicies[offset + v * semantic_stride] as u32);
+                        bone_indices.push(indices[offset + v * semantic_stride] as u32);
                     } else {
-                        bone_indicies.push(0);
+                        bone_indices.push(0);
                     }
                 }
                 let weight = weights_semantics.get("WEIGHT");
                 if joint.is_some() {
                     let offset = weight.unwrap()._offset;
                     if v < vcount {
-                        bone_weights.push(weight_sources[indicies[offset + v * semantic_stride] as usize]);
+                        bone_weights.push(weight_sources[indices[offset + v * semantic_stride] as usize]);
                     } else {
                         bone_weights.push(0.0);
                     }
                 }
             }
-            self._bone_indicies.push(Vector4::new(bone_indicies[0], bone_indicies[1], bone_indicies[2], bone_indicies[3]));
+            self._bone_indices.push(Vector4::new(bone_indices[0], bone_indices[1], bone_indices[2], bone_indices[3]));
             self._bone_weights.push(Vector4::new(bone_weights[0], bone_weights[1], bone_weights[2], bone_weights[3]));
         }
 
@@ -631,7 +631,7 @@ impl ColladaGeometry {
             _name: xml_geometry.get_attribute("name", "").replace(".", "_"),
             _id: xml_geometry.get_attribute("id", "").replace(".", "_"),
             _positions: Vec::new(),
-            _bone_indicies: Vec::new(),
+            _bone_indices: Vec::new(),
             _bone_weights: Vec::new(),
             _normals: Vec::new(),
             _colors: Vec::new(),
@@ -753,7 +753,7 @@ impl ColladaGeometry {
                 _ => 0,
             };
             unsafe {
-                let bone_weight_count = (*self._controller)._bone_indicies.len();
+                let bone_weight_count = (*self._controller)._bone_indices.len();
                 if vertex_count != bone_weight_count {
                     panic!("Different count. vertex_count : {}, bone_weight_count : {}", vertex_count, bone_weight_count);
                 }
@@ -785,7 +785,7 @@ impl ColladaGeometry {
 
                     if false == self._controller.is_null() {
                         unsafe {
-                            self._bone_indicies.push((*self._controller)._bone_indicies[vertex_index as usize].into());
+                            self._bone_indices.push((*self._controller)._bone_indices[vertex_index as usize].into());
                             self._bone_weights.push((*self._controller)._bone_weights[vertex_index as usize].into());
                         }
                     }

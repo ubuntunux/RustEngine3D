@@ -24,7 +24,7 @@ use winit::window::{
     WindowBuilder
 };
 use winit::event_loop::EventLoop;
-use nalgebra::{Vector2, Vector3, Matrix4};
+use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -688,10 +688,14 @@ impl RendererData {
                     _viewconstants_dummy3: 0.0,
                 };
 
+                let mut bone_matrices = uniform_buffer_data::BoneMatrices::default();
+                bone_matrices._bone_matrices[0].set_column(3, &Vector4::new(0.0, (elapsed_time % 1.0) as f32, 0.0, 1.0));
+
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::SceneConstants, &scene_constants);
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::ViewConstants, &view_constants);
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::LightConstants, light_constants);
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::SSAOConstants, ssao_constants);
+                self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::BoneMatrices, &bone_matrices);
 
                 // Begin command buffer
                 let command_buffer_begin_info = vk::CommandBufferBeginInfo {

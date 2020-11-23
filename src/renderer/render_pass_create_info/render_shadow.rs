@@ -123,6 +123,7 @@ pub fn get_render_pass_data_create_info(
             _pipeline_fragment_shader_file: PathBuf::from("shadowmap.frag"),
             _pipeline_shader_defines: vec![
                 format!("RenderMode={:?}", RenderMode::RenderMode_Shadow as i32),
+                format!("RenderObjectType={:?}", render_object_type as i32),
             ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
