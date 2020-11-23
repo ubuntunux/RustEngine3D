@@ -18,7 +18,7 @@ use crate::utilities::bounding_box::{ self, BoundingBox, };
 use crate::utilities::math;
 use crate::utilities::xml::{ self, XmlTree, };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, };
+use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, SkeletalVertexData };
 
 
 
@@ -1140,6 +1140,7 @@ impl Collada {
                 _vertex_datas: vertex_datas,
                 _indices: geometry._indices.clone(),
                 _bounding_box: bounding_box,
+                ..Default::default()
             });
         }
 

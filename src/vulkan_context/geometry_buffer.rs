@@ -49,6 +49,7 @@ pub struct SkeletalVertexData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GeometryCreateInfo {
     pub _vertex_datas: Vec<VertexData>,
+    pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,
     pub _indices: Vec<u32>,
     pub _bounding_box: BoundingBox
 }
@@ -76,11 +77,22 @@ pub fn add_vertex_input_attribute_description(
     };
 
     vertex_input_attribute_descriptions.push(vk::VertexInputAttributeDescription {
-        location: location,
-        binding: binding,
-        format: format,
-        offset: offset,
+        location,
+        binding,
+        format,
+        offset,
     });
+}
+
+impl Default for GeometryCreateInfo {
+    fn default() -> GeometryCreateInfo {
+        GeometryCreateInfo {
+            _vertex_datas: Vec::new(),
+            _skeletal_vertex_datas: Vec::new(),
+            _indices: Vec::new(),
+            _bounding_box: BoundingBox::default(),
+        }
+    }
 }
 
 impl Default for VertexData {
@@ -263,7 +275,8 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
         _geometry_create_infos: vec![GeometryCreateInfo {
             _vertex_datas: vertex_datas,
             _indices: indices,
-            _bounding_box: calc_bounding_box(&positions)
+            _bounding_box: calc_bounding_box(&positions),
+            ..Default::default()
         }],
         ..Default::default()
     })
@@ -310,6 +323,7 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
                 _tangent: tangents[index].clone() as Vector3<f32>,
                 _color: vertex_color,
                 _texcoord: texcoords[index].clone() as Vector2<f32>,
+                ..Default::default()
             }
         }).collect();
 
@@ -317,7 +331,8 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
         _geometry_create_infos: vec![GeometryCreateInfo {
             _vertex_datas: vertex_datas,
             _indices: indices,
-            _bounding_box: calc_bounding_box(&positions)
+            _bounding_box: calc_bounding_box(&positions),
+            ..Default::default()
         }],
         ..Default::default()
     })

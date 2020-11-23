@@ -252,7 +252,8 @@ impl WaveFrontOBJ {
                     _max: bound_max,
                     _center: (&bound_max + &bound_min) * 0.5,
                     _radius: (&bound_max - &bound_min).norm() * 0.5
-                }
+                },
+                ..Default::default()
             });
         }
         geometry_datas
