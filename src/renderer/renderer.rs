@@ -56,7 +56,7 @@ use crate::utilities::system::{ self, RcRefCell };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
-// -- NOTE : sync with scene_constants.glsl
+// NOTE : RenderMode must match with scene_constants.glsl
 #[derive(Clone, Debug, Copy)]
 #[allow(non_camel_case_types)]
 pub enum RenderMode {
@@ -64,10 +64,11 @@ pub enum RenderMode {
     RenderMode_Shadow = 1,
 }
 
-#[derive(Clone, Debug, Copy)]
+// NOTE : RenderObjectType must match with scene_constants.glsl
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub enum RenderObjectType {
-    Static,
-    Skeletal
+    Static = 0,
+    Skeletal = 1,
 }
 
 pub unsafe extern "system" fn vulkan_debug_callback(

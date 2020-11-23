@@ -121,7 +121,9 @@ pub fn get_render_pass_data_create_info(
             _pipeline_data_create_info_name: String::from("render_object"),
             _pipeline_vertex_shader_file: PathBuf::from("render_object.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("shadowmap.frag"),
-            _pipeline_shader_defines: vec![format!("RenderMode={:?}", RenderMode::RenderMode_Shadow as i32)],
+            _pipeline_shader_defines: vec![
+                format!("RenderMode={:?}", RenderMode::RenderMode_Shadow as i32),
+            ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
@@ -162,7 +164,7 @@ pub fn get_render_pass_data_create_info(
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 3,
+                    _descriptor_binding_index: 4,
                     _descriptor_name: String::from("textureBase"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,

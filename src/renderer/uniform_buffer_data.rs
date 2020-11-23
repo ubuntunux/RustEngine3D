@@ -21,7 +21,6 @@ use nalgebra::{
 };
 
 use crate::constants;
-
 use crate::vulkan_context::uniform_buffer;
 use crate::vulkan_context::uniform_buffer::{
     UniformBufferData,
@@ -33,6 +32,7 @@ pub enum UniformBufferType {
     ViewConstants,
     LightConstants,
     SSAOConstants,
+    BoneMatrices,
 }
 
 impl std::fmt::Display for UniformBufferType {
@@ -49,6 +49,7 @@ impl std::str::FromStr for UniformBufferType {
             "ViewConstants" => Ok(UniformBufferType::ViewConstants),
             "LightConstants" => Ok(UniformBufferType::LightConstants),
             "SSAOConstants" => Ok(UniformBufferType::SSAOConstants),
+            "BoneMatrices" => Ok(UniformBufferType::BoneMatrices),
             _ => Err(format!("'{}' is not a valid value for UniformBufferType", s)),
         }
     }
@@ -105,11 +106,16 @@ pub struct LightConstants {
   pub _shadow_dimensions: Vector4<f32>, // width height near far
 }
 
-// render_ssao.frag - UBOSSAOKernel
+// render_ssao.frag - SSAOConstants
 type Matrix4x64f = Matrix<f32, U4, U64, ArrayStorage<f32, U4, U64>>;
 #[derive(Clone, Debug, Default)]
 pub struct SSAOConstants {
     pub _ssao_kernel_samples: Matrix4x64f,
+}
+
+#[derive(Clone)]
+pub struct BoneMatrices {
+    pub _bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
 }
 
 impl Default for LightConstants {
@@ -128,6 +134,14 @@ impl Default for LightConstants {
                 -constants::SHADOW_DEPTH,
                 constants::SHADOW_DEPTH
             )
+        }
+    }
+}
+
+impl Default for BoneMatrices {
+    fn default() -> BoneMatrices {
+        BoneMatrices {
+            _bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
         }
     }
 }

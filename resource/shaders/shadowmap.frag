@@ -7,7 +7,7 @@
 #include "utility.glsl"
 #include "blending.glsl"
 
-layout(binding = 3) uniform sampler2D textureBase;
+layout(binding = 4) uniform sampler2D textureBase;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 

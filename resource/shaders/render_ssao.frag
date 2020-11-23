@@ -6,8 +6,6 @@
 #include "utility.glsl"
 #include "PCFKernels.glsl"
 
-layout (constant_id = 0) const int SSAO_KERNEL_SIZE = 64;
-
 layout(binding = 0) uniform SceneConstants
 {
     SCENE_CONSTANTS scene_constants;
@@ -23,8 +21,9 @@ layout(binding = 2) uniform LightConstants
 layout(binding = 3) uniform sampler2D textureSceneNormal;
 layout(binding = 4) uniform sampler2D textureSceneDepth;
 layout(binding = 5) uniform sampler2D ssaoNoise;
-// UnifromBufferDatas.hs - data SSAOConstants
-layout(binding = 6) uniform UBOSSAOKernel
+
+// uniform_buffer_data - struct SSAOConstants
+layout(binding = 6) uniform SSAOConstants
 {
     vec4 _SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;

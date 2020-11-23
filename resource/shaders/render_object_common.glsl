@@ -10,12 +10,10 @@ layout(binding = 2) uniform LightConstants
 {
     LIGHT_CONSTANTS light_constants;
 };
-
-#if (RenderMode_Common == RenderMode)
-layout(binding = 3) uniform sampler2D textureBase;
-layout(binding = 4) uniform sampler2D textureMaterial;
-layout(binding = 5) uniform sampler2D textureNormal;
-#endif
+layout(binding = 3) uniform BoneConstants
+{
+    mat4 bone_matrices[MAX_BONES];
+};
 
 layout( push_constant ) uniform PushConstant
 {

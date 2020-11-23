@@ -1,22 +1,26 @@
 #ifndef _SCENE_CONSTANTS_
 #define _SCENE_CONSTANTS_
 
-// Constants.hs, data RenderMode
-#define RenderMode_Common   0
-#define RenderMode_Shadow   1
+// constants.rs
+#define SSAO_KERNEL_SIZE 64
 
-// Constants.hs, data RenderObjectType
-#define RenderObject_Static     0
-#define RenderObject_Skeletal   1
+// enum RenderMode
+#define RenderMode_Common 0
+#define RenderMode_Shadow 1
 
-const int BLEND = 0;
-const int ADDITIVE = 1;
-const int MULTIPLY = 2;
-const int SUBTRACT = 3;
+// enum RenderObjectType
+#define RenderObjectType_Static 0
+#define RenderObjectType_Skeletal 1
+
+#define BLEND 0
+#define ADDITIVE 1
+#define MULTIPLY 2
+#define SUBTRACT 3
 
 #define WORK_GROUP_SIZE 64
 
 const int MAX_BONES_PER_VERTEX = 4;
+// MAX_BONES must match with constants.rs
 const int MAX_BONES = 100;
 
 const float PI = 3.14159265358979323846;
