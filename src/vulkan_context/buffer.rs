@@ -20,6 +20,16 @@ pub struct BufferData {
     pub _buffer_memory_requirements: vk::MemoryRequirements
 }
 
+impl Default for BufferData {
+    fn default() -> BufferData {
+        BufferData {
+            _buffer: vk::Buffer::null(),
+            _buffer_memory: vk::DeviceMemory::null(),
+            _buffer_memory_requirements: vk::MemoryRequirements::default(),
+        }
+    }
+}
+
 pub fn find_memory_type_index(
     memory_requirements: &vk::MemoryRequirements,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,

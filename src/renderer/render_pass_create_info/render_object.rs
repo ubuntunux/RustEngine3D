@@ -21,6 +21,7 @@ use crate::renderer::push_constants::{
     PushConstants_SkeletalRenderObject,
 };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
+use crate::vulkan_context::geometry_buffer::{ VertexData, SkeletalVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
@@ -175,6 +176,14 @@ pub fn get_render_pass_data_create_info(
             _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
+            _vertex_input_bind_descriptions: match render_object_type {
+                RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
+                RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions(),
+            },
+            _vertex_input_attribute_descriptions: match render_object_type {
+                RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
+                RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions(),
+            },
             _push_constant_ranges: vec![vk::PushConstantRange {
                 stage_flags: vk::ShaderStageFlags::ALL,
                 offset: 0,

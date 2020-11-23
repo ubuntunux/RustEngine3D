@@ -42,7 +42,7 @@ pub struct SkeletalVertexData {
     pub _tangent: Vector3<f32>,
     pub _color: u32,
     pub _texcoord: Vector2<f32>,
-    pub _bone_indices: Vector4<i32>,
+    pub _bone_indices: Vector4<u32>,
     pub _bone_weights: Vector4<f32>,
 }
 
@@ -107,6 +107,20 @@ impl Default for VertexData {
     }
 }
 
+impl Default for SkeletalVertexData {
+    fn default() -> SkeletalVertexData {
+        SkeletalVertexData {
+            _position: Vector3::new(0.0, 0.0, 0.0),
+            _normal: Vector3::new(0.0, 0.0, 0.0),
+            _tangent: Vector3::new(0.0, 0.0, 0.0),
+            _color: 0,
+            _texcoord: Vector2::new(0.0, 0.0),
+            _bone_indices: Vector4::new(0, 0, 0, 0),
+            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
+        }
+    }
+}
+
 impl VertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const NORMAL: vk::Format = vk::Format::R32G32B32_SFLOAT;
@@ -125,10 +139,41 @@ impl VertexData {
         vertex_input_attribute_descriptions
     }
 
-    pub fn get_vertex_input_binding_descriptions() -> [vk::VertexInputBindingDescription; 1] {
-        [vk::VertexInputBindingDescription {
+    pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+        vec![vk::VertexInputBindingDescription {
             binding: 0,
             stride: mem::size_of::<VertexData>() as u32,
+            input_rate: vk::VertexInputRate::VERTEX
+        }]
+    }
+}
+
+impl SkeletalVertexData {
+    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const NORMAL: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const TANGENT: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const COLOR: vk::Format = vk::Format::R8G8B8A8_UNORM;
+    const TEXCOORD: vk::Format = vk::Format::R32G32_SFLOAT;
+    const BONE_INDICES: vk::Format = vk::Format::R32G32B32A32_UINT;
+    const BONE_WEIGHTS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
+
+    pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let binding = 0u32;
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::POSITION);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::NORMAL);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::TANGENT);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::COLOR);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::TEXCOORD);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::BONE_INDICES);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::BONE_WEIGHTS);
+        vertex_input_attribute_descriptions
+    }
+
+    pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+        vec![vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: mem::size_of::<SkeletalVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX
         }]
     }
@@ -142,15 +187,32 @@ pub fn create_geometry_data(
     geometry_name: &String,
     geometry_create_info: &GeometryCreateInfo
 ) -> GeometryData {
-    log::debug!("createGeometryBuffer: {:?}", geometry_name);
-    let vertex_buffer_data = buffer::create_buffer_data_with_uploads(
-        device,
-        command_pool,
-        command_queue,
-        device_memory_properties,
-        vk::BufferUsageFlags::VERTEX_BUFFER,
-        &geometry_create_info._vertex_datas
-    );
+    log::debug!("create_geometry_data: {:?}", geometry_name);
+
+    println!("create_geometry_data");
+
+    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_datas.is_empty() {
+        buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            &geometry_create_info._skeletal_vertex_datas,
+        )
+    } else {
+        buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            &geometry_create_info._vertex_datas,
+        )
+    };
+
+    println!("end - create_geometry_data");
+
     let index_buffer_data = buffer::create_buffer_data_with_uploads(
         device,
         command_pool,
@@ -159,6 +221,7 @@ pub fn create_geometry_data(
         vk::BufferUsageFlags::INDEX_BUFFER,
         &geometry_create_info._indices
     );
+
     GeometryData {
         _geometry_name: geometry_name.clone(),
         _vertex_buffer_data: vertex_buffer_data,
@@ -169,7 +232,7 @@ pub fn create_geometry_data(
 }
 
 pub fn destroy_geometry_data(device: &Device, geometry_data: &GeometryData) {
-    log::debug!("destroyGeometryData");
+    log::debug!("destroy_geometry_data");
     buffer::destroy_buffer_data(device, &geometry_data._vertex_buffer_data);
     buffer::destroy_buffer_data(device, &geometry_data._index_buffer_data);
 }

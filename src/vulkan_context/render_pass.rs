@@ -65,6 +65,8 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_scissor_rect: vk::Rect2D,
     pub _pipeline_color_blend_modes: Vec<vk::PipelineColorBlendAttachmentState>,
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
+    pub _vertex_input_bind_descriptions: Vec<vk::VertexInputBindingDescription>,
+    pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
     pub _push_constant_ranges: Vec<vk::PushConstantRange>, // ex) mem::size_of::<PushConstants_StaticRenderObject>()
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 }
@@ -374,13 +376,11 @@ pub fn create_graphics_pipeline_data(
         &pipeline_data_create_info._push_constant_ranges,
         &descriptor_set_layouts
     );
-    let vertex_input_bind_descriptions = VertexData::get_vertex_input_binding_descriptions();
-    let vertex_input_attribute_descriptions = VertexData::create_vertex_input_attribute_descriptions();
     let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
-        vertex_binding_description_count: vertex_input_bind_descriptions.len() as u32,
-        p_vertex_binding_descriptions: vertex_input_bind_descriptions.as_ptr(),
-        vertex_attribute_description_count: vertex_input_attribute_descriptions.len() as u32,
-        p_vertex_attribute_descriptions: vertex_input_attribute_descriptions.as_ptr(),
+        vertex_binding_description_count: pipeline_data_create_info._vertex_input_bind_descriptions.len() as u32,
+        p_vertex_binding_descriptions: pipeline_data_create_info._vertex_input_bind_descriptions.as_ptr(),
+        vertex_attribute_description_count: pipeline_data_create_info._vertex_input_attribute_descriptions.len() as u32,
+        p_vertex_attribute_descriptions: pipeline_data_create_info._vertex_input_attribute_descriptions.as_ptr(),
         ..Default::default()
     };
     let input_assembly = vk::PipelineInputAssemblyStateCreateInfo {

@@ -1123,21 +1123,44 @@ impl Collada {
 
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
 
-            let vertex_datas: Vec<VertexData> = geometry._positions
-                .iter()
-                .enumerate()
-                .map(|(index, position)| {
-                    VertexData {
-                        _position: position.clone() as Vector3<f32>,
-                        _normal: geometry._normals[index].clone() as Vector3<f32>,
-                        _tangent: tangents[index].clone() as Vector3<f32>,
-                        _color: vertex_color,
-                        _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
-                    }
-                }).collect();
+            let vertex_datas: Vec<VertexData>;
+            let skeletal_vertex_datas: Vec<SkeletalVertexData>;
+
+            if geometry._bone_indices.is_empty() {
+                vertex_datas = geometry._positions
+                    .iter()
+                    .enumerate()
+                    .map(|(index, position)| {
+                        VertexData {
+                            _position: position.clone() as Vector3<f32>,
+                            _normal: geometry._normals[index].clone() as Vector3<f32>,
+                            _tangent: tangents[index].clone() as Vector3<f32>,
+                            _color: vertex_color,
+                            _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
+                        }
+                    }).collect();
+                skeletal_vertex_datas = Vec::new();
+            } else {
+                vertex_datas = Vec::new();
+                skeletal_vertex_datas = geometry._positions
+                    .iter()
+                    .enumerate()
+                    .map(|(index, position)| {
+                        SkeletalVertexData {
+                            _position: position.clone() as Vector3<f32>,
+                            _normal: geometry._normals[index].clone() as Vector3<f32>,
+                            _tangent: tangents[index].clone() as Vector3<f32>,
+                            _color: vertex_color,
+                            _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
+                            _bone_indices: geometry._bone_indices[index].clone() as Vector4<u32>,
+                            _bone_weights: geometry._bone_weights[index].clone() as Vector4<f32>,
+                        }
+                    }).collect();
+            }
 
             geometry_datas.push(GeometryCreateInfo {
                 _vertex_datas: vertex_datas,
+                _skeletal_vertex_datas: skeletal_vertex_datas,
                 _indices: geometry._indices.clone(),
                 _bounding_box: bounding_box,
                 ..Default::default()

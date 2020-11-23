@@ -27,6 +27,8 @@ pub struct RenderFeatures {
 
 pub fn get_format_size(format: vk::Format) -> u32 {
     match format {
+        vk::Format::R32G32B32A32_UINT => 16,
+        vk::Format::R32G32B32A32_SINT => 16,
         vk::Format::R32G32B32A32_SFLOAT => 16,
         vk::Format::R32G32B32_SFLOAT => 12,
         vk::Format::R32G32_SFLOAT => 8,
