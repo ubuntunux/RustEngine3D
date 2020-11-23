@@ -52,7 +52,6 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
             arg
         })
         .collect();
-    let combined_shader_defines: String = shader_define_args.join(" ");
     let mut shader_file_path: PathBuf = PathBuf::from(SHADER_DIRECTORY);
     shader_file_path.push(shader_filename);
 
@@ -84,8 +83,8 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
         command.arg("-o");
         command.arg(spirv_file_path.to_str().unwrap());
         command.arg(shader_file_path.to_str().unwrap());
-        if false == shader_define_args.is_empty() {
-            command.arg(combined_shader_defines);
+        for shader_define_arg in shader_define_args.iter() {
+            command.arg(shader_define_arg);
         }
         command.current_dir(".");
         match command.output() {
