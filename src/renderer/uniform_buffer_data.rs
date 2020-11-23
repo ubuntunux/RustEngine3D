@@ -171,4 +171,5 @@ pub fn regist_uniform_datas(
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::ViewConstants, std::mem::size_of::<ViewConstants>());
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::LightConstants, std::mem::size_of::<LightConstants>());
     regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::SSAOConstants, std::mem::size_of::<SSAOConstants>());
+    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::BoneMatrices, std::mem::size_of::<BoneMatrices>());
 }
