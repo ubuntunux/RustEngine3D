@@ -1,7 +1,13 @@
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3 };
 
-use crate::renderer::animation::{ AnimationNodeData, SkeletonData };
+use crate::renderer::animation::{
+    AnimationNodeCreateInfo,
+    AnimationNodeData,
+    AnimationData,
+    SkeletonDataCreateInfo,
+    SkeletonData,
+};
 use crate::vulkan_context::geometry_buffer::{ GeometryData, GeometryCreateInfo };
 use crate::utilities::system::{ RcRefCell };
 use crate::utilities::bounding_box::{ BoundingBox };
@@ -9,8 +15,8 @@ use crate::utilities::bounding_box::{ BoundingBox };
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct MeshDataCreateInfo {
     pub _bound_box: BoundingBox,
-    pub _skeleton_datas: Vec<SkeletonData>,
-    pub _animation_datas: Vec<Vec<AnimationNodeData>>,
+    pub _skeleton_create_infos: Vec<SkeletonDataCreateInfo>,
+    pub _animation_node_create_infos: Vec<Vec<AnimationNodeCreateInfo>>,
     pub _geometry_create_infos: Vec<GeometryCreateInfo>,
 }
 
@@ -19,7 +25,7 @@ pub struct MeshData {
     pub _name: String,
     pub _bound_box: BoundingBox,
     pub _skeleton_datas: Vec<SkeletonData>,
-    pub _animation_datas: Vec<Vec<AnimationNodeData>>,
+    pub _animation_datas: Vec<AnimationData>,
     pub _geometry_datas: Vec<RcRefCell<GeometryData>>,
 }
 
@@ -27,8 +33,8 @@ impl Default for MeshDataCreateInfo {
     fn default() -> MeshDataCreateInfo {
         MeshDataCreateInfo {
             _bound_box: BoundingBox::default(),
-            _skeleton_datas: Vec::new(),
-            _animation_datas: Vec::new(),
+            _skeleton_create_infos: Vec::new(),
+            _animation_node_create_infos: Vec::new(),
             _geometry_create_infos: Vec::new(),
         }
     }
@@ -67,13 +73,29 @@ impl MeshData {
         geometry_datas: Vec<RcRefCell<GeometryData>>
     ) -> MeshData {
         log::info!("create_mesh_data: {}", mesh_name);
-        MeshData {
+        let mut mesh_data = MeshData {
             _name: mesh_name.clone(),
             _bound_box: mesh_data_create_info._bound_box,
-            _skeleton_datas: mesh_data_create_info._skeleton_datas,
-            _animation_datas: mesh_data_create_info._animation_datas,
+            _skeleton_datas: mesh_data_create_info._skeleton_create_infos
+                .iter()
+                .enumerate()
+                .map(|(i, skeleton_create_info)| {
+                    SkeletonData::create_skeleton_data(i, skeleton_create_info)
+                }).collect(),
+            _animation_datas: Vec::new(),
             _geometry_datas: geometry_datas,
+        };
+
+        for (i, animation_node_create_info) in mesh_data_create_info._animation_node_create_infos.iter().enumerate() {
+            mesh_data._animation_datas.push(AnimationData::create_animation_data(
+                &format!("{}_{}", mesh_data._name, mesh_data._skeleton_datas[i]._name),
+                i,
+                &mesh_data._skeleton_datas[i],
+                animation_node_create_info,
+            ));
         }
+
+        mesh_data
     }
 
     pub fn has_animation_data(&self) -> bool {

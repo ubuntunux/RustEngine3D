@@ -189,8 +189,6 @@ pub fn create_geometry_data(
 ) -> GeometryData {
     log::debug!("create_geometry_data: {:?}", geometry_name);
 
-    println!("create_geometry_data");
-
     let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_datas.is_empty() {
         buffer::create_buffer_data_with_uploads(
             device,
@@ -210,8 +208,6 @@ pub fn create_geometry_data(
             &geometry_create_info._vertex_datas,
         )
     };
-
-    println!("end - create_geometry_data");
 
     let index_buffer_data = buffer::create_buffer_data_with_uploads(
         device,

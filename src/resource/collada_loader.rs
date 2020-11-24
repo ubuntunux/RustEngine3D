@@ -13,7 +13,7 @@ use nalgebra::{
 use nalgebra_glm as glm;
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
-use crate::renderer::animation::{ AnimationNodeData, SkeletonHierachyTree, SkeletonData };
+use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree, SkeletonDataCreateInfo };
 use crate::utilities::bounding_box::{ self, BoundingBox, };
 use crate::utilities::math;
 use crate::utilities::xml::{ self, XmlTree, };
@@ -910,8 +910,8 @@ impl Collada {
         }
     }
 
-    pub fn get_skeleton_data(&mut self) -> Vec<SkeletonData> {
-        let mut skeleton_datas: Vec<SkeletonData> = Vec::new();
+    pub fn get_skeleton_data(&mut self) -> Vec<SkeletonDataCreateInfo> {
+        let mut skeleton_datas: Vec<SkeletonDataCreateInfo> = Vec::new();
         let mut check_duplicated: Vec<&str> = Vec::new();
         for controller in self._controllers.iter_mut() {
             if false == check_duplicated.contains(&controller._name.as_str()) {
@@ -938,7 +938,7 @@ impl Collada {
                     math::swap_up_axis_matrix(matrix, TRANSPOSE, IS_INVERSE_MATRIX, self._up_axis.as_str());
                 }
 
-                let skeleton_data = SkeletonData {
+                let skeleton_data = SkeletonDataCreateInfo {
                     _name: controller._name.clone(),
                     _hierachy: hierachy, // bone names map as hierachy
                     _bone_names: controller._bone_names.clone(), // bone name list ordered by index
@@ -993,12 +993,12 @@ impl Collada {
         }
     }
 
-    pub fn get_animation_data(&mut self, skeleton_datas: &Vec<SkeletonData>) -> Vec<Vec<AnimationNodeData>> {
+    pub fn get_animation_data(&mut self, skeleton_datas: &Vec<SkeletonDataCreateInfo>) -> Vec<Vec<AnimationNodeCreateInfo>> {
         let precompute_parent_matrix = true;
         let precompute_inv_bind_matrix = true;
 
         // precompute_animation
-        let mut animation_datas: Vec<Vec<AnimationNodeData>> = Vec::new();
+        let mut animation_datas: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
         for skeleton_data in skeleton_datas.iter() {
             let hierachy = &skeleton_data._hierachy;
             let bone_names = &skeleton_data._bone_names;
@@ -1042,12 +1042,12 @@ impl Collada {
             }
 
             // generate animation data
-            let mut animation_data: Vec<AnimationNodeData> = Vec::new();  // bone animation data list order by bone index
+            let mut animation_data: Vec<AnimationNodeCreateInfo> = Vec::new();  // bone animation data list order by bone index
             for bone_name in bone_names.iter() {
                 let mut find_animation_node: bool = false;
                 for animation_node in self._animations.iter() {
                     if *bone_name == animation_node._target {
-                        let animation_node_data = AnimationNodeData {
+                        let animation_node_data = AnimationNodeCreateInfo {
                             _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
                             _precompute_parent_matrix: precompute_parent_matrix,
                             _precompute_inv_bind_matrix: precompute_inv_bind_matrix,
@@ -1068,7 +1068,7 @@ impl Collada {
 
                 if false == find_animation_node {
                     log::info!("not found {} animation datas", bone_name);
-                    let animation_node_data = AnimationNodeData {
+                    let animation_node_data = AnimationNodeCreateInfo {
                         _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
                         _target: bone_name.clone(),
                         ..Default::default()
@@ -1177,8 +1177,8 @@ impl Collada {
         let animation_datas = collada.get_animation_data(&skeleton_datas);
 
         MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
-            _skeleton_datas: skeleton_datas,
-            _animation_datas: animation_datas,
+            _skeleton_create_infos: skeleton_datas,
+            _animation_node_create_infos: animation_datas,
             _geometry_create_infos: geometry_datas,
             ..Default::default()
         })

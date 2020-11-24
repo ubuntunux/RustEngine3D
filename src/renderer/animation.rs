@@ -1,10 +1,34 @@
 use std::collections::HashMap;
 
 use serde::{ Serialize, Deserialize };
-use nalgebra::{Matrix4, Vector3, Quaternion};
+use nalgebra::{ Vector3, Vector4, Quaternion, Matrix4 };
+use nalgebra_glm as glm;
+
+use crate::renderer::transform_object::{ TransformObjectData };
+use crate::utilities::math;
+
+#[derive(Clone, Debug)]
+pub struct BoneData {
+    pub _name: String,
+    pub _transform: TransformObjectData,
+    pub _inv_bind_matrix: Matrix4<f32>,
+    pub _parent: *mut BoneData,
+    pub _children: Vec<*mut BoneData>,
+    pub _index: usize,
+    pub _depth: u32,
+}
+
+#[derive(Clone, Debug)]
+pub struct SkeletonData {
+    pub _name: String,
+    pub _index: usize,
+    pub _bone_names: Vec<String>,
+    pub _bones: Vec<BoneData>,
+    pub _hierachy: Vec<*mut BoneData>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
-pub struct AnimationNodeData {
+pub struct AnimationNodeCreateInfo {
     pub _name: String,
     pub _precompute_parent_matrix: bool,
     pub _precompute_inv_bind_matrix: bool,
@@ -18,22 +42,55 @@ pub struct AnimationNodeData {
     pub _out_tangents: Vec<Vec<f32>>,
 }
 
+#[derive(Clone, Debug)]
+pub struct AnimationNodeData {
+    pub _name: String,
+    pub _precompute_parent_matrix: bool,
+    pub _precompute_inv_bind_matrix: bool,
+    pub _target: String,
+    pub _frame_times: Vec<f32>,
+    pub _locations: Vec<Vector3<f32>>,
+    pub _rotations: Vec<Quaternion<f32>>,
+    pub _scales: Vec<Vector3<f32>>,
+    pub _interpoations: Vec<String>,
+    pub _in_tangents: Vec<Vec<f32>>,
+    pub _out_tangents: Vec<Vec<f32>>,
+    pub _bone: *const BoneData,
+    pub _frame_count: usize,
+    pub _last_frame: f32,
+    pub _transform: Matrix4<f32>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AnimationData {
+    pub _name: String,
+    pub _index: usize,
+    pub _skeleton: *const SkeletonData,
+    pub _frame_count: usize,
+    pub _frame_times: Vec<f32>,
+    pub _animation_length: f32,
+    pub _nodes: Vec<AnimationNodeData>, // order by bone index
+    pub _root_node: *const AnimationNodeData,
+    pub _last_frame: f32,
+    pub _animation_transforms: Vec<Matrix4<f32>>,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct SkeletonHierachyTree {
     pub _children: HashMap<String, SkeletonHierachyTree>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
-pub struct SkeletonData {
+pub struct SkeletonDataCreateInfo {
     pub _name: String,
     pub _hierachy: SkeletonHierachyTree, // bone names map as hierachy
     pub _bone_names: Vec<String>, // bone name list ordered by index
     pub _inv_bind_matrices: Vec<Matrix4<f32>>,  // inverse matrix of bone
 }
 
-impl Default for AnimationNodeData {
-    fn default() -> AnimationNodeData {
-        AnimationNodeData {
+impl Default for AnimationNodeCreateInfo {
+    fn default() -> AnimationNodeCreateInfo {
+        AnimationNodeCreateInfo {
             _name: String::new(),
             _precompute_parent_matrix: false,
             _precompute_inv_bind_matrix: false,
@@ -57,174 +114,225 @@ impl Default for SkeletonHierachyTree {
     }
 }
 
-// class Bone:
-//     def __init__(self, name, index, depth, inv_bind_matrix):
-//         # v += {[(v * BindShapeMatrix) * InvBindMatrix * JointMatrix(animation)] * JointWeight}
-//         self.name = name
-//         self.transform = TransformObject()
-//         self.inv_bind_matrix = inv_bind_matrix
-//         self.parent = None
-//         self.children = []
-//         self.index = index
-//         self.depth = depth
-//         # print("\t" * depth, self.name, self.index)
-//
-//     def set_parent(self, parent_bone):
-//         self.parent = parent_bone
-//
-//     def add_child(self, child_bone):
-//         child_bone.set_parent(self)
-//         self.children.append(child_bone)
-//
-//
-// class Skeleton:
-//     def __init__(self, index, **skeleton_data):
-//         self.name = skeleton_data.get('name', '')
-//         self.index = index
-//
-//         self.bone_names = skeleton_data.get('bone_names', [])
-//         self.bones = [None, ] * len(self.bone_names)
-//         self.hierachy = []
-//
-//         inv_bind_matrices = skeleton_data.get('inv_bind_matrices', [])
-//
-//         def build_bone(hierachy, parent_bone, depth):
-//             for bone_name in hierachy:
-//                 if bone_name in self.bone_names:
-//                     index = self.bone_names.index(bone_name)
-//                     bone = Bone(
-//                         name=bone_name,
-//                         index=index,
-//                         depth=depth,
-//                         inv_bind_matrix=inv_bind_matrices[index]
-//                     )
-//                     self.bones[index] = bone
-//                     if parent_bone is None:
-//                         # add root
-//                         self.hierachy.append(bone)
-//                     else:
-//                         parent_bone.add_child(bone)
-//                     # recursive build bone
-//                     build_bone(hierachy[bone_name], bone, depth+1)
-//         build_bone(skeleton_data.get('hierachy', {}), None, 0)
-//
-//
-// class Animation:
-//     def __init__(self, name, index, skeleton, animation_data):
-//         self.name = name
-//         self.index = index
-//         self.skeleton = skeleton
-//         self.frame_count = 0
-//         self.frame_times = []
-//         self.animation_length = 0.0
-//         self.nodes = []  # order by bone index
-//         for i, animation_node_data in enumerate(animation_data):
-//             animation_node = AnimationNode(self.skeleton.bones[i], animation_node_data)
-//             frame_count = len(animation_node.frame_times)
-//             if self.frame_count < frame_count:
-//                 self.frame_count = frame_count
-//                 self.frame_times = copy.copy(animation_node.frame_times)
-//             self.nodes.append(animation_node)
-//
-//         self.root_node = self.nodes[0] if 0 < len(self.nodes) else None
-//
-//         if 0 < self.frame_count:
-//             self.animation_length = max(self.frame_times)
-//
-//         self.last_frame = 0.0
-//
-//         # just update animation transforms
-//         self.animation_transforms = np.array([Matrix4() for i in range(len(self.nodes))], dtype=np.float32)
-//         self.get_animation_transforms(0.0)
-//
-//     def get_time_to_frame(self, current_frame, current_time):
-//         if 1 < self.frame_count:
-//             frame = int(current_frame)
-//             last_index = self.frame_count - 1
-//
-//             if last_index <= frame:
-//                 frame %= last_index
-//
-//             while True:
-//                 if (0 == frame and current_time <= self.frame_times[frame]) or (self.frame_times[frame] <= current_time <= self.frame_times[frame + 1]):
-//                     break
-//                 frame = (frame + 1) % last_index
-//
-//             frame_time = self.frame_times[frame]
-//             next_frame_time = self.frame_times[frame + 1]
-//             ratio = (current_time - frame_time) / (next_frame_time - frame_time)
-//             return float(frame) + ratio
-//         return 0.0
-//
-//     def get_animation_transforms(self, frame=0.0):
-//         if self.last_frame == frame:
-//             return self.animation_transforms
-//         else:
-//             self.last_frame = frame
-//
-//             if self.root_node.precompute_parent_matrix:
-//                 for i, node in enumerate(self.nodes):
-//                     self.animation_transforms[i][...] = node.get_transform(frame)
-//             else:
-//                 def animation(parent_bone, parent_matrix):
-//                     for bone in parent_bone.children:
-//                         node = self.nodes[bone.index]
-//                         node.get_transform(frame)
-//                         transform = self.animation_transforms[bone.index]
-//                         transform[...] = np.dot(node.transform, parent_matrix)
-//                         animation(bone, transform)
-//
-//                 for bone in self.skeleton.hierachy:
-//                     node = self.nodes[bone.index]
-//                     transform = self.animation_transforms[bone.index]
-//                     transform[...] = node.get_transform(frame)
-//                     animation(bone, transform)
-//             return self.animation_transforms
-//
-//
-// class AnimationNode:
-//     def __init__(self, bone, animation_node_data):
-//         self.name = animation_node_data.get('name', '')
-//         self.bone = bone
-//         self.precompute_parent_matrix = animation_node_data.get('precompute_parent_matrix', False)
-//         self.precompute_inv_bind_matrix = animation_node_data.get('precompute_inv_bind_matrix', False)
-//         self.target = animation_node_data.get('target', '')  # bone name
-//         self.frame_times = animation_node_data.get('times', [])
-//         self.locations = animation_node_data.get('locations', [])
-//         self.rotations = animation_node_data.get('rotations', [])
-//         self.scales = animation_node_data.get('scales', [])
-//         self.interpoations = animation_node_data.get('interpoations', [])
-//         self.in_tangents = animation_node_data.get('in_tangents', [])
-//         self.out_tangents = animation_node_data.get('out_tangents', [])
-//
-//         self.frame_count = len(self.frame_times)
-//         self.last_frame = -1.0
-//         self.transform = MATRIX4_IDENTITY.copy()
-//         # just update transform
-//         self.get_transform(0.0)
-//
-//     def get_transform(self, frame=0.0):
-//         if self.last_frame == frame or self.frame_count == 0:
-//             return self.transform
-//         else:
-//             self.last_frame = frame
-//
-//             rate = frame - int(frame)
-//             frame = int(frame) % self.frame_count
-//             next_frame = (frame + 1) % self.frame_count
-//
-//             if frame < self.frame_count:
-//                 rotation = slerp(self.rotations[frame], self.rotations[next_frame], rate)
-//                 # rotation = normalize(lerp(self.rotations[frame], self.rotations[next_frame], rate))
-//                 location = lerp(self.locations[frame], self.locations[next_frame], rate)
-//                 scale = lerp(self.scales[frame], self.scales[next_frame], rate)
-//                 quaternion_to_matrix(rotation, self.transform)
-//                 matrix_scale(self.transform, *scale)
-//                 self.transform[3, 0:3] = location
-//
-//                 # Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
-//                 # the result must be an identity. Therefore, inv_bind_matrix is ​​the inverse of T pose transform.
-//                 if not self.precompute_inv_bind_matrix:
-//                     self.transform[...] = np.dot(self.bone.inv_bind_matrix, self.transform)
-//             return self.transform
-//
+impl BoneData {
+    pub fn create_bone(name: &String, index: usize, depth: u32, inv_bind_matrix: &Matrix4<f32>) -> BoneData {
+        // v += {[(v * BindShapeMatrix) * InvBindMatrix * JointMatrix(animation)] * JointWeight}
+        log::info!("{}: {} {}", depth, name, index);
+        BoneData {
+            _name: name.clone(),
+            _transform: TransformObjectData::new_transform_object_data(),
+            _inv_bind_matrix: inv_bind_matrix.clone() as Matrix4<f32>,
+            _parent: std::ptr::null_mut(),
+            _children: Vec::new(),
+            _index: index,
+            _depth: depth,
+        }
+    }
+
+    pub fn set_parent(&mut self, parent_bone: *mut BoneData) {
+        self._parent = parent_bone;
+    }
+
+    pub fn add_child(&mut self, child_bone: *mut BoneData) {
+        unsafe {
+            (*child_bone).set_parent(self);
+            self._children.push(child_bone)
+        }
+    }
+}
+
+impl SkeletonData {
+    pub fn create_skeleton_data(index: usize, skeleton_data_create_info: &SkeletonDataCreateInfo) -> SkeletonData {
+        let mut skeleton_data = SkeletonData {
+            _name: skeleton_data_create_info._name.clone(),
+            _index: index,
+            _bone_names: skeleton_data_create_info._bone_names.clone(),
+            _bones: skeleton_data_create_info._bone_names
+                .iter()
+                .enumerate()
+                .map(|(index, bone_name)| {
+                BoneData::create_bone(bone_name, index, 0, &Matrix4::identity())
+            }).collect(),
+            _hierachy: Vec::new(),
+        };
+        skeleton_data.build_bone(&skeleton_data_create_info._hierachy, &skeleton_data_create_info._inv_bind_matrices, std::ptr::null_mut(), 0);
+        skeleton_data
+    }
+
+    pub fn build_bone(&mut self, hierachy: &SkeletonHierachyTree, inv_bind_matrices: &Vec<Matrix4<f32>>, parent_bone: *mut BoneData, depth: u32) {
+        for (bone_name, child_hierachy) in hierachy._children.iter() {
+            if let Some(index) = self._bone_names.iter().position(|key| key == bone_name) {
+                self._bones[index] = BoneData::create_bone(bone_name, index, depth, &inv_bind_matrices[index]);
+                let bone: *mut BoneData = &mut self._bones[index];
+                if parent_bone.is_null() {
+                    // add root
+                    self._hierachy.push(bone);
+                } else {
+                    unsafe {
+                        (*parent_bone).add_child(bone);
+                    }
+                }
+                // recursive build bone
+                self.build_bone(child_hierachy, inv_bind_matrices, bone, depth + 1);
+            }
+        }
+    }
+}
+
+
+impl AnimationData {
+    pub fn create_animation_data(
+        name: &String,
+        index: usize,
+        skeleton: *const SkeletonData,
+        animation_node_create_infos: &Vec<AnimationNodeCreateInfo>
+    ) -> AnimationData {
+        let mut animation_data = AnimationData {
+            _name: name.clone(),
+            _index: index,
+            _skeleton: skeleton,
+            _frame_count: 0,
+            _frame_times: Vec::new(),
+            _animation_length: 0.0,
+            _nodes: Vec::new(), // order by bone index
+            _root_node: std::ptr::null(),
+            _last_frame: 0.0,
+            _animation_transforms: Vec::new(),
+        };
+
+        unsafe {
+            for (i, animation_node_create_info) in animation_node_create_infos.iter().enumerate() {
+                let animation_node = AnimationNodeData::create_animation_node_data(&(*animation_data._skeleton)._bones[i], animation_node_create_info);
+                let frame_count = animation_node._frame_times.len();
+                if animation_data._frame_count < frame_count {
+                    animation_data._frame_count = frame_count;
+                    animation_data._frame_times = animation_node._frame_times.clone();
+                }
+                animation_data._nodes.push(animation_node);
+            }
+        }
+
+        if false == animation_data._nodes.is_empty() {
+            animation_data._root_node = &animation_data._nodes[0];
+        }
+
+        for frame_time in animation_data._frame_times.iter() {
+            animation_data._animation_length = animation_data._animation_length.max(*frame_time);
+        }
+
+        animation_data._animation_transforms = vec![Matrix4::identity(); animation_data._nodes.len()];
+
+        animation_data.get_animation_transforms(0.0);
+        animation_data
+    }
+
+    pub fn get_time_to_frame(&self, current_frame: f32, current_time: f32) -> f32 {
+        if 1 < self._frame_count {
+            let mut frame = current_frame as usize;
+            let last_index = self._frame_count - 1;
+
+            if last_index <= frame {
+                frame %= last_index;
+            }
+
+            loop {
+                if (0 == frame && current_time <= self._frame_times[frame]) || (self._frame_times[frame] <= current_time && current_time <= self._frame_times[frame + 1]) {
+                    break;
+                }
+                frame = (frame + 1) % last_index;
+            }
+
+            let frame_time = self._frame_times[frame];
+            let next_frame_time = self._frame_times[frame + 1];
+            let ratio = (current_time - frame_time) / (next_frame_time - frame_time);
+            return frame as f32 + ratio;
+        }
+        0.0
+    }
+
+    pub fn update_animation_transform(&mut self, frame: f32, parent_bone: *const BoneData, parent_matrix: *const Matrix4<f32>) {
+        unsafe {
+            for bone in (*parent_bone)._children.iter() {
+                let index: usize = (**bone)._index;
+                let animation_node = &mut self._nodes[index];
+                animation_node.update_animation_node(frame);
+                self._animation_transforms[index] = &(*parent_matrix) * &animation_node._transform;
+                self.update_animation_transform(frame, *bone, &self._animation_transforms[index]);
+            }
+        }
+    }
+
+    pub fn get_animation_transforms(&mut self, frame: f32) -> &Vec<Matrix4<f32>> {
+        if frame != self._last_frame {
+            self._last_frame = frame;
+
+            unsafe {
+                if (*self._root_node)._precompute_parent_matrix {
+                    for (i, node) in self._nodes.iter_mut().enumerate() {
+                        self._animation_transforms[i].copy_from(node.update_animation_node(frame));
+                    }
+                } else {
+                    for bone in (*self._skeleton)._hierachy.iter() {
+                        let index: usize = (**bone)._index;
+                        let animation_node = &mut self._nodes[index];
+                        self._animation_transforms[index].copy_from(animation_node.update_animation_node(frame));
+                        self.update_animation_transform(frame, *bone, &self._animation_transforms[index]);
+                    }
+                }
+            }
+        }
+        &self._animation_transforms
+    }
+}
+
+impl AnimationNodeData {
+    pub fn create_animation_node_data(bone: *const BoneData, animation_node_create_info: &AnimationNodeCreateInfo) -> AnimationNodeData {
+        let mut animation_node_data = AnimationNodeData {
+            _name: animation_node_create_info._name.clone(),
+            _precompute_parent_matrix: animation_node_create_info._precompute_parent_matrix,
+            _precompute_inv_bind_matrix: animation_node_create_info._precompute_inv_bind_matrix,
+            _target: animation_node_create_info._target.clone(),  // bone name
+            _frame_times: animation_node_create_info._times.clone(),
+            _locations: animation_node_create_info._locations.clone(),
+            _rotations: animation_node_create_info._rotations.clone(),
+            _scales: animation_node_create_info._scales.clone(),
+            _interpoations: animation_node_create_info._interpoations.clone(),
+            _in_tangents: animation_node_create_info._in_tangents.clone(),
+            _out_tangents: animation_node_create_info._out_tangents.clone(),
+            _bone: bone,
+            _frame_count: animation_node_create_info._times.len(),
+            _last_frame: -1.0,
+            _transform: Matrix4::identity(),
+        };
+
+        // just update transform
+        animation_node_data.update_animation_node(0.0);
+        animation_node_data
+    }
+
+    pub fn update_animation_node(&mut self, frame: f32) -> &Matrix4<f32> {
+        if 0 != self._frame_count && frame != self._last_frame {
+            self._last_frame = frame;
+            let rate = frame.fract();
+            let frame: usize = (frame as usize) % self._frame_count;
+            let next_frame: usize = (frame + 1) % self._frame_count;
+            if frame < self._frame_count {
+                let rotation = glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
+                let location = glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
+                let scale = glm::lerp(&self._scales[frame], &self._scales[next_frame], rate);
+                self._transform = math::quaternion_to_matrix(&rotation);
+                math::matrix_scale(&mut self._transform, scale.x, scale.y, scale.z);
+                self._transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
+
+                // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
+                // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
+                if false == self._precompute_inv_bind_matrix {
+                    unsafe {
+                        self._transform = &self._transform * &(*self._bone)._inv_bind_matrix;
+                    }
+                }
+            }
+        }
+        &self._transform
+    }
+}
