@@ -71,8 +71,6 @@ pub struct AnimationData {
     pub _animation_length: f32,
     pub _nodes: Vec<AnimationNodeData>, // order by bone index
     pub _root_node: *const AnimationNodeData,
-    pub _last_frame: f32,
-    pub _animation_transforms: Vec<Matrix4<f32>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -196,8 +194,6 @@ impl AnimationData {
             _animation_length: 0.0,
             _nodes: Vec::new(), // order by bone index
             _root_node: std::ptr::null(),
-            _last_frame: 0.0,
-            _animation_transforms: Vec::new(),
         };
 
         unsafe {
@@ -220,10 +216,11 @@ impl AnimationData {
             animation_data._animation_length = animation_data._animation_length.max(*frame_time);
         }
 
-        animation_data._animation_transforms = vec![Matrix4::identity(); animation_data._nodes.len()];
-
-        animation_data.get_animation_transforms(0.0);
         animation_data
+    }
+
+    pub fn get_bone_count(&self) -> usize {
+        return self._nodes.len()
     }
 
     pub fn get_time_to_frame(&self, current_frame: f32, current_time: f32) -> f32 {
@@ -250,38 +247,39 @@ impl AnimationData {
         0.0
     }
 
-    pub fn update_animation_transform(&mut self, frame: f32, parent_bone: *const BoneData, parent_matrix: *const Matrix4<f32>) {
+    pub fn update_animation_transform(
+        &mut self,
+        frame: f32,
+        parent_bone: *const BoneData,
+        parent_matrix: *const Matrix4<f32>,
+        animation_transforms: &mut Vec<Matrix4<f32>>,
+    ) {
         unsafe {
             for bone in (*parent_bone)._children.iter() {
                 let index: usize = (**bone)._index;
                 let animation_node = &mut self._nodes[index];
                 animation_node.update_animation_node(frame);
-                self._animation_transforms[index] = &(*parent_matrix) * &animation_node._transform;
-                self.update_animation_transform(frame, *bone, &self._animation_transforms[index]);
+                animation_transforms[index] = &(*parent_matrix) * &animation_node._transform;
+                self.update_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
             }
         }
     }
 
-    pub fn get_animation_transforms(&mut self, frame: f32) -> &Vec<Matrix4<f32>> {
-        if frame != self._last_frame {
-            self._last_frame = frame;
-
-            unsafe {
-                if (*self._root_node)._precompute_parent_matrix {
-                    for (i, node) in self._nodes.iter_mut().enumerate() {
-                        self._animation_transforms[i].copy_from(node.update_animation_node(frame));
-                    }
-                } else {
-                    for bone in (*self._skeleton)._hierachy.iter() {
-                        let index: usize = (**bone)._index;
-                        let animation_node = &mut self._nodes[index];
-                        self._animation_transforms[index].copy_from(animation_node.update_animation_node(frame));
-                        self.update_animation_transform(frame, *bone, &self._animation_transforms[index]);
-                    }
+    pub fn get_animation_transforms(&mut self, frame: f32, animation_transforms: &mut Vec<Matrix4<f32>>) {
+        unsafe {
+            if (*self._root_node)._precompute_parent_matrix {
+                for (i, node) in self._nodes.iter_mut().enumerate() {
+                    animation_transforms[i].copy_from(node.update_animation_node(frame));
+                }
+            } else {
+                for bone in (*self._skeleton)._hierachy.iter() {
+                    let index: usize = (**bone)._index;
+                    let animation_node = &mut self._nodes[index];
+                    animation_transforms[index].copy_from(animation_node.update_animation_node(frame));
+                    self.update_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
                 }
             }
         }
-        &self._animation_transforms
     }
 }
 
