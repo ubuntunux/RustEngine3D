@@ -1,14 +1,20 @@
 use std::fs;
-use std::rc::Rc;
+use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{ Path, PathBuf };
 
 pub type RcRefCell<T> = Rc<RefCell<T>>;
+pub type WeakRefCell<T> = Weak<RefCell<T>>;
 
 #[allow(non_snake_case)]
 pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {
     Rc::new(RefCell::new(t))
+}
+
+#[allow(non_snake_case)]
+pub fn intoWeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> {
+    Rc::downgrade(t)
 }
 
 pub fn enum_to_string<T: std::fmt::Debug>(e: &T) -> String {
