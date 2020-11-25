@@ -3,7 +3,6 @@ use nalgebra::{ Vector3 };
 
 use crate::renderer::animation::{
     AnimationNodeCreateInfo,
-    AnimationNodeData,
     AnimationData,
     SkeletonDataCreateInfo,
     SkeletonData,

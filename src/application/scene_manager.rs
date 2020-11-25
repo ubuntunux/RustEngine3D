@@ -1,3 +1,5 @@
+#![feature(weak)]
+
 use std::collections::HashMap;
 
 use nalgebra::{

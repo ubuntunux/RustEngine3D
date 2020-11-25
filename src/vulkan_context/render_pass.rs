@@ -18,9 +18,6 @@ use crate::vulkan_context::descriptor::{
 use crate::vulkan_context::framebuffer::{
     FramebufferDataCreateInfo,
 };
-use crate::vulkan_context::geometry_buffer::{
-    VertexData
-};
 use crate::vulkan_context::shader::{
     create_shader_stage_create_info,
     destroy_shader_stage_create_info

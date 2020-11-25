@@ -1,4 +1,3 @@
-use std::thread;
 use std::cell::RefMut;
 use std::time;
 use log;
@@ -10,7 +9,7 @@ use winit::event::{
     Event,
     VirtualKeyCode,
     WindowEvent,
-    ModifiersState,
+    //ModifiersState,
     ElementState,
 };
 use winit::event_loop::{
