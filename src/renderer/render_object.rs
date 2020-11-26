@@ -166,7 +166,6 @@ impl RenderObjectData {
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
         let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
         if animation_args._force || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
-            log::info!("set_animation: {:?}", animation_mesh.borrow()._name);
             animation_play_info._animation_mesh = Some(animation_mesh.clone());
             animation_play_info._animation_speed = animation_args._speed;
             animation_play_info._animation_loop = animation_args._loop;
