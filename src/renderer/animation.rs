@@ -250,7 +250,7 @@ impl AnimationData {
         frame: f32,
         parent_bone: *const BoneData,
         parent_matrix: *const Matrix4<f32>,
-        animation_transforms: &mut Vec<Matrix4<f32>>,
+        animation_transforms: &mut [Matrix4<f32>],
     ) {
         unsafe {
             for bone in (*parent_bone)._children.iter() {
@@ -262,7 +262,7 @@ impl AnimationData {
         }
     }
 
-    pub fn get_animation_transforms(&self, frame: f32, animation_transforms: &mut Vec<Matrix4<f32>>) {
+    pub fn get_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
         unsafe {
             if (*self._root_node)._precompute_parent_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {
