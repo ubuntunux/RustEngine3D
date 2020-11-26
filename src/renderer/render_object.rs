@@ -5,6 +5,7 @@ use nalgebra::{
 
 use crate::renderer::mesh::MeshData;
 use crate::renderer::model::ModelData;
+use crate::renderer::animation::AnimationData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::RcRefCell;
 
@@ -33,7 +34,7 @@ pub struct AnimationPlayInfo {
     pub _animation_elapsed_time: f32,
     pub _animation_speed: f32,
     pub _animation_frame: f32,
-    pub _animation_start_time: f32,
+    pub _animation_play_time: f32,
     pub _animation_end_time: Option<f32>,
     pub _is_animation_end: bool,
     pub _animation_buffers: Vec<Vec<Matrix4<f32>>>,
@@ -88,7 +89,7 @@ impl Default for AnimationPlayInfo {
             _animation_elapsed_time: 0.0,
             _animation_speed: 1.0,
             _animation_frame: 0.0,
-            _animation_start_time: 0.0,
+            _animation_play_time: 0.0,
             _animation_end_time: None,
             _is_animation_end: false,
             _animation_buffers: Vec::new(),
@@ -173,7 +174,7 @@ impl RenderObjectData {
             animation_play_info._animation_end_time = animation_args._end_time;
             if animation_args._reset {
                 animation_play_info._animation_elapsed_time = 0.0;
-                animation_play_info._animation_start_time = animation_args._start_time;
+                animation_play_info._animation_play_time = animation_args._start_time;
                 animation_play_info._animation_frame = 0.0;
                 animation_play_info._is_animation_end = false;
             }
@@ -183,59 +184,72 @@ impl RenderObjectData {
         }
     }
 
-    /*
-    def get_prev_animation_buffer(self, index):
-        return self.prev_animation_buffers[index]
+    pub fn get_prev_animation_buffer(&self, index: usize) -> &Vec<Matrix4<f32>>{
+        &self._animation_play_info.as_ref().unwrap()._prev_animation_buffers[index]
+    }
 
-    def get_animation_buffer(self, index):
-        return self.animation_buffers[index]
+    pub fn get_animation_buffer(&self, index: usize) -> &Vec<Matrix4<f32>>{
+        &self._animation_play_info.as_ref().unwrap()._animation_buffers[index]
+    }
 
-    def update(self, dt):
-        StaticActor.update(self, dt)
+    pub fn update(&mut self, delta_time: f32) {
+        self._transform_object.update_transform_object();
 
-        # update animation
-        animation_end = self.is_animation_end
-        blend_ratio = 1.0
-        update_animation_frame = True
-        for i, animation in enumerate(self.animation_mesh.animations):
-            if animation is not None:
-                # update animation frame only first animation
-                if update_animation_frame:
-                    update_animation_frame = False
-                    frame_count = animation.frame_count
-                    if frame_count > 1:
-                        self.animation_start_time += dt * self.animation_speed
+        // update animation
+        if self.has_animation_play_info() {
+            let mut animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
+            let mut blend_ratio: f32 = 1.0;
+            let animation_datas: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_datas;
+            for (i, animation) in animation_datas.iter().enumerate() {
+                // update animation frame only first animation
+                if 0 == i {
+                    if 1 < animation._frame_count {
+                        animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
 
-                        animation_end_time = animation.animation_length
+                        let mut animation_end_time = animation._animation_length;
+                        if let Some(custom_end_time) = animation_play_info._animation_end_time {
+                            if custom_end_time < animation_end_time {
+                                animation_end_time = custom_end_time;
+                            }
+                        }
 
-                        if self.animation_end_time is not None and self.animation_end_time < animation_end_time:
-                            animation_end_time = self.animation_end_time
+                        if animation_play_info._animation_loop {
+                            if animation_end_time < animation_play_info._animation_play_time {
+                                animation_play_info._animation_play_time = animation_play_info._animation_play_time % animation_end_time;
+                            }
+                        } else {
+                            if animation_end_time <= animation_play_info._animation_play_time {
+                                animation_play_info._animation_play_time = animation_end_time;
+                                animation_play_info._is_animation_end = true;
+                            }
+                        }
+                        animation_play_info._animation_frame = animation.get_time_to_frame(animation_play_info._animation_frame, animation_play_info._animation_play_time);
+                    } else {
+                        animation_play_info._animation_frame = 0.0;
+                    }
 
-                        if self.animation_loop:
-                            self.animation_start_time = math.fmod(self.animation_start_time + dt * self.animation_speed, animation_end_time)
-                        else:
-                            self.animation_start_time = min(animation_end_time, self.animation_start_time)
-                            if animation_end_time == self.animation_start_time:
-                                animation_end = True
-                        self.animation_frame = animation.get_time_to_frame(self.animation_frame, self.animation_start_time)
-                    else:
-                        self.animation_frame = 0.0
-                    if self.animation_elapsed_time < self.animation_blend_time:
-                        blend_ratio = self.animation_elapsed_time / self.animation_blend_time
-                    self.animation_elapsed_time += dt
+                    if animation_play_info._animation_elapsed_time < animation_play_info._animation_blend_time {
+                        blend_ratio = animation_play_info._animation_elapsed_time / animation_play_info._animation_blend_time;
+                    }
+                    animation_play_info._animation_elapsed_time += delta_time;
+                }
 
-                # update animation buffers
-                self.prev_animation_buffers[i][...] = self.animation_buffers[i]
+                // swap
+                std::mem::swap(&mut animation_play_info._prev_animation_buffers, &mut animation_play_info._animation_buffers);
 
-                if self.last_animation_frame != self.animation_frame:
-                    self.last_animation_frame = self.animation_frame
-                    animation_buffer = animation.get_animation_transforms(self.animation_frame)
+                // update animation buffers
+                if animation_play_info._last_animation_frame != animation_play_info._animation_frame {
+                    animation_play_info._last_animation_frame = animation_play_info._animation_frame;
+                    animation.get_animation_transforms(animation_play_info._animation_frame, &mut animation_play_info._animation_buffers[i]);
 
-                    if blend_ratio < 1.0:
-                        self.animation_buffers[i][...] = self.blend_animation_buffers[i] * (1.0 - blend_ratio) + animation_buffer * blend_ratio
-                    else:
-                        self.animation_buffers[i][...] = animation_buffer
-        self.is_animation_end = animation_end
-
-    */
+                    if blend_ratio < 1.0 {
+                        for (buffer_index, animation_buffer) in animation_play_info._animation_buffers[i].iter_mut().enumerate() {
+                            let blend_animation_buffer = &animation_play_info._blend_animation_buffers[i][buffer_index];
+                            animation_buffer.copy_from(&((blend_animation_buffer * (1.0 - blend_ratio)) + (&(*animation_buffer) * blend_ratio)));
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

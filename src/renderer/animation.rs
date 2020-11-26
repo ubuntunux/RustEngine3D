@@ -57,8 +57,6 @@ pub struct AnimationNodeData {
     pub _out_tangents: Vec<Vec<f32>>,
     pub _bone: *const BoneData,
     pub _frame_count: usize,
-    pub _last_frame: f32,
-    pub _transform: Matrix4<f32>,
 }
 
 #[derive(Clone, Debug)]
@@ -248,7 +246,7 @@ impl AnimationData {
     }
 
     pub fn update_animation_transform(
-        &mut self,
+        &self,
         frame: f32,
         parent_bone: *const BoneData,
         parent_matrix: *const Matrix4<f32>,
@@ -257,25 +255,23 @@ impl AnimationData {
         unsafe {
             for bone in (*parent_bone)._children.iter() {
                 let index: usize = (**bone)._index;
-                let animation_node = &mut self._nodes[index];
-                animation_node.update_animation_node(frame);
-                animation_transforms[index] = &(*parent_matrix) * &animation_node._transform;
+                self._nodes[index].update_animation_node(frame, &mut animation_transforms[index]);
+                animation_transforms[index] = &(*parent_matrix) * &animation_transforms[index];
                 self.update_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
             }
         }
     }
 
-    pub fn get_animation_transforms(&mut self, frame: f32, animation_transforms: &mut Vec<Matrix4<f32>>) {
+    pub fn get_animation_transforms(&self, frame: f32, animation_transforms: &mut Vec<Matrix4<f32>>) {
         unsafe {
             if (*self._root_node)._precompute_parent_matrix {
-                for (i, node) in self._nodes.iter_mut().enumerate() {
-                    animation_transforms[i].copy_from(node.update_animation_node(frame));
+                for (index, node) in self._nodes.iter().enumerate() {
+                    node.update_animation_node(frame, &mut animation_transforms[index]);
                 }
             } else {
                 for bone in (*self._skeleton)._hierachy.iter() {
                     let index: usize = (**bone)._index;
-                    let animation_node = &mut self._nodes[index];
-                    animation_transforms[index].copy_from(animation_node.update_animation_node(frame));
+                    self._nodes[index].update_animation_node(frame, &mut animation_transforms[index]);
                     self.update_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
                 }
             }
@@ -285,7 +281,7 @@ impl AnimationData {
 
 impl AnimationNodeData {
     pub fn create_animation_node_data(bone: *const BoneData, animation_node_create_info: &AnimationNodeCreateInfo) -> AnimationNodeData {
-        let mut animation_node_data = AnimationNodeData {
+        AnimationNodeData {
             _name: animation_node_create_info._name.clone(),
             _precompute_parent_matrix: animation_node_create_info._precompute_parent_matrix,
             _precompute_inv_bind_matrix: animation_node_create_info._precompute_inv_bind_matrix,
@@ -299,18 +295,11 @@ impl AnimationNodeData {
             _out_tangents: animation_node_create_info._out_tangents.clone(),
             _bone: bone,
             _frame_count: animation_node_create_info._times.len(),
-            _last_frame: -1.0,
-            _transform: Matrix4::identity(),
-        };
-
-        // just update transform
-        animation_node_data.update_animation_node(0.0);
-        animation_node_data
+        }
     }
 
-    pub fn update_animation_node(&mut self, frame: f32) -> &Matrix4<f32> {
-        if 0 != self._frame_count && frame != self._last_frame {
-            self._last_frame = frame;
+    pub fn update_animation_node(&self, frame: f32, transform: &mut Matrix4<f32>) {
+        if (frame as usize) < self._frame_count {
             let rate = frame.fract();
             let frame: usize = (frame as usize) % self._frame_count;
             let next_frame: usize = (frame + 1) % self._frame_count;
@@ -318,19 +307,18 @@ impl AnimationNodeData {
                 let rotation = glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
                 let location = glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
                 let scale = glm::lerp(&self._scales[frame], &self._scales[next_frame], rate);
-                self._transform = math::quaternion_to_matrix(&rotation);
-                math::matrix_scale(&mut self._transform, scale.x, scale.y, scale.z);
-                self._transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
+                transform.copy_from(&math::quaternion_to_matrix(&rotation));
+                math::matrix_scale(transform, scale.x, scale.y, scale.z);
+                transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
 
                 // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
                 // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
                 if false == self._precompute_inv_bind_matrix {
                     unsafe {
-                        self._transform = &self._transform * &(*self._bone)._inv_bind_matrix;
+                        transform.copy_from(&(&(*transform) * &(*self._bone)._inv_bind_matrix));
                     }
                 }
             }
         }
-        &self._transform
     }
 }
