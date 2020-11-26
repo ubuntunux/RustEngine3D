@@ -128,26 +128,6 @@ impl RenderObjectData {
         render_object_data
     }
 
-    pub fn get_mesh_data(&self) -> &RcRefCell<MeshData> {
-        &self._mesh_data
-    }
-
-    pub fn get_model_data(&self) -> &RcRefCell<ModelData> {
-        &self._model_data
-    }
-
-    pub fn get_transform_object_data(&self) -> &TransformObjectData {
-        &self._transform_object
-    }
-
-    pub fn update_render_object_data(&mut self) {
-        self._transform_object.update_transform_object();
-    }
-
-    pub fn has_animation_play_info(&self) -> bool {
-        self._animation_play_info.is_some()
-    }
-
     pub fn initialize_animation_play_info(&mut self, has_animation_data: bool) {
         if has_animation_data {
             let mut animation_play_info = AnimationPlayInfo::default();
@@ -161,6 +141,22 @@ impl RenderObjectData {
             animation_play_info._animation_mesh = Some(self._mesh_data.clone());
             self._animation_play_info = Some(animation_play_info);
         }
+    }
+
+    pub fn get_mesh_data(&self) -> &RcRefCell<MeshData> {
+        &self._mesh_data
+    }
+
+    pub fn get_model_data(&self) -> &RcRefCell<ModelData> {
+        &self._model_data
+    }
+
+    pub fn get_transform_object_data(&self) -> &TransformObjectData {
+        &self._transform_object
+    }
+
+    pub fn has_animation_play_info(&self) -> bool {
+        self._animation_play_info.is_some()
     }
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
@@ -191,7 +187,7 @@ impl RenderObjectData {
         &self._animation_play_info.as_ref().unwrap()._animation_buffers[index]
     }
 
-    pub fn update(&mut self, delta_time: f32) {
+    pub fn update_render_object_data(&mut self, delta_time: f32) {
         self._transform_object.update_transform_object();
 
         // update animation

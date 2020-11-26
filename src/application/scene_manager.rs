@@ -66,13 +66,14 @@ impl SceneManagerData {
         });
 
         let model_data0 = self._resources.borrow().get_model_data(&String::from("sponza/sponza")).clone();
-        let model_data1 = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
         self.add_static_render_object(&String::from("sponza"), RenderObjectCreateInfo {
             _model_data: Some(model_data0),
             _position: Vector3::new(0.0, 0.0, 0.0),
             _scale: Vector3::new(0.1, 0.1, 0.1),
             ..Default::default()
         });
+
+        let model_data1 = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
         self.add_skeletal_render_object(&String::from("skeletal"), RenderObjectCreateInfo {
             _model_data: Some(model_data1),
             _position: Vector3::new(0.0, 1.5, 0.0),
@@ -154,7 +155,7 @@ impl SceneManagerData {
         }
     }
 
-    pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, _delta_time: f64) {
+    pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
         let mut main_camera = self._main_camera.borrow_mut();
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();
@@ -163,11 +164,11 @@ impl SceneManagerData {
         main_light.update_light_data(camera_position);
 
         for (_key, render_object_data) in self._static_render_object_map.iter() {
-            render_object_data.borrow_mut().update_render_object_data();
+            render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
         for (_key, render_object_data) in self._skeletal_render_object_map.iter() {
-            render_object_data.borrow_mut().update_render_object_data();
+            render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
         SceneManagerData::gather_render_elements(&self._static_render_object_map, &mut self._static_render_elements);

@@ -17,31 +17,34 @@ layout (location = 6) in vec4 inBoneWeights;
 layout(location = 0) out VERTEX_OUTPUT vs_output;
 
 void main() {
-    vec4 position = vec4(inPosition, 1.0);
-    vec4 prev_position = vec4(inPosition, 1.0);
-    vec3 vertex_normal = inNormal;
-    vec3 vertex_tangent = inTangent;
+    vec4 position = vec4(0.0);
+    vec4 prev_position = vec4(0.0);
+    vec3 vertex_normal = vec3(0.0);
+    vec3 vertex_tangent = vec3(0.0);
 
-//#if (RenderObjectType_Skeletal == RenderObjectType)
-//    for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
-//    {
-//        prev_position += (prev_bone_matrices[int(vs_in_bone_indices[i])] * prev_position) * vs_in_bone_weights[i];
-//        position += (bone_matrices[int(vs_in_bone_indices[i])] * position) * vs_in_bone_weights[i];
-//        vertex_normal += (bone_matrices[int(vs_in_bone_indices[i])] * vec4(vertex_normal, 0.0)).xyz * vs_in_bone_weights[i];
-//        vertex_tangent += (bone_matrices[int(vs_in_bone_indices[i])] * vec4(vertex_tangent, 0.0)).xyz * vs_in_bone_weights[i];
-//    }
-//    position /= position.w;
-//    prev_position /= prev_position.w;
-//#endif
+#if (RenderObjectType_Skeletal == RenderObjectType)
+    for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
+    {
+        prev_position += (prev_bone_matrices[int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
+        position += (bone_matrices[int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
+        vertex_normal += (bone_matrices[int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * inBoneWeights[i];
+        vertex_tangent += (bone_matrices[int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * inBoneWeights[i];
+    }
+    position /= position.w;
+    prev_position /= prev_position.w;
+#else
+    position = vec4(inPosition, 1.0);
+    prev_position = vec4(inPosition, 1.0);
+    vertex_normal = inNormal;
+    vertex_tangent = inTangent;
+#endif
+    vertex_normal = normalize(vertex_normal);
+    vertex_tangent = normalize(vertex_tangent);
 
     mat4 localMatrix = pushConstant.localMatrix;
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
 
     vec3 relative_pos = (localMatrix * position).xyz;
-
-    #if (RenderObjectType_Skeletal == RenderObjectType)
-    relative_pos.y += 1.0;
-    #endif
 
 #if (RenderMode_Common == RenderMode)
     vec3 relative_pos_prev = relative_pos + view_constants.CAMERA_POSITION - view_constants.CAMERA_POSITION_PREV;

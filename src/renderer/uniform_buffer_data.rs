@@ -115,6 +115,7 @@ pub struct SSAOConstants {
 
 #[derive(Clone)]
 pub struct BoneMatrices {
+    pub _prev_bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
     pub _bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
 }
 
@@ -141,6 +142,7 @@ impl Default for LightConstants {
 impl Default for BoneMatrices {
     fn default() -> BoneMatrices {
         BoneMatrices {
+            _prev_bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
             _bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
         }
     }

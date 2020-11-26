@@ -47,6 +47,7 @@ use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, 
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::render_target::{ self, RenderTargetType };
+use crate::renderer::render_object::{ AnimationPlayInfo };
 use crate::renderer::uniform_buffer_data::{ self, UniformBufferType, UniformBufferDataMap };
 use crate::renderer::post_process::{ PostProcessData_SSAO };
 use crate::renderer::push_constants::{ PushConstants_StaticRenderObject, PushConstants_SkeletalRenderObject };
@@ -625,6 +626,24 @@ impl RendererData {
         buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
     }
 
+    pub fn upload_uniform_buffer_datas<T: Copy>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &[T]) {
+        let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
+        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        buffer::upload_buffer_data(&self._device, buffer_data, upload_data);
+    }
+
+    pub fn upload_uniform_buffer_data_offset<T>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &T, offset: vk::DeviceSize) {
+        let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
+        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        buffer::upload_buffer_data_offset(&self._device, buffer_data, system::to_bytes(upload_data), offset);
+    }
+
+    pub fn upload_uniform_buffer_datas_offset<T: Copy>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &[T], offset: vk::DeviceSize) {
+        let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
+        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
+    }
+
     pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64) {
         unsafe {
             // frame index
@@ -688,14 +707,10 @@ impl RendererData {
                     _viewconstants_dummy3: 0.0,
                 };
 
-                let mut bone_matrices = uniform_buffer_data::BoneMatrices::default();
-                bone_matrices._bone_matrices[0].set_column(3, &Vector4::new(0.0, (elapsed_time % 1.0) as f32, 0.0, 1.0));
-
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::SceneConstants, &scene_constants);
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::ViewConstants, &view_constants);
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::LightConstants, light_constants);
                 self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::SSAOConstants, ssao_constants);
-                self.upload_uniform_buffer_data(swapchain_index, UniformBufferType::BoneMatrices, &bone_matrices);
 
                 // Begin command buffer
                 let command_buffer_begin_info = vk::CommandBufferBeginInfo {
@@ -803,12 +818,22 @@ impl RendererData {
         };
 
         for (index, render_element) in render_elements.iter().enumerate() {
+            let render_object = render_element._render_object.borrow();
             let material_instance_data = render_element._material_instance_data.borrow();
             let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_data_name);
             let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
 
             if 0 == index {
+                // TEST CODE
+                if RenderObjectType::Skeletal == render_object_type {
+                    let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
+                    let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
+                    let offset = (std::mem::size_of::<Matrix4<f32>>() * constants::MAX_BONES) as vk::DeviceSize;
+                    self.upload_uniform_buffer_datas(swapchain_index, UniformBufferType::BoneMatrices, &prev_animation_buffer);
+                    self.upload_uniform_buffer_datas_offset(swapchain_index, UniformBufferType::BoneMatrices, &animation_buffer, offset);
+                }
+
                 self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
             }
 
@@ -820,7 +845,7 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_StaticRenderObject {
-                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                            _model_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
                         }
                     );
                 },
@@ -829,7 +854,7 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_SkeletalRenderObject {
-                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone()
+                            _model_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
                         }
                     );
                 },

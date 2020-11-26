@@ -149,24 +149,28 @@ pub fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
 
 pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T]) {
     unsafe {
-        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, buffer_data._buffer_memory_requirements.size, vk::MemoryMapFlags::empty()).unwrap();
+        let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+        assert!(upload_data_size <= buffer_data._buffer_memory_requirements.size);
+        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, upload_data_size, vk::MemoryMapFlags::empty()).unwrap();
         let mut slice = Align::new(
             buffer_ptr,
             std::mem::align_of::<T>() as u64,
-            std::mem::size_of::<T>() as u64 * upload_data.len() as u64,
+            upload_data_size,
         );
         slice.copy_from_slice(upload_data);
         device.unmap_memory(buffer_data._buffer_memory);
     }
 }
 
-pub fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], data_size: vk::DeviceSize, offset: vk::DeviceSize) {
+pub fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], offset: vk::DeviceSize) {
     unsafe {
-        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, data_size, vk::MemoryMapFlags::empty()).unwrap();
+        let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+        assert!((upload_data_size + offset) <= buffer_data._buffer_memory_requirements.size);
+        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, upload_data_size, vk::MemoryMapFlags::empty()).unwrap();
         let mut slice = Align::new(
             buffer_ptr,
             std::mem::align_of::<T>() as u64,
-            data_size,
+            upload_data_size,
         );
         slice.copy_from_slice(upload_data);
         device.unmap_memory(buffer_data._buffer_memory);
