@@ -490,7 +490,7 @@ impl Resources {
                     let framebuffer_data = newRcRefCell(framebuffer::create_framebuffer_data(
                         renderer_data.get_device(),
                         render_pass_data._render_pass,
-                        &render_pass_data_create_info._render_pass_frame_buffer_create_info,
+                        render_pass_data_create_info._render_pass_frame_buffer_create_info.clone(),
                     ));
                     self._framebuffer_data_map.insert(framebuffer_name.clone(), framebuffer_data);
                     break;
