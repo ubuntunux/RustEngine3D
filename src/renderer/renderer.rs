@@ -449,37 +449,6 @@ impl RendererData {
             if pipeline_dynamic_states.contains(&vk::DynamicState::SCISSOR) {
                 self._device.cmd_set_scissor(command_buffer, 0, &[frame_buffer_data._framebuffer_info._framebuffer_scissor_rect]);
             }
-            let clear_value_count = frame_buffer_data._framebuffer_info._framebuffer_clear_values.len();
-            let color_attachment_count = frame_buffer_data._framebuffer_info._framebuffer_color_attachment_formats.len();
-            let clear_attachments = (0..clear_value_count).map(index |
-                vk::ClearAttachment {
-                    aspect_mask: if index < color_attachment_count {
-                        vk::ImageAspectFlags::COLOR
-                    } else {
-                        if constants::DEPTH_STENCIL_FORMATS.contains(&frame_buffer_data._framebuffer_info._framebuffer_depth_attachment_formats[index - color_attachment_count]) {
-                            vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
-                        }
-                        else {
-                            vk::ImageAspectFlags::DEPTH
-                        }
-                    },
-                    color_attachment: index,
-                    clear_value: frame_buffer_data._framebuffer_info._framebuffer_clear_values[index],
-                }
-            );
-            let clear_rects = vec![vk::ClearRect {
-                pub rect: Rect2D,
-                pub base_array_layer: u32,
-                pub layer_count: u32,
-            }; clear_value_count];
-
-            vkCmdClearAttachments(
-                VkCommandBuffer commandBuffer,
-                uint32_t attachmentCount,
-                const VkClearAttachment* pAttachments,
-                uint32_t rectCount,
-                const VkClearRect* pRects
-            );
             self._device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_data.borrow()._pipeline);
         }
     }

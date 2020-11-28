@@ -18,7 +18,6 @@ pub struct FramebufferDataCreateInfo {
     pub _framebuffer_width: u32,
     pub _framebuffer_height: u32,
     pub _framebuffer_depth: u32,
-    pub _framebuffer_texture_data: *const TextureData,
     pub _framebuffer_sample_count: vk::SampleCountFlags,
     pub _framebuffer_view_port: vk::Viewport,
     pub _framebuffer_scissor_rect: vk::Rect2D,
