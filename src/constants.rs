@@ -15,7 +15,7 @@ pub const DEPTH_FOMATS: [vk::Format; 5] = [
     vk::Format::D16_UNORM
 ];
 pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
-    vk:: Format::D32_SFLOAT_S8_UINT,
+    vk::Format::D32_SFLOAT_S8_UINT,
     vk::Format::D24_UNORM_S8_UINT,
     vk::Format::D16_UNORM_S8_UINT
 ];

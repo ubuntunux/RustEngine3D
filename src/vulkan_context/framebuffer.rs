@@ -6,9 +6,10 @@ use ash::version::DeviceV1_0;
 
 use crate::constants;
 use crate::vulkan_context::vulkan_context::{
+    self,
     SwapchainIndexMap
 };
-use crate::vulkan_context::vulkan_context;
+use crate::vulkan_context::texture::{ TextureData };
 
 
 #[derive(Clone)]
@@ -17,6 +18,7 @@ pub struct FramebufferDataCreateInfo {
     pub _framebuffer_width: u32,
     pub _framebuffer_height: u32,
     pub _framebuffer_depth: u32,
+    pub _framebuffer_texture_data: *const TextureData,
     pub _framebuffer_sample_count: vk::SampleCountFlags,
     pub _framebuffer_view_port: vk::Viewport,
     pub _framebuffer_scissor_rect: vk::Rect2D,

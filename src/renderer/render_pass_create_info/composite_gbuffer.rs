@@ -25,8 +25,8 @@ use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
-use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::vulkan_context::{
+    self,
     BlendMode,
 };
 
@@ -43,6 +43,7 @@ pub fn get_framebuffer_data_create_info(
         _framebuffer_width: width,
         _framebuffer_height: height,
         _framebuffer_depth: depth,
+        _framebuffer_texture_data: TextureData,
         _framebuffer_sample_count: render_target._image_sample_count,
         _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
         _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
