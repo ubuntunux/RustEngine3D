@@ -14,15 +14,11 @@ use nalgebra::{
     Vector3,
     Vector4,
     Matrix4,
-    Matrix,
-    ArrayStorage,
-    U4,
-    U64,
 };
 
 use crate::constants;
-use crate::vulkan_context::uniform_buffer;
 use crate::vulkan_context::uniform_buffer::{
+    self,
     UniformBufferData,
 };
 
@@ -107,10 +103,9 @@ pub struct LightConstants {
 }
 
 // render_ssao.frag - SSAOConstants
-type Matrix4x64f = Matrix<f32, U4, U64, ArrayStorage<f32, U4, U64>>;
-#[derive(Clone, Debug, Default)]
+#[derive(Clone)]
 pub struct SSAOConstants {
-    pub _ssao_kernel_samples: Matrix4x64f,
+    pub _ssao_kernel_samples: [Vector4<f32>; constants::SSAO_KERNEL_SIZE],
 }
 
 #[derive(Clone)]
