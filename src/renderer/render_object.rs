@@ -101,6 +101,21 @@ impl Default for AnimationPlayInfo {
     } 
 }
 
+impl AnimationPlayInfo {
+    pub fn set_animation_play_info(&mut self, animation_args: &AnimationPlayArgs) {
+        self._animation_speed = animation_args._speed;
+        self._animation_loop = animation_args._loop;
+        self._animation_blend_time = animation_args._blend_time;
+        self._animation_end_time = animation_args._end_time;
+        if animation_args._reset {
+            self._animation_elapsed_time = 0.0;
+            self._animation_play_time = animation_args._start_time;
+            self._animation_frame = 0.0;
+            self._is_animation_end = false;
+        }
+    }
+}
+
 impl RenderObjectData {
     pub fn create_render_object_data(
         render_object_name: &String,
@@ -161,20 +176,10 @@ impl RenderObjectData {
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
         let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
-        if animation_args._force || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
+        // if animation_args._force || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr()
+        {
             animation_play_info._animation_mesh = Some(animation_mesh.clone());
-            animation_play_info._animation_speed = animation_args._speed;
-            animation_play_info._animation_loop = animation_args._loop;
-            animation_play_info._animation_blend_time = animation_args._blend_time;
-            animation_play_info._animation_end_time = animation_args._end_time;
-            if animation_args._reset {
-                animation_play_info._animation_elapsed_time = 0.0;
-                animation_play_info._animation_play_time = animation_args._start_time;
-                animation_play_info._animation_frame = 0.0;
-                animation_play_info._is_animation_end = false;
-            }
-
-            // swap
+            animation_play_info.set_animation_play_info(animation_args);
             std::mem::swap(&mut animation_play_info._prev_animation_buffers, &mut animation_play_info._animation_buffers);
         }
     }
@@ -199,6 +204,7 @@ impl RenderObjectData {
                 // update animation frame only first animation
                 if 0 == i {
                     if 1 < animation._frame_count {
+                        println!("{}", animation_play_info._animation_speed);
                         animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
 
                         let mut animation_end_time = animation._animation_length;
