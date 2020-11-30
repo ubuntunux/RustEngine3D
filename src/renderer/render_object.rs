@@ -204,7 +204,6 @@ impl RenderObjectData {
                 // update animation frame only first animation
                 if 0 == i {
                     if 1 < animation._frame_count {
-                        println!("{}", animation_play_info._animation_speed);
                         animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
 
                         let mut animation_end_time = animation._animation_length;

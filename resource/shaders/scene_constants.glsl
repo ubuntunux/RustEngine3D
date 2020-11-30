@@ -21,7 +21,7 @@
 
 #define MAX_BONES_PER_VERTEX 4
 // MAX_BONES must match with constants.rs
-#define MAX_BONES 100
+#define MAX_BONES 128
 
 const float PI = 3.14159265358979323846;
 const float HALF_PI = PI * 0.5;

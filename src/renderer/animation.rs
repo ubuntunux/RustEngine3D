@@ -112,8 +112,6 @@ impl Default for SkeletonHierachyTree {
 
 impl BoneData {
     pub fn create_bone(name: &String, index: usize, depth: u32, inv_bind_matrix: &Matrix4<f32>) -> BoneData {
-        // v += {[(v * BindShapeMatrix) * InvBindMatrix * JointMatrix(animation)] * JointWeight}
-        log::info!("{}: {} {}", depth, name, index);
         BoneData {
             _name: name.clone(),
             _transform: TransformObjectData::new_transform_object_data(),
