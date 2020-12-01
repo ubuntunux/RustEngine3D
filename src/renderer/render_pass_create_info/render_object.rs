@@ -14,7 +14,7 @@ use crate::renderer::renderer::{
     RendererData,
 };
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::uniform_buffer_data::UniformBufferType;
+use crate::renderer::buffer_data_infos::BufferDataType;
 use crate::renderer::push_constants::{
     PushConstantInterface,
     PushConstants_StaticRenderObject,
@@ -32,10 +32,7 @@ use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
-use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::vulkan_context::{
-    BlendMode,
-};
+use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
 
 pub fn get_render_pass_name(render_object_type: RenderObjectType) -> String {
     let render_pass_name = match render_object_type {
@@ -195,25 +192,25 @@ pub fn get_render_pass_data_create_info(
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&UniformBufferType::SceneConstants),
+                    _descriptor_name: enum_to_string(&BufferDataType::SceneConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(&UniformBufferType::ViewConstants),
+                    _descriptor_name: enum_to_string(&BufferDataType::ViewConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
-                    _descriptor_name: enum_to_string(&UniformBufferType::LightConstants),
+                    _descriptor_name: enum_to_string(&BufferDataType::LightConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
-                    _descriptor_name: enum_to_string(&UniformBufferType::BoneMatrices),
+                    _descriptor_name: enum_to_string(&BufferDataType::BoneMatrices),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },

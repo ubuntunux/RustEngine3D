@@ -9,7 +9,7 @@ use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData };
-use crate::renderer::uniform_buffer_data::{ LightConstants };
+use crate::renderer::buffer_data_infos::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
 

@@ -1,8 +1,8 @@
 use rand;
-use nalgebra::{Vector3, Matrix, ArrayStorage, U4, U64, Matrix4x1, Vector4};
+use nalgebra::{Vector3, Vector4};
 
 use crate::constants;
-use crate::renderer::uniform_buffer_data::{ SSAOConstants };
+use crate::renderer::buffer_data_infos::{ SSAOConstants };
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]

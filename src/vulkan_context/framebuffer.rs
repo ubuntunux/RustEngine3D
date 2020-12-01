@@ -9,7 +9,6 @@ use crate::vulkan_context::vulkan_context::{
     self,
     SwapchainIndexMap
 };
-use crate::vulkan_context::texture::{ TextureData };
 
 
 #[derive(Clone)]

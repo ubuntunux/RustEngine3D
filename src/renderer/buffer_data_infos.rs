@@ -20,7 +20,7 @@ use crate::constants;
 use crate::vulkan_context::buffer::{ self, BufferDataInfo };
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum UniformBufferType {
+pub enum BufferDataType {
     SceneConstants,
     ViewConstants,
     LightConstants,
@@ -28,27 +28,27 @@ pub enum UniformBufferType {
     BoneMatrices,
 }
 
-impl std::fmt::Display for UniformBufferType {
+impl std::fmt::Display for BufferDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl std::str::FromStr for UniformBufferType {
+impl std::str::FromStr for BufferDataType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SceneConstants" => Ok(UniformBufferType::SceneConstants),
-            "ViewConstants" => Ok(UniformBufferType::ViewConstants),
-            "LightConstants" => Ok(UniformBufferType::LightConstants),
-            "SSAOConstants" => Ok(UniformBufferType::SSAOConstants),
-            "BoneMatrices" => Ok(UniformBufferType::BoneMatrices),
-            _ => Err(format!("'{}' is not a valid value for UniformBufferType", s)),
+            "SceneConstants" => Ok(BufferDataType::SceneConstants),
+            "ViewConstants" => Ok(BufferDataType::ViewConstants),
+            "LightConstants" => Ok(BufferDataType::LightConstants),
+            "SSAOConstants" => Ok(BufferDataType::SSAOConstants),
+            "BoneMatrices" => Ok(BufferDataType::BoneMatrices),
+            _ => Err(format!("'{}' is not a valid value for BufferDataType", s)),
         }
     }
 }
 
-pub type UniformBufferDataMap = HashMap<UniformBufferType, BufferDataInfo>;
+pub type BufferDataInfoMap = HashMap<BufferDataType, BufferDataInfo>;
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
 #[derive(Clone, Debug, Default)]
@@ -140,33 +140,33 @@ impl Default for BoneMatrices {
     }
 }
 
-pub fn regist_uniform_data(
+pub fn regist_buffer_data_info(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    uniform_buffer_data_map: &mut UniformBufferDataMap,
-    uniform_buffer_data_type: UniformBufferType,
-    uniform_buffer_data_size: usize
+    buffer_data_info_map: &mut BufferDataInfoMap,
+    buffer_data_info_type: BufferDataType,
+    buffer_data_info_size: usize
 ) {
     let uniform_buffer_data = buffer::create_buffer_data_info(
         device,
         memory_properties,
-        &String::from(format!("{:?}", uniform_buffer_data_type)),
+        &String::from(format!("{:?}", buffer_data_info_type)),
         vk::BufferUsageFlags::UNIFORM_BUFFER,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         constants::SWAPCHAIN_IMAGE_COUNT,
-        uniform_buffer_data_size as vk::DeviceSize
+        buffer_data_info_size as vk::DeviceSize
     );
-    uniform_buffer_data_map.insert(uniform_buffer_data_type.clone(), uniform_buffer_data);
+    buffer_data_info_map.insert(buffer_data_info_type.clone(), uniform_buffer_data);
 }
 
-pub fn regist_uniform_datas(
+pub fn regist_buffer_data_infos(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    uniform_buffer_data_map: &mut UniformBufferDataMap,
+    buffer_data_info_map: &mut BufferDataInfoMap,
 ) {
-    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::SceneConstants, std::mem::size_of::<SceneConstants>());
-    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::ViewConstants, std::mem::size_of::<ViewConstants>());
-    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::LightConstants, std::mem::size_of::<LightConstants>());
-    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::SSAOConstants, std::mem::size_of::<SSAOConstants>());
-    regist_uniform_data(device, memory_properties, uniform_buffer_data_map, UniformBufferType::BoneMatrices, std::mem::size_of::<BoneMatrices>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SceneConstants, std::mem::size_of::<SceneConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::ViewConstants, std::mem::size_of::<ViewConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::LightConstants, std::mem::size_of::<LightConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SSAOConstants, std::mem::size_of::<SSAOConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::BoneMatrices, std::mem::size_of::<BoneMatrices>());
 }
