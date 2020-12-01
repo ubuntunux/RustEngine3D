@@ -145,13 +145,14 @@ pub fn regist_buffer_data_info(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     buffer_data_info_map: &mut BufferDataInfoMap,
     buffer_data_info_type: BufferDataType,
+    buffer_usage: vk::BufferUsageFlags,
     buffer_data_info_size: usize
 ) {
     let uniform_buffer_data = buffer::create_buffer_data_info(
         device,
         memory_properties,
         &String::from(format!("{:?}", buffer_data_info_type)),
-        vk::BufferUsageFlags::UNIFORM_BUFFER,
+        buffer_usage,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         constants::SWAPCHAIN_IMAGE_COUNT,
         buffer_data_info_size as vk::DeviceSize
@@ -164,9 +165,9 @@ pub fn regist_buffer_data_infos(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     buffer_data_info_map: &mut BufferDataInfoMap,
 ) {
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SceneConstants, std::mem::size_of::<SceneConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::ViewConstants, std::mem::size_of::<ViewConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::LightConstants, std::mem::size_of::<LightConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SSAOConstants, std::mem::size_of::<SSAOConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::BoneMatrices, std::mem::size_of::<BoneMatrices>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>());
+    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>());
 }

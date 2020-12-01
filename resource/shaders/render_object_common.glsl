@@ -10,7 +10,7 @@ layout(binding = 2) uniform LightConstants
 {
     LIGHT_CONSTANTS light_constants;
 };
-layout(binding = 3) uniform BoneConstants
+layout(binding = 3) buffer BoneConstants
 {
     mat4 prev_bone_matrices[MAX_BONES];
     mat4 bone_matrices[MAX_BONES];
