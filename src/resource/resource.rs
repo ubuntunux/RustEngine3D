@@ -624,7 +624,7 @@ impl Resources {
                 let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
                     let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                         let material_parameter_name = &descriptor_data_create_info._descriptor_name;
-                        let material_parameter_type = &descriptor_data_create_info._descriptor_type;
+                        let material_parameter_type = &descriptor_data_create_info.get_descriptor_type();
                         let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
                         let maybe_material_parameter = match material_parameter_map.get(material_parameter_name) {
                             None => default_material_parameter_map.get(material_parameter_name),

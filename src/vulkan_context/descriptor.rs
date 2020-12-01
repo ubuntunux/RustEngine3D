@@ -17,6 +17,7 @@ pub enum DescriptorResourceInfo {
 #[derive(Debug, Clone)]
 pub enum DescriptorResourceType {
     UniformBuffer,
+    StorageBuffer,
     Texture,
     RenderTarget,
 }
@@ -26,7 +27,6 @@ pub struct DescriptorDataCreateInfo {
     pub _descriptor_binding_index: u32,
     pub _descriptor_name: String,
     pub _descriptor_resource_type: DescriptorResourceType,
-    pub _descriptor_type: vk::DescriptorType,
     pub _descriptor_shader_stage: vk::ShaderStageFlags,
 }
 
@@ -49,6 +49,17 @@ impl Default for DescriptorData {
             _descriptor_pool: vk::DescriptorPool::null(),
             _descriptor_set_layout: vk::DescriptorSetLayout::null(),
             _max_descriptor_sets_count: 0,
+        }
+    }
+}
+
+impl DescriptorDataCreateInfo {
+    pub fn get_descriptor_type(&self) -> vk::DescriptorType {
+        match self._descriptor_resource_type {
+            DescriptorResourceType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
+            DescriptorResourceType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
+            DescriptorResourceType::Texture => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            DescriptorResourceType::RenderTarget => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         }
     }
 }
@@ -114,7 +125,7 @@ pub fn create_descriptor_data(
         .map(|descriptor_data_create_info| {
             vk::DescriptorSetLayoutBinding {
                 binding: descriptor_data_create_info._descriptor_binding_index,
-                descriptor_type: descriptor_data_create_info._descriptor_type,
+                descriptor_type: descriptor_data_create_info.get_descriptor_type(),
                 descriptor_count: 1,
                 stage_flags: descriptor_data_create_info._descriptor_shader_stage,
                 ..Default::default()
@@ -125,7 +136,7 @@ pub fn create_descriptor_data(
         .iter()
         .map(|descriptor_data_create_info| {
             vk::DescriptorPoolSize {
-                ty: descriptor_data_create_info._descriptor_type,
+                ty: descriptor_data_create_info.get_descriptor_type(),
                 descriptor_count: max_descriptor_sets_count,
             }
         })

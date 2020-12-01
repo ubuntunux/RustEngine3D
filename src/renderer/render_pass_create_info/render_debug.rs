@@ -109,7 +109,6 @@ pub fn get_render_pass_data_create_info(
                     _descriptor_binding_index: 0,
                     _descriptor_name: enum_to_string(&RenderTargetType::BackBuffer),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                    _descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 },
             ],
