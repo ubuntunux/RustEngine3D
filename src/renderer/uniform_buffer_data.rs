@@ -17,10 +17,7 @@ use nalgebra::{
 };
 
 use crate::constants;
-use crate::vulkan_context::uniform_buffer::{
-    self,
-    UniformBufferData,
-};
+use crate::vulkan_context::buffer::{ self, BufferDataInfo };
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum UniformBufferType {
@@ -51,7 +48,7 @@ impl std::str::FromStr for UniformBufferType {
     }
 }
 
-pub type UniformBufferDataMap = HashMap<UniformBufferType, UniformBufferData>;
+pub type UniformBufferDataMap = HashMap<UniformBufferType, BufferDataInfo>;
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
 #[derive(Clone, Debug, Default)]
@@ -150,10 +147,13 @@ pub fn regist_uniform_data(
     uniform_buffer_data_type: UniformBufferType,
     uniform_buffer_data_size: usize
 ) {
-    let uniform_buffer_data = uniform_buffer::create_uniform_buffer_data(
+    let uniform_buffer_data = buffer::create_buffer_data_info(
         device,
         memory_properties,
         &String::from(format!("{:?}", uniform_buffer_data_type)),
+        vk::BufferUsageFlags::UNIFORM_BUFFER,
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        constants::SWAPCHAIN_IMAGE_COUNT,
         uniform_buffer_data_size as vk::DeviceSize
     );
     uniform_buffer_data_map.insert(uniform_buffer_data_type.clone(), uniform_buffer_data);

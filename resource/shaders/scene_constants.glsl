@@ -35,7 +35,7 @@ const vec3 kGroundAlbedo = vec3(0.0, 0.0, 0.04);
 
 const int MAX_POINT_LIGHTS = 10;
 
-// UniformBufferDatas.hs - data SceneConstants
+// uniform_buffer_datas.rs - struct SceneConstants
 struct SCENE_CONSTANTS
 {
     vec2 SCREEN_SIZE;
@@ -46,7 +46,7 @@ struct SCENE_CONSTANTS
     int SCENE_CONSTANTS_DUMMY0;
 };
 
-// UniformBufferDatas.hs - data ViewConstants
+// uniform_buffer_datas.rs - struct ViewConstants
 struct VIEW_CONSTANTS
 {
     mat4 VIEW;
@@ -71,7 +71,7 @@ struct VIEW_CONSTANTS
     float VIEWCONSTANTS_DUMMY3;
 };
 
-// UniformBufferDatas.hs - data LightConstants
+// uniform_buffer_datas.rs - struct LightConstants
 struct LIGHT_CONSTANTS
 {
     mat4 SHADOW_VIEW_PROJECTION;

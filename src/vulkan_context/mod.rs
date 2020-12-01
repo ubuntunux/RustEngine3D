@@ -10,7 +10,6 @@ pub mod shader;
 pub mod swapchain;
 pub mod sync;
 pub mod texture;
-pub mod uniform_buffer;
 pub mod vulkan_context;
 
 #[allow(unused_imports)]
@@ -48,9 +47,6 @@ use self::sync::*;
 
 #[allow(unused_imports)]
 use self::texture::*;
-
-#[allow(unused_imports)]
-use self::uniform_buffer::*;
 
 #[allow(unused_imports)]
 use self::vulkan_context::*;

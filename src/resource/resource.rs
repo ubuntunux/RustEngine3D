@@ -624,29 +624,31 @@ impl Resources {
                 let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
                     let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                         let material_parameter_name = &descriptor_data_create_info._descriptor_name;
-                        let material_parameter_type = &descriptor_data_create_info.get_descriptor_type();
                         let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
                         let maybe_material_parameter = match material_parameter_map.get(material_parameter_name) {
                             None => default_material_parameter_map.get(material_parameter_name),
                             value => value,
                         };
-                        let descriptor_resource_info = match (*material_parameter_type, material_parameter_resource_type) {
-                            (vk::DescriptorType::UNIFORM_BUFFER, DescriptorResourceType::UniformBuffer) => {
+                        let descriptor_resource_info = match material_parameter_resource_type {
+                            DescriptorResourceType::UniformBuffer => {
                                 let uniform_buffer_data = renderer_data.get_uniform_buffer_data(UniformBufferType::from_str(&material_parameter_name.as_str()).unwrap());
                                 DescriptorResourceInfo::DescriptorBufferInfo(uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone())
                             },
-                            (vk::DescriptorType::COMBINED_IMAGE_SAMPLER, DescriptorResourceType::Texture) => {
+                            DescriptorResourceType::StorageBuffer => {
+                                panic!("DescriptorResourceType::StorageBuffer")
+                            },
+                            DescriptorResourceType::Texture => {
                                 let texture_data = match maybe_material_parameter {
                                     Some(Value::String(value)) => self.get_texture_data(value),
                                     _ => self.get_texture_data(&String::from(DEFAULT_TEXTURE_NAME)),
                                 };
                                 DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow()._descriptor_image_info)
                             },
-                            (vk::DescriptorType::COMBINED_IMAGE_SAMPLER, DescriptorResourceType::RenderTarget) => {
+                            DescriptorResourceType::RenderTarget => {
                                 let texture_data = renderer_data.get_render_target(RenderTargetType::from_str(&material_parameter_name.as_str()).unwrap());
                                 DescriptorResourceInfo::DescriptorImageInfo(texture_data._descriptor_image_info)
                             },
-                            _ => DescriptorResourceInfo::InvalidDescriptorInfo,
+                            _ => panic!("DescriptorResourceInfo::InvalidDescriptorInfo"),
                         };
                         return descriptor_resource_info;
                     }).filter(|descriptor_resource_info| match *descriptor_resource_info {

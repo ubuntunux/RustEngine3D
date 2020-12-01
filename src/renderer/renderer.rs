@@ -36,24 +36,25 @@ use crate::vulkan_context::{
     sync,
     texture,
 };
+
+use crate::vulkan_context::buffer::{ BufferDataInfo };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ RenderPassPipelineDataName, RenderPassPipelineData, RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
-use crate::vulkan_context::uniform_buffer::{ self, UniformBufferData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, FrameIndexMap };
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::render_target::{ self, RenderTargetType };
-use crate::renderer::render_object::{ AnimationPlayInfo };
 use crate::renderer::uniform_buffer_data::{ self, UniformBufferType, UniformBufferDataMap };
 use crate::renderer::post_process::{ PostProcessData_SSAO };
 use crate::renderer::push_constants::{ PushConstants_StaticRenderObject, PushConstants_SkeletalRenderObject };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
+use crate::vulkan_context::descriptor::DescriptorResourceType::UniformBuffer;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -294,7 +295,7 @@ impl RendererData {
     pub fn get_current_command_buffer(&self) -> vk::CommandBuffer { self._command_buffers[self._swapchain_index as usize] }
     pub fn get_graphics_queue(&self) -> vk::Queue { self._queue_family_datas._graphics_queue }
     pub fn get_present_queue(&self) -> vk::Queue { self._queue_family_datas._present_queue }
-    pub fn get_uniform_buffer_data(&self, uniform_buffer_type: UniformBufferType) -> &UniformBufferData {
+    pub fn get_uniform_buffer_data(&self, uniform_buffer_type: UniformBufferType) -> &BufferDataInfo {
         &self._uniform_buffer_data_map.get(&uniform_buffer_type).unwrap()
     }
 
@@ -368,7 +369,7 @@ impl RendererData {
 
     pub fn destroy_uniform_buffers(&mut self) {
         for uniform_buffer_data in self._uniform_buffer_data_map.values() {
-            uniform_buffer::destroy_uniform_buffer_data(self.get_device(), uniform_buffer_data);
+            buffer::destroy_buffer_data_info(self.get_device(), uniform_buffer_data);
         }
         self._uniform_buffer_data_map.clear();
     }
@@ -622,25 +623,25 @@ impl RendererData {
 
     pub fn upload_uniform_buffer_data<T>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &T) {
         let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
-        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        let buffer_data = &uniform_buffer_data._buffers[swapchain_index as usize];
         buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
     }
 
     pub fn upload_uniform_buffer_datas<T: Copy>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &[T]) {
         let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
-        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        let buffer_data = &uniform_buffer_data._buffers[swapchain_index as usize];
         buffer::upload_buffer_data(&self._device, buffer_data, upload_data);
     }
 
     pub fn upload_uniform_buffer_data_offset<T>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &T, offset: vk::DeviceSize) {
         let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
-        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        let buffer_data = &uniform_buffer_data._buffers[swapchain_index as usize];
         buffer::upload_buffer_data_offset(&self._device, buffer_data, system::to_bytes(upload_data), offset);
     }
 
     pub fn upload_uniform_buffer_datas_offset<T: Copy>(&self, swapchain_index: u32, uniform_buffer_type: UniformBufferType, upload_data: &[T], offset: vk::DeviceSize) {
         let uniform_buffer_data = self.get_uniform_buffer_data(uniform_buffer_type);
-        let buffer_data = &uniform_buffer_data._uniform_buffers[swapchain_index as usize];
+        let buffer_data = &uniform_buffer_data._buffers[swapchain_index as usize];
         buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
     }
 
