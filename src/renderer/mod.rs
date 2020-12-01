@@ -13,6 +13,7 @@ pub mod render_object;
 pub mod render_target;
 pub mod renderer;
 pub mod render_pass_create_info;
+pub mod storage_buffer_data;
 pub mod transform_object;
 pub mod uniform_buffer_data;
 
@@ -60,6 +61,9 @@ pub use self::renderer::*;
 
 #[allow(unused_imports)]
 pub use self::render_pass_create_info::*;
+
+#[allow(unused_imports)]
+pub use self::storage_buffer_data::*;
 
 #[allow(unused_imports)]
 pub use self::transform_object::*;
