@@ -73,25 +73,19 @@ impl SceneManagerData {
             ..Default::default()
         });
 
-        let model_data1 = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
-        self.add_skeletal_render_object(&String::from("skeletal"), RenderObjectCreateInfo {
-            _model_data: Some(model_data1),
-            _position: Vector3::new(0.0, 1.5, 0.0),
-            _scale: Vector3::new(0.01, 0.01, 0.01),
-            ..Default::default()
-        });
-
-        let model_data2 = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
-        let skeletal_actor = self.add_skeletal_render_object(&String::from("skeletal"), RenderObjectCreateInfo {
-            _model_data: Some(model_data2),
-            _position: Vector3::new(1.0, 1.5, 0.0),
-            _scale: Vector3::new(0.02, 0.02, 0.02),
-            ..Default::default()
-        });
-        skeletal_actor.borrow_mut()._animation_play_info.as_mut().unwrap().set_animation_play_info(&AnimationPlayArgs {
-            _speed: 2.0,
-            ..Default::default()
-        });
+        for i in 0..100 {
+            let model_data = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
+            let skeletal_actor = self.add_skeletal_render_object(&String::from("skeletal"), RenderObjectCreateInfo {
+                _model_data: Some(model_data),
+                _position: Vector3::new(i as f32, 1.5, 0.0),
+                _scale: Vector3::new(0.01, 0.01, 0.01),
+                ..Default::default()
+            });
+            skeletal_actor.borrow_mut()._animation_play_info.as_mut().unwrap().set_animation_play_info(&AnimationPlayArgs {
+                _speed: (1.0 + i as f32 * 0.1),
+                ..Default::default()
+            });
+        }
     }
 
     pub fn close_scene_manager_data(&mut self) {

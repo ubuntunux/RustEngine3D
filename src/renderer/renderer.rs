@@ -58,7 +58,7 @@ use crate::utilities::system::{ self, RcRefCell };
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
 // NOTE : RenderMode must match with scene_constants.glsl
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum RenderMode {
     RenderMode_Common = 0,
@@ -722,10 +722,10 @@ impl RendererData {
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();
                 let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
-                self.render_shadow(command_buffer, swapchain_index, RenderObjectType::Static, &static_render_elements);
-                self.render_shadow(command_buffer, swapchain_index, RenderObjectType::Skeletal, &skeletal_render_elements);
-                self.render_solid(command_buffer, swapchain_index, RenderObjectType::Static, &static_render_elements);
-                self.render_solid(command_buffer, swapchain_index, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
@@ -795,10 +795,11 @@ impl RendererData {
         }
     }
 
-    pub fn render_solid(
+    pub fn render_solid_object(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
+        render_mode: RenderMode,
         render_object_type: RenderObjectType,
         render_elements: &Vec<RenderElementData>
     ) {
@@ -806,136 +807,96 @@ impl RendererData {
             return;
         }
 
-        let render_pass_pipeline_data_name = match render_object_type {
-            RenderObjectType::Static => RenderPassPipelineDataName {
-                _render_pass_data_name: String::from("render_pass_static_opaque"),
-                _pipeline_data_name: String::from("render_object"),
-            },
-            RenderObjectType::Skeletal => RenderPassPipelineDataName {
-                _render_pass_data_name: String::from("render_pass_skeletal_opaque"),
-                _pipeline_data_name: String::from("render_object"),
-            },
-        };
-
-        // let resources = self._resources.borrow();
-        // let render_pass_pipeline_data = resources.get_render_pass_pipeline_data(&render_pass_pipeline_data_name);
-        // let render_pass_data = &render_pass_pipeline_data._render_pass_data;
-        // let pipeline_data = &render_pass_pipeline_data._pipeline_data;
-        // self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
-
-        let mut bone_metrices_offset: vk::DeviceSize = 0;
-
-        for (index, render_element) in render_elements.iter().enumerate() {
-            let render_object = render_element._render_object.borrow();
-            let material_instance_data = render_element._material_instance_data.borrow();
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_data_name);
-            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-
-            if 0 == index {
-                self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
-            }
-
-            self.bind_descriptor_sets(command_buffer, swapchain_index, &pipeline_binding_data);
-
-            match render_object_type {
-                RenderObjectType::Static => {
-                    self.upload_push_constant_data(
-                        command_buffer,
-                        &pipeline_data.borrow(),
-                        &PushConstants_StaticRenderObject {
-                            _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
-                        }
-                    );
+        unsafe {
+            let render_pass_pipeline_data_name = match (render_mode, render_object_type) {
+                (RenderMode::RenderMode_Common, RenderObjectType::Static) => RenderPassPipelineDataName {
+                    _render_pass_data_name: String::from("render_pass_static_opaque"),
+                    _pipeline_data_name: String::from("render_object"),
                 },
-                RenderObjectType::Skeletal => {
-                    let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                    let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
-                    let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
-                    let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                    let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                    self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
-                    self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
-                    self.upload_push_constant_data(
-                        command_buffer,
-                        &pipeline_data.borrow(),
-                        &PushConstants_SkeletalRenderObject {
-                            _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
-                            _bone_matrix_offset: bone_metrices_offset as u32,
-                            _bone_matrix_count: bone_count as u32,
-                            ..Default::default()
-                        }
-                    );
-                    bone_metrices_offset += bone_count * 2;
+                (RenderMode::RenderMode_Common, RenderObjectType::Skeletal) => RenderPassPipelineDataName {
+                    _render_pass_data_name: String::from("render_pass_skeletal_opaque"),
+                    _pipeline_data_name: String::from("render_object"),
                 },
-            };
-            self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
-        }
-        self.end_render_pass(command_buffer);
-    }
-
-    pub fn render_shadow(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        render_object_type: RenderObjectType,
-        render_elements: &Vec<RenderElementData>
-    ) {
-        if 0 == render_elements.len() {
-            return;
-        }
-
-        let (render_pass_pipeline_data_name, material_instance_name) = match render_object_type {
-            RenderObjectType::Static => (
-                RenderPassPipelineDataName {
+                (RenderMode::RenderMode_Shadow, RenderObjectType::Static) => RenderPassPipelineDataName {
                     _render_pass_data_name: String::from("render_pass_static_shadow"),
                     _pipeline_data_name: String::from("render_object"),
                 },
-                String::from("render_static_shadow")
-            ),
-            RenderObjectType::Skeletal => (
-                RenderPassPipelineDataName {
+                (RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal) => RenderPassPipelineDataName {
                     _render_pass_data_name: String::from("render_pass_skeletal_shadow"),
                     _pipeline_data_name: String::from("render_object"),
                 },
-                String::from("render_skeletal_shadow")
-            )
-        };
-
-        let resources = self._resources.borrow();
-        let material_instance_data = resources.get_material_instance_data(&material_instance_name).borrow();
-        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_data_name);
-        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, &pipeline_binding_data);
-
-        for render_element in render_elements.iter() {
-            match render_object_type {
-                RenderObjectType::Static => {
-                    self.upload_push_constant_data(
-                        command_buffer,
-                        &pipeline_data.borrow(),
-                        &PushConstants_StaticRenderObject {
-                            _local_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>
-                        }
-                    );
-                },
-                RenderObjectType::Skeletal => {
-                    self.upload_push_constant_data(
-                        command_buffer,
-                        &pipeline_data.borrow(),
-                        &PushConstants_SkeletalRenderObject {
-                            _local_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>,
-                            ..Default::default()
-                        }
-                    );
-                },
             };
-            self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
+
+            let mut bone_metrices_offset: vk::DeviceSize = 0;
+            let mut material_instance_data: *const MaterialInstanceData = std::ptr::null();
+            let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
+            let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
+
+            if RenderMode::RenderMode_Shadow == render_mode {
+                let resources = self._resources.borrow();
+                let material_instance_name = match render_object_type {
+                    RenderObjectType::Static => String::from("render_static_shadow"),
+                    RenderObjectType::Skeletal => String::from("render_skeletal_shadow"),
+                };
+                material_instance_data = resources.get_material_instance_data(&material_instance_name).as_ptr();
+            }
+
+            for render_element in render_elements.iter() {
+                let render_object = render_element._render_object.borrow();
+                if RenderMode::RenderMode_Common == render_mode {
+                    material_instance_data = render_element._material_instance_data.as_ptr();
+                }
+
+                let pipeline_binding_data: *const PipelineBindingData = (*material_instance_data).get_pipeline_binding_data(&render_pass_pipeline_data_name);
+                let render_pass_data = &(*pipeline_binding_data)._render_pass_pipeline_data._render_pass_data;
+                let pipeline_data = &(*pipeline_binding_data)._render_pass_pipeline_data._pipeline_data;
+                let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
+
+                if prev_pipeline_data != pipeline_data_ptr {
+                    prev_pipeline_data = pipeline_data_ptr;
+                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+                }
+
+                if prev_pipeline_binding_data != pipeline_binding_data {
+                    prev_pipeline_binding_data = pipeline_binding_data;
+                    self.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data));
+                }
+
+                match render_object_type {
+                    RenderObjectType::Static => {
+                        self.upload_push_constant_data(
+                            command_buffer,
+                            &pipeline_data.borrow(),
+                            &PushConstants_StaticRenderObject {
+                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
+                            }
+                        );
+                    },
+                    RenderObjectType::Skeletal => {
+                        let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
+                        let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
+                        let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
+                        let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
+                        let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
+                        self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
+                        self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
+                        self.upload_push_constant_data(
+                            command_buffer,
+                            &pipeline_data.borrow(),
+                            &PushConstants_SkeletalRenderObject {
+                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
+                                _bone_matrix_offset: bone_metrices_offset as u32,
+                                _bone_matrix_count: bone_count as u32,
+                                ..Default::default()
+                            }
+                        );
+                        bone_metrices_offset += bone_count * 2;
+                    },
+                };
+                self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
+            }
+            self.end_render_pass(command_buffer);
         }
-        self.end_render_pass(command_buffer);
     }
 
     pub fn render_post_process(
