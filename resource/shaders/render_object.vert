@@ -47,9 +47,9 @@ void main() {
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
 
     vec3 relative_pos = (localMatrix * position).xyz;
+    vec3 relative_pos_prev = (localMatrix * prev_position).xyz + (view_constants.CAMERA_POSITION - view_constants.CAMERA_POSITION_PREV);
 
 #if (RenderMode_Common == RenderMode)
-    vec3 relative_pos_prev = relative_pos + view_constants.CAMERA_POSITION - view_constants.CAMERA_POSITION_PREV;
     vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV * vec4(relative_pos_prev, 1.0);
     vs_output.projection_pos = view_constants.VIEW_ORIGIN_PROJECTION * vec4(relative_pos, 1.0);
 #elif (RenderMode_Shadow == RenderMode)

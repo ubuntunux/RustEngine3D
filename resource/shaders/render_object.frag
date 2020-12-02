@@ -30,4 +30,5 @@ void main() {
     outNormal = texture(textureNormal, vs_output.texCoord);
     outNormal.xyz = normalize(vs_output.tangent_to_world * (outNormal.xyz * 2.0 - 1.0)) * 0.5 + 0.5;
     outVelocity = ((vs_output.projection_pos.xy / vs_output.projection_pos.w) - (vs_output.projection_pos_prev.xy / vs_output.projection_pos_prev.w)) * 0.5;
+    outVelocity -= view_constants.JITTER_DELTA;
 }
