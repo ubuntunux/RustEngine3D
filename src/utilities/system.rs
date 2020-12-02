@@ -48,7 +48,7 @@ pub fn walk_directory(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     out_contents
 }
 
-fn unique_name_generator<T>(data_map: &HashMap<String, T>, data_name: &String, index: u32) -> String {
+fn unique_name_generator<T>(data_map: &HashMap<String, T>, data_name: &str, index: u32) -> String {
     let new_data_name: String = format!("{}_{}", data_name, index);
     match data_map.get(&new_data_name) {
         Some(_) => unique_name_generator(data_map, data_name, index + 1),
@@ -56,11 +56,11 @@ fn unique_name_generator<T>(data_map: &HashMap<String, T>, data_name: &String, i
     }
 }
 
-pub fn generate_unique_name<T>(data_map: &HashMap<String, T>, data_name: &String) -> String {
+pub fn generate_unique_name<T>(data_map: &HashMap<String, T>, data_name: &str) -> String {
     let data = data_map.get(data_name);
     match data {
         Some(_) => unique_name_generator(data_map, data_name, 0),
-        None => data_name.clone(),
+        None => String::from(data_name),
     }
 }
 

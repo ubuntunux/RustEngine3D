@@ -415,7 +415,7 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         render_pass_pipeline_data_name: &RenderPassPipelineDataName,
-        material_instance_name: &String,
+        material_instance_name: &str,
         geometry_data: &GeometryData
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
@@ -438,7 +438,7 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
-        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_frame_buffer_name()).borrow();
+        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_frame_buffer_name().as_str()).borrow();
         let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index as usize];
         let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
         unsafe {
@@ -667,7 +667,7 @@ impl RendererData {
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
                 let main_light = scene_manager.get_main_light().borrow();
-                let quad_mesh = resources.get_mesh_data(&String::from("quad")).borrow();
+                let quad_mesh = resources.get_mesh_data("quad").borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
 
                 // Upload Uniform Buffers
@@ -729,7 +729,7 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                let render_final_material_instance_name = String::from("render_final");
+                let render_final_material_instance_name = "render_final";
                 let render_final_render_pass_pipeline_name = RenderPassPipelineDataName {
                     _render_pass_data_name: String::from("render_final"),
                     _pipeline_data_name: String::from("render_final"),
@@ -738,14 +738,14 @@ impl RendererData {
                     command_buffer,
                     swapchain_index,
                     &render_final_render_pass_pipeline_name,
-                    &render_final_material_instance_name,
+                    render_final_material_instance_name,
                     &quad_geometry_data
                 );
 
                 // Render Debug
                 //self._debug_render_target = RenderTargetType::Shadow;
                 if RenderTargetType::BackBuffer != self._debug_render_target {
-                    let render_debug_material_instance_name = String::from("render_debug");
+                    let render_debug_material_instance_name = "render_debug";
                     let render_debug_render_pass_pipeline_name = RenderPassPipelineDataName {
                         _render_pass_data_name: String::from("render_debug"),
                         _pipeline_data_name: String::from("render_debug"),
@@ -835,8 +835,8 @@ impl RendererData {
             if RenderMode::RenderMode_Shadow == render_mode {
                 let resources = self._resources.borrow();
                 let material_instance_name = match render_object_type {
-                    RenderObjectType::Static => String::from("render_static_shadow"),
-                    RenderObjectType::Skeletal => String::from("render_skeletal_shadow"),
+                    RenderObjectType::Static => "render_static_shadow",
+                    RenderObjectType::Skeletal => "render_skeletal_shadow",
                 };
                 material_instance_data = resources.get_material_instance_data(&material_instance_name).as_ptr();
             }
@@ -906,7 +906,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // SSAO
-        let render_ssao_material_instance_name = String::from("render_ssao");
+        let render_ssao_material_instance_name = "render_ssao";
         let render_ssao_render_pass_pipeline_name = RenderPassPipelineDataName {
             _render_pass_data_name: String::from("render_ssao"),
             _pipeline_data_name: String::from("render_ssao"),
@@ -915,12 +915,12 @@ impl RendererData {
             command_buffer,
             swapchain_index,
             &render_ssao_render_pass_pipeline_name,
-            &render_ssao_material_instance_name,
+            render_ssao_material_instance_name,
             &quad_geometry_data
         );
 
         // Composite GBuffer
-        let render_composite_gbuffer_material_instance_name = String::from("composite_gbuffer");
+        let render_composite_gbuffer_material_instance_name = "composite_gbuffer";
         let render_composite_gbuffer_render_pass_pipeline_name = RenderPassPipelineDataName {
             _render_pass_data_name: String::from("composite_gbuffer"),
             _pipeline_data_name: String::from("composite_gbuffer"),
@@ -929,12 +929,12 @@ impl RendererData {
             command_buffer,
             swapchain_index,
             &render_composite_gbuffer_render_pass_pipeline_name,
-            &render_composite_gbuffer_material_instance_name,
+            render_composite_gbuffer_material_instance_name,
             &quad_geometry_data
         );
 
         // Motion Blur
-        let render_motion_blur_material_instance_name = String::from("render_motion_blur");
+        let render_motion_blur_material_instance_name = "render_motion_blur";
         let render_motion_blur_render_pass_pipeline_name = RenderPassPipelineDataName {
             _render_pass_data_name: String::from("render_motion_blur"),
             _pipeline_data_name: String::from("render_motion_blur"),
@@ -943,7 +943,7 @@ impl RendererData {
             command_buffer,
             swapchain_index,
             &render_motion_blur_render_pass_pipeline_name,
-            &render_motion_blur_material_instance_name,
+            render_motion_blur_material_instance_name,
             &quad_geometry_data
         );
     }

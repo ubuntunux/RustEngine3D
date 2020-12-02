@@ -123,7 +123,7 @@ pub fn create_resources() -> RcRefCell<Resources> {
     })
 }
 
-fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &String, default_resource_name: &str) -> &'a RcRefCell<T> {
+fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str, default_resource_name: &str) -> &'a RcRefCell<T> {
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
         None => resource_data_map.get(default_resource_name).unwrap(),
@@ -218,7 +218,6 @@ impl Resources {
     pub fn load_model_datas(&mut self, _renderer_data: &RendererData) {
         let model_directory = PathBuf::from(MODEL_FILE_PATH);
         let model_files: Vec<PathBuf> = system::walk_directory(&model_directory, &[EXT_MODEL]);
-        let default_material_instance_name = String::from(DEFAULT_MATERIAL_INSTANCE_NAME);
         for model_file in model_files {
             let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
             let loaded_contents = fs::File::open(&model_file).expect("Failed to create file");
@@ -236,7 +235,7 @@ impl Resources {
                 Value::String(mesh_name) => mesh_name,
                 _ => panic!("failed to parsing mesh_name"),
             };
-            let mesh_data = self.get_mesh_data(mesh_name);
+            let mesh_data = self.get_mesh_data(mesh_name.as_str());
             let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
             let material_instance_datas: Vec<RcRefCell<MaterialInstanceData>> = (0..geometry_data_count).map(|index| {
                 if index < material_instance_count {
@@ -247,7 +246,7 @@ impl Resources {
                         _ => panic!("failed to parsing material_instance_names"),
                     }
                 } else {
-                    self.get_material_instance_data(&default_material_instance_name).clone()
+                    self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
                 }
             }).collect();
             let model_data = ModelData::new_model_data(&model_name, mesh_data.clone(), material_instance_datas);
@@ -262,7 +261,7 @@ impl Resources {
         self._model_data_map.clear();
     }
 
-    pub fn get_model_data(&self, resource_name: &String) -> &RcRefCell<ModelData> {
+    pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData> {
         get_resource_data(&self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
     }
 
@@ -350,7 +349,7 @@ impl Resources {
         self._mesh_data_map.clear();
     }
 
-    pub fn get_mesh_data(&self, resource_name: &String) -> &RcRefCell<MeshData> {
+    pub fn get_mesh_data(&self, resource_name: &str) -> &RcRefCell<MeshData> {
         get_resource_data(&self._mesh_data_map, resource_name, DEFAULT_MESH_NAME)
     }
 
@@ -474,7 +473,7 @@ impl Resources {
         self._texture_data_map.clear();
     }
 
-    pub fn get_texture_data(&mut self, resource_name: &String) -> &RcRefCell<TextureData> {
+    pub fn get_texture_data(&mut self, resource_name: &str) -> &RcRefCell<TextureData> {
         get_resource_data(&self._texture_data_map, resource_name, DEFAULT_TEXTURE_NAME)
     }
 
@@ -506,7 +505,7 @@ impl Resources {
         self._framebuffer_data_map.clear();
     }
 
-    pub fn get_framebuffer_data(&self, resource_name: &String) -> &RcRefCell<FramebufferData> {
+    pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
         get_resource_data(&self._framebuffer_data_map, resource_name, "")
     }
 
@@ -531,16 +530,16 @@ impl Resources {
         self._render_pass_data_map.clear()
     }
 
-    pub fn get_render_pass_data(&self, resource_name: &String) -> &RcRefCell<RenderPassData> {
+    pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData> {
         get_resource_data(&self._render_pass_data_map, resource_name, DEFAULT_RENDER_PASS_NAME)
     }
 
     pub fn get_default_render_pass_data(&self) -> &RcRefCell<RenderPassData> {
-        self.get_render_pass_data(&DEFAULT_RENDER_PASS_NAME.to_string())
+        self.get_render_pass_data(DEFAULT_RENDER_PASS_NAME)
     }
 
     pub fn get_render_pass_pipeline_data(&self, render_pass_pipeline_data_name: &RenderPassPipelineDataName) -> RenderPassPipelineData {
-        let render_pass_data_refcell = self.get_render_pass_data(&render_pass_pipeline_data_name._render_pass_data_name);
+        let render_pass_data_refcell = self.get_render_pass_data(render_pass_pipeline_data_name._render_pass_data_name.as_str());
         let render_pass_data = render_pass_data_refcell.borrow();
         let pipeline_data = render_pass_data.get_pipeline_data(&render_pass_pipeline_data_name._pipeline_data_name);
         RenderPassPipelineData {
@@ -593,7 +592,7 @@ impl Resources {
         self._material_data_map.clear();
     }
 
-    pub fn get_material_data(&self, resource_name: &String) -> &RcRefCell<MaterialData> {
+    pub fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData> {
         get_resource_data(&self._material_data_map, resource_name, DEFAULT_MATERIAL_NAME)
     }
 
@@ -617,7 +616,7 @@ impl Resources {
                 Value::Object(material_parameter_map) => material_parameter_map,
                 _ => panic!("material parameters parsing error")
             };
-            let material_data = self.get_material_data(&material_data_name).clone();
+            let material_data = self.get_material_data(material_data_name.as_str()).clone();
             let default_material_parameter_map = &material_data.borrow()._material_parameter_map;
             let pipeline_bind_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
                 let descriptor_data_create_infos = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data._descriptor_data_create_infos;
@@ -637,7 +636,7 @@ impl Resources {
                             DescriptorResourceType::Texture => {
                                 let texture_data = match maybe_material_parameter {
                                     Some(Value::String(value)) => self.get_texture_data(value),
-                                    _ => self.get_texture_data(&String::from(DEFAULT_TEXTURE_NAME)),
+                                    _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                 };
                                 DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow()._descriptor_image_info)
                             },
@@ -677,13 +676,13 @@ impl Resources {
     pub fn update_material_instance_datas(&mut self) {
         for (_key, model_data) in self._model_data_map.iter() {
             let new_material_instances = model_data.borrow().get_material_instance_datas().iter().map(|material_instance| {
-                self.get_material_instance_data(&material_instance.borrow()._material_instance_data_name).clone()
+                self.get_material_instance_data(&material_instance.borrow()._material_instance_data_name.as_str()).clone()
             }).collect();
             model_data.borrow_mut().set_material_instance_datas(new_material_instances);
         }
     }
 
-    pub fn get_material_instance_data(&self, resource_name: &String) -> &RcRefCell<MaterialInstanceData> {
+    pub fn get_material_instance_data(&self, resource_name: &str) -> &RcRefCell<MaterialInstanceData> {
         get_resource_data(&self._material_instance_data_map, resource_name, DEFAULT_MATERIAL_INSTANCE_NAME)
     }
 

@@ -18,10 +18,12 @@ layout(binding = 3) buffer BoneConstants
 layout( push_constant ) uniform PushConstant
 {
     mat4 _localMatrix;
+#if (RenderObjectType_Skeletal == RenderObjectType)
     uint _bone_matrix_offset;
     uint _bone_matrix_count;
     uint _reserved0;
     uint _reserved1;
+#endif
 } pushConstant;
 
 struct VERTEX_OUTPUT

@@ -65,8 +65,8 @@ impl SceneManagerData {
             ..Default::default()
         });
 
-        let model_data0 = self._resources.borrow().get_model_data(&String::from("sponza/sponza")).clone();
-        self.add_static_render_object(&String::from("sponza"), RenderObjectCreateInfo {
+        let model_data0 = self._resources.borrow().get_model_data("sponza/sponza").clone();
+        self.add_static_render_object("sponza", RenderObjectCreateInfo {
             _model_data: Some(model_data0),
             _position: Vector3::new(0.0, 0.0, 0.0),
             _scale: Vector3::new(0.1, 0.1, 0.1),
@@ -74,8 +74,8 @@ impl SceneManagerData {
         });
 
         for i in 0..100 {
-            let model_data = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
-            let skeletal_actor = self.add_skeletal_render_object(&String::from("skeletal"), RenderObjectCreateInfo {
+            let model_data = self._resources.borrow().get_model_data("skeletal").clone();
+            let skeletal_actor = self.add_skeletal_render_object("skeletal", RenderObjectCreateInfo {
                 _model_data: Some(model_data),
                 _position: Vector3::new(i as f32, 1.5, 0.0),
                 _scale: Vector3::new(0.01, 0.01, 0.01),
@@ -95,7 +95,7 @@ impl SceneManagerData {
         &self._main_camera
     }
 
-    pub fn add_camera_object(&mut self, object_name: &String, camera_create_info: &CameraCreateInfo) -> RcRefCell<CameraObjectData> {
+    pub fn add_camera_object(&mut self, object_name: &str, camera_create_info: &CameraCreateInfo) -> RcRefCell<CameraObjectData> {
         let new_object_name = system::generate_unique_name(&self._camera_object_map, object_name);
         let camera_object_data = newRcRefCell(CameraObjectData::create_camera_object_data(&new_object_name, camera_create_info));
         self._camera_object_map.insert(new_object_name, camera_object_data.clone());
@@ -106,32 +106,32 @@ impl SceneManagerData {
         &self._main_light
     }
 
-    pub fn add_light_object(&mut self, object_name: &String, light_create_info: &DirectionalLightCreateInfo) -> RcRefCell<DirectionalLightData> {
+    pub fn add_light_object(&mut self, object_name: &str, light_create_info: &DirectionalLightCreateInfo) -> RcRefCell<DirectionalLightData> {
         let new_object_name = system::generate_unique_name(&self._directional_light_object_map, object_name);
         let light_object_data = newRcRefCell(DirectionalLightData::create_light_data(&new_object_name, light_create_info));
         self._directional_light_object_map.insert(new_object_name, light_object_data.clone());
         light_object_data
     }
 
-    pub fn add_static_render_object(&mut self, object_name: &String, render_object_create_info: RenderObjectCreateInfo) -> RcRefCell<RenderObjectData> {
+    pub fn add_static_render_object(&mut self, object_name: &str, render_object_create_info: RenderObjectCreateInfo) -> RcRefCell<RenderObjectData> {
         let new_object_name = system::generate_unique_name(&self._static_render_object_map, &object_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(&new_object_name, render_object_create_info));
         self._static_render_object_map.insert(new_object_name, render_object_data.clone());
         render_object_data
     }
 
-    pub fn add_skeletal_render_object(&mut self, object_name: &String, render_object_create_info: RenderObjectCreateInfo) -> RcRefCell<RenderObjectData> {
+    pub fn add_skeletal_render_object(&mut self, object_name: &str, render_object_create_info: RenderObjectCreateInfo) -> RcRefCell<RenderObjectData> {
         let new_object_name = system::generate_unique_name(&self._skeletal_render_object_map, &object_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(&new_object_name, render_object_create_info));
         self._skeletal_render_object_map.insert(new_object_name, render_object_data.clone());
         render_object_data
     }
 
-    pub fn get_static_render_object(&self, object_name: &String) -> Option<&RcRefCell<RenderObjectData>> {
+    pub fn get_static_render_object(&self, object_name: &str) -> Option<&RcRefCell<RenderObjectData>> {
         self._static_render_object_map.get(object_name)
     }
 
-    pub fn get_skeletal_render_object(&self, object_name: &String) -> Option<&RcRefCell<RenderObjectData>> {
+    pub fn get_skeletal_render_object(&self, object_name: &str) -> Option<&RcRefCell<RenderObjectData>> {
         self._skeletal_render_object_map.get(object_name)
     }
 
