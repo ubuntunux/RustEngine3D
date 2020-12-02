@@ -817,6 +817,14 @@ impl RendererData {
             },
         };
 
+        // let resources = self._resources.borrow();
+        // let render_pass_pipeline_data = resources.get_render_pass_pipeline_data(&render_pass_pipeline_data_name);
+        // let render_pass_data = &render_pass_pipeline_data._render_pass_data;
+        // let pipeline_data = &render_pass_pipeline_data._pipeline_data;
+        // self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+
+        let mut bone_metrices_offset: vk::DeviceSize = 0;
+
         for (index, render_element) in render_elements.iter().enumerate() {
             let render_object = render_element._render_object.borrow();
             let material_instance_data = render_element._material_instance_data.borrow();
@@ -825,15 +833,6 @@ impl RendererData {
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
 
             if 0 == index {
-                // TEST CODE
-                if RenderObjectType::Skeletal == render_object_type {
-                    let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
-                    let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                    let offset = (std::mem::size_of::<Matrix4<f32>>() * constants::MAX_BONES) as vk::DeviceSize;
-                    self.upload_buffer_data_infos(swapchain_index, BufferDataType::BoneMatrices, &prev_animation_buffer);
-                    self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &animation_buffer, offset);
-                }
-
                 self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
             }
 
@@ -845,18 +844,29 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_StaticRenderObject {
-                            _model_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
+                            _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
                         }
                     );
                 },
                 RenderObjectType::Skeletal => {
+                    let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
+                    let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
+                    let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
+                    let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
+                    let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
+                    self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
+                    self.upload_buffer_data_infos_offset(swapchain_index, BufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
                     self.upload_push_constant_data(
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_SkeletalRenderObject {
-                            _model_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
+                            _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
+                            _bone_matrix_offset: bone_metrices_offset as u32,
+                            _bone_matrix_count: bone_count as u32,
+                            ..Default::default()
                         }
                     );
+                    bone_metrices_offset += bone_count * 2;
                 },
             };
             self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
@@ -908,7 +918,7 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_StaticRenderObject {
-                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>
+                            _local_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>
                         }
                     );
                 },
@@ -917,7 +927,8 @@ impl RendererData {
                         command_buffer,
                         &pipeline_data.borrow(),
                         &PushConstants_SkeletalRenderObject {
-                            _model_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>
+                            _local_matrix: render_element._render_object.borrow()._transform_object.get_matrix().clone() as Matrix4<f32>,
+                            ..Default::default()
                         }
                     );
                 },

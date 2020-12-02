@@ -12,13 +12,16 @@ layout(binding = 2) uniform LightConstants
 };
 layout(binding = 3) buffer BoneConstants
 {
-    mat4 prev_bone_matrices[MAX_BONES];
     mat4 bone_matrices[MAX_BONES];
 };
 
 layout( push_constant ) uniform PushConstant
 {
-    mat4 localMatrix;
+    mat4 _localMatrix;
+    uint _bone_matrix_offset;
+    uint _bone_matrix_count;
+    uint _reserved0;
+    uint _reserved1;
 } pushConstant;
 
 struct VERTEX_OUTPUT

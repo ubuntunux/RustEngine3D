@@ -8,7 +8,7 @@ use crate::renderer::{self, RendererData};
 use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
 use crate::renderer::render_element::{ RenderElementData };
-use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData };
+use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData, AnimationPlayArgs };
 use crate::renderer::buffer_data_infos::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
@@ -78,6 +78,18 @@ impl SceneManagerData {
             _model_data: Some(model_data1),
             _position: Vector3::new(0.0, 1.5, 0.0),
             _scale: Vector3::new(0.01, 0.01, 0.01),
+            ..Default::default()
+        });
+
+        let model_data2 = self._resources.borrow().get_model_data(&String::from("skeletal")).clone();
+        let skeletal_actor = self.add_skeletal_render_object(&String::from("skeletal"), RenderObjectCreateInfo {
+            _model_data: Some(model_data2),
+            _position: Vector3::new(1.0, 1.5, 0.0),
+            _scale: Vector3::new(0.02, 0.02, 0.02),
+            ..Default::default()
+        });
+        skeletal_actor.borrow_mut()._animation_play_info.as_mut().unwrap().set_animation_play_info(&AnimationPlayArgs {
+            _speed: 2.0,
             ..Default::default()
         });
     }

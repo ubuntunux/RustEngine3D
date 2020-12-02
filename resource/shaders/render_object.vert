@@ -23,12 +23,14 @@ void main() {
     vec3 vertex_tangent = vec3(0.0);
 
 #if (RenderObjectType_Skeletal == RenderObjectType)
+    const uint prev_bone_matrix_offset = pushConstant._bone_matrix_offset;
+    const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_matrix_count;
     for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
     {
-        prev_position += (prev_bone_matrices[int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
-        position += (bone_matrices[int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
-        vertex_normal += (bone_matrices[int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * inBoneWeights[i];
-        vertex_tangent += (bone_matrices[int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * inBoneWeights[i];
+        prev_position += (bone_matrices[prev_bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
+        position += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
+        vertex_normal += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * inBoneWeights[i];
+        vertex_tangent += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * inBoneWeights[i];
     }
     position /= position.w;
     prev_position /= prev_position.w;
@@ -41,7 +43,7 @@ void main() {
     vertex_normal = normalize(vertex_normal);
     vertex_tangent = normalize(vertex_tangent);
 
-    mat4 localMatrix = pushConstant.localMatrix;
+    mat4 localMatrix = pushConstant._localMatrix;
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
 
     vec3 relative_pos = (localMatrix * position).xyz;
@@ -59,7 +61,7 @@ void main() {
     vec3 bitangent = cross(vertex_tangent, vertex_normal);
 
     // Note : Normalization is very important because tangent_to_world may have been scaled..
-    vs_output.tangent_to_world = mat3(pushConstant.localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
+    vs_output.tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
 
     vs_output.texCoord = inTexCoord;
 }
