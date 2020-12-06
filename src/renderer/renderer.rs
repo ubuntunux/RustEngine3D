@@ -453,26 +453,6 @@ impl RendererData {
         }
     }
 
-    pub fn begin_render_pass_pipeline2(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        render_pass_pipeline_data_name: &RenderPassPipelineDataName
-    ) -> RenderPassPipelineData {
-        let render_pass_pipeline_data = self._resources.borrow().get_render_pass_pipeline_data(&render_pass_pipeline_data_name);
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, &render_pass_pipeline_data._render_pass_data, &render_pass_pipeline_data._pipeline_data);
-        render_pass_pipeline_data
-    }
-
-    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, pipeline_binding_data: &PipelineBindingData) {
-        let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
-        let descriptor_set = pipeline_binding_data._descriptor_sets[swapchain_index as usize];
-        let dynamic_offsets: &[u32] = &[];
-        unsafe {
-            self._device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
-        }
-    }
-
     pub fn update_descriptor_set(
         &self,
         swapchain_index: u32,
@@ -759,7 +739,6 @@ impl RendererData {
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
                     );
-                    // self.begin_render_pass_pipeline2(command_buffer, swapchain_index, &render_debug_render_pass_pipeline_name);
 
                     let image_info = self.get_render_target(self._debug_render_target);
                     self.update_descriptor_set(
