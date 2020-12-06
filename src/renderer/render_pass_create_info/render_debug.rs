@@ -30,10 +30,7 @@ use crate::vulkan_context::vulkan_context::{
 };
 
 
-pub fn get_framebuffer_data_create_infos(
-    renderer_data: &RendererData,
-    render_pass_name: &String,
-) -> Vec<FramebufferDataCreateInfo> {
+pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
     let swapchain_data = renderer_data.get_swap_chain_data();
     let (width, height) = (swapchain_data._swapchain_extent.width, swapchain_data._swapchain_extent.height);
     let image_views = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|index| {
@@ -41,7 +38,7 @@ pub fn get_framebuffer_data_create_infos(
     }).collect();
     vec![
         FramebufferDataCreateInfo {
-            _framebuffer_name: render_pass_name.clone(),
+            _framebuffer_name: String::from("Swapchain"),
             _framebuffer_width: width,
             _framebuffer_height: height,
             _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
@@ -54,11 +51,9 @@ pub fn get_framebuffer_data_create_infos(
 }
 
 
-pub fn get_render_pass_data_create_info(
-    renderer_data: &RendererData,
-) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_debug");
-    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data, &render_pass_name);
+    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data);
     let framebuffer_data_create_info = &framebuffer_data_create_infos[0];
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();

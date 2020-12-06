@@ -30,12 +30,12 @@ use crate::vulkan_context::vulkan_context::{
     BlendMode,
 };
 
-pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData, render_pass_name: &String) -> Vec<FramebufferDataCreateInfo> {
+pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
     let render_target = renderer_data.get_render_target(RenderTargetType::SSAO);
     let (width, height, depth) = (render_target._image_width, render_target._image_height, render_target._image_depth);
     vec![
         FramebufferDataCreateInfo {
-            _framebuffer_name: render_pass_name.clone(),
+            _framebuffer_name: render_target._texture_data_name.clone(),
             _framebuffer_width: width,
             _framebuffer_height: height,
             _framebuffer_depth: depth,
@@ -53,7 +53,7 @@ pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData, render_pa
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_ssao");
-    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data, &render_pass_name);
+    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data);
     let framebuffer_data_create_info = &framebuffer_data_create_infos[0];
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();

@@ -5,12 +5,11 @@
 #include "scene_constants.glsl"
 #include "utility.glsl"
 #include "blending.glsl"
+#include "render_quad_common.glsl"
 
 layout(binding = 0) uniform sampler2D textureColor;
 
-layout(location = 0) in vec4 vertexColor;
-layout(location = 1) in vec3 vertexNormal;
-layout(location = 2) in vec2 texCoord;
+layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 layout(location = 0) out vec4 outColor;
 
@@ -55,9 +54,9 @@ float vignetting(vec2 uv, float inner_value, float outter_value)
 
 void main() {
     // Tonemapping
-    vec4 color = texture(textureColor, texCoord);
+    vec4 color = texture(textureColor, vs_output.texCoord);
     color.xyz = ReinhardTonemap(color.xyz);
-    color.xyz *= vignetting(texCoord, 1.0, 0.20);
+    color.xyz *= vignetting(vs_output.texCoord, 1.0, 0.20);
     color.xyz = Contrast(color.xyz, 1.0);
     outColor = color;
 }

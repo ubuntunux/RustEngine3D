@@ -1,4 +1,5 @@
 pub mod composite_gbuffer;
+pub mod render_bloom;
 pub mod render_debug;
 pub mod render_final;
 pub mod render_motion_blur;

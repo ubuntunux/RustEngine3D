@@ -4,6 +4,7 @@
 
 #include "scene_constants.glsl"
 #include "utility.glsl"
+#include "render_quad_common.glsl"
 
 layout(binding = 0) uniform SceneConstants
 {
@@ -16,9 +17,7 @@ layout(binding = 1) uniform ViewConstants
 layout(binding = 2) uniform sampler2D textureSceneColor;
 layout(binding = 3) uniform sampler2D textureSceneVelocity;
 
-layout(location = 0) in vec4 vertexColor;
-layout(location = 1) in vec3 vertexNormal;
-layout(location = 2) in vec2 texCoord;
+layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 layout(location = 0) out vec4 outColor;
 
@@ -37,11 +36,11 @@ const vec2 gaussFilter[7] =
 void main() {
     outColor = vec4(0.0);
     float motion_blur_scale = 0.002 / scene_constants.DELTA_TIME;
-    vec2 velocity = texture(textureSceneVelocity, texCoord).xy * motion_blur_scale;
+    vec2 velocity = texture(textureSceneVelocity, vs_output.texCoord).xy * motion_blur_scale;
     float weights = 0.0;
     for( int i = 0; i < 7; i++ )
 	{
-	    vec2 uv = vec2(texCoord.x + gaussFilter[i].x * velocity.x, texCoord.y + gaussFilter[i].x * velocity.y);
+	    vec2 uv = vec2(vs_output.texCoord.x + gaussFilter[i].x * velocity.x, vs_output.texCoord.y + gaussFilter[i].x * velocity.y);
         outColor += texture(textureSceneColor, uv) * gaussFilter[i].yyyy;
 		weights += gaussFilter[i].y;
 	}

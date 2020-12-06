@@ -44,7 +44,6 @@ pub fn get_render_pass_name(render_object_type: RenderObjectType) -> String {
 
 pub fn get_framebuffer_data_create_infos(
     renderer_data: &RendererData,
-    render_pass_name: &String,
     render_object_type: RenderObjectType
 ) -> Vec<FramebufferDataCreateInfo> {
     let texture_scene_albedo = renderer_data.get_render_target(RenderTargetType::SceneAlbedo);
@@ -63,7 +62,7 @@ pub fn get_framebuffer_data_create_infos(
 
     vec![
         FramebufferDataCreateInfo {
-            _framebuffer_name: render_pass_name.clone(),
+            _framebuffer_name: format!("GBuffer{:?}", render_object_type),
             _framebuffer_width: width,
             _framebuffer_height: height,
             _framebuffer_depth: depth,
@@ -100,7 +99,7 @@ pub fn get_render_pass_data_create_info(
     render_object_type: RenderObjectType,
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = get_render_pass_name(render_object_type);
-    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data, &render_pass_name, render_object_type);
+    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data, render_object_type);
     let framebuffer_data_create_info = &framebuffer_data_create_infos[0];
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let (attachment_load_operation, attachment_initial_layout) = match render_object_type  {

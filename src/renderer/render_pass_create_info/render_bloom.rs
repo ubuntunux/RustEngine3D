@@ -32,9 +32,15 @@ use crate::vulkan_context::vulkan_context::{
 
 
 pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
-    let render_target = renderer_data.get_render_target(RenderTargetType::SceneColorCopy);
-    let (width, height) = (render_target._image_width, render_target._image_height);
-    vec![
+    let render_targets = vec![
+        renderer_data.get_render_target(RenderTargetType::Bloom0),
+        renderer_data.get_render_target(RenderTargetType::Bloom1),
+        renderer_data.get_render_target(RenderTargetType::Bloom2),
+        renderer_data.get_render_target(RenderTargetType::Bloom3),
+        renderer_data.get_render_target(RenderTargetType::Bloom4),
+    ];
+    render_targets.iter().map(|render_target| {
+        let (width, height) = (render_target._image_width, render_target._image_height);
         FramebufferDataCreateInfo {
             _framebuffer_name: render_target._texture_data_name.clone(),
             _framebuffer_width: width,
@@ -45,12 +51,12 @@ pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<Fr
             _framebuffer_image_views: vec![vec![render_target._image_view]; constants::SWAPCHAIN_IMAGE_COUNT],
             ..Default::default()
         }
-    ]
+    }).collect()
 }
 
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_motion_blur");
+    let render_pass_name = String::from("render_bloom");
     let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data);
     let framebuffer_data_create_info = &framebuffer_data_create_infos[0];
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
@@ -81,9 +87,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("render_motion_blur"),
+            _pipeline_data_create_info_name: String::from("render_bloom_highlight"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("render_motion_blur.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("render_bloom_highlight.frag"),
             _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,

@@ -5,6 +5,7 @@
 #include "scene_constants.glsl"
 #include "utility.glsl"
 #include "PCFKernels.glsl"
+#include "render_quad_common.glsl"
 
 layout(binding = 0) uniform SceneConstants
 {
@@ -28,13 +29,12 @@ layout(binding = 6) uniform SSAOConstants
     vec4 _SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;
 
-layout(location = 0) in vec4 vertexColor;
-layout(location = 1) in vec3 vertexNormal;
-layout(location = 2) in vec2 texCoord;
+layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 layout(location = 0) out float outColor;
 
 void main() {
+    const vec2 texCoord = vs_output.texCoord;
     const float device_depth = texture(textureSceneDepth, texCoord).x;
     if(1.0 == device_depth)
     {
