@@ -438,7 +438,8 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
-        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).borrow();
+        let frame_buffer_datas: Ref<Vec<FramebufferData>> = resources.get_framebuffer_datas(render_pass_data.get_render_pass_data_name().as_str()).borrow();
+        let frame_buffer_data = &frame_buffer_datas[0];
         let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index as usize];
         let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
         unsafe {

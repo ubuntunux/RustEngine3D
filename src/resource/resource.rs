@@ -66,7 +66,7 @@ const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
-pub type FramebufferDataMap = ResourceDataMap<FramebufferData>;
+pub type FramebufferDatasMap = ResourceDataMap<Vec<FramebufferData>>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
 pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>;
@@ -102,7 +102,7 @@ pub struct Resources {
     pub _mesh_data_map: MeshDataMap,
     pub _model_data_map: ModelDataMap,
     pub _texture_data_map: TextureDataMap,
-    pub _framebuffer_data_map: FramebufferDataMap,
+    pub _framebuffer_datas_map: FramebufferDatasMap,
     pub _render_pass_data_map: RenderPassDataMap,
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
@@ -115,7 +115,7 @@ pub fn create_resources() -> RcRefCell<Resources> {
         _mesh_data_map: MeshDataMap::new(),
         _model_data_map: ModelDataMap::new(),
         _texture_data_map: TextureDataMap::new(),
-        _framebuffer_data_map: FramebufferDataMap::new(),
+        _framebuffer_datas_map: FramebufferDatasMap::new(),
         _render_pass_data_map: RenderPassDataMap::new(),
         _material_data_map: MaterialDataMap::new(),
         _material_instance_data_map: MaterialInstanceDataMap::new(),
@@ -483,15 +483,18 @@ impl Resources {
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
             let framebuffer_name = &render_pass_data._render_pass_data_name;
-
             for render_pass_data_create_info in render_pass_data_create_infos.iter() {
                 if *framebuffer_name == render_pass_data_create_info._render_pass_create_info_name {
-                    let framebuffer_data = newRcRefCell(framebuffer::create_framebuffer_data(
-                        renderer_data.get_device(),
-                        render_pass_data._render_pass,
-                        render_pass_data_create_info._render_pass_frame_buffer_create_info.clone(),
-                    ));
-                    self._framebuffer_data_map.insert(framebuffer_name.clone(), framebuffer_data);
+                    let framebuffer_datas = render_pass_data_create_info._render_pass_frame_buffer_create_infos
+                        .iter()
+                        .map(|frame_buffer_create_info|
+                            framebuffer::create_framebuffer_data(
+                                renderer_data.get_device(),
+                                render_pass_data._render_pass,
+                                frame_buffer_create_info.clone(),
+                            )
+                        ).collect();
+                    self._framebuffer_datas_map.insert(framebuffer_name.clone(), newRcRefCell(framebuffer_datas));
                     break;
                 }
             }
@@ -499,14 +502,16 @@ impl Resources {
     }
 
     pub fn unload_framebuffer_datas(&mut self, renderer_data: &RendererData) {
-        for framebuffer_data in self._framebuffer_data_map.values() {
-            framebuffer::destroy_framebuffer_data(renderer_data.get_device(), &(*framebuffer_data).borrow());
+        for framebuffer_datas in self._framebuffer_datas_map.values() {
+            for framebuffer_data in framebuffer_datas.borrow().iter() {
+                framebuffer::destroy_framebuffer_data(renderer_data.get_device(), framebuffer_data);
+            }
         }
-        self._framebuffer_data_map.clear();
+        self._framebuffer_datas_map.clear();
     }
 
-    pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
-        get_resource_data(&self._framebuffer_data_map, resource_name, "")
+    pub fn get_framebuffer_datas(&self, resource_name: &str) -> &RcRefCell<Vec<FramebufferData>> {
+        get_resource_data(&self._framebuffer_datas_map, resource_name, "")
     }
 
     // RenderPassLoader
@@ -643,8 +648,7 @@ impl Resources {
                             DescriptorResourceType::RenderTarget => {
                                 let texture_data = renderer_data.get_render_target(RenderTargetType::from_str(&material_parameter_name.as_str()).unwrap());
                                 DescriptorResourceInfo::DescriptorImageInfo(texture_data._descriptor_image_info)
-                            },
-                            _ => panic!("DescriptorResourceInfo::InvalidDescriptorInfo"),
+                            }
                         };
                         return descriptor_resource_info;
                     }).filter(|descriptor_resource_info| match *descriptor_resource_info {

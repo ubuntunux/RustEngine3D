@@ -31,28 +31,31 @@ use crate::vulkan_context::vulkan_context::{
 };
 
 
-pub fn get_framebuffer_data_create_info(
+pub fn get_framebuffer_data_create_infos(
     renderer_data: &RendererData,
     render_pass_name: &String,
-) -> FramebufferDataCreateInfo {
+) -> Vec<FramebufferDataCreateInfo> {
     let render_target = renderer_data.get_render_target(RenderTargetType::SceneColorCopy);
     let (width, height) = (render_target._image_width, render_target._image_height);
-    FramebufferDataCreateInfo {
-        _framebuffer_name: render_pass_name.clone(),
-        _framebuffer_width: width,
-        _framebuffer_height: height,
-        _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
-        _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-        _framebuffer_color_attachment_formats: vec![render_target._image_format],
-        _framebuffer_image_views: vec![vec![render_target._image_view]; constants::SWAPCHAIN_IMAGE_COUNT],
-        ..Default::default()
-    }
+    vec![
+        FramebufferDataCreateInfo {
+            _framebuffer_name: render_pass_name.clone(),
+            _framebuffer_width: width,
+            _framebuffer_height: height,
+            _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
+            _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
+            _framebuffer_color_attachment_formats: vec![render_target._image_format],
+            _framebuffer_image_views: vec![vec![render_target._image_view]; constants::SWAPCHAIN_IMAGE_COUNT],
+            ..Default::default()
+        }
+    ]
 }
 
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_motion_blur");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, &render_pass_name);
+    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data, &render_pass_name);
+    let framebuffer_data_create_info = &framebuffer_data_create_infos[0];
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
@@ -131,7 +134,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
 
     RenderPassDataCreateInfo {
         _render_pass_create_info_name: render_pass_name.clone(),
-        _render_pass_frame_buffer_create_info: framebuffer_data_create_info,
+        _render_pass_frame_buffer_create_infos: framebuffer_data_create_infos,
         _color_attachment_descriptions: color_attachment_descriptions,
         _depth_attachment_descriptions: Vec::new(),
         _resolve_attachment_descriptions: Vec::new(),
