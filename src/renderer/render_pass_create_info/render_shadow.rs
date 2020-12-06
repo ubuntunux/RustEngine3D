@@ -84,7 +84,7 @@ pub fn get_render_pass_data_create_info(
     };
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
-        depth_attachment_descriptions.push({
+        depth_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
                 _attachment_image_samples: sample_count,
@@ -95,7 +95,7 @@ pub fn get_render_pass_data_create_info(
                 _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 ..Default::default()
             }
-        });
+        );
     }
     let subpass_dependencies = vec![
         vk::SubpassDependency {

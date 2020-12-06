@@ -56,7 +56,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
-        color_attachment_descriptions.push({
+        color_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
                 _attachment_image_samples: sample_count,
@@ -66,7 +66,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                 ..Default::default()
             }
-        });
+        );
     }
     let subpass_dependencies = vec![
         vk::SubpassDependency {
