@@ -482,7 +482,7 @@ impl Resources {
         let render_pass_data_create_infos = render_pass_create_info::get_render_pass_data_create_infos(renderer_data);
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
-            let framebuffer_name = &render_pass_data._render_pass_framebuffer_name;
+            let framebuffer_name = &render_pass_data._render_pass_data_name;
 
             for render_pass_data_create_info in render_pass_data_create_infos.iter() {
                 if *framebuffer_name == render_pass_data_create_info._render_pass_create_info_name {

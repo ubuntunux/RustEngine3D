@@ -159,7 +159,6 @@ pub struct PipelineData {
 pub struct RenderPassData {
     pub _render_pass_data_name: String,
     pub _render_pass: vk::RenderPass,
-    pub _render_pass_framebuffer_name: String,
     pub _default_pipeline_data: RcRefCell<PipelineData>,
     pub _pipeline_data_map: PipelineDataMap,
 }
@@ -174,10 +173,6 @@ impl RenderPassData {
 
     pub fn get_render_pass(&self) -> vk::RenderPass {
         self._render_pass
-    }
-
-    pub fn get_render_pass_frame_buffer_name(&self) -> &String {
-        &self._render_pass_framebuffer_name
     }
 
     pub fn get_default_pipeline_data(&self) -> &RcRefCell<PipelineData> {
@@ -219,7 +214,6 @@ pub fn create_render_pass_data(
     RenderPassData {
         _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
         _render_pass: render_pass,
-        _render_pass_framebuffer_name: render_pass_data_create_info._render_pass_frame_buffer_create_info._framebuffer_name.clone(),
         _default_pipeline_data: default_pipeline_data.clone(),
         _pipeline_data_map: pipeline_data_map,
     }

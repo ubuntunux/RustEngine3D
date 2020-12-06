@@ -41,7 +41,7 @@ use crate::vulkan_context::buffer::{ BufferDataInfo };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
-use crate::vulkan_context::render_pass::{ RenderPassPipelineDataName, RenderPassPipelineData, RenderPassData, PipelineData };
+use crate::vulkan_context::render_pass::{ RenderPassPipelineDataName, RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, FrameIndexMap };
@@ -438,7 +438,7 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
-        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_frame_buffer_name().as_str()).borrow();
+        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).borrow();
         let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index as usize];
         let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
         unsafe {
@@ -450,6 +450,15 @@ impl RendererData {
                 self._device.cmd_set_scissor(command_buffer, 0, &[frame_buffer_data._framebuffer_info._framebuffer_scissor_rect]);
             }
             self._device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_data.borrow()._pipeline);
+        }
+    }
+
+    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, pipeline_binding_data: &PipelineBindingData) {
+        let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
+        let descriptor_set = pipeline_binding_data._descriptor_sets[swapchain_index as usize];
+        let dynamic_offsets: &[u32] = &[];
+        unsafe {
+            self._device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
         }
     }
 
