@@ -89,8 +89,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
             _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-            _pipeline_viewport: framebuffer_data_create_info._framebuffer_view_port,
-            _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
+            _pipeline_viewport: vk::Viewport::default(),
+            _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
                 _depth_write_enable: false,

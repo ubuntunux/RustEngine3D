@@ -131,8 +131,8 @@ pub fn get_render_pass_data_create_info(
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-            _pipeline_viewport: framebuffer_data_create_info._framebuffer_view_port,
-            _pipeline_scissor_rect: framebuffer_data_create_info._framebuffer_scissor_rect,
+            _pipeline_viewport: vk::Viewport::default(),
+            _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: match render_object_type {
