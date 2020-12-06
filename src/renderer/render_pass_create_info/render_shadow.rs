@@ -16,7 +16,6 @@ use crate::renderer::renderer::{
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::buffer_data_infos::BufferDataType;
 use crate::renderer::push_constants::{
-    PushConstantInterface,
     PushConstants_StaticRenderObject,
     PushConstants_SkeletalRenderObject,
 };
@@ -149,8 +148,8 @@ pub fn get_render_pass_data_create_info(
                 stage_flags: vk::ShaderStageFlags::ALL,
                 offset: 0,
                 size: match render_object_type {
-                    RenderObjectType::Static => PushConstants_StaticRenderObject::get_push_constants_size(),
-                    RenderObjectType::Skeletal => PushConstants_SkeletalRenderObject::get_push_constants_size(),
+                    RenderObjectType::Static => std::mem::size_of::<PushConstants_StaticRenderObject>() as u32,
+                    RenderObjectType::Skeletal => std::mem::size_of::<PushConstants_SkeletalRenderObject>() as u32,
                 }
             }],
             _descriptor_data_create_infos: vec![

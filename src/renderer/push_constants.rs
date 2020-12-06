@@ -2,10 +2,6 @@ use nalgebra::{
     Matrix4
 };
 
-pub trait PushConstantInterface {
-    fn get_push_constants_size() -> u32;
-}
-
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstants_StaticRenderObject {
@@ -17,12 +13,6 @@ impl Default for PushConstants_StaticRenderObject {
         PushConstants_StaticRenderObject {
             _local_matrix: Matrix4::identity(),
         }
-    }
-}
-
-impl PushConstantInterface for PushConstants_StaticRenderObject {
-    fn get_push_constants_size() -> u32 {
-        std::mem::size_of::<PushConstants_StaticRenderObject>() as u32
     }
 }
 
@@ -48,8 +38,22 @@ impl Default for PushConstants_SkeletalRenderObject {
     }
 }
 
-impl PushConstantInterface for PushConstants_SkeletalRenderObject {
-    fn get_push_constants_size() -> u32 {
-        std::mem::size_of::<PushConstants_SkeletalRenderObject>() as u32
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstants_BloomHighlight {
+    pub _bloom_threshold_min: f32,
+    pub _bloom_threshold_max: f32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+}
+
+impl Default for PushConstants_BloomHighlight {
+    fn default() -> PushConstants_BloomHighlight {
+        PushConstants_BloomHighlight {
+            _bloom_threshold_min: 0.0,
+            _bloom_threshold_max: 0.0,
+            _reserved0: 0,
+            _reserved1: 0,
+        }
     }
 }
