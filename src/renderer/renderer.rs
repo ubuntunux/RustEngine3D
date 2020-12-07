@@ -718,6 +718,7 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
@@ -892,7 +893,7 @@ impl RendererData {
         }
     }
 
-    pub fn render_post_process(
+    pub fn render_pre_process(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
@@ -927,7 +928,14 @@ impl RendererData {
             render_composite_gbuffer_material_instance_name,
             &quad_geometry_data
         );
+    }
 
+    pub fn render_post_process(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData
+    ) {
         // Motion Blur
         let render_motion_blur_material_instance_name = "render_motion_blur";
         let render_motion_blur_render_pass_pipeline_name = RenderPassPipelineDataName {
