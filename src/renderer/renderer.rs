@@ -41,7 +41,7 @@ use crate::vulkan_context::buffer::{ BufferDataInfo };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
-use crate::vulkan_context::render_pass::{ RenderPassPipelineDataName, RenderPassData, PipelineData };
+use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainIndexMap, FrameIndexMap };
@@ -415,7 +415,7 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         framebuffer_index: usize,
-        render_pass_pipeline_data_name: &RenderPassPipelineDataName,
+        render_pass_pipeline_data_name: &str,
         material_instance_name: &str,
         geometry_data: &GeometryData
     ) {
@@ -723,10 +723,7 @@ impl RendererData {
 
                 // Render Final
                 let render_final_material_instance_name = "render_final";
-                let render_final_render_pass_pipeline_name = RenderPassPipelineDataName {
-                    _render_pass_data_name: String::from("render_final"),
-                    _pipeline_data_name: String::from("render_final"),
-                };
+                let render_final_render_pass_pipeline_name = "render_final/render_final";
                 self.render_pipeline(
                     command_buffer,
                     swapchain_index,
@@ -740,11 +737,7 @@ impl RendererData {
                 //self._debug_render_target = RenderTargetType::Shadow;
                 if RenderTargetType::BackBuffer != self._debug_render_target {
                     let render_debug_material_instance_name = "render_debug";
-                    let render_debug_render_pass_pipeline_name = RenderPassPipelineDataName {
-                        _render_pass_data_name: String::from("render_debug"),
-                        _pipeline_data_name: String::from("render_debug"),
-                    };
-
+                    let render_debug_render_pass_pipeline_name = "render_debug/render_debug";
                     let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
                     let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_pipeline_binding_data_mut(&render_debug_render_pass_pipeline_name);
                     self.begin_render_pass_pipeline(
@@ -803,22 +796,10 @@ impl RendererData {
 
         unsafe {
             let render_pass_pipeline_data_name = match (render_mode, render_object_type) {
-                (RenderMode::RenderMode_Common, RenderObjectType::Static) => RenderPassPipelineDataName {
-                    _render_pass_data_name: String::from("render_pass_static_opaque"),
-                    _pipeline_data_name: String::from("render_object"),
-                },
-                (RenderMode::RenderMode_Common, RenderObjectType::Skeletal) => RenderPassPipelineDataName {
-                    _render_pass_data_name: String::from("render_pass_skeletal_opaque"),
-                    _pipeline_data_name: String::from("render_object"),
-                },
-                (RenderMode::RenderMode_Shadow, RenderObjectType::Static) => RenderPassPipelineDataName {
-                    _render_pass_data_name: String::from("render_pass_static_shadow"),
-                    _pipeline_data_name: String::from("render_object"),
-                },
-                (RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal) => RenderPassPipelineDataName {
-                    _render_pass_data_name: String::from("render_pass_skeletal_shadow"),
-                    _pipeline_data_name: String::from("render_object"),
-                },
+                (RenderMode::RenderMode_Common, RenderObjectType::Static) => "render_pass_static_opaque/render_object",
+                (RenderMode::RenderMode_Common, RenderObjectType::Skeletal) => "render_pass_skeletal_opaque/render_object",
+                (RenderMode::RenderMode_Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
+                (RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
             };
 
             let mut bone_metrices_offset: vk::DeviceSize = 0;
@@ -901,10 +882,7 @@ impl RendererData {
     ) {
         // SSAO
         let render_ssao_material_instance_name = "render_ssao";
-        let render_ssao_render_pass_pipeline_name = RenderPassPipelineDataName {
-            _render_pass_data_name: String::from("render_ssao"),
-            _pipeline_data_name: String::from("render_ssao"),
-        };
+        let render_ssao_render_pass_pipeline_name = "render_ssao/render_ssao";
         self.render_pipeline(
             command_buffer,
             swapchain_index,
@@ -916,10 +894,7 @@ impl RendererData {
 
         // Composite GBuffer
         let render_composite_gbuffer_material_instance_name = "composite_gbuffer";
-        let render_composite_gbuffer_render_pass_pipeline_name = RenderPassPipelineDataName {
-            _render_pass_data_name: String::from("composite_gbuffer"),
-            _pipeline_data_name: String::from("composite_gbuffer"),
-        };
+        let render_composite_gbuffer_render_pass_pipeline_name = "composite_gbuffer/composite_gbuffer";
         self.render_pipeline(
             command_buffer,
             swapchain_index,
@@ -938,10 +913,7 @@ impl RendererData {
     ) {
         // Motion Blur
         let render_motion_blur_material_instance_name = "render_motion_blur";
-        let render_motion_blur_render_pass_pipeline_name = RenderPassPipelineDataName {
-            _render_pass_data_name: String::from("render_motion_blur"),
-            _pipeline_data_name: String::from("render_motion_blur"),
-        };
+        let render_motion_blur_render_pass_pipeline_name = "render_motion_blur/render_motion_blur";
         self.render_pipeline(
             command_buffer,
             swapchain_index,

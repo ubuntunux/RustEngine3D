@@ -29,7 +29,6 @@ use crate::vulkan_context::render_pass::{
     self,
     PipelineDataCreateInfo,
     RenderPassData,
-    RenderPassPipelineDataName,
     RenderPassPipelineData,
 };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
@@ -542,10 +541,10 @@ impl Resources {
         self.get_render_pass_data(DEFAULT_RENDER_PASS_NAME)
     }
 
-    pub fn get_render_pass_pipeline_data(&self, render_pass_pipeline_data_name: &RenderPassPipelineDataName) -> RenderPassPipelineData {
-        let render_pass_data_refcell = self.get_render_pass_data(render_pass_pipeline_data_name._render_pass_data_name.as_str());
+    pub fn get_render_pass_pipeline_data(&self, render_pass_data_name: &str, pipeline_data_name: &str) -> RenderPassPipelineData {
+        let render_pass_data_refcell = self.get_render_pass_data(render_pass_data_name);
         let render_pass_data = render_pass_data_refcell.borrow();
-        let pipeline_data = render_pass_data.get_pipeline_data(&render_pass_pipeline_data_name._pipeline_data_name);
+        let pipeline_data = render_pass_data.get_pipeline_data(pipeline_data_name);
         RenderPassPipelineData {
             _render_pass_data: render_pass_data_refcell.clone(),
              _pipeline_data: pipeline_data.clone(),
@@ -579,10 +578,7 @@ impl Resources {
                     Value::String(pipeline_data_name) => pipeline_data_name,
                     _ => panic!("failed to parsing pipeline"),
                 };
-                self.get_render_pass_pipeline_data(&RenderPassPipelineDataName {
-                    _render_pass_data_name: render_pass_data_name.clone(),
-                    _pipeline_data_name: pipeline_data_name.clone(),
-                })
+                self.get_render_pass_pipeline_data(render_pass_data_name.as_str(), pipeline_data_name.as_str())
             }).collect();
             let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));

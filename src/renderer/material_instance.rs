@@ -24,7 +24,7 @@ pub struct PipelineBindingData {
     pub _descriptor_set_count: u32,
 }
 
-type PipelineBindingDataMap = HashMap<render_pass::RenderPassPipelineDataName, PipelineBindingData>;
+type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
 
 #[derive(Clone, Debug)]
 pub struct MaterialInstanceData {
@@ -44,11 +44,12 @@ impl MaterialInstanceData {
         log::info!("    material_data: {}", material_data.borrow()._material_data_name);
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
         for (render_pass_pipeline_data, descriptor_resource_infos_list) in pipeline_bind_create_infos {
-            let render_pass_pipeline_data_name = render_pass::RenderPassPipelineDataName {
-                _render_pass_data_name: render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name.clone(),
-                _pipeline_data_name: render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name.clone(),
-            };
-            log::info!("        {:?}", render_pass_pipeline_data_name);
+            let render_pass_pipeline_data_name = format!(
+                "{}/{}",
+                render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
+                render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name,
+            );
+            log::info!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
             let descriptor_data = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
             let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
             let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
@@ -100,14 +101,14 @@ impl MaterialInstanceData {
 
     pub fn get_pipeline_binding_data(
         &self,
-        render_pass_pipeline_data_name: &render_pass::RenderPassPipelineDataName,
+        render_pass_pipeline_data_name: &str,
     ) -> &PipelineBindingData {
         self._pipeline_binding_data_map.get(render_pass_pipeline_data_name).unwrap()
     }
 
     pub fn get_pipeline_binding_data_mut(
         &mut self,
-        render_pass_pipeline_data_name: &render_pass::RenderPassPipelineDataName,
+        render_pass_pipeline_data_name: &str,
     ) -> &mut PipelineBindingData {
         self._pipeline_binding_data_map.get_mut(render_pass_pipeline_data_name).unwrap()
     }

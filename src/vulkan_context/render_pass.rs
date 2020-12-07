@@ -24,12 +24,6 @@ use crate::vulkan_context::shader::{
 };
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 
-#[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub struct RenderPassPipelineDataName {
-    pub _render_pass_data_name: String,
-    pub _pipeline_data_name: String,
-}
-
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
     pub _render_pass_data: RcRefCell<RenderPassData>,
@@ -164,7 +158,7 @@ pub struct RenderPassData {
 }
 
 pub type PipelineDataMap = HashMap<String, RcRefCell<PipelineData>>;
-pub type RenderPassPipelineDataMap = HashMap<RenderPassPipelineDataName, RenderPassPipelineData>;
+pub type RenderPassPipelineDataMap = HashMap<String, RenderPassPipelineData>;
 
 impl RenderPassData {
     pub fn get_render_pass_data_name(&self) -> &String {
@@ -179,7 +173,7 @@ impl RenderPassData {
         &self._default_pipeline_data
     }
 
-    pub fn get_pipeline_data(&self, pipeline_data_name: &String) -> &RcRefCell<PipelineData> {
+    pub fn get_pipeline_data(&self, pipeline_data_name: &str) -> &RcRefCell<PipelineData> {
         let maybe_pipeline_data = self._pipeline_data_map.get(pipeline_data_name);
         match maybe_pipeline_data {
             Some(pipeline_data) => pipeline_data,
