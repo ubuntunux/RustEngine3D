@@ -17,18 +17,7 @@ use nalgebra::{
 };
 
 use crate::constants;
-use crate::vulkan_context::buffer::{ self, BufferDataInfo };
-
-pub type BufferDataInfoMap = HashMap<BufferDataType, BufferDataInfo>;
-
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
-pub enum BufferDataType {
-    SceneConstants,
-    ViewConstants,
-    LightConstants,
-    SSAOConstants,
-    BoneMatrices,
-}
+use crate::vulkan_context::buffer::{ self, ShaderBufferData };
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
@@ -53,6 +42,17 @@ pub struct PushConstants_BloomHighlight {
     pub _bloom_threshold_max: f32,
     pub _reserved0: u32,
     pub _reserved1: u32,
+}
+
+pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
+
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum ShaderBufferDataType {
+    SceneConstants,
+    ViewConstants,
+    LightConstants,
+    SSAOConstants,
+    BoneMatrices,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -116,22 +116,22 @@ pub struct BoneMatrices {
 }
 
 // Interfaces
-impl std::fmt::Display for BufferDataType {
+impl std::fmt::Display for ShaderBufferDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
     }
 }
 
-impl std::str::FromStr for BufferDataType {
+impl std::str::FromStr for ShaderBufferDataType {
     type Err = String;
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
-            "SceneConstants" => Ok(BufferDataType::SceneConstants),
-            "ViewConstants" => Ok(BufferDataType::ViewConstants),
-            "LightConstants" => Ok(BufferDataType::LightConstants),
-            "SSAOConstants" => Ok(BufferDataType::SSAOConstants),
-            "BoneMatrices" => Ok(BufferDataType::BoneMatrices),
-            _ => Err(format!("'{}' is not a valid value for BufferDataType", s)),
+            "SceneConstants" => Ok(ShaderBufferDataType::SceneConstants),
+            "ViewConstants" => Ok(ShaderBufferDataType::ViewConstants),
+            "LightConstants" => Ok(ShaderBufferDataType::LightConstants),
+            "SSAOConstants" => Ok(ShaderBufferDataType::SSAOConstants),
+            "BoneMatrices" => Ok(ShaderBufferDataType::BoneMatrices),
+            _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
 }
@@ -194,34 +194,34 @@ impl Default for BoneMatrices {
     }
 }
 
-pub fn regist_buffer_data_info(
+pub fn regist_shader_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    buffer_data_info_map: &mut BufferDataInfoMap,
-    buffer_data_info_type: BufferDataType,
+    shader_buffer_data_map: &mut ShaderBufferDataMap,
+    shader_buffer_data_type: ShaderBufferDataType,
     buffer_usage: vk::BufferUsageFlags,
-    buffer_data_info_size: usize
+    shader_buffer_data_size: usize
 ) {
-    let uniform_buffer_data = buffer::create_buffer_data_info(
+    let uniform_buffer_data = buffer::create_shader_buffer_data(
         device,
         memory_properties,
-        &String::from(format!("{:?}", buffer_data_info_type)),
+        &String::from(format!("{:?}", shader_buffer_data_type)),
         buffer_usage,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
         constants::SWAPCHAIN_IMAGE_COUNT,
-        buffer_data_info_size as vk::DeviceSize
+        shader_buffer_data_size as vk::DeviceSize
     );
-    buffer_data_info_map.insert(buffer_data_info_type.clone(), uniform_buffer_data);
+    shader_buffer_data_map.insert(shader_buffer_data_type.clone(), uniform_buffer_data);
 }
 
-pub fn regist_buffer_data_infos(
+pub fn regist_shader_buffer_datas(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    buffer_data_info_map: &mut BufferDataInfoMap,
+    shader_buffer_data_map: &mut ShaderBufferDataMap,
 ) {
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>());
-    regist_buffer_data_info(device, memory_properties, buffer_data_info_map, BufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>());
 }

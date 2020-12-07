@@ -9,7 +9,7 @@ use crate::utilities::system::{
     enum_to_string
 };
 use crate::renderer::renderer::RendererData;
-use crate::renderer::buffer_data_infos::{ BufferDataType, PushConstants_BloomHighlight };
+use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType, PushConstants_BloomHighlight };
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{ VertexData };
@@ -113,13 +113,13 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&BufferDataType::SceneConstants),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(&BufferDataType::ViewConstants),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },

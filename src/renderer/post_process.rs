@@ -2,7 +2,7 @@ use rand;
 use nalgebra::{Vector3, Vector4};
 
 use crate::constants;
-use crate::renderer::buffer_data_infos::{ SSAOConstants };
+use crate::renderer::shader_buffer_datas::{ SSAOConstants };
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]

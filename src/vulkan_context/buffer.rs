@@ -21,7 +21,7 @@ pub struct BufferData {
 }
 
 #[derive(Debug, Clone)]
-pub struct BufferDataInfo {
+pub struct ShaderBufferData {
     pub _buffer_name: String,
     pub _buffers: Vec<BufferData>,
     pub _buffer_data_size: vk::DeviceSize,
@@ -213,8 +213,8 @@ pub fn copy_buffer(
     copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
 }
 
-// BufferDataInfo
-pub fn create_buffer_data_info(
+// ShaderBufferData
+pub fn create_shader_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     buffer_name: &String,
@@ -222,8 +222,8 @@ pub fn create_buffer_data_info(
     memory_property: vk::MemoryPropertyFlags,
     buffer_count: usize,
     buffer_size: vk::DeviceSize
-) -> BufferDataInfo {
-    log::info!("create_buffer_data_info: {}", buffer_name);
+) -> ShaderBufferData {
+    log::info!("create_shader_buffer_data: {}", buffer_name);
     let buffers: Vec<BufferData> = (0..buffer_count).map(|_i| {
         create_buffer_data(
             device,
@@ -241,7 +241,7 @@ pub fn create_buffer_data_info(
         }
     }).collect();
 
-    BufferDataInfo {
+    ShaderBufferData {
         _buffer_name: buffer_name.clone(),
         _buffers: buffers,
         _buffer_data_size: buffer_size,
@@ -249,8 +249,8 @@ pub fn create_buffer_data_info(
     }
 }
 
-pub fn destroy_buffer_data_info(device: &Device, uniform_buffer_data: &BufferDataInfo) {
-    log::info!("destroy_buffer_data_info");
+pub fn destroy_shader_buffer_data(device: &Device, uniform_buffer_data: &ShaderBufferData) {
+    log::info!("destroy_shader_buffer_data");
     for uniform_buffer in uniform_buffer_data._buffers.iter() {
         destroy_buffer_data(device, uniform_buffer);
     }

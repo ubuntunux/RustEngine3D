@@ -1,5 +1,5 @@
 pub mod animation;
-pub mod buffer_data_infos;
+pub mod shader_buffer_datas;
 pub mod camera;
 pub mod image_sampler;
 pub mod light;
@@ -20,7 +20,7 @@ pub mod transform_object;
 pub use self::animation::*;
 
 #[allow(unused_imports)]
-pub use self::buffer_data_infos::*;
+pub use self::shader_buffer_datas::*;
 
 #[allow(unused_imports)]
 pub use self::camera::*;

@@ -12,7 +12,7 @@ use crate::renderer::renderer::{
     RendererData,
 };
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::buffer_data_infos::BufferDataType;
+use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
@@ -105,19 +105,19 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&BufferDataType::SceneConstants),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(&BufferDataType::ViewConstants),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
-                    _descriptor_name: enum_to_string(&BufferDataType::LightConstants),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::LightConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
@@ -141,7 +141,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 6,
-                    _descriptor_name: enum_to_string(&BufferDataType::SSAOConstants),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SSAOConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },

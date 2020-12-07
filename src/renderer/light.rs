@@ -3,7 +3,7 @@ use nalgebra::{
     Matrix4,
 };
 
-use crate::renderer::buffer_data_infos::LightConstants;
+use crate::renderer::shader_buffer_datas::LightConstants;
 use crate::renderer::transform_object::{
     TransformObjectData,
 };

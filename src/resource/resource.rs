@@ -21,7 +21,7 @@ use crate::renderer::material_instance::{ self, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::{ RenderTargetType };
 use crate::renderer::render_pass_create_info;
-use crate::renderer::buffer_data_infos::{ BufferDataType };
+use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
 use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
@@ -630,7 +630,7 @@ impl Resources {
                         };
                         let descriptor_resource_info = match material_parameter_resource_type {
                             DescriptorResourceType::UniformBuffer | DescriptorResourceType::StorageBuffer => {
-                                let uniform_buffer_data = renderer_data.get_buffer_data_info(BufferDataType::from_str(&material_parameter_name.as_str()).unwrap());
+                                let uniform_buffer_data = renderer_data.get_shader_buffer_data(ShaderBufferDataType::from_str(&material_parameter_name.as_str()).unwrap());
                                 DescriptorResourceInfo::DescriptorBufferInfo(uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone())
                             },
                             DescriptorResourceType::Texture => {
