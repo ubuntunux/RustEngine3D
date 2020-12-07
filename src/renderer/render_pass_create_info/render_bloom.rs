@@ -11,7 +11,7 @@ use crate::utilities::system::{
 use crate::renderer::renderer::RendererData;
 use crate::renderer::buffer_data_infos::BufferDataType;
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::push_constants::{ self, PushConstants_BloomHighlight };
+use crate::renderer::push_constants::{ PushConstants_BloomHighlight };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{

@@ -115,6 +115,8 @@ impl ApplicationData {
         //let mouse_move_data: &mut input::MouseMoveData = &mut self._mouse_move_data;
         // let mouse_input_data = self._mouse_input_data.borrow_mut();
 
+        let renderer_data: *mut RendererData = scene_manager_data._renderer_data.as_ptr();
+
         let delta_time = self._time_data._delta_time;
         let (mouse_delta_x, mouse_delta_y)  = input_helper.mouse_diff();
         let mouse_pos = input_helper.mouse();
@@ -125,14 +127,16 @@ impl ApplicationData {
         let btn_right: bool = input_helper.mouse_held(MOUSE_RIGHT);
         let btn_middle: bool = input_helper.mouse_held(MOUSE_MIDDLE);
 
-        let pressed_key_A = self._keyboard_input_data.get_key_hold(VirtualKeyCode::A);
-        let pressed_key_D = self._keyboard_input_data.get_key_hold(VirtualKeyCode::D);
-        let pressed_key_W = self._keyboard_input_data.get_key_hold(VirtualKeyCode::W);
-        let pressed_key_S = self._keyboard_input_data.get_key_hold(VirtualKeyCode::S);
-        let pressed_key_Q = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Q);
-        let pressed_key_E = self._keyboard_input_data.get_key_hold(VirtualKeyCode::E);
-        let pressed_key_Z = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Z);
-        let pressed_key_C = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
+        let pressed_key_a = self._keyboard_input_data.get_key_hold(VirtualKeyCode::A);
+        let pressed_key_d = self._keyboard_input_data.get_key_hold(VirtualKeyCode::D);
+        let pressed_key_w = self._keyboard_input_data.get_key_hold(VirtualKeyCode::W);
+        let pressed_key_s = self._keyboard_input_data.get_key_hold(VirtualKeyCode::S);
+        let pressed_key_q = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Q);
+        let pressed_key_e = self._keyboard_input_data.get_key_hold(VirtualKeyCode::E);
+        let pressed_key_z = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Z);
+        let pressed_key_c = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
+        let released_key_left_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::LBracket);
+        let released_key_right_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::RBracket);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
         let camera_move_speed = self._camera_move_speed;
@@ -153,12 +157,15 @@ impl ApplicationData {
         let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
         let pan_speed = constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
         let rotation_speed = constants::CAMERA_ROTATION_SPEED;
-        //
-        // if released_key_LeftBracket then
-        //     Renderer.prevDebugRenderTarget _rendererData
-        // else when released_key_RightBracket $ do
-        //     Renderer.nextDebugRenderTarget _rendererData
-        //
+
+        unsafe {
+            if released_key_left_bracket {
+                (*renderer_data).prev_debug_render_target();
+            } else if released_key_right_bracket {
+                (*renderer_data).next_debug_render_target();
+            }
+        }
+
         // when (0.0 /= scroll_yoffset) $
         //     writeIORef _cameraMoveSpeed modifiedCameraMoveSpeed
 
@@ -171,31 +178,31 @@ impl ApplicationData {
             main_camera._transform_object.rotation_yaw(-rotation_speed * mouse_delta_x);
         }
 
-        if pressed_key_Z {
+        if pressed_key_z {
             main_camera._transform_object.rotation_roll(-rotation_speed * delta_time as f32);
         }
-        else if pressed_key_C {
+        else if pressed_key_c {
             main_camera._transform_object.rotation_roll(rotation_speed * delta_time as f32);
         }
 
-        if pressed_key_W {
+        if pressed_key_w {
             main_camera._transform_object.move_front(-move_speed);
         }
-        else if pressed_key_S {
+        else if pressed_key_s {
             main_camera._transform_object.move_front(move_speed);
         }
 
-        if pressed_key_A {
+        if pressed_key_a {
             main_camera._transform_object.move_left(-move_speed);
         }
-        else if pressed_key_D {
+        else if pressed_key_d {
             main_camera._transform_object.move_left(move_speed);
         }
 
-        if pressed_key_Q {
+        if pressed_key_q {
             main_camera._transform_object.move_up(-move_speed);
         }
-        else if pressed_key_E {
+        else if pressed_key_e {
             main_camera._transform_object.move_up(move_speed);
         }
     }
@@ -263,6 +270,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     return;
                 }
                 application_data.update_event(&scene_manager_data, &input_helper);
+                application_data.clear_keyboard_events();
             }
 
             match event {
@@ -326,8 +334,6 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                 Event::RedrawEventsCleared => { },
                 _ => { },
             }
-
-            application_data.clear_keyboard_events();
         }
     });
 }
