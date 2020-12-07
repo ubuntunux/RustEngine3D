@@ -14,8 +14,8 @@ use crate::renderer::renderer::{
     RendererData,
 };
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::buffer_data_infos::BufferDataType;
-use crate::renderer::push_constants::{
+use crate::renderer::buffer_data_infos::{
+    BufferDataType,
     PushConstants_StaticRenderObject,
     PushConstants_SkeletalRenderObject,
 };
