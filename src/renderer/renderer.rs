@@ -410,7 +410,26 @@ impl RendererData {
         }
     }
 
-    pub fn render_pipeline(
+    pub fn render_material_instance(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        framebuffer_index: usize,
+        material_instance_name: &str,
+        geometry_data: &GeometryData
+    ) {
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.draw_elements(command_buffer, geometry_data);
+        self.end_render_pass(command_buffer);
+    }
+
+    pub fn render_render_pass_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
@@ -722,16 +741,7 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                let render_final_material_instance_name = "render_final";
-                let render_final_render_pass_pipeline_name = "render_final/render_final";
-                self.render_pipeline(
-                    command_buffer,
-                    swapchain_index,
-                    0,
-                    &render_final_render_pass_pipeline_name,
-                    render_final_material_instance_name,
-                    &quad_geometry_data
-                );
+                self.render_material_instance(command_buffer, swapchain_index, 0, "render_final", &quad_geometry_data);
 
                 // Render Debug
                 //self._debug_render_target = RenderTargetType::Shadow;
@@ -881,28 +891,10 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // SSAO
-        let render_ssao_material_instance_name = "render_ssao";
-        let render_ssao_render_pass_pipeline_name = "render_ssao/render_ssao";
-        self.render_pipeline(
-            command_buffer,
-            swapchain_index,
-            0,
-            &render_ssao_render_pass_pipeline_name,
-            render_ssao_material_instance_name,
-            &quad_geometry_data
-        );
+        self.render_material_instance(command_buffer, swapchain_index, 0, "render_ssao", &quad_geometry_data);
 
         // Composite GBuffer
-        let render_composite_gbuffer_material_instance_name = "composite_gbuffer";
-        let render_composite_gbuffer_render_pass_pipeline_name = "composite_gbuffer/composite_gbuffer";
-        self.render_pipeline(
-            command_buffer,
-            swapchain_index,
-            0,
-            &render_composite_gbuffer_render_pass_pipeline_name,
-            render_composite_gbuffer_material_instance_name,
-            &quad_geometry_data
-        );
+        self.render_material_instance(command_buffer, swapchain_index, 0, "composite_gbuffer", &quad_geometry_data);
     }
 
     pub fn render_post_process(
@@ -911,16 +903,10 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
+        // Bloom
+        self.render_material_instance(command_buffer, swapchain_index, 0, "render_bloom", &quad_geometry_data);
+
         // Motion Blur
-        let render_motion_blur_material_instance_name = "render_motion_blur";
-        let render_motion_blur_render_pass_pipeline_name = "render_motion_blur/render_motion_blur";
-        self.render_pipeline(
-            command_buffer,
-            swapchain_index,
-            0,
-            &render_motion_blur_render_pass_pipeline_name,
-            render_motion_blur_material_instance_name,
-            &quad_geometry_data
-        );
+        self.render_material_instance(command_buffer, swapchain_index, 0, "render_motion_blur", &quad_geometry_data);
     }
 }

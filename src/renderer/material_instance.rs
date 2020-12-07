@@ -31,6 +31,7 @@ pub struct MaterialInstanceData {
     pub _material_instance_data_name: String,
     pub _material_data: RcRefCell<MaterialData>,
     pub _pipeline_binding_data_map: PipelineBindingDataMap,
+    pub _default_pipeline_binding_name: String,
 }
 
 impl MaterialInstanceData {
@@ -43,12 +44,18 @@ impl MaterialInstanceData {
         log::info!("create_material_instance: {}", material_instance_data_name);
         log::info!("    material_data: {}", material_data.borrow()._material_data_name);
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
+        let mut default_pipeline_binding_name = String::new();
         for (render_pass_pipeline_data, descriptor_resource_infos_list) in pipeline_bind_create_infos {
             let render_pass_pipeline_data_name = format!(
                 "{}/{}",
                 render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
                 render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name,
             );
+
+            if default_pipeline_binding_name.is_empty() {
+                default_pipeline_binding_name = render_pass_pipeline_data_name.clone();
+            }
+
             log::info!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
             let descriptor_data = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
             let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
@@ -91,12 +98,25 @@ impl MaterialInstanceData {
         MaterialInstanceData {
             _material_instance_data_name: material_instance_data_name.clone(),
             _material_data: material_data.clone(),
-            _pipeline_binding_data_map: pipeline_binding_data_map
+            _pipeline_binding_data_map: pipeline_binding_data_map,
+            _default_pipeline_binding_name: default_pipeline_binding_name,
         }
     }
 
     pub fn destroy_material_instance(&self) {
         log::info!("destroy_material_instance: {}", self._material_instance_data_name);
+    }
+
+    pub fn get_default_pipeline_binding_data(
+        &self,
+    ) -> &PipelineBindingData {
+        self._pipeline_binding_data_map.get(self._default_pipeline_binding_name.as_str()).unwrap()
+    }
+
+    pub fn get_default_pipeline_binding_data_mut(
+        &mut self,
+    ) -> &mut PipelineBindingData {
+        self._pipeline_binding_data_map.get_mut(self._default_pipeline_binding_name.as_str()).unwrap()
     }
 
     pub fn get_pipeline_binding_data(
