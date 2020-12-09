@@ -19,15 +19,17 @@ use nalgebra::{
 use crate::constants;
 use crate::vulkan_context::buffer::{ self, ShaderBufferData };
 
+pub const NONE_PUSH_CONSTANT: Option<&()> = None;
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
-pub struct PushConstants_StaticRenderObject {
+pub struct PushConstant_StaticRenderObject {
     pub _local_matrix: Matrix4<f32>,
 }
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
-pub struct PushConstants_SkeletalRenderObject {
+pub struct PushConstant_SkeletalRenderObject {
     pub _local_matrix: Matrix4<f32>,
     pub _bone_matrix_offset: u32,
     pub _bone_matrix_count: u32,
@@ -37,11 +39,11 @@ pub struct PushConstants_SkeletalRenderObject {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
-pub struct PushConstants_BloomHighlight {
+pub struct PushConstant_BloomHighlight {
     pub _bloom_threshold_min: f32,
     pub _bloom_threshold_max: f32,
-    pub _reserved0: u32,
-    pub _reserved1: u32,
+    pub _bloom_intensity: f32,
+    pub _bloom_scale: f32,
 }
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
@@ -136,16 +138,16 @@ impl std::str::FromStr for ShaderBufferDataType {
     }
 }
 
-impl Default for PushConstants_StaticRenderObject {
-    fn default() -> PushConstants_StaticRenderObject {
-        PushConstants_StaticRenderObject {
+impl Default for PushConstant_StaticRenderObject {
+    fn default() -> PushConstant_StaticRenderObject {
+        PushConstant_StaticRenderObject {
             _local_matrix: Matrix4::identity(),
         }
     }
 }
-impl Default for PushConstants_SkeletalRenderObject {
-    fn default() -> PushConstants_SkeletalRenderObject {
-        PushConstants_SkeletalRenderObject {
+impl Default for PushConstant_SkeletalRenderObject {
+    fn default() -> PushConstant_SkeletalRenderObject {
+        PushConstant_SkeletalRenderObject {
             _local_matrix: Matrix4::identity(),
             _bone_matrix_offset: 0,
             _bone_matrix_count: 0,
@@ -155,13 +157,13 @@ impl Default for PushConstants_SkeletalRenderObject {
     }
 }
 
-impl Default for PushConstants_BloomHighlight {
-    fn default() -> PushConstants_BloomHighlight {
-        PushConstants_BloomHighlight {
-            _bloom_threshold_min: 0.0,
-            _bloom_threshold_max: 0.0,
-            _reserved0: 0,
-            _reserved1: 0,
+impl Default for PushConstant_BloomHighlight {
+    fn default() -> PushConstant_BloomHighlight {
+        PushConstant_BloomHighlight {
+            _bloom_threshold_min: 1.25,
+            _bloom_threshold_max: 10.0,
+            _bloom_intensity: 0.25,
+            _bloom_scale: 1.0,
         }
     }
 }

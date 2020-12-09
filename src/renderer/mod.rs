@@ -15,7 +15,6 @@ pub mod renderer;
 pub mod render_pass_create_info;
 pub mod transform_object;
 
-
 #[allow(unused_imports)]
 pub use self::animation::*;
 

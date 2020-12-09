@@ -16,8 +16,8 @@ use crate::renderer::renderer::{
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::{
     ShaderBufferDataType,
-    PushConstants_StaticRenderObject,
-    PushConstants_SkeletalRenderObject,
+    PushConstant_StaticRenderObject,
+    PushConstant_SkeletalRenderObject,
 };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{ VertexData, SkeletalVertexData };
@@ -186,8 +186,8 @@ pub fn get_render_pass_data_create_info(
                 stage_flags: vk::ShaderStageFlags::ALL,
                 offset: 0,
                 size: match render_object_type {
-                    RenderObjectType::Static => std::mem::size_of::<PushConstants_StaticRenderObject>() as u32,
-                    RenderObjectType::Skeletal => std::mem::size_of::<PushConstants_SkeletalRenderObject>() as u32,
+                    RenderObjectType::Static => std::mem::size_of::<PushConstant_StaticRenderObject>() as u32,
+                    RenderObjectType::Skeletal => std::mem::size_of::<PushConstant_SkeletalRenderObject>() as u32,
                 }
             }],
             _descriptor_data_create_infos: vec![

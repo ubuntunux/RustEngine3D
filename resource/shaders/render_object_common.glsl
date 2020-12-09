@@ -15,16 +15,21 @@ layout(binding = 3) buffer BoneConstants
     mat4 bone_matrices[MAX_BONES];
 };
 
-layout( push_constant ) uniform PushConstant
+#if (RenderObjectType_Static == RenderObjectType)
+layout( push_constant ) uniform PushConstant_StaticRenderObject
 {
     mat4 _localMatrix;
-#if (RenderObjectType_Skeletal == RenderObjectType)
+} pushConstant;
+#elif (RenderObjectType_Skeletal == RenderObjectType)
+layout( push_constant ) uniform PushConstant_SkeletalRenderObject
+{
+    mat4 _localMatrix;
     uint _bone_matrix_offset;
     uint _bone_matrix_count;
     uint _reserved0;
     uint _reserved1;
-#endif
 } pushConstant;
+#endif
 
 struct VERTEX_OUTPUT
 {

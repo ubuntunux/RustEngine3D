@@ -16,7 +16,7 @@ layout(binding = 1) uniform ViewConstants
 };
 layout(binding = 2) uniform sampler2D textureSceneColor;
 
-layout( push_constant ) uniform PushConstant
+layout( push_constant ) uniform PushConstant_BloomHighlight
 {
     float _bloom_threshold_min;
     float _bloom_threshold_max;
@@ -31,7 +31,13 @@ layout(location = 0) out vec4 outColor;
 void main() {
     const vec2 texCoord = vs_output.texCoord.xy;
     vec3 color = max(vec3(0.0), texture(textureSceneColor, texCoord).xyz);
-    float luminance = max(0.01, get_luminance(color));
-    color = color * min(pushConstant._bloom_threshold_max, max(0.0, luminance - pushConstant._bloom_threshold_min)) / luminance;
-    outColor = vec4(color, 1.0);
+    float luminance = get_luminance(color);
+    if(pushConstant._bloom_threshold_min < luminance)
+    {
+        outColor = vec4(color, 1.0);
+    }
+    else
+    {
+        outColor = vec4(0.0);
+    }
 }

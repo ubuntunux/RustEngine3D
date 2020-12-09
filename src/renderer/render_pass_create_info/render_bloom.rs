@@ -9,7 +9,7 @@ use crate::utilities::system::{
     enum_to_string
 };
 use crate::renderer::renderer::RendererData;
-use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType, PushConstants_BloomHighlight };
+use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType, PushConstant_BloomHighlight };
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{ VertexData };
@@ -107,7 +107,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 vk::PushConstantRange {
                     stage_flags: vk::ShaderStageFlags::ALL,
                     offset: 0,
-                    size: std::mem::size_of::<PushConstants_BloomHighlight>() as u32,
+                    size: std::mem::size_of::<PushConstant_BloomHighlight>() as u32,
                 }
             ],
             _descriptor_data_create_infos: vec![

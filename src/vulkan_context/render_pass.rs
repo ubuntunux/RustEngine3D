@@ -58,7 +58,7 @@ pub struct PipelineDataCreateInfo {
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
     pub _vertex_input_bind_descriptions: Vec<vk::VertexInputBindingDescription>,
     pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
-    pub _push_constant_ranges: Vec<vk::PushConstantRange>, // ex) mem::size_of::<PushConstants_StaticRenderObject>()
+    pub _push_constant_ranges: Vec<vk::PushConstantRange>, // ex) mem::size_of::<PushConstant_StaticRenderObject>()
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 }
 

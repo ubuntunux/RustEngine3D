@@ -50,10 +50,12 @@ use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceD
 use crate::renderer::render_target::{ self, RenderTargetType };
 use crate::renderer::shader_buffer_datas::{
     self,
+    NONE_PUSH_CONSTANT,
     ShaderBufferDataType,
     ShaderBufferDataMap,
-    PushConstants_StaticRenderObject,
-    PushConstants_SkeletalRenderObject
+    PushConstant_StaticRenderObject,
+    PushConstant_SkeletalRenderObject,
+    PushConstant_BloomHighlight,
 };
 use crate::renderer::post_process::{ PostProcessData_SSAO };
 use crate::renderer::render_element::{ RenderElementData };
@@ -415,12 +417,13 @@ impl RendererData {
         }
     }
 
-    pub fn render_material_instance(
+    pub fn render_material_instance<T>(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         framebuffer_index: usize,
         material_instance_name: &str,
+        push_constant_data: Option<&T>,
         geometry_data: &GeometryData
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
@@ -430,17 +433,25 @@ impl RendererData {
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        if let Some(push_constant_data) = push_constant_data {
+            self.upload_push_constant_data(
+                command_buffer,
+                &pipeline_data.borrow(),
+                push_constant_data
+            );
+        }
         self.draw_elements(command_buffer, geometry_data);
         self.end_render_pass(command_buffer);
     }
 
-    pub fn render_render_pass_pipeline(
+    pub fn render_render_pass_pipeline<T>(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         framebuffer_index: usize,
         render_pass_pipeline_data_name: &str,
         material_instance_name: &str,
+        push_constant_data: Option<&T>,
         geometry_data: &GeometryData
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
@@ -450,6 +461,13 @@ impl RendererData {
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        if let Some(push_constant_data) = push_constant_data {
+            self.upload_push_constant_data(
+                command_buffer,
+                &pipeline_data.borrow(),
+                push_constant_data
+            );
+        }
         self.draw_elements(command_buffer, geometry_data);
         self.end_render_pass(command_buffer);
     }
@@ -746,7 +764,7 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                self.render_material_instance(command_buffer, swapchain_index, 0, "render_final", &quad_geometry_data);
+                self.render_material_instance(command_buffer, swapchain_index, 0, "render_final", NONE_PUSH_CONSTANT, &quad_geometry_data);
 
                 // Render Debug
                 //self._debug_render_target = RenderTargetType::Shadow;
@@ -857,7 +875,7 @@ impl RendererData {
                         self.upload_push_constant_data(
                             command_buffer,
                             &pipeline_data.borrow(),
-                            &PushConstants_StaticRenderObject {
+                            &PushConstant_StaticRenderObject {
                                 _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
                             }
                         );
@@ -873,7 +891,7 @@ impl RendererData {
                         self.upload_push_constant_data(
                             command_buffer,
                             &pipeline_data.borrow(),
-                            &PushConstants_SkeletalRenderObject {
+                            &PushConstant_SkeletalRenderObject {
                                 _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
                                 _bone_matrix_offset: bone_metrices_offset as u32,
                                 _bone_matrix_count: bone_count as u32,
@@ -896,10 +914,10 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // SSAO
-        self.render_material_instance(command_buffer, swapchain_index, 0, "render_ssao", &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, 0, "render_ssao", NONE_PUSH_CONSTANT, &quad_geometry_data);
 
         // Composite GBuffer
-        self.render_material_instance(command_buffer, swapchain_index, 0, "composite_gbuffer", &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, 0, "composite_gbuffer", NONE_PUSH_CONSTANT, &quad_geometry_data);
     }
 
     pub fn render_post_process(
@@ -909,9 +927,15 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // Bloom
-        self.render_material_instance(command_buffer, swapchain_index, 0, "render_bloom", &quad_geometry_data);
+        const PUSH_CONSTANT_BLOOM: PushConstant_BloomHighlight = PushConstant_BloomHighlight {
+            _bloom_threshold_min: 0.0,
+            _bloom_threshold_max: 1.0,
+            _bloom_intensity: 0.25,
+            _bloom_scale: 1.0,
+        };
+        self.render_material_instance(command_buffer, swapchain_index, 0, "render_bloom", Some(&PUSH_CONSTANT_BLOOM), &quad_geometry_data);
 
         // Motion Blur
-        self.render_material_instance(command_buffer, swapchain_index, 0, "render_motion_blur", &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, 0, "render_motion_blur", NONE_PUSH_CONSTANT, &quad_geometry_data);
     }
 }
