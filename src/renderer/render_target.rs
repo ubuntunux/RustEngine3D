@@ -204,7 +204,7 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::LINEAR,
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_mipmap: disable_mipmap,
+            _enable_mipmap: true,
             _enable_anisotropy: disable_anisotropy,
             _immutable: mutable,
             _texture_initial_datas: empty_data.clone(),

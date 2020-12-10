@@ -32,13 +32,10 @@ use crate::vulkan_context::vulkan_context::{
 pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
     let render_targets = vec![
         renderer_data.get_render_target(RenderTargetType::Bloom0),
-        renderer_data.get_render_target(RenderTargetType::Bloom1),
-        renderer_data.get_render_target(RenderTargetType::Bloom2),
-        renderer_data.get_render_target(RenderTargetType::Bloom3),
-        renderer_data.get_render_target(RenderTargetType::Bloom4),
     ];
     render_targets.iter().map(|render_target| {
-        let (width, height) = (render_target._image_width, render_target._image_height);
+        let (width, height) = (render_target._image_width / 2, render_target._image_height / 2);
+        let rendertarget_views = vec![render_target.get_rendertarget_view(0, 1)];
         FramebufferDataCreateInfo {
             _framebuffer_name: render_target._texture_data_name.clone(),
             _framebuffer_width: width,
@@ -46,7 +43,7 @@ pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<Fr
             _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
             _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
             _framebuffer_color_attachment_formats: vec![render_target._image_format],
-            _framebuffer_image_views: vec![vec![render_target._image_view]; constants::SWAPCHAIN_IMAGE_COUNT],
+            _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
             ..Default::default()
         }
     }).collect()

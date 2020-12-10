@@ -30,6 +30,12 @@ pub struct SwapchainData {
     pub _swapchain_extent: vk::Extent2D
 }
 
+impl SwapchainData {
+    pub fn get_swapchain_image_view(&self, swapchain_index: usize) -> vk::ImageView {
+        self._swapchain_image_views[swapchain_index]
+    }
+}
+
 pub fn choose_swapchain_surface_format(
     swap_chain_support_details: &SwapchainSupportDetails,
     require_format: vk::Format,
@@ -174,12 +180,12 @@ pub fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, 
 pub fn create_swapchain_image_views(
     device: &Device,
     swapchain_images: &SwapchainIndexMap<vk::Image>,
-    image_format: vk::Format
+    image_format: vk::Format,
 ) -> SwapchainIndexMap<vk::ImageView> {
     swapchain_images
         .iter()
         .map(|image| {
-            texture::create_image_view(device, *image, vk::ImageViewType::TYPE_2D, image_format, vk::ImageAspectFlags::COLOR, 1, 1)
+            texture::create_image_view(device, *image, vk::ImageViewType::TYPE_2D, image_format, vk::ImageAspectFlags::COLOR, 0, 1, 0, 1)
         })
         .collect()
 }

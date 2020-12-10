@@ -48,7 +48,7 @@ pub fn get_framebuffer_data_create_infos(
 ) -> Vec<FramebufferDataCreateInfo> {
     let texture_shadow = renderer_data.get_render_target(RenderTargetType::Shadow);
     let (width, height, depth) = (texture_shadow._image_width, texture_shadow._image_height, texture_shadow._image_depth);
-    let image_views = vec![texture_shadow._image_view];
+    let rendertarget_views = vec![texture_shadow.get_default_rendertarget_view()];
     vec![
         FramebufferDataCreateInfo {
             _framebuffer_name: format!("GBuffer{:?}", render_object_type),
@@ -59,7 +59,7 @@ pub fn get_framebuffer_data_create_infos(
             _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
             _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
             _framebuffer_depth_attachment_formats: vec![ texture_shadow._image_format ],
-            _framebuffer_image_views: vec![image_views; constants::SWAPCHAIN_IMAGE_COUNT],
+            _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
             _framebuffer_clear_values: match render_object_type {
                 RenderObjectType::Static => vec![
                     vulkan_context::get_depth_stencil_clear_value(1.0, 0)

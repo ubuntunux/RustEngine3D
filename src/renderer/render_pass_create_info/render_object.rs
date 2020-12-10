@@ -51,12 +51,12 @@ pub fn get_framebuffer_data_create_infos(
     let texture_scene_velocity = renderer_data.get_render_target(RenderTargetType::SceneVelocity);
     let texture_scene_depth = renderer_data.get_render_target(RenderTargetType::SceneDepth);
     let (width, height, depth) = (texture_scene_albedo._image_width, texture_scene_albedo._image_height, texture_scene_albedo._image_depth);
-    let image_views = vec![
-        texture_scene_albedo._image_view,
-        texture_scene_material._image_view,
-        texture_scene_normal._image_view,
-        texture_scene_velocity._image_view,
-        texture_scene_depth._image_view,
+    let rendertarget_views = vec![
+        texture_scene_albedo.get_default_rendertarget_view(),
+        texture_scene_material.get_default_rendertarget_view(),
+        texture_scene_normal.get_default_rendertarget_view(),
+        texture_scene_velocity.get_default_rendertarget_view(),
+        texture_scene_depth.get_default_rendertarget_view(),
     ];
 
     vec![
@@ -77,7 +77,7 @@ pub fn get_framebuffer_data_create_infos(
             _framebuffer_depth_attachment_formats: vec![
                 texture_scene_depth._image_format,
             ],
-            _framebuffer_image_views: vec![image_views; constants::SWAPCHAIN_IMAGE_COUNT],
+            _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
             _framebuffer_clear_values: match render_object_type {
                 RenderObjectType::Static => vec![
                     vulkan_context::get_color_clear_zero(),

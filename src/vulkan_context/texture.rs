@@ -41,6 +41,7 @@ pub struct TextureData {
     pub _texture_data_name: String,
     pub _image: vk::Image,
     pub _image_view: vk::ImageView,
+    pub _rendertarget_layer_views: Vec<Vec<vk::ImageView>>,
     pub _image_memory: vk::DeviceMemory,
     pub _image_sampler:vk::Sampler,
     pub _image_format: vk::Format,
@@ -89,6 +90,20 @@ impl<T> Default for TextureCreateInfo<T> {
             _immutable: true,
             _texture_initial_datas: Vec::new(),
         }
+    }
+}
+
+impl TextureData {
+    pub fn get_default_rendertarget_view(&self) -> vk::ImageView {
+        self._rendertarget_layer_views[0][0]
+    }
+
+    pub fn get_image_size(&self, mip_level: u32) -> (u32, u32) {
+        (self._image_width >> mip_level, self._image_height >> mip_level)
+    }
+
+    pub fn get_rendertarget_view(&self, layer: usize, mip_level: usize) -> vk::ImageView {
+        self._rendertarget_layer_views[layer][mip_level]
     }
 }
 
@@ -436,8 +451,10 @@ pub fn create_image_view(
     view_type:vk::ImageViewType,
     format: vk::Format,
     aspect_flags: vk::ImageAspectFlags,
+    base_mip_level: u32,
+    level_count: u32,
+    base_array_layer: u32,
     layer_count: u32,
-    mip_levels: u32
 ) -> vk::ImageView {
     let create_view_info = vk::ImageViewCreateInfo {
         image,
@@ -451,9 +468,9 @@ pub fn create_image_view(
         },
         subresource_range: vk::ImageSubresourceRange {
             aspect_mask: aspect_flags,
-            base_mip_level: 0,
-            level_count: mip_levels,
-            base_array_layer: 0,
+            base_mip_level,
+            level_count,
+            base_array_layer,
             layer_count,
         },
         ..Default::default()
@@ -475,8 +492,10 @@ pub fn transition_image_layout(
     image: vk::Image,
     format: vk::Format,
     transition: ImageLayoutTransition,
+    base_mip_level: u32,
+    level_count: u32,
+    base_array_layer: u32,
     layer_count: u32,
-    mip_levels: u32
 ) {
     let transition_dependent = get_transition_dependent(transition);
     let aspect_mask = match transition_dependent._new_layout {
@@ -497,9 +516,9 @@ pub fn transition_image_layout(
             image,
             subresource_range: vk::ImageSubresourceRange {
                 aspect_mask,
-                base_mip_level: 0,
-                level_count: mip_levels,
-                base_array_layer: 0,
+                base_mip_level,
+                level_count,
+                base_array_layer,
                 layer_count,
                 ..Default::default()
             },
@@ -686,19 +705,23 @@ pub fn create_render_target<T>(
         texture_create_flags,
         vk::MemoryPropertyFlags::DEVICE_LOCAL
     );
+
     run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
-            transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, layer_count, mip_levels);
-        }
-    );
+        transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, 0, mip_levels, 0, layer_count);
+    });
+
     let image_view = create_image_view(
         device,
         image,
         texture_create_info._texture_view_type,
         image_format,
         image_aspect,
+        0,
+        mip_levels,
+        0,
         layer_count,
-        mip_levels
     );
+
     let image_sampler = create_image_sampler(
         device,
         mip_levels,
@@ -707,25 +730,34 @@ pub fn create_render_target<T>(
         texture_create_info._texture_wrap_mode,
         enable_anisotropy
     );
+
     let descriptor_image_info = vk::DescriptorImageInfo {
         sampler: image_sampler,
         image_view,
         image_layout: vk::ImageLayout::GENERAL
     };
-    let texture_data = TextureData {
-        _texture_data_name: texture_create_info._texture_name.clone(),
-        _image: image,
-        _image_view: image_view,
-        _image_memory: image_memory,
-        _image_sampler: image_sampler,
-        _image_format: image_format,
-        _image_width: texture_create_info._texture_width,
-        _image_height: texture_create_info._texture_height,
-        _image_depth: texture_create_info._texture_depth,
-        _image_mip_levels: mip_levels,
-        _image_sample_count: texture_create_info._texture_samples,
-        _descriptor_image_info: descriptor_image_info
-    };
+
+    let mut rendertarget_layer_views: Vec<Vec<vk::ImageView>> = Vec::new();
+    for layer in 0..layer_count {
+        let mut rendertarget_views: Vec<vk::ImageView> = Vec::new();
+        for mip_level in 0..mip_levels {
+            rendertarget_views.push(
+                create_image_view(
+                    device,
+                    image,
+                    texture_create_info._texture_view_type,
+                    image_format,
+                    image_aspect,
+                    mip_level,
+                    1,
+                    layer,
+                    1,
+                )
+            );
+        }
+        rendertarget_layer_views.push(rendertarget_views);
+    }
+
     log::info!("create_render_target: {} {:?} {:?} {} {} {}",
                texture_create_info._texture_name,
                texture_create_info._texture_view_type,
@@ -735,7 +767,23 @@ pub fn create_render_target<T>(
                texture_create_info._texture_depth
     );
     log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
-    texture_data
+    log::debug!("                 rendertarget_layer_views: {:?}", rendertarget_layer_views);
+
+    TextureData {
+        _texture_data_name: texture_create_info._texture_name.clone(),
+        _image: image,
+        _image_view: image_view,
+        _rendertarget_layer_views: rendertarget_layer_views,
+        _image_memory: image_memory,
+        _image_sampler: image_sampler,
+        _image_format: image_format,
+        _image_width: texture_create_info._texture_width,
+        _image_height: texture_create_info._texture_height,
+        _image_depth: texture_create_info._texture_depth,
+        _image_mip_levels: mip_levels,
+        _image_sample_count: texture_create_info._texture_samples,
+        _descriptor_image_info: descriptor_image_info,
+    }
 }
 
 pub fn create_texture_data<T: Copy>(
@@ -791,8 +839,10 @@ pub fn create_texture_data<T: Copy>(
             image,
             texture_create_info._texture_format,
             ImageLayoutTransition::TransferUndefToTransferDst,
+            0,
+            mip_levels,
+            0,
             layer_count,
-            mip_levels
         );
     });
 
@@ -866,8 +916,10 @@ pub fn create_texture_data<T: Copy>(
         texture_create_info._texture_view_type,
         texture_create_info._texture_format,
         image_aspect,
+        0,
+        mip_levels,
+        0,
         layer_count,
-        mip_levels
     );
     let image_sampler = create_image_sampler(
         device,
@@ -882,10 +934,22 @@ pub fn create_texture_data<T: Copy>(
         image_view,
         image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
     };
-    let texture_data = TextureData {
+
+    log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
+               texture_create_info._texture_name,
+               texture_create_info._texture_view_type,
+               texture_create_info._texture_format,
+               texture_create_info._texture_width,
+               texture_create_info._texture_height,
+               texture_create_info._texture_depth
+    );
+    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
+
+    TextureData {
         _texture_data_name: texture_create_info._texture_name.clone(),
         _image: image.clone(),
-        _image_view: image_view.clone(),
+        _image_view: image_view,
+        _rendertarget_layer_views: Vec::new(),
         _image_memory: image_memory,
         _image_sampler: image_sampler,
         _image_format: texture_create_info._texture_format,
@@ -894,19 +958,8 @@ pub fn create_texture_data<T: Copy>(
         _image_depth: texture_create_info._texture_depth,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
-        _descriptor_image_info: descriptor_image_info
-    };
-
-    log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
-             texture_create_info._texture_name,
-             texture_create_info._texture_view_type,
-             texture_create_info._texture_format,
-             texture_create_info._texture_width,
-             texture_create_info._texture_height,
-             texture_create_info._texture_depth
-    );
-    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
-    texture_data
+        _descriptor_image_info: descriptor_image_info,
+    }
 }
 
 pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
@@ -918,8 +971,14 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
             texture_data._image_memory,
             texture_data._image_sampler
         );
+        log::info!("    rendertarget_layer_views: {:?}", texture_data._rendertarget_layer_views);
         device.destroy_sampler(texture_data._image_sampler, None);
         device.destroy_image_view(texture_data._image_view, None);
+        for rendertarget_views in texture_data._rendertarget_layer_views.iter() {
+            for rendertarget_view in rendertarget_views.iter() {
+                device.destroy_image_view(*rendertarget_view, None);
+            }
+        }
         destroy_image(device, texture_data._image, texture_data._image_memory);
     }
 }

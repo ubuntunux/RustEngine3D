@@ -33,8 +33,8 @@ use crate::vulkan_context::vulkan_context::{
 pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
     let swapchain_data = renderer_data.get_swap_chain_data();
     let (width, height) = (swapchain_data._swapchain_extent.width, swapchain_data._swapchain_extent.height);
-    let image_views = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|index| {
-        vec![swapchain_data._swapchain_image_views[*index]]
+    let rendertarget_views = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|index| {
+        vec![swapchain_data.get_swapchain_image_view(*index)]
     }).collect();
     vec![
         FramebufferDataCreateInfo {
@@ -44,7 +44,7 @@ pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<Fr
             _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
             _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
             _framebuffer_color_attachment_formats: vec![swapchain_data._swapchain_image_format],
-            _framebuffer_image_views: image_views,
+            _framebuffer_image_views: rendertarget_views,
             ..Default::default()
         }
     ]

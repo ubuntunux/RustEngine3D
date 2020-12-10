@@ -34,7 +34,7 @@ use crate::vulkan_context::vulkan_context::{
 pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
     let render_target = renderer_data.get_render_target(RenderTargetType::SceneColor);
     let (width, height, depth) = (render_target._image_width, render_target._image_height, render_target._image_depth);
-    let image_views = vec![render_target._image_view];
+    let rendertarget_views = vec![render_target.get_default_rendertarget_view()];
     vec![
         FramebufferDataCreateInfo {
             _framebuffer_name: render_target._texture_data_name.clone(),
@@ -45,7 +45,7 @@ pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<Fr
             _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
             _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
             _framebuffer_color_attachment_formats: vec![render_target._image_format],
-            _framebuffer_image_views: vec![image_views; constants::SWAPCHAIN_IMAGE_COUNT],
+            _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
             _framebuffer_clear_values: vec![vulkan_context::get_color_clear_one()],
             ..Default::default()
         }
