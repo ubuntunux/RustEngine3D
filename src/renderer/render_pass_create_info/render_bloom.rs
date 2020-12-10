@@ -31,11 +31,11 @@ use crate::vulkan_context::vulkan_context::{
 
 pub fn get_framebuffer_data_create_infos(renderer_data: &RendererData) -> Vec<FramebufferDataCreateInfo> {
     let render_targets = vec![
-        renderer_data.get_render_target(RenderTargetType::Bloom0),
+        renderer_data.get_render_target(RenderTargetType::Bloom),
     ];
-    render_targets.iter().map(|render_target| {
-        let (width, height) = (render_target._image_width / 2, render_target._image_height / 2);
-        let rendertarget_views = vec![render_target.get_rendertarget_view(0, 1)];
+    render_targets.iter().enumerate().map(|(index, render_target)| {
+        let (width, height) = render_target.get_image_size(index as u32);
+        let rendertarget_views = vec![render_target.get_rendertarget_view(0, index)];
         FramebufferDataCreateInfo {
             _framebuffer_name: render_target._texture_data_name.clone(),
             _framebuffer_width: width,

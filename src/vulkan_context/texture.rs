@@ -99,7 +99,10 @@ impl TextureData {
     }
 
     pub fn get_image_size(&self, mip_level: u32) -> (u32, u32) {
-        (self._image_width >> mip_level, self._image_height >> mip_level)
+        (
+            std::cmp::max(1, self._image_width >> mip_level),
+            std::cmp::max(1, self._image_height >> mip_level)
+        )
     }
 
     pub fn get_rendertarget_view(&self, layer: usize, mip_level: usize) -> vk::ImageView {
