@@ -193,42 +193,55 @@ pub fn destroy_descriptor_sets(
     }
 }
 
-pub fn create_write_descriptor_sets(
-    descriptor_set: vk::DescriptorSet,
+pub fn create_write_descriptor_sets_with_update(
+    device: &Device,
+    descriptor_sets: &SwapchainIndexMap<vk::DescriptorSet>,
     descriptor_bind_indices: &Vec<u32>,
     descriptor_set_layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>,
-    descriptor_resource_infos: &Vec<DescriptorResourceInfo>,
-) -> Vec<vk::WriteDescriptorSet> {
-    let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::new();
-    let count = descriptor_bind_indices.len();
-    for index in 0..count {
-        let mut write_descriptor_set = vk::WriteDescriptorSet {
-            dst_set: descriptor_set,
-            dst_binding: descriptor_bind_indices[index],
-            dst_array_element: 0,
-            descriptor_type: descriptor_set_layout_bindings[index].descriptor_type,
-            descriptor_count: 1,
-            ..Default::default()
-        };
+    descriptor_resource_infos_list: &SwapchainIndexMap<Vec<DescriptorResourceInfo>>,
+) -> SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> {
+    constants::SWAPCHAIN_IMAGE_INDICES
+        .iter()
+        .map(|index| {
+            let descriptor_set = descriptor_sets[*index as usize];
+            let descriptor_resource_infos = &descriptor_resource_infos_list[*index as usize];
+            let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::new();
+            let count = descriptor_bind_indices.len();
+            for index in 0..count {
+                let mut write_descriptor_set = vk::WriteDescriptorSet {
+                    dst_set: descriptor_set,
+                    dst_binding: descriptor_bind_indices[index],
+                    dst_array_element: 0,
+                    descriptor_type: descriptor_set_layout_bindings[index].descriptor_type,
+                    descriptor_count: 1,
+                    ..Default::default()
+                };
 
-        match &descriptor_resource_infos[index] {
-            DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
-                write_descriptor_set.p_buffer_info = buffer_info;
-                write_descriptor_set.p_image_info = std::ptr::null();
-            },
-            DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
-                write_descriptor_set.p_buffer_info = std::ptr::null();
-                write_descriptor_set.p_image_info = image_info;
-            },
-            _ => {
-                write_descriptor_set.p_buffer_info = std::ptr::null();
-                write_descriptor_set.p_image_info = std::ptr::null();
+                match &descriptor_resource_infos[index] {
+                    DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
+                        write_descriptor_set.p_buffer_info = buffer_info;
+                        write_descriptor_set.p_image_info = std::ptr::null();
+                    },
+                    DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
+                        write_descriptor_set.p_buffer_info = std::ptr::null();
+                        write_descriptor_set.p_image_info = image_info;
+                    },
+                    _ => {
+                        write_descriptor_set.p_buffer_info = std::ptr::null();
+                        write_descriptor_set.p_image_info = std::ptr::null();
+                    }
+                }
+
+                write_descriptor_sets.push(write_descriptor_set);
             }
-        }
 
-        write_descriptor_sets.push(write_descriptor_set);
-    }
-    write_descriptor_sets
+            // Upload
+            unsafe {
+                device.update_descriptor_sets(&write_descriptor_sets, &[]);
+            }
+
+            write_descriptor_sets
+        }).collect()
 }
 
 pub fn create_write_descriptor_set(

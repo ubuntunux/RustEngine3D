@@ -6,11 +6,25 @@ use crate::renderer::shader_buffer_datas::{ SSAOConstants };
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
+pub struct PostProcessData_Bloom {
+    pub _ssao_radius: f32,
+}
+
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
 pub struct PostProcessData_SSAO {
     pub _ssao_kernel_size: i32,
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
     pub _ssao_constants: SSAOConstants,
+}
+
+impl Default for PostProcessData_Bloom {
+    fn default() -> PostProcessData_Bloom {
+        PostProcessData_Bloom {
+            _ssao_radius: 0.0,
+        }
+    }
 }
 
 

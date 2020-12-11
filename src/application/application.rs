@@ -239,7 +239,6 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         }
     );
 
-
     resources.borrow_mut().initialize_resources(&renderer_data.borrow());
 
     let camera_data = CameraCreateInfo {

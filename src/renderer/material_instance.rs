@@ -62,34 +62,19 @@ impl MaterialInstanceData {
             let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                 descriptor_data_create_info._descriptor_binding_index
             }).collect();
-            let descriptor_set_layout_bindings = &descriptor_data._descriptor_set_layout_bindings;
-            let descriptor_set_binding_count = descriptor_binding_indices.len();
-            let write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = constants::SWAPCHAIN_IMAGE_INDICES
-                .iter()
-                .map(|index| {
-                    let descriptor_set = descriptor_sets[*index as usize];
-                    let descriptor_resource_infos = &descriptor_resource_infos_list[*index as usize];
-                    let descriptor_writes = descriptor::create_write_descriptor_sets(
-                        descriptor_set,
-                        &descriptor_binding_indices,
-                        descriptor_set_layout_bindings,
-                        descriptor_resource_infos,
-                    );
-                    let descriptor_writes_count = descriptor_resource_infos.len();
-                    assert_eq!(descriptor_writes_count, descriptor_set_binding_count, "descriptorWritesCount Error");
-
-                    unsafe {
-                        // vkUpdateDescriptorSets
-                        device.update_descriptor_sets(&descriptor_writes, &[]);
-                    }
-                    descriptor_writes
-                }).collect();
+            let write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+                device,
+                &descriptor_sets,
+                &descriptor_binding_indices,
+                &descriptor_data._descriptor_set_layout_bindings,
+                &descriptor_resource_infos_list,
+            );
 
             let pipeline_binding_data = PipelineBindingData {
                 _render_pass_pipeline_data: render_pass_pipeline_data.clone(),
                 _descriptor_sets: descriptor_sets,
                 _write_descriptor_sets: write_descriptor_sets,
-                _descriptor_set_count: descriptor_set_binding_count as u32,
+                _descriptor_set_count: descriptor_binding_indices.len() as u32,
             };
 
             pipeline_binding_data_map.insert(render_pass_pipeline_data_name, pipeline_binding_data);

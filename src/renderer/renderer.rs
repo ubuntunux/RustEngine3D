@@ -57,7 +57,7 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_SkeletalRenderObject,
     PushConstant_BloomHighlight,
 };
-use crate::renderer::post_process::{ PostProcessData_SSAO };
+use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
@@ -161,7 +161,8 @@ pub struct RendererData {
     pub _debug_render_target: RenderTargetType,
     pub _render_target_data_map: RenderTargetDataMap,
     pub _shader_buffer_data_map: ShaderBufferDataMap,
-    pub _postprocess_ssao: PostProcessData_SSAO,
+    pub _post_process_data_bloom: PostProcessData_Bloom,
+    pub _post_process_data_ssao: PostProcessData_SSAO,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -271,7 +272,8 @@ pub fn create_renderer_data<T>(
             _debug_render_target: RenderTargetType::BackBuffer,
             _render_target_data_map: RenderTargetDataMap::new(),
             _shader_buffer_data_map: ShaderBufferDataMap::new(),
-            _postprocess_ssao: PostProcessData_SSAO::default(),
+            _post_process_data_bloom: PostProcessData_Bloom::default(),
+            _post_process_data_ssao: PostProcessData_SSAO::default(),
             _resources: resources.clone(),
         };
 
@@ -303,6 +305,9 @@ impl RendererData {
     pub fn get_present_queue(&self) -> vk::Queue { self._queue_family_datas._present_queue }
     pub fn get_shader_buffer_data(&self, buffer_data_type: ShaderBufferDataType) -> &ShaderBufferData {
         &self._shader_buffer_data_map.get(&buffer_data_type).unwrap()
+    }
+
+    pub fn initialize_post_process_datas(&mut self) {
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -720,7 +725,7 @@ impl RendererData {
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
 
                 // Upload Uniform Buffers
-                let ssao_constants = &self._postprocess_ssao._ssao_constants;
+                let ssao_constants = &self._post_process_data_ssao._ssao_constants;
                 let light_constants = main_light.get_light_constants();
                 let screen_width = self._swapchain_data._swapchain_extent.width as f32;
                 let screen_height = self._swapchain_data._swapchain_extent.height as f32;
