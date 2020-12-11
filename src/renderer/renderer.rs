@@ -426,7 +426,6 @@ impl RendererData {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        framebuffer_index: usize,
         material_instance_name: &str,
         push_constant_data: Option<&T>,
         geometry_data: &GeometryData
@@ -436,7 +435,7 @@ impl RendererData {
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
@@ -453,7 +452,6 @@ impl RendererData {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        framebuffer_index: usize,
         render_pass_pipeline_data_name: &str,
         material_instance_name: &str,
         push_constant_data: Option<&T>,
@@ -464,7 +462,7 @@ impl RendererData {
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
@@ -481,14 +479,12 @@ impl RendererData {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        framebuffer_index: usize,
         render_pass_data: &RcRefCell<RenderPassData>,
         pipeline_data: &RcRefCell<PipelineData>,
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
-        let frame_buffer_datas: Ref<Vec<FramebufferData>> = resources.get_framebuffer_datas(render_pass_data.get_render_pass_data_name().as_str()).borrow();
-        let frame_buffer_data = &frame_buffer_datas[framebuffer_index];
+        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).borrow();
         let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index as usize];
         let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
         unsafe {
@@ -784,7 +780,7 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                self.render_material_instance(command_buffer, swapchain_index, 0, "render_final", NONE_PUSH_CONSTANT, &quad_geometry_data);
+                self.render_material_instance(command_buffer, swapchain_index, "render_final", NONE_PUSH_CONSTANT, &quad_geometry_data);
 
                 // Render Debug
                 //self._debug_render_target = RenderTargetType::Shadow;
@@ -796,7 +792,6 @@ impl RendererData {
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
-                        0,
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
                     );
@@ -882,7 +877,7 @@ impl RendererData {
 
                 if prev_pipeline_data != pipeline_data_ptr {
                     prev_pipeline_data = pipeline_data_ptr;
-                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, 0, render_pass_data, pipeline_data);
+                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
                 }
 
                 if prev_pipeline_binding_data != pipeline_binding_data {
@@ -945,8 +940,7 @@ impl RendererData {
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        let framebuffer_index = 0;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         self.upload_push_constant_data(
             command_buffer,
@@ -956,8 +950,7 @@ impl RendererData {
         self.draw_elements(command_buffer, quad_geometry_data);
         self.end_render_pass(command_buffer);
 
-        // let framebuffer_index = 1;
-        // self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        // self.begin_render_pass_pipeline(command_buffer, framebuffer_index, render_pass_data, pipeline_data);
         // self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         // let image_info = self.get_render_target(RenderTargetType::Bloom0);
         // self.update_descriptor_set(
@@ -982,10 +975,10 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // SSAO
-        self.render_material_instance(command_buffer, swapchain_index, 0, "render_ssao", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", NONE_PUSH_CONSTANT, &quad_geometry_data);
 
         // Composite GBuffer
-        self.render_material_instance(command_buffer, swapchain_index, 0, "composite_gbuffer", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", NONE_PUSH_CONSTANT, &quad_geometry_data);
     }
 
     pub fn render_post_process(
@@ -998,6 +991,6 @@ impl RendererData {
         self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
 
         // Motion Blur
-        self.render_material_instance(command_buffer, swapchain_index, 0, "render_motion_blur", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", NONE_PUSH_CONSTANT, &quad_geometry_data);
     }
 }

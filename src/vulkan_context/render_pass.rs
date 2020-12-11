@@ -33,7 +33,7 @@ pub struct RenderPassPipelineData {
 #[derive(Clone)]
 pub struct RenderPassDataCreateInfo  {
     pub _render_pass_create_info_name: String,
-    pub _render_pass_frame_buffer_create_infos: Vec<FramebufferDataCreateInfo>,
+    pub _render_pass_framebuffer_create_info: FramebufferDataCreateInfo,
     pub _color_attachment_descriptions: Vec<ImageAttachmentDescription>,
     pub _depth_attachment_descriptions: Vec<ImageAttachmentDescription>,
     pub _resolve_attachment_descriptions: Vec<ImageAttachmentDescription>,

@@ -41,10 +41,7 @@ pub fn get_render_pass_name(render_object_type: RenderObjectType) -> String {
     String::from(render_pass_name)
 }
 
-pub fn get_framebuffer_data_create_infos(
-    renderer_data: &RendererData,
-    render_object_type: RenderObjectType
-) -> Vec<FramebufferDataCreateInfo> {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_object_type: RenderObjectType) -> FramebufferDataCreateInfo {
     let texture_scene_albedo = renderer_data.get_render_target(RenderTargetType::SceneAlbedo);
     let texture_scene_material = renderer_data.get_render_target(RenderTargetType::SceneMaterial);
     let texture_scene_normal = renderer_data.get_render_target(RenderTargetType::SceneNormal);
@@ -59,38 +56,36 @@ pub fn get_framebuffer_data_create_infos(
         texture_scene_depth.get_default_rendertarget_view(),
     ];
 
-    vec![
-        FramebufferDataCreateInfo {
-            _framebuffer_name: format!("GBuffer{:?}", render_object_type),
-            _framebuffer_width: width,
-            _framebuffer_height: height,
-            _framebuffer_depth: depth,
-            _framebuffer_sample_count: texture_scene_albedo._image_sample_count,
-            _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
-            _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-            _framebuffer_color_attachment_formats: vec![
-                texture_scene_albedo._image_format,
-                texture_scene_material._image_format,
-                texture_scene_normal._image_format,
-                texture_scene_velocity._image_format,
+    FramebufferDataCreateInfo {
+        _framebuffer_name: format!("GBuffer{:?}", render_object_type),
+        _framebuffer_width: width,
+        _framebuffer_height: height,
+        _framebuffer_depth: depth,
+        _framebuffer_sample_count: texture_scene_albedo._image_sample_count,
+        _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
+        _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
+        _framebuffer_color_attachment_formats: vec![
+            texture_scene_albedo._image_format,
+            texture_scene_material._image_format,
+            texture_scene_normal._image_format,
+            texture_scene_velocity._image_format,
+        ],
+        _framebuffer_depth_attachment_formats: vec![
+            texture_scene_depth._image_format,
+        ],
+        _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
+        _framebuffer_clear_values: match render_object_type {
+            RenderObjectType::Static => vec![
+                vulkan_context::get_color_clear_zero(),
+                vulkan_context::get_color_clear_zero(),
+                vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0),
+                vulkan_context::get_color_clear_zero(),
+                vulkan_context::get_depth_stencil_clear_value(1.0, 0)
             ],
-            _framebuffer_depth_attachment_formats: vec![
-                texture_scene_depth._image_format,
-            ],
-            _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
-            _framebuffer_clear_values: match render_object_type {
-                RenderObjectType::Static => vec![
-                    vulkan_context::get_color_clear_zero(),
-                    vulkan_context::get_color_clear_zero(),
-                    vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0),
-                    vulkan_context::get_color_clear_zero(),
-                    vulkan_context::get_depth_stencil_clear_value(1.0, 0)
-                ],
-                RenderObjectType::Skeletal => Vec::new(),
-            },
-            ..Default::default()
-        }
-    ]
+            RenderObjectType::Skeletal => Vec::new(),
+        },
+        ..Default::default()
+    }
 }
 
 pub fn get_render_pass_data_create_info(
@@ -98,8 +93,7 @@ pub fn get_render_pass_data_create_info(
     render_object_type: RenderObjectType,
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = get_render_pass_name(render_object_type);
-    let framebuffer_data_create_infos = get_framebuffer_data_create_infos(renderer_data, render_object_type);
-    let framebuffer_data_create_info = &framebuffer_data_create_infos[0];
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_object_type);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let (attachment_load_operation, attachment_initial_layout) = match render_object_type  {
         RenderObjectType::Static => (vk::AttachmentLoadOp::CLEAR, vk::ImageLayout::UNDEFINED),
@@ -239,7 +233,7 @@ pub fn get_render_pass_data_create_info(
 
     RenderPassDataCreateInfo  {
         _render_pass_create_info_name: render_pass_name.clone(),
-        _render_pass_frame_buffer_create_infos: framebuffer_data_create_infos,
+        _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,
         _depth_attachment_descriptions: depth_attachment_descriptions,
         _resolve_attachment_descriptions: Vec::new(),

@@ -65,7 +65,7 @@ const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
-pub type FramebufferDatasMap = ResourceDataMap<Vec<FramebufferData>>;
+pub type FramebufferDatasMap = ResourceDataMap<FramebufferData>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
 pub type SceneManagerDataMap = ResourceDataMap<SceneManagerData>;
@@ -483,16 +483,12 @@ impl Resources {
             let render_pass_data = render_pass_data.borrow();
             for render_pass_data_create_info in render_pass_data_create_infos.iter() {
                 if render_pass_data_create_info._render_pass_create_info_name == render_pass_data._render_pass_data_name {
-                    let framebuffer_datas = render_pass_data_create_info._render_pass_frame_buffer_create_infos
-                        .iter()
-                        .map(|frame_buffer_create_info|
-                            framebuffer::create_framebuffer_data(
-                                renderer_data.get_device(),
-                                render_pass_data._render_pass,
-                                frame_buffer_create_info.clone(),
-                            )
-                        ).collect();
-                    self._framebuffer_datas_map.insert(render_pass_data._render_pass_data_name.clone(), newRcRefCell(framebuffer_datas));
+                    let framebuffer_data = framebuffer::create_framebuffer_data(
+                        renderer_data.get_device(),
+                        render_pass_data._render_pass,
+                        render_pass_data_create_info._render_pass_framebuffer_create_info.clone(),
+                    );
+                    self._framebuffer_datas_map.insert(render_pass_data._render_pass_data_name.clone(), newRcRefCell(framebuffer_data));
                     break;
                 }
             }
@@ -500,15 +496,13 @@ impl Resources {
     }
 
     pub fn unload_framebuffer_datas(&mut self, renderer_data: &RendererData) {
-        for framebuffer_datas in self._framebuffer_datas_map.values() {
-            for framebuffer_data in framebuffer_datas.borrow().iter() {
-                framebuffer::destroy_framebuffer_data(renderer_data.get_device(), framebuffer_data);
-            }
+        for framebuffer_data in self._framebuffer_datas_map.values() {
+            framebuffer::destroy_framebuffer_data(renderer_data.get_device(), &framebuffer_data.borrow());
         }
         self._framebuffer_datas_map.clear();
     }
 
-    pub fn get_framebuffer_datas(&self, resource_name: &str) -> &RcRefCell<Vec<FramebufferData>> {
+    pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
         get_resource_data(&self._framebuffer_datas_map, resource_name, "")
     }
 
