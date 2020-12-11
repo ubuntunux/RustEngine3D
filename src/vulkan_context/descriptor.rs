@@ -231,6 +231,29 @@ pub fn create_write_descriptor_sets(
     write_descriptor_sets
 }
 
+pub fn create_write_descriptor_set(
+    write_descriptor_sets: &Vec<vk::WriteDescriptorSet>,
+    descriptor_offset: usize,
+    descriptor_resource_info: &DescriptorResourceInfo
+) -> vk::WriteDescriptorSet {
+    let mut write_descriptor_set = write_descriptor_sets[descriptor_offset].clone();
+    match descriptor_resource_info {
+        DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
+            write_descriptor_set.p_buffer_info = buffer_info;
+            write_descriptor_set.p_image_info = std::ptr::null();
+        },
+        DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
+            write_descriptor_set.p_buffer_info = std::ptr::null();
+            write_descriptor_set.p_image_info = image_info;
+        },
+        _ => {
+            write_descriptor_set.p_buffer_info = std::ptr::null();
+            write_descriptor_set.p_image_info = std::ptr::null();
+        }
+    }
+    write_descriptor_set
+}
+
 pub fn update_write_descriptor_set(
     write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet>,
     descriptor_offset: usize,
