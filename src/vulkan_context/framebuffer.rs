@@ -35,7 +35,7 @@ impl std::fmt::Debug for FramebufferDataCreateInfo {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct FramebufferData {
     pub _framebuffer_info: FramebufferDataCreateInfo,
     pub _framebuffers: SwapchainIndexMap<vk::Framebuffer>,

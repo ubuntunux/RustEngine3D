@@ -100,6 +100,7 @@ impl ApplicationData {
         renderer_data: &mut RendererData,
     ) {
         scene_manager_data.close_scene_manager_data();
+        renderer_data.destroy_post_process_datas();
         resources.destroy_resources(renderer_data);
         renderer_data.destroy_renderer_data();
     }
@@ -239,7 +240,8 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         }
     );
 
-    resources.borrow_mut().initialize_resources(&renderer_data.borrow());
+    resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
+    renderer_data.borrow_mut().initialize_post_process_datas();
 
     let camera_data = CameraCreateInfo {
         aspect: if 0 != height { width as f32 / height as f32 } else { 1.0 },

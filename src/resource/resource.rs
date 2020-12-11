@@ -150,7 +150,7 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 }
 
 impl Resources {
-    pub fn initialize_resources(&mut self, renderer_data: &RendererData) {
+    pub fn initialize_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("initialize_resources");
         self.load_texture_datas(renderer_data);
         self.load_render_pass_datas(renderer_data);
@@ -161,7 +161,7 @@ impl Resources {
         self.load_model_datas(renderer_data);
     }
 
-    pub fn destroy_resources(&mut self, renderer_data: &RendererData) {
+    pub fn destroy_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("destroy_resources");
         self.unload_model_datas(renderer_data);
         self.unload_mesh_datas(renderer_data);
@@ -174,7 +174,7 @@ impl Resources {
     }
 
     // GraphicsDatas
-    pub fn load_graphics_datas(&mut self, renderer_data: &RendererData) {
+    pub fn load_graphics_datas(&mut self, renderer_data: &mut RendererData) {
         log::info!("load_graphics_datas");
         self.load_render_pass_datas(renderer_data);
         self.load_framebuffer_datas(renderer_data);
@@ -183,7 +183,7 @@ impl Resources {
         self.update_material_instance_datas();
     }
 
-    pub fn unload_graphics_datas(&mut self, renderer_data: &RendererData) {
+    pub fn unload_graphics_datas(&mut self, renderer_data: &mut RendererData) {
         log::info!("unload_graphics_datas");
         self.unload_material_instance_datas(renderer_data);
         self.unload_material_datas(renderer_data);

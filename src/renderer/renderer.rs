@@ -308,6 +308,12 @@ impl RendererData {
     }
 
     pub fn initialize_post_process_datas(&mut self) {
+        let render_target_bloom1: &TextureData = self._render_target_data_map.get(&RenderTargetType::Bloom1).as_ref().unwrap();
+        self._post_process_data_bloom.initialize(&self._device, &self._resources, render_target_bloom1);
+    }
+
+    pub fn destroy_post_process_datas(&mut self) {
+        self._post_process_data_bloom.destroy(&self._device);
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -481,7 +487,7 @@ impl RendererData {
         swapchain_index: u32,
         render_pass_data: &RcRefCell<RenderPassData>,
         pipeline_data: &RcRefCell<PipelineData>,
-        custom_framebuffer: Option<*const FramebufferData>,
+        custom_framebuffer: Option<&FramebufferData>,
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
@@ -592,14 +598,18 @@ impl RendererData {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
 
+        let resources = self._resources.clone();
+
         // destroy swapchain & graphics resources
-        self._resources.borrow_mut().unload_graphics_datas(self);
+        self.destroy_post_process_datas();
+        resources.borrow_mut().unload_graphics_datas(self);
         self.destroy_render_targets();
 
         // recreate swapchain & graphics resources
         self.recreate_swapchain();
         self.create_render_targets();
-        self._resources.borrow_mut().load_graphics_datas(self);
+        resources.borrow_mut().load_graphics_datas(self);
+        self.initialize_post_process_datas();
     }
 
     pub fn recreate_swapchain(&mut self) {
@@ -946,6 +956,18 @@ impl RendererData {
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.upload_push_constant_data(
+            command_buffer,
+            &pipeline_data.borrow(),
+            &PUSH_CONSTANT_BLOOM,
+        );
+        self.draw_elements(command_buffer, quad_geometry_data);
+        self.end_render_pass(command_buffer);
+
+        //
+        let framebuffer = Some(&self._post_process_data_bloom._bloom_framebuffer_data0);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         self.upload_push_constant_data(
             command_buffer,
