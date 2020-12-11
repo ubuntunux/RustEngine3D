@@ -510,6 +510,21 @@ impl RendererData {
     pub fn update_descriptor_set(
         &self,
         swapchain_index: u32,
+        pipeline_binding_data: &PipelineBindingData,
+        descriptor_offset: usize,
+        descriptor_resource_info: &DescriptorResourceInfo
+    ) {
+        let wirte_descriptor_sets: &Vec<vk::WriteDescriptorSet> = &pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
+        let write_descriptor_set = descriptor::create_write_descriptor_set(wirte_descriptor_sets, descriptor_offset, descriptor_resource_info);
+        let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
+        unsafe {
+            self._device.update_descriptor_sets(&[write_descriptor_set], descriptor_copies);
+        }
+    }
+
+    pub fn update_descriptor_set_mut(
+        &self,
+        swapchain_index: u32,
         pipeline_binding_data: &mut PipelineBindingData,
         descriptor_offset: usize,
         descriptor_resource_info: &DescriptorResourceInfo
@@ -782,7 +797,7 @@ impl RendererData {
                     );
 
                     let image_info = self.get_render_target(self._debug_render_target);
-                    self.update_descriptor_set(
+                    self.update_descriptor_set_mut(
                         swapchain_index,
                         &mut render_debug_pipeline_binding_data,
                         0,
@@ -907,6 +922,54 @@ impl RendererData {
         }
     }
 
+    pub fn render_bloom(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData
+    ) {
+        const PUSH_CONSTANT_BLOOM: PushConstant_BloomHighlight = PushConstant_BloomHighlight {
+            _bloom_threshold_min: 0.0,
+            _bloom_threshold_max: 1.0,
+            _bloom_intensity: 0.25,
+            _bloom_scale: 1.0,
+        };
+
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow_mut();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let framebuffer_index = 0;
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.upload_push_constant_data(
+            command_buffer,
+            &pipeline_data.borrow(),
+            &PUSH_CONSTANT_BLOOM,
+        );
+        self.draw_elements(command_buffer, quad_geometry_data);
+        self.end_render_pass(command_buffer);
+
+        // let framebuffer_index = 1;
+        // self.begin_render_pass_pipeline(command_buffer, swapchain_index, framebuffer_index, render_pass_data, pipeline_data);
+        // self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        // let image_info = self.get_render_target(RenderTargetType::Bloom0);
+        // self.update_descriptor_set(
+        //     swapchain_index,
+        //     &pipeline_binding_data,
+        //     2,
+        //     &DescriptorResourceInfo::DescriptorImageInfo(image_info._descriptor_image_info),
+        // );
+        // self.upload_push_constant_data(
+        //     command_buffer,
+        //     &pipeline_data.borrow(),
+        //     &PUSH_CONSTANT_BLOOM,
+        // );
+        // self.draw_elements(command_buffer, quad_geometry_data);
+        // self.end_render_pass(command_buffer);
+    }
+
     pub fn render_pre_process(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -927,13 +990,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // Bloom
-        const PUSH_CONSTANT_BLOOM: PushConstant_BloomHighlight = PushConstant_BloomHighlight {
-            _bloom_threshold_min: 0.0,
-            _bloom_threshold_max: 1.0,
-            _bloom_intensity: 0.25,
-            _bloom_scale: 1.0,
-        };
-        self.render_material_instance(command_buffer, swapchain_index, 0, "render_bloom", Some(&PUSH_CONSTANT_BLOOM), &quad_geometry_data);
+        self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
 
         // Motion Blur
         self.render_material_instance(command_buffer, swapchain_index, 0, "render_motion_blur", NONE_PUSH_CONSTANT, &quad_geometry_data);

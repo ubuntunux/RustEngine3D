@@ -94,15 +94,16 @@ impl<T> Default for TextureCreateInfo<T> {
 }
 
 impl TextureData {
-    pub fn get_default_rendertarget_view(&self) -> vk::ImageView {
-        self._rendertarget_layer_views[0][0]
+    pub fn get_default_image_size(&self) -> (u32, u32) {
+        (std::cmp::max(1, self._image_width), std::cmp::max(1, self._image_height))
     }
 
     pub fn get_image_size(&self, mip_level: u32) -> (u32, u32) {
-        (
-            std::cmp::max(1, self._image_width >> mip_level),
-            std::cmp::max(1, self._image_height >> mip_level)
-        )
+        (std::cmp::max(1, self._image_width >> mip_level), std::cmp::max(1, self._image_height >> mip_level))
+    }
+
+    pub fn get_default_rendertarget_view(&self) -> vk::ImageView {
+        self._rendertarget_layer_views[0][0]
     }
 
     pub fn get_rendertarget_view(&self, layer: usize, mip_level: usize) -> vk::ImageView {
