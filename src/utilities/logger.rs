@@ -15,6 +15,6 @@ pub fn initialize_logger() {
                      record.line().unwrap(),
             )
         })
-        .filter(None, LevelFilter::Info)
+        .filter(None, LevelFilter::Warn)
         .init();
 }

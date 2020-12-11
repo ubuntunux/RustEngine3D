@@ -435,7 +435,7 @@ impl RendererData {
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
@@ -462,7 +462,7 @@ impl RendererData {
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
@@ -481,19 +481,23 @@ impl RendererData {
         swapchain_index: u32,
         render_pass_data: &RcRefCell<RenderPassData>,
         pipeline_data: &RcRefCell<PipelineData>,
+        custom_framebuffer: Option<*const FramebufferData>,
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
-        let frame_buffer_data: Ref<FramebufferData> = resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).borrow();
-        let render_pass_begin_info = &frame_buffer_data._render_pass_begin_infos[swapchain_index as usize];
-        let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
+        let framebuffer_data: *const FramebufferData = match custom_framebuffer {
+            Some(custom_framebuffer) => custom_framebuffer,
+            None => resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).as_ptr()
+        };
         unsafe {
+            let render_pass_begin_info = (*framebuffer_data)._render_pass_begin_infos[swapchain_index as usize];
+            let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
             self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
             if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
-                self._device.cmd_set_viewport(command_buffer, 0, &[frame_buffer_data._framebuffer_info._framebuffer_view_port]);
+                self._device.cmd_set_viewport(command_buffer, 0, &[(*framebuffer_data)._framebuffer_info._framebuffer_view_port]);
             }
             if pipeline_dynamic_states.contains(&vk::DynamicState::SCISSOR) {
-                self._device.cmd_set_scissor(command_buffer, 0, &[frame_buffer_data._framebuffer_info._framebuffer_scissor_rect]);
+                self._device.cmd_set_scissor(command_buffer, 0, &[(*framebuffer_data)._framebuffer_info._framebuffer_scissor_rect]);
             }
             self._device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_data.borrow()._pipeline);
         }
@@ -794,6 +798,7 @@ impl RendererData {
                         swapchain_index,
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                        None,
                     );
 
                     let image_info = self.get_render_target(self._debug_render_target);
@@ -877,7 +882,7 @@ impl RendererData {
 
                 if prev_pipeline_data != pipeline_data_ptr {
                     prev_pipeline_data = pipeline_data_ptr;
-                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
                 }
 
                 if prev_pipeline_binding_data != pipeline_binding_data {
@@ -940,7 +945,7 @@ impl RendererData {
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
         self.upload_push_constant_data(
             command_buffer,
@@ -949,23 +954,6 @@ impl RendererData {
         );
         self.draw_elements(command_buffer, quad_geometry_data);
         self.end_render_pass(command_buffer);
-
-        // self.begin_render_pass_pipeline(command_buffer, framebuffer_index, render_pass_data, pipeline_data);
-        // self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
-        // let image_info = self.get_render_target(RenderTargetType::Bloom0);
-        // self.update_descriptor_set(
-        //     swapchain_index,
-        //     &pipeline_binding_data,
-        //     2,
-        //     &DescriptorResourceInfo::DescriptorImageInfo(image_info._descriptor_image_info),
-        // );
-        // self.upload_push_constant_data(
-        //     command_buffer,
-        //     &pipeline_data.borrow(),
-        //     &PUSH_CONSTANT_BLOOM,
-        // );
-        // self.draw_elements(command_buffer, quad_geometry_data);
-        // self.end_render_pass(command_buffer);
     }
 
     pub fn render_pre_process(
