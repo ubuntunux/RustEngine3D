@@ -1,7 +1,11 @@
-#include "quad.glsl"
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
 
-uniform vec2 blur_scale;
-uniform sampler2D texture_diffuse;
+#include "scene_constants.glsl"
+#include "utility.glsl"
+#include "blending.glsl"
+#include "render_quad_common.glsl"
 
 const vec2 gaussFilter[7] =
 {
@@ -25,20 +29,27 @@ const float gaussFilter7x7[49] =
     0.00000067,	0.00002292,	0.00019117,	0.00038771,	0.00019117,	0.00002292,	0.00000067
 };
 
-#ifdef FRAGMENT_SHADER
+layout( push_constant ) uniform PushConstant_GaussianBlur
+{
+    vec2 _blur_scale;
+    uint _reserved0;
+    uint _reserved1;
+} pushConstant;
+
+layout(binding = 3) uniform sampler2D textureSrc;
+
 layout (location = 0) in VERTEX_OUTPUT vs_output;
-layout (location = 0) out vec4 fs_output;
+layout (location = 0) out vec4 outColor;
 
 void main() {
-    vec2 tex_coord = vs_output.tex_coord.xy;
-    vec2 scale = blur_scale / textureSize(texture_diffuse, 0);
+    vec2 texCoord = vs_output.texCoord.xy;
+    vec2 scale = pushConstant._blur_scale / textureSize(textureSrc, 0);
 
-    fs_output = vec4(0.0, 0.0, 0.0, 1.0);
+    outColor = vec4(0.0, 0.0, 0.0, 1.0);
 
     for( int i = 0; i < 7; i++ )
 	{
-	    vec2 uv = vec2(tex_coord.x + gaussFilter[i].x * scale.x, tex_coord.y + gaussFilter[i].x * scale.y);
-		fs_output += texture2D(texture_diffuse, uv) * gaussFilter[i].yyyy;
+	    vec2 uv = vec2(texCoord.x + gaussFilter[i].x * scale.x, texCoord.y + gaussFilter[i].x * scale.y);
+		outColor += texture(textureSrc, uv) * gaussFilter[i].yyyy;
 	}
 }
-#endif // FRAGMENT_SHADER
