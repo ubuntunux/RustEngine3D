@@ -653,7 +653,7 @@ impl Resources {
                 renderer_data.get_device(),
                 &material_instance_name,
                 material_data.clone(),
-                &pipeline_bind_create_infos
+                pipeline_bind_create_infos
             );
             self._material_instance_data_map.insert(material_instance_name.clone(), newRcRefCell(material_instance_data));
         }

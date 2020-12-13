@@ -308,8 +308,15 @@ impl RendererData {
     }
 
     pub fn initialize_post_process_datas(&mut self) {
-        let render_target_bloom1: &TextureData = self._render_target_data_map.get(&RenderTargetType::Bloom1).as_ref().unwrap();
-        self._post_process_data_bloom.initialize(&self._device, &self._resources, render_target_bloom1);
+        self._post_process_data_bloom.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::Bloom1).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::Bloom2).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::Bloom3).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::Bloom4).as_ref().unwrap(),
+        );
     }
 
     pub fn destroy_post_process_datas(&mut self) {
@@ -442,7 +449,7 @@ impl RendererData {
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
                 command_buffer,
@@ -469,7 +476,7 @@ impl RendererData {
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
                 command_buffer,
@@ -497,6 +504,7 @@ impl RendererData {
         };
         unsafe {
             let render_pass_begin_info = (*framebuffer_data)._render_pass_begin_infos[swapchain_index as usize];
+            let pipeline_bind_point = pipeline_data.borrow()._pipeline_bind_point;
             let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
             self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
             if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
@@ -505,16 +513,25 @@ impl RendererData {
             if pipeline_dynamic_states.contains(&vk::DynamicState::SCISSOR) {
                 self._device.cmd_set_scissor(command_buffer, 0, &[(*framebuffer_data)._framebuffer_info._framebuffer_scissor_rect]);
             }
-            self._device.cmd_bind_pipeline(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_data.borrow()._pipeline);
+            self._device.cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline_data.borrow()._pipeline);
         }
     }
 
-    pub fn bind_descriptor_sets(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, pipeline_binding_data: &PipelineBindingData) {
+    pub fn bind_descriptor_sets(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        pipeline_binding_data: &PipelineBindingData,
+        custom_descriptor_sets: Option<&SwapchainIndexMap<vk::DescriptorSet>>) {
         let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
-        let descriptor_set = pipeline_binding_data._descriptor_sets[swapchain_index as usize];
+        let pipeline_bind_point = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_bind_point;
+        let descriptor_set: vk::DescriptorSet = match custom_descriptor_sets {
+            Some(custom_descriptor_sets) => custom_descriptor_sets[swapchain_index as usize],
+            None => pipeline_binding_data._descriptor_sets[swapchain_index as usize],
+        };
         let dynamic_offsets: &[u32] = &[];
         unsafe {
-            self._device.cmd_bind_descriptor_sets(command_buffer, vk::PipelineBindPoint::GRAPHICS, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
+            self._device.cmd_bind_descriptor_sets(command_buffer, pipeline_bind_point, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
         }
     }
 
@@ -819,7 +836,7 @@ impl RendererData {
                         &DescriptorResourceInfo::DescriptorImageInfo(image_info._descriptor_image_info),
                     );
 
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data);
+                    self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
                     self.draw_elements(command_buffer, &quad_geometry_data);
                     self.end_render_pass(command_buffer);
                 }
@@ -897,7 +914,7 @@ impl RendererData {
 
                 if prev_pipeline_binding_data != pipeline_binding_data {
                     prev_pipeline_binding_data = pipeline_binding_data;
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data));
+                    self.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
                 }
 
                 match render_object_type {
@@ -956,7 +973,7 @@ impl RendererData {
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
         self.upload_push_constant_data(
             command_buffer,
             &pipeline_data.borrow(),
@@ -966,9 +983,10 @@ impl RendererData {
         self.end_render_pass(command_buffer);
 
         //
-        let framebuffer = Some(&self._post_process_data_bloom._bloom_framebuffer_data0);
+        let framebuffer = Some(&self._post_process_data_bloom._bloom_framebuffer_data1);
+        let descriptor_sets = Some(&self._post_process_data_bloom._bloom_descriptor_set1);
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
         self.upload_push_constant_data(
             command_buffer,
             &pipeline_data.borrow(),

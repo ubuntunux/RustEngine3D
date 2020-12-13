@@ -6,15 +6,10 @@ use ash::{
 };
 
 use crate::renderer::material::MaterialData;
-use crate::vulkan_context::{
-    descriptor,
-    render_pass,
-};
+use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
-use crate::constants;
-use ash::version::DeviceV1_0;
+use crate::vulkan_context::render_pass::{ self, RenderPassPipelineData };
 use crate::utilities::system::RcRefCell;
-use crate::vulkan_context::render_pass::RenderPassPipelineData;
 
 #[derive(Clone, Debug)]
 pub struct PipelineBindingData {
@@ -22,6 +17,7 @@ pub struct PipelineBindingData {
     pub _descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
     pub _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>>,
     pub _descriptor_set_count: u32,
+    pub _descriptor_resource_infos_list: SwapchainIndexMap<Vec<DescriptorResourceInfo>>,
 }
 
 type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
@@ -39,7 +35,7 @@ impl MaterialInstanceData {
         device: &Device,
         material_instance_data_name: &String,
         material_data: RcRefCell<MaterialData>,
-        pipeline_bind_create_infos: &Vec<(render_pass::RenderPassPipelineData, Vec<Vec<descriptor::DescriptorResourceInfo>>)>,
+        pipeline_bind_create_infos: Vec<(render_pass::RenderPassPipelineData, Vec<Vec<descriptor::DescriptorResourceInfo>>)>,
     ) -> MaterialInstanceData {
         log::info!("create_material_instance: {}", material_instance_data_name);
         log::info!("    material_data: {}", material_data.borrow()._material_data_name);
@@ -75,6 +71,7 @@ impl MaterialInstanceData {
                 _descriptor_sets: descriptor_sets,
                 _write_descriptor_sets: write_descriptor_sets,
                 _descriptor_set_count: descriptor_binding_indices.len() as u32,
+                _descriptor_resource_infos_list: descriptor_resource_infos_list,
             };
 
             pipeline_binding_data_map.insert(render_pass_pipeline_data_name, pipeline_binding_data);

@@ -144,6 +144,7 @@ pub struct PipelineData {
     pub _vertex_shader_create_info: vk::PipelineShaderStageCreateInfo,
     pub _fragment_shader_create_info: vk::PipelineShaderStageCreateInfo,
     pub _pipeline: vk::Pipeline,
+    pub _pipeline_bind_point: vk::PipelineBindPoint,
     pub _pipeline_layout: vk::PipelineLayout,
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
@@ -483,6 +484,7 @@ pub fn create_graphics_pipeline_data(
             _fragment_shader_create_info: fragment_shader_create_info,
             _pipeline: graphics_pipelines[0],
             _pipeline_layout: pipeline_layout,
+            _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone()
         }
