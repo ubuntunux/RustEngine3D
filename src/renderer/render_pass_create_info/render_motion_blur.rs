@@ -13,7 +13,7 @@ use crate::renderer::renderer::{
 };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
-use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
+use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
@@ -32,19 +32,12 @@ use crate::vulkan_context::vulkan_context::{
 
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target = renderer_data.get_render_target(RenderTargetType::SceneColorCopy);
-    let (width, height) = (render_target._image_width, render_target._image_height);
-    let rendertarget_views = vec![render_target.get_default_rendertarget_view()];
-    FramebufferDataCreateInfo {
-        _framebuffer_name: render_target._texture_data_name.clone(),
-        _framebuffer_width: width,
-        _framebuffer_height: height,
-        _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
-        _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-        _framebuffer_color_attachment_formats: vec![render_target._image_format],
-        _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
-        ..Default::default()
-    }
+    framebuffer::create_framebuffer_data_create_info(
+        vec![renderer_data.get_render_target(RenderTargetType::SceneColorCopy)],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+    )
 }
 
 

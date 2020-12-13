@@ -38,7 +38,6 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     }).collect();
 
     FramebufferDataCreateInfo {
-        _framebuffer_name: String::from("Swapchain"),
         _framebuffer_width: width,
         _framebuffer_height: height,
         _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),

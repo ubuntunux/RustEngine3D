@@ -48,6 +48,7 @@ pub struct TextureData {
     pub _image_width: u32,
     pub _image_height: u32,
     pub _image_depth: u32,
+    pub _image_layer: u32,
     pub _image_mip_levels: u32,
     pub _image_sample_count: vk::SampleCountFlags,
     pub _descriptor_image_info: vk::DescriptorImageInfo,
@@ -771,7 +772,9 @@ pub fn create_render_target<T>(
                texture_create_info._texture_depth
     );
     log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
-    log::debug!("                 rendertarget_layer_views: {:?}", rendertarget_layer_views);
+    if false == rendertarget_layer_views.is_empty() {
+        log::debug!("                 rendertarget_layer_views: {:?}", rendertarget_layer_views);
+    }
 
     TextureData {
         _texture_data_name: texture_create_info._texture_name.clone(),
@@ -784,6 +787,7 @@ pub fn create_render_target<T>(
         _image_width: texture_create_info._texture_width,
         _image_height: texture_create_info._texture_height,
         _image_depth: texture_create_info._texture_depth,
+        _image_layer: texture_create_info._texture_layer,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
         _descriptor_image_info: descriptor_image_info,
@@ -960,6 +964,7 @@ pub fn create_texture_data<T: Copy>(
         _image_width: texture_create_info._texture_width,
         _image_height: texture_create_info._texture_height,
         _image_depth: texture_create_info._texture_depth,
+        _image_layer: texture_create_info._texture_layer,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
         _descriptor_image_info: descriptor_image_info,
@@ -975,7 +980,9 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
             texture_data._image_memory,
             texture_data._image_sampler
         );
-        log::info!("    rendertarget_layer_views: {:?}", texture_data._rendertarget_layer_views);
+        if false == texture_data._rendertarget_layer_views.is_empty() {
+            log::info!("    rendertarget_layer_views: {:?}", texture_data._rendertarget_layer_views);
+        }
         device.destroy_sampler(texture_data._image_sampler, None);
         device.destroy_image_view(texture_data._image_view, None);
         for rendertarget_views in texture_data._rendertarget_layer_views.iter() {

@@ -15,8 +15,10 @@ use crate::utilities::system::RcRefCell;
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct PostProcessData_Bloom {
-    pub _bloom_framebuffer_data1: FramebufferData,
-    pub _bloom_descriptor_set1: SwapchainIndexMap<vk::DescriptorSet>,
+    pub _store_framebuffer_datas: Vec<FramebufferData>,
+    pub _store_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
+    pub _bloom_framebuffer_datas: Vec<*const FramebufferData>,
+    pub _bloom_descriptor_sets: Vec<*const SwapchainIndexMap<vk::DescriptorSet>>,
 }
 
 #[derive(Clone)]
@@ -31,8 +33,10 @@ pub struct PostProcessData_SSAO {
 impl Default for PostProcessData_Bloom {
     fn default() -> PostProcessData_Bloom {
         PostProcessData_Bloom {
-            _bloom_framebuffer_data1: FramebufferData::default(),
-            _bloom_descriptor_set1: Vec::new(),
+            _store_framebuffer_datas: Vec::new(),
+            _store_descriptor_sets: Vec::new(),
+            _bloom_framebuffer_datas: Vec::new(),
+            _bloom_descriptor_sets: Vec::new(),
         }
     }
 }
@@ -75,7 +79,7 @@ impl PostProcessData_Bloom {
         let resources = resources.borrow();
         let render_bloom_material_instance = resources.get_material_instance_data("render_bloom").borrow();
         let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
-        let render_pass = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow()._render_pass;
+        let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
         let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
         let descriptor_data = &pipeline_data._descriptor_data;
         let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
@@ -83,23 +87,12 @@ impl PostProcessData_Bloom {
         }).collect();
 
         let create_pipeline_binding_datas = |render_target: &TextureData, input_texture: &TextureData| -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
-            let (width, height) = render_target.get_default_image_size();
-            let rendertarget_views = vec![render_target.get_default_rendertarget_view()];
             let framebuffer_data = framebuffer::create_framebuffer_data(
                 device,
-                *render_pass,
-                FramebufferDataCreateInfo {
-                    _framebuffer_name: render_target._texture_data_name.clone(),
-                    _framebuffer_width: width,
-                    _framebuffer_height: height,
-                    _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
-                    _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-                    _framebuffer_color_attachment_formats: vec![render_target._image_format],
-                    _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
-                    ..Default::default()
-                },
+                render_pass_data._render_pass,
+                format!("{}{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
+                framebuffer::create_framebuffer_data_create_info(vec![render_target], Vec::new(), Vec::new(), Vec::new()),
             );
-
             let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
             for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
                 for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
@@ -107,7 +100,6 @@ impl PostProcessData_Bloom {
                     descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture._descriptor_image_info);
                 }
             }
-
             let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
             let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
                 device,
@@ -120,12 +112,37 @@ impl PostProcessData_Bloom {
         };
 
         let (bloom_framebuffer_data1, bloom_descriptor_set1) = create_pipeline_binding_datas(render_target_bloom1, render_target_bloom0);
-        self._bloom_framebuffer_data1 = bloom_framebuffer_data1;
-        self._bloom_descriptor_set1 = bloom_descriptor_set1;
+        let (bloom_framebuffer_data2, bloom_descriptor_set2) = create_pipeline_binding_datas(render_target_bloom2, render_target_bloom1);
+        let (bloom_framebuffer_data3, bloom_descriptor_set3) = create_pipeline_binding_datas(render_target_bloom3, render_target_bloom2);
+        let (bloom_framebuffer_data4, bloom_descriptor_set4) = create_pipeline_binding_datas(render_target_bloom4, render_target_bloom3);
+        self._store_framebuffer_datas.push(bloom_framebuffer_data1);
+        self._store_framebuffer_datas.push(bloom_framebuffer_data2);
+        self._store_framebuffer_datas.push(bloom_framebuffer_data3);
+        self._store_framebuffer_datas.push(bloom_framebuffer_data4);
+        self._store_descriptor_sets.push(bloom_descriptor_set1);
+        self._store_descriptor_sets.push(bloom_descriptor_set2);
+        self._store_descriptor_sets.push(bloom_descriptor_set3);
+        self._store_descriptor_sets.push(bloom_descriptor_set4);
+
+        let bloom_framebuffer_data0 = resources.get_framebuffer_data("render_bloom").as_ptr();
+        self._bloom_framebuffer_datas.push(bloom_framebuffer_data0);
+        for framebuffer_data in self._store_framebuffer_datas.iter() {
+            self._bloom_framebuffer_datas.push(framebuffer_data);
+        }
+        self._bloom_descriptor_sets.push(&pipeline_binding_data._descriptor_sets);
+        for descriptor_set in self._store_descriptor_sets.iter() {
+            self._bloom_descriptor_sets.push(descriptor_set);
+        }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        framebuffer::destroy_framebuffer_data(device, &self._bloom_framebuffer_data1);
+        for framebuffer_data in self._store_framebuffer_datas.iter() {
+            framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
+        }
+        self._store_framebuffer_datas.clear();
+        self._store_descriptor_sets.clear();
+        self._bloom_framebuffer_datas.clear();
+        self._bloom_descriptor_sets.clear();
     }
 }
 

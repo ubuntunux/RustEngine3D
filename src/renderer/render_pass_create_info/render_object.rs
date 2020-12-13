@@ -19,7 +19,7 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_StaticRenderObject,
     PushConstant_SkeletalRenderObject,
 };
-use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
+use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData, SkeletalVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
@@ -33,48 +33,17 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
 
-pub fn get_render_pass_name(render_object_type: RenderObjectType) -> String {
-    let render_pass_name = match render_object_type {
-        RenderObjectType::Static => "render_pass_static_opaque",
-        RenderObjectType::Skeletal => "render_pass_skeletal_opaque",
-    };
-    String::from(render_pass_name)
-}
-
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_object_type: RenderObjectType) -> FramebufferDataCreateInfo {
-    let texture_scene_albedo = renderer_data.get_render_target(RenderTargetType::SceneAlbedo);
-    let texture_scene_material = renderer_data.get_render_target(RenderTargetType::SceneMaterial);
-    let texture_scene_normal = renderer_data.get_render_target(RenderTargetType::SceneNormal);
-    let texture_scene_velocity = renderer_data.get_render_target(RenderTargetType::SceneVelocity);
-    let texture_scene_depth = renderer_data.get_render_target(RenderTargetType::SceneDepth);
-    let (width, height, depth) = (texture_scene_albedo._image_width, texture_scene_albedo._image_height, texture_scene_albedo._image_depth);
-    let rendertarget_views = vec![
-        texture_scene_albedo.get_default_rendertarget_view(),
-        texture_scene_material.get_default_rendertarget_view(),
-        texture_scene_normal.get_default_rendertarget_view(),
-        texture_scene_velocity.get_default_rendertarget_view(),
-        texture_scene_depth.get_default_rendertarget_view(),
-    ];
-
-    FramebufferDataCreateInfo {
-        _framebuffer_name: format!("GBuffer{:?}", render_object_type),
-        _framebuffer_width: width,
-        _framebuffer_height: height,
-        _framebuffer_depth: depth,
-        _framebuffer_sample_count: texture_scene_albedo._image_sample_count,
-        _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
-        _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-        _framebuffer_color_attachment_formats: vec![
-            texture_scene_albedo._image_format,
-            texture_scene_material._image_format,
-            texture_scene_normal._image_format,
-            texture_scene_velocity._image_format,
+    framebuffer::create_framebuffer_data_create_info(
+        vec![
+            renderer_data.get_render_target(RenderTargetType::SceneAlbedo),
+            renderer_data.get_render_target(RenderTargetType::SceneMaterial),
+            renderer_data.get_render_target(RenderTargetType::SceneNormal),
+            renderer_data.get_render_target(RenderTargetType::SceneVelocity),
         ],
-        _framebuffer_depth_attachment_formats: vec![
-            texture_scene_depth._image_format,
-        ],
-        _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
-        _framebuffer_clear_values: match render_object_type {
+        vec![renderer_data.get_render_target(RenderTargetType::SceneDepth)],
+        Vec::new(),
+        match render_object_type {
             RenderObjectType::Static => vec![
                 vulkan_context::get_color_clear_zero(),
                 vulkan_context::get_color_clear_zero(),
@@ -84,15 +53,17 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_obj
             ],
             RenderObjectType::Skeletal => Vec::new(),
         },
-        ..Default::default()
-    }
+    )
 }
 
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
 ) -> RenderPassDataCreateInfo {
-    let render_pass_name = get_render_pass_name(render_object_type);
+    let render_pass_name = match render_object_type {
+        RenderObjectType::Static => String::from("render_pass_static_opaque"),
+        RenderObjectType::Skeletal => String::from("render_pass_skeletal_opaque"),
+    };
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_object_type);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let (attachment_load_operation, attachment_initial_layout) = match render_object_type  {
