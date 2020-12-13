@@ -8,6 +8,11 @@
 #include "render_quad_common.glsl"
 
 layout(binding = 0) uniform sampler2D textureColor;
+layout(binding = 1) uniform sampler2D textureBloom0;
+layout(binding = 2) uniform sampler2D textureBloom1;
+layout(binding = 3) uniform sampler2D textureBloom2;
+layout(binding = 4) uniform sampler2D textureBloom3;
+layout(binding = 5) uniform sampler2D textureBloom4;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -54,9 +59,24 @@ float vignetting(vec2 uv, float inner_value, float outter_value)
 
 void main() {
     // Tonemapping
-    vec4 color = texture(textureColor, vs_output.texCoord);
+    const vec2 texCoord = vs_output.texCoord;
+    vec4 color = texture(textureColor, texCoord);
+    vec3 bloom = vec3(0.0);
+    bool is_render_bloom = true;
+    float bloom_intensity = 1.0;
+    if(is_render_bloom)
+    {
+        bloom += texture(textureBloom0, texCoord).xyz;
+        bloom += texture(textureBloom1, texCoord).xyz;
+        bloom += texture(textureBloom2, texCoord).xyz;
+        bloom += texture(textureBloom3, texCoord).xyz;
+        bloom += texture(textureBloom4, texCoord).xyz;
+        bloom *= bloom_intensity;
+    }
+    color.xyz += bloom;
+
     color.xyz = ReinhardTonemap(color.xyz);
-    color.xyz *= vignetting(vs_output.texCoord, 1.0, 0.20);
+    color.xyz *= vignetting(texCoord, 1.0, 0.20);
     color.xyz = Contrast(color.xyz, 1.0);
     outColor = color;
 }

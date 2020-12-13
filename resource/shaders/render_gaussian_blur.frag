@@ -36,7 +36,7 @@ layout( push_constant ) uniform PushConstant_GaussianBlur
     uint _reserved1;
 } pushConstant;
 
-layout(binding = 3) uniform sampler2D textureSrc;
+layout(binding = 0) uniform sampler2D textureSrc;
 
 layout (location = 0) in VERTEX_OUTPUT vs_output;
 layout (location = 0) out vec4 outColor;

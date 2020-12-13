@@ -46,6 +46,14 @@ pub struct PushConstant_BloomHighlight {
     pub _bloom_scale: f32,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_GaussianBlur {
+    pub _blur_scale: Vector2<f32>,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+}
+
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -164,6 +172,16 @@ impl Default for PushConstant_BloomHighlight {
             _bloom_threshold_max: 10.0,
             _bloom_intensity: 0.25,
             _bloom_scale: 1.0,
+        }
+    }
+}
+
+impl Default for PushConstant_GaussianBlur {
+    fn default() -> PushConstant_GaussianBlur {
+        PushConstant_GaussianBlur {
+            _blur_scale: Vector2::new(1.0, 1.0),
+            _reserved0: 0,
+            _reserved1: 0,
         }
     }
 }

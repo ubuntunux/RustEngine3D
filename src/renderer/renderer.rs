@@ -56,6 +56,7 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_StaticRenderObject,
     PushConstant_SkeletalRenderObject,
     PushConstant_BloomHighlight,
+    PushConstant_GaussianBlur,
 };
 use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO };
 use crate::renderer::render_element::{ RenderElementData };
@@ -316,6 +317,11 @@ impl RendererData {
             self._render_target_data_map.get(&RenderTargetType::Bloom2).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::Bloom3).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::Bloom4).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::BloomTemp0).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::BloomTemp1).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::BloomTemp2).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::BloomTemp3).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::BloomTemp4).as_ref().unwrap(),
         );
     }
 
@@ -961,10 +967,11 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow();
+        let render_bloom_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow();
+        let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_gaussian_blur").borrow();
         // render_bloom_highlight
         {
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
+            let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
             let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
             self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
@@ -979,7 +986,7 @@ impl RendererData {
         }
         // render_bloom_downsampling
         {
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
+            let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
             let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
             let framebuffer_count = self._post_process_data_bloom._bloom_downsample_framebuffer_datas.len();
@@ -988,6 +995,33 @@ impl RendererData {
                 let descriptor_sets = Some(&self._post_process_data_bloom._bloom_downsample_descriptor_sets[i]);
                 self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
                 self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+                self.draw_elements(command_buffer, quad_geometry_data);
+                self.end_render_pass(command_buffer);
+            }
+        }
+        // render_gaussian_blur
+        {
+            let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
+            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+            let framebuffer_count = self._post_process_data_bloom._bloom_temp_framebuffer_datas.len();
+            for i in 0..framebuffer_count {
+                let framebuffer = Some(&self._post_process_data_bloom._bloom_temp_framebuffer_datas[i]);
+                let descriptor_sets = Some(&self._post_process_data_bloom._bloom_temp_descriptor_sets[i]);
+                self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
+                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+                self.upload_push_constant_data(
+                    command_buffer,
+                    &pipeline_data.borrow(),
+                    &PushConstant_GaussianBlur {
+                        _blur_scale: if 0 == (i % 2) {
+                            Vector2::new(1.0, 0.0)
+                        } else {
+                            Vector2::new(0.0, 1.0)
+                        },
+                        ..Default::default()
+                    },
+                );
                 self.draw_elements(command_buffer, quad_geometry_data);
                 self.end_render_pass(command_buffer);
             }

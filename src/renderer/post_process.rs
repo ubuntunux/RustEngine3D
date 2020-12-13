@@ -1,10 +1,10 @@
 use rand;
-use nalgebra::{Vector3, Vector4};
+use nalgebra::{Vector3, Vector4, Vector2};
 use ash::{ vk, Device };
 
 use crate::constants;
-use crate::renderer::shader_buffer_datas::{ SSAOConstants };
-use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight };
+use crate::renderer::material_instance::{ PipelineBindingData };
+use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight, PushConstant_GaussianBlur, SSAOConstants };
 use crate::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
@@ -17,9 +17,12 @@ use crate::utilities::system::RcRefCell;
 pub struct PostProcessData_Bloom {
     pub _bloom_downsample_framebuffer_datas: Vec<FramebufferData>,
     pub _bloom_downsample_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
+    pub _bloom_temp_framebuffer_datas: Vec<FramebufferData>,
+    pub _bloom_temp_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
     pub _bloom_blur_framebuffer_datas: Vec<*const FramebufferData>,
     pub _bloom_blur_descriptor_sets: Vec<*const SwapchainIndexMap<vk::DescriptorSet>>,
     pub _bloom_push_constants: PushConstant_BloomHighlight,
+    pub _gaussian_blur_constants: PushConstant_GaussianBlur,
 }
 
 #[derive(Clone)]
@@ -36,14 +39,20 @@ impl Default for PostProcessData_Bloom {
         PostProcessData_Bloom {
             _bloom_downsample_framebuffer_datas: Vec::new(),
             _bloom_downsample_descriptor_sets: Vec::new(),
+            _bloom_temp_framebuffer_datas: Vec::new(),
+            _bloom_temp_descriptor_sets: Vec::new(),
             _bloom_blur_framebuffer_datas: Vec::new(),
             _bloom_blur_descriptor_sets: Vec::new(),
             _bloom_push_constants: PushConstant_BloomHighlight {
-                _bloom_threshold_min: 1.25,
+                _bloom_threshold_min: 0.5,
                 _bloom_threshold_max: 1000.0,
                 _bloom_intensity: 0.25,
                 _bloom_scale: 1.0,
             },
+            _gaussian_blur_constants: PushConstant_GaussianBlur {
+                _blur_scale: Vector2::new(1.0, 1.0),
+                ..Default::default()
+            }
         }
     }
 }
@@ -82,18 +91,25 @@ impl PostProcessData_Bloom {
         render_target_bloom2: &TextureData,
         render_target_bloom3: &TextureData,
         render_target_bloom4: &TextureData,
+        render_target_bloom_temp0: &TextureData,
+        render_target_bloom_temp1: &TextureData,
+        render_target_bloom_temp2: &TextureData,
+        render_target_bloom_temp3: &TextureData,
+        render_target_bloom_temp4: &TextureData,
     ) {
         let resources = resources.borrow();
-        let render_bloom_material_instance = resources.get_material_instance_data("render_bloom").borrow();
-        let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-        let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
-        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-        let descriptor_data = &pipeline_data._descriptor_data;
-        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-            descriptor_data_create_info._descriptor_binding_index
-        }).collect();
-
-        let create_pipeline_binding_datas = |render_target: &TextureData, input_texture: &TextureData| -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+        let create_pipeline_binding_datas = |
+            pipeline_binding_data: &PipelineBindingData,
+            render_target: &TextureData,
+            descriptor_binding_index: usize,
+            input_texture: &TextureData
+        | -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+            let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
+            let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+            let descriptor_data = &pipeline_data._descriptor_data;
+            let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+                descriptor_data_create_info._descriptor_binding_index
+            }).collect();
             let framebuffer_data = framebuffer::create_framebuffer_data(
                 device,
                 render_pass_data._render_pass,
@@ -103,7 +119,6 @@ impl PostProcessData_Bloom {
             let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
             for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
                 for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                    let descriptor_binding_index: usize = 0;
                     descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture._descriptor_image_info);
                 }
             }
@@ -118,10 +133,13 @@ impl PostProcessData_Bloom {
             (framebuffer_data, descriptor_sets)
         };
 
-        let (bloom_framebuffer_data1, bloom_descriptor_set1) = create_pipeline_binding_datas(render_target_bloom1, render_target_bloom0);
-        let (bloom_framebuffer_data2, bloom_descriptor_set2) = create_pipeline_binding_datas(render_target_bloom2, render_target_bloom1);
-        let (bloom_framebuffer_data3, bloom_descriptor_set3) = create_pipeline_binding_datas(render_target_bloom3, render_target_bloom2);
-        let (bloom_framebuffer_data4, bloom_descriptor_set4) = create_pipeline_binding_datas(render_target_bloom4, render_target_bloom3);
+        let render_bloom_material_instance = resources.get_material_instance_data("render_bloom").borrow();
+        let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
+        let descriptor_binding_index: usize = 0;
+        let (bloom_framebuffer_data1, bloom_descriptor_set1) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom1, descriptor_binding_index, render_target_bloom0);
+        let (bloom_framebuffer_data2, bloom_descriptor_set2) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom2, descriptor_binding_index, render_target_bloom1);
+        let (bloom_framebuffer_data3, bloom_descriptor_set3) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom3, descriptor_binding_index, render_target_bloom2);
+        let (bloom_framebuffer_data4, bloom_descriptor_set4) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom4, descriptor_binding_index, render_target_bloom3);
         self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data1);
         self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data2);
         self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data3);
@@ -130,6 +148,41 @@ impl PostProcessData_Bloom {
         self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set2);
         self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set3);
         self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set4);
+
+        let render_gaussian_blur_material_instance = resources.get_material_instance_data("render_gaussian_blur").borrow();
+        let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
+        let descriptor_binding_index: usize = 0;
+        let (gaussian_blur_h_framebuffer_data0, gaussian_blur_h_descriptor_sets0) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom_temp0, descriptor_binding_index, render_target_bloom0);
+        let (gaussian_blur_v_framebuffer_data0, gaussian_blur_v_descriptor_sets0) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom0, descriptor_binding_index, render_target_bloom_temp0);
+        let (gaussian_blur_h_framebuffer_data1, gaussian_blur_h_descriptor_sets1) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom_temp1, descriptor_binding_index, render_target_bloom1);
+        let (gaussian_blur_v_framebuffer_data1, gaussian_blur_v_descriptor_sets1) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom1, descriptor_binding_index, render_target_bloom_temp1);
+        let (gaussian_blur_h_framebuffer_data2, gaussian_blur_h_descriptor_sets2) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom_temp2, descriptor_binding_index, render_target_bloom2);
+        let (gaussian_blur_v_framebuffer_data2, gaussian_blur_v_descriptor_sets2) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom2, descriptor_binding_index, render_target_bloom_temp2);
+        let (gaussian_blur_h_framebuffer_data3, gaussian_blur_h_descriptor_sets3) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom_temp3, descriptor_binding_index, render_target_bloom3);
+        let (gaussian_blur_v_framebuffer_data3, gaussian_blur_v_descriptor_sets3) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom3, descriptor_binding_index, render_target_bloom_temp3);
+        let (gaussian_blur_h_framebuffer_data4, gaussian_blur_h_descriptor_sets4) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom_temp4, descriptor_binding_index, render_target_bloom4);
+        let (gaussian_blur_v_framebuffer_data4, gaussian_blur_v_descriptor_sets4) = create_pipeline_binding_datas(pipeline_binding_data, render_target_bloom4, descriptor_binding_index, render_target_bloom_temp4);
+
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data0);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data0);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data1);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data1);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data2);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data2);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data3);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data3);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data4);
+        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data4);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets0);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets0);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets1);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets1);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets2);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets2);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets3);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets3);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets4);
+        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets4);
 
         let render_bloom_framebuffer_data = resources.get_framebuffer_data("render_bloom").as_ptr();
         let render_bloom_hightlight_pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
@@ -148,8 +201,13 @@ impl PostProcessData_Bloom {
         for framebuffer_data in self._bloom_downsample_framebuffer_datas.iter() {
             framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
+        for framebuffer_data in self._bloom_temp_framebuffer_datas.iter() {
+            framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
+        }
         self._bloom_downsample_framebuffer_datas.clear();
         self._bloom_downsample_descriptor_sets.clear();
+        self._bloom_temp_framebuffer_datas.clear();
+        self._bloom_temp_descriptor_sets.clear();
         self._bloom_blur_framebuffer_datas.clear();
         self._bloom_blur_descriptor_sets.clear();
     }
