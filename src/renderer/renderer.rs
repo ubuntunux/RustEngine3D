@@ -960,29 +960,34 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
-        unsafe {
-            const PUSH_CONSTANT_BLOOM: PushConstant_BloomHighlight = PushConstant_BloomHighlight {
-                _bloom_threshold_min: 0.0,
-                _bloom_threshold_max: 1.0,
-                _bloom_intensity: 0.25,
-                _bloom_scale: 1.0,
-            };
-            let resources: Ref<Resources> = self._resources.borrow();
-            let material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow_mut();
-            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow();
+        // render_bloom_highlight
+        {
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
             let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            let framebuffer_count = self._post_process_data_bloom._bloom_framebuffer_datas.len();
+            self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
+            self.upload_push_constant_data(
+                command_buffer,
+                &pipeline_data.borrow(),
+                &self._post_process_data_bloom._bloom_push_constants,
+            );
+            self.draw_elements(command_buffer, quad_geometry_data);
+            self.end_render_pass(command_buffer);
+        }
+        // render_bloom_downsampling
+        {
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
+            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+            let framebuffer_count = self._post_process_data_bloom._bloom_downsample_framebuffer_datas.len();
             for i in 0..framebuffer_count {
-                let framebuffer = Some(&(*self._post_process_data_bloom._bloom_framebuffer_datas[i]));
-                let descriptor_sets = Some(&(*self._post_process_data_bloom._bloom_descriptor_sets[i]));
+                let framebuffer = Some(&self._post_process_data_bloom._bloom_downsample_framebuffer_datas[i]);
+                let descriptor_sets = Some(&self._post_process_data_bloom._bloom_downsample_descriptor_sets[i]);
                 self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
                 self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-                self.upload_push_constant_data(
-                    command_buffer,
-                    &pipeline_data.borrow(),
-                    &PUSH_CONSTANT_BLOOM,
-                );
                 self.draw_elements(command_buffer, quad_geometry_data);
                 self.end_render_pass(command_buffer);
             }

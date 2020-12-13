@@ -6,15 +6,7 @@
 #include "utility.glsl"
 #include "render_quad_common.glsl"
 
-layout(binding = 0) uniform SceneConstants
-{
-    SCENE_CONSTANTS scene_constants;
-};
-layout(binding = 1) uniform ViewConstants
-{
-    VIEW_CONSTANTS view_constants;
-};
-layout(binding = 2) uniform sampler2D textureSrc;
+layout(binding = 0) uniform sampler2D textureSrc;
 
 layout( push_constant ) uniform PushConstant_BloomHighlight
 {
@@ -30,7 +22,12 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     const vec2 texCoord = vs_output.texCoord.xy;
-    vec3 color = max(vec3(0.0), texture(textureSrc, texCoord).xyz);
+    const vec2 inv_texture_size = 1.0f / vec2(textureSize(textureSrc, 0));
+    vec3 color0 = max(vec3(0.0), texture(textureSrc, texCoord).xyz);
+    vec3 color1 = max(vec3(0.0), texture(textureSrc, texCoord + vec2(inv_texture_size.x, 0.0)).xyz);
+    vec3 color2 = max(vec3(0.0), texture(textureSrc, texCoord + vec2(0.0, inv_texture_size.y)).xyz);
+    vec3 color3 = max(vec3(0.0), texture(textureSrc, texCoord + inv_texture_size).xyz);
+    vec3 color = (color0 + color1 + color2 + color3) * 0.25;
     float luminance = get_luminance(color);
     if(pushConstant._bloom_threshold_min < luminance)
     {

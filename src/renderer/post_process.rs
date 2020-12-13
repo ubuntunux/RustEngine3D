@@ -4,21 +4,22 @@ use ash::{ vk, Device };
 
 use crate::constants;
 use crate::renderer::shader_buffer_datas::{ SSAOConstants };
+use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight };
 use crate::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
-use crate::vulkan_context::framebuffer::{ self, FramebufferData, FramebufferDataCreateInfo };
+use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
-use crate::vulkan_context::vulkan_context;
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct PostProcessData_Bloom {
-    pub _store_framebuffer_datas: Vec<FramebufferData>,
-    pub _store_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
-    pub _bloom_framebuffer_datas: Vec<*const FramebufferData>,
-    pub _bloom_descriptor_sets: Vec<*const SwapchainIndexMap<vk::DescriptorSet>>,
+    pub _bloom_downsample_framebuffer_datas: Vec<FramebufferData>,
+    pub _bloom_downsample_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
+    pub _bloom_blur_framebuffer_datas: Vec<*const FramebufferData>,
+    pub _bloom_blur_descriptor_sets: Vec<*const SwapchainIndexMap<vk::DescriptorSet>>,
+    pub _bloom_push_constants: PushConstant_BloomHighlight,
 }
 
 #[derive(Clone)]
@@ -33,10 +34,16 @@ pub struct PostProcessData_SSAO {
 impl Default for PostProcessData_Bloom {
     fn default() -> PostProcessData_Bloom {
         PostProcessData_Bloom {
-            _store_framebuffer_datas: Vec::new(),
-            _store_descriptor_sets: Vec::new(),
-            _bloom_framebuffer_datas: Vec::new(),
-            _bloom_descriptor_sets: Vec::new(),
+            _bloom_downsample_framebuffer_datas: Vec::new(),
+            _bloom_downsample_descriptor_sets: Vec::new(),
+            _bloom_blur_framebuffer_datas: Vec::new(),
+            _bloom_blur_descriptor_sets: Vec::new(),
+            _bloom_push_constants: PushConstant_BloomHighlight {
+                _bloom_threshold_min: 1.25,
+                _bloom_threshold_max: 1000.0,
+                _bloom_intensity: 0.25,
+                _bloom_scale: 1.0,
+            },
         }
     }
 }
@@ -78,7 +85,7 @@ impl PostProcessData_Bloom {
     ) {
         let resources = resources.borrow();
         let render_bloom_material_instance = resources.get_material_instance_data("render_bloom").borrow();
-        let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
+        let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
         let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
         let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
         let descriptor_data = &pipeline_data._descriptor_data;
@@ -96,7 +103,7 @@ impl PostProcessData_Bloom {
             let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
             for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
                 for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                    let descriptor_binding_index: usize = 2;
+                    let descriptor_binding_index: usize = 0;
                     descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture._descriptor_image_info);
                 }
             }
@@ -115,34 +122,36 @@ impl PostProcessData_Bloom {
         let (bloom_framebuffer_data2, bloom_descriptor_set2) = create_pipeline_binding_datas(render_target_bloom2, render_target_bloom1);
         let (bloom_framebuffer_data3, bloom_descriptor_set3) = create_pipeline_binding_datas(render_target_bloom3, render_target_bloom2);
         let (bloom_framebuffer_data4, bloom_descriptor_set4) = create_pipeline_binding_datas(render_target_bloom4, render_target_bloom3);
-        self._store_framebuffer_datas.push(bloom_framebuffer_data1);
-        self._store_framebuffer_datas.push(bloom_framebuffer_data2);
-        self._store_framebuffer_datas.push(bloom_framebuffer_data3);
-        self._store_framebuffer_datas.push(bloom_framebuffer_data4);
-        self._store_descriptor_sets.push(bloom_descriptor_set1);
-        self._store_descriptor_sets.push(bloom_descriptor_set2);
-        self._store_descriptor_sets.push(bloom_descriptor_set3);
-        self._store_descriptor_sets.push(bloom_descriptor_set4);
+        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data1);
+        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data2);
+        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data3);
+        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data4);
+        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set1);
+        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set2);
+        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set3);
+        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set4);
 
-        let bloom_framebuffer_data0 = resources.get_framebuffer_data("render_bloom").as_ptr();
-        self._bloom_framebuffer_datas.push(bloom_framebuffer_data0);
-        for framebuffer_data in self._store_framebuffer_datas.iter() {
-            self._bloom_framebuffer_datas.push(framebuffer_data);
+        let render_bloom_framebuffer_data = resources.get_framebuffer_data("render_bloom").as_ptr();
+        let render_bloom_hightlight_pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
+
+        self._bloom_blur_framebuffer_datas.push(render_bloom_framebuffer_data);
+        for framebuffer_data in self._bloom_downsample_framebuffer_datas.iter() {
+            self._bloom_blur_framebuffer_datas.push(framebuffer_data);
         }
-        self._bloom_descriptor_sets.push(&pipeline_binding_data._descriptor_sets);
-        for descriptor_set in self._store_descriptor_sets.iter() {
-            self._bloom_descriptor_sets.push(descriptor_set);
+        self._bloom_blur_descriptor_sets.push(&render_bloom_hightlight_pipeline_binding_data._descriptor_sets);
+        for descriptor_set in self._bloom_downsample_descriptor_sets.iter() {
+            self._bloom_blur_descriptor_sets.push(descriptor_set);
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for framebuffer_data in self._store_framebuffer_datas.iter() {
+        for framebuffer_data in self._bloom_downsample_framebuffer_datas.iter() {
             framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
-        self._store_framebuffer_datas.clear();
-        self._store_descriptor_sets.clear();
-        self._bloom_framebuffer_datas.clear();
-        self._bloom_descriptor_sets.clear();
+        self._bloom_downsample_framebuffer_datas.clear();
+        self._bloom_downsample_descriptor_sets.clear();
+        self._bloom_blur_framebuffer_datas.clear();
+        self._bloom_blur_descriptor_sets.clear();
     }
 }
 

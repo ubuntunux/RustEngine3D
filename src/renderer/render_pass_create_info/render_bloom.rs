@@ -8,7 +8,7 @@ use crate::utilities::system::{
     enum_to_string
 };
 use crate::renderer::renderer::RendererData;
-use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType, PushConstant_BloomHighlight };
+use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight };
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
@@ -97,18 +97,35 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
-                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 },
+            ],
+        },
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("render_bloom_downsampling"),
+            _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
+            _pipeline_fragment_shader_file: PathBuf::from("render_bloom_downsampling.frag"),
+            _pipeline_shader_defines: Vec::new(),
+            _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
+            _pipeline_sample_count: sample_count,
+            _pipeline_polygon_mode: vk::PolygonMode::FILL,
+            _pipeline_cull_mode: vk::CullModeFlags::NONE,
+            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
+            _pipeline_viewport: vk::Viewport::default(),
+            _pipeline_scissor_rect: vk::Rect2D::default(),
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
+                _depth_write_enable: false,
+                ..Default::default()
+            },
+            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+            _push_constant_ranges: Vec::new(),
+            _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
-                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 2,
+                    _descriptor_binding_index: 0,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
