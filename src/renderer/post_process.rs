@@ -77,46 +77,51 @@ impl PostProcessData_Bloom {
         let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
         let render_pass = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow()._render_pass;
         let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-        let (width, height) = render_target_bloom1.get_default_image_size();
-        let rendertarget_views = vec![render_target_bloom1.get_default_rendertarget_view()];
-        let bloom_framebuffer_data1 = framebuffer::create_framebuffer_data(
-            device,
-            *render_pass,
-            FramebufferDataCreateInfo {
-                _framebuffer_name: render_target_bloom1._texture_data_name.clone(),
-                _framebuffer_width: width,
-                _framebuffer_height: height,
-                _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
-                _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
-                _framebuffer_color_attachment_formats: vec![render_target_bloom1._image_format],
-                _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
-                ..Default::default()
-            },
-        );
-
-        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
         let descriptor_data = &pipeline_data._descriptor_data;
-        for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-            for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                let descriptor_binding_index: usize = 2;
-                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(render_target_bloom0._descriptor_image_info);
-            }
-        }
-
-        let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
         let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
             descriptor_data_create_info._descriptor_binding_index
         }).collect();
-        let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
-            device,
-            &descriptor_sets,
-            &descriptor_binding_indices,
-            &descriptor_data._descriptor_set_layout_bindings,
-            &descriptor_resource_infos_list,
-        );
 
+        let create_pipeline_binding_datas = |render_target: &TextureData, input_texture: &TextureData| -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+            let (width, height) = render_target.get_default_image_size();
+            let rendertarget_views = vec![render_target.get_default_rendertarget_view()];
+            let framebuffer_data = framebuffer::create_framebuffer_data(
+                device,
+                *render_pass,
+                FramebufferDataCreateInfo {
+                    _framebuffer_name: render_target._texture_data_name.clone(),
+                    _framebuffer_width: width,
+                    _framebuffer_height: height,
+                    _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
+                    _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
+                    _framebuffer_color_attachment_formats: vec![render_target._image_format],
+                    _framebuffer_image_views: vec![rendertarget_views; constants::SWAPCHAIN_IMAGE_COUNT],
+                    ..Default::default()
+                },
+            );
+
+            let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+            for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+                for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
+                    let descriptor_binding_index: usize = 2;
+                    descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture._descriptor_image_info);
+                }
+            }
+
+            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+            let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+                device,
+                &descriptor_sets,
+                &descriptor_binding_indices,
+                &descriptor_data._descriptor_set_layout_bindings,
+                &descriptor_resource_infos_list,
+            );
+            (framebuffer_data, descriptor_sets)
+        };
+
+        let (bloom_framebuffer_data1, bloom_descriptor_set1) = create_pipeline_binding_datas(render_target_bloom1, render_target_bloom0);
         self._bloom_framebuffer_data1 = bloom_framebuffer_data1;
-        self._bloom_descriptor_set1 = descriptor_sets;
+        self._bloom_descriptor_set1 = bloom_descriptor_set1;
     }
 
     pub fn destroy(&mut self, device: &Device) {
