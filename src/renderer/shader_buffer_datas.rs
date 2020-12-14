@@ -54,6 +54,16 @@ pub struct PushConstant_GaussianBlur {
     pub _reserved1: u32,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderCopy {
+    pub _taget_mip_level: u32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+    pub _reserved2: u32,
+}
+
+
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
@@ -182,6 +192,17 @@ impl Default for PushConstant_GaussianBlur {
             _blur_scale: Vector2::new(1.0, 1.0),
             _reserved0: 0,
             _reserved1: 0,
+        }
+    }
+}
+
+impl Default for PushConstant_RenderCopy {
+    fn default() -> PushConstant_RenderCopy {
+        PushConstant_RenderCopy {
+            _taget_mip_level: 0,
+            _reserved0: 0,
+            _reserved1: 0,
+            _reserved2: 0,
         }
     }
 }

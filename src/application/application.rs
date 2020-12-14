@@ -295,6 +295,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                         renderer_data.set_need_recreate_swapchain(false);
                     }
 
+                    renderer_data.update_post_process_datas();
                     scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
                     renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
                 }

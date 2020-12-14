@@ -57,8 +57,9 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_SkeletalRenderObject,
     PushConstant_BloomHighlight,
     PushConstant_GaussianBlur,
+    PushConstant_RenderCopy,
 };
-use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO };
+use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO, PostProcessData_TAA };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
@@ -164,6 +165,7 @@ pub struct RendererData {
     pub _shader_buffer_data_map: ShaderBufferDataMap,
     pub _post_process_data_bloom: PostProcessData_Bloom,
     pub _post_process_data_ssao: PostProcessData_SSAO,
+    pub _post_process_data_taa: PostProcessData_TAA,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -275,6 +277,7 @@ pub fn create_renderer_data<T>(
             _shader_buffer_data_map: ShaderBufferDataMap::new(),
             _post_process_data_bloom: PostProcessData_Bloom::default(),
             _post_process_data_ssao: PostProcessData_SSAO::default(),
+            _post_process_data_taa: PostProcessData_TAA::default(),
             _resources: resources.clone(),
         };
 
@@ -323,10 +326,22 @@ impl RendererData {
             self._render_target_data_map.get(&RenderTargetType::BloomTemp3).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::BloomTemp4).as_ref().unwrap(),
         );
+
+        self._post_process_data_taa.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
+        );
     }
 
     pub fn destroy_post_process_datas(&mut self) {
         self._post_process_data_bloom.destroy(&self._device);
+        self._post_process_data_taa.destroy(&self._device);
+    }
+
+    pub fn update_post_process_datas(&mut self) {
+        self._post_process_data_taa.update();
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -960,6 +975,40 @@ impl RendererData {
         }
     }
 
+    pub fn render_taa(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData
+    ) {
+        let resources: Ref<Resources> = self._resources.borrow();
+
+        // render_taa
+        self.render_material_instance(command_buffer, swapchain_index, "render_taa", NONE_PUSH_CONSTANT, &quad_geometry_data);
+
+        // copy SceneColorCopy -> TAAResolve
+        {
+            let render_copy_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_copy").borrow();
+            let pipeline_binding_data = render_copy_material_instance_data.get_default_pipeline_binding_data();
+            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+            let framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
+            let descriptor_sets = Some(&self._post_process_data_taa._taa_descriptor_sets);
+            self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
+            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+            self.upload_push_constant_data(
+                command_buffer,
+                &pipeline_data.borrow(),
+                &PushConstant_RenderCopy {
+                    _taget_mip_level: 0,
+                    ..Default::default()
+                },
+            );
+            self.draw_elements(command_buffer, quad_geometry_data);
+            self.end_render_pass(command_buffer);
+        }
+    }
+
     pub fn render_bloom(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -1001,7 +1050,7 @@ impl RendererData {
         }
         // render_gaussian_blur
         {
-            let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
+            let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
             let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
             let framebuffer_count = self._post_process_data_bloom._bloom_temp_framebuffer_datas.len();
@@ -1047,6 +1096,9 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
+        // TAA
+        self.render_taa(command_buffer, swapchain_index, quad_geometry_data);
+
         // Bloom
         self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
 

@@ -4,15 +4,12 @@ use ash::{
     vk,
 };
 
-use crate::constants;
 use crate::utilities::system::{
     enum_to_string
 };
-use crate::renderer::renderer::{
-    RendererData,
-};
+use crate::renderer::renderer::RendererData;
+use crate::renderer::shader_buffer_datas::{ PushConstant_RenderCopy };
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
@@ -40,9 +37,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     )
 }
 
-
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_motion_blur");
+    let render_pass_name = String::from("render_copy");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -72,9 +68,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("render_motion_blur"),
+            _pipeline_data_create_info_name: String::from("render_copy"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("render_motion_blur.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("render_copy.frag"),
             _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
@@ -90,29 +86,17 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: Vec::new(),
+            _push_constant_ranges: vec![
+                vk::PushConstantRange {
+                    stage_flags: vk::ShaderStageFlags::ALL,
+                    offset: 0,
+                    size: std::mem::size_of::<PushConstant_RenderCopy>() as u32,
+                }
+            ],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
-                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
-                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 2,
-                    _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
-                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 3,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SceneVelocity),
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 },

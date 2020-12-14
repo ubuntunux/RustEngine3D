@@ -33,7 +33,7 @@ use crate::vulkan_context::vulkan_context::{
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        vec![renderer_data.get_render_target(RenderTargetType::TAAResolve)],
+        vec![renderer_data.get_render_target(RenderTargetType::SceneColorCopy)],
         Vec::new(),
         Vec::new(),
         Vec::new(),
@@ -112,7 +112,19 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
+                    _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 4,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneVelocity),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 5,
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 },

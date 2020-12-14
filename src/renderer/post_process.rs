@@ -41,6 +41,8 @@ pub struct PostProcessData_TAA {
     pub _enable_taa: bool,
     pub _rendertarget_width: u32,
     pub _rendertarget_height: u32,
+    pub _taa_resolve_framebuffer_data: FramebufferData,
+    pub _taa_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
     pub _jitter_mode_uniform2x: [Vector2<f32>; 2],
     pub _jitter_mode_hammersley4x: [Vector2<f32>; 4],
     pub _jitter_mode_hammersley8x: [Vector2<f32>; 8],
@@ -104,6 +106,8 @@ impl Default for PostProcessData_TAA {
             _enable_taa: true,
             _rendertarget_width: 1024,
             _rendertarget_height: 768,
+            _taa_resolve_framebuffer_data: FramebufferData::default(),
+            _taa_descriptor_sets: SwapchainIndexMap::new(),
             _jitter_mode_uniform2x: [Vector2::zeros(); 2],
             _jitter_mode_hammersley4x: [Vector2::zeros(); 4],
             _jitter_mode_hammersley8x: [Vector2::zeros(); 8],
@@ -249,9 +253,49 @@ impl PostProcessData_Bloom {
 }
 
 impl PostProcessData_TAA {
-    pub fn initialize(&mut self, taa_resolve_texture: &TextureData) {
-        self._rendertarget_width = taa_resolve_texture._image_width;
-        self._rendertarget_height = taa_resolve_texture._image_height;
+    pub fn initialize(
+        &mut self,
+        device: &Device,
+        resources: &RcRefCell<Resources>,
+        taa_render_target: &TextureData,
+        taa_resolve_texture: &TextureData,
+    ) {
+        let resources = resources.borrow();
+        let render_copy_material_instance = resources.get_material_instance_data("render_copy").borrow();
+        let pipeline_binding_data = render_copy_material_instance.get_pipeline_binding_data("render_copy/render_copy");
+        let descriptor_binding_index: usize = 0;
+
+        let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
+        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+        let descriptor_data = &pipeline_data._descriptor_data;
+        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+            descriptor_data_create_info._descriptor_binding_index
+        }).collect();
+        let framebuffer_data = framebuffer::create_framebuffer_data(
+            device,
+            render_pass_data._render_pass,
+            format!("{}{}", render_pass_data._render_pass_data_name, taa_resolve_texture._texture_data_name).as_str(),
+            framebuffer::create_framebuffer_data_create_info(vec![taa_resolve_texture], Vec::new(), Vec::new(), Vec::new()),
+        );
+        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+        for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+            for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
+                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(taa_render_target._descriptor_image_info);
+            }
+        }
+        let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+        let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+            device,
+            &descriptor_sets,
+            &descriptor_binding_indices,
+            &descriptor_data._descriptor_set_layout_bindings,
+            &descriptor_resource_infos_list,
+        );
+
+        self._taa_resolve_framebuffer_data = framebuffer_data;
+        self._taa_descriptor_sets = descriptor_sets;
+        self._rendertarget_width = taa_render_target._image_width;
+        self._rendertarget_height = taa_render_target._image_height;
         self._jitter_mode_uniform2x = [Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0), Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0)];
         for i in 0..4 {
             self._jitter_mode_hammersley4x[i] = math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
@@ -275,5 +319,10 @@ impl PostProcessData_TAA {
 
         // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
         self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        framebuffer::destroy_framebuffer_data(device, &self._taa_resolve_framebuffer_data);
+        self._taa_descriptor_sets.clear();
     }
 }
