@@ -1,5 +1,6 @@
 // https://docs.rs/nalgebra-glm/0.9.0/nalgebra_glm/
 use nalgebra::{
+    Vector2,
     Vector3,
     Vector4,
     Matrix4,
@@ -10,6 +11,23 @@ use nalgebra_glm as glm;
 
 pub const HALF_PI: f32 = std::f32::consts::PI as f32 * 0.5;
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
+
+// https://github.com/TheRealMJP/SamplePattern/blob/master/SamplePattern.cpp
+// Computes a radical inverse with base 2 using crazy bit-twiddling from "Hacker's Delight"
+pub fn radical_inverse_base2(bits: u32) -> f32 {
+    let mut bits = (bits << 16) | (bits >> 16);
+    bits = ((bits & 0x55555555) << 1) | ((bits & 0xAAAAAAAA) >> 1);
+    bits = ((bits & 0x33333333) << 2) | ((bits & 0xCCCCCCCC) >> 2);
+    bits = ((bits & 0x0F0F0F0F) << 4) | ((bits & 0xF0F0F0F0) >> 4);
+    bits = ((bits & 0x00FF00FF) << 8) | ((bits & 0xFF00FF00) >> 8);
+    (bits as f32) * 2.3283064365386963e-10
+}
+
+
+// Returns a single 2D point in a Hammersley sequence of length "numSamples", using base 1 and base 2
+pub fn hammersley_2d(sample_idx: u32, num_samples: u32) -> Vector2<f32> {
+    Vector2::new((sample_idx as f32) / (num_samples as f32), radical_inverse_base2(sample_idx))
+}
 
 pub fn get_clip_space_matrix() -> Matrix4<f32> {
     // -- ... and a {clip space -> screen space} matrix that converts points into

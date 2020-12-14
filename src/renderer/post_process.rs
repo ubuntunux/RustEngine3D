@@ -1,5 +1,5 @@
 use rand;
-use nalgebra::{Vector3, Vector4, Vector2};
+use nalgebra::{Vector2, Vector3, Vector4};
 use ash::{ vk, Device };
 
 use crate::constants;
@@ -11,6 +11,7 @@ use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
 use crate::utilities::system::RcRefCell;
+use crate::utilities::math;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
@@ -32,6 +33,22 @@ pub struct PostProcessData_SSAO {
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
     pub _ssao_constants: SSAOConstants,
+}
+
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
+pub struct PostProcessData_TAA {
+    pub _enable_taa: bool,
+    pub _rendertarget_width: u32,
+    pub _rendertarget_height: u32,
+    pub _jitter_mode_uniform2x: [Vector2<f32>; 2],
+    pub _jitter_mode_hammersley4x: [Vector2<f32>; 4],
+    pub _jitter_mode_hammersley8x: [Vector2<f32>; 8],
+    pub _jitter_mode_hammersley16x: [Vector2<f32>; 16],
+    pub _jitter: Vector2<f32>,
+    pub _jitter_prev: Vector2<f32>,
+    pub _jitter_delta: Vector2<f32>,
+    pub _jitter_frame: u32,
 }
 
 impl Default for PostProcessData_Bloom {
@@ -77,6 +94,24 @@ impl Default for PostProcessData_SSAO {
             _ssao_constants: SSAOConstants {
                 _ssao_kernel_samples: random_normals
             },
+        }
+    }
+}
+
+impl Default for PostProcessData_TAA {
+    fn default() -> PostProcessData_TAA {
+        PostProcessData_TAA {
+            _enable_taa: true,
+            _rendertarget_width: 1024,
+            _rendertarget_height: 768,
+            _jitter_mode_uniform2x: [Vector2::zeros(); 2],
+            _jitter_mode_hammersley4x: [Vector2::zeros(); 4],
+            _jitter_mode_hammersley8x: [Vector2::zeros(); 8],
+            _jitter_mode_hammersley16x: [Vector2::zeros(); 16],
+            _jitter: Vector2::new(0.0, 0.0),
+            _jitter_prev: Vector2::new(0.0, 0.0),
+            _jitter_delta: Vector2::new(0.0, 0.0),
+            _jitter_frame: 0,
         }
     }
 }
@@ -213,4 +248,32 @@ impl PostProcessData_Bloom {
     }
 }
 
+impl PostProcessData_TAA {
+    pub fn initialize(&mut self, taa_resolve_texture: &TextureData) {
+        self._rendertarget_width = taa_resolve_texture._image_width;
+        self._rendertarget_height = taa_resolve_texture._image_height;
+        self._jitter_mode_uniform2x = [Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0), Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0)];
+        for i in 0..4 {
+            self._jitter_mode_hammersley4x[i] = math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
+        }
+        for i in 0..8 {
+            self._jitter_mode_hammersley8x[i] = math::hammersley_2d(i as u32, 8) * 2.0 - Vector2::new(1.0, 1.0);
+        }
+        for i in 0..16 {
+            self._jitter_mode_hammersley16x[i] = math::hammersley_2d(i as u32, 16) * 2.0 - Vector2::new(1.0, 1.0);
+        }
+    }
 
+    pub fn update(&mut self) {
+        self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as u32;
+
+        // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
+        self._jitter_prev = self._jitter.into();
+        self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
+        self._jitter[0] /= self._rendertarget_width as f32;
+        self._jitter[1] /= self._rendertarget_height as f32;
+
+        // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
+        self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
+    }
+}

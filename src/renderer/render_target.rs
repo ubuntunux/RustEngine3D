@@ -18,6 +18,7 @@ pub enum RenderTargetType {
     SceneNormal,
     SceneMaterial,
     SceneVelocity,
+    TAAResolve,
     Bloom0,
     Bloom1,
     Bloom2,
@@ -53,6 +54,7 @@ impl std::str::FromStr for RenderTargetType {
             "SceneNormal" => Ok(RenderTargetType::SceneNormal),
             "SceneMaterial" => Ok(RenderTargetType::SceneMaterial),
             "SceneVelocity" => Ok(RenderTargetType::SceneVelocity),
+            "TAAResolve" => Ok(RenderTargetType::TAAResolve),
             "Bloom0" => Ok(RenderTargetType::Bloom0),
             "Bloom1" => Ok(RenderTargetType::Bloom1),
             "Bloom2" => Ok(RenderTargetType::Bloom2),
@@ -84,7 +86,7 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
     let _immutable = true;
     let mutable = false;
     let empty_data: Vec<u8> = Vec::new();
-    let bloom_texture_create_info = TextureCreateInfo {
+    let hdr_texture_create_info = TextureCreateInfo {
         _texture_format: vk::Format::R16G16B16A16_SFLOAT,
         _texture_min_filter: vk::Filter::LINEAR,
         _texture_mag_filter: vk::Filter::LINEAR,
@@ -100,27 +102,13 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_name: RenderTargetType::SceneColor.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_samples: samples,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_mipmap: disable_mipmap,
-            _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
-            ..Default::default()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SceneColorCopy.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
-            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_samples: samples,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_mipmap: disable_mipmap,
-            _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
-            ..Default::default()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SceneDepth.to_string(),
@@ -218,64 +206,70 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             ..Default::default()
         },
         TextureCreateInfo {
+            _texture_name: RenderTargetType::TAAResolve.to_string(),
+            _texture_width: window_width,
+            _texture_height: window_height,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
             _texture_name: RenderTargetType::Bloom0.to_string(),
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Bloom1.to_string(),
             _texture_width: window_width / 4,
             _texture_height: window_height / 4,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Bloom2.to_string(),
             _texture_width: window_width / 8,
             _texture_height: window_height / 8,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Bloom3.to_string(),
             _texture_width: window_width / 16,
             _texture_height: window_height / 16,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Bloom4.to_string(),
             _texture_width: window_width / 32,
             _texture_height: window_height / 32,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp0.to_string(),
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp1.to_string(),
             _texture_width: window_width / 4,
             _texture_height: window_height / 4,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp2.to_string(),
             _texture_width: window_width / 8,
             _texture_height: window_height / 8,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp3.to_string(),
             _texture_width: window_width / 16,
             _texture_height: window_height / 16,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp4.to_string(),
             _texture_width: window_width / 32,
             _texture_height: window_height / 32,
-            ..bloom_texture_create_info.clone()
+            ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightShaft.to_string(),

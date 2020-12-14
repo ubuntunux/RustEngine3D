@@ -170,6 +170,16 @@ pub fn calc_mip_levels(image_width: u32, image_height: u32, image_depth: u32) ->
     max_size.log2().floor() as u32 + 1
 }
 
+pub fn get_image_aspect_by_format(image_format: vk::Format) -> vk::ImageAspectFlags {
+    match constants::DEPTH_FOMATS.contains(&image_format) {
+        true => match constants::DEPTH_STENCIL_FORMATS.contains(&image_format) {
+            true => vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL,
+            false => vk::ImageAspectFlags::DEPTH,
+        },
+        false => vk::ImageAspectFlags::COLOR,
+    }
+}
+
 pub fn image_barrier_struct(
     image: vk::Image,
     aspect_mask: vk::ImageAspectFlags,
@@ -200,7 +210,7 @@ pub fn image_barrier_struct(
     }
 }
 
-pub fn image_blit_struct(
+pub fn mip_image_blit_struct(
     image_aspect_mask: vk::ImageAspectFlags,
     mip_level: u32,
     src_width: i32,
@@ -272,7 +282,7 @@ pub fn create_mipmap(
         );
 
         let image_blits = [
-            image_blit_struct(
+            mip_image_blit_struct(
                 aspect_mask,
                 mip_level,
                 src_width,

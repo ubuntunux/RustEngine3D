@@ -63,7 +63,7 @@ void main() {
     vec4 color = texture(textureColor, texCoord);
     vec3 bloom = vec3(0.0);
     bool is_render_bloom = true;
-    float bloom_intensity = 1.0;
+    float bloom_intensity = 0.2;
     if(is_render_bloom)
     {
         bloom += texture(textureBloom0, texCoord).xyz;

@@ -13,6 +13,7 @@ use crate::renderer::render_pass_create_info::{
     render_object,
     render_shadow,
     render_ssao,
+    render_taa,
 };
 
 pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
@@ -28,5 +29,6 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal),
         render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static),
         render_ssao::get_render_pass_data_create_info(renderer_data),
+        render_taa::get_render_pass_data_create_info(renderer_data),
     ]
 }
