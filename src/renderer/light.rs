@@ -63,7 +63,7 @@ impl DirectionalLightData {
     pub fn get_light_shadow_samples(&self) -> i32 { self._light_constants._shadow_samples }
     pub fn get_light_shadow_exp(&self) -> f32 { self._light_constants._shadow_exp }
     pub fn get_light_shadow_bias(&self) -> f32 { self._light_constants._shadow_bias }
-    pub fn get_shadow_view_projection_matrix(&self) -> &Matrix4<f32> { &self._light_constants._shadow_view_projection }
+    pub fn get_shadow_view_projection(&self) -> &Matrix4<f32> { &self._light_constants._shadow_view_projection }
 
     pub fn update_shadow_orthogonal(&mut self) {
         let width = self._light_constants._shadow_dimensions.x;

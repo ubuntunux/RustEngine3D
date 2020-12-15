@@ -39,17 +39,24 @@ pub struct CameraObjectData {
     pub _far: f32,
     pub _fov: f32,
     pub _aspect: f32,
-    pub _view_matrix: Matrix4<f32>,
-    pub _inv_view_matrix: Matrix4<f32>,
-    pub _view_origin_matrix: Matrix4<f32>,
-    pub _inv_view_origin_matrix: Matrix4<f32>,
-    pub _projection_matrix: Matrix4<f32>,
-    pub _inv_projection_matrix: Matrix4<f32>,
-    pub _view_projection_matrix: Matrix4<f32>,
-    pub _inv_view_projection_matrix: Matrix4<f32>,
-    pub _view_origin_projection_matrix: Matrix4<f32>,
-    pub _inv_view_origin_projection_matrix: Matrix4<f32>,
-    pub _view_origin_projection_matrix_prev: Matrix4<f32>,
+    pub _view: Matrix4<f32>,
+    pub _inv_view: Matrix4<f32>,
+    pub _view_origin: Matrix4<f32>,
+    pub _inv_view_origin: Matrix4<f32>,
+    pub _projection: Matrix4<f32>,
+    pub _inv_projection: Matrix4<f32>,
+    pub _view_projection: Matrix4<f32>,
+    pub _inv_view_projection: Matrix4<f32>,
+    pub _view_origin_projection: Matrix4<f32>,
+    pub _inv_view_origin_projection: Matrix4<f32>,
+    pub _view_origin_projection_prev: Matrix4<f32>,
+    pub _projection_jitter: Matrix4<f32>,
+    pub _inv_projection_jitter: Matrix4<f32>,
+    pub _view_projection_jitter: Matrix4<f32>,
+    pub _inv_view_projection_jitter: Matrix4<f32>,
+    pub _view_origin_projection_jitter: Matrix4<f32>,
+    pub _inv_view_origin_projection_jitter: Matrix4<f32>,
+    pub _view_origin_projection_prev_jitter: Matrix4<f32>,
     pub _transform_object: TransformObjectData,
     pub _updated: bool,
 }
@@ -64,17 +71,24 @@ impl CameraObjectData {
             _far: camera_create_info.far,
             _fov: camera_create_info.fov,
             _aspect: camera_create_info.aspect,
-            _view_matrix: Matrix4::identity(),
-            _inv_view_matrix: Matrix4::identity(),
-            _view_origin_matrix: Matrix4::identity(),
-            _inv_view_origin_matrix: Matrix4::identity(),
-            _projection_matrix: Matrix4::identity(),
-            _inv_projection_matrix: Matrix4::identity(),
-            _view_projection_matrix: Matrix4::identity(),
-            _inv_view_projection_matrix: Matrix4::identity(),
-            _view_origin_projection_matrix: Matrix4::identity(),
-            _inv_view_origin_projection_matrix: Matrix4::identity(),
-            _view_origin_projection_matrix_prev: Matrix4::identity(),
+            _view: Matrix4::identity(),
+            _inv_view: Matrix4::identity(),
+            _view_origin: Matrix4::identity(),
+            _inv_view_origin: Matrix4::identity(),
+            _projection: Matrix4::identity(),
+            _inv_projection: Matrix4::identity(),
+            _view_projection: Matrix4::identity(),
+            _inv_view_projection: Matrix4::identity(),
+            _view_origin_projection: Matrix4::identity(),
+            _inv_view_origin_projection: Matrix4::identity(),
+            _view_origin_projection_prev: Matrix4::identity(),
+            _projection_jitter: Matrix4::identity(),
+            _inv_projection_jitter: Matrix4::identity(),
+            _view_projection_jitter: Matrix4::identity(),
+            _inv_view_projection_jitter: Matrix4::identity(),
+            _view_origin_projection_jitter: Matrix4::identity(),
+            _inv_view_origin_projection_jitter: Matrix4::identity(),
+            _view_origin_projection_prev_jitter: Matrix4::identity(),
             _transform_object: TransformObjectData::new_transform_object_data(),
             _updated: true,
         };
@@ -86,68 +100,33 @@ impl CameraObjectData {
     pub fn get_camera_position(&self) -> &Vector3<f32> {
         &self._transform_object.get_position()
     }
-    pub fn get_camera_position_prev(&self) -> &Vector3<f32> {
-        &self._transform_object.get_prev_position()
-    }
-    pub fn get_view_matrix(&self) -> &Matrix4<f32> {
-        &self._view_matrix
-    }
-    pub fn get_inv_view_matrix(&self) -> &Matrix4<f32> {
-        &self._inv_view_matrix
-    }
-    pub fn get_view_origin_matrix(&self) -> &Matrix4<f32> {
-        &self._view_origin_matrix
-    }
-    pub fn get_inv_view_origin_matrix(&self) -> &Matrix4<f32> {
-        &self._inv_view_origin_matrix
-    }
-    pub fn get_projection_matrix(&self) -> &Matrix4<f32> {
-        &self._projection_matrix
-    }
-    pub fn get_inv_projection_matrix(&self) -> &Matrix4<f32> {
-        &self._inv_projection_matrix
-    }
-    pub fn get_view_projection_matrix(&self) -> &Matrix4<f32> {
-        &self._view_projection_matrix
-    }
-    pub fn get_inv_view_projection_matrix(&self) -> &Matrix4<f32> {
-        &self._inv_view_projection_matrix
-    }
-    pub fn get_view_origin_projection_matrix(&self) -> &Matrix4<f32> {
-        &self._view_origin_projection_matrix
-    }
-    pub fn get_inv_view_origin_projection_matrix(&self) -> &Matrix4<f32> {
-        &self._inv_view_origin_projection_matrix
-    }
-    pub fn get_view_origin_projection_matrix_prev(&self) -> &Matrix4<f32> {
-        &self._view_origin_projection_matrix_prev
-    }
+    pub fn get_camera_position_prev(&self) -> &Vector3<f32> { &self._transform_object.get_prev_position() }
     pub fn set_aspect(&mut self, aspect: f32) {
         self._aspect = aspect;
-        self.update_projection_matrix();
+        self.update_projection();
     }
-    pub fn update_projection_matrix(&mut self) {
+    pub fn update_projection(&mut self) {
         self._updated = true;
-        self._projection_matrix = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
-        linalg::try_invert_to(self._projection_matrix.into(), &mut self._inv_projection_matrix);
+        self._projection = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
+        linalg::try_invert_to(self._projection.into(), &mut self._inv_projection);
     }
     pub fn update_camera_object_data(&mut self) {
-        self._view_origin_projection_matrix_prev = self._view_origin_projection_matrix.clone() as Matrix4<f32>;
+        self._view_origin_projection_prev = self._view_origin_projection.clone() as Matrix4<f32>;
 
         let updated = self._transform_object.update_transform_object();
         if updated || self._updated {
             // view matrix is inverse matrix of transform, cause it's camera.
-            self._view_matrix = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
-            self._inv_view_matrix = self._transform_object.get_matrix().clone() as Matrix4<f32>;
-            self._view_origin_matrix.set_column(0, &self._view_matrix.column(0));
-            self._view_origin_matrix.set_column(1, &self._view_matrix.column(1));
-            self._view_origin_matrix.set_column(2, &self._view_matrix.column(2));
-            self._view_origin_matrix.set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
-            self._inv_view_origin_matrix = self._view_origin_matrix.transpose();
-            self._view_projection_matrix = &self._projection_matrix * &self._view_matrix;
-            self._inv_view_projection_matrix = &self._inv_view_matrix * &self._inv_projection_matrix;
-            self._view_origin_projection_matrix = &self._projection_matrix * &self._view_origin_matrix;
-            self._inv_view_origin_projection_matrix = &self._inv_view_origin_matrix * &self._inv_projection_matrix;
+            self._view = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
+            self._inv_view = self._transform_object.get_matrix().clone() as Matrix4<f32>;
+            self._view_origin.set_column(0, &self._view.column(0));
+            self._view_origin.set_column(1, &self._view.column(1));
+            self._view_origin.set_column(2, &self._view.column(2));
+            self._view_origin.set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
+            self._inv_view_origin = self._view_origin.transpose();
+            self._view_projection = &self._projection * &self._view;
+            self._inv_view_projection = &self._inv_view * &self._inv_projection;
+            self._view_origin_projection = &self._projection * &self._view_origin;
+            self._inv_view_origin_projection = &self._inv_view_origin * &self._inv_projection;
             self._updated = false;
         }
     }
