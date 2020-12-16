@@ -1,5 +1,6 @@
 pub mod composite_gbuffer;
 pub mod render_bloom;
+pub mod render_color;
 pub mod render_copy;
 pub mod render_debug;
 pub mod render_final;

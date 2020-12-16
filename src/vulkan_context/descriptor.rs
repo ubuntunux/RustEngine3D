@@ -69,19 +69,22 @@ pub fn create_descriptor_pool(
     pool_sizes: &Vec<vk::DescriptorPoolSize>,
     max_descriptor_sets_count: u32
 ) -> vk::DescriptorPool {
-    let pool_create_info = vk::DescriptorPoolCreateInfo {
-        // Note: for manually free descriptorSets - vk::DescriptorPoolCreateFlags::FREE_DESCRIPTOR_SET
-        flags: vk::DescriptorPoolCreateFlags::empty(),
-        pool_size_count: pool_sizes.len() as u32,
-        p_pool_sizes: pool_sizes.as_ptr(),
-        max_sets: max_descriptor_sets_count,
-        ..Default::default()
-    };
-    unsafe {
-        let descriptor_pool = device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
-        log::debug!("    CreateDescriptorPool : {:?}", descriptor_pool);
-        descriptor_pool
+    if 0 < pool_sizes.len() {
+        let pool_create_info = vk::DescriptorPoolCreateInfo {
+            // Note: for manually free descriptorSets - vk::DescriptorPoolCreateFlags::FREE_DESCRIPTOR_SET
+            flags: vk::DescriptorPoolCreateFlags::empty(),
+            pool_size_count: pool_sizes.len() as u32,
+            p_pool_sizes: pool_sizes.as_ptr(),
+            max_sets: max_descriptor_sets_count,
+            ..Default::default()
+        };
+        unsafe {
+            let descriptor_pool = device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
+            log::debug!("    CreateDescriptorPool : {:?}", descriptor_pool);
+            return descriptor_pool;
+        }
     }
+    vk::DescriptorPool::null()
 }
 
 pub fn destroy_descriptor_pool(device: &Device, descriptor_pool: vk::DescriptorPool) {
@@ -165,20 +168,23 @@ pub fn create_descriptor_sets(
     device: &Device,
     descriptor_data: &DescriptorData
 ) -> SwapchainIndexMap<vk::DescriptorSet> {
-    let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT] = [
-        descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT
-    ];
-    let allocation_info = vk::DescriptorSetAllocateInfo {
-        descriptor_pool: descriptor_data._descriptor_pool,
-        descriptor_set_count: descriptor_set_layouts.len() as u32,
-        p_set_layouts: descriptor_set_layouts.as_ptr(),
-        ..Default::default()
-    };
-    unsafe {
-        let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("");
-        log::debug!("    CreateDescriptorSet: {:?}", descriptor_sets);
-        descriptor_sets
+    if vk::DescriptorPool::null() != descriptor_data._descriptor_pool {
+        let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT] = [
+            descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT
+        ];
+        let allocation_info = vk::DescriptorSetAllocateInfo {
+            descriptor_pool: descriptor_data._descriptor_pool,
+            descriptor_set_count: descriptor_set_layouts.len() as u32,
+            p_set_layouts: descriptor_set_layouts.as_ptr(),
+            ..Default::default()
+        };
+        unsafe {
+            let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("");
+            log::debug!("    CreateDescriptorSet: {:?}", descriptor_sets);
+            return descriptor_sets;
+        }
     }
+    Vec::new()
 }
 
 pub fn destroy_descriptor_sets(
@@ -200,6 +206,10 @@ pub fn create_write_descriptor_sets_with_update(
     descriptor_set_layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>,
     descriptor_resource_infos_list: &SwapchainIndexMap<Vec<DescriptorResourceInfo>>,
 ) -> SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> {
+    if descriptor_sets.is_empty() {
+        return Vec::new();
+    }
+
     constants::SWAPCHAIN_IMAGE_INDICES
         .iter()
         .map(|index| {

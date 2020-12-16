@@ -55,9 +55,9 @@ use crate::renderer::shader_buffer_datas::{
     ShaderBufferDataMap,
     PushConstant_StaticRenderObject,
     PushConstant_SkeletalRenderObject,
-    PushConstant_BloomHighlight,
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
+    PushConstant_RenderColor,
 };
 use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO, PostProcessData_TAA };
 use crate::renderer::render_element::{ RenderElementData };
@@ -138,6 +138,7 @@ pub struct RendererData {
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
     _is_first_resize_event: bool,
+    _is_first_rendering: bool,
     pub _window: Window,
     pub _entry: Entry,
     pub _instance: Instance,
@@ -250,6 +251,7 @@ pub fn create_renderer_data<T>(
             _swapchain_index: 0,
             _need_recreate_swapchain: false,
             _is_first_resize_event: true,
+            _is_first_rendering: true,
             _window: window,
             _entry: entry,
             _instance: instance,
@@ -292,6 +294,7 @@ impl RendererData {
     pub fn set_need_recreate_swapchain(&mut self, value: bool) { self._need_recreate_swapchain = value; }
     pub fn get_is_first_resize_event(&self) -> bool { self._is_first_resize_event }
     pub fn set_is_first_resize_event(&mut self, value: bool) { self._is_first_resize_event = value; }
+    pub fn reset_is_first_rendering(&mut self) { self._is_first_rendering = true; }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties { &self._device_properties }
@@ -461,16 +464,18 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         material_instance_name: &str,
+        geometry_data: &GeometryData,
+        custom_framebuffer_data: Option<&FramebufferData>,
+        custom_descriptor_sets: Option<&SwapchainIndexMap<vk::DescriptorSet>>,
         push_constant_data: Option<&T>,
-        geometry_data: &GeometryData
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
                 command_buffer,
@@ -546,13 +551,15 @@ impl RendererData {
         custom_descriptor_sets: Option<&SwapchainIndexMap<vk::DescriptorSet>>) {
         let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
         let pipeline_bind_point = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_bind_point;
-        let descriptor_set: vk::DescriptorSet = match custom_descriptor_sets {
-            Some(custom_descriptor_sets) => custom_descriptor_sets[swapchain_index as usize],
-            None => pipeline_binding_data._descriptor_sets[swapchain_index as usize],
+        let descriptor_sets: &SwapchainIndexMap<vk::DescriptorSet> = match custom_descriptor_sets {
+            Some(custom_descriptor_sets) => custom_descriptor_sets,
+            None => &pipeline_binding_data._descriptor_sets,
         };
-        let dynamic_offsets: &[u32] = &[];
-        unsafe {
-            self._device.cmd_bind_descriptor_sets(command_buffer, pipeline_bind_point, pipeline_layout, 0, &[descriptor_set], dynamic_offsets);
+        if false == descriptor_sets.is_empty() {
+            let dynamic_offsets: &[u32] = &[];
+            unsafe {
+                self._device.cmd_bind_descriptor_sets(command_buffer, pipeline_bind_point, pipeline_layout, 0, &[descriptor_sets[swapchain_index as usize]], dynamic_offsets);
+            }
         }
     }
 
@@ -648,6 +655,7 @@ impl RendererData {
         self.create_render_targets();
         resources.borrow_mut().load_graphics_datas(self);
         self.initialize_post_process_datas();
+        self.reset_is_first_rendering();
     }
 
     pub fn recreate_swapchain(&mut self) {
@@ -772,6 +780,13 @@ impl RendererData {
                 let quad_mesh = resources.get_mesh_data("quad").borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
 
+                // Begin command buffer
+                let command_buffer_begin_info = vk::CommandBufferBeginInfo {
+                    flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
+                    ..Default::default()
+                };
+                self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
+
                 // Upload Uniform Buffers
                 let ssao_constants = &self._post_process_data_ssao._ssao_constants;
                 let light_constants = main_light.get_light_constants();
@@ -821,12 +836,10 @@ impl RendererData {
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstants, light_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstants, ssao_constants);
 
-                // Begin command buffer
-                let command_buffer_begin_info = vk::CommandBufferBeginInfo {
-                    flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
-                    ..Default::default()
-                };
-                self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
+                if self._is_first_rendering {
+                    self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
+                    self._is_first_rendering = false;
+                }
 
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();
@@ -839,7 +852,7 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                self.render_material_instance(command_buffer, swapchain_index, "render_final", NONE_PUSH_CONSTANT, &quad_geometry_data);
+                self.render_material_instance(command_buffer, swapchain_index, "render_final", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
                 // Render Debug
                 //self._debug_render_target = RenderTargetType::Shadow;
@@ -888,6 +901,20 @@ impl RendererData {
 
             self._frame_index = (self._frame_index + 1) % (constants::MAX_FRAME_COUNT as i32);
         }
+    }
+
+    pub fn rendering_at_first(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+    ) {
+        let taa_resolve_framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
+        let taa_push_constans_data = PushConstant_RenderColor {
+            _color: Vector4::new(0.0, 0.0, 0.0, 0.0),
+        };
+        let taa_push_constants = Some(&taa_push_constans_data);
+        self.render_material_instance(command_buffer, swapchain_index, "render_color", &quad_geometry_data, taa_resolve_framebuffer, None, taa_push_constants);
     }
 
     pub fn render_solid_object(
@@ -991,7 +1018,7 @@ impl RendererData {
         let resources: Ref<Resources> = self._resources.borrow();
 
         // render_taa
-        self.render_material_instance(command_buffer, swapchain_index, "render_taa", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "render_taa", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // copy SceneColorCopy -> TAAResolve
         {
@@ -1091,10 +1118,10 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // SSAO
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Composite GBuffer
-        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
     }
 
     pub fn render_post_process(
@@ -1110,6 +1137,6 @@ impl RendererData {
         self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
 
         // Motion Blur
-        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", NONE_PUSH_CONSTANT, &quad_geometry_data);
+        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
     }
 }

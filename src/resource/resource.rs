@@ -75,6 +75,7 @@ pub type TextureDataMap = ResourceDataMap<TextureData>;
 pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
 pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
+// TODO: ImageSamplerMap
 
 
 #[derive(Debug, Clone)]
@@ -120,6 +121,10 @@ pub fn create_resources() -> RcRefCell<Resources> {
         _material_instance_data_map: MaterialInstanceDataMap::new(),
         _descriptor_data_map: DescriptorDataMap::new()
     })
+}
+
+fn get_resource_data_must<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str) -> &'a RcRefCell<T> {
+    resource_data_map.get(resource_name).unwrap()
 }
 
 fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str, default_resource_name: &str) -> &'a RcRefCell<T> {
@@ -504,7 +509,7 @@ impl Resources {
     }
 
     pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
-        get_resource_data(&self._framebuffer_datas_map, resource_name, "")
+        get_resource_data_must(&self._framebuffer_datas_map, resource_name)
     }
 
     // RenderPassLoader
@@ -529,7 +534,7 @@ impl Resources {
     }
 
     pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData> {
-        get_resource_data(&self._render_pass_data_map, resource_name, DEFAULT_RENDER_PASS_NAME)
+        get_resource_data_must(&self._render_pass_data_map, resource_name)
     }
 
     pub fn get_default_render_pass_data(&self) -> &RcRefCell<RenderPassData> {
@@ -588,7 +593,7 @@ impl Resources {
     }
 
     pub fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData> {
-        get_resource_data(&self._material_data_map, resource_name, DEFAULT_MATERIAL_NAME)
+        get_resource_data_must(&self._material_data_map, resource_name)
     }
 
     // MaterialInstance_datas
@@ -677,7 +682,7 @@ impl Resources {
     }
 
     pub fn get_material_instance_data(&self, resource_name: &str) -> &RcRefCell<MaterialInstanceData> {
-        get_resource_data(&self._material_instance_data_map, resource_name, DEFAULT_MATERIAL_INSTANCE_NAME)
+        get_resource_data_must(&self._material_instance_data_map, resource_name)
     }
 
     // Descriptor_datas

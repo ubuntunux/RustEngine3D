@@ -63,6 +63,11 @@ pub struct PushConstant_RenderCopy {
     pub _reserved2: u32,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderColor {
+    pub _color: Vector4<f32>
+}
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
