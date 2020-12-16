@@ -1,5 +1,6 @@
 use nalgebra::linalg;
 use nalgebra::{
+    Vector2,
     Vector3,
     Vector4,
     Matrix4,
@@ -15,7 +16,8 @@ pub struct CameraCreateInfo {
     pub near: f32,
     pub far: f32,
     pub fov: f32,
-    pub aspect: f32,
+    pub window_width: u32,
+    pub window_height: u32,
     pub position: Vector3<f32>,
 }
 
@@ -26,7 +28,8 @@ impl Default for CameraCreateInfo {
             near: constants::NEAR,
             far: constants::FAR,
             fov: constants::FOV,
-            aspect: 1.0,
+            window_width: 1024,
+            window_height: 768,
             position: Vector3::zeros(),
         }
     }
@@ -58,6 +61,16 @@ pub struct CameraObjectData {
     pub _inv_view_origin_projection_jitter: Matrix4<f32>,
     pub _view_origin_projection_prev_jitter: Matrix4<f32>,
     pub _transform_object: TransformObjectData,
+    pub _window_width: u32,
+    pub _window_height: u32,
+    pub _jitter_mode_uniform2x: [Vector2<f32>; 2],
+    pub _jitter_mode_hammersley4x: [Vector2<f32>; 4],
+    pub _jitter_mode_hammersley8x: [Vector2<f32>; 8],
+    pub _jitter_mode_hammersley16x: [Vector2<f32>; 16],
+    pub _jitter: Vector2<f32>,
+    pub _jitter_prev: Vector2<f32>,
+    pub _jitter_delta: Vector2<f32>,
+    pub _jitter_frame: i32,
     pub _updated: bool,
 }
 
@@ -70,7 +83,9 @@ impl CameraObjectData {
             _near: camera_create_info.near,
             _far: camera_create_info.far,
             _fov: camera_create_info.fov,
-            _aspect: camera_create_info.aspect,
+            _aspect: 1.0,
+            _window_width: camera_create_info.window_width,
+            _window_height: camera_create_info.window_height,
             _view: Matrix4::identity(),
             _inv_view: Matrix4::identity(),
             _view_origin: Matrix4::identity(),
@@ -90,29 +105,70 @@ impl CameraObjectData {
             _inv_view_origin_projection_jitter: Matrix4::identity(),
             _view_origin_projection_prev_jitter: Matrix4::identity(),
             _transform_object: TransformObjectData::new_transform_object_data(),
+            _jitter_mode_uniform2x: [Vector2::zeros(); 2],
+            _jitter_mode_hammersley4x: [Vector2::zeros(); 4],
+            _jitter_mode_hammersley8x: [Vector2::zeros(); 8],
+            _jitter_mode_hammersley16x: [Vector2::zeros(); 16],
+            _jitter: Vector2::new(0.0, 0.0),
+            _jitter_prev: Vector2::new(0.0, 0.0),
+            _jitter_delta: Vector2::new(0.0, 0.0),
+            _jitter_frame: 0,
             _updated: true,
         };
         // initialize
+        camera_object_data.set_aspect(camera_create_info.window_width, camera_create_info.window_height);
         camera_object_data._transform_object.set_position(&camera_create_info.position);
         camera_object_data._transform_object.update_transform_object();
+        camera_object_data._jitter_mode_uniform2x = [Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0), Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0)];
+        for i in 0..4 {
+            camera_object_data._jitter_mode_hammersley4x[i] = math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
+        }
+        for i in 0..8 {
+            camera_object_data._jitter_mode_hammersley8x[i] = math::hammersley_2d(i as u32, 8) * 2.0 - Vector2::new(1.0, 1.0);
+        }
+        for i in 0..16 {
+            camera_object_data._jitter_mode_hammersley16x[i] = math::hammersley_2d(i as u32, 16) * 2.0 - Vector2::new(1.0, 1.0);
+        }
         camera_object_data
     }
     pub fn get_camera_position(&self) -> &Vector3<f32> {
         &self._transform_object.get_position()
     }
     pub fn get_camera_position_prev(&self) -> &Vector3<f32> { &self._transform_object.get_prev_position() }
-    pub fn set_aspect(&mut self, aspect: f32) {
+    pub fn set_aspect(&mut self, window_width: u32, window_height: u32) {
+        let aspect: f32 = if 0 != window_height {
+            window_width as f32 / window_height as f32
+        } else {
+            1.0
+        };
+
+        self._window_width = window_width;
+        self._window_height = window_height;
         self._aspect = aspect;
         self.update_projection();
     }
     pub fn update_projection(&mut self) {
         self._updated = true;
         self._projection = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
+        self._projection_jitter.copy_from(&self._projection);
         linalg::try_invert_to(self._projection.into(), &mut self._inv_projection);
+        self._inv_projection_jitter.copy_from(&self._inv_projection);
     }
     pub fn update_camera_object_data(&mut self) {
-        self._view_origin_projection_prev = self._view_origin_projection.clone() as Matrix4<f32>;
+        self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
+        // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
+        self._jitter_prev = self._jitter.into();
+        self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
+        self._jitter[0] /= self._window_width as f32;
+        self._jitter[1] /= self._window_height as f32;
+        // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
+        self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
 
+        // copy prev matrices
+        self._view_origin_projection_prev.copy_from(&self._view_origin_projection);
+        self._view_origin_projection_prev_jitter.copy_from(&self._view_origin_projection_jitter);
+
+        // update matrices
         let updated = self._transform_object.update_transform_object();
         if updated || self._updated {
             // view matrix is inverse matrix of transform, cause it's camera.
@@ -129,5 +185,14 @@ impl CameraObjectData {
             self._inv_view_origin_projection = &self._inv_view_origin * &self._inv_projection;
             self._updated = false;
         }
+
+        // Update projection jitter
+        self._projection_jitter.column_mut(2)[0] += self._jitter[0];
+        self._projection_jitter.column_mut(2)[1] += self._jitter[1];
+        linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
+
+        self._view_projection_jitter = &self._projection_jitter * &self._view;
+        self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
+        linalg::try_invert_to(self._view_origin_projection_jitter.into(), &mut self._inv_view_origin_projection_jitter);
     }
 }

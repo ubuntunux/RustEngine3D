@@ -43,14 +43,6 @@ pub struct PostProcessData_TAA {
     pub _rendertarget_height: u32,
     pub _taa_resolve_framebuffer_data: FramebufferData,
     pub _taa_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
-    pub _jitter_mode_uniform2x: [Vector2<f32>; 2],
-    pub _jitter_mode_hammersley4x: [Vector2<f32>; 4],
-    pub _jitter_mode_hammersley8x: [Vector2<f32>; 8],
-    pub _jitter_mode_hammersley16x: [Vector2<f32>; 16],
-    pub _jitter: Vector2<f32>,
-    pub _jitter_prev: Vector2<f32>,
-    pub _jitter_delta: Vector2<f32>,
-    pub _jitter_frame: u32,
 }
 
 impl Default for PostProcessData_Bloom {
@@ -107,15 +99,7 @@ impl Default for PostProcessData_TAA {
             _rendertarget_width: 1024,
             _rendertarget_height: 768,
             _taa_resolve_framebuffer_data: FramebufferData::default(),
-            _taa_descriptor_sets: SwapchainIndexMap::new(),
-            _jitter_mode_uniform2x: [Vector2::zeros(); 2],
-            _jitter_mode_hammersley4x: [Vector2::zeros(); 4],
-            _jitter_mode_hammersley8x: [Vector2::zeros(); 8],
-            _jitter_mode_hammersley16x: [Vector2::zeros(); 16],
-            _jitter: Vector2::new(0.0, 0.0),
-            _jitter_prev: Vector2::new(0.0, 0.0),
-            _jitter_delta: Vector2::new(0.0, 0.0),
-            _jitter_frame: 0,
+            _taa_descriptor_sets: SwapchainIndexMap::new()
         }
     }
 }
@@ -296,29 +280,6 @@ impl PostProcessData_TAA {
         self._taa_descriptor_sets = descriptor_sets;
         self._rendertarget_width = taa_render_target._image_width;
         self._rendertarget_height = taa_render_target._image_height;
-        self._jitter_mode_uniform2x = [Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0), Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0)];
-        for i in 0..4 {
-            self._jitter_mode_hammersley4x[i] = math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
-        }
-        for i in 0..8 {
-            self._jitter_mode_hammersley8x[i] = math::hammersley_2d(i as u32, 8) * 2.0 - Vector2::new(1.0, 1.0);
-        }
-        for i in 0..16 {
-            self._jitter_mode_hammersley16x[i] = math::hammersley_2d(i as u32, 16) * 2.0 - Vector2::new(1.0, 1.0);
-        }
-    }
-
-    pub fn update(&mut self) {
-        self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as u32;
-
-        // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
-        self._jitter_prev = self._jitter.into();
-        self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
-        self._jitter[0] /= self._rendertarget_width as f32;
-        self._jitter[1] /= self._rendertarget_height as f32;
-
-        // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
-        self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
     }
 
     pub fn destroy(&mut self, device: &Device) {

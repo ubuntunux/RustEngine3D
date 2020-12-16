@@ -42,8 +42,8 @@ struct SCENE_CONSTANTS
     vec2 BACKBUFFER_SIZE;
     float TIME;
     float DELTA_TIME;
-    float JITTER_FRAME;
     int SCENE_CONSTANTS_DUMMY0;
+    int SCENE_CONSTANTS_DUMMY1;
 };
 
 // uniform_buffer_datas.rs - struct ViewConstants
@@ -68,14 +68,14 @@ struct VIEW_CONSTANTS
     mat4 INV_VIEW_ORIGIN_PROJECTION_JITTER;
     mat4 VIEW_ORIGIN_PROJECTION_PREV_JITTER;
     vec3 CAMERA_POSITION;
-    float VIEWCONSTANTS_DUMMY0;
+    int JITTER_FRAME;
     vec3 CAMERA_POSITION_PREV;
-    float VIEWCONSTANTS_DUMMY1;
+    float VIEWCONSTANTS_DUMMY0;
     vec2 NEAR_FAR;
     vec2 JITTER_DELTA;
     vec2 JITTER_OFFSET;
+    float VIEWCONSTANTS_DUMMY1;
     float VIEWCONSTANTS_DUMMY2;
-    float VIEWCONSTANTS_DUMMY3;
 };
 
 // uniform_buffer_datas.rs - struct LightConstants

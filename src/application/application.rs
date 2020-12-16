@@ -244,7 +244,8 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     renderer_data.borrow_mut().initialize_post_process_datas();
 
     let camera_data = CameraCreateInfo {
-        aspect: if 0 != height { width as f32 / height as f32 } else { 1.0 },
+        window_width: width,
+        window_height: height,
         position: Vector3::new(0.0, 0.0, 10.0),
         ..Default::default()
     };
@@ -285,12 +286,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                             renderer_data.resize_window();
                         }
                         let window_size = renderer_data._window.inner_size();
-                        let aspect: f32 = if 0 != window_size.height {
-                            window_size.width as f32 / window_size.height as f32
-                        } else {
-                            1.0
-                        };
-                        scene_manager_data.get_main_camera().borrow_mut().set_aspect(aspect);
+                        scene_manager_data.get_main_camera().borrow_mut().set_aspect(window_size.width, window_size.height);
                         renderer_data.set_is_first_resize_event(false);
                         renderer_data.set_need_recreate_swapchain(false);
                     }

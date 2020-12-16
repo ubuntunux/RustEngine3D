@@ -344,7 +344,6 @@ impl RendererData {
     }
 
     pub fn update_post_process_datas(&mut self) {
-        self._post_process_data_taa.update();
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -798,8 +797,8 @@ impl RendererData {
                     _backbuffer_size: screen_size.clone() as Vector2<f32>,
                     _time: elapsed_time as f32,
                     _delta_time: delta_time as f32,
-                    _jitter_frame: 0.0,
                     _scene_constants_dummy0: 0,
+                    _scene_constants_dummy1: 0,
                 };
                 let view_constants = shader_buffer_datas::ViewConstants {
                     _view: main_camera._view.into(),
@@ -821,14 +820,14 @@ impl RendererData {
                     _inv_view_origin_projection_jitter: main_camera._inv_view_origin_projection_jitter.into(),
                     _view_origin_projection_prev_jitter: main_camera._view_origin_projection_prev_jitter.into(),
                     _camera_position: main_camera._transform_object._position.clone() as Vector3<f32>,
-                    _viewconstants_dummy0: 0.0,
+                    _jitter_frame: main_camera._jitter_frame,
                     _camera_position_prev: main_camera._transform_object._prev_position.clone() as Vector3<f32>,
-                    _viewconstants_dummy1: 0.0,
+                    _viewconstants_dummy0: 0.0,
                     _near_far: Vector2::new(constants::NEAR, constants::FAR),
-                    _jitter_delta: Vector2::zeros(),
-                    _jitter_offset: Vector2::zeros(),
+                    _jitter_delta: main_camera._jitter_delta.into(),
+                    _jitter_offset: main_camera._jitter.into(),
+                    _viewconstants_dummy1: 0.0,
                     _viewconstants_dummy2: 0.0,
-                    _viewconstants_dummy3: 0.0,
                 };
 
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &scene_constants);

@@ -87,8 +87,8 @@ pub struct SceneConstants {
     pub _backbuffer_size: Vector2<f32>,
     pub _time: f32,
     pub _delta_time: f32,
-    pub _jitter_frame: f32,
     pub _scene_constants_dummy0: i32,
+    pub _scene_constants_dummy1: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
@@ -113,14 +113,14 @@ pub struct ViewConstants {
     pub _inv_view_origin_projection_jitter: Matrix4<f32>,
     pub _view_origin_projection_prev_jitter: Matrix4<f32>,
     pub _camera_position: Vector3<f32>,
-    pub _viewconstants_dummy0: f32,
+    pub _jitter_frame: i32,
     pub _camera_position_prev: Vector3<f32>,
-    pub _viewconstants_dummy1: f32,
+    pub _viewconstants_dummy0: f32,
     pub _near_far: Vector2<f32>,
     pub _jitter_delta: Vector2<f32>,
     pub _jitter_offset: Vector2<f32>,
+    pub _viewconstants_dummy1: f32,
     pub _viewconstants_dummy2: f32,
-    pub _viewconstants_dummy3: f32,
 }
 
 // scene_constants.glsl - struct LIGHT_CONSTANTS
