@@ -187,8 +187,8 @@ impl CameraObjectData {
         }
 
         // Update projection jitter
-        self._projection_jitter.column_mut(2)[0] += self._jitter[0];
-        self._projection_jitter.column_mut(2)[1] += self._jitter[1];
+        self._projection_jitter.column_mut(2)[0] = -self._jitter[0];
+        self._projection_jitter.column_mut(2)[1] = -self._jitter[1];
         linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
 
         self._view_projection_jitter = &self._projection_jitter * &self._view;

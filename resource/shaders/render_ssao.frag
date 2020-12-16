@@ -41,7 +41,7 @@ void main() {
         discard;
     }
 
-    const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION, texCoord, device_depth);
+    const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
     const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
     const vec2 texture_size = textureSize(textureSceneDepth, 0);
     const vec2 noise_size = textureSize(ssaoNoise, 0);
@@ -62,7 +62,7 @@ void main() {
 
         // project sample position:
         vec4 offset = vec4(pos, 1.0);
-        offset = view_constants.VIEW_ORIGIN_PROJECTION * offset;
+        offset = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * offset;
         offset.xyz /= offset.w;
         offset.xy = offset.xy * 0.5 + 0.5;
 
@@ -80,7 +80,7 @@ void main() {
         #define DISTANCE_CHECK true
         if(DISTANCE_CHECK)
         {
-            const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION, offset.xy, occlusion_depth);
+            const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
             const float distance = length(occlusion_relative_pos - relative_pos);
             const float occlusion_density_base = 1.0;
             const float occlusion_density_closet = 2.0;

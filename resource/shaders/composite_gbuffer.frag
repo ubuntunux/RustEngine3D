@@ -35,9 +35,7 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-
     float depth = texture(textureSceneDepth, vs_output.texCoord).x;
-
     if(depth == 1.0)
     {
         outColor = vec4(0.0);
@@ -51,7 +49,7 @@ void main() {
     vec4 material = texture(textureSceneMaterial, vs_output.texCoord);
     vec3 N = normalize(texture(textureSceneNormal, vs_output.texCoord).xyz * 2.0 - 1.0);
 
-    vec4 relative_position = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION, vs_output.texCoord, depth);
+    vec4 relative_position = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, vs_output.texCoord, depth);
     vec3 world_position = relative_position.xyz + view_constants.CAMERA_POSITION;
 
     float roughness = material.x;
