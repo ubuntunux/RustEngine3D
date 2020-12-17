@@ -1,15 +1,30 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
 #include "screen_space_raycast.glsl"
 #include "PCFKernels.glsl"
 #include "utility.glsl"
 #include "scene_constants.glsl"
-#include "quad.glsl"
+#include "render_quad_common.glsl"
 
-uniform sampler2D texture_random;
-uniform sampler2D texture_scene;
-uniform sampler2D texture_normal;
-uniform sampler2D texture_material;
-uniform sampler2D texture_velocity;
-uniform sampler2D texture_depth;
+layout(binding = 0) uniform SceneConstants
+{
+    SCENE_CONSTANTS scene_constants;
+};
+layout(binding = 1) uniform ViewConstants
+{
+    VIEW_CONSTANTS view_constants;
+};
+layout(binding = 2) uniform sampler2D texture_random;
+layout(binding = 3) uniform sampler2D texture_scene;
+layout(binding = 4) uniform sampler2D texture_normal;
+layout(binding = 5) uniform sampler2D texture_material;
+layout(binding = 6) uniform sampler2D texture_velocity;
+layout(binding = 7) uniform sampler2D texture_depth;
+
+layout(location = 0) in VERTEX_OUTPUT vs_output;
+layout(location = 0) out vec4 outColor;
 
 uint ReverseBits32( uint bits )
 {
@@ -69,14 +84,14 @@ vec3 TangentToWorld(vec3 vector, vec3 TangentY)
     return GetTangentBasis(TangentY) * vector;
 }
 
-vec4 SampleScreenColor(sampler2D texPrevSceneColor, vec2 UV, float lod)
+vec4 SampleScreenColor(sampler2D texPrevSceneColor, vec2 uv, float lod)
 {
     vec4 OutColor;
-    OutColor.xyz = texture2DLod(texPrevSceneColor, UV, lod).xyz;
+    OutColor.xyz = textureLod(texPrevSceneColor, uv, lod).xyz;
     OutColor.w = 1;
 
     // Off screen masking
-    vec2 ScreenPos = UV * 2.0 - 1.0;
+    vec2 ScreenPos = uv * 2.0 - 1.0;
 
     // ver1
     //vec2 Vignette = saturate(abs(ScreenPos) * 5.0 - 4.0);
@@ -88,21 +103,16 @@ vec4 SampleScreenColor(sampler2D texPrevSceneColor, vec2 UV, float lod)
     OutColor.w *= clamp(1.0 - length(Vignette), 0.0, 1.0);
 
     return OutColor;
-
 }
 
-#ifdef FRAGMENT_SHADER
-layout (location = 0) in VERTEX_OUTPUT vs_output;
-layout (location = 0) out vec4 fs_output;
-
 void main() {
-    fs_output = vec4(0.0);
+    outColor = vec4(0.0);
 
     vec2 tex_coord = vs_output.tex_coord.xy;
-    float linear_depth = texture2D(texture_depth, tex_coord).x;
-    float depth = linear_depth_to_depth(linear_depth);
+    float depth = texture(texture_depth, tex_coord).x;
+    float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
 
-    if(depth >= 1.0)
+    if(1.0 <= depth)
     {
         return;
     }
@@ -110,11 +120,11 @@ void main() {
     ivec2 PixelPos = ivec2(gl_FragCoord.xy);
 
     vec4 ndc_coord = vec4(vs_output.tex_coord.xy * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-    vec4 relative_pos = INV_VIEW_ORIGIN * INV_PROJECTION * ndc_coord;
+    vec4 relative_pos = view_constants.INV_VIEW_ORIGIN_PROJECTION * ndc_coord;
     relative_pos.xyz /= relative_pos.w;
 
     vec3 V = normalize(-relative_pos.xyz);
-    vec3 N = normalize(texture2D(texture_normal, vs_output.tex_coord.xy).xyz * 2.0 - 1.0);
+    vec3 N = normalize(texture(texture_normal, vs_output.tex_coord.xy).xyz * 2.0 - 1.0);
     float NdotV = dot(V, N);
 
     if(0.9 < NdotV)
@@ -123,7 +133,7 @@ void main() {
     }
 
     float fresnel = pow(1.0 - clamp(NdotV, 0.0, 1.0), 4.0);
-    float Roughness = texture2D(texture_material, vs_output.tex_coord.xy).x;
+    float Roughness = texture(texture_material, vs_output.tex_coord.xy).x;
     Roughness = mix(Roughness, Roughness * Roughness, fresnel);
     float sqrtRoughness = sqrt(Roughness);
 
@@ -136,8 +146,8 @@ void main() {
 
     for (int i = 0; i < NumRays; i++)
     {
-        vec2 poisson = PoissonSamples[int(JITTER_FRAME + i * PoissonSampleCount / NumRays) % PoissonSampleCount];
-        vec2 random = texture2D(texture_random, tex_coord + poisson).xy;
+        vec2 poisson = PoissonSamples[int(view_constants.JITTER_FRAME + i * PoissonSampleCount / NumRays) % PoissonSampleCount];
+        vec2 random = texture(texture_random, tex_coord + poisson).xy;
         float StepOffset = 0.5 - rand(tex_coord + random);
 
         vec2 E = Hammersley(i, NumRays, uvec2(random * 117));
@@ -146,8 +156,8 @@ void main() {
 
         vec4 HitUVzTime = RayCast(
             texture_depth,
-            VIEW_ORIGIN,
-            PROJECTION,
+            view_constants.VIEW_ORIGIN,
+            view_constants.PROJECTION,
             relative_pos.xyz,
             R,
             Roughness,
@@ -160,20 +170,18 @@ void main() {
         // if there was a hit
         if (HitUVzTime.w < 1)
         {
-            HitSampleUV = HitUVzTime.xy - texture2D(texture_velocity, HitUVzTime.xy).xy;
+            HitSampleUV = HitUVzTime.xy - texture(texture_velocity, HitUVzTime.xy).xy;
             vec4 SampleColor = SampleScreenColor(texture_scene, HitSampleUV, sqrtRoughness * 6.0);
             SampleColor.rgb /= 1 + get_luminance(SampleColor.rgb);
-            fs_output += SampleColor;
+            outColor += SampleColor;
             hit_count += 1.0;
         }
     }
 
     if(0.0 < hit_count)
     {
-        fs_output.rgb /= hit_count;
-        fs_output.rgb /= 1.0 - get_luminance(fs_output.rgb);
-        fs_output.a /= NumRays;
+        outColor.rgb /= hit_count;
+        outColor.rgb /= 1.0 - get_luminance(outColor.rgb);
+        outColor.a /= NumRays;
     }
 }
-
-#endif // FRAGMENT_SHADER

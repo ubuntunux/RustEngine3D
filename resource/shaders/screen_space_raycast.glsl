@@ -1,17 +1,17 @@
 #include "utility.glsl"
 
-vec4 SampleDepthtexture2D(sampler2D texDepth, vec4 SampleUV0, vec4 SampleUV1, float level)
+vec4 SampleDepthtexture2D(sampler2D texture_depth, vec4 SampleUV0, vec4 SampleUV1, float level)
 {  
     vec4 SampleDepth;
-    SampleDepth.x = texture2DLod(texDepth, SampleUV0.xy, level).x;
-    SampleDepth.y = texture2DLod(texDepth, SampleUV0.zw, level).x;
-    SampleDepth.z = texture2DLod(texDepth, SampleUV1.xy, level).x;
-    SampleDepth.w = texture2DLod(texDepth, SampleUV1.zw, level).x;
+    SampleDepth.x = textureLod(texture_depth, SampleUV0.xy, level).x;
+    SampleDepth.y = textureLod(texture_depth, SampleUV0.zw, level).x;
+    SampleDepth.z = textureLod(texture_depth, SampleUV1.xy, level).x;
+    SampleDepth.w = textureLod(texture_depth, SampleUV1.zw, level).x;
     return SampleDepth;
 }
  
 vec4 RayCast(
-    sampler2D texLinearDepth,
+    sampler2D texture_depth,
     mat4 matViewOrigin,
     mat4 matProjection,
     vec3 RayOriginTranslatedWorld,
@@ -77,8 +77,7 @@ vec4 RayCast(
         vec4 SampleZ = RayUVz.zzzz + RayStepUVz.zzzz * vec4(1, 2, 3, 4);
  
         // Use lower res for farther samples
-        vec4 SampleDepth = SampleDepthtexture2D(texLinearDepth, SampleUV0, SampleUV1, lod_level);
-        SampleDepth = linear_depth_to_depth(SampleDepth);
+        vec4 SampleDepth = SampleDepthtexture2D(texture_depth, SampleUV0, SampleUV1, lod_level);
 
         vec4 DepthDiff = SampleZ - SampleDepth;
  

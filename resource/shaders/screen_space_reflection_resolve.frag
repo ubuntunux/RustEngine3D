@@ -1,11 +1,18 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
 #include "utility.glsl"
 #include "PCFKernels.glsl"
 #include "scene_constants.glsl"
-#include "quad.glsl"
+#include "render_quad_common.glsl"
 
-uniform sampler2D texture_input;
-uniform sampler2D texture_resolve_prev;
-uniform sampler2D texture_velocity;
+layout(binding = 0) uniform sampler2D texture_input;
+layout(binding = 1) uniform sampler2D texture_resolve_prev;
+layout(binding = 2) uniform sampler2D texture_velocity;
+
+layout(location = 0) in VERTEX_OUTPUT vs_output;
+layout(location = 0) out vec4 outColor;
 
 const float VarianceClipGamma = 1.5;
 
@@ -30,11 +37,6 @@ vec4 ClipAABB(vec4 aabbMin, vec4 aabbMax, vec4 prevSample, vec4 avg)
     }
 }
 
-#ifdef FRAGMENT_SHADER
-layout (location = 0) in VERTEX_OUTPUT vs_output;
-layout (location = 0) out vec4 fs_output;
-
-
 void main()
 {
     vec2 uv = vs_output.tex_coord;
@@ -55,7 +57,7 @@ void main()
         {
             vec2 sampleOffset = vec2(x, y);
             vec2 sampleUV = saturate(uv + sampleOffset / texture_input_size);
-            vec4 sampleColor = texture2DLod(texture_input, sampleUV, 0.0);
+            vec4 sampleColor = textureLod(texture_input, sampleUV, 0.0);
 
             if(0 == x && 0 == y)
             {
@@ -80,8 +82,8 @@ void main()
     }
 
     // Anti Aliasing
-    vec2 velocity = texture2DLod(texture_velocity, uv, 0.0).xy;
-    vec4 prevColor = texture2DLod(texture_resolve_prev, uv - velocity, 0.0);
+    vec2 velocity = textureLod(texture_velocity, uv, 0.0).xy;
+    vec4 prevColor = textureLod(texture_resolve_prev, uv - velocity, 0.0);
     prevColor.w = saturate(prevColor.w);
 
     // NeighborhoodClampMode
@@ -101,9 +103,8 @@ void main()
     weightA = weightA * (1.0 + currColor.w * 10.0);
     weightB = weightB * (1.0 + prevColor.w * 10.0);
 
-    fs_output = (currColor * weightA + prevColor * weightB) / (weightA + weightB);
+    outColor = (currColor * weightA + prevColor * weightB) / (weightA + weightB);
 
-    fs_output.xyz = max(vec3(0.0), fs_output.xyz);
-    fs_output.w = saturate(fs_output.w);
+    outColor.xyz = max(vec3(0.0), outColor.xyz);
+    outColor.w = saturate(outColor.w);
 }
-#endif
