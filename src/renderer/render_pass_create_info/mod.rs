@@ -1,4 +1,5 @@
 pub mod composite_gbuffer;
+pub mod generate_min_z;
 pub mod render_bloom;
 pub mod render_color;
 pub mod render_copy;

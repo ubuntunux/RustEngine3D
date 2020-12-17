@@ -41,9 +41,24 @@ pub struct RenderPassDataCreateInfo  {
     pub _pipeline_data_create_infos: Vec<PipelineDataCreateInfo>
 }
 
+impl Default for RenderPassDataCreateInfo {
+    fn default() -> RenderPassDataCreateInfo {
+        RenderPassDataCreateInfo {
+            _render_pass_create_info_name: String::new(),
+            _render_pass_framebuffer_create_info: FramebufferDataCreateInfo::default(),
+            _color_attachment_descriptions: Vec::new(),
+            _depth_attachment_descriptions: Vec::new(),
+            _resolve_attachment_descriptions: Vec::new(),
+            _subpass_dependencies: Vec::new(),
+            _pipeline_data_create_infos: Vec::new(),
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PipelineDataCreateInfo {
     pub _pipeline_data_create_info_name: String,
+    pub _pipeline_bind_point: vk::PipelineBindPoint,
     pub _pipeline_compute_shader_file: PathBuf,
     pub _pipeline_vertex_shader_file: PathBuf,
     pub _pipeline_fragment_shader_file: PathBuf,
@@ -67,6 +82,7 @@ impl Default for PipelineDataCreateInfo {
     fn default() -> PipelineDataCreateInfo {
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::new(),
+            _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_compute_shader_file: PathBuf::new(),
             _pipeline_vertex_shader_file: PathBuf::new(),
             _pipeline_fragment_shader_file: PathBuf::new(),
@@ -167,6 +183,7 @@ impl Default for ImageAttachmentDescription {
 #[derive(Clone, Debug)]
 pub struct PipelineData {
     pub _pipeline_data_name: String,
+    pub _compute_shader_create_info: vk::PipelineShaderStageCreateInfo,
     pub _vertex_shader_create_info: vk::PipelineShaderStageCreateInfo,
     pub _fragment_shader_create_info: vk::PipelineShaderStageCreateInfo,
     pub _pipeline: vk::Pipeline,
@@ -174,6 +191,22 @@ pub struct PipelineData {
     pub _pipeline_layout: vk::PipelineLayout,
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
+}
+
+impl Default for PipelineData {
+    fn default() -> PipelineData {
+        PipelineData {
+            _pipeline_data_name: String::new(),
+            _compute_shader_create_info: vk::PipelineShaderStageCreateInfo::default(),
+            _vertex_shader_create_info: vk::PipelineShaderStageCreateInfo::default(),
+            _fragment_shader_create_info: vk::PipelineShaderStageCreateInfo::default(),
+            _pipeline: vk::Pipeline::null(),
+            _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+            _pipeline_layout: vk::PipelineLayout::null(),
+            _pipeline_dynamic_states: Vec::new(),
+            _descriptor_data: DescriptorData::default(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -219,12 +252,17 @@ pub fn create_render_pass_data(
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
     let mut default_pipeline_data_name: String = String::new();
     for i in 0..count {
-        let pipeline_data = create_graphics_pipeline_data(
-            device,
-            render_pass,
-            &render_pass_data_create_info._pipeline_data_create_infos[i],
-            &descriptor_datas[i].borrow()
-        );
+        let bind_point = render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
+        let pipeline_data = if vk::PipelineBindPoint::GRAPHICS == bind_point {
+            create_graphics_pipeline_data(
+                device,
+                render_pass,
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                &descriptor_datas[i].borrow()
+            )
+        } else {
+            PipelineData::default()
+        };
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }
@@ -510,9 +548,10 @@ pub fn create_graphics_pipeline_data(
             _fragment_shader_create_info: fragment_shader_create_info,
             _pipeline: graphics_pipelines[0],
             _pipeline_layout: pipeline_layout,
-            _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+            _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
-            _descriptor_data: descriptor_data.clone()
+            _descriptor_data: descriptor_data.clone(),
+            ..Default::default()
         }
     }
 }

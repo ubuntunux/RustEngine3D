@@ -63,6 +63,12 @@ impl Default for FramebufferDataCreateInfo {
     }
 }
 
+impl FramebufferDataCreateInfo {
+    pub fn is_valid(&self) -> bool {
+        false == self._framebuffer_image_views.is_empty()
+    }
+}
+
 pub fn create_framebuffer_data_create_info(
     color_render_targets: Vec<&TextureData>,
     depth_render_targets: Vec<&TextureData>,
