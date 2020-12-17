@@ -73,14 +73,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_data_create_info_name: String::from("render_ssao"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("render_ssao.frag"),
-            _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
-            _pipeline_polygon_mode: vk::PolygonMode::FILL,
-            _pipeline_cull_mode: vk::CullModeFlags::NONE,
-            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-            _pipeline_viewport: vk::Viewport::default(),
-            _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
                 _depth_write_enable: false,
@@ -133,6 +127,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 },
             ],
+            ..Default::default()
         }
     ];
 

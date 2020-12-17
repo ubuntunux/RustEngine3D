@@ -106,12 +106,8 @@ pub fn get_render_pass_data_create_info(
             ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
-            _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-            _pipeline_viewport: vk::Viewport::default(),
-            _pipeline_scissor_rect: vk::Rect2D::default(),
-            _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: match render_object_type {
                 RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
@@ -161,6 +157,7 @@ pub fn get_render_pass_data_create_info(
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 }
             ],
+            ..Default::default()
         }
     ];
 

@@ -44,6 +44,7 @@ pub struct RenderPassDataCreateInfo  {
 #[derive(Clone, Debug)]
 pub struct PipelineDataCreateInfo {
     pub _pipeline_data_create_info_name: String,
+    pub _pipeline_compute_shader_file: PathBuf,
     pub _pipeline_vertex_shader_file: PathBuf,
     pub _pipeline_fragment_shader_file: PathBuf,
     pub _pipeline_shader_defines: Vec<String>,
@@ -60,6 +61,31 @@ pub struct PipelineDataCreateInfo {
     pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
     pub _push_constant_ranges: Vec<vk::PushConstantRange>, // ex) mem::size_of::<PushConstant_StaticRenderObject>()
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
+}
+
+impl Default for PipelineDataCreateInfo {
+    fn default() -> PipelineDataCreateInfo {
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::new(),
+            _pipeline_compute_shader_file: PathBuf::new(),
+            _pipeline_vertex_shader_file: PathBuf::new(),
+            _pipeline_fragment_shader_file: PathBuf::new(),
+            _pipeline_shader_defines: Vec::new(),
+            _pipeline_dynamic_states: Vec::new(),
+            _pipeline_sample_count: vk::SampleCountFlags::TYPE_1,
+            _pipeline_polygon_mode: vk::PolygonMode::FILL,
+            _pipeline_cull_mode: vk::CullModeFlags::NONE,
+            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _pipeline_viewport: vk::Viewport::default(),
+            _pipeline_scissor_rect: vk::Rect2D::default(),
+            _pipeline_color_blend_modes: Vec::new(),
+            _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
+            _vertex_input_bind_descriptions: Vec::new(),
+            _vertex_input_attribute_descriptions: Vec::new(),
+            _push_constant_ranges: Vec::new(),
+            _descriptor_data_create_infos: Vec::new(),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]

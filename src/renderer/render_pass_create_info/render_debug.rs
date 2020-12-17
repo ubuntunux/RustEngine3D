@@ -83,14 +83,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_data_create_info_name: String::from("render_debug"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("render_debug.frag"),
-            _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
-            _pipeline_polygon_mode: vk::PolygonMode::FILL,
-            _pipeline_cull_mode: vk::CullModeFlags::NONE,
-            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-            _pipeline_viewport: vk::Viewport::default(),
-            _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
                 _depth_write_enable: false,
@@ -98,7 +92,6 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: Vec::new(),
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
@@ -107,6 +100,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 },
             ],
+            ..Default::default()
         }
     ];
 
