@@ -32,7 +32,6 @@ pub struct TextureCreateInfo<T> {
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _enable_mipmap: bool,
     pub _enable_anisotropy: bool,
-    pub _immutable: bool,
     pub _texture_initial_datas: Vec<T>
 }
 
@@ -88,7 +87,6 @@ impl<T> Default for TextureCreateInfo<T> {
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _enable_mipmap: true,
             _enable_anisotropy: true,
-            _immutable: true,
             _texture_initial_datas: Vec::new(),
         }
     }

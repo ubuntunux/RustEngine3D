@@ -635,17 +635,17 @@ impl Resources {
                                 let uniform_buffer_data = renderer_data.get_shader_buffer_data(ShaderBufferDataType::from_str(&material_parameter_name.as_str()).unwrap());
                                 DescriptorResourceInfo::DescriptorBufferInfo(uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone())
                             },
-                            DescriptorResourceType::Texture => {
+                            DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
                                 let texture_data = match maybe_material_parameter {
                                     Some(Value::String(value)) => self.get_texture_data(value),
                                     _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                 };
                                 DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow()._descriptor_image_info)
                             },
-                            DescriptorResourceType::RenderTarget => {
+                            DescriptorResourceType::RenderTarget | DescriptorResourceType::StorageRenderTarget => {
                                 let texture_data = renderer_data.get_render_target(RenderTargetType::from_str(&material_parameter_name.as_str()).unwrap());
                                 DescriptorResourceInfo::DescriptorImageInfo(texture_data._descriptor_image_info)
-                            }
+                            },
                         };
                         return descriptor_resource_info;
                     }).filter(|descriptor_resource_info| match *descriptor_resource_info {

@@ -42,14 +42,11 @@ layout (location = 0) in VERTEX_OUTPUT vs_output;
 layout (location = 0) out vec4 outColor;
 
 void main() {
-    vec2 texCoord = vs_output.texCoord.xy;
-    vec2 scale = pushConstant._blur_scale / textureSize(textureSrc, 0);
-
     outColor = vec4(0.0, 0.0, 0.0, 1.0);
-
+    vec2 texCoord = vs_output.texCoord.xy;
+    vec2 blur_scale = pushConstant._blur_scale / textureSize(textureSrc, 0);
     for( int i = 0; i < 7; i++ )
 	{
-	    vec2 uv = vec2(texCoord.x + gaussFilter[i].x * scale.x, texCoord.y + gaussFilter[i].x * scale.y);
-		outColor += texture(textureSrc, uv) * gaussFilter[i].yyyy;
+		outColor += texture(textureSrc, texCoord + gaussFilter[i].x * blur_scale) * gaussFilter[i].yyyy;
 	}
 }

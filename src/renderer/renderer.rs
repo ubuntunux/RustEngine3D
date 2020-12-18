@@ -315,6 +315,7 @@ impl RendererData {
     }
 
     pub fn initialize_post_process_datas(&mut self) {
+        // Bloom
         self._post_process_data_bloom.initialize(
             &self._device,
             &self._resources,
@@ -329,18 +330,26 @@ impl RendererData {
             self._render_target_data_map.get(&RenderTargetType::BloomTemp3).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::BloomTemp4).as_ref().unwrap(),
         );
-
+        // Temporal AA
         self._post_process_data_taa.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
         );
+        // SSAO
+        self._post_process_data_ssao.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::SSAO).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSAOTemp).as_ref().unwrap(),
+        )
     }
 
     pub fn destroy_post_process_datas(&mut self) {
         self._post_process_data_bloom.destroy(&self._device);
         self._post_process_data_taa.destroy(&self._device);
+        self._post_process_data_ssao.destroy(&self._device);
     }
 
     pub fn update_post_process_datas(&mut self) {
@@ -1110,6 +1119,31 @@ impl RendererData {
         }
     }
 
+    pub fn render_ssao(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData
+    ) {
+        // render ssao
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+
+        let framebuffer_h = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data0);
+        let descriptor_sets_h = Some(&self._post_process_data_ssao._ssao_blur_descriptor_sets0);
+        let framebuffer_v = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data1);
+        let descriptor_sets_v = Some(&self._post_process_data_ssao._ssao_blur_descriptor_sets1);
+        let push_constants_blur_h = PushConstant_GaussianBlur {
+            _blur_scale: Vector2::new(1.0, 0.0),
+            ..Default::default()
+        };
+        let push_constants_blur_v = PushConstant_GaussianBlur {
+            _blur_scale: Vector2::new(0.0, 1.0),
+            ..Default::default()
+        };
+        self.render_material_instance(command_buffer, swapchain_index, "render_gaussian_blur", quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
+        self.render_material_instance(command_buffer, swapchain_index, "render_gaussian_blur", quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
+    }
+
     pub fn render_pre_process(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -1117,7 +1151,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // SSAO
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
 
         // Composite GBuffer
         self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);

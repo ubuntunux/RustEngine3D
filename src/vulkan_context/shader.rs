@@ -13,6 +13,7 @@ use ash::{
 use ash::version::{
     DeviceV1_0
 };
+use ash::vk::Handle;
 
 pub const SHADER_CACHE_DIRECTORY: &str = "resource/shader_caches";
 pub const SHADER_DIRECTORY: &str = "resource/shaders";
@@ -121,7 +122,6 @@ pub fn create_shader_stage_create_info(
     shader_defines: &[String],
     stage_flag: vk::ShaderStageFlags
 ) -> vk::PipelineShaderStageCreateInfo {
-    log::debug!("    create_shader_stage_create_info: {:?}: {:?}", stage_flag, shader_filename);
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
     let code_buffer = compile_glsl(shader_filename, shader_defines);
     let shader_module_create_info = vk::ShaderModuleCreateInfo {
@@ -131,6 +131,7 @@ pub fn create_shader_stage_create_info(
     };
     unsafe {
         let shader_module = device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
+        log::debug!("    create_shader_module: {:#X} {:?}: {:?}", shader_module.as_raw(), stage_flag, shader_filename);
         let main: *const c_char = "main\0".as_ptr() as *const c_char;
         vk::PipelineShaderStageCreateInfo {
             stage: stage_flag,
@@ -142,8 +143,10 @@ pub fn create_shader_stage_create_info(
 }
 
 pub fn destroy_shader_stage_create_info(device: &Device, shader_stage_create_info: &vk::PipelineShaderStageCreateInfo) {
-    log::debug!("    destroy_shader_stage_create_info : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
-    unsafe {
-        device.destroy_shader_module(shader_stage_create_info.module, None);
+    if 0 != shader_stage_create_info.module.as_raw() {
+        log::info!("    destroy_shader_module : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
+        unsafe {
+            device.destroy_shader_module(shader_stage_create_info.module, None);
+        }
     }
 }

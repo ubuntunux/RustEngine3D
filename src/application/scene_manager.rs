@@ -73,7 +73,7 @@ impl SceneManagerData {
             ..Default::default()
         });
 
-        for i in 0..100 {
+        for i in 0..3 {
             let model_data = self._resources.borrow().get_model_data("skeletal").clone();
             let skeletal_actor = self.add_skeletal_render_object("skeletal", RenderObjectCreateInfo {
                 _model_data: Some(model_data),

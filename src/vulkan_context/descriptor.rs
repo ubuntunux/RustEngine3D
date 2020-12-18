@@ -20,6 +20,8 @@ pub enum DescriptorResourceType {
     StorageBuffer,
     Texture,
     RenderTarget,
+    StorageTexture,
+    StorageRenderTarget,
 }
 
 #[derive(Debug, Clone)]
@@ -60,6 +62,8 @@ impl DescriptorDataCreateInfo {
             DescriptorResourceType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
             DescriptorResourceType::Texture => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
             DescriptorResourceType::RenderTarget => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            DescriptorResourceType::StorageTexture => vk::DescriptorType::STORAGE_IMAGE,
+            DescriptorResourceType::StorageRenderTarget => vk::DescriptorType::STORAGE_IMAGE,
         }
     }
 }

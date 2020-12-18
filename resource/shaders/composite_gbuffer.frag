@@ -55,6 +55,7 @@ void main() {
     float roughness = material.x;
     float metalicness = material.y;
     float reflectance = material.z;
+
     float ssao = texture(textureSSAO, vs_output.texCoord).x;
     vec4 scene_reflect_color = vec4(0.0);//texture(textureSceneReflect, vs_output.texCoord);
 

@@ -31,7 +31,7 @@ layout(binding = 6) uniform SSAOConstants
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
-layout(location = 0) out float outColor;
+layout(location = 0) out vec4 outColor;
 
 void main() {
     const vec2 texCoord = vs_output.texCoord;
@@ -53,8 +53,10 @@ void main() {
     const float occlusion_distance_min = 0.1;
     const float occlusion_distance_max = 2.0;
 
-    float occlusion = 0.0;
     const int sample_count = 32;//SSAO_KERNEL_SIZE;
+    const float occlusion_density_base = 1.0;
+    const float occlusion_density_closet = 2.0;
+    float occlusion = 0.0;
     for (int i = 0; i < sample_count; ++i)
     {
         const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, float(i) / float(sample_count - 1));
@@ -82,16 +84,14 @@ void main() {
         {
             const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
             const float distance = length(occlusion_relative_pos - relative_pos);
-            const float occlusion_density_base = 1.0;
-            const float occlusion_density_closet = 2.0;
             occlusion += mix(occlusion_density_base, occlusion_density_closet, exp(-distance));
         }
         else
         {
-            occlusion += 1.0;
+            occlusion += occlusion_density_base;
         }
     }
 
     occlusion = clamp(1.0 - occlusion / float(sample_count), 0.0, 1.0);
-    outColor = saturate(occlusion * occlusion);
+    outColor = vec4(saturate(occlusion));
 }

@@ -31,6 +31,7 @@ pub enum RenderTargetType {
     BloomTemp4,
     LightShaft,
     SSAO,
+    SSAOTemp,
     Shadow,
     MaxBound,
 }
@@ -67,6 +68,7 @@ impl std::str::FromStr for RenderTargetType {
             "BloomTemp4" => Ok(RenderTargetType::BloomTemp4),
             "LightShaft" => Ok(RenderTargetType::LightShaft),
             "SSAO" => Ok(RenderTargetType::SSAO),
+            "SSAOTemp" => Ok(RenderTargetType::SSAOTemp),
             "Shadow" => Ok(RenderTargetType::Shadow),
             _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
         }
@@ -83,18 +85,13 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
     let disable_mipmap = false;
     let _enable_anisotropy = true;
     let disable_anisotropy = false;
-    let _immutable = true;
     let mutable = false;
     let empty_data: Vec<u8> = Vec::new();
     let hdr_texture_create_info = TextureCreateInfo {
         _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-        _texture_min_filter: vk::Filter::LINEAR,
-        _texture_mag_filter: vk::Filter::LINEAR,
         _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
         _enable_mipmap: disable_mipmap,
         _enable_anisotropy: disable_anisotropy,
-        _immutable: mutable,
-        _texture_initial_datas: empty_data.clone(),
         ..Default::default()
     };
     let texture_create_infos = vec![
@@ -121,8 +118,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -134,8 +129,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -147,8 +140,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -159,8 +150,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -173,8 +162,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -187,8 +174,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -201,8 +186,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
@@ -276,27 +259,29 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_min_filter: vk::Filter::LINEAR,
-            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSAO.to_string(),
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
-            _texture_format: vk::Format::R16_SFLOAT,
-            _texture_min_filter: vk::Filter::NEAREST,
-            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSAOTemp.to_string(),
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -309,8 +294,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
-            _immutable: mutable,
-            _texture_initial_datas: empty_data.clone(),
             ..Default::default()
         }
     ];

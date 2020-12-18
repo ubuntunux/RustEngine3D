@@ -23,6 +23,7 @@ use crate::vulkan_context::shader::{
     destroy_shader_stage_create_info
 };
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
+use ash::vk::Handle;
 
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
@@ -59,6 +60,7 @@ impl Default for RenderPassDataCreateInfo {
 pub struct PipelineDataCreateInfo {
     pub _pipeline_data_create_info_name: String,
     pub _pipeline_bind_point: vk::PipelineBindPoint,
+    pub _pipeline_create_flags: vk::PipelineCreateFlags,
     pub _pipeline_compute_shader_file: PathBuf,
     pub _pipeline_vertex_shader_file: PathBuf,
     pub _pipeline_fragment_shader_file: PathBuf,
@@ -82,6 +84,7 @@ impl Default for PipelineDataCreateInfo {
     fn default() -> PipelineDataCreateInfo {
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::new(),
+            _pipeline_create_flags: vk::PipelineCreateFlags::default(),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_compute_shader_file: PathBuf::new(),
             _pipeline_vertex_shader_file: PathBuf::new(),
@@ -261,7 +264,11 @@ pub fn create_render_pass_data(
                 &descriptor_datas[i].borrow()
             )
         } else {
-            PipelineData::default()
+            create_compute_pipeline_data(
+                device,
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                &descriptor_datas[i].borrow()
+            )
         };
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
@@ -279,7 +286,6 @@ pub fn create_render_pass_data(
 }
 
 pub fn destroy_render_pass_data(device: &Device, render_pass_data: &RenderPassData) {
-    log::info!("destroy_render_pass_data: {}", render_pass_data._render_pass_data_name);
     destroy_render_pass(device, render_pass_data._render_pass, &render_pass_data._render_pass_data_name);
     for pipeline_data in render_pass_data._pipeline_data_map.values() {
         destroy_pipeline_data(device, &pipeline_data.borrow());
@@ -539,13 +545,63 @@ pub fn create_graphics_pipeline_data(
 
         log::info!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
         log::info!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::info!("    vertexShader: {:?}", pipeline_data_create_info._pipeline_vertex_shader_file);
-        log::info!("    fragmentShader: {:?}", pipeline_data_create_info._pipeline_fragment_shader_file);
+        log::info!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
+        log::info!("    fragmentShader: {:#X} {:?}", fragment_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_fragment_shader_file);
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _vertex_shader_create_info: vertex_shader_create_info,
             _fragment_shader_create_info: fragment_shader_create_info,
+            _pipeline: graphics_pipelines[0],
+            _pipeline_layout: pipeline_layout,
+            _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
+            _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
+            _descriptor_data: descriptor_data.clone(),
+            ..Default::default()
+        }
+    }
+}
+
+pub fn create_compute_pipeline_data(
+    device: &Device,
+    pipeline_data_create_info: &PipelineDataCreateInfo,
+    descriptor_data: &DescriptorData
+) -> PipelineData {
+    let compute_shader_create_info = create_shader_stage_create_info(
+        device,
+        &pipeline_data_create_info._pipeline_compute_shader_file,
+        &pipeline_data_create_info._pipeline_shader_defines,
+        vk::ShaderStageFlags::COMPUTE
+    );
+    let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
+    let pipeline_layout = create_pipeline_layout(
+        device,
+        &pipeline_data_create_info._push_constant_ranges,
+        &descriptor_set_layouts
+    );
+    let compute_pipeline_create_info = [vk::ComputePipelineCreateInfo {
+        flags: pipeline_data_create_info._pipeline_create_flags,
+        stage: compute_shader_create_info,
+        layout: pipeline_layout,
+        base_pipeline_handle: vk::Pipeline::null(),
+        base_pipeline_index: -1,
+        ..Default::default()
+    }];
+
+    unsafe {
+        let graphics_pipelines = device.create_compute_pipelines(
+            vk::PipelineCache::null(),
+            &compute_pipeline_create_info,
+            None
+        ).expect("vkCreateComputePipelines failed!");
+
+        log::info!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
+        log::info!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::info!("    computeShader: {:#X} {:?}", compute_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
+
+        PipelineData {
+            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
+            _compute_shader_create_info: compute_shader_create_info,
             _pipeline: graphics_pipelines[0],
             _pipeline_layout: pipeline_layout,
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
@@ -562,6 +618,7 @@ pub fn destroy_pipeline_data(device: &Device, pipeline_data: &PipelineData) {
         device.destroy_pipeline(pipeline_data._pipeline, None);
         device.destroy_pipeline_layout(pipeline_data._pipeline_layout, None);
     }
+    destroy_shader_stage_create_info(device, &pipeline_data._compute_shader_create_info);
     destroy_shader_stage_create_info(device, &pipeline_data._vertex_shader_create_info);
     destroy_shader_stage_create_info(device, &pipeline_data._fragment_shader_create_info);
 }
