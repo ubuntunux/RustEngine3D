@@ -467,6 +467,33 @@ impl RendererData {
         }
     }
 
+    pub fn dispatch_material_instance<T>(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        material_instance_name: &str,
+        group_count_x: u32,
+        group_count_y: u32,
+        group_count_z: u32,
+        custom_descriptor_sets: Option<&SwapchainIndexMap<vk::DescriptorSet>>,
+        push_constant_data: Option<&T>,
+    ) {
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        self.begin_compute_pipeline(command_buffer, pipeline_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
+        if let Some(push_constant_data) = push_constant_data {
+            self.upload_push_constant_data(
+                command_buffer,
+                &pipeline_data.borrow(),
+                push_constant_data
+            );
+        }
+        self.dispatch_compute_pipeline(command_buffer, group_count_x, group_count_y, group_count_z);
+    }
+
     pub fn render_material_instance<T>(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -520,6 +547,17 @@ impl RendererData {
         }
         self.draw_elements(command_buffer, geometry_data);
         self.end_render_pass(command_buffer);
+    }
+
+    pub fn begin_compute_pipeline(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        pipeline_data: &RcRefCell<PipelineData>,
+    ) {
+        unsafe {
+            let pipeline_data = pipeline_data.borrow();
+            self._device.cmd_bind_pipeline(command_buffer, pipeline_data._pipeline_bind_point, pipeline_data._pipeline);
+        }
     }
 
     pub fn begin_render_pass_pipeline(
@@ -606,6 +644,18 @@ impl RendererData {
         let constants: &[u8] = system::to_bytes(push_constant_data);
         unsafe {
             self._device.cmd_push_constants(command_buffer, pipeline_data._pipeline_layout, vk::ShaderStageFlags::ALL, 0, constants);
+        }
+    }
+
+    pub fn dispatch_compute_pipeline(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        group_count_x: u32,
+        group_count_y: u32,
+        group_count_z: u32
+    ) {
+        unsafe {
+            self._device.cmd_dispatch(command_buffer, group_count_x, group_count_y, group_count_z);
         }
     }
 
@@ -1128,6 +1178,7 @@ impl RendererData {
         // render ssao
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao", quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
+        // render ssao blur
         let framebuffer_h = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data0);
         let descriptor_sets_h = Some(&self._post_process_data_ssao._ssao_blur_descriptor_sets0);
         let framebuffer_v = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data1);
@@ -1142,6 +1193,10 @@ impl RendererData {
         };
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
+
+        // test compute shader
+        // let render_target = self._render_target_data_map.get(&RenderTargetType::SSAO).unwrap();
+        // self.dispatch_material_instance(command_buffer, swapchain_index, "generate_min_z", render_target._image_width, render_target._image_height, 1, None, NONE_PUSH_CONSTANT);
     }
 
     pub fn render_pre_process(

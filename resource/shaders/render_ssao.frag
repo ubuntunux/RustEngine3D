@@ -50,7 +50,7 @@ void main() {
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     const vec3 bitangent = normalize(cross(normal, tangent));
     const mat3 tnb = mat3(tangent, normal, bitangent);
-    const float occlusion_distance_min = 0.05;
+    const float occlusion_distance_min = 0.2;
     const float occlusion_distance_max = 3.0;
 
     const int sample_count = 32;//SSAO_KERNEL_SIZE;
