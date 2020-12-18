@@ -677,7 +677,7 @@ pub fn create_render_target<T>(
         _ => 1
     };
     let is_depth_format = constants::DEPTH_FOMATS.contains(&texture_create_info._texture_format);
-    let common_usage = vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::SAMPLED;
+    let common_usage = vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
     let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
     let (image_usage, image_aspect, image_layout_transition, image_format) =
         if is_depth_format {
@@ -688,18 +688,16 @@ pub fn create_render_target<T>(
                 vk::ImageTiling::OPTIMAL,
                 vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT
             );
-            (
-                common_usage | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-                vk::ImageAspectFlags::DEPTH,
-                ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt,
-                depth_format
+            ( common_usage | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+              vk::ImageAspectFlags::DEPTH,
+              ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt,
+              depth_format
             )
         } else {
-            (
-                common_usage | vk::ImageUsageFlags::COLOR_ATTACHMENT,
-                vk::ImageAspectFlags::COLOR,
-                ImageLayoutTransition::TransferUndefToColorAttachemnt,
-                texture_create_info._texture_format
+            ( common_usage | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE,
+              vk::ImageAspectFlags::COLOR,
+              ImageLayoutTransition::TransferUndefToColorAttachemnt,
+              texture_create_info._texture_format
             )
         };
     let (image_memory, image) = create_image(

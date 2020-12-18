@@ -70,7 +70,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     upload_datas: &Vec<T>,
 ) -> BufferData {
     let buffer_size = (mem::size_of::<T>() * upload_datas.len()) as vk::DeviceSize;
-    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
     let buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
     log::debug!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
 
