@@ -274,8 +274,8 @@ impl PostProcessData_SSAO {
         render_target_ssao_temp: &TextureData,
     ) {
         let resources = resources.borrow();
-        let render_gaussian_blur_material_instance = resources.get_material_instance_data("render_gaussian_blur").borrow();
-        let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
+        let render_gaussian_blur_material_instance = resources.get_material_instance_data("render_ssao_blur").borrow();
+        let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_ssao_blur/render_ssao_blur");
         let descriptor_binding_index: usize = 0;
         let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_ssao_temp, descriptor_binding_index, render_target_ssao);
         let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_ssao, descriptor_binding_index, render_target_ssao_temp);

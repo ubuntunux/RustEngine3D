@@ -31,7 +31,7 @@ layout(binding = 6) uniform SSAOConstants
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out float outColor;
 
 void main() {
     const vec2 texCoord = vs_output.texCoord;
@@ -50,12 +50,10 @@ void main() {
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     const vec3 bitangent = normalize(cross(normal, tangent));
     const mat3 tnb = mat3(tangent, normal, bitangent);
-    const float occlusion_distance_min = 0.1;
-    const float occlusion_distance_max = 2.0;
+    const float occlusion_distance_min = 0.05;
+    const float occlusion_distance_max = 3.0;
 
     const int sample_count = 32;//SSAO_KERNEL_SIZE;
-    const float occlusion_density_base = 1.0;
-    const float occlusion_density_closet = 2.0;
     float occlusion = 0.0;
     for (int i = 0; i < sample_count; ++i)
     {
@@ -79,19 +77,10 @@ void main() {
             continue;
         }
 
-        #define DISTANCE_CHECK true
-        if(DISTANCE_CHECK)
-        {
-            const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
-            const float distance = length(occlusion_relative_pos - relative_pos);
-            occlusion += mix(occlusion_density_base, occlusion_density_closet, exp(-distance));
-        }
-        else
-        {
-            occlusion += occlusion_density_base;
-        }
+        const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
+        const float distance = length(occlusion_relative_pos - relative_pos);
+        occlusion += exp(-distance);
     }
 
-    occlusion = clamp(1.0 - occlusion / float(sample_count), 0.0, 1.0);
-    outColor = vec4(saturate(occlusion));
+    outColor = saturate(exp(-occlusion * 0.5));
 }

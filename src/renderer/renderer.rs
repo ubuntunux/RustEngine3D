@@ -1140,8 +1140,8 @@ impl RendererData {
             _blur_scale: Vector2::new(0.0, 1.0),
             ..Default::default()
         };
-        self.render_material_instance(command_buffer, swapchain_index, "render_gaussian_blur", quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
-        self.render_material_instance(command_buffer, swapchain_index, "render_gaussian_blur", quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
     }
 
     pub fn render_pre_process(

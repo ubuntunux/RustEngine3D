@@ -10,6 +10,7 @@ pub mod render_motion_blur;
 pub mod render_object;
 pub mod render_shadow;
 pub mod render_ssao;
+pub mod render_ssao_blur;
 pub mod render_taa;
 pub mod render_pass_create_info;
 
