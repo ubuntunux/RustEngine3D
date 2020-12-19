@@ -17,6 +17,9 @@ use crate::constants;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::run_commands_once;
 
+type Layers<T> = Vec<T>;
+type MipLevels<T> = Vec<T>;
+
 #[derive(Debug, Clone)]
 pub struct TextureCreateInfo<T> {
     pub _texture_name: String,
@@ -40,9 +43,11 @@ pub struct TextureData {
     pub _texture_data_name: String,
     pub _image: vk::Image,
     pub _image_view: vk::ImageView,
-    pub _rendertarget_layer_views: Vec<Vec<vk::ImageView>>,
-    pub _image_memory: vk::DeviceMemory,
+    pub _image_info: vk::DescriptorImageInfo,
     pub _image_sampler:vk::Sampler,
+    pub _sub_image_views: Layers<MipLevels<vk::ImageView>>,
+    pub _sub_image_infos: Layers<MipLevels<vk::DescriptorImageInfo>>,
+    pub _image_memory: vk::DeviceMemory,
     pub _image_format: vk::Format,
     pub _image_width: u32,
     pub _image_height: u32,
@@ -50,7 +55,14 @@ pub struct TextureData {
     pub _image_layer: u32,
     pub _image_mip_levels: u32,
     pub _image_sample_count: vk::SampleCountFlags,
-    pub _descriptor_image_info: vk::DescriptorImageInfo,
+}
+
+pub struct ImageDatas {
+    pub _image_view: vk::ImageView,
+    pub _image_sampler: vk::Sampler,
+    pub _image_info: vk::DescriptorImageInfo,
+    pub _sub_image_views: Layers<MipLevels<vk::ImageView>>,
+    pub _sub_image_infos: Layers<MipLevels<vk::DescriptorImageInfo>>,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -101,12 +113,20 @@ impl TextureData {
         (std::cmp::max(1, self._image_width >> mip_level), std::cmp::max(1, self._image_height >> mip_level))
     }
 
-    pub fn get_default_rendertarget_view(&self) -> vk::ImageView {
-        self._rendertarget_layer_views[0][0]
+    pub fn get_default_image_view(&self) -> vk::ImageView {
+        self._image_view
     }
 
-    pub fn get_rendertarget_view(&self, layer: usize, mip_level: usize) -> vk::ImageView {
-        self._rendertarget_layer_views[layer][mip_level]
+    pub fn get_default_image_info(&self) -> vk::DescriptorImageInfo {
+        self._image_info
+    }
+
+    pub fn get_sub_image_view(&self, layer: usize, mip_level: usize) -> vk::ImageView {
+        self._sub_image_views[layer][mip_level]
+    }
+
+    pub fn get_sub_image_info(&self, layer: usize, mip_level: usize) -> vk::DescriptorImageInfo {
+        self._sub_image_infos[layer][mip_level]
     }
 }
 
@@ -499,6 +519,90 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
     }
 }
 
+
+pub fn create_image_datas(
+    device: &Device,
+    image: vk::Image,
+    image_view_type: vk::ImageViewType,
+    image_format: vk::Format,
+    image_aspect: vk::ImageAspectFlags,
+    image_layout: vk::ImageLayout,
+    min_filter: vk::Filter,
+    mag_filter: vk::Filter,
+    sampler_address_mode: vk::SamplerAddressMode,
+    enable_anisotropy: vk::Bool32,
+    base_mip_level: u32,
+    mip_levels: u32,
+    base_array_layer: u32,
+    layer_count: u32,
+) -> ImageDatas {
+    // default image view, sampler, descriptor
+    let image_view = create_image_view(
+        device,
+        image,
+        image_view_type,
+        image_format,
+        image_aspect,
+        base_mip_level,
+        mip_levels,
+        base_array_layer,
+        layer_count,
+    );
+
+    let image_sampler = create_image_sampler(
+        device,
+        mip_levels,
+        min_filter,
+        mag_filter,
+        sampler_address_mode,
+        enable_anisotropy,
+    );
+
+    let image_info = vk::DescriptorImageInfo {
+        sampler: image_sampler,
+        image_view,
+        image_layout,
+    };
+
+    // sub image view, sampler, descriptor
+    let mut sub_image_views: Layers<MipLevels<vk::ImageView>> = Layers::new();
+    let mut sub_image_infos: Layers<MipLevels<vk::DescriptorImageInfo>> = Layers::new();
+    for layer in 0..layer_count {
+        let mut miplevel_sub_image_views: MipLevels<vk::ImageView> = MipLevels::new();
+        let mut miplevel_sub_image_infos: MipLevels<vk::DescriptorImageInfo> = MipLevels::new();
+        for mip_level in 0..mip_levels {
+            let sub_image_view = create_image_view(
+                device,
+                image,
+                image_view_type,
+                image_format,
+                image_aspect,
+                mip_level,
+                1,
+                layer,
+                1,
+            );
+            let sub_image_info = vk::DescriptorImageInfo {
+                sampler: image_sampler,
+                image_view: sub_image_view,
+                image_layout,
+            };
+            miplevel_sub_image_views.push(sub_image_view);
+            miplevel_sub_image_infos.push(sub_image_info);
+        }
+        sub_image_views.push(miplevel_sub_image_views);
+        sub_image_infos.push(miplevel_sub_image_infos);
+    }
+
+    ImageDatas {
+        _image_view: image_view,
+        _image_sampler: image_sampler,
+        _image_info: image_info,
+        _sub_image_views: sub_image_views,
+        _sub_image_infos: sub_image_infos,
+    }
+}
+
 pub fn transition_image_layout(
     device: &Device,
     command_buffer: vk::CommandBuffer,
@@ -721,53 +825,23 @@ pub fn create_render_target<T>(
         transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, 0, mip_levels, 0, layer_count);
     });
 
-    let image_view = create_image_view(
+    // create image view, sampler, descriptor
+    let image_datas = create_image_datas(
         device,
         image,
         texture_create_info._texture_view_type,
         image_format,
         image_aspect,
+        vk::ImageLayout::GENERAL,
+        texture_create_info._texture_min_filter,
+        texture_create_info._texture_mag_filter,
+        texture_create_info._texture_wrap_mode,
+        enable_anisotropy,
         0,
         mip_levels,
         0,
         layer_count,
     );
-
-    let image_sampler = create_image_sampler(
-        device,
-        mip_levels,
-        texture_create_info._texture_min_filter,
-        texture_create_info._texture_mag_filter,
-        texture_create_info._texture_wrap_mode,
-        enable_anisotropy
-    );
-
-    let descriptor_image_info = vk::DescriptorImageInfo {
-        sampler: image_sampler,
-        image_view,
-        image_layout: vk::ImageLayout::GENERAL
-    };
-
-    let mut rendertarget_layer_views: Vec<Vec<vk::ImageView>> = Vec::new();
-    for layer in 0..layer_count {
-        let mut rendertarget_views: Vec<vk::ImageView> = Vec::new();
-        for mip_level in 0..mip_levels {
-            rendertarget_views.push(
-                create_image_view(
-                    device,
-                    image,
-                    texture_create_info._texture_view_type,
-                    image_format,
-                    image_aspect,
-                    mip_level,
-                    1,
-                    layer,
-                    1,
-                )
-            );
-        }
-        rendertarget_layer_views.push(rendertarget_views);
-    }
 
     log::info!("create_render_target: {} {:?} {:?} {} {} {}",
                texture_create_info._texture_name,
@@ -777,18 +851,20 @@ pub fn create_render_target<T>(
                texture_create_info._texture_height,
                texture_create_info._texture_depth
     );
-    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
-    if false == rendertarget_layer_views.is_empty() {
-        log::debug!("                 rendertarget_layer_views: {:?}", rendertarget_layer_views);
+    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
+    if false == image_datas._sub_image_views.is_empty() {
+        log::debug!("                 sub_image_views: {:?}", image_datas._sub_image_views);
     }
 
     TextureData {
         _texture_data_name: texture_create_info._texture_name.clone(),
         _image: image,
-        _image_view: image_view,
-        _rendertarget_layer_views: rendertarget_layer_views,
+        _image_view: image_datas._image_view,
+        _image_info: image_datas._image_info,
+        _image_sampler: image_datas._image_sampler,
+        _sub_image_views: image_datas._sub_image_views,
+        _sub_image_infos: image_datas._sub_image_infos,
         _image_memory: image_memory,
-        _image_sampler: image_sampler,
         _image_format: image_format,
         _image_width: texture_create_info._texture_width,
         _image_height: texture_create_info._texture_height,
@@ -796,7 +872,6 @@ pub fn create_render_target<T>(
         _image_layer: texture_create_info._texture_layer,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
-        _descriptor_image_info: descriptor_image_info,
     }
 }
 
@@ -923,31 +998,23 @@ pub fn create_texture_data<T: Copy>(
     // destroy staging buffer
     buffer::destroy_buffer_data(device, &staging_buffer_data);
 
-    // create texture datas
-    let image_view = create_image_view(
+    // create image view, sampler, descriptor
+    let image_datas = create_image_datas(
         device,
         image,
         texture_create_info._texture_view_type,
         texture_create_info._texture_format,
         image_aspect,
+        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+        texture_create_info._texture_min_filter,
+        texture_create_info._texture_mag_filter,
+        texture_create_info._texture_wrap_mode,
+        enable_anisotropy,
         0,
         mip_levels,
         0,
         layer_count,
     );
-    let image_sampler = create_image_sampler(
-        device,
-        mip_levels,
-        texture_create_info._texture_min_filter,
-        texture_create_info._texture_mag_filter,
-        texture_create_info._texture_wrap_mode,
-        enable_anisotropy
-    );
-    let descriptor_image_info = vk::DescriptorImageInfo {
-        sampler: image_sampler,
-        image_view,
-        image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL
-    };
 
     log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
                texture_create_info._texture_name,
@@ -957,15 +1024,17 @@ pub fn create_texture_data<T: Copy>(
                texture_create_info._texture_height,
                texture_create_info._texture_depth
     );
-    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_view, image_memory, image_sampler);
+    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
 
     TextureData {
         _texture_data_name: texture_create_info._texture_name.clone(),
-        _image: image.clone(),
-        _image_view: image_view,
-        _rendertarget_layer_views: Vec::new(),
+        _image: image,
+        _image_view: image_datas._image_view,
+        _image_info: image_datas._image_info,
+        _image_sampler: image_datas._image_sampler,
+        _sub_image_views: image_datas._sub_image_views,
+        _sub_image_infos: image_datas._sub_image_infos,
         _image_memory: image_memory,
-        _image_sampler: image_sampler,
         _image_format: texture_create_info._texture_format,
         _image_width: texture_create_info._texture_width,
         _image_height: texture_create_info._texture_height,
@@ -973,7 +1042,6 @@ pub fn create_texture_data<T: Copy>(
         _image_layer: texture_create_info._texture_layer,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
-        _descriptor_image_info: descriptor_image_info,
     }
 }
 
@@ -986,16 +1054,19 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
             texture_data._image_memory,
             texture_data._image_sampler
         );
-        if false == texture_data._rendertarget_layer_views.is_empty() {
-            log::info!("    rendertarget_layer_views: {:?}", texture_data._rendertarget_layer_views);
+
+        if false == texture_data._sub_image_views.is_empty() {
+            log::info!("    sub_image_views: {:?}", texture_data._sub_image_views);
         }
+
         device.destroy_sampler(texture_data._image_sampler, None);
         device.destroy_image_view(texture_data._image_view, None);
-        for rendertarget_views in texture_data._rendertarget_layer_views.iter() {
+        for rendertarget_views in texture_data._sub_image_views.iter() {
             for rendertarget_view in rendertarget_views.iter() {
                 device.destroy_image_view(*rendertarget_view, None);
             }
         }
+
         destroy_image(device, texture_data._image, texture_data._image_memory);
     }
 }

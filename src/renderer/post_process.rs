@@ -129,7 +129,7 @@ pub fn create_framebuffer_and_descriptor_data(
     let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
     for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
         for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-            descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture._descriptor_image_info);
+            descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_default_image_info());
         }
     }
     let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);

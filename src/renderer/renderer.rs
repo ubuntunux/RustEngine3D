@@ -932,7 +932,7 @@ impl RendererData {
                         swapchain_index,
                         &mut render_debug_pipeline_binding_data,
                         0,
-                        &DescriptorResourceInfo::DescriptorImageInfo(image_info._descriptor_image_info),
+                        &DescriptorResourceInfo::DescriptorImageInfo(image_info.get_default_image_info()),
                     );
 
                     self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
