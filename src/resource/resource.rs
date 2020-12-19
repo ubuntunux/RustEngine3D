@@ -640,11 +640,25 @@ impl Resources {
                                     Some(Value::String(value)) => self.get_texture_data(value),
                                     _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                 };
-                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow().get_default_image_info())
+                                if descriptor_data_create_info.use_sub_image() {
+                                    DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow().get_sub_image_info(
+                                        descriptor_data_create_info._descriptor_image_layer,
+                                        descriptor_data_create_info._descriptor_image_mip_level,
+                                    ))
+                                } else {
+                                    DescriptorResourceInfo::DescriptorImageInfo(texture_data.borrow().get_default_image_info())
+                                }
                             },
                             DescriptorResourceType::RenderTarget | DescriptorResourceType::StorageRenderTarget => {
                                 let texture_data = renderer_data.get_render_target(RenderTargetType::from_str(&material_parameter_name.as_str()).unwrap());
-                                DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_default_image_info())
+                                if descriptor_data_create_info.use_sub_image() {
+                                    DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_sub_image_info(
+                                        descriptor_data_create_info._descriptor_image_layer,
+                                        descriptor_data_create_info._descriptor_image_mip_level,
+                                    ))
+                                } else {
+                                    DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_default_image_info())
+                                }
                             },
                         };
                         return descriptor_resource_info;

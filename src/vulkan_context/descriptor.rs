@@ -47,6 +47,12 @@ impl Default for DescriptorDataCreateInfo {
     }
 }
 
+impl DescriptorDataCreateInfo {
+    pub fn use_sub_image(&self) -> bool {
+        constants::INVALID_LAYER != self._descriptor_image_layer || constants::INVALID_MIP_LEVEL != self._descriptor_image_mip_level
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DescriptorData {
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,

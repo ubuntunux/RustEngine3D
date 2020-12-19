@@ -1,4 +1,4 @@
-use std::cmp::max;
+use std::cmp::{ max };
 use std::mem::align_of;
 use std::os::raw::c_void;
 
@@ -118,11 +118,33 @@ impl TextureData {
         self._image_info
     }
 
-    pub fn get_sub_image_view(&self, layer: usize, mip_level: usize) -> vk::ImageView {
+    pub fn get_valid_layer(&self, layer: u32) -> u32 {
+        if constants::INVALID_LAYER == layer {
+            return 0;
+        } else if self._image_layer <= layer {
+            return self._image_layer - 1;
+        }
+        layer
+    }
+
+    pub fn get_valid_mip_level(&self, mip_level: u32) -> u32 {
+        if constants::INVALID_MIP_LEVEL == mip_level {
+            return 0;
+        } else if self._image_mip_levels <= mip_level {
+            return self._image_mip_levels - 1;
+        }
+        mip_level
+    }
+
+    pub fn get_sub_image_view(&self, layer: u32, mip_level: u32) -> vk::ImageView {
+        let layer = self.get_valid_layer(layer) as usize;
+        let mip_level = self.get_valid_mip_level(mip_level) as usize;
         self._sub_image_views[layer][mip_level]
     }
 
-    pub fn get_sub_image_info(&self, layer: usize, mip_level: usize) -> vk::DescriptorImageInfo {
+    pub fn get_sub_image_info(&self, layer: u32, mip_level: u32) -> vk::DescriptorImageInfo {
+        let layer = self.get_valid_layer(layer) as usize;
+        let mip_level = self.get_valid_mip_level(mip_level) as usize;
         self._sub_image_infos[layer][mip_level]
     }
 }
