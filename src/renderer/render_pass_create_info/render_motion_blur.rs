@@ -91,24 +91,28 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
                     _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneVelocity),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
             ],
             ..Default::default()

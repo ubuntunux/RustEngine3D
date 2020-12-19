@@ -1,10 +1,10 @@
 use rand;
-use nalgebra::{Vector2, Vector3, Vector4};
+use nalgebra::{ Vector3, Vector4 };
 use ash::{ vk, Device };
 
 use crate::constants;
 use crate::renderer::material_instance::{ PipelineBindingData };
-use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight, PushConstant_GaussianBlur, SSAOConstants };
+use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight, SSAOConstants };
 use crate::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };

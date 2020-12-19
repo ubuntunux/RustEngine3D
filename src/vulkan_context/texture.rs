@@ -15,10 +15,7 @@ use ash::version::{
 
 use crate::constants;
 use crate::vulkan_context::buffer;
-use crate::vulkan_context::vulkan_context::run_commands_once;
-
-type Layers<T> = Vec<T>;
-type MipLevels<T> = Vec<T>;
+use crate::vulkan_context::vulkan_context::{ run_commands_once, Layers, MipLevels };
 
 #[derive(Debug, Clone)]
 pub struct TextureCreateInfo<T> {

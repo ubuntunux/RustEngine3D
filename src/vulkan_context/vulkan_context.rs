@@ -12,6 +12,8 @@ use ash::version::{
 
 pub type SwapchainIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 pub type FrameIndexMap<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
+pub type Layers<T> = Vec<T>; // image layer array
+pub type MipLevels<T> = Vec<T>; // image mip level array
 
 #[derive(Clone, Debug, Copy)]
 pub enum BlendMode {

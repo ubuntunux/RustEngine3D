@@ -90,42 +90,49 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::LightConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneNormal),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 4,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 5,
                     _descriptor_name: String::from("ssaoNoise"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 6,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::SSAOConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
             ],
             ..Default::default()

@@ -95,6 +95,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
             ],
             ..Default::default()
@@ -120,6 +121,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_name: enum_to_string(&RenderTargetType::Bloom0),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
                 },
             ],
             ..Default::default()

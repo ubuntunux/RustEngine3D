@@ -29,7 +29,22 @@ pub struct DescriptorDataCreateInfo {
     pub _descriptor_binding_index: u32,
     pub _descriptor_name: String,
     pub _descriptor_resource_type: DescriptorResourceType,
+    pub _descriptor_image_layer: u32,
+    pub _descriptor_image_mip_level: u32,
     pub _descriptor_shader_stage: vk::ShaderStageFlags,
+}
+
+impl Default for DescriptorDataCreateInfo {
+    fn default() -> DescriptorDataCreateInfo {
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 0,
+            _descriptor_name: String::new(),
+            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_image_layer: constants::INVALID_LAYER,
+            _descriptor_image_mip_level: constants::INVALID_MIP_LEVEL,
+            _descriptor_shader_stage: vk::ShaderStageFlags::ALL,
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
