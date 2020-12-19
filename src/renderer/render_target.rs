@@ -99,6 +99,7 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_name: RenderTargetType::SceneColor.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
+            _enable_mipmap: disable_mipmap,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {

@@ -98,15 +98,15 @@ pub fn create_framebuffer_data_create_info(
     let mut depth_attachment_formats = Vec::new();
     let mut resolve_attachment_formats = Vec::new();
     for render_target in color_render_targets.iter() {
-        rendertarget_views.push(render_target.get_sub_image_view(0, 0));
+        rendertarget_views.push(render_target.get_default_image_view());
         color_attachment_formats.push(render_target._image_format);
     }
     for render_target in depth_render_targets.iter() {
-        rendertarget_views.push(render_target.get_sub_image_view(0, 0));
+        rendertarget_views.push(render_target.get_default_image_view());
         depth_attachment_formats.push(render_target._image_format);
     }
     for render_target in resolve_render_targets.iter() {
-        rendertarget_views.push(render_target.get_sub_image_view(0, 0));
+        rendertarget_views.push(render_target.get_default_image_view());
         resolve_attachment_formats.push(render_target._image_format);
     }
 
