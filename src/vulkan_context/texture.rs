@@ -1,4 +1,4 @@
-use std::cmp::{ max };
+use std::cmp::{ max, min };
 use std::mem::align_of;
 use std::os::raw::c_void;
 
@@ -30,6 +30,7 @@ pub struct TextureCreateInfo<T> {
     pub _texture_min_filter: vk::Filter,
     pub _texture_mag_filter: vk::Filter,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
+    pub _max_mip_levels: u32,
     pub _enable_mipmap: bool,
     pub _enable_anisotropy: bool,
     pub _texture_initial_datas: Vec<T>
@@ -94,6 +95,7 @@ impl<T> Default for TextureCreateInfo<T> {
             _texture_min_filter: vk::Filter::LINEAR,
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
+            _max_mip_levels: constants::INVALID_MIP_LEVEL,
             _enable_mipmap: true,
             _enable_anisotropy: true,
             _texture_initial_datas: Vec::new(),
@@ -210,9 +212,13 @@ pub fn next_mipmap_size(n: i32) -> i32 {
     if 1 < n { n/2 } else { 1 }
 }
 
-pub fn calc_mip_levels(image_width: u32, image_height: u32, image_depth: u32) -> u32 {
+pub fn calc_mip_levels(image_width: u32, image_height: u32, image_depth: u32, max_mip_levels: u32) -> u32 {
     let max_size: f32 = max(image_width, max(image_height, image_depth)) as f32;
-    max_size.log2().floor() as u32 + 1
+    let mip_levels = max_size.log2().floor() as u32 + 1;
+    if constants::INVALID_MIP_LEVEL != max_mip_levels {
+        return min(max_mip_levels, mip_levels);
+    }
+    mip_levels
 }
 
 pub fn get_image_aspect_by_format(image_format: vk::Format) -> vk::ImageAspectFlags {
@@ -802,7 +808,7 @@ pub fn create_render_target<T>(
         _ => (vk::ImageCreateFlags::empty(), 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
-        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_create_info._texture_depth),
+        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_create_info._texture_depth, texture_create_info._max_mip_levels),
         _ => 1
     };
     let is_depth_format = constants::DEPTH_FOMATS.contains(&texture_create_info._texture_format);
@@ -923,7 +929,7 @@ pub fn create_texture_data<T: Copy>(
         _ => (vk::ImageCreateFlags::empty(), 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
-        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_create_info._texture_depth),
+        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_create_info._texture_depth, texture_create_info._max_mip_levels),
         _ => 1
     };
     let image_aspect = vk::ImageAspectFlags::COLOR;
