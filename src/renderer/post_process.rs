@@ -7,7 +7,7 @@ use crate::renderer::material_instance::{ PipelineBindingData };
 use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight, SSAOConstants };
 use crate::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
-use crate::vulkan_context::framebuffer::{ self, FramebufferData };
+use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
 use crate::utilities::system::RcRefCell;
@@ -124,7 +124,16 @@ pub fn create_framebuffer_and_descriptor_data(
         device,
         render_pass_data._render_pass,
         format!("{}{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
-        framebuffer::create_framebuffer_data_create_info(vec![render_target], Vec::new(), Vec::new(), Vec::new()),
+        framebuffer::create_framebuffer_data_create_info(
+            &[RenderTargetInfo {
+                _texture_data: render_target,
+                _layer: 0,
+                _mip_level: 0,
+                _clear_value: None,
+            }],
+            &[],
+            &[]
+        ),
     );
     let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
     for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {

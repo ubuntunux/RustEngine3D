@@ -28,22 +28,6 @@ pub struct FramebufferDataCreateInfo {
     pub _framebuffer_clear_values: Vec<vk::ClearValue>,
 }
 
-#[derive(Clone, Default)]
-pub struct FramebufferData {
-    pub _framebuffer_name: String,
-    pub _framebuffer_info: FramebufferDataCreateInfo,
-    pub _framebuffers: SwapchainIndexMap<vk::Framebuffer>,
-    pub _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>,
-}
-
-// impl std::fmt::Debug for FramebufferDataCreateInfo {
-//     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-//         f.debug_struct("FramebufferDataCreateInfo")
-//             .field("_name", &self._framebuffer_name)
-//             .finish()
-//     }
-// }
-
 impl Default for FramebufferDataCreateInfo {
     fn default() -> FramebufferDataCreateInfo {
         FramebufferDataCreateInfo {
@@ -63,6 +47,22 @@ impl Default for FramebufferDataCreateInfo {
     }
 }
 
+#[derive(Clone)]
+pub struct RenderTargetInfo<'a> {
+    pub _texture_data: &'a TextureData,
+    pub _layer: u32,
+    pub _mip_level: u32,
+    pub _clear_value: Option<vk::ClearValue>,
+}
+
+#[derive(Clone, Default)]
+pub struct FramebufferData {
+    pub _framebuffer_name: String,
+    pub _framebuffer_info: FramebufferDataCreateInfo,
+    pub _framebuffers: SwapchainIndexMap<vk::Framebuffer>,
+    pub _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>,
+}
+
 impl FramebufferDataCreateInfo {
     pub fn is_valid(&self) -> bool {
         false == self._framebuffer_image_views.is_empty()
@@ -70,25 +70,23 @@ impl FramebufferDataCreateInfo {
 }
 
 pub fn create_framebuffer_data_create_info(
-    color_render_targets: Vec<&TextureData>,
-    depth_render_targets: Vec<&TextureData>,
-    resolve_render_targets: Vec<&TextureData>,
-    clear_values: Vec<vk::ClearValue>,
+    color_render_targets: &[RenderTargetInfo],
+    depth_render_targets: &[RenderTargetInfo],
+    resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferDataCreateInfo {
     let (width, height, depth, layer, sample_count) = if false == color_render_targets.is_empty() {
-        (
-            color_render_targets[0]._image_width,
-            color_render_targets[0]._image_height,
-            color_render_targets[0]._image_depth,
-            color_render_targets[0]._image_layer,
-            color_render_targets[0]._image_sample_count
+        ( color_render_targets[0]._texture_data._image_width,
+          color_render_targets[0]._texture_data._image_height,
+          color_render_targets[0]._texture_data._image_depth,
+          color_render_targets[0]._texture_data._image_layer,
+          color_render_targets[0]._texture_data._image_sample_count
         )
     } else if false == depth_render_targets.is_empty() {
-        (
-            depth_render_targets[0]._image_width,
-            depth_render_targets[0]._image_height, depth_render_targets[0]._image_depth,
-            depth_render_targets[0]._image_layer,
-            depth_render_targets[0]._image_sample_count
+        ( depth_render_targets[0]._texture_data._image_width,
+          depth_render_targets[0]._texture_data._image_height,
+          depth_render_targets[0]._texture_data._image_depth,
+          depth_render_targets[0]._texture_data._image_layer,
+          depth_render_targets[0]._texture_data._image_sample_count
         )
     } else {
         panic!("create_framebuffer_data error");
@@ -97,17 +95,24 @@ pub fn create_framebuffer_data_create_info(
     let mut color_attachment_formats = Vec::new();
     let mut depth_attachment_formats = Vec::new();
     let mut resolve_attachment_formats = Vec::new();
+    let mut clear_values: Vec<vk::ClearValue> = Vec::new();
     for render_target in color_render_targets.iter() {
-        rendertarget_views.push(render_target.get_default_image_view());
-        color_attachment_formats.push(render_target._image_format);
+        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._layer, render_target._mip_level));
+        color_attachment_formats.push(render_target._texture_data._image_format);
+        if let Some(clear_value) = render_target._clear_value {
+            clear_values.push(clear_value);
+        }
     }
     for render_target in depth_render_targets.iter() {
-        rendertarget_views.push(render_target.get_default_image_view());
-        depth_attachment_formats.push(render_target._image_format);
+        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._layer, render_target._mip_level));
+        depth_attachment_formats.push(render_target._texture_data._image_format);
+        if let Some(clear_value) = render_target._clear_value {
+            clear_values.push(clear_value);
+        }
     }
     for render_target in resolve_render_targets.iter() {
-        rendertarget_views.push(render_target.get_default_image_view());
-        resolve_attachment_formats.push(render_target._image_format);
+        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._layer, render_target._mip_level));
+        resolve_attachment_formats.push(render_target._texture_data._image_format);
     }
 
     FramebufferDataCreateInfo {

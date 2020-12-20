@@ -18,7 +18,7 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_StaticRenderObject,
     PushConstant_SkeletalRenderObject,
 };
-use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo };
+use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData, SkeletalVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
@@ -34,15 +34,14 @@ use crate::vulkan_context::vulkan_context;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_object_type: RenderObjectType) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        Vec::new(),
-        vec![renderer_data.get_render_target(RenderTargetType::Shadow)],
-        Vec::new(),
-        match render_object_type {
-            RenderObjectType::Static => vec![
-                vulkan_context::get_depth_stencil_clear_value(1.0, 0)
-            ],
-            RenderObjectType::Skeletal => Vec::new(),
-        },
+        &[],
+        &[RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(RenderTargetType::Shadow),
+            _layer: 0,
+            _mip_level: 0,
+            _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
+        }],
+        &[]
     )
 }
 

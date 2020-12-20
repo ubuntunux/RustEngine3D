@@ -13,7 +13,7 @@ use crate::renderer::renderer::{
 };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
-use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo };
+use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
@@ -33,10 +33,14 @@ use crate::vulkan_context::vulkan_context::{
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        vec![renderer_data.get_render_target(RenderTargetType::SceneColorCopy)],
-        Vec::new(),
-        Vec::new(),
-        Vec::new(),
+        &[RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
+            _layer: 0,
+            _mip_level: 0,
+            _clear_value: None,
+        }],
+        &[],
+        &[]
     )
 }
 
