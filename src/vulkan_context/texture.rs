@@ -136,10 +136,18 @@ impl TextureData {
         mip_level
     }
 
+    pub fn get_base_sub_image_view(&self) -> vk::ImageView {
+        self.get_sub_image_view(0, 0)
+    }
+
     pub fn get_sub_image_view(&self, layer: u32, mip_level: u32) -> vk::ImageView {
         let layer = self.get_valid_layer(layer) as usize;
         let mip_level = self.get_valid_mip_level(mip_level) as usize;
         self._sub_image_views[layer][mip_level]
+    }
+
+    pub fn get_base_sub_image_info(&self) -> vk::DescriptorImageInfo {
+        self.get_sub_image_info(0, 0)
     }
 
     pub fn get_sub_image_info(&self, layer: u32, mip_level: u32) -> vk::DescriptorImageInfo {
