@@ -111,8 +111,12 @@ pub fn create_framebuffer_and_descriptor_data(
     device: &Device,
     pipeline_binding_data: &PipelineBindingData,
     render_target: &TextureData,
+    render_target_layer: u32,
+    render_target_miplevel: u32,
     descriptor_binding_index: usize,
     input_texture: &TextureData,
+    input_texture_layer: u32,
+    input_texture_miplevel: u32,
 ) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
     let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
     let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
@@ -127,8 +131,8 @@ pub fn create_framebuffer_and_descriptor_data(
         framebuffer::create_framebuffer_data_create_info(
             &[RenderTargetInfo {
                 _texture_data: render_target,
-                _layer: 0,
-                _mip_level: 0,
+                _layer: render_target_layer,
+                _mip_level: render_target_miplevel,
                 _clear_value: None,
             }],
             &[],
@@ -138,7 +142,11 @@ pub fn create_framebuffer_and_descriptor_data(
     let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
     for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
         for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-            descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_default_image_info());
+            if constants::INVALID_LAYER != input_texture_layer || constants::INVALID_MIP_LEVEL != input_texture_miplevel {
+                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_sub_image_info(input_texture_layer, input_texture_miplevel));
+            } else {
+                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_default_image_info());
+            }
         }
     }
     let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
@@ -158,67 +166,40 @@ impl PostProcessData_Bloom {
         device: &Device,
         resources: &RcRefCell<Resources>,
         render_target_bloom0: &TextureData,
-        render_target_bloom1: &TextureData,
-        render_target_bloom2: &TextureData,
-        render_target_bloom3: &TextureData,
-        render_target_bloom4: &TextureData,
         render_target_bloom_temp0: &TextureData,
-        render_target_bloom_temp1: &TextureData,
-        render_target_bloom_temp2: &TextureData,
-        render_target_bloom_temp3: &TextureData,
-        render_target_bloom_temp4: &TextureData,
     ) {
         let resources = resources.borrow();
         let render_bloom_material_instance = resources.get_material_instance_data("render_bloom").borrow();
         let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
         let descriptor_binding_index: usize = 0;
-        let (bloom_framebuffer_data1, bloom_descriptor_set1) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom1, descriptor_binding_index, render_target_bloom0);
-        let (bloom_framebuffer_data2, bloom_descriptor_set2) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom2, descriptor_binding_index, render_target_bloom1);
-        let (bloom_framebuffer_data3, bloom_descriptor_set3) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom3, descriptor_binding_index, render_target_bloom2);
-        let (bloom_framebuffer_data4, bloom_descriptor_set4) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom4, descriptor_binding_index, render_target_bloom3);
-        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data1);
-        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data2);
-        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data3);
-        self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data4);
-        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set1);
-        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set2);
-        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set3);
-        self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set4);
+        let layer = 0;
+        for mip_level in 0..render_target_bloom0._image_mip_levels {
+            let (bloom_framebuffer_data, bloom_descriptor_set) = create_framebuffer_and_descriptor_data(
+                device, pipeline_binding_data,
+                render_target_bloom0, layer, mip_level + 1,
+                descriptor_binding_index, render_target_bloom0, layer, mip_level
+            );
+            self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data);
+            self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set);
+        }
 
         let render_gaussian_blur_material_instance = resources.get_material_instance_data("render_gaussian_blur").borrow();
         let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
         let descriptor_binding_index: usize = 0;
-        let (gaussian_blur_h_framebuffer_data0, gaussian_blur_h_descriptor_sets0) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom_temp0, descriptor_binding_index, render_target_bloom0);
-        let (gaussian_blur_v_framebuffer_data0, gaussian_blur_v_descriptor_sets0) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom0, descriptor_binding_index, render_target_bloom_temp0);
-        let (gaussian_blur_h_framebuffer_data1, gaussian_blur_h_descriptor_sets1) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom_temp1, descriptor_binding_index, render_target_bloom1);
-        let (gaussian_blur_v_framebuffer_data1, gaussian_blur_v_descriptor_sets1) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom1, descriptor_binding_index, render_target_bloom_temp1);
-        let (gaussian_blur_h_framebuffer_data2, gaussian_blur_h_descriptor_sets2) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom_temp2, descriptor_binding_index, render_target_bloom2);
-        let (gaussian_blur_v_framebuffer_data2, gaussian_blur_v_descriptor_sets2) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom2, descriptor_binding_index, render_target_bloom_temp2);
-        let (gaussian_blur_h_framebuffer_data3, gaussian_blur_h_descriptor_sets3) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom_temp3, descriptor_binding_index, render_target_bloom3);
-        let (gaussian_blur_v_framebuffer_data3, gaussian_blur_v_descriptor_sets3) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom3, descriptor_binding_index, render_target_bloom_temp3);
-        let (gaussian_blur_h_framebuffer_data4, gaussian_blur_h_descriptor_sets4) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom_temp4, descriptor_binding_index, render_target_bloom4);
-        let (gaussian_blur_v_framebuffer_data4, gaussian_blur_v_descriptor_sets4) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_bloom4, descriptor_binding_index, render_target_bloom_temp4);
-
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data0);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data0);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data1);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data1);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data2);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data2);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data3);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data3);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data4);
-        self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data4);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets0);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets0);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets1);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets1);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets2);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets2);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets3);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets3);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets4);
-        self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets4);
+        for mip_level in 0..render_target_bloom0._image_mip_levels {
+            let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = create_framebuffer_and_descriptor_data(
+                device, pipeline_binding_data,
+                render_target_bloom_temp0, layer, mip_level,
+                descriptor_binding_index, render_target_bloom0, layer, mip_level);
+            let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = create_framebuffer_and_descriptor_data(
+                device, pipeline_binding_data,
+                render_target_bloom0, layer, mip_level,
+                descriptor_binding_index, render_target_bloom_temp0, layer, mip_level);
+            self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data);
+            self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data);
+            self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets);
+            self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets);
+        }
 
         let render_bloom_framebuffer_data = resources.get_framebuffer_data("render_bloom").as_ptr();
         let render_bloom_hightlight_pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
@@ -261,7 +242,13 @@ impl PostProcessData_TAA {
         let render_copy_material_instance = resources.get_material_instance_data("render_copy").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_pipeline_binding_data("render_copy/render_copy");
         let descriptor_binding_index: usize = 0;
-        let (framebuffer_data, descriptor_sets) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, taa_resolve_texture, descriptor_binding_index, taa_render_target);
+        let layer: u32 = 0;
+        let mip_level: u32 = 0;
+        let (framebuffer_data, descriptor_sets) = create_framebuffer_and_descriptor_data(
+            device, pipeline_binding_data,
+            taa_resolve_texture, layer, mip_level,
+            descriptor_binding_index, taa_render_target, layer, mip_level,
+        );
         self._taa_resolve_framebuffer_data = framebuffer_data;
         self._taa_descriptor_sets = descriptor_sets;
         self._rendertarget_width = taa_render_target._image_width;
@@ -286,9 +273,18 @@ impl PostProcessData_SSAO {
         let render_gaussian_blur_material_instance = resources.get_material_instance_data("render_ssao_blur").borrow();
         let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_ssao_blur/render_ssao_blur");
         let descriptor_binding_index: usize = 0;
-        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_ssao_temp, descriptor_binding_index, render_target_ssao);
-        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = create_framebuffer_and_descriptor_data(device, pipeline_binding_data, render_target_ssao, descriptor_binding_index, render_target_ssao_temp);
-
+        let layer: u32 = 0;
+        let mip_level: u32 = 0;
+        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = create_framebuffer_and_descriptor_data(
+            device, pipeline_binding_data,
+            render_target_ssao_temp, layer, mip_level,
+            descriptor_binding_index, render_target_ssao, layer, mip_level,
+        );
+        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = create_framebuffer_and_descriptor_data(
+            device, pipeline_binding_data,
+            render_target_ssao, layer, mip_level,
+            descriptor_binding_index, render_target_ssao_temp, layer, mip_level,
+        );
         self._ssao_blur_framebuffer_data0 = ssao_blur_framebuffer_data0;
         self._ssao_blur_framebuffer_data1 = ssao_blur_framebuffer_data1;
         self._ssao_blur_descriptor_sets0 = ssao_blur_descriptor_sets0;

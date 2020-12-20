@@ -1,3 +1,5 @@
+use std::cmp::max;
+
 use ash::{
     vk,
     Device,
@@ -74,23 +76,33 @@ pub fn create_framebuffer_data_create_info(
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferDataCreateInfo {
-    let (width, height, depth, layer, sample_count) = if false == color_render_targets.is_empty() {
+    let (mut width, mut height, mut depth, layer, sample_count, mip_level) = if false == color_render_targets.is_empty() {
         ( color_render_targets[0]._texture_data._image_width,
           color_render_targets[0]._texture_data._image_height,
           color_render_targets[0]._texture_data._image_depth,
           color_render_targets[0]._texture_data._image_layer,
-          color_render_targets[0]._texture_data._image_sample_count
+          color_render_targets[0]._texture_data._image_sample_count,
+          color_render_targets[0]._mip_level,
+
         )
     } else if false == depth_render_targets.is_empty() {
         ( depth_render_targets[0]._texture_data._image_width,
           depth_render_targets[0]._texture_data._image_height,
           depth_render_targets[0]._texture_data._image_depth,
           depth_render_targets[0]._texture_data._image_layer,
-          depth_render_targets[0]._texture_data._image_sample_count
+          depth_render_targets[0]._texture_data._image_sample_count,
+          depth_render_targets[0]._mip_level,
         )
     } else {
         panic!("create_framebuffer_data error");
     };
+
+    if constants::INVALID_MIP_LEVEL != mip_level {
+        width = max(1, width >> mip_level);
+        height = max(1, height >> mip_level);
+        depth = max(1, depth >> mip_level);
+    }
+
     let mut rendertarget_views = Vec::new();
     let mut color_attachment_formats = Vec::new();
     let mut depth_attachment_formats = Vec::new();

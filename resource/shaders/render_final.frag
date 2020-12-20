@@ -9,10 +9,6 @@
 
 layout(binding = 0) uniform sampler2D textureColor;
 layout(binding = 1) uniform sampler2D textureBloom0;
-layout(binding = 2) uniform sampler2D textureBloom1;
-layout(binding = 3) uniform sampler2D textureBloom2;
-layout(binding = 4) uniform sampler2D textureBloom3;
-layout(binding = 5) uniform sampler2D textureBloom4;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -66,11 +62,11 @@ void main() {
     float bloom_intensity = 0.2;
     if(is_render_bloom)
     {
-        bloom += texture(textureBloom0, texCoord).xyz;
-        bloom += texture(textureBloom1, texCoord).xyz;
-        bloom += texture(textureBloom2, texCoord).xyz;
-        bloom += texture(textureBloom3, texCoord).xyz;
-        bloom += texture(textureBloom4, texCoord).xyz;
+        bloom += textureLod(textureBloom0, texCoord, 0.0).xyz;
+        bloom += textureLod(textureBloom0, texCoord, 1.0).xyz;
+        bloom += textureLod(textureBloom0, texCoord, 2.0).xyz;
+        bloom += textureLod(textureBloom0, texCoord, 3.0).xyz;
+        bloom += textureLod(textureBloom0, texCoord, 4.0).xyz;
         bloom *= bloom_intensity;
     }
     color.xyz += bloom;

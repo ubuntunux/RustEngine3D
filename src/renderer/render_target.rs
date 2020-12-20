@@ -20,15 +20,7 @@ pub enum RenderTargetType {
     SceneVelocity,
     TAAResolve,
     Bloom0,
-    Bloom1,
-    Bloom2,
-    Bloom3,
-    Bloom4,
     BloomTemp0,
-    BloomTemp1,
-    BloomTemp2,
-    BloomTemp3,
-    BloomTemp4,
     LightShaft,
     SSAO,
     SSAOTemp,
@@ -57,15 +49,7 @@ impl std::str::FromStr for RenderTargetType {
             "SceneVelocity" => Ok(RenderTargetType::SceneVelocity),
             "TAAResolve" => Ok(RenderTargetType::TAAResolve),
             "Bloom0" => Ok(RenderTargetType::Bloom0),
-            "Bloom1" => Ok(RenderTargetType::Bloom1),
-            "Bloom2" => Ok(RenderTargetType::Bloom2),
-            "Bloom3" => Ok(RenderTargetType::Bloom3),
-            "Bloom4" => Ok(RenderTargetType::Bloom4),
             "BloomTemp0" => Ok(RenderTargetType::BloomTemp0),
-            "BloomTemp1" => Ok(RenderTargetType::BloomTemp1),
-            "BloomTemp2" => Ok(RenderTargetType::BloomTemp2),
-            "BloomTemp3" => Ok(RenderTargetType::BloomTemp3),
-            "BloomTemp4" => Ok(RenderTargetType::BloomTemp4),
             "LightShaft" => Ok(RenderTargetType::LightShaft),
             "SSAO" => Ok(RenderTargetType::SSAO),
             "SSAOTemp" => Ok(RenderTargetType::SSAOTemp),
@@ -199,60 +183,14 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_name: RenderTargetType::Bloom0.to_string(),
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::Bloom1.to_string(),
-            _texture_width: window_width / 4,
-            _texture_height: window_height / 4,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::Bloom2.to_string(),
-            _texture_width: window_width / 8,
-            _texture_height: window_height / 8,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::Bloom3.to_string(),
-            _texture_width: window_width / 16,
-            _texture_height: window_height / 16,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::Bloom4.to_string(),
-            _texture_width: window_width / 32,
-            _texture_height: window_height / 32,
+            _enable_mipmap: true,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp0.to_string(),
             _texture_width: window_width / 2,
             _texture_height: window_height / 2,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::BloomTemp1.to_string(),
-            _texture_width: window_width / 4,
-            _texture_height: window_height / 4,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::BloomTemp2.to_string(),
-            _texture_width: window_width / 8,
-            _texture_height: window_height / 8,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::BloomTemp3.to_string(),
-            _texture_width: window_width / 16,
-            _texture_height: window_height / 16,
-            ..hdr_texture_create_info.clone()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::BloomTemp4.to_string(),
-            _texture_width: window_width / 32,
-            _texture_height: window_height / 32,
+            _enable_mipmap: true,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {

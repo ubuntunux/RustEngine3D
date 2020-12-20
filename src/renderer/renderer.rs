@@ -320,15 +320,7 @@ impl RendererData {
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::Bloom1).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::Bloom2).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::Bloom3).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::Bloom4).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::BloomTemp0).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::BloomTemp1).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::BloomTemp2).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::BloomTemp3).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::BloomTemp4).as_ref().unwrap(),
         );
         // Temporal AA
         self._post_process_data_taa.initialize(
