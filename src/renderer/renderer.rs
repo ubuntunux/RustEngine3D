@@ -1,3 +1,4 @@
+use std::cmp::max;
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
@@ -59,7 +60,7 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_RenderCopy,
     PushConstant_RenderColor,
 };
-use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO, PostProcessData_TAA };
+use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO, PostProcessData_TAA, PostProcessData_HierachicalMinZ };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
@@ -167,6 +168,7 @@ pub struct RendererData {
     pub _post_process_data_bloom: PostProcessData_Bloom,
     pub _post_process_data_ssao: PostProcessData_SSAO,
     pub _post_process_data_taa: PostProcessData_TAA,
+    pub _post_process_data_hiz: PostProcessData_HierachicalMinZ,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -280,6 +282,7 @@ pub fn create_renderer_data<T>(
             _post_process_data_bloom: PostProcessData_Bloom::default(),
             _post_process_data_ssao: PostProcessData_SSAO::default(),
             _post_process_data_taa: PostProcessData_TAA::default(),
+            _post_process_data_hiz: PostProcessData_HierachicalMinZ::default(),
             _resources: resources.clone(),
         };
 
@@ -335,30 +338,39 @@ impl RendererData {
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SSAO).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSAOTemp).as_ref().unwrap(),
-        )
+        );
+        // Hierachical Min Z
+        self._post_process_data_hiz.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
+        );
     }
 
     pub fn destroy_post_process_datas(&mut self) {
         self._post_process_data_bloom.destroy(&self._device);
         self._post_process_data_taa.destroy(&self._device);
         self._post_process_data_ssao.destroy(&self._device);
+        self._post_process_data_hiz.destroy(&self._device);
     }
 
     pub fn update_post_process_datas(&mut self) {
     }
 
     pub fn next_debug_render_target(&mut self) {
-        self._debug_render_target = if RenderTargetType::MaxBound == self._debug_render_target {
-            unsafe { std::mem::transmute(0) }
+        let next_enum_value: i32 = self._debug_render_target as i32 + 1;
+        const MAX_BOUND: i32 = RenderTargetType::MaxBound  as i32;
+        self._debug_render_target = if next_enum_value < MAX_BOUND {
+            unsafe { std::mem::transmute(next_enum_value) }
         } else {
-            let enum_to_int: i32 = self._debug_render_target.clone() as i32;
-            unsafe { std::mem::transmute(enum_to_int + 1) }
+            unsafe { std::mem::transmute(0) }
         };
         log::info!("Current DebugRenderTarget: {:?}", self._debug_render_target);
     }
 
     pub fn prev_debug_render_target(&mut self) {
-        let enum_to_int: i32 = self._debug_render_target.clone() as i32;
+        let enum_to_int: i32 = self._debug_render_target as i32;
         self._debug_render_target = if 0 == enum_to_int {
             unsafe { std::mem::transmute(RenderTargetType::MaxBound as i32 - 1) }
         } else {
@@ -1065,32 +1077,14 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
-        let resources: Ref<Resources> = self._resources.borrow();
-
         // render_taa
         self.render_material_instance(command_buffer, swapchain_index, "render_taa", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // copy SceneColorCopy -> TAAResolve
-        {
-            let render_copy_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_copy").borrow();
-            let pipeline_binding_data = render_copy_material_instance_data.get_default_pipeline_binding_data();
-            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            let framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
-            let descriptor_sets = Some(&self._post_process_data_taa._taa_descriptor_sets);
-            self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            self.upload_push_constant_data(
-                command_buffer,
-                &pipeline_data.borrow(),
-                &PushConstant_RenderCopy {
-                    _taget_mip_level: 0,
-                    ..Default::default()
-                },
-            );
-            self.draw_elements(command_buffer, quad_geometry_data);
-            self.end_render_pass(command_buffer);
-        }
+        let framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
+        let descriptor_sets = Some(&self._post_process_data_taa._taa_descriptor_sets);
+        let push_constants = PushConstant_RenderCopy::default();
+        self.render_material_instance(command_buffer, swapchain_index, "render_copy", quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
     }
 
     pub fn render_bloom(
@@ -1191,12 +1185,52 @@ impl RendererData {
         // self.dispatch_material_instance(command_buffer, swapchain_index, "generate_min_z", render_target._image_width, render_target._image_height, 1, None, NONE_PUSH_CONSTANT);
     }
 
+    pub fn generate_min_z(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData
+    ) {
+        let resources: Ref<Resources> = self._resources.borrow();
+
+        // Copy Scene Depth
+        {
+            let framebuffer = Some(&self._post_process_data_hiz._copy_depth_framebuffer_data);
+            let descriptor_sets = Some(&self._post_process_data_hiz._copy_depth_descriptor_sets);
+            let push_constants = PushConstant_RenderCopy::default();
+            self.render_material_instance(command_buffer, swapchain_index, "render_copy", quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
+        }
+
+        // Generate Hierachical Min Z
+        {
+            let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
+            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+            let texture_hierachical_min_z = self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).unwrap();
+            let dispatch_count = self._post_process_data_hiz._hierachical_min_z_descriptor_sets.len();
+            for mip_level in 0..dispatch_count {
+                let descriptor_sets = Some(&self._post_process_data_hiz._hierachical_min_z_descriptor_sets[mip_level as usize]);
+                self.begin_compute_pipeline(command_buffer, pipeline_data);
+                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+                self.dispatch_compute_pipeline(
+                    command_buffer,
+                    max(1, texture_hierachical_min_z._image_width >> (mip_level + 1)),
+                    max(1, texture_hierachical_min_z._image_height >> (mip_level + 1)),
+                    1
+                );
+            }
+        }
+    }
+
     pub fn render_pre_process(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
+        // Generate Hierachical Min Z
+        self.generate_min_z(command_buffer, swapchain_index, quad_geometry_data);
+
         // SSAO
         self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
 

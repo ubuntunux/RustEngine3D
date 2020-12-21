@@ -589,20 +589,20 @@ pub fn create_compute_pipeline_data(
     }];
 
     unsafe {
-        let graphics_pipelines = device.create_compute_pipelines(
+        let compute_pipelines = device.create_compute_pipelines(
             vk::PipelineCache::null(),
             &compute_pipeline_create_info,
             None
         ).expect("vkCreateComputePipelines failed!");
 
-        log::info!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
+        log::info!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, compute_pipelines);
         log::info!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
         log::info!("    computeShader: {:#X} {:?}", compute_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _compute_shader_create_info: compute_shader_create_info,
-            _pipeline: graphics_pipelines[0],
+            _pipeline: compute_pipelines[0],
             _pipeline_layout: pipeline_layout,
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),

@@ -12,6 +12,7 @@ pub enum RenderTargetType {
     SceneColor,
     SceneColorCopy,
     SceneDepth,
+    HierarchicalMinZ,
     BackBuffer,
     BackBufferCopy,
     SceneAlbedo,
@@ -41,6 +42,7 @@ impl std::str::FromStr for RenderTargetType {
             "SceneColor" => Ok(RenderTargetType::SceneColor),
             "SceneColorCopy" => Ok(RenderTargetType::SceneColorCopy),
             "SceneDepth" => Ok(RenderTargetType::SceneDepth),
+            "HierarchicalMinZ" => Ok(RenderTargetType::HierarchicalMinZ),
             "BackBuffer" => Ok(RenderTargetType::BackBuffer),
             "BackBufferCopy" => Ok(RenderTargetType::BackBufferCopy),
             "SceneAlbedo" => Ok(RenderTargetType::SceneAlbedo),
@@ -69,8 +71,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
     let disable_mipmap = false;
     let _enable_anisotropy = true;
     let disable_anisotropy = false;
-    let mutable = false;
-    let empty_data: Vec<u8> = Vec::new();
     let hdr_texture_create_info = TextureCreateInfo {
         _texture_format: vk::Format::R16G16B16A16_SFLOAT,
         _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -102,6 +102,19 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::HierarchicalMinZ.to_string(),
+            _texture_width: window_width,
+            _texture_height: window_height,
+            _texture_format: vk::Format::R32_SFLOAT,
+            _texture_samples: samples,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: true,
             _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },

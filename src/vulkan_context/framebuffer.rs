@@ -150,11 +150,12 @@ pub fn create_framebuffer_data(
     framebuffer_name: &str,
     framebuffer_data_create_info: FramebufferDataCreateInfo
 ) -> FramebufferData {
+    let layers = max(framebuffer_data_create_info._framebuffer_depth, framebuffer_data_create_info._framebuffer_layer);
     log::info!("create_framebuffer_data: {:?} {} {} {}",
         framebuffer_name,
         framebuffer_data_create_info._framebuffer_width,
         framebuffer_data_create_info._framebuffer_height,
-        framebuffer_data_create_info._framebuffer_depth
+        layers
     );
 
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {
@@ -164,7 +165,7 @@ pub fn create_framebuffer_data(
             p_attachments: framebuffer_data_create_info._framebuffer_image_views[index].as_ptr(),
             width: framebuffer_data_create_info._framebuffer_width,
             height: framebuffer_data_create_info._framebuffer_height,
-            layers: framebuffer_data_create_info._framebuffer_depth,
+            layers,
             ..Default::default()
         }
     };
