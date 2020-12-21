@@ -67,6 +67,8 @@ use crate::utilities::system::{ self, RcRefCell };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
+const DEFAULT_PIPELINE: &str = "";
+
 // NOTE : RenderMode must match with scene_constants.glsl
 #[derive(Clone, Debug, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
@@ -343,7 +345,6 @@ impl RendererData {
         self._post_process_data_hiz.initialize(
             &self._device,
             &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
         );
     }
@@ -503,6 +504,7 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         material_instance_name: &str,
+        render_pass_pipeline_data_name: &str,
         geometry_data: &GeometryData,
         custom_framebuffer_data: Option<&FramebufferData>,
         custom_descriptor_sets: Option<&SwapchainIndexMap<vk::DescriptorSet>>,
@@ -510,7 +512,11 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
-        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
+            material_instance_data.get_default_pipeline_binding_data()
+        } else {
+            material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name)
+        };
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
@@ -914,7 +920,7 @@ impl RendererData {
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
-                self.render_material_instance(command_buffer, swapchain_index, "render_final", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+                self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
                 // Render Debug
                 //self._debug_render_target = RenderTargetType::Shadow;
@@ -932,11 +938,13 @@ impl RendererData {
                     );
 
                     let image_info = self.get_render_target(self._debug_render_target);
+                    let layer = 0;
+                    let mip_level = 0;
                     self.update_descriptor_set_mut(
                         swapchain_index,
                         &mut render_debug_pipeline_binding_data,
                         0,
-                        &DescriptorResourceInfo::DescriptorImageInfo(image_info.get_default_image_info()),
+                        &DescriptorResourceInfo::DescriptorImageInfo(image_info.get_sub_image_info(layer, mip_level)),
                     );
 
                     self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
@@ -976,7 +984,7 @@ impl RendererData {
             _color: Vector4::new(0.0, 0.0, 0.0, 0.0),
         };
         let taa_push_constants = Some(&taa_push_constans_data);
-        self.render_material_instance(command_buffer, swapchain_index, "render_color", &quad_geometry_data, taa_resolve_framebuffer, None, taa_push_constants);
+        self.render_material_instance(command_buffer, swapchain_index, "render_color", DEFAULT_PIPELINE, &quad_geometry_data, taa_resolve_framebuffer, None, taa_push_constants);
     }
 
     pub fn render_solid_object(
@@ -1078,13 +1086,13 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // render_taa
-        self.render_material_instance(command_buffer, swapchain_index, "render_taa", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.render_material_instance(command_buffer, swapchain_index, "render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // copy SceneColorCopy -> TAAResolve
         let framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
         let descriptor_sets = Some(&self._post_process_data_taa._taa_descriptor_sets);
         let push_constants = PushConstant_RenderCopy::default();
-        self.render_material_instance(command_buffer, swapchain_index, "render_copy", quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
+        self.render_material_instance(command_buffer, swapchain_index, "render_copy", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
     }
 
     pub fn render_bloom(
@@ -1162,7 +1170,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // render ssao
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // render ssao blur
         let framebuffer_h = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data0);
@@ -1177,12 +1185,8 @@ impl RendererData {
             _blur_scale: Vector2::new(0.0, 1.0),
             ..Default::default()
         };
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
-
-        // test compute shader
-        // let render_target = self._render_target_data_map.get(&RenderTargetType::SSAO).unwrap();
-        // self.dispatch_material_instance(command_buffer, swapchain_index, "generate_min_z", render_target._image_width, render_target._image_height, 1, None, NONE_PUSH_CONSTANT);
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
     }
 
     pub fn generate_min_z(
@@ -1194,30 +1198,27 @@ impl RendererData {
         let resources: Ref<Resources> = self._resources.borrow();
 
         // Copy Scene Depth
-        {
-            let framebuffer = Some(&self._post_process_data_hiz._copy_depth_framebuffer_data);
-            let descriptor_sets = Some(&self._post_process_data_hiz._copy_depth_descriptor_sets);
-            let push_constants = PushConstant_RenderCopy::default();
-            self.render_material_instance(command_buffer, swapchain_index, "render_copy", quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
-        }
+        self.render_material_instance(command_buffer, swapchain_index, "generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Generate Hierachical Min Z
         {
             let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
-            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
             let texture_hierachical_min_z = self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).unwrap();
             let dispatch_count = self._post_process_data_hiz._hierachical_min_z_descriptor_sets.len();
-            for mip_level in 0..dispatch_count {
-                let descriptor_sets = Some(&self._post_process_data_hiz._hierachical_min_z_descriptor_sets[mip_level as usize]);
-                self.begin_compute_pipeline(command_buffer, pipeline_data);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-                self.dispatch_compute_pipeline(
-                    command_buffer,
-                    max(1, texture_hierachical_min_z._image_width >> (mip_level + 1)),
-                    max(1, texture_hierachical_min_z._image_height >> (mip_level + 1)),
-                    1
-                );
+            self.begin_compute_pipeline(command_buffer, pipeline_data);
+            {
+                for mip_level in 0..dispatch_count {
+                    let descriptor_sets = Some(&self._post_process_data_hiz._hierachical_min_z_descriptor_sets[mip_level as usize]);
+                    self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+                    self.dispatch_compute_pipeline(
+                        command_buffer,
+                        max(1, texture_hierachical_min_z._image_width >> (mip_level + 1)),
+                        max(1, texture_hierachical_min_z._image_height >> (mip_level + 1)),
+                        1
+                    );
+                }
             }
         }
     }
@@ -1235,7 +1236,7 @@ impl RendererData {
         self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
 
         // Composite GBuffer
-        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
     }
 
     pub fn render_post_process(
@@ -1251,6 +1252,6 @@ impl RendererData {
         self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
 
         // Motion Blur
-        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
     }
 }

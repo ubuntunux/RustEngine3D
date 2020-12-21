@@ -11,7 +11,7 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 outColor;
 
 void main() {
-    vec4 color = textureLod(textureColor, vs_output.texCoord, 9.0);
+    vec4 color = texture(textureColor, vs_output.texCoord);
     outColor = color;
 }
 

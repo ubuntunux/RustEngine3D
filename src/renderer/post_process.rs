@@ -111,8 +111,6 @@ impl Default for PostProcessData_TAA {
 pub struct PostProcessData_HierachicalMinZ {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
-    pub _copy_depth_framebuffer_data: FramebufferData,
-    pub _copy_depth_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
     pub _hierachical_min_z_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
 }
 
@@ -121,8 +119,6 @@ impl Default for PostProcessData_HierachicalMinZ {
         PostProcessData_HierachicalMinZ {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
-            _copy_depth_framebuffer_data: FramebufferData::default(),
-            _copy_depth_descriptor_sets: Vec::new(),
             _hierachical_min_z_descriptor_sets: Vec::new(),
         }
     }
@@ -325,68 +321,45 @@ impl PostProcessData_HierachicalMinZ {
         &mut self,
         device: &Device,
         resources: &RcRefCell<Resources>,
-        render_target_scene_depth: &TextureData,
         render_target_hierachical_min_z: &TextureData,
     ) {
         let resources = resources.borrow();
+        let generate_min_z_material_instance = resources.get_material_instance_data("generate_min_z").borrow();
+        let pipeline_binding_data = generate_min_z_material_instance.get_pipeline_binding_data("generate_min_z/generate_min_z");
+        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+        let descriptor_data = &pipeline_data._descriptor_data;
+        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+            descriptor_data_create_info._descriptor_binding_index
+        }).collect();
 
-        // Copy SceneDepth
-        {
-            let render_copy_material_instance = resources.get_material_instance_data("render_copy").borrow();
-            let pipeline_binding_data = render_copy_material_instance.get_pipeline_binding_data("render_copy/render_copy");
-            let descriptor_binding_index: usize = 0;
-            let layer: u32 = 0;
-            let mip_level: u32 = 0;
-            let (framebuffer_data, descriptor_sets) = create_framebuffer_and_descriptor_data(
-                device, pipeline_binding_data,
-                render_target_hierachical_min_z, layer, mip_level,
-                descriptor_binding_index, render_target_scene_depth, layer, mip_level,
-            );
-            self._copy_depth_framebuffer_data = framebuffer_data;
-            self._copy_depth_descriptor_sets = descriptor_sets;
-            self._dispatch_group_x = render_target_hierachical_min_z._image_width;
-            self._dispatch_group_y = render_target_hierachical_min_z._image_height;
-        }
-
-        // Hierachical Min Z
-        {
-            let generate_min_z_material_instance = resources.get_material_instance_data("generate_min_z").borrow();
-            let pipeline_binding_data = generate_min_z_material_instance.get_pipeline_binding_data("generate_min_z/generate_min_z");
-            let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-            let descriptor_data = &pipeline_data._descriptor_data;
-            let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-                descriptor_data_create_info._descriptor_binding_index
-            }).collect();
-
-            let layer: u32 = 0;
-            let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
-            let dispatch_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
-            for mip_level in 0..dispatch_count {
-                for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                    for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                        descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level));
-                        descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level + 1));
-                    }
+        let layer: u32 = 0;
+        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+        let dispatch_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
+        for mip_level in 0..dispatch_count {
+            for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+                for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
+                    descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level));
+                    descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level + 1));
                 }
-                let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
-                let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
-                    device,
-                    &descriptor_sets,
-                    &descriptor_binding_indices,
-                    &descriptor_data._descriptor_set_layout_bindings,
-                    &descriptor_resource_infos_list,
-                );
-                self._hierachical_min_z_descriptor_sets.push(descriptor_sets);
             }
+            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+            let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+                device,
+                &descriptor_sets,
+                &descriptor_binding_indices,
+                &descriptor_data._descriptor_set_layout_bindings,
+                &descriptor_resource_infos_list,
+            );
+            self._hierachical_min_z_descriptor_sets.push(descriptor_sets);
         }
+        self._dispatch_group_x = render_target_hierachical_min_z._image_width;
+        self._dispatch_group_y = render_target_hierachical_min_z._image_height;
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        framebuffer::destroy_framebuffer_data(device, &self._copy_depth_framebuffer_data);
         for descriptor_sets in self._hierachical_min_z_descriptor_sets.iter_mut() {
             descriptor_sets.clear();
         }
         self._hierachical_min_z_descriptor_sets.clear();
-        self._copy_depth_descriptor_sets.clear();
     }
 }

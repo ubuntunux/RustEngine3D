@@ -50,8 +50,8 @@ void main() {
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     const vec3 bitangent = normalize(cross(normal, tangent));
     const mat3 tnb = mat3(tangent, normal, bitangent);
-    const float occlusion_distance_min = 0.2;
-    const float occlusion_distance_max = 3.0;
+    const float occlusion_distance_min = 0.1;
+    const float occlusion_distance_max = 2.0;
 
     const int sample_count = 32;//SSAO_KERNEL_SIZE;
     float occlusion = 0.0;
@@ -72,12 +72,18 @@ void main() {
         }
 
         const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
-        if(offset.z < occlusion_depth)
+        if(offset.z <= occlusion_depth)
         {
             continue;
         }
 
         const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
+        const vec3 target_normal = normalize(texture(textureSceneNormal, offset.xy).xyz * 2.0 - 1.0);
+        if(0.99 < dot(target_normal, normal))
+        {
+            continue;
+        }
+
         const float distance = length(occlusion_relative_pos - relative_pos);
         occlusion += exp(-distance);
     }
