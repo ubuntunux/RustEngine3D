@@ -110,9 +110,10 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
-                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
+                    _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    _descriptor_image_mip_level: 0,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
@@ -120,7 +121,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
                     _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
-                    _descriptor_image_mip_level: 0,
+                    _descriptor_image_mip_level: 1,
                     ..Default::default()
                 },
             ],

@@ -2,9 +2,9 @@ use crate::renderer::renderer::{
     RenderObjectType,
     RendererData,
 };
-use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
-use crate::renderer::render_pass_create_info::{
+use crate::resource::render_pass_create_info::{
     composite_gbuffer,
+    downsampling,
     generate_min_z,
     render_bloom,
     render_copy,
@@ -17,12 +17,15 @@ use crate::renderer::render_pass_create_info::{
     render_shadow,
     render_ssao,
     render_ssao_blur,
+    render_ssr,
     render_taa,
 };
+use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
     vec![
         composite_gbuffer::get_render_pass_data_create_info(renderer_data),
+        downsampling::get_render_pass_data_create_info(renderer_data),
         generate_min_z::get_render_pass_data_create_info(renderer_data),
         render_bloom::get_render_pass_data_create_info(renderer_data),
         render_copy::get_render_pass_data_create_info(renderer_data),
@@ -37,6 +40,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static),
         render_ssao::get_render_pass_data_create_info(renderer_data),
         render_ssao_blur::get_render_pass_data_create_info(renderer_data),
+        render_ssr::get_render_pass_data_create_info(renderer_data),
         render_taa::get_render_pass_data_create_info(renderer_data),
     ]
 }

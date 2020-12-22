@@ -60,7 +60,13 @@ use crate::renderer::shader_buffer_datas::{
     PushConstant_RenderCopy,
     PushConstant_RenderColor,
 };
-use crate::renderer::post_process::{ PostProcessData_Bloom, PostProcessData_SSAO, PostProcessData_TAA, PostProcessData_HierachicalMinZ };
+use crate::renderer::post_process::{
+    PostProcessData_Bloom,
+    PostProcessData_SSAO,
+    PostProcessData_TAA,
+    PostProcessData_HierachicalMinZ,
+    PostProcessData_SceneColorDownSampling,
+};
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
@@ -165,12 +171,14 @@ pub struct RendererData {
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
     pub _debug_render_target: RenderTargetType,
+    pub _debug_render_target_miplevel: u32,
     pub _render_target_data_map: RenderTargetDataMap,
     pub _shader_buffer_data_map: ShaderBufferDataMap,
     pub _post_process_data_bloom: PostProcessData_Bloom,
     pub _post_process_data_ssao: PostProcessData_SSAO,
     pub _post_process_data_taa: PostProcessData_TAA,
     pub _post_process_data_hiz: PostProcessData_HierachicalMinZ,
+    pub _scene_color_downsampling: PostProcessData_SceneColorDownSampling,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -279,12 +287,14 @@ pub fn create_renderer_data<T>(
             _render_features: render_features,
             _image_samplers: ImageSamplerData::default(),
             _debug_render_target: RenderTargetType::BackBuffer,
+            _debug_render_target_miplevel: 0,
             _render_target_data_map: RenderTargetDataMap::new(),
             _shader_buffer_data_map: ShaderBufferDataMap::new(),
             _post_process_data_bloom: PostProcessData_Bloom::default(),
             _post_process_data_ssao: PostProcessData_SSAO::default(),
             _post_process_data_taa: PostProcessData_TAA::default(),
             _post_process_data_hiz: PostProcessData_HierachicalMinZ::default(),
+            _scene_color_downsampling: PostProcessData_SceneColorDownSampling::default(),
             _resources: resources.clone(),
         };
 
@@ -347,6 +357,12 @@ impl RendererData {
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
         );
+        // SceneColor Downsampling
+        self._scene_color_downsampling.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
+        );
     }
 
     pub fn destroy_post_process_datas(&mut self) {
@@ -354,12 +370,14 @@ impl RendererData {
         self._post_process_data_taa.destroy(&self._device);
         self._post_process_data_ssao.destroy(&self._device);
         self._post_process_data_hiz.destroy(&self._device);
+        self._scene_color_downsampling.destroy(&self._device);
     }
 
     pub fn update_post_process_datas(&mut self) {
     }
 
     pub fn next_debug_render_target(&mut self) {
+        self._debug_render_target_miplevel = 0;
         let next_enum_value: i32 = self._debug_render_target as i32 + 1;
         const MAX_BOUND: i32 = RenderTargetType::MaxBound  as i32;
         self._debug_render_target = if next_enum_value < MAX_BOUND {
@@ -367,17 +385,34 @@ impl RendererData {
         } else {
             unsafe { std::mem::transmute(0) }
         };
-        log::info!("Current DebugRenderTarget: {:?}", self._debug_render_target);
+        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
     }
 
     pub fn prev_debug_render_target(&mut self) {
+        self._debug_render_target_miplevel = 0;
         let enum_to_int: i32 = self._debug_render_target as i32;
         self._debug_render_target = if 0 == enum_to_int {
             unsafe { std::mem::transmute(RenderTargetType::MaxBound as i32 - 1) }
         } else {
             unsafe { std::mem::transmute(enum_to_int - 1) }
         };
-        log::info!("Current DebugRenderTarget: {:?}", self._debug_render_target);
+        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
+    }
+
+    pub fn next_debug_render_target_miplevel(&mut self) {
+        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
+        self._debug_render_target_miplevel = (self._debug_render_target_miplevel + 1) % texture_data._image_mip_levels;
+        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
+    }
+
+    pub fn prev_debug_render_target_miplevel(&mut self) {
+        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
+        if 0 == self._debug_render_target_miplevel {
+            self._debug_render_target_miplevel = texture_data._image_mip_levels - 1;
+        } else {
+            self._debug_render_target_miplevel -= 1;
+        }
+        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
     }
 
     pub fn get_render_target(&self, render_target_type: RenderTargetType) -> &TextureData {
@@ -939,7 +974,7 @@ impl RendererData {
 
                     let image_info = self.get_render_target(self._debug_render_target);
                     let layer = 0;
-                    let mip_level = 0;
+                    let mip_level = self._debug_render_target_miplevel;
                     self.update_descriptor_set_mut(
                         swapchain_index,
                         &mut render_debug_pipeline_binding_data,
@@ -1189,12 +1224,7 @@ impl RendererData {
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
     }
 
-    pub fn generate_min_z(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData
-    ) {
+    pub fn generate_min_z(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         let resources: Ref<Resources> = self._resources.borrow();
 
         // Copy Scene Depth
@@ -1205,21 +1235,37 @@ impl RendererData {
             let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
             let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
             let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            let texture_hierachical_min_z = self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).unwrap();
-            let dispatch_count = self._post_process_data_hiz._hierachical_min_z_descriptor_sets.len();
+            let dispatch_count = self._post_process_data_hiz._descriptor_sets.len();
             self.begin_compute_pipeline(command_buffer, pipeline_data);
-            {
-                for mip_level in 0..dispatch_count {
-                    let descriptor_sets = Some(&self._post_process_data_hiz._hierachical_min_z_descriptor_sets[mip_level as usize]);
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-                    self.dispatch_compute_pipeline(
-                        command_buffer,
-                        max(1, texture_hierachical_min_z._image_width >> (mip_level + 1)),
-                        max(1, texture_hierachical_min_z._image_height >> (mip_level + 1)),
-                        1
-                    );
-                }
+            for mip_level in 0..dispatch_count {
+                let descriptor_sets = Some(&self._post_process_data_hiz._descriptor_sets[mip_level as usize]);
+                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+                self.dispatch_compute_pipeline(
+                    command_buffer,
+                    max(1, self._post_process_data_hiz._dispatch_group_x >> (mip_level + 1)),
+                    max(1, self._post_process_data_hiz._dispatch_group_y >> (mip_level + 1)),
+                    1
+                );
             }
+        }
+    }
+
+    pub fn scene_color_downsampling(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("downsampling").borrow();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let dispatch_count = self._scene_color_downsampling._descriptor_sets.len();
+        self.begin_compute_pipeline(command_buffer, pipeline_data);
+        for mip_level in 0..dispatch_count {
+            let descriptor_sets = Some(&self._scene_color_downsampling._descriptor_sets[mip_level as usize]);
+            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+            self.dispatch_compute_pipeline(
+                command_buffer,
+                max(1, self._scene_color_downsampling._dispatch_group_x >> (mip_level + 1)),
+                max(1, self._scene_color_downsampling._dispatch_group_y >> (mip_level + 1)),
+                1
+            );
         }
     }
 
@@ -1237,6 +1283,9 @@ impl RendererData {
 
         // Composite GBuffer
         self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+
+        // SceneColor Downsampling
+        self.scene_color_downsampling(command_buffer, swapchain_index);
     }
 
     pub fn render_post_process(

@@ -14,6 +14,24 @@ use crate::utilities::system::RcRefCell;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
+pub struct PostProcessData_SceneColorDownSampling {
+    pub _dispatch_group_x: u32,
+    pub _dispatch_group_y: u32,
+    pub _descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
+}
+
+impl Default for PostProcessData_SceneColorDownSampling {
+    fn default() -> PostProcessData_SceneColorDownSampling {
+        PostProcessData_SceneColorDownSampling {
+            _dispatch_group_x: 1,
+            _dispatch_group_y: 1,
+            _descriptor_sets: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
 pub struct PostProcessData_Bloom {
     pub _bloom_downsample_framebuffer_datas: Vec<FramebufferData>,
     pub _bloom_downsample_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
@@ -111,7 +129,7 @@ impl Default for PostProcessData_TAA {
 pub struct PostProcessData_HierachicalMinZ {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
-    pub _hierachical_min_z_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
+    pub _descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
 }
 
 impl Default for PostProcessData_HierachicalMinZ {
@@ -119,7 +137,7 @@ impl Default for PostProcessData_HierachicalMinZ {
         PostProcessData_HierachicalMinZ {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
-            _hierachical_min_z_descriptor_sets: Vec::new(),
+            _descriptor_sets: Vec::new(),
         }
     }
 }
@@ -350,16 +368,61 @@ impl PostProcessData_HierachicalMinZ {
                 &descriptor_data._descriptor_set_layout_bindings,
                 &descriptor_resource_infos_list,
             );
-            self._hierachical_min_z_descriptor_sets.push(descriptor_sets);
+            self._descriptor_sets.push(descriptor_sets);
         }
         self._dispatch_group_x = render_target_hierachical_min_z._image_width;
         self._dispatch_group_y = render_target_hierachical_min_z._image_height;
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for descriptor_sets in self._hierachical_min_z_descriptor_sets.iter_mut() {
+        for descriptor_sets in self._descriptor_sets.iter_mut() {
             descriptor_sets.clear();
         }
-        self._hierachical_min_z_descriptor_sets.clear();
+        self._descriptor_sets.clear();
+    }
+}
+
+impl PostProcessData_SceneColorDownSampling {
+    pub fn initialize(
+        &mut self,
+        device: &Device,
+        resources: &RcRefCell<Resources>,
+        texture_scene_color: &TextureData,
+    ) {
+        let resources = resources.borrow();
+        let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
+        let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+        let descriptor_data = &pipeline_data._descriptor_data;
+        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+            descriptor_data_create_info._descriptor_binding_index
+        }).collect();
+
+        let layer: u32 = 0;
+        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+        let dispatch_count: u32 = texture_scene_color._image_mip_levels - 1;
+        for mip_level in 0..dispatch_count {
+            for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+                for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
+                    descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(texture_scene_color.get_sub_image_info(layer, mip_level));
+                    descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(texture_scene_color.get_sub_image_info(layer, mip_level + 1));
+                }
+            }
+            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+            let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+                device,
+                &descriptor_sets,
+                &descriptor_binding_indices,
+                &descriptor_data._descriptor_set_layout_bindings,
+                &descriptor_resource_infos_list,
+            );
+            self._descriptor_sets.push(descriptor_sets);
+        }
+        self._dispatch_group_x = texture_scene_color._image_width;
+        self._dispatch_group_y = texture_scene_color._image_height;
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self._descriptor_sets.clear();
     }
 }

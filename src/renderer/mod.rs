@@ -12,7 +12,6 @@ pub mod render_element;
 pub mod render_object;
 pub mod render_target;
 pub mod renderer;
-pub mod render_pass_create_info;
 pub mod transform_object;
 
 #[allow(unused_imports)]
@@ -56,9 +55,6 @@ pub use self::render_target::*;
 
 #[allow(unused_imports)]
 pub use self::renderer::*;
-
-#[allow(unused_imports)]
-pub use self::render_pass_create_info::*;
 
 #[allow(unused_imports)]
 pub use self::transform_object::*;

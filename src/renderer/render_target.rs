@@ -26,6 +26,9 @@ pub enum RenderTargetType {
     SSAO,
     SSAOTemp,
     Shadow,
+    SSR,
+    SSRResolved,
+    SSRResolvedPrev,
     MaxBound,
 }
 
@@ -56,6 +59,9 @@ impl std::str::FromStr for RenderTargetType {
             "SSAO" => Ok(RenderTargetType::SSAO),
             "SSAOTemp" => Ok(RenderTargetType::SSAOTemp),
             "Shadow" => Ok(RenderTargetType::Shadow),
+            "SSR" => Ok(RenderTargetType::SSR),
+            "SSRResolved" => Ok(RenderTargetType::SSRResolved),
+            "SSRResolvedPrev" => Ok(RenderTargetType::SSRResolvedPrev),
             _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
         }
     }
@@ -83,7 +89,7 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_name: RenderTargetType::SceneColor.to_string(),
             _texture_width: window_width,
             _texture_height: window_height,
-            _enable_mipmap: disable_mipmap,
+            _enable_mipmap: true,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
@@ -247,7 +253,25 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _enable_mipmap: disable_mipmap,
             _enable_anisotropy: disable_anisotropy,
             ..Default::default()
-        }
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSR.to_string(),
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSRResolved.to_string(),
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSRResolvedPrev.to_string(),
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
+            ..hdr_texture_create_info.clone()
+        },
     ];
     texture_create_infos
 }

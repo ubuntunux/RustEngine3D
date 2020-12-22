@@ -1,4 +1,5 @@
 pub mod composite_gbuffer;
+pub mod downsampling;
 pub mod generate_min_z;
 pub mod render_bloom;
 pub mod render_color;
@@ -11,6 +12,7 @@ pub mod render_object;
 pub mod render_shadow;
 pub mod render_ssao;
 pub mod render_ssao_blur;
+pub mod render_ssr;
 pub mod render_taa;
 pub mod render_pass_create_info;
 

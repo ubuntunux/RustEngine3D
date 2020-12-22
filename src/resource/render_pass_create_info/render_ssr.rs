@@ -34,7 +34,7 @@ use crate::vulkan_context::vulkan_context::{
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SSR),
             _layer: 0,
             _mip_level: 0,
             _clear_value: None,
@@ -46,7 +46,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_taa");
+    let render_pass_name = String::from("render_ssr");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -76,9 +76,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("render_taa"),
+            _pipeline_data_create_info_name: String::from("render_ssr"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("render_taa.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("render_ssr.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
@@ -106,28 +106,42 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
+                    _descriptor_name: String::from("texture_random"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 3,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 3,
-                    _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
-                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                    ..Default::default()
-                },
-                DescriptorDataCreateInfo {
                     _descriptor_binding_index: 4,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SceneVelocity),
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneNormal),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 5,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneMaterial),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 6,
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneVelocity),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 7,
+                    _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()

@@ -138,6 +138,8 @@ impl ApplicationData {
         let pressed_key_c = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
         let released_key_left_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::LBracket);
         let released_key_right_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::RBracket);
+        let released_key_subtract = self._keyboard_input_data.get_key_released(VirtualKeyCode::Subtract);
+        let released_key_equals = self._keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
         let camera_move_speed = self._camera_move_speed;
@@ -164,6 +166,12 @@ impl ApplicationData {
                 (*renderer_data).prev_debug_render_target();
             } else if released_key_right_bracket {
                 (*renderer_data).next_debug_render_target();
+            }
+
+            if released_key_subtract {
+                (*renderer_data).prev_debug_render_target_miplevel();
+            } else if released_key_equals {
+                (*renderer_data).next_debug_render_target_miplevel();
             }
         }
 

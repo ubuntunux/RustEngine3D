@@ -2,10 +2,10 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "screen_space_raycast.glsl"
 #include "PCFKernels.glsl"
 #include "utility.glsl"
 #include "scene_constants.glsl"
+#include "screen_space_raycast.glsl"
 #include "render_quad_common.glsl"
 
 layout(binding = 0) uniform SceneConstants
@@ -108,8 +108,8 @@ vec4 SampleScreenColor(sampler2D texPrevSceneColor, vec2 uv, float lod)
 void main() {
     outColor = vec4(0.0);
 
-    vec2 tex_coord = vs_output.tex_coord.xy;
-    float depth = texture(texture_depth, tex_coord).x;
+    vec2 texCoord = vs_output.texCoord.xy;
+    float depth = texture(texture_depth, texCoord).x;
     float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
 
     if(1.0 <= depth)
@@ -119,12 +119,12 @@ void main() {
 
     ivec2 PixelPos = ivec2(gl_FragCoord.xy);
 
-    vec4 ndc_coord = vec4(vs_output.tex_coord.xy * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
+    vec4 ndc_coord = vec4(vs_output.texCoord.xy * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
     vec4 relative_pos = view_constants.INV_VIEW_ORIGIN_PROJECTION * ndc_coord;
     relative_pos.xyz /= relative_pos.w;
 
     vec3 V = normalize(-relative_pos.xyz);
-    vec3 N = normalize(texture(texture_normal, vs_output.tex_coord.xy).xyz * 2.0 - 1.0);
+    vec3 N = normalize(texture(texture_normal, vs_output.texCoord.xy).xyz * 2.0 - 1.0);
     float NdotV = dot(V, N);
 
     if(0.9 < NdotV)
@@ -133,7 +133,7 @@ void main() {
     }
 
     float fresnel = pow(1.0 - clamp(NdotV, 0.0, 1.0), 4.0);
-    float Roughness = texture(texture_material, vs_output.tex_coord.xy).x;
+    float Roughness = texture(texture_material, vs_output.texCoord.xy).x;
     Roughness = mix(Roughness, Roughness * Roughness, fresnel);
     float sqrtRoughness = sqrt(Roughness);
 
@@ -147,8 +147,8 @@ void main() {
     for (int i = 0; i < NumRays; i++)
     {
         vec2 poisson = PoissonSamples[int(view_constants.JITTER_FRAME + i * PoissonSampleCount / NumRays) % PoissonSampleCount];
-        vec2 random = texture(texture_random, tex_coord + poisson).xy;
-        float StepOffset = 0.5 - rand(tex_coord + random);
+        vec2 random = texture(texture_random, texCoord + poisson).xy;
+        float StepOffset = 0.5 - rand(texCoord + random);
 
         vec2 E = Hammersley(i, NumRays, uvec2(random * 117));
         vec3 H = TangentToWorld(ImportanceSampleBlinn( random, sqrtRoughness * 0.5 ).xyz, N);
