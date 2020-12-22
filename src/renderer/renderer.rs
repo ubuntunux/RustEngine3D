@@ -959,7 +959,6 @@ impl RendererData {
                 self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
                 // Render Debug
-                //self._debug_render_target = RenderTargetType::Shadow;
                 if RenderTargetType::BackBuffer != self._debug_render_target {
                     let render_debug_material_instance_name = "render_debug";
                     let render_debug_render_pass_pipeline_name = "render_debug/render_debug";
