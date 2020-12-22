@@ -3,6 +3,7 @@ use crate::renderer::renderer::{
     RendererData,
 };
 use crate::resource::render_pass_create_info::{
+    clear_gbuffer,
     composite_gbuffer,
     downsampling,
     generate_min_z,
@@ -24,6 +25,7 @@ use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
     vec![
+        clear_gbuffer::get_render_pass_data_create_info(renderer_data),
         composite_gbuffer::get_render_pass_data_create_info(renderer_data),
         downsampling::get_render_pass_data_create_info(renderer_data),
         generate_min_z::get_render_pass_data_create_info(renderer_data),

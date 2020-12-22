@@ -947,6 +947,7 @@ impl RendererData {
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();
                 let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
+                self.render_material_instance(command_buffer, swapchain_index, "clear_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Static, &static_render_elements);
