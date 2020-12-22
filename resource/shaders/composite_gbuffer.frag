@@ -26,9 +26,8 @@ layout(binding = 6) uniform sampler2D textureSceneDepth;
 layout(binding = 7) uniform sampler2D textureSSAO;
 layout(binding = 8) uniform sampler2D textureShadow;
 layout(binding = 9) uniform samplerCube textureProbe;
-//layout(binding = 10) uniform sampler2D ibl_brdf_lut;
-//layout(binding = 10) uniform sampler2D textureSceneReflect;
-
+layout(binding = 10) uniform sampler2D textureSceneReflect;
+layout(binding = 11) uniform sampler2D ibl_brdf_lut;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -57,7 +56,7 @@ void main() {
     float reflectance = material.z;
 
     float ssao = texture(textureSSAO, vs_output.texCoord).x;
-    vec4 scene_reflect_color = vec4(0.0);//texture(textureSceneReflect, vs_output.texCoord);
+    vec4 scene_reflect_color = texture(textureSceneReflect, vs_output.texCoord);
 
     vec3 V = normalize(-relative_position.xyz);
     vec3 L = normalize(light_constants.LIGHT_DIRECTION);
@@ -77,7 +76,7 @@ void main() {
         ssao,
         scene_reflect_color,
         textureProbe,
-        //ibl_brdf_lut,
+        ibl_brdf_lut,
         textureShadow,
         vs_output.texCoord,
         world_position,

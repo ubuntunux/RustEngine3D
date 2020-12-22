@@ -200,7 +200,7 @@ vec4 surface_shading(
     const in float ssao_factor,
     const in vec4 scene_reflect_color,
     const in samplerCube texture_probe,
-    //const in sampler2D ibl_brdf_lut,
+    const in sampler2D ibl_brdf_lut,
     const in sampler2D texture_shadow,
     const in vec2 texCoord,
     const in vec3 world_position,

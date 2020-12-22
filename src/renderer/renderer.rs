@@ -947,7 +947,7 @@ impl RendererData {
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();
                 let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
-                self.render_material_instance(command_buffer, swapchain_index, "clear_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+                self.clear_gbuffer(command_buffer, swapchain_index);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Static, &static_render_elements);
@@ -1020,6 +1020,16 @@ impl RendererData {
         };
         let taa_push_constants = Some(&taa_push_constans_data);
         self.render_material_instance(command_buffer, swapchain_index, "render_color", DEFAULT_PIPELINE, &quad_geometry_data, taa_resolve_framebuffer, None, taa_push_constants);
+    }
+
+    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_gbuffer").borrow();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+        self.end_render_pass(command_buffer);
     }
 
     pub fn render_solid_object(
@@ -1277,6 +1287,8 @@ impl RendererData {
     ) {
         // Generate Hierachical Min Z
         self.generate_min_z(command_buffer, swapchain_index, quad_geometry_data);
+
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // SSAO
         self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
