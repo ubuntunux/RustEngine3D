@@ -20,7 +20,7 @@ const int DilationModes_DilateGreatestVelocity = 2;
 const int ResolveFilterType = FilterTypes_BSpline;
 const float ResolveFilterDiameter = 2.0;  // 0.0 ~ 6.0
 const float ExposureFilterOffset = 2.0;     // -16.0 ~ 16.0
-const float TemporalAABlendFactor = 0.95;    // default: 0.9, 0.0 ~ 1.0
+const float TemporalAABlendFactor = 0.9;    // default: 0.9, 0.0 ~ 1.0
 const int NeighborhoodClampMode = ClampModes_Variance_Clip;
 const float VarianceClipGamma = 1.5;    // 0.0 ~ 2.0
 const float LowFreqWeight = 0.25;   // 0.0 ~ 100.0
@@ -118,7 +118,7 @@ vec3 Reproject(vec2 texCoord)
             {
                 vec2 neighborVelocity = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
                 float neighborDepth = textureLod(texture_scene_depth, texCoord + vec2(vx, vy) * inv_depth_tex_size, 0.0).x;
-                //neighborDepth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, neighborDepth);
+                neighborDepth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, neighborDepth);
                 if(neighborDepth < closestDepth)
                 {
                     velocity = neighborVelocity;

@@ -934,6 +934,8 @@ impl RendererData {
                     _viewconstants_dummy2: 0.0,
                 };
 
+                //TODO : SSR.alpha, VertexNormal
+
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &scene_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstants, &view_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstants, light_constants);

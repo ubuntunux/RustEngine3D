@@ -145,10 +145,10 @@ impl TransformObjectData {
     }
     pub fn update_transform_object_func(&mut self, force_update: bool) -> bool {
         let prev_updated: bool = self._updated;
-        self._prev_position_store.copy_from(&self._prev_position);
-        let updated_position = force_update || self._prev_position != self._position;
+        self._prev_position.copy_from(&self._prev_position_store);
+        let updated_position = force_update || self._prev_position_store != self._position;
         if updated_position {
-            self._prev_position.copy_from(&self._position);
+            self._prev_position_store.copy_from(&self._position);
         }
 
         let updated_rotation = force_update || self._prev_rotation != self._rotation;

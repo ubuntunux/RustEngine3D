@@ -53,9 +53,9 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
             src_alpha_blend_factor: vk::BlendFactor::ONE,
             dst_alpha_blend_factor: vk::BlendFactor::ZERO,
             alpha_blend_op: vk::BlendOp::ADD,
-            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B | vk::ColorComponentFlags::A,
         },
-        _ => vk::PipelineColorBlendAttachmentState {
+        BlendMode::None => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::FALSE,
             src_color_blend_factor: vk::BlendFactor::ONE,
             dst_color_blend_factor: vk::BlendFactor::ZERO,
@@ -63,7 +63,7 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
             src_alpha_blend_factor: vk::BlendFactor::ONE,
             dst_alpha_blend_factor: vk::BlendFactor::ZERO,
             alpha_blend_op: vk::BlendOp::ADD,
-            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B | vk::ColorComponentFlags::A,
         },
     }
 }

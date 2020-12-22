@@ -73,6 +73,14 @@ impl SceneManagerData {
             ..Default::default()
         });
 
+        let sphere = self._resources.borrow().get_model_data("sphere").clone();
+        self.add_static_render_object("sphere", RenderObjectCreateInfo {
+            _model_data: Some(sphere),
+            _position: Vector3::new(0.0, 1.0, 0.0),
+            _scale: Vector3::new(1.0, 1.0, 1.0),
+            ..Default::default()
+        });
+
         for i in 0..3 {
             let model_data = self._resources.borrow().get_model_data("skeletal").clone();
             let skeletal_actor = self.add_skeletal_render_object("skeletal", RenderObjectCreateInfo {
