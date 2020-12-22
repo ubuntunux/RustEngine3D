@@ -33,14 +33,14 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_object_type: RenderObjectType) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[
             RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneAlbedo),
-            _layer: 0,
-            _mip_level: 0,
-            _clear_value: Some(vulkan_context::get_color_clear_zero()),
+                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneAlbedo),
+                _layer: 0,
+                _mip_level: 0,
+                _clear_value: Some(vulkan_context::get_color_clear_zero()),
             },
             RenderTargetInfo {
                 _texture_data: renderer_data.get_render_target(RenderTargetType::SceneMaterial),
@@ -79,7 +79,7 @@ pub fn get_render_pass_data_create_info(
         RenderObjectType::Static => String::from("render_pass_static_opaque"),
         RenderObjectType::Skeletal => String::from("render_pass_skeletal_opaque"),
     };
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_object_type);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let (attachment_load_operation, attachment_initial_layout) = match render_object_type  {
         RenderObjectType::Static => (vk::AttachmentLoadOp::CLEAR, vk::ImageLayout::UNDEFINED),
