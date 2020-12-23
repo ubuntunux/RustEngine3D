@@ -46,18 +46,20 @@ void main() {
     vec3 emissive_color = vec3(0.0);
 
     vec4 material = texture(textureSceneMaterial, vs_output.texCoord);
-    vec3 N = normalize(texture(textureSceneNormal, vs_output.texCoord).xyz * 2.0 - 1.0);
+    vec4 normal = texture(textureSceneNormal, vs_output.texCoord);
 
     vec4 relative_position = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, vs_output.texCoord, depth);
     vec3 world_position = relative_position.xyz + view_constants.CAMERA_POSITION;
 
     float roughness = material.x;
     float metalicness = material.y;
-    float reflectance = material.z;
+    float reflectance = 0.0;
 
     float ssao = texture(textureSSAO, vs_output.texCoord).x;
     vec4 scene_reflect_color = texture(textureSceneReflect, vs_output.texCoord);
 
+    vec3 vertexNormal = normalize(vec3(material.z, material.w, normal.w) * 2.0 - 1.0);
+    vec3 N = normalize(normal.xyz * 2.0 - 1.0);
     vec3 V = normalize(-relative_position.xyz);
     vec3 L = normalize(light_constants.LIGHT_DIRECTION);
 
@@ -81,6 +83,7 @@ void main() {
         vs_output.texCoord,
         world_position,
         light_constants.LIGHT_COLOR.xyz,
+        vertexNormal,
         N,
         V,
         L,

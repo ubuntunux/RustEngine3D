@@ -123,8 +123,12 @@ void main() {
     vec4 relative_pos = view_constants.INV_VIEW_ORIGIN_PROJECTION * ndc_coord;
     relative_pos.xyz /= relative_pos.w;
 
+    vec4 material = texture(texture_material, vs_output.texCoord.xy);
+    float Roughness = material.x;
+    vec4 normal = texture(texture_normal, vs_output.texCoord.xy);
+    vec3 vertexNormal = vec3(material.z, material.w, normal.w);
+    vec3 N = normalize(mix(vertexNormal, normal.xyz, Roughness) * 2.0 - 1.0);
     vec3 V = normalize(-relative_pos.xyz);
-    vec3 N = normalize(texture(texture_normal, vs_output.texCoord.xy).xyz * 2.0 - 1.0);
     float NdotV = dot(V, N);
 
     if(0.9 < NdotV)
@@ -133,12 +137,11 @@ void main() {
     }
 
     float fresnel = pow(1.0 - clamp(NdotV, 0.0, 1.0), 4.0);
-    float Roughness = texture(texture_material, vs_output.texCoord.xy).x;
     Roughness = mix(Roughness, Roughness * Roughness, fresnel);
-    float sqrtRoughness = sqrt(Roughness);
+    float moreRoughness = sqrt(Roughness);
 
-    const int NumSteps = 16;
-    const int NumRays = 8;
+    const int NumSteps = 8;
+    const int NumRays = int(mix(2.0, 6.0, moreRoughness));
 
     vec2 HitSampleUV = vec2(-1.0, -1.0);
     float hit_count = 0.0;
@@ -151,7 +154,7 @@ void main() {
         float StepOffset = 0.5 - rand(texCoord + random);
 
         vec2 E = Hammersley(i, NumRays, uvec2(random * 117));
-        vec3 H = TangentToWorld(ImportanceSampleBlinn( random, sqrtRoughness * 0.5 ).xyz, N);
+        vec3 H = TangentToWorld(ImportanceSampleBlinn( random, moreRoughness * 0.5 ).xyz, N);
         vec3 R = reflect(-V, H);
 
         vec4 HitUVzTime = RayCast(
@@ -171,7 +174,7 @@ void main() {
         if (HitUVzTime.w < 1)
         {
             HitSampleUV = HitUVzTime.xy - texture(texture_velocity, HitUVzTime.xy).xy;
-            vec4 SampleColor = SampleScreenColor(texture_scene, HitSampleUV, sqrtRoughness * 6.0);
+            vec4 SampleColor = SampleScreenColor(texture_scene, HitSampleUV, moreRoughness * 6.0);
             SampleColor.rgb /= 1 + get_luminance(SampleColor.rgb);
             outColor += SampleColor;
             hit_count += 1.0;

@@ -205,6 +205,7 @@ vec4 surface_shading(
     const in vec2 texCoord,
     const in vec3 world_position,
     vec3 light_color,
+    const in vec3 vertexNormal,
     const in vec3 N,
     const in vec3 V,
     const in vec3 L,

@@ -39,7 +39,7 @@ vec4 ClipAABB(vec4 aabbMin, vec4 aabbMax, vec4 prevSample, vec4 avg)
 
 void main()
 {
-    vec2 uv = vs_output.tex_coord;
+    vec2 uv = vs_output.texCoord;
     vec4 sum = vec4(0.0);
     float totalWeight = 0.0;
     vec4 clrMin = vec4(99999999.0);

@@ -19,6 +19,7 @@ use crate::resource::render_pass_create_info::{
     render_ssao,
     render_ssao_blur,
     render_ssr,
+    render_ssr_resolve,
     render_taa,
 };
 use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
@@ -43,6 +44,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         render_ssao::get_render_pass_data_create_info(renderer_data),
         render_ssao_blur::get_render_pass_data_create_info(renderer_data),
         render_ssr::get_render_pass_data_create_info(renderer_data),
+        render_ssr_resolve::get_render_pass_data_create_info(renderer_data),
         render_taa::get_render_pass_data_create_info(renderer_data),
     ]
 }
