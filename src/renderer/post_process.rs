@@ -300,7 +300,7 @@ impl PostProcessData_Bloom {
         let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
         let descriptor_binding_index: usize = 0;
         let layer = 0;
-        for mip_level in 0..render_target_bloom0._image_mip_levels {
+        for mip_level in 0..(render_target_bloom0._image_mip_levels - 1) {
             let (bloom_framebuffer_data, bloom_descriptor_set) = util_create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level + 1,

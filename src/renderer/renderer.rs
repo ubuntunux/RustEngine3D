@@ -391,6 +391,7 @@ impl RendererData {
             &self._device,
             &self._resources,
             vec![
+                *self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
