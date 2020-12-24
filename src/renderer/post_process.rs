@@ -3,6 +3,7 @@ use nalgebra::{ Vector3, Vector4 };
 use ash::{ vk, Device };
 
 use crate::constants;
+use crate::renderer::RenderTargetType;
 use crate::renderer::material_instance::{ PipelineBindingData };
 use crate::renderer::shader_buffer_datas::{ PushConstant_BloomHighlight, SSAOConstants };
 use crate::resource::Resources;
@@ -11,6 +12,38 @@ use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInf
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
 use crate::utilities::system::RcRefCell;
+
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
+pub struct PostProcessData_ClearRenderTargets {
+    pub _framebuffer_datas_r16g16b16a16: Vec<FramebufferData>,
+    pub _framebuffer_datas_r32: Vec<FramebufferData>,
+}
+
+impl Default for PostProcessData_ClearRenderTargets {
+    fn default() -> PostProcessData_ClearRenderTargets {
+        PostProcessData_ClearRenderTargets {
+            _framebuffer_datas_r16g16b16a16: Vec::new(),
+            _framebuffer_datas_r32: Vec::new(),
+        }
+    }
+}
+
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
+pub struct PostProcessData_CompositeGBuffer {
+    pub _descriptor_sets0: SwapchainIndexMap<vk::DescriptorSet>,
+    pub _descriptor_sets1: SwapchainIndexMap<vk::DescriptorSet>,
+}
+
+impl Default for PostProcessData_CompositeGBuffer {
+    fn default() -> PostProcessData_CompositeGBuffer {
+        PostProcessData_CompositeGBuffer {
+            _descriptor_sets0: Vec::new(),
+            _descriptor_sets1: Vec::new(),
+        }
+    }
+}
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
@@ -142,7 +175,31 @@ impl Default for PostProcessData_HierachicalMinZ {
     }
 }
 
-pub fn create_framebuffer_and_descriptor_data(
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
+pub struct PostProcessData_SSR {
+    pub _framebuffer_data0: FramebufferData,
+    pub _framebuffer_data1: FramebufferData,
+    pub _descriptor_sets0: SwapchainIndexMap<vk::DescriptorSet>,
+    pub _descriptor_sets1: SwapchainIndexMap<vk::DescriptorSet>,
+    pub _current_ssr_resolved: RenderTargetType,
+    pub _previous_ssr_resolved: RenderTargetType,
+}
+
+impl Default for PostProcessData_SSR {
+    fn default() -> PostProcessData_SSR {
+        PostProcessData_SSR {
+            _framebuffer_data0: FramebufferData::default(),
+            _framebuffer_data1: FramebufferData::default(),
+            _descriptor_sets0: SwapchainIndexMap::new(),
+            _descriptor_sets1: SwapchainIndexMap::new(),
+            _current_ssr_resolved: RenderTargetType::SSRResolved,
+            _previous_ssr_resolved: RenderTargetType::SSRResolvedPrev,
+        }
+    }
+}
+
+pub fn util_create_framebuffer_and_descriptor_sets(
     device: &Device,
     pipeline_binding_data: &PipelineBindingData,
     render_target: &TextureData,
@@ -153,16 +210,36 @@ pub fn create_framebuffer_and_descriptor_data(
     input_texture_layer: u32,
     input_texture_miplevel: u32,
 ) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+    let framebuffer_data = util_create_framebuffer(
+        device,
+        pipeline_binding_data,
+        render_target,
+        render_target_layer,
+        render_target_miplevel
+    );
+    let descriptor_sets = util_create_descriptor_sets(
+        device,
+        pipeline_binding_data,
+        descriptor_binding_index,
+        input_texture,
+        input_texture_layer,
+        input_texture_miplevel,
+    );
+    (framebuffer_data, descriptor_sets)
+}
+
+pub fn util_create_framebuffer(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    render_target: &TextureData,
+    render_target_layer: u32,
+    render_target_miplevel: u32,
+) -> FramebufferData {
     let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
-    let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-    let descriptor_data = &pipeline_data._descriptor_data;
-    let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-        descriptor_data_create_info._descriptor_binding_index
-    }).collect();
-    let framebuffer_data = framebuffer::create_framebuffer_data(
+    framebuffer::create_framebuffer_data(
         device,
         render_pass_data._render_pass,
-        format!("{}{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
+        format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
         framebuffer::create_framebuffer_data_create_info(
             &[RenderTargetInfo {
                 _texture_data: render_target,
@@ -173,7 +250,22 @@ pub fn create_framebuffer_and_descriptor_data(
             &[],
             &[]
         ),
-    );
+    )
+}
+
+pub fn util_create_descriptor_sets(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    descriptor_binding_index: usize,
+    input_texture: &TextureData,
+    input_texture_layer: u32,
+    input_texture_miplevel: u32,
+) -> SwapchainIndexMap<vk::DescriptorSet> {
+    let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+    let descriptor_data = &pipeline_data._descriptor_data;
+    let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+        descriptor_data_create_info._descriptor_binding_index
+    }).collect();
     let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
     for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
         for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
@@ -192,7 +284,7 @@ pub fn create_framebuffer_and_descriptor_data(
         &descriptor_data._descriptor_set_layout_bindings,
         &descriptor_resource_infos_list,
     );
-    (framebuffer_data, descriptor_sets)
+    descriptor_sets
 }
 
 impl PostProcessData_Bloom {
@@ -209,7 +301,7 @@ impl PostProcessData_Bloom {
         let descriptor_binding_index: usize = 0;
         let layer = 0;
         for mip_level in 0..render_target_bloom0._image_mip_levels {
-            let (bloom_framebuffer_data, bloom_descriptor_set) = create_framebuffer_and_descriptor_data(
+            let (bloom_framebuffer_data, bloom_descriptor_set) = util_create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level + 1,
                 descriptor_binding_index, render_target_bloom0, layer, mip_level
@@ -222,11 +314,11 @@ impl PostProcessData_Bloom {
         let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
         let descriptor_binding_index: usize = 0;
         for mip_level in 0..render_target_bloom0._image_mip_levels {
-            let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = create_framebuffer_and_descriptor_data(
+            let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = util_create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom_temp0, layer, mip_level,
                 descriptor_binding_index, render_target_bloom0, layer, mip_level);
-            let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = create_framebuffer_and_descriptor_data(
+            let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = util_create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level,
                 descriptor_binding_index, render_target_bloom_temp0, layer, mip_level);
@@ -279,7 +371,7 @@ impl PostProcessData_TAA {
         let descriptor_binding_index: usize = 0;
         let layer: u32 = 0;
         let mip_level: u32 = 0;
-        let (framebuffer_data, descriptor_sets) = create_framebuffer_and_descriptor_data(
+        let (framebuffer_data, descriptor_sets) = util_create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             taa_resolve_texture, layer, mip_level,
             descriptor_binding_index, taa_render_target, layer, mip_level,
@@ -310,12 +402,12 @@ impl PostProcessData_SSAO {
         let descriptor_binding_index: usize = 0;
         let layer: u32 = 0;
         let mip_level: u32 = 0;
-        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = create_framebuffer_and_descriptor_data(
+        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = util_create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             render_target_ssao_temp, layer, mip_level,
             descriptor_binding_index, render_target_ssao, layer, mip_level,
         );
-        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = create_framebuffer_and_descriptor_data(
+        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = util_create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             render_target_ssao, layer, mip_level,
             descriptor_binding_index, render_target_ssao_temp, layer, mip_level,
@@ -424,5 +516,123 @@ impl PostProcessData_SceneColorDownSampling {
 
     pub fn destroy(&mut self, device: &Device) {
         self._descriptor_sets.clear();
+    }
+}
+
+impl PostProcessData_SSR {
+    pub fn initialize(
+        &mut self,
+        device: &Device,
+        resources: &RcRefCell<Resources>,
+        texture_ssr_resolved: &TextureData,
+        texture_ssr_resolved_prev: &TextureData,
+    ) {
+        let resources = resources.borrow();
+        let render_copy_material_instance = resources.get_material_instance_data("render_ssr_resolve").borrow();
+        let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
+        let descriptor_binding_index: usize = 1;
+        let layer: u32 = 0;
+        let mip_level: u32 = 0;
+        let (framebuffer_data0, descriptor_sets0) = util_create_framebuffer_and_descriptor_sets(
+            device, pipeline_binding_data,
+            texture_ssr_resolved, layer, mip_level,
+            descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level,
+        );
+        let (framebuffer_data1, descriptor_sets1) = util_create_framebuffer_and_descriptor_sets(
+            device, pipeline_binding_data,
+            texture_ssr_resolved_prev, layer, mip_level,
+            descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
+        );
+        self._framebuffer_data0 = framebuffer_data0;
+        self._framebuffer_data1 = framebuffer_data1;
+        self._descriptor_sets0 = descriptor_sets0;
+        self._descriptor_sets1 = descriptor_sets1;
+    }
+
+    pub fn update(&mut self) {
+        let temp = self._current_ssr_resolved;
+        self._current_ssr_resolved = self._previous_ssr_resolved;
+        self._previous_ssr_resolved = temp;
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        framebuffer::destroy_framebuffer_data(device, &self._framebuffer_data0);
+        framebuffer::destroy_framebuffer_data(device, &self._framebuffer_data1);
+    }
+}
+
+
+impl PostProcessData_CompositeGBuffer {
+    pub fn initialize(
+        &mut self,
+        device: &Device,
+        resources: &RcRefCell<Resources>,
+        texture_ssr_resolved: &TextureData,
+        texture_ssr_resolved_prev: &TextureData,
+    ) {
+        let resources = resources.borrow();
+        let render_copy_material_instance = resources.get_material_instance_data("composite_gbuffer").borrow();
+        let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
+        let descriptor_binding_index: usize = 10;
+        let layer: u32 = constants::INVALID_LAYER;
+        let mip_level: u32 = constants::INVALID_MIP_LEVEL;
+        let descriptor_sets0 = util_create_descriptor_sets(
+            device, pipeline_binding_data,
+            descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
+        );
+        let descriptor_sets1 = util_create_descriptor_sets(
+            device, pipeline_binding_data,
+            descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level,
+        );
+        self._descriptor_sets0 = descriptor_sets0;
+        self._descriptor_sets1 = descriptor_sets1;
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self._descriptor_sets0.clear();
+        self._descriptor_sets1.clear();
+    }
+}
+
+impl PostProcessData_ClearRenderTargets {
+    pub fn initialize(
+        &mut self,
+        device: &Device,
+        resources: &RcRefCell<Resources>,
+        render_targets_r16g16b16a16: Vec<&TextureData>,
+        render_targets_r32: Vec<&TextureData>,
+    ) {
+        let resources = resources.borrow();
+        // R16G16B16A16
+        let material_instance = resources.get_material_instance_data("render_color_r16g16b16a16").borrow();
+        let pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        for render_target in render_targets_r16g16b16a16.iter() {
+            for layer in 0..render_target._image_layer {
+                for mip_level in 0..render_target._image_mip_levels {
+                    self._framebuffer_datas_r16g16b16a16.push(util_create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+                }
+            }
+        }
+        // R32
+        let material_instance = resources.get_material_instance_data("render_color_r32").borrow();
+        let pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        for render_target in render_targets_r32.iter() {
+            for layer in 0..render_target._image_layer {
+                for mip_level in 0..render_target._image_mip_levels {
+                    self._framebuffer_datas_r32.push(util_create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+                }
+            }
+        }
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        for framebuffer_data in self._framebuffer_datas_r16g16b16a16.iter() {
+            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
+        }
+        for framebuffer_data in self._framebuffer_datas_r32.iter() {
+            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
+        }
+        self._framebuffer_datas_r16g16b16a16.clear();
+        self._framebuffer_datas_r32.clear();
     }
 }

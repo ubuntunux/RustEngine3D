@@ -66,6 +66,9 @@ use crate::renderer::post_process::{
     PostProcessData_TAA,
     PostProcessData_HierachicalMinZ,
     PostProcessData_SceneColorDownSampling,
+    PostProcessData_SSR,
+    PostProcessData_CompositeGBuffer,
+    PostProcessData_ClearRenderTargets,
 };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
@@ -179,6 +182,9 @@ pub struct RendererData {
     pub _post_process_data_taa: PostProcessData_TAA,
     pub _post_process_data_hiz: PostProcessData_HierachicalMinZ,
     pub _scene_color_downsampling: PostProcessData_SceneColorDownSampling,
+    pub _post_process_data_ssr: PostProcessData_SSR,
+    pub _post_process_data_composite_gbuffer: PostProcessData_CompositeGBuffer,
+    pub _clear_render_targets: PostProcessData_ClearRenderTargets,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -295,6 +301,9 @@ pub fn create_renderer_data<T>(
             _post_process_data_taa: PostProcessData_TAA::default(),
             _post_process_data_hiz: PostProcessData_HierachicalMinZ::default(),
             _scene_color_downsampling: PostProcessData_SceneColorDownSampling::default(),
+            _post_process_data_ssr: PostProcessData_SSR::default(),
+            _post_process_data_composite_gbuffer: PostProcessData_CompositeGBuffer::default(),
+            _clear_render_targets: PostProcessData_ClearRenderTargets::default(),
             _resources: resources.clone(),
         };
 
@@ -363,6 +372,34 @@ impl RendererData {
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
         );
+        // SSR
+        self._post_process_data_ssr.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
+        );
+        // Composite GBuffer
+        self._post_process_data_composite_gbuffer.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
+        );
+        // Clear Render Targets
+        self._clear_render_targets.initialize(
+            &self._device,
+            &self._resources,
+            vec![
+                *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
+            ],
+            vec![
+                *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap()
+            ],
+        );
     }
 
     pub fn destroy_post_process_datas(&mut self) {
@@ -371,9 +408,13 @@ impl RendererData {
         self._post_process_data_ssao.destroy(&self._device);
         self._post_process_data_hiz.destroy(&self._device);
         self._scene_color_downsampling.destroy(&self._device);
+        self._post_process_data_ssr.destroy(&self._device);
+        self._post_process_data_composite_gbuffer.destroy(&self._device);
+        self._clear_render_targets.destroy(&self._device);
     }
 
     pub fn update_post_process_datas(&mut self) {
+        self._post_process_data_ssr.update();
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -1014,12 +1055,16 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
     ) {
-        let taa_resolve_framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
-        let taa_push_constans_data = PushConstant_RenderColor {
+        let push_constans_render_color = PushConstant_RenderColor {
             _color: Vector4::new(0.0, 0.0, 0.0, 0.0),
         };
-        let taa_push_constants = Some(&taa_push_constans_data);
-        self.render_material_instance(command_buffer, swapchain_index, "render_color", DEFAULT_PIPELINE, &quad_geometry_data, taa_resolve_framebuffer, None, taa_push_constants);
+        let push_constans_render_color = Some(&push_constans_render_color);
+        for framebuffer in self._clear_render_targets._framebuffer_datas_r16g16b16a16.iter() {
+            self.render_material_instance(command_buffer, swapchain_index, "render_color_r16g16b16a16", DEFAULT_PIPELINE, &quad_geometry_data, Some(framebuffer), None, push_constans_render_color);
+        }
+        for framebuffer in self._clear_render_targets._framebuffer_datas_r32.iter() {
+            self.render_material_instance(command_buffer, swapchain_index, "render_color_r32", DEFAULT_PIPELINE, &quad_geometry_data, Some(framebuffer), None, push_constans_render_color);
+        }
     }
 
     pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
@@ -1208,12 +1253,20 @@ impl RendererData {
         }
     }
 
-    pub fn render_ssao(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData
-    ) {
+    pub fn render_ssr(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+        // Screen Space Reflection
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+
+        // Screen Space Reflection Resolve
+        let (framebuffer, descriptor_sets) = match self._post_process_data_ssr._current_ssr_resolved {
+            RenderTargetType::SSRResolved => (Some(&self._post_process_data_ssr._framebuffer_data0), Some(&self._post_process_data_ssr._descriptor_sets0)),
+            RenderTargetType::SSRResolvedPrev => (Some(&self._post_process_data_ssr._framebuffer_data1), Some(&self._post_process_data_ssr._descriptor_sets1)),
+            _ => panic!("error")
+        };
+        self.render_material_instance(command_buffer, swapchain_index, "render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, NONE_PUSH_CONSTANT);
+    }
+
+    pub fn render_ssao(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // render ssao
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
@@ -1232,6 +1285,15 @@ impl RendererData {
         };
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
+    }
+
+    pub fn composite_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+        let descriptor_sets = match self._post_process_data_ssr._current_ssr_resolved {
+            RenderTargetType::SSRResolved => Some(&self._post_process_data_composite_gbuffer._descriptor_sets0),
+            RenderTargetType::SSRResolvedPrev => Some(&self._post_process_data_composite_gbuffer._descriptor_sets1),
+            _ => panic!("error")
+        };
+        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, NONE_PUSH_CONSTANT);
     }
 
     pub fn generate_min_z(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
@@ -1288,13 +1350,14 @@ impl RendererData {
         // Generate Hierachical Min Z
         self.generate_min_z(command_buffer, swapchain_index, quad_geometry_data);
 
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        // Screen Space Reflection
+        self.render_ssr(command_buffer, swapchain_index, quad_geometry_data);
 
         // SSAO
         self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
 
         // Composite GBuffer
-        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.composite_gbuffer(command_buffer, swapchain_index, quad_geometry_data);
 
         // SceneColor Downsampling
         self.scene_color_downsampling(command_buffer, swapchain_index);

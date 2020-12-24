@@ -136,12 +136,12 @@ void main() {
         return;
     }
 
+    float distance_ratio = clamp(1.0 - relative_pos.w * relative_pos.w, 0.0, 1.0);
     float fresnel = pow(1.0 - clamp(NdotV, 0.0, 1.0), 4.0);
-    Roughness = mix(Roughness, Roughness * Roughness, fresnel);
-    float moreRoughness = sqrt(Roughness);
+    Roughness = mix(Roughness, Roughness * Roughness, fresnel * distance_ratio);
 
-    const int NumSteps = 8;
-    const int NumRays = int(mix(2.0, 6.0, moreRoughness));
+    const int NumSteps = 12;
+    const int NumRays = int(mix(2.0, 6.0, Roughness));
 
     vec2 HitSampleUV = vec2(-1.0, -1.0);
     float hit_count = 0.0;
@@ -154,7 +154,7 @@ void main() {
         float StepOffset = 0.5 - rand(texCoord + random);
 
         vec2 E = Hammersley(i, NumRays, uvec2(random * 117));
-        vec3 H = TangentToWorld(ImportanceSampleBlinn( random, moreRoughness * 0.5 ).xyz, N);
+        vec3 H = TangentToWorld(ImportanceSampleBlinn( random, Roughness * 0.5 ).xyz, N);
         vec3 R = reflect(-V, H);
 
         vec4 HitUVzTime = RayCast(
@@ -174,7 +174,7 @@ void main() {
         if (HitUVzTime.w < 1)
         {
             HitSampleUV = HitUVzTime.xy - texture(texture_velocity, HitUVzTime.xy).xy;
-            vec4 SampleColor = SampleScreenColor(texture_scene, HitSampleUV, moreRoughness * 6.0);
+            vec4 SampleColor = SampleScreenColor(texture_scene, HitSampleUV, Roughness * 6.0);
             SampleColor.rgb /= 1 + get_luminance(SampleColor.rgb);
             outColor += SampleColor;
             hit_count += 1.0;

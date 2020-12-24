@@ -884,9 +884,9 @@ pub fn create_render_target<T>(
                texture_create_info._texture_height,
                texture_create_info._texture_depth
     );
-    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
+    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
     if false == image_datas._sub_image_views.is_empty() {
-        log::debug!("                 sub_image_views: {:?}", image_datas._sub_image_views);
+        log::info!("                 sub_image_views: {:?}", image_datas._sub_image_views);
     }
 
     TextureData {
@@ -1057,7 +1057,7 @@ pub fn create_texture_data<T: Copy>(
                texture_create_info._texture_height,
                texture_create_info._texture_depth
     );
-    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
+    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
 
     TextureData {
         _texture_data_name: texture_create_info._texture_name.clone(),

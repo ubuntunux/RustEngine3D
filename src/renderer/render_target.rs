@@ -256,20 +256,20 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSR.to_string(),
-            _texture_width: window_width / 2,
-            _texture_height: window_height / 2,
+            _texture_width: window_width / 4,
+            _texture_height: window_height / 4,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSRResolved.to_string(),
-            _texture_width: window_width / 2,
-            _texture_height: window_height / 2,
+            _texture_width: window_width / 4,
+            _texture_height: window_height / 4,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSRResolvedPrev.to_string(),
-            _texture_width: window_width / 2,
-            _texture_height: window_height / 2,
+            _texture_width: window_width / 4,
+            _texture_height: window_height / 4,
             ..hdr_texture_create_info.clone()
         },
     ];
