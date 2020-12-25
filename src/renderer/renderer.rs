@@ -1091,8 +1091,8 @@ impl RendererData {
 
         unsafe {
             let render_pass_pipeline_data_name = match (render_mode, render_object_type) {
-                (RenderMode::RenderMode_Common, RenderObjectType::Static) => "render_pass_static_opaque/render_object",
-                (RenderMode::RenderMode_Common, RenderObjectType::Skeletal) => "render_pass_skeletal_opaque/render_object",
+                (RenderMode::RenderMode_Common, RenderObjectType::Static) => "render_pass_static_gbuffer/render_object",
+                (RenderMode::RenderMode_Common, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
                 (RenderMode::RenderMode_Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
                 (RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
             };

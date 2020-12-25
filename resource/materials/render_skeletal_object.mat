@@ -1,4 +1,4 @@
-{ "pipelines": [ {"render_pass": "render_pass_skeletal_opaque", "pipeline": "render_object"}
+{ "pipelines": [ {"render_pass": "render_pass_skeletal_gbuffer", "pipeline": "render_object"}
                , {"render_pass": "render_pass_skeletal_shadow", "pipeline": "render_object"}
                ]
 , "material_parameters": { "textureBase": "common/default"

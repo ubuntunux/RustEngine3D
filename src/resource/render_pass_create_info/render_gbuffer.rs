@@ -76,8 +76,8 @@ pub fn get_render_pass_data_create_info(
     render_object_type: RenderObjectType,
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = match render_object_type {
-        RenderObjectType::Static => String::from("render_pass_static_opaque"),
-        RenderObjectType::Skeletal => String::from("render_pass_skeletal_opaque"),
+        RenderObjectType::Static => String::from("render_pass_static_gbuffer"),
+        RenderObjectType::Skeletal => String::from("render_pass_skeletal_gbuffer"),
     };
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
