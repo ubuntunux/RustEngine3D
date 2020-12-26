@@ -7,9 +7,10 @@ use ash::{
 use crate::utilities::system::{
     enum_to_string
 };
-use crate::renderer::push_constants::{ PushConstant_GaussianBlur };
-use crate::renderer::renderer::RendererData;
+use crate::renderer::push_constants::{ PushConstant_FFT_Init };
+use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
@@ -23,27 +24,23 @@ use crate::vulkan_context::descriptor::{
     DescriptorResourceType,
 };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::vulkan_context::{
-    BlendMode,
-};
-
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    framebuffer::create_framebuffer_data_create_info(
-        &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
-            _layer: 0,
+    let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
+    let render_target_infos: Vec<RenderTargetInfo> = (0..texture_fft_a._image_layer).map(|index| {
+        RenderTargetInfo {
+            _texture_data: texture_fft_a,
+            _layer: index,
             _mip_level: 0,
-            _clear_value: None,
-        }],
-        &[],
-        &[]
-    )
+            _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)),
+        }
+    }).collect();
+
+    framebuffer::create_framebuffer_data_create_info(&[], &render_target_infos, &[])
 }
 
-
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_gaussian_blur");
+    let render_pass_name = String::from("render_fft_y");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -73,40 +70,44 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("render_gaussian_blur"),
+            _pipeline_data_create_info_name: String::from("render_fft_y"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("render_gaussian_blur.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("fft_ocean/render_fft_init.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+            _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
-            _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
-                _depth_write_enable: false,
-                ..Default::default()
-            },
+            _pipeline_cull_mode: vk::CullModeFlags::BACK,
+            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: vec![
-                vk::PushConstantRange {
-                    stage_flags: vk::ShaderStageFlags::ALL,
-                    offset: 0,
-                    size: std::mem::size_of::<PushConstant_GaussianBlur>() as u32,
-                }
-            ],
+            _push_constant_ranges: vec![vk::PushConstantRange {
+                stage_flags: vk::ShaderStageFlags::ALL,
+                offset: 0,
+                size: std::mem::size_of::<PushConstant_FFT_Init>() as u32,
+            }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
-                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_name: String::from("spectrum_1_2"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_name: String::from("spectrum_3_4"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
             ],
             ..Default::default()
-        },
+        }
     ];
 
-    RenderPassDataCreateInfo {
+    RenderPassDataCreateInfo  {
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,

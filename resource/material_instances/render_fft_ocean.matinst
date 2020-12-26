@@ -1,0 +1,6 @@
+{"material_name": "render_fft_ocean",
+ "material_parameters": {
+    "spectrum_1_2": "fft_ocean/spectrum_1_2",
+    "spectrum_3_4": "fft_ocean/spectrum_3_4"
+ }
+}

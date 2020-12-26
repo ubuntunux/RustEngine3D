@@ -33,7 +33,6 @@ use crate::vulkan_context::render_pass::{
 };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
-use std::slice::RChunks;
 
 const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;

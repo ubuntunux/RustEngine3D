@@ -4,9 +4,12 @@ use ash::{
 
 use crate::constants;
 use crate::renderer::renderer::RendererData;
+use crate::renderer::fft_ocean;
 use crate::vulkan_context::texture::{ TextureCreateInfo };
+use log::Level::Debug;
 
 #[repr(i32)]
+#[allow(non_camel_case_types)]
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum RenderTargetType {
     SceneColor,
@@ -29,6 +32,9 @@ pub enum RenderTargetType {
     SSR,
     SSRResolved,
     SSRResolvedPrev,
+    FFT_A,
+    FFT_B,
+    FFT_SLOPE_VARIANCE,
     MaxBound,
 }
 
@@ -62,6 +68,9 @@ impl std::str::FromStr for RenderTargetType {
             "SSR" => Ok(RenderTargetType::SSR),
             "SSRResolved" => Ok(RenderTargetType::SSRResolved),
             "SSRResolvedPrev" => Ok(RenderTargetType::SSRResolvedPrev),
+            "FFT_A" => Ok(RenderTargetType::FFT_A),
+            "FFT_B" => Ok(RenderTargetType::FFT_B),
+            "FFT_SLOPE_VARIANCE" => Ok(RenderTargetType::FFT_SLOPE_VARIANCE),
             _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
         }
     }
@@ -272,6 +281,62 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_height: window_height / 4,
             ..hdr_texture_create_info.clone()
         },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::FFT_A.to_string(),
+            _texture_width: fft_ocean::FFT_SIZE,
+            _texture_height: fft_ocean::FFT_SIZE,
+            _texture_layer: 5,
+            _texture_view_type: vk::ImageViewType::TYPE_2D_ARRAY,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::FFT_B.to_string(),
+            _texture_width: fft_ocean::FFT_SIZE,
+            _texture_height: fft_ocean::FFT_SIZE,
+            _texture_layer: 5,
+            _texture_view_type: vk::ImageViewType::TYPE_2D_ARRAY,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::FFT_SLOPE_VARIANCE.to_string(),
+            _texture_width: fft_ocean::N_SLOPE_VARIANCE,
+            _texture_height: fft_ocean::N_SLOPE_VARIANCE,
+            _texture_depth: fft_ocean::N_SLOPE_VARIANCE,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: disable_mipmap,
+            _enable_anisotropy: disable_anisotropy,
+            ..Default::default()
+        },
+        // texture_slope_variance = CreateTexture(
+        //     name='fft_ocean.slope_variance',
+        //     texture_type=Texture3D,
+        //     image_mode='RGBA',
+        //     width=N_SLOPE_VARIANCE,
+        //     height=N_SLOPE_VARIANCE,
+        //     depth=N_SLOPE_VARIANCE,
+        //     internal_format=GL_RGBA16F,
+        //     texture_format=GL_RGBA,
+        //     min_filter=GL_LINEAR,
+        //     mag_filter=GL_LINEAR,
+        //     wrap=GL_CLAMP_TO_EDGE,
+        //     data_type=GL_FLOAT,
+        // )
     ];
     texture_create_infos
 }

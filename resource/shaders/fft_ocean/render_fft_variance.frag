@@ -1,30 +1,24 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
 #include "scene_constants.glsl"
+#include "render_quad_common.glsl"
 
-uniform float N_SLOPE_VARIANCE;
-
-uniform sampler2D spectrum_1_2_Sampler;
-uniform sampler2D spectrum_3_4_Sampler;
-uniform int FFT_SIZE;
-
-uniform vec4 GRID_SIZES;
-uniform float slopeVarianceDelta;
-
-uniform float c;
-
-
-#ifdef VERTEX_SHADER
-layout(location = 0) in vec4 vertex;
-out vec2 uv;
-void main()
+layout( push_constant ) uniform PushConstant_FFT_Variance
 {
-    uv = vertex.xy * 0.5 + 0.5;
-    gl_Position = vertex;
-}
-#endif
+    vec4 GRID_SIZES;
+    float N_SLOPE_VARIANCE;
+    int FFT_SIZE;
+    float slopeVarianceDelta;
+    float c;
+} pushConstant;
 
+layout(binding = 0) uniform sampler2D spectrum_1_2_Sampler;
+layout(binding = 1) uniform sampler2D spectrum_3_4_Sampler;
 
-#ifdef FRAGMENT_SHADER
-in vec2 uv;
+layout(location = 0) in VERTEX_OUTPUT vs_output;
+
 layout(location = 0) out vec4 color;
 
 vec2 getSlopeVariances(vec2 k, float A, float B, float C, vec2 spectrumSample)
@@ -36,6 +30,7 @@ vec2 getSlopeVariances(vec2 k, float A, float B, float C, vec2 spectrumSample)
 
 void main()
 {
+    vec2 uv = vs_output.texCoord;
     const float SCALE = 10.0;
     float a = floor(uv.x * N_SLOPE_VARIANCE);
     float b = floor(uv.y * N_SLOPE_VARIANCE);
@@ -58,8 +53,8 @@ void main()
             int j = y >= (FFT_SIZE / 2) ? y - FFT_SIZE : y;
             vec2 k = 2.0 * PI * vec2(i, j);
 
-            spectrum12 = texture2D(spectrum_1_2_Sampler, vec2(float(x) + 0.5, float(y) + 0.5) / float(FFT_SIZE));
-            spectrum34 = texture2D(spectrum_3_4_Sampler, vec2(float(x) + 0.5, float(y) + 0.5) / float(FFT_SIZE));
+            spectrum12 = texture(spectrum_1_2_Sampler, vec2(float(x) + 0.5, float(y) + 0.5) / float(FFT_SIZE));
+            spectrum34 = texture(spectrum_3_4_Sampler, vec2(float(x) + 0.5, float(y) + 0.5) / float(FFT_SIZE));
 
             slopeVariances += getSlopeVariances(k / GRID_SIZES.x, A, B, C, spectrum12.xy) * 100.0;
             slopeVariances += getSlopeVariances(k / GRID_SIZES.y, A, B, C, spectrum12.zw) * 100.0;
@@ -69,4 +64,3 @@ void main()
     }
     color = slopeVariances.xxxy;
 }
-#endif

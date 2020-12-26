@@ -405,7 +405,7 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
     let array_count: u32 = width_points * height_points;
     let vertex_count: u32 = 6; // quad
     let mut positions: Vec<Vector3<f32>> = vec![Vector3::zeros(); array_count as usize];
-    let mut normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); array_count as usize];
+    let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); array_count as usize];
     let mut texcoords: Vec<Vector2<f32>> = vec![Vector2::zeros(); array_count as usize];
     let mut indices: Vec<u32> = vec![0; (width * height * vertex_count) as usize];
 
