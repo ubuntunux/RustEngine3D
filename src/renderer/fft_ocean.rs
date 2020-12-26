@@ -148,7 +148,7 @@ impl FFTOcean {
         let mut bh = 0.5 * alpham * CM / c * fm * lpm;
 
         if omnispectrum {
-            return amp * (bl + b) / (k * sqr(k));
+            return amp * (bl + bh) / (k * sqr(k));
         }
 
         let a0 = log(2.0) / 4.0;
@@ -163,7 +163,7 @@ impl FFTOcean {
             bl *= 2.0;
             bh *= 2.0;
         }
-        amp * (bl + Bh) * (1.0 + delta * (2.0 * phi).cos()) / (2.0 * std::f32::consts::PI * sqr(sqr(k)))
+        amp * (bl + bh) * (1.0 + delta * (2.0 * phi).cos()) / (2.0 * std::f32::consts::PI * sqr(sqr(k)))
     }
 
     fn get_spectrum_sample(&self, i: u32, j: u32, length_scale: f32, k_min: f32) -> (f32, f32) {
@@ -227,10 +227,10 @@ impl FFTOcean {
                 let offset = 4 * (x + y * FFT_SIZE) as usize;
                 let i = if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x };
                 let j = if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y };
-                let (s12_0, s12_1) = self.get_spectrum_sample(i, j, GRID1_SIZE, pi / GRID1_SIZE);
-                let (s12_2, s12_3) = self.get_spectrum_sample(i, j, GRID2_SIZE, pi * FFT_SIZE / GRID1_SIZE);
-                let (s34_0, s34_1) = self.get_spectrum_sample(i, j, GRID3_SIZE, pi * FFT_SIZE / GRID2_SIZE);
-                let (s34_2, s34_3) = self.get_spectrum_sample(i, j, GRID4_SIZE, pi * FFT_SIZE / GRID3_SIZE);
+                let (s12_0, s12_1) = self.get_spectrum_sample(i, j, GRID1_SIZE, std::f32::consts::PI / GRID1_SIZE);
+                let (s12_2, s12_3) = self.get_spectrum_sample(i, j, GRID2_SIZE, std::f32::consts::PI * FFT_SIZE / GRID1_SIZE);
+                let (s34_0, s34_1) = self.get_spectrum_sample(i, j, GRID3_SIZE, std::f32::consts::PI * FFT_SIZE / GRID2_SIZE);
+                let (s34_2, s34_3) = self.get_spectrum_sample(i, j, GRID4_SIZE, std::f32::consts::PI * FFT_SIZE / GRID3_SIZE);
                 spectrum12_data[offset + 0] = s12_0;
                 spectrum12_data[offset + 1] = s12_1;
                 spectrum12_data[offset + 2] = s12_2;
