@@ -2,10 +2,10 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "scene_constants.glsl"
-#include "utility.glsl"
-#include "shading.glsl"
-#include "fft_ocean/render_fft_ocean_common.glsl"
+#include "../scene_constants.glsl"
+#include "../utility.glsl"
+#include "../shading.glsl"
+#include "render_fft_ocean_common.glsl"
 
 layout (location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -16,16 +16,17 @@ void main()
     vec2 uv = vs_output.uvs.xy;
     vec2 fft_uv = vs_output.uvs.zw;
     vec2 screen_texcoord = (vs_output.proj_pos.xy / vs_output.proj_pos.w) * 0.5 + 0.5;
-    vec3 view_center_ray = vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
+    vec3 view_center_ray = vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
     float screen_fade = pow(vs_output.screen_fade, 100.0f);
 
     vec3 relative_pos = vs_output.relative_pos;
-    vec3 world_pos = relative_pos + CAMERA_POSITION.xyz;
+    vec3 world_pos = relative_pos + view_constants.CAMERA_POSITION.xyz;
     float dist = length(relative_pos);
     vec3 V = -relative_pos / dist;
     float view_ray_angle = dot(view_center_ray, V);
 
-    float scene_dist = texture(texture_linear_depth, screen_texcoord).x / view_ray_angle;
+    float device_depth = texture(texture_depth, screen_texcoord).x;
+    float scene_dist = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth) / view_ray_angle;
     float vertex_noise = vs_output.vertex_noise;
 
     // fix scene_depth
@@ -37,16 +38,16 @@ void main()
     vec3 sky_irradiance = vs_output.sky_irradiance;
     vec3 shadow_factor = max(sky_irradiance, vec3(vs_output.shadow_factor));
 
-    vec2 slopes = textureLod(fftWavesSampler, vec3(uv / simulation_size.x, 1.0), 0.0).xy;
-    slopes += textureLod(fftWavesSampler, vec3(uv / simulation_size.y, 1.0), 0.0).zw;
-    slopes += textureLod(fftWavesSampler, vec3(uv / simulation_size.z, 2.0), 0.0).xy;
-    slopes += textureLod(fftWavesSampler, vec3(uv / simulation_size.w, 2.0), 0.0).zw;
+    vec2 slopes = textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.x, 1.0), 0.0).xy;
+    slopes += textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.y, 1.0), 0.0).zw;
+    slopes += textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.z, 2.0), 0.0).xy;
+    slopes += textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.w, 2.0), 0.0).zw;
 
     vec3 vertex_normal = normalize(vs_output.vertex_normal);
     vec3 N = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.2);
     vec3 smooth_normal = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.5);
 
-    vec3 L = LIGHT_DIRECTION.xyz;
+    vec3 L = light_constants.LIGHT_DIRECTION.xyz;
     vec3 H = normalize(V + L);
 
     float NdL = max(0.0, dot(N, L));
@@ -60,7 +61,8 @@ void main()
 
     // refract
     vec2 reflected_screen_uv = screen_texcoord + N.xz * 0.05f;
-    float refracted_scene_dist = texture(texture_linear_depth, reflected_screen_uv).x / view_ray_angle;
+    float reflected_device_depth = texture(texture_depth, screen_texcoord).x;
+    float refracted_scene_dist = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, reflected_device_depth) / view_ray_angle;
     float refracted_scene_dist_origin = refracted_scene_dist;
 
     // fix refractedSceneDepth
@@ -73,11 +75,11 @@ void main()
     // groud pos
     vec3 groundPos = world_pos - V * dist_diff + vec3(N.x, 0.0f, N.z) * 0.5f;
 
-    bool isUnderWater = CAMERA_POSITION.y < height;
+    bool isUnderWater = view_constants.CAMERA_POSITION.y < pushConstant._height;
     float opacity = pow(saturate(dist_diff * 0.3), 1.0) * screen_fade;
     float inv_opacity = 1.0f - opacity;
 
-    vec3 light_color = LIGHT_COLOR.xyz * sun_irradiance;
+    vec3 light_color = light_constants.LIGHT_COLOR.xyz * sun_irradiance;
 
     // Water Base Color
     vec3 sea_color_near = vec3(198.0, 230.0, 213.0) / 255.0;
@@ -100,10 +102,10 @@ void main()
         // Under Water Caustic
         if(false == isUnderWater)
         {
-            vec3 under_water_shadow = vec3(get_shadow_factor_simple(screen_texcoord, world_pos, dot(L, vertex_normal.xyz), texture_shadow));
+            vec3 under_water_shadow = vec3(get_shadow_factor_simple(light_constants, world_pos, dot(L, vertex_normal.xyz), texture_shadow));
             under_water_shadow = max(sky_irradiance, under_water_shadow);
 
-            const float chromaSeperation = sin(t * 3.5f) * 0.005;
+            const float chromaSeperation = sin(pushConstant._t * 3.5f) * 0.005;
             vec2 caustic_uv = (groundPos + L * dist_diff).xz * 0.3 + vertex_normal.xz * 0.5;
 
             vec3 caustic_color;
@@ -125,7 +127,7 @@ void main()
 
     // White cap
     float wave_peak = pow(saturate((vs_output.wave_offset.y * 0.5 + 0.5) * 1.7 + saturate(1.0f - N.y) * 2.0), 12.0f);
-    float white_cap = saturate(wave_peak * simulation_wind);
+    float white_cap = saturate(wave_peak * pushConstant._simulation_wind);
 
     // Transmission
     float transmission = wave_peak * 2.0;

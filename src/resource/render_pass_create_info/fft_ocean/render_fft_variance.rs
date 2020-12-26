@@ -7,7 +7,7 @@ use ash::{
 use crate::utilities::system::{
     enum_to_string
 };
-use crate::renderer::push_constants::{ PushConstant_FFT_Init };
+use crate::renderer::push_constants::{PushConstant_FFT_Init, PushConstant_FFT_Variance};
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
@@ -23,20 +23,19 @@ use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
-use crate::vulkan_context::vulkan_context;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
-    let render_target_infos: Vec<RenderTargetInfo> = (0..texture_fft_a._image_layer).map(|index| {
-        RenderTargetInfo {
-            _texture_data: texture_fft_a,
-            _layer: index,
+    let render_target = renderer_data.get_render_target(RenderTargetType::FFT_SLOPE_VARIANCE);
+    framebuffer::create_framebuffer_data_create_info(
+        &[RenderTargetInfo {
+            _texture_data: render_target,
+            _layer: 0,
             _mip_level: 0,
-            _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)),
-        }
-    }).collect();
-
-    framebuffer::create_framebuffer_data_create_info(&[], &render_target_infos, &[])
+            _clear_value: None,
+        }],
+        &[],
+        &[]
+    )
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
@@ -72,7 +71,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("render_fft_variance"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("fft_ocean/render_fft_init.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("fft_ocean/render_fft_variance.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
@@ -85,19 +84,19 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _push_constant_ranges: vec![vk::PushConstantRange {
                 stage_flags: vk::ShaderStageFlags::ALL,
                 offset: 0,
-                size: std::mem::size_of::<PushConstant_FFT_Init>() as u32,
+                size: std::mem::size_of::<PushConstant_FFT_Variance>() as u32,
             }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: String::from("spectrum_1_2"),
+                    _descriptor_name: String::from("texture_spectrum_1_2"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: String::from("spectrum_3_4"),
+                    _descriptor_name: String::from("texture_spectrum_3_4"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()

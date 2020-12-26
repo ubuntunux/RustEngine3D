@@ -7,7 +7,7 @@ use ash::{
 use crate::utilities::system::{
     enum_to_string
 };
-use crate::renderer::push_constants::{ PushConstant_FFT_Init };
+use crate::renderer::push_constants::{ PushConstant_FFT_Ocean };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
@@ -26,17 +26,21 @@ use crate::vulkan_context::descriptor::{
 use crate::vulkan_context::vulkan_context;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
-    let render_target_infos: Vec<RenderTargetInfo> = (0..texture_fft_a._image_layer).map(|index| {
-        RenderTargetInfo {
-            _texture_data: texture_fft_a,
-            _layer: index,
+    framebuffer::create_framebuffer_data_create_info(
+        &[RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
+            _layer: 0,
             _mip_level: 0,
-            _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)),
-        }
-    }).collect();
-
-    framebuffer::create_framebuffer_data_create_info(&[], &render_target_infos, &[])
+            _clear_value: None,
+        }],
+        &[RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
+            _layer: 0,
+            _mip_level: 0,
+            _clear_value: None,
+        }],
+        &[]
+    )
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
@@ -49,10 +53,26 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
                 _attachment_image_samples: sample_count,
-                _attachment_load_operation: vk::AttachmentLoadOp::DONT_CARE,
+                _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+                _attachment_initial_layout: vk::ImageLayout::GENERAL,
                 _attachment_final_layout: vk::ImageLayout::GENERAL,
                 _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                ..Default::default()
+            }
+        );
+    }
+    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
+        depth_attachment_descriptions.push(
+            ImageAttachmentDescription {
+                _attachment_image_format: *format,
+                _attachment_image_samples: sample_count,
+                _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
+                _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+                _attachment_initial_layout: vk::ImageLayout::GENERAL,
+                _attachment_final_layout: vk::ImageLayout::GENERAL,
+                _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 ..Default::default()
             }
         );
@@ -71,8 +91,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("render_fft_ocean"),
-            _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("fft_ocean/render_fft_init.frag"),
+            _pipeline_vertex_shader_file: PathBuf::from("fft_ocean/render_fft_ocean.vert"),
+            _pipeline_fragment_shader_file: PathBuf::from("fft_ocean/render_fft_ocean.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
@@ -85,19 +105,82 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _push_constant_ranges: vec![vk::PushConstantRange {
                 stage_flags: vk::ShaderStageFlags::ALL,
                 offset: 0,
-                size: std::mem::size_of::<PushConstant_FFT_Init>() as u32,
+                size: std::mem::size_of::<PushConstant_FFT_Ocean>() as u32,
             }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: String::from("spectrum_1_2"),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 2,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::LightConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 3,
+                    _descriptor_name: enum_to_string(&RenderTargetType::FFT_A),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 4,
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 1,
-                    _descriptor_name: String::from("spectrum_3_4"),
+                    _descriptor_binding_index: 5,
+                    _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 6,
+                    _descriptor_name: enum_to_string(&RenderTargetType::Shadow),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 7,
+                    _descriptor_name: String::from("texture_probe"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 8,
+                    _descriptor_name: String::from("texture_noise"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 9,
+                    _descriptor_name: String::from("texture_caustic"),
+                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 10,
+                    _descriptor_name: String::from("texture_foam"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
@@ -111,7 +194,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,
-        _depth_attachment_descriptions: Vec::new(),
+        _depth_attachment_descriptions: depth_attachment_descriptions,
         _resolve_attachment_descriptions: Vec::new(),
         _subpass_dependencies: subpass_dependencies,
         _pipeline_data_create_infos: pipeline_data_create_infos,

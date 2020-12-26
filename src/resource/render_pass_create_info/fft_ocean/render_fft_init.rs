@@ -36,7 +36,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
         }
     }).collect();
 
-    framebuffer::create_framebuffer_data_create_info(&[], &render_target_infos, &[])
+    framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
@@ -49,7 +49,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
                 _attachment_image_samples: sample_count,
-                _attachment_load_operation: vk::AttachmentLoadOp::DONT_CARE,
+                _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
                 _attachment_final_layout: vk::ImageLayout::GENERAL,
                 _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
@@ -90,14 +90,14 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: String::from("spectrum_1_2"),
+                    _descriptor_name: String::from("texture_spectrum_1_2"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: String::from("spectrum_3_4"),
+                    _descriptor_name: String::from("texture_spectrum_3_4"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()

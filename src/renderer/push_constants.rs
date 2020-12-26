@@ -110,9 +110,41 @@ pub struct PushConstant_RenderColor {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
+pub struct PushConstant_FFT {
+    pub _pass: u32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+    pub _reserved2: u32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
 pub struct PushConstant_FFT_Init {
     pub _inverse_grid_sizes: Vector4<f32>,
     pub _fft_size: f32,
+    pub _t: f32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_FFT_Variance {
+    pub _grid_sizes: Vector4<f32>,
+    pub _n_slope_variance: f32,
+    pub _fft_size: i32,
+    pub _slope_variance_delta: f32,
+    pub _c: f32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_FFT_Ocean {
+    pub _simulation_size: Vector4<f32>,
+    pub _cell_size: Vector2<f32>,
+    pub _height: f32,
+    pub _simulation_wind: f32,
+    pub _simulation_amplitude: f32,
     pub _t: f32,
     pub _reserved0: u32,
     pub _reserved1: u32,

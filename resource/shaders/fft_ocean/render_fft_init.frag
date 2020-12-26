@@ -14,8 +14,8 @@ layout( push_constant ) uniform PushConstant_FFT_Init
     uint _reserved1;
 } pushConstant;
 
-layout(binding = 0) uniform sampler2D spectrum_1_2;
-layout(binding = 1) uniform sampler2D spectrum_3_4;
+layout(binding = 0) uniform sampler2D texture_spectrum_1_2;
+layout(binding = 1) uniform sampler2D texture_spectrum_3_4;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -45,10 +45,10 @@ void main()
     float x = uv.x > 0.5 ? st.x - 1.0 : st.x;
     float y = uv.y > 0.5 ? st.y - 1.0 : st.y;
 
-    vec4 s12 = texture(spectrum_1_2, uv, 0.0);
-    vec4 s34 = texture(spectrum_3_4, uv, 0.0);
-    vec4 s12c = texture(spectrum_1_2, vec2(1.0 + 0.5 / pushConstant._fft_size) - st, 0.0);
-    vec4 s34c = texture(spectrum_3_4, vec2(1.0 + 0.5 / pushConstant._fft_size) - st, 0.0);
+    vec4 s12 = texture(texture_spectrum_1_2, uv, 0.0);
+    vec4 s34 = texture(texture_spectrum_3_4, uv, 0.0);
+    vec4 s12c = texture(texture_spectrum_1_2, vec2(1.0 + 0.5 / pushConstant._fft_size) - st, 0.0);
+    vec4 s34c = texture(texture_spectrum_3_4, vec2(1.0 + 0.5 / pushConstant._fft_size) - st, 0.0);
 
     vec2 k1 = vec2(x, y) * pushConstant._inverse_grid_sizes.x;
     vec2 k2 = vec2(x, y) * pushConstant._inverse_grid_sizes.y;

@@ -2,19 +2,19 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_GOOGLE_include_directive : enable
 
-#include "scene_constants.glsl"
-#include "render_quad_common.glsl"
+#include "../scene_constants.glsl"
+#include "../render_quad_common.glsl"
 
 layout( push_constant ) uniform PushConstant_FFT
 {
-    float pass;
-    uint reserved0;
-    uint reserved1;
-    uint reserved2;
+    uint _pass;
+    uint _reserved0;
+    uint _reserved1;
+    uint _reserved2;
 } pushConstant;
 
-layout(binding = 0) uniform sampler2D butterflySampler;
-layout(binding = 1) uniform sampler2DArray imgSampler; // 2 complex inputs (= 4 values) per layer
+layout(binding = 0) uniform sampler2D texture_butterfly;
+layout(binding = 1) uniform sampler2DArray texture_fft; // 2 complex inputs (= 4 values) per layer
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -28,8 +28,13 @@ layout(location = 4) out vec4 color4;
 // returns two results packed in a single vec4
 vec4 fft2(int layer, vec2 i, vec2 w, vec2 uv)
 {
-    vec4 input1 = texture(imgSampler, vec3(uv.x, i.x, layer), 0.0);
-    vec4 input2 = texture(imgSampler, vec3(uv.x, i.y, layer), 0.0);
+#if defined(RENDER_FFT_X)
+    vec4 input1 = texture(texture_fft, vec3(i.x, uv.y, layer), 0.0);
+    vec4 input2 = texture(texture_fft, vec3(i.y, uv.y, layer), 0.0);
+#else
+    vec4 input1 = texture(texture_fft, vec3(uv.x, i.x, layer), 0.0);
+    vec4 input2 = texture(texture_fft, vec3(uv.x, i.y, layer), 0.0);
+#endif
     float res1x = w.x * input2.x - w.y * input2.y;
     float res1y = w.y * input2.x + w.x * input2.y;
     float res2x = w.x * input2.z - w.y * input2.w;
@@ -40,7 +45,11 @@ vec4 fft2(int layer, vec2 i, vec2 w, vec2 uv)
 void main()
 {
     vec2 uv = vs_output.texCoord;
-    vec4 data = texture(butterflySampler, vec2(uv.y, pass), 0.0);
+#if defined(RENDER_FFT_X)
+    vec4 data = texture(texture_butterfly, vec2(uv.x, pushConstant._pass), 0.0);
+#else
+    vec4 data = texture(texture_butterfly, vec2(uv.y, pushConstant._pass), 0.0);
+#endif
     vec2 i = data.xy;
     vec2 w = data.zw;
 

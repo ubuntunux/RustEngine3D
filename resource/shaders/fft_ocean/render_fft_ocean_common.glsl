@@ -11,25 +11,24 @@ layout(binding = 2) uniform LightConstants
     LIGHT_CONSTANTS light_constants;
 };
 layout(binding = 3) uniform sampler2DArray fftWavesSampler;
-layout(binding = 4) uniform sampler3D slopeVarianceSampler;
-layout(binding = 5) uniform sampler2D texture_scene;
-layout(binding = 6) uniform sampler2D texture_linear_depth;
-layout(binding = 7) uniform sampler2D texture_shadow;
-layout(binding = 8) uniform samplerCube texture_probe;
-layout(binding = 9) uniform sampler2D texture_noise;
-layout(binding = 10) uniform sampler2D texture_caustic;
-layout(binding = 11) uniform sampler2D texture_foam;
+layout(binding = 4) uniform sampler2D texture_scene;
+layout(binding = 5) uniform sampler2D texture_depth;
+layout(binding = 6) uniform sampler2D texture_shadow;
+layout(binding = 7) uniform samplerCube texture_probe;
+layout(binding = 8) uniform sampler2D texture_noise;
+layout(binding = 9) uniform sampler2D texture_caustic;
+layout(binding = 10) uniform sampler2D texture_foam;
 
-layout( push_constant ) uniform PushConstant_FFTOceanRender
+layout( push_constant ) uniform PushConstant_FFT_Ocean
 {
-    vec4 simulation_size;
-    vec2 cell_size;
-    float height;
-    float simulation_wind;
-    float simulation_amplitude;
-    float t;
-    uint reserved0;
-    uint reserved1;
+    vec4 _simulation_size;
+    vec2 _cell_size;
+    float _height;
+    float _simulation_wind;
+    float _simulation_amplitude;
+    float _t;
+    uint _reserved0;
+    uint _reserved1;
 } pushConstant;
 
 struct VERTEX_OUTPUT
