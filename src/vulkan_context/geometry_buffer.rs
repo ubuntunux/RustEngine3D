@@ -396,3 +396,73 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
         ..Default::default()
     })
 }
+
+pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDataCreateInfo {
+    let width_points: u32 = width + 1;
+    let height_points: u32 = height + 1;
+    let width_step: f32 = 1.0 / width as f32;
+    let height_step: f32 = 1.0 / height as f32;
+    let array_count: u32 = width_points * height_points;
+    let vertex_count: u32 = 6; // quad
+    let mut positions: Vec<Vector3<f32>> = vec![Vector3::zeros(); array_count as usize];
+    let mut normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); array_count as usize];
+    let mut texcoords: Vec<Vector2<f32>> = vec![Vector2::zeros(); array_count as usize];
+    let mut indices: Vec<u32> = vec![0; (width * height * vertex_count) as usize];
+
+    // generate positions, texcoords
+    let mut array_index: usize = 0;
+    for y in 0..height_points {
+        let y: f32 = y as f32 * height_step;
+        for x in 0..width_points {
+            let x: f32 = x as f32 * width_step;
+            if xz_plane {
+                positions[array_index] = Vector3::new(x * 2.0 - 1.0, 0.0, 1.0 - y * 2.0);
+            } else {
+                positions[array_index] = Vector3::new(x * 2.0 - 1.0, 1.0 - y * 2.0, 0.0);
+            }
+            texcoords[array_index] = Vector2::new(x, 1.0 - y);
+            array_index += 1;
+        }
+    }
+
+    // generate indices
+    let mut array_index: usize = 0;
+    for y in 0..height {
+        for x in 0..width {
+            let i = y * width_points + x;
+            indices[array_index + 0] = i;
+            indices[array_index + 1] = i + 1;
+            indices[array_index + 2] = i + 1 + width_points;
+            indices[array_index + 3] = i;
+            indices[array_index + 4] = i + 1 + width_points;
+            indices[array_index + 5] = i + width_points;
+            array_index += vertex_count as usize;
+        }
+    }
+
+    let vertex_color = get_color32(255, 255, 255, 255);
+    let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
+    let vertex_datas = positions
+        .iter()
+        .enumerate()
+        .map(|(index, __position)| {
+            VertexData {
+                _position: positions[index].clone() as Vector3<f32>,
+                _normal: normals[index].clone() as Vector3<f32>,
+                _tangent: tangents[index].clone() as Vector3<f32>,
+                _color: vertex_color,
+                _texcoord: texcoords[index].clone() as Vector2<f32>,
+                ..Default::default()
+            }
+        }).collect();
+
+    MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+        _geometry_create_infos: vec![GeometryCreateInfo {
+            _vertex_datas: vertex_datas,
+            _indices: indices,
+            _bounding_box: calc_bounding_box(&positions),
+            ..Default::default()
+        }],
+        ..Default::default()
+    })
+}

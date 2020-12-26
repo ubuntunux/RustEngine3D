@@ -9,6 +9,7 @@ use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData, AnimationPlayArgs };
+use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::shader_buffer_datas::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
@@ -29,6 +30,7 @@ pub struct SceneManagerData {
     pub _static_render_elements: Vec<RenderElementData>,
     pub _skeletal_render_object_map: RenderObjectMap,
     pub _skeletal_render_elements: Vec<RenderElementData>,
+    pub _fft_ocean: RcRefCell<FFTOcean>,
 }
 
 pub fn create_scene_manager_data(
@@ -37,6 +39,8 @@ pub fn create_scene_manager_data(
 ) -> RcRefCell<SceneManagerData> {
     let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
     let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
+    let fft_ocean = system::newRcRefCell(FFTOcean::default());
+    fft_ocean.borrow_mut().initialize_fft_ocean(renderer_data.clone(), resources.clone());
     system::newRcRefCell(SceneManagerData {
         _renderer_data: renderer_data,
         _resources: resources,
@@ -48,6 +52,7 @@ pub fn create_scene_manager_data(
         _static_render_elements: Vec::new(),
         _skeletal_render_object_map: HashMap::new(),
         _skeletal_render_elements: Vec::new(),
+        _fft_ocean: fft_ocean,
     })
 }
 

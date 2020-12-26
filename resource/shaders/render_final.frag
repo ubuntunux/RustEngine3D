@@ -36,9 +36,12 @@ vec3 Uncharted2Tonemap(vec3 hdrColor, float exposure)
     return hdrColor * whiteScale;
 }
 
-vec3 ReinhardTonemap(vec3 hdrColor)
+vec3 ReinhardTonemap(vec3 hdrColor, float exposure)
 {
-    return hdrColor / (hdrColor + vec3(1.0));
+    hdrColor *= exposure;
+    float L = get_luminance(hdrColor);
+    float Ld = L / (1.0 + L);
+    return clamp(Ld * hdrColor / L, 0.0, 1.0);
 }
 
 vec3 SimpleTonemap(vec3 hdrColor, float exposure)
@@ -71,7 +74,7 @@ void main() {
     }
     color.xyz += bloom;
 
-    color.xyz = ReinhardTonemap(color.xyz);
+    color.xyz = ReinhardTonemap(color.xyz, 1.0);
     color.xyz *= vignetting(texCoord, 1.0, 0.20);
     color.xyz = Contrast(color.xyz, 1.0);
     outColor = color;

@@ -2,6 +2,7 @@ pub mod animation;
 pub mod shader_buffer_datas;
 pub mod camera;
 pub mod image_sampler;
+pub mod fft_ocean;
 pub mod light;
 pub mod material;
 pub mod material_instance;

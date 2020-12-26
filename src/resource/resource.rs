@@ -33,6 +33,7 @@ use crate::vulkan_context::render_pass::{
 };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
+use std::slice::RChunks;
 
 const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;
@@ -419,14 +420,18 @@ impl Resources {
         (image_width, image_height, image_datas, image_format)
     }
 
-    pub fn load_texture_datas(&mut self, renderer_data: &RendererData) {
-        //let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
-        let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
+    pub fn regist_texture_data(&mut self, texture_data_name: String, texture_data: RcRefCell<TextureData>) {
+        self._texture_data_map.insert(texture_data_name, texture_data);
+    }
 
+    pub fn load_texture_datas(&mut self, renderer_data: &RendererData) {
         let texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_data);
         for texture_data in texture_datas {
-            self._texture_data_map.insert(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
+            self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
         }
+
+        //let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
+        let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
 
         // generate necessary texture datas
         texture_generator::generate_images(&texture_source_directory);
