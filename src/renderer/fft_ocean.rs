@@ -95,13 +95,13 @@ fn frandom(seed_data: u32) -> f32 {
 }
 
 fn bit_reverse(i: i32, n: i32) -> i32 {
-    let mut j: i32 = i;
     let mut sum: i32 = 0;
     let mut w: i32 = 1;
     let mut m: i32 = (n / 2) as i32;
     while 0 != m {
-        j = if (i & m) > (m - 1) { 1 } else { 0 };
-        sum += j * w;
+        if (i & m) > (m - 1) {
+            sum += w;
+        }
         w *= 2;
         m = (m / 2) as i32;
     }
@@ -340,9 +340,9 @@ impl FFTOcean {
         let mut theoretic_slope_variance = 0.0;
         let mut k = 5e-3;
         while k < 1e3 {
-            let nextK = k * 1.001;
-            theoretic_slope_variance += k * k * self.spectrum(k, 0.0, true) * (nextK - k);
-            k = nextK;
+            let next_k = k * 1.001;
+            theoretic_slope_variance += k * k * self.spectrum(k, 0.0, true) * (next_k - k);
+            k = next_k;
         }
 
         let mut total_slope_variance = 0.0;

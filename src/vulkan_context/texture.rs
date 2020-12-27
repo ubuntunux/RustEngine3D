@@ -53,6 +53,7 @@ pub struct TextureData {
     pub _image_layer: u32,
     pub _image_mip_levels: u32,
     pub _image_sample_count: vk::SampleCountFlags,
+    pub _image_view_type: vk::ImageViewType,
 }
 
 pub struct ImageDatas {
@@ -905,6 +906,7 @@ pub fn create_render_target<T>(
         _image_layer: texture_create_info._texture_layer,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
+        _image_view_type: texture_create_info._texture_view_type,
     }
 }
 
@@ -1075,6 +1077,7 @@ pub fn create_texture_data<T: Copy>(
         _image_layer: texture_create_info._texture_layer,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
+        _image_view_type: texture_create_info._texture_view_type,
     }
 }
 

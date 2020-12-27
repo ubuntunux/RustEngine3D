@@ -281,10 +281,10 @@ pub fn create_write_descriptor_sets_with_update(
 
 pub fn create_write_descriptor_set(
     write_descriptor_sets: &Vec<vk::WriteDescriptorSet>,
-    descriptor_offset: usize,
+    descriptor_index: usize,
     descriptor_resource_info: &DescriptorResourceInfo
 ) -> vk::WriteDescriptorSet {
-    let mut write_descriptor_set = write_descriptor_sets[descriptor_offset].clone();
+    let mut write_descriptor_set = write_descriptor_sets[descriptor_index].clone();
     match descriptor_resource_info {
         DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
             write_descriptor_set.p_buffer_info = buffer_info;
@@ -304,10 +304,10 @@ pub fn create_write_descriptor_set(
 
 pub fn update_write_descriptor_set(
     write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet>,
-    descriptor_offset: usize,
+    descriptor_index: usize,
     descriptor_resource_info: &DescriptorResourceInfo
 ) {
-    let mut write_descriptor_set = &mut write_descriptor_sets[descriptor_offset];
+    let mut write_descriptor_set = &mut write_descriptor_sets[descriptor_index];
     match descriptor_resource_info {
         DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
             write_descriptor_set.p_buffer_info = buffer_info;

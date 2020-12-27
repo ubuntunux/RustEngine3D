@@ -1,5 +1,4 @@
-use std::cmp::{ PartialEq };
-
+use ash::{ vk };
 use nalgebra::{
     Vector2,
     Vector4,
@@ -148,4 +147,24 @@ pub struct PushConstant_FFT_Ocean {
     pub _t: f32,
     pub _reserved0: u32,
     pub _reserved1: u32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderDebug {
+    pub _debug_target: u32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+    pub _reserved2: u32,
+}
+
+impl Default for PushConstant_RenderDebug {
+    fn default() -> PushConstant_RenderDebug {
+        PushConstant_RenderDebug {
+            _debug_target: vk::ImageViewType::TYPE_2D.as_raw() as u32,
+            _reserved0: 0,
+            _reserved1: 0,
+            _reserved2: 0,
+        }
+    }
 }

@@ -55,6 +55,7 @@ use crate::renderer::push_constants::{
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
     PushConstant_RenderColor,
+    PushConstant_RenderDebug,
 };
 use crate::renderer::render_target::{ self, RenderTargetType };
 use crate::renderer::shader_buffer_datas::{
@@ -707,11 +708,11 @@ impl RendererData {
         &self,
         swapchain_index: u32,
         pipeline_binding_data: &PipelineBindingData,
-        descriptor_offset: usize,
+        descriptor_index: usize,
         descriptor_resource_info: &DescriptorResourceInfo
     ) {
         let wirte_descriptor_sets: &Vec<vk::WriteDescriptorSet> = &pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
-        let write_descriptor_set = descriptor::create_write_descriptor_set(wirte_descriptor_sets, descriptor_offset, descriptor_resource_info);
+        let write_descriptor_set = descriptor::create_write_descriptor_set(wirte_descriptor_sets, descriptor_index, descriptor_resource_info);
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
         unsafe {
             self._device.update_descriptor_sets(&[write_descriptor_set], descriptor_copies);
@@ -722,12 +723,12 @@ impl RendererData {
         &self,
         swapchain_index: u32,
         pipeline_binding_data: &mut PipelineBindingData,
-        descriptor_offset: usize,
+        descriptor_index: usize,
         descriptor_resource_info: &DescriptorResourceInfo
     ) {
         let wirte_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> = &mut pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
-        descriptor::update_write_descriptor_set(wirte_descriptor_sets, descriptor_offset, descriptor_resource_info);
-        let wirte_descriptor_set_offset = wirte_descriptor_sets[descriptor_offset];
+        descriptor::update_write_descriptor_set(wirte_descriptor_sets, descriptor_index, descriptor_resource_info);
+        let wirte_descriptor_set_offset = wirte_descriptor_sets[descriptor_index];
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
         unsafe {
             self._device.update_descriptor_sets(&[wirte_descriptor_set_offset], descriptor_copies);
@@ -1023,14 +1024,30 @@ impl RendererData {
                         None,
                     );
 
-                    let image_info = self.get_render_target(self._debug_render_target);
+                    let debug_texture_data = self.get_render_target(self._debug_render_target);
                     let layer = 0;
                     let mip_level = self._debug_render_target_miplevel;
+                    let descriptor_index = match debug_texture_data._image_view_type {
+                        vk::ImageViewType::TYPE_2D => 1,
+                        vk::ImageViewType::TYPE_2D_ARRAY => 2,
+                        vk::ImageViewType::TYPE_3D => 3,
+                        vk::ImageViewType::CUBE => 4,
+                        _ => panic!("Not implemented."),
+                    };
                     self.update_descriptor_set_mut(
                         swapchain_index,
                         &mut render_debug_pipeline_binding_data,
-                        0,
-                        &DescriptorResourceInfo::DescriptorImageInfo(image_info.get_sub_image_info(layer, mip_level)),
+                        descriptor_index,
+                        &DescriptorResourceInfo::DescriptorImageInfo(debug_texture_data.get_sub_image_info(layer, mip_level)),
+                    );
+
+                    self.upload_push_constant_data(
+                        command_buffer,
+                        &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow(),
+                        &PushConstant_RenderDebug {
+                            _debug_target: debug_texture_data._image_view_type.as_raw() as u32,
+                            ..Default::default()
+                        }
                     );
 
                     self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);

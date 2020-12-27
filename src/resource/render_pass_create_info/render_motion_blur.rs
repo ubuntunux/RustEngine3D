@@ -4,7 +4,6 @@ use ash::{
     vk,
 };
 
-use crate::constants;
 use crate::utilities::system::{
     enum_to_string
 };
