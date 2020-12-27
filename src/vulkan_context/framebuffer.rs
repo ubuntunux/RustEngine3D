@@ -76,7 +76,7 @@ pub fn create_framebuffer_data_create_info(
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferDataCreateInfo {
-    let (mut width, mut height, mut depth, layer, sample_count, mip_level) = if false == color_render_targets.is_empty() {
+    let (mut width, mut height, mut _depth, _layer, sample_count, mip_level) = if false == color_render_targets.is_empty() {
         ( color_render_targets[0]._texture_data._image_width,
           color_render_targets[0]._texture_data._image_height,
           color_render_targets[0]._texture_data._image_depth,
@@ -100,7 +100,7 @@ pub fn create_framebuffer_data_create_info(
     if constants::INVALID_MIP_LEVEL != mip_level {
         width = max(1, width >> mip_level);
         height = max(1, height >> mip_level);
-        depth = max(1, depth >> mip_level);
+        _depth = max(1, _depth >> mip_level);
     }
 
     let mut rendertarget_views = Vec::new();

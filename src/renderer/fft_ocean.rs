@@ -280,10 +280,10 @@ impl FFTOcean {
             let inputs: i32 = (2.0f32).powf(i as f32) as i32;
             for j in 0..blocks {
                 for k in 0..inputs {
-                    let mut i1: i32 = 0;
-                    let mut i2: i32 = 0;
-                    let mut j1: i32 = 0;
-                    let mut j2: i32 = 0;
+                    let i1: i32;
+                    let i2: i32;
+                    let j1: i32;
+                    let j2: i32;
                     if i == 0 {
                         i1 = j * inputs * 2 + k;
                         i2 = j * inputs * 2 + inputs + k;
