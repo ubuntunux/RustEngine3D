@@ -169,9 +169,17 @@ impl ApplicationData {
             }
 
             if released_key_subtract {
-                (*renderer_data).prev_debug_render_target_miplevel();
+                if modifier_keys_shift {
+                    (*renderer_data).prev_debug_render_target_layer();
+                } else {
+                    (*renderer_data).prev_debug_render_target_miplevel();
+                }
             } else if released_key_equals {
-                (*renderer_data).next_debug_render_target_miplevel();
+                if modifier_keys_shift {
+                    (*renderer_data).next_debug_render_target_layer();
+                } else {
+                    (*renderer_data).next_debug_render_target_miplevel();
+                }
             }
         }
 

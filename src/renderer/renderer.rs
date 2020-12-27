@@ -176,6 +176,7 @@ pub struct RendererData {
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
     pub _debug_render_target: RenderTargetType,
+    pub _debug_render_target_layer: u32,
     pub _debug_render_target_miplevel: u32,
     pub _render_target_data_map: RenderTargetDataMap,
     pub _shader_buffer_data_map: ShaderBufferDataMap,
@@ -295,6 +296,7 @@ pub fn create_renderer_data<T>(
             _render_features: render_features,
             _image_samplers: ImageSamplerData::default(),
             _debug_render_target: RenderTargetType::BackBuffer,
+            _debug_render_target_layer: 0,
             _debug_render_target_miplevel: 0,
             _render_target_data_map: RenderTargetDataMap::new(),
             _shader_buffer_data_map: ShaderBufferDataMap::new(),
@@ -441,6 +443,22 @@ impl RendererData {
             unsafe { std::mem::transmute(enum_to_int - 1) }
         };
         log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
+    }
+
+    pub fn next_debug_render_target_layer(&mut self) {
+        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
+        self._debug_render_target_layer = (self._debug_render_target_layer + 1) % texture_data._image_layer;
+        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_layer);
+    }
+
+    pub fn prev_debug_render_target_layer(&mut self) {
+        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
+        if 0 == self._debug_render_target_layer {
+            self._debug_render_target_layer = texture_data._image_layer - 1;
+        } else {
+            self._debug_render_target_layer -= 1;
+        }
+        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_layer);
     }
 
     pub fn next_debug_render_target_miplevel(&mut self) {
