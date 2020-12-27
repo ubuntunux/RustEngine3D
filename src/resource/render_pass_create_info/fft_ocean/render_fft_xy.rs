@@ -22,12 +22,13 @@ use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
+use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_B);
-    let render_target_infos: Vec<RenderTargetInfo> = (0..texture_fft_a._image_layer).map(|index| {
+    let render_target = renderer_data.get_render_target(RenderTargetType::FFT_B);
+    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layer).map(|index| {
         RenderTargetInfo {
-            _texture_data: texture_fft_a,
+            _texture_data: render_target,
             _layer: index,
             _mip_level: 0,
             _clear_value: None,
@@ -78,6 +79,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_ranges: vec![vk::PushConstantRange {
@@ -113,6 +115,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_sample_count: sample_count,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
