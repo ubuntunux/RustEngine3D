@@ -925,7 +925,7 @@ pub fn create_texture_data<T: Copy>(
     };
     let (texture_create_flags, layer_count) = match texture_create_info._texture_view_type {
         vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6),
-        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::CUBE_COMPATIBLE, texture_create_info._texture_layer),
+        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layer),
         _ => (vk::ImageCreateFlags::empty(), 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
