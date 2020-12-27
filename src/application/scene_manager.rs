@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ash::Device;
 use nalgebra::{
     Vector3
 };
@@ -57,8 +58,6 @@ pub fn create_scene_manager_data(
 
 impl SceneManagerData {
     pub fn open_scene_manager_data(&mut self, camera_create_info: &CameraCreateInfo) {
-        self.initialize_graphics_data();
-
         self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
         let pitch: f32 = -std::f32::consts::PI * 0.47;
         self._main_light = self.add_light_object(&String::from("main_light"), &DirectionalLightCreateInfo {
@@ -102,17 +101,20 @@ impl SceneManagerData {
         }
     }
 
-    pub fn close_scene_manager_data(&mut self) {
-        self.destroy_graphics_data();
+    pub fn close_scene_manager_data(&mut self, device: &Device) {
+        self.destroy_graphics_data(device);
     }
 
-    pub fn initialize_graphics_data(&mut self) {
-        self._fft_ocean.borrow_mut().initialize_fft_ocean(&self._renderer_data, &self._resources);
+    pub fn initialize_graphics_data(&mut self, renderer_data: &RendererData) {
+        self._fft_ocean.borrow_mut().initialize_fft_ocean(renderer_data, &self._resources);
     }
 
-    pub fn destroy_graphics_data(&mut self) {
-        let renderer_data = self._renderer_data.borrow();
-        self._fft_ocean.borrow_mut().destroy_fft_ocean(renderer_data.get_device());
+    pub fn destroy_graphics_data(&mut self, device: &Device) {
+        self._fft_ocean.borrow_mut().destroy_fft_ocean(device);
+    }
+
+    pub fn rendering_at_first(&self, renderer_data: &RendererData) {
+        self._fft_ocean.borrow().rendering_at_first(renderer_data, &self._resources.borrow());
     }
 
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {

@@ -99,7 +99,7 @@ impl ApplicationData {
         resources: &mut Resources,
         renderer_data: &mut RendererData,
     ) {
-        scene_manager_data.close_scene_manager_data();
+        scene_manager_data.close_scene_manager_data(renderer_data.get_device());
         renderer_data.destroy_post_process_datas();
         resources.destroy_resources(renderer_data);
         renderer_data.destroy_renderer_data();
@@ -265,6 +265,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         position: Vector3::new(0.0, 0.0, 10.0),
         ..Default::default()
     };
+    scene_manager_data.borrow_mut().initialize_graphics_data(&renderer_data.borrow());
     scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
 
     // main loop
@@ -298,7 +299,9 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
 
                     if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
                         if false == renderer_data.get_is_first_resize_event() {
-                            renderer_data.resize_window(&mut scene_manager_data);
+                            scene_manager_data.destroy_graphics_data(renderer_data.get_device());
+                            renderer_data.resize_window();
+                            scene_manager_data.initialize_graphics_data(&renderer_data);
                         }
                         let window_size = renderer_data._window.inner_size();
                         scene_manager_data.get_main_camera().borrow_mut().set_aspect(window_size.width, window_size.height);

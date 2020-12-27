@@ -792,14 +792,13 @@ impl RendererData {
         self.create_render_targets();
     }
 
-    pub fn resize_window(&mut self, scene_manager: &mut SceneManagerData) {
+    pub fn resize_window(&mut self) {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
 
         let resources = self._resources.clone();
 
         // destroy swapchain & graphics resources
-        scene_manager.destroy_graphics_data();
         self.destroy_post_process_datas();
         resources.borrow_mut().unload_graphics_datas(self);
         self.destroy_render_targets();
@@ -809,7 +808,6 @@ impl RendererData {
         self.create_render_targets();
         resources.borrow_mut().load_graphics_datas(self);
         self.initialize_post_process_datas();
-        scene_manager.initialize_graphics_data();
         self.reset_is_first_rendering();
     }
 
@@ -993,6 +991,7 @@ impl RendererData {
 
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
+                    scene_manager.rendering_at_first(self);
                     self._is_first_rendering = false;
                 }
 

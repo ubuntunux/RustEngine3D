@@ -51,6 +51,9 @@ pub struct FFTOcean {
     _fft_seed: u32,
     _simulation_size: Vec<f32>,
     _caustic_index: u32,
+    _spectrum12_data: Vec<f32>,
+    _spectrum34_data: Vec<f32>,
+    _butterfly_data: Vec<f32>,
     _fft_variance_framebuffers: Vec<FramebufferData>,
     _render_fft_ocean_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
 }
@@ -72,6 +75,9 @@ impl Default for FFTOcean {
             _fft_seed: 1234,
             _simulation_size: GRID_SIZES.iter().map(|grid_size| grid_size * simulation_scale).collect(),
             _caustic_index: 0,
+            _spectrum12_data: Vec::new(),
+            _spectrum34_data: Vec::new(),
+            _butterfly_data: Vec::new(),
             _fft_variance_framebuffers: Vec::new(),
             _render_fft_ocean_descriptor_sets: Vec::new(),
         }
@@ -113,14 +119,13 @@ fn compute_weight(n: i32, k: f32) -> (f32, f32) {
 }
 
 impl FFTOcean {
-    pub fn initialize_fft_ocean(&mut self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
+    pub fn initialize_fft_ocean(&mut self, renderer_data: &RendererData, resources: &RcRefCell<Resources>) {
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut butterfly_data: Vec<f32> = vec![0.0; (FFT_SIZE * PASSES * 4) as usize];
 
         // create fft mesh & textures
         {
-            let renderer_data = renderer_data.borrow();
             let mut resources = resources.borrow_mut();
             if false == resources.has_mesh_data("fft_grid") {
                 let fft_grid = geometry_buffer::plane_mesh_create_info(GRID_VERTEX_COUNT, GRID_VERTEX_COUNT, false);
@@ -167,17 +172,18 @@ impl FFTOcean {
                     _texture_min_filter: vk::Filter::NEAREST,
                     _texture_mag_filter: vk::Filter::NEAREST,
                     _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-                    _texture_initial_datas: butterfly_data,
+                    _texture_initial_datas: butterfly_data.clone(),
                     ..Default::default()
                 });
                 resources.regist_texture_data(texture_butterfly._texture_data_name.clone(), newRcRefCell(texture_butterfly));
             }
         }
 
-        let renderer_data = renderer_data.borrow();
-        let resources = resources.borrow();
-        self.prepare_framebuffer_and_descriptors(&renderer_data, &resources);
-        self.compute_slope_variance_texture(&renderer_data, &resources, &spectrum12_data, &spectrum34_data);
+        self._spectrum12_data = spectrum12_data;
+        self._spectrum34_data = spectrum34_data;
+        self._butterfly_data = butterfly_data;
+
+        self.prepare_framebuffer_and_descriptors(renderer_data, &resources.borrow());
     }
 
     pub fn destroy_fft_ocean(&mut self, device: &Device) {
@@ -186,6 +192,10 @@ impl FFTOcean {
         }
         self._fft_variance_framebuffers.clear();
         self._render_fft_ocean_descriptor_sets.clear();
+    }
+
+    pub fn rendering_at_first(&self, renderer_data: &RendererData, resources: &Resources) {
+        self.compute_slope_variance_texture(renderer_data, resources);
     }
 
     fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
@@ -336,7 +346,7 @@ impl FFTOcean {
         }
     }
 
-    fn compute_slope_variance_texture(&self, renderer_data: &RendererData, resources: &Resources, spectrum12_data: &Vec<f32>, spectrum34_data: &Vec<f32>) {
+    fn compute_slope_variance_texture(&self, renderer_data: &RendererData, resources: &Resources) {
         let mut theoretic_slope_variance = 0.0;
         let mut k = 5e-3;
         while k < 1e3 {
@@ -351,10 +361,10 @@ impl FFTOcean {
                 let offset = 4 * (x + y * FFT_SIZE) as usize;
                 let i = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x }) as f32;
                 let j = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y }) as f32;
-                total_slope_variance += self.get_slope_variance(i / GRID1_SIZE, j / GRID1_SIZE, spectrum12_data[offset    ], spectrum12_data[offset + 1]);
-                total_slope_variance += self.get_slope_variance(i / GRID2_SIZE, j / GRID2_SIZE, spectrum12_data[offset + 2], spectrum12_data[offset + 3]);
-                total_slope_variance += self.get_slope_variance(i / GRID3_SIZE, j / GRID3_SIZE, spectrum34_data[offset    ], spectrum34_data[offset + 1]);
-                total_slope_variance += self.get_slope_variance(i / GRID4_SIZE, j / GRID4_SIZE, spectrum34_data[offset + 2], spectrum34_data[offset + 3]);
+                total_slope_variance += self.get_slope_variance(i / GRID1_SIZE, j / GRID1_SIZE, self._spectrum12_data[offset    ], self._spectrum12_data[offset + 1]);
+                total_slope_variance += self.get_slope_variance(i / GRID2_SIZE, j / GRID2_SIZE, self._spectrum12_data[offset + 2], self._spectrum12_data[offset + 3]);
+                total_slope_variance += self.get_slope_variance(i / GRID3_SIZE, j / GRID3_SIZE, self._spectrum34_data[offset    ], self._spectrum34_data[offset + 1]);
+                total_slope_variance += self.get_slope_variance(i / GRID4_SIZE, j / GRID4_SIZE, self._spectrum34_data[offset + 2], self._spectrum34_data[offset + 3]);
             }
         }
 
