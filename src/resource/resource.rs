@@ -493,7 +493,7 @@ impl Resources {
         self._texture_data_map.contains_key(resource_name)
     }
 
-    pub fn get_texture_data(&mut self, resource_name: &str) -> &RcRefCell<TextureData> {
+    pub fn get_texture_data(&self, resource_name: &str) -> &RcRefCell<TextureData> {
         get_resource_data(&self._texture_data_map, resource_name, DEFAULT_TEXTURE_NAME)
     }
 

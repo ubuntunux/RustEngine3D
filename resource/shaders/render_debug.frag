@@ -101,5 +101,6 @@ void main() {
 //    }
 
 //    outColor.xyz = clamp((outColor.xyz - debug_intensity_min) / (debug_intensity_max - debug_intensity_min), 0.0, 1.0);
+    outColor.xyz = pow(clamp(outColor.xyz, 0.0, 1.0), vec3(2.2));
     outColor.w = 1.0;
 }

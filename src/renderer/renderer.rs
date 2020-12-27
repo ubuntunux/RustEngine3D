@@ -1024,6 +1024,7 @@ impl RendererData {
                     );
 
                     let debug_texture_data = self.get_render_target(self._debug_render_target);
+                    //let debug_texture_data = resources.get_texture_data("fft_ocean/butterfly").borrow();
                     let layer = 0;
                     let mip_level = self._debug_render_target_miplevel;
                     let descriptor_index = match debug_texture_data._image_view_type {
