@@ -120,7 +120,7 @@ pub struct PushConstant_FFT {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_FFT_Init {
-    pub _inverse_grid_sizes: Vector4<f32>,
+    pub _inverse_grid_sizes: [f32; 4],
     pub _fft_size: f32,
     pub _t: f32,
     pub _reserved0: u32,
@@ -130,9 +130,9 @@ pub struct PushConstant_FFT_Init {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_FFT_Variance {
-    pub _grid_sizes: Vector4<f32>,
+    pub _grid_sizes: [f32; 4],
     pub _n_slope_variance: f32,
-    pub _fft_size: i32,
+    pub _fft_size: u32,
     pub _slope_variance_delta: f32,
     pub _c: f32,
 }

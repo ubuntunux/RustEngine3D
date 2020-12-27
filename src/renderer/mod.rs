@@ -15,6 +15,7 @@ pub mod render_object;
 pub mod render_target;
 pub mod renderer;
 pub mod transform_object;
+pub mod utility;
 
 #[allow(unused_imports)]
 pub use self::animation::*;
@@ -60,3 +61,6 @@ pub use self::renderer::*;
 
 #[allow(unused_imports)]
 pub use self::transform_object::*;
+
+#[allow(unused_imports)]
+pub use self::utility::*;

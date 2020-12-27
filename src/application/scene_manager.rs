@@ -40,7 +40,6 @@ pub fn create_scene_manager_data(
     let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
     let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
     let fft_ocean = system::newRcRefCell(FFTOcean::default());
-    fft_ocean.borrow_mut().initialize_fft_ocean(renderer_data.clone(), resources.clone());
     system::newRcRefCell(SceneManagerData {
         _renderer_data: renderer_data,
         _resources: resources,
@@ -58,6 +57,8 @@ pub fn create_scene_manager_data(
 
 impl SceneManagerData {
     pub fn open_scene_manager_data(&mut self, camera_create_info: &CameraCreateInfo) {
+        self.initialize_graphics_data();
+
         self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
         let pitch: f32 = -std::f32::consts::PI * 0.47;
         self._main_light = self.add_light_object(&String::from("main_light"), &DirectionalLightCreateInfo {
@@ -102,6 +103,16 @@ impl SceneManagerData {
     }
 
     pub fn close_scene_manager_data(&mut self) {
+        self.destroy_graphics_data();
+    }
+
+    pub fn initialize_graphics_data(&mut self) {
+        self._fft_ocean.borrow_mut().initialize_fft_ocean(&self._renderer_data, &self._resources);
+    }
+
+    pub fn destroy_graphics_data(&mut self) {
+        let renderer_data = self._renderer_data.borrow();
+        self._fft_ocean.borrow_mut().destroy_fft_ocean(renderer_data.get_device());
     }
 
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {
@@ -175,7 +186,6 @@ impl SceneManagerData {
     }
 
     pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
-
         let mut main_camera = self._main_camera.borrow_mut();
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();

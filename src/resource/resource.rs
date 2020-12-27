@@ -265,6 +265,10 @@ impl Resources {
         self._model_data_map.clear();
     }
 
+    pub fn has_model_data(&self, resource_name: &str) -> bool {
+        self._model_data_map.contains_key(resource_name)
+    }
+
     pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData> {
         get_resource_data(&self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
     }
@@ -351,6 +355,10 @@ impl Resources {
             }
         }
         self._mesh_data_map.clear();
+    }
+
+    pub fn has_mesh_data(&self, resource_name: &str) -> bool {
+        self._mesh_data_map.contains_key(resource_name)
     }
 
     pub fn get_mesh_data(&self, resource_name: &str) -> &RcRefCell<MeshData> {
@@ -481,6 +489,10 @@ impl Resources {
         self._texture_data_map.clear();
     }
 
+    pub fn has_texture_data(&self, resource_name: &str) -> bool {
+        self._texture_data_map.contains_key(resource_name)
+    }
+
     pub fn get_texture_data(&mut self, resource_name: &str) -> &RcRefCell<TextureData> {
         get_resource_data(&self._texture_data_map, resource_name, DEFAULT_TEXTURE_NAME)
     }
@@ -514,6 +526,10 @@ impl Resources {
         self._framebuffer_datas_map.clear();
     }
 
+    pub fn has_framebuffer_data(&self, resource_name: &str) -> bool {
+        self._framebuffer_datas_map.contains_key(resource_name)
+    }
+
     pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
         get_resource_data_must(&self._framebuffer_datas_map, resource_name)
     }
@@ -537,6 +553,10 @@ impl Resources {
             render_pass::destroy_render_pass_data(renderer_data.get_device(), &(*render_pass_data).borrow());
         }
         self._render_pass_data_map.clear()
+    }
+
+    pub fn has_render_pass_data(&self, resource_name: &str) -> bool {
+        self._render_pass_data_map.contains_key(resource_name)
     }
 
     pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData> {
@@ -596,6 +616,10 @@ impl Resources {
             material_data.borrow().destroy_material();
         }
         self._material_data_map.clear();
+    }
+
+    pub fn has_material_data(&self, resource_name: &str) -> bool {
+        self._material_data_map.contains_key(resource_name)
     }
 
     pub fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData> {
@@ -699,6 +723,10 @@ impl Resources {
             }).collect();
             model_data.borrow_mut().set_material_instance_datas(new_material_instances);
         }
+    }
+
+    pub fn has_material_instance_data(&self, resource_name: &str) -> bool {
+        self._material_instance_data_map.contains_key(resource_name)
     }
 
     pub fn get_material_instance_data(&self, resource_name: &str) -> &RcRefCell<MaterialInstanceData> {

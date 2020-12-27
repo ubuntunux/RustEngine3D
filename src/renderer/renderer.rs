@@ -2,7 +2,7 @@ use std::cmp::max;
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
-use std::borrow::{Cow};
+use std::borrow::{ Cow };
 use std::ffi::CStr;
 use std::vec::Vec;
 use ash::{
@@ -614,37 +614,24 @@ impl RendererData {
         } else {
             material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name)
         };
-        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
-        if let Some(push_constant_data) = push_constant_data {
-            self.upload_push_constant_data(
-                command_buffer,
-                &pipeline_data.borrow(),
-                push_constant_data
-            );
-        }
-        self.draw_elements(command_buffer, geometry_data);
-        self.end_render_pass(command_buffer);
+
+        self.render_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, geometry_data, custom_framebuffer_data, custom_descriptor_sets, push_constant_data);
     }
 
     pub fn render_render_pass_pipeline<T>(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        render_pass_pipeline_data_name: &str,
-        material_instance_name: &str,
+        pipeline_binding_data: &PipelineBindingData,
+        geometry_data: &GeometryData,
+        custom_framebuffer_data: Option<&FramebufferData>,
+        custom_descriptor_sets: Option<&SwapchainIndexMap<vk::DescriptorSet>>,
         push_constant_data: Option<&T>,
-        geometry_data: &GeometryData
     ) {
-        let resources: Ref<Resources> = self._resources.borrow();
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
-        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
+        self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
                 command_buffer,
@@ -804,13 +791,14 @@ impl RendererData {
         self.create_render_targets();
     }
 
-    pub fn resize_window(&mut self) {
+    pub fn resize_window(&mut self, scene_manager: &mut SceneManagerData) {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
 
         let resources = self._resources.clone();
 
         // destroy swapchain & graphics resources
+        scene_manager.destroy_graphics_data();
         self.destroy_post_process_datas();
         resources.borrow_mut().unload_graphics_datas(self);
         self.destroy_render_targets();
@@ -820,6 +808,7 @@ impl RendererData {
         self.create_render_targets();
         resources.borrow_mut().load_graphics_datas(self);
         self.initialize_post_process_datas();
+        scene_manager.initialize_graphics_data();
         self.reset_is_first_rendering();
     }
 
@@ -1214,63 +1203,54 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let render_bloom_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow();
-        let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_gaussian_blur").borrow();
         // render_bloom_highlight
-        {
-            let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
-            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
-            self.upload_push_constant_data(
-                command_buffer,
-                &pipeline_data.borrow(),
-                &self._post_process_data_bloom._bloom_push_constants,
-            );
-            self.draw_elements(command_buffer, quad_geometry_data);
-            self.end_render_pass(command_buffer);
-        }
+        let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
+        self.render_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            quad_geometry_data,
+            None,
+            None,
+            Some(&self._post_process_data_bloom._bloom_push_constants)
+        );
+
         // render_bloom_downsampling
-        {
-            let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            let framebuffer_count = self._post_process_data_bloom._bloom_downsample_framebuffer_datas.len();
-            for i in 0..framebuffer_count {
-                let framebuffer = Some(&self._post_process_data_bloom._bloom_downsample_framebuffer_datas[i]);
-                let descriptor_sets = Some(&self._post_process_data_bloom._bloom_downsample_descriptor_sets[i]);
-                self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-                self.draw_elements(command_buffer, quad_geometry_data);
-                self.end_render_pass(command_buffer);
-            }
+        let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
+        let framebuffer_count = self._post_process_data_bloom._bloom_downsample_framebuffer_datas.len();
+        for i in 0..framebuffer_count {
+            self.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                quad_geometry_data,
+                Some(&self._post_process_data_bloom._bloom_downsample_framebuffer_datas[i]),
+                Some(&self._post_process_data_bloom._bloom_downsample_descriptor_sets[i]),
+                NONE_PUSH_CONSTANT
+            );
         }
+
         // render_gaussian_blur
-        {
-            let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
-            let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            let framebuffer_count = self._post_process_data_bloom._bloom_temp_framebuffer_datas.len();
-            for i in 0..framebuffer_count {
-                let framebuffer = Some(&self._post_process_data_bloom._bloom_temp_framebuffer_datas[i]);
-                let descriptor_sets = Some(&self._post_process_data_bloom._bloom_temp_descriptor_sets[i]);
-                self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, framebuffer);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-                self.upload_push_constant_data(
-                    command_buffer,
-                    &pipeline_data.borrow(),
-                    &PushConstant_GaussianBlur {
-                        _blur_scale: if 0 == (i % 2) {
-                            Vector2::new(1.0, 0.0)
-                        } else {
-                            Vector2::new(0.0, 1.0)
-                        },
-                        ..Default::default()
+        let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_gaussian_blur").borrow();
+        let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
+        let framebuffer_count = self._post_process_data_bloom._bloom_temp_framebuffer_datas.len();
+        for i in 0..framebuffer_count {
+            self.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                quad_geometry_data,
+                Some(&self._post_process_data_bloom._bloom_temp_framebuffer_datas[i]),
+                Some(&self._post_process_data_bloom._bloom_temp_descriptor_sets[i]),
+                Some(&PushConstant_GaussianBlur {
+                    _blur_scale: if 0 == (i % 2) {
+                        Vector2::new(1.0, 0.0)
+                    } else {
+                        Vector2::new(0.0, 1.0)
                     },
-                );
-                self.draw_elements(command_buffer, quad_geometry_data);
-                self.end_render_pass(command_buffer);
-            }
+                    ..Default::default()
+                })
+            );
         }
     }
 

@@ -3,13 +3,13 @@ use nalgebra::{ Vector3, Vector4 };
 use ash::{ vk, Device };
 
 use crate::constants;
-use crate::renderer::material_instance::{ PipelineBindingData };
 use crate::renderer::push_constants::{ PushConstant_BloomHighlight };
 use crate::renderer::RenderTargetType;
-use crate::resource::Resources;
 use crate::renderer::shader_buffer_datas::{ SSAOConstants };
+use crate::renderer::utility;
+use crate::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
-use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
+use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
 use crate::utilities::system::RcRefCell;
@@ -200,94 +200,6 @@ impl Default for PostProcessData_SSR {
     }
 }
 
-pub fn util_create_framebuffer_and_descriptor_sets(
-    device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
-    render_target: &TextureData,
-    render_target_layer: u32,
-    render_target_miplevel: u32,
-    descriptor_binding_index: usize,
-    input_texture: &TextureData,
-    input_texture_layer: u32,
-    input_texture_miplevel: u32,
-) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
-    let framebuffer_data = util_create_framebuffer(
-        device,
-        pipeline_binding_data,
-        render_target,
-        render_target_layer,
-        render_target_miplevel
-    );
-    let descriptor_sets = util_create_descriptor_sets(
-        device,
-        pipeline_binding_data,
-        descriptor_binding_index,
-        input_texture,
-        input_texture_layer,
-        input_texture_miplevel,
-    );
-    (framebuffer_data, descriptor_sets)
-}
-
-pub fn util_create_framebuffer(
-    device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
-    render_target: &TextureData,
-    render_target_layer: u32,
-    render_target_miplevel: u32,
-) -> FramebufferData {
-    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
-    framebuffer::create_framebuffer_data(
-        device,
-        render_pass_data._render_pass,
-        format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
-        framebuffer::create_framebuffer_data_create_info(
-            &[RenderTargetInfo {
-                _texture_data: render_target,
-                _layer: render_target_layer,
-                _mip_level: render_target_miplevel,
-                _clear_value: None,
-            }],
-            &[],
-            &[]
-        ),
-    )
-}
-
-pub fn util_create_descriptor_sets(
-    device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
-    descriptor_binding_index: usize,
-    input_texture: &TextureData,
-    input_texture_layer: u32,
-    input_texture_miplevel: u32,
-) -> SwapchainIndexMap<vk::DescriptorSet> {
-    let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-    let descriptor_data = &pipeline_data._descriptor_data;
-    let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-        descriptor_data_create_info._descriptor_binding_index
-    }).collect();
-    let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
-    for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-        for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-            if constants::INVALID_LAYER != input_texture_layer || constants::INVALID_MIP_LEVEL != input_texture_miplevel {
-                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_sub_image_info(input_texture_layer, input_texture_miplevel));
-            } else {
-                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_default_image_info());
-            }
-        }
-    }
-    let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
-    let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
-        device,
-        &descriptor_sets,
-        &descriptor_binding_indices,
-        &descriptor_data._descriptor_set_layout_bindings,
-        &descriptor_resource_infos_list,
-    );
-    descriptor_sets
-}
-
 impl PostProcessData_Bloom {
     pub fn initialize(
         &mut self,
@@ -302,7 +214,7 @@ impl PostProcessData_Bloom {
         let descriptor_binding_index: usize = 0;
         let layer = 0;
         for mip_level in 0..(render_target_bloom0._image_mip_levels - 1) {
-            let (bloom_framebuffer_data, bloom_descriptor_set) = util_create_framebuffer_and_descriptor_sets(
+            let (bloom_framebuffer_data, bloom_descriptor_set) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level + 1,
                 descriptor_binding_index, render_target_bloom0, layer, mip_level
@@ -315,11 +227,11 @@ impl PostProcessData_Bloom {
         let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
         let descriptor_binding_index: usize = 0;
         for mip_level in 0..render_target_bloom0._image_mip_levels {
-            let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = util_create_framebuffer_and_descriptor_sets(
+            let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom_temp0, layer, mip_level,
                 descriptor_binding_index, render_target_bloom0, layer, mip_level);
-            let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = util_create_framebuffer_and_descriptor_sets(
+            let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level,
                 descriptor_binding_index, render_target_bloom_temp0, layer, mip_level);
@@ -372,7 +284,7 @@ impl PostProcessData_TAA {
         let descriptor_binding_index: usize = 0;
         let layer: u32 = 0;
         let mip_level: u32 = 0;
-        let (framebuffer_data, descriptor_sets) = util_create_framebuffer_and_descriptor_sets(
+        let (framebuffer_data, descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             taa_resolve_texture, layer, mip_level,
             descriptor_binding_index, taa_render_target, layer, mip_level,
@@ -403,12 +315,12 @@ impl PostProcessData_SSAO {
         let descriptor_binding_index: usize = 0;
         let layer: u32 = 0;
         let mip_level: u32 = 0;
-        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = util_create_framebuffer_and_descriptor_sets(
+        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             render_target_ssao_temp, layer, mip_level,
             descriptor_binding_index, render_target_ssao, layer, mip_level,
         );
-        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = util_create_framebuffer_and_descriptor_sets(
+        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             render_target_ssao, layer, mip_level,
             descriptor_binding_index, render_target_ssao_temp, layer, mip_level,
@@ -534,12 +446,12 @@ impl PostProcessData_SSR {
         let descriptor_binding_index: usize = 1;
         let layer: u32 = 0;
         let mip_level: u32 = 0;
-        let (framebuffer_data0, descriptor_sets0) = util_create_framebuffer_and_descriptor_sets(
+        let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             texture_ssr_resolved, layer, mip_level,
             descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level,
         );
-        let (framebuffer_data1, descriptor_sets1) = util_create_framebuffer_and_descriptor_sets(
+        let (framebuffer_data1, descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             texture_ssr_resolved_prev, layer, mip_level,
             descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
@@ -577,11 +489,11 @@ impl PostProcessData_CompositeGBuffer {
         let descriptor_binding_index: usize = 10;
         let layer: u32 = constants::INVALID_LAYER;
         let mip_level: u32 = constants::INVALID_MIP_LEVEL;
-        let descriptor_sets0 = util_create_descriptor_sets(
+        let descriptor_sets0 = utility::create_descriptor_sets(
             device, pipeline_binding_data,
             descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
         );
-        let descriptor_sets1 = util_create_descriptor_sets(
+        let descriptor_sets1 = utility::create_descriptor_sets(
             device, pipeline_binding_data,
             descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level,
         );
@@ -610,7 +522,7 @@ impl PostProcessData_ClearRenderTargets {
         for render_target in render_targets_r16g16b16a16.iter() {
             for layer in 0..render_target._image_layer {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._framebuffer_datas_r16g16b16a16.push(util_create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+                    self._framebuffer_datas_r16g16b16a16.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
                 }
             }
         }
@@ -620,7 +532,7 @@ impl PostProcessData_ClearRenderTargets {
         for render_target in render_targets_r32.iter() {
             for layer in 0..render_target._image_layer {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._framebuffer_datas_r32.push(util_create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+                    self._framebuffer_datas_r32.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
                 }
             }
         }
