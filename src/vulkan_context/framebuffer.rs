@@ -130,8 +130,8 @@ pub fn create_framebuffer_data_create_info(
     FramebufferDataCreateInfo {
         _framebuffer_width: width,
         _framebuffer_height: height,
-        _framebuffer_depth: depth,
-        _framebuffer_layer: layer,
+        _framebuffer_depth: 1,
+        _framebuffer_layer: 1,
         _framebuffer_sample_count: sample_count,
         _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
         _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
