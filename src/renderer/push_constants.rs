@@ -108,16 +108,16 @@ pub struct PushConstant_RenderColor {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
-pub struct PushConstant_FFT {
-    pub _pass: u32,
+#[derive(Debug, Clone, Default)]
+pub struct PushConstant_FFT_Waves {
+    pub _pass: f32,
     pub _reserved0: u32,
     pub _reserved1: u32,
     pub _reserved2: u32,
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Init {
     pub _inverse_grid_sizes: [f32; 4],
     pub _fft_size: f32,
@@ -127,7 +127,7 @@ pub struct PushConstant_FFT_Init {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Variance {
     pub _grid_sizes: [f32; 4],
     pub _n_slope_variance: f32,
@@ -137,7 +137,7 @@ pub struct PushConstant_FFT_Variance {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Ocean {
     pub _simulation_size: Vector4<f32>,
     pub _cell_size: Vector2<f32>,
@@ -153,18 +153,18 @@ pub struct PushConstant_FFT_Ocean {
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderDebug {
     pub _debug_target: u32,
+    pub _mip_level: u32,
     pub _reserved0: u32,
     pub _reserved1: u32,
-    pub _reserved2: u32,
 }
 
 impl Default for PushConstant_RenderDebug {
     fn default() -> PushConstant_RenderDebug {
         PushConstant_RenderDebug {
             _debug_target: vk::ImageViewType::TYPE_2D.as_raw() as u32,
+            _mip_level: 0,
             _reserved0: 0,
             _reserved1: 0,
-            _reserved2: 0,
         }
     }
 }

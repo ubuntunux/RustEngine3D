@@ -113,8 +113,8 @@ impl SceneManagerData {
         self._fft_ocean.borrow_mut().destroy_fft_ocean(device);
     }
 
-    pub fn rendering_at_first(&self, renderer_data: &RendererData) {
-        self._fft_ocean.borrow().rendering_at_first(renderer_data, &self._resources.borrow());
+    pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean> {
+        &self._fft_ocean
     }
 
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {

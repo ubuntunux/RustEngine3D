@@ -1,18 +1,27 @@
+use std::cmp::max;
+
 use ash::{
     vk,
     Device,
 };
 
-use crate::renderer::push_constants::PushConstant_FFT_Variance;
+use crate::constants;
+use crate::renderer::push_constants::{
+    PushConstant_FFT_Init,
+    PushConstant_FFT_Variance,
+    PushConstant_FFT_Waves,
+    PushConstant_FFT_Ocean,
+};
 use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::utility;
 use crate::resource::resource::Resources;
+use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::geometry_buffer;
 use crate::vulkan_context::texture::TextureCreateInfo;
-use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
-use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
+use crate::vulkan_context::vulkan_context::{SwapchainIndexMap, Layers, MipLevels};
+use crate::utilities::system::{ RcRefCell, newRcRefCell };
 
 const CM: f32 = 0.23;
 const KM: f32 = 370.0;
@@ -23,6 +32,7 @@ const CHOPPY_FACTOR: [f32; 4] = [2.3, 2.1, 1.3, 0.9];
 const PASSES: u32 = 8; // number of passes needed for the FFT 6 -> 64, 7 -> 128, 8 -> 256, etc
 pub const FFT_SIZE: u32 = 1 << PASSES; // size of the textures storing the waves in frequency and spatial domains
 pub const N_SLOPE_VARIANCE: u32 = 10;
+pub const FFT_LAYER_COUNT: u32 = 5;
 const GRID1_SIZE: f32 = 5488.0;
 const GRID2_SIZE: f32 = 392.0;
 const GRID3_SIZE: f32 = 28.0;
@@ -55,7 +65,18 @@ pub struct FFTOcean {
     _spectrum34_data: Vec<f32>,
     _butterfly_data: Vec<f32>,
     _fft_variance_framebuffers: Vec<FramebufferData>,
-    _render_fft_ocean_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
+    _fft_wave_x_fft_a_framebuffer: FramebufferData,
+    _fft_wave_x_fft_b_framebuffer: FramebufferData,
+    _fft_wave_x_fft_a_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _fft_wave_x_fft_b_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _fft_wave_y_fft_a_framebuffer: FramebufferData,
+    _fft_wave_y_fft_b_framebuffer: FramebufferData,
+    _fft_wave_y_fft_a_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _fft_wave_y_fft_b_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _fft_a_generate_mips_descriptor_sets: Layers<MipLevels<SwapchainIndexMap<vk::DescriptorSet>>>,
+    _fft_a_generate_mips_dispatch_group_x: u32,
+    _fft_a_generate_mips_dispatch_group_y: u32,
+    _render_fft_ocean_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
 }
 
 impl Default for FFTOcean {
@@ -79,6 +100,17 @@ impl Default for FFTOcean {
             _spectrum34_data: Vec::new(),
             _butterfly_data: Vec::new(),
             _fft_variance_framebuffers: Vec::new(),
+            _fft_wave_x_fft_a_framebuffer: FramebufferData::default(),
+            _fft_wave_x_fft_b_framebuffer: FramebufferData::default(),
+            _fft_wave_x_fft_a_descriptor_sets: Vec::new(),
+            _fft_wave_x_fft_b_descriptor_sets: Vec::new(),
+            _fft_wave_y_fft_a_framebuffer: FramebufferData::default(),
+            _fft_wave_y_fft_b_framebuffer: FramebufferData::default(),
+            _fft_wave_y_fft_a_descriptor_sets: Vec::new(),
+            _fft_wave_y_fft_b_descriptor_sets: Vec::new(),
+            _fft_a_generate_mips_descriptor_sets: Vec::new(),
+            _fft_a_generate_mips_dispatch_group_x: 1,
+            _fft_a_generate_mips_dispatch_group_y: 1,
             _render_fft_ocean_descriptor_sets: Vec::new(),
         }
     }
@@ -190,24 +222,114 @@ impl FFTOcean {
         for framebuffer_data in self._fft_variance_framebuffers.iter() {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
+        framebuffer::destroy_framebuffer_data(device, &self._fft_wave_x_fft_a_framebuffer);
+        framebuffer::destroy_framebuffer_data(device, &self._fft_wave_x_fft_b_framebuffer);
+        framebuffer::destroy_framebuffer_data(device, &self._fft_wave_y_fft_a_framebuffer);
+        framebuffer::destroy_framebuffer_data(device, &self._fft_wave_y_fft_b_framebuffer);
+
         self._fft_variance_framebuffers.clear();
+        self._fft_wave_x_fft_a_descriptor_sets.clear();
+        self._fft_wave_x_fft_b_descriptor_sets.clear();
+        self._fft_wave_y_fft_a_descriptor_sets.clear();
+        self._fft_wave_y_fft_b_descriptor_sets.clear();
+        self._fft_a_generate_mips_descriptor_sets.clear();
         self._render_fft_ocean_descriptor_sets.clear();
     }
 
-    pub fn rendering_at_first(&self, renderer_data: &RendererData, resources: &Resources) {
-        self.compute_slope_variance_texture(renderer_data, resources);
-    }
-
     fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
-        // FFT Variance
+        // fft Variance
         let material_instance = resources.get_material_instance_data("render_fft_ocean").borrow();
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_variance/render_fft_variance");
         let render_target = renderer_data.get_render_target(RenderTargetType::FFT_SLOPE_VARIANCE);
         let device = renderer_data.get_device();
         let mip_level = 0;
         for layer in 0..render_target._image_layer {
-            self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+            self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
         }
+
+        // fft waves
+        let mip_level = 0;
+        let device = renderer_data.get_device();
+        let material_instance = resources.get_material_instance_data("render_fft_ocean").borrow();
+        let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
+        let texture_fft_b = renderer_data.get_render_target(RenderTargetType::FFT_B);
+
+        // fft wave x
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
+        self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_a, mip_level, None);
+        self._fft_wave_x_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_b, mip_level, None);
+        let fft_waves_descriptor_binding_index = 1;
+        self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            pipeline_binding_data,
+            fft_waves_descriptor_binding_index,
+            texture_fft_a,
+            constants::INVALID_LAYER,
+            constants::INVALID_MIP_LEVEL,
+        );
+        self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            pipeline_binding_data,
+            fft_waves_descriptor_binding_index,
+            texture_fft_b,
+            constants::INVALID_LAYER,
+            constants::INVALID_MIP_LEVEL,
+        );
+
+        // fft wave y
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_y");
+        self._fft_wave_y_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_a, mip_level, None);
+        self._fft_wave_y_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_b, mip_level, None);
+        self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            pipeline_binding_data,
+            fft_waves_descriptor_binding_index,
+            texture_fft_a,
+            constants::INVALID_LAYER,
+            constants::INVALID_MIP_LEVEL,
+        );
+        self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            pipeline_binding_data,
+            fft_waves_descriptor_binding_index,
+            texture_fft_b,
+            constants::INVALID_LAYER,
+            constants::INVALID_MIP_LEVEL,
+        );
+
+        // fft a generate mips
+        let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
+        let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+        let descriptor_data = &pipeline_data._descriptor_data;
+        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+            descriptor_data_create_info._descriptor_binding_index
+        }).collect();
+        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+        let layer_count = texture_fft_a._image_layer;
+        let dispatch_count: u32 = texture_fft_a._image_mip_levels - 1;
+        for layer in 0..layer_count {
+            self._fft_a_generate_mips_descriptor_sets.push(Vec::new());
+            for mip_level in 0..dispatch_count {
+                for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+                    for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
+                        descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level));
+                        descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level + 1));
+                    }
+                }
+                let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+                let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+                    device,
+                    &descriptor_sets,
+                    &descriptor_binding_indices,
+                    &descriptor_data._descriptor_set_layout_bindings,
+                    &descriptor_resource_infos_list,
+                );
+                self._fft_a_generate_mips_descriptor_sets.last_mut().unwrap().push(descriptor_sets);
+            }
+        }
+        self._fft_a_generate_mips_dispatch_group_x = texture_fft_a._image_width;
+        self._fft_a_generate_mips_dispatch_group_y = texture_fft_a._image_height;
     }
 
     fn get_slope_variance(&self, kx: f32, ky: f32, spectrum_sample0: f32, spectrum_sample1: f32) -> f32 {
@@ -346,7 +468,7 @@ impl FFTOcean {
         }
     }
 
-    fn compute_slope_variance_texture(&self, renderer_data: &RendererData, resources: &Resources) {
+    pub fn compute_slope_variance_texture(&self, renderer_data: &RendererData, resources: &Resources) {
         let mut theoretic_slope_variance = 0.0;
         let mut k = 5e-3;
         while k < 1e3 {
@@ -368,7 +490,7 @@ impl FFTOcean {
             }
         }
 
-        // FFT Variance
+        // fft variance
         let swapchain_index = renderer_data.get_swap_chain_index();
         let command_buffer = renderer_data.get_command_buffer(swapchain_index as usize);
         let quad_mesh = resources.get_mesh_data("quad").borrow();
@@ -404,63 +526,90 @@ impl FFTOcean {
         self._caustic_index = ((self._acc_time * 20.0) as usize % self._render_fft_ocean_descriptor_sets.len()) as u32;
     }
 
-    // def simulateFFTWaves(self):
-    //     framebuffer_manager = CoreManager.instance().renderer.framebuffer_manager
-    //     RenderTargets = RenderTarget.RenderTargets
-    //
-    //     fft_a_framebuffer = framebuffer_manager.get_framebuffer(RenderTargets.FFT_A,
-    //                                                             RenderTargets.FFT_A,
-    //                                                             RenderTargets.FFT_A,
-    //                                                             RenderTargets.FFT_A,
-    //                                                             RenderTargets.FFT_A)
-    //
-    //     fft_b_framebuffer = framebuffer_manager.get_framebuffer(RenderTargets.FFT_B,
-    //                                                             RenderTargets.FFT_B,
-    //                                                             RenderTargets.FFT_B,
-    //                                                             RenderTargets.FFT_B,
-    //                                                             RenderTargets.FFT_B)
-    //
-    //     # initialize
-    //     fft_a_framebuffer.bind_framebuffer()
-    //     glClear(GL_COLOR_BUFFER_BIT)
-    //
-    //     self.fft_init.use_program()
-    //     self.fft_init.bind_uniform_data("FFT_SIZE", FFT_SIZE)
-    //     self.fft_init.bind_uniform_data("INVERSE_GRID_SIZES", INVERSE_GRID_SIZES)
-    //     self.fft_init.bind_uniform_data("spectrum_1_2_Sampler", self.texture_spectrum_1_2)
-    //     self.fft_init.bind_uniform_data("spectrum_3_4_Sampler", self.texture_spectrum_3_4)
-    //     self.fft_init.bind_uniform_data("t", self.acc_time * self.simulation_wind)
-    //
-    //     self.quad.draw_elements()
-    //
-    //     # # fft passes
-    //     self.fft_x.use_program()
-    //     self.fft_x.bind_uniform_data("butterflySampler", self.texture_butterfly)
-    //     for i in range(PASSES):
-    //         self.fft_x.bind_uniform_data("pass", float(i + 0.5) / PASSES)
-    //         if i % 2 == 0:
-    //             self.fft_x.bind_uniform_data("imgSampler", RenderTargets.FFT_A)
-    //             fft_b_framebuffer.bind_framebuffer()
-    //         else:
-    //             self.fft_x.bind_uniform_data("imgSampler", RenderTargets.FFT_B)
-    //             fft_a_framebuffer.bind_framebuffer()
-    //         self.quad.draw_elements()
-    //
-    //     self.fft_y.use_program()
-    //     self.fft_y.bind_uniform_data("butterflySampler", self.texture_butterfly)
-    //     for i in range(PASSES, PASSES * 2, 1):
-    //         self.fft_y.bind_uniform_data("pass", float(i - PASSES + 0.5) / PASSES)
-    //         if i % 2 == 0:
-    //             self.fft_y.bind_uniform_data("imgSampler", RenderTargets.FFT_A)
-    //             fft_b_framebuffer.bind_framebuffer()
-    //         else:
-    //             self.fft_y.bind_uniform_data("imgSampler", RenderTargets.FFT_B)
-    //             fft_a_framebuffer.bind_framebuffer()
-    //         self.quad.draw_elements()
-    //
-    //     RenderTargets.FFT_A.generate_mipmap()
-    //
-    // def render_ocean(self, atmosphere, texture_scene, texture_linear_depth, texture_probe, texture_shadow):
+    pub fn simulate_fft_waves(&self, renderer_data: &RendererData, resources: &Resources) {
+        let swapchain_index = renderer_data.get_swap_chain_index();
+        let command_buffer = renderer_data.get_command_buffer(swapchain_index as usize);
+        let quad_mesh = resources.get_mesh_data("quad").borrow();
+        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
+        let material_instance_data = resources.get_material_instance_data("render_fft_ocean").borrow();
+
+        // fft init
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_init/render_fft_init");
+        let push_constants = PushConstant_FFT_Init {
+            _inverse_grid_sizes: INVERSE_GRID_SIZES,
+            _fft_size: FFT_SIZE as f32,
+            _t: self._acc_time * self._simulation_wind,
+            ..Default::default()
+        };
+        renderer_data.render_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, &quad_geometry_data, None, None, Some(&push_constants));
+
+        // fft wave x
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_waves/render_fft_x");
+        let mut push_constants = PushConstant_FFT_Waves {
+            _pass: 0.0,
+            ..Default::default()
+        };
+        for i in 0..PASSES {
+            push_constants._pass = (i as f32 + 0.5) / PASSES as f32;
+            let (framebuffer, descriptor_sets) = if 0 == (i % 2) {
+                (&self._fft_wave_x_fft_b_framebuffer, &self._fft_wave_x_fft_a_descriptor_sets)
+            } else {
+                (&self._fft_wave_x_fft_a_framebuffer, &self._fft_wave_x_fft_b_descriptor_sets)
+            };
+            renderer_data.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                &quad_geometry_data,
+                Some(framebuffer),
+                Some(descriptor_sets),
+                Some(&push_constants)
+            );
+        }
+
+        // fft wave y
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_waves/render_fft_y");
+        for i in PASSES..(PASSES * 2) {
+            push_constants._pass = ((i - PASSES) as f32 + 0.5) / PASSES as f32;
+            let (framebuffer, descriptor_sets) = if 0 == (i % 2) {
+                (&self._fft_wave_y_fft_b_framebuffer, &self._fft_wave_y_fft_a_descriptor_sets)
+            } else {
+                (&self._fft_wave_y_fft_a_framebuffer, &self._fft_wave_y_fft_b_descriptor_sets)
+            };
+            renderer_data.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                &quad_geometry_data,
+                Some(framebuffer),
+                Some(descriptor_sets),
+                Some(&push_constants)
+            );
+        }
+
+        // fft a generate mips
+        let material_instance_data = resources.get_material_instance_data("downsampling").borrow();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        renderer_data.begin_compute_pipeline(command_buffer, pipeline_data);
+        let layer_count = self._fft_a_generate_mips_descriptor_sets.len();
+        for layer in 0..layer_count {
+            let mip_level_descriptor_sets = &self._fft_a_generate_mips_descriptor_sets[layer];
+            let mip_levels = mip_level_descriptor_sets.len();
+            for mip_level in 0..mip_levels {
+                let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
+                renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+                renderer_data.dispatch_compute_pipeline(
+                    command_buffer,
+                    max(1, self._fft_a_generate_mips_dispatch_group_x >> (mip_level + 1)),
+                    max(1, self._fft_a_generate_mips_dispatch_group_y >> (mip_level + 1)),
+                    1
+                );
+            }
+        }
+    }
+
+    pub fn render_ocean(&self, renderer_data: &RendererData, resources: &Resources) {
     //     self.fft_render.use_program()
     //     self.fft_render.bind_material_instance()
     //     self.fft_render.bind_uniform_data("height", self.height)
@@ -486,4 +635,5 @@ impl FFTOcean {
     //     // atmosphere.bind_precomputed_atmosphere(self.fft_render)
     //
     //     self.fft_grid.get_geometry().draw_elements()
+    }
 }

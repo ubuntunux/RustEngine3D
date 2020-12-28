@@ -53,8 +53,8 @@ void main()
             uint j = ((pushConstant._fft_size / 2) <= y) ? y - pushConstant._fft_size : y;
             vec2 k = 2.0 * PI * vec2(i, j);
 
-            spectrum12 = texture(texture_spectrum_1_2, vec2(float(x) + 0.5, float(y) + 0.5) / float(pushConstant._fft_size));
-            spectrum34 = texture(texture_spectrum_3_4, vec2(float(x) + 0.5, float(y) + 0.5) / float(pushConstant._fft_size));
+            spectrum12 = textureLod(texture_spectrum_1_2, vec2(float(x) + 0.5, float(y) + 0.5) / float(pushConstant._fft_size), 0.0);
+            spectrum34 = textureLod(texture_spectrum_3_4, vec2(float(x) + 0.5, float(y) + 0.5) / float(pushConstant._fft_size), 0.0);
 
             slopeVariances += getSlopeVariances(k / pushConstant._grid_sizes.x, A, B, C, spectrum12.xy) * 100.0;
             slopeVariances += getSlopeVariances(k / pushConstant._grid_sizes.y, A, B, C, spectrum12.zw) * 100.0;

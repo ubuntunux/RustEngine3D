@@ -13,6 +13,7 @@ pub fn create_framebuffer(
     render_target: &TextureData,
     render_target_layer: u32,
     render_target_miplevel: u32,
+    clear_value: Option<vk::ClearValue>,
 ) -> FramebufferData {
     let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
     framebuffer::create_framebuffer_data(
@@ -24,11 +25,56 @@ pub fn create_framebuffer(
                 _texture_data: render_target,
                 _layer: render_target_layer,
                 _mip_level: render_target_miplevel,
-                _clear_value: None,
+                _clear_value: clear_value,
             }],
             &[],
             &[]
         ),
+    )
+}
+
+pub fn create_framebuffer_2d_array(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    render_target: &TextureData,
+    render_target_miplevel: u32,
+    clear_value: Option<vk::ClearValue>,
+) -> FramebufferData {
+    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
+    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layer).map(|layer|
+        RenderTargetInfo {
+            _texture_data: render_target,
+            _layer: layer,
+            _mip_level: render_target_miplevel,
+            _clear_value: clear_value,
+        }
+    ).collect();
+    framebuffer::create_framebuffer_data(
+        device,
+        render_pass_data._render_pass,
+        format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
+        framebuffer::create_framebuffer_data_create_info(
+            &render_target_infos,
+            &[],
+            &[]
+        ),
+    )
+}
+
+pub fn create_framebuffers(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    framebuffer_name: &str,
+    color_render_targets: &[RenderTargetInfo],
+    depth_render_targets: &[RenderTargetInfo],
+    resolve_render_targets: &[RenderTargetInfo],
+) -> FramebufferData {
+    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
+    framebuffer::create_framebuffer_data(
+        device,
+        render_pass_data._render_pass,
+        format!("{}_{}", render_pass_data._render_pass_data_name, framebuffer_name).as_str(),
+        framebuffer::create_framebuffer_data_create_info(color_render_targets, depth_render_targets, resolve_render_targets),
     )
 }
 
@@ -76,13 +122,15 @@ pub fn create_framebuffer_and_descriptor_sets(
     input_texture: &TextureData,
     input_texture_layer: u32,
     input_texture_miplevel: u32,
+    clear_value: Option<vk::ClearValue>,
 ) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
         pipeline_binding_data,
         render_target,
         render_target_layer,
-        render_target_miplevel
+        render_target_miplevel,
+        clear_value
     );
     let descriptor_sets = create_descriptor_sets(
         device,

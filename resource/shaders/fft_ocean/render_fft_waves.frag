@@ -5,9 +5,9 @@
 #include "../scene_constants.glsl"
 #include "../render_quad_common.glsl"
 
-layout( push_constant ) uniform PushConstant_FFT
+layout( push_constant ) uniform PushConstant_FFT_Waves
 {
-    uint _pass;
+    float _pass;
     uint _reserved0;
     uint _reserved1;
     uint _reserved2;
@@ -29,11 +29,11 @@ layout(location = 4) out vec4 color4;
 vec4 fft2(int layer, vec2 i, vec2 w, vec2 uv)
 {
 #if defined(RENDER_FFT_X)
-    vec4 input1 = texture(texture_fft, vec3(i.x, uv.y, layer), 0.0);
-    vec4 input2 = texture(texture_fft, vec3(i.y, uv.y, layer), 0.0);
+    vec4 input1 = textureLod(texture_fft, vec3(i.x, uv.y, layer), 0.0);
+    vec4 input2 = textureLod(texture_fft, vec3(i.y, uv.y, layer), 0.0);
 #else
-    vec4 input1 = texture(texture_fft, vec3(uv.x, i.x, layer), 0.0);
-    vec4 input2 = texture(texture_fft, vec3(uv.x, i.y, layer), 0.0);
+    vec4 input1 = textureLod(texture_fft, vec3(uv.x, i.x, layer), 0.0);
+    vec4 input2 = textureLod(texture_fft, vec3(uv.x, i.y, layer), 0.0);
 #endif
     float res1x = w.x * input2.x - w.y * input2.y;
     float res1y = w.y * input2.x + w.x * input2.y;
@@ -46,9 +46,9 @@ void main()
 {
     vec2 uv = vs_output.texCoord;
 #if defined(RENDER_FFT_X)
-    vec4 data = texture(texture_butterfly, vec2(uv.x, pushConstant._pass), 0.0);
+    vec4 data = textureLod(texture_butterfly, vec2(uv.x, pushConstant._pass), 0.0);
 #else
-    vec4 data = texture(texture_butterfly, vec2(uv.y, pushConstant._pass), 0.0);
+    vec4 data = textureLod(texture_butterfly, vec2(uv.y, pushConstant._pass), 0.0);
 #endif
     vec2 i = data.xy;
     vec2 w = data.zw;

@@ -217,7 +217,7 @@ impl PostProcessData_Bloom {
             let (bloom_framebuffer_data, bloom_descriptor_set) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level + 1,
-                descriptor_binding_index, render_target_bloom0, layer, mip_level
+                descriptor_binding_index, render_target_bloom0, layer, mip_level, None
             );
             self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data);
             self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set);
@@ -230,11 +230,11 @@ impl PostProcessData_Bloom {
             let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom_temp0, layer, mip_level,
-                descriptor_binding_index, render_target_bloom0, layer, mip_level);
+                descriptor_binding_index, render_target_bloom0, layer, mip_level, None);
             let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
                 render_target_bloom0, layer, mip_level,
-                descriptor_binding_index, render_target_bloom_temp0, layer, mip_level);
+                descriptor_binding_index, render_target_bloom_temp0, layer, mip_level, None);
             self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data);
             self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data);
             self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets);
@@ -287,7 +287,7 @@ impl PostProcessData_TAA {
         let (framebuffer_data, descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             taa_resolve_texture, layer, mip_level,
-            descriptor_binding_index, taa_render_target, layer, mip_level,
+            descriptor_binding_index, taa_render_target, layer, mip_level, None,
         );
         self._taa_resolve_framebuffer_data = framebuffer_data;
         self._taa_descriptor_sets = descriptor_sets;
@@ -318,12 +318,12 @@ impl PostProcessData_SSAO {
         let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             render_target_ssao_temp, layer, mip_level,
-            descriptor_binding_index, render_target_ssao, layer, mip_level,
+            descriptor_binding_index, render_target_ssao, layer, mip_level, None,
         );
         let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             render_target_ssao, layer, mip_level,
-            descriptor_binding_index, render_target_ssao_temp, layer, mip_level,
+            descriptor_binding_index, render_target_ssao_temp, layer, mip_level, None,
         );
         self._ssao_blur_framebuffer_data0 = ssao_blur_framebuffer_data0;
         self._ssao_blur_framebuffer_data1 = ssao_blur_framebuffer_data1;
@@ -449,12 +449,12 @@ impl PostProcessData_SSR {
         let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             texture_ssr_resolved, layer, mip_level,
-            descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level,
+            descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level, None,
         );
         let (framebuffer_data1, descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             texture_ssr_resolved_prev, layer, mip_level,
-            descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
+            descriptor_binding_index, texture_ssr_resolved, layer, mip_level, None,
         );
         self._framebuffer_data0 = framebuffer_data0;
         self._framebuffer_data1 = framebuffer_data1;
@@ -522,7 +522,7 @@ impl PostProcessData_ClearRenderTargets {
         for render_target in render_targets_r16g16b16a16.iter() {
             for layer in 0..render_target._image_layer {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._framebuffer_datas_r16g16b16a16.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+                    self._framebuffer_datas_r16g16b16a16.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
                 }
             }
         }
@@ -532,7 +532,7 @@ impl PostProcessData_ClearRenderTargets {
         for render_target in render_targets_r32.iter() {
             for layer in 0..render_target._image_layer {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._framebuffer_datas_r32.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level))
+                    self._framebuffer_datas_r32.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
                 }
             }
         }

@@ -930,6 +930,7 @@ impl RendererData {
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
                 let main_light = scene_manager.get_main_light().borrow();
+                let fft_ocean =  scene_manager.get_fft_ocean().borrow();
                 let quad_mesh = resources.get_mesh_data("quad").borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
 
@@ -991,7 +992,7 @@ impl RendererData {
 
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
-                    scene_manager.rendering_at_first(self);
+                    fft_ocean.compute_slope_variance_texture(self, &resources);
                     self._is_first_rendering = false;
                 }
 
@@ -1004,6 +1005,10 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
+
+                fft_ocean.simulate_fft_waves(self, &resources);
+                fft_ocean.render_ocean(self, &resources);
+
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
@@ -1025,8 +1030,6 @@ impl RendererData {
 
                     let debug_texture_data = self.get_render_target(self._debug_render_target);
                     //let debug_texture_data = resources.get_texture_data("fft_ocean/butterfly").borrow();
-                    let layer = 0;
-                    let mip_level = self._debug_render_target_miplevel;
                     let descriptor_index = match debug_texture_data._image_view_type {
                         vk::ImageViewType::TYPE_2D => 1,
                         vk::ImageViewType::TYPE_2D_ARRAY => 2,
@@ -1038,7 +1041,7 @@ impl RendererData {
                         swapchain_index,
                         &mut render_debug_pipeline_binding_data,
                         descriptor_index,
-                        &DescriptorResourceInfo::DescriptorImageInfo(debug_texture_data.get_sub_image_info(layer, mip_level)),
+                        &DescriptorResourceInfo::DescriptorImageInfo(debug_texture_data.get_default_image_info()),
                     );
 
                     self.upload_push_constant_data(
@@ -1046,6 +1049,7 @@ impl RendererData {
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow(),
                         &PushConstant_RenderDebug {
                             _debug_target: debug_texture_data._image_view_type.as_raw() as u32,
+                            _mip_level: self._debug_render_target_miplevel,
                             ..Default::default()
                         }
                     );
@@ -1321,22 +1325,20 @@ impl RendererData {
         self.render_material_instance(command_buffer, swapchain_index, "generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Generate Hierachical Min Z
-        {
-            let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
-            let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-            let dispatch_count = self._post_process_data_hiz._descriptor_sets.len();
-            self.begin_compute_pipeline(command_buffer, pipeline_data);
-            for mip_level in 0..dispatch_count {
-                let descriptor_sets = Some(&self._post_process_data_hiz._descriptor_sets[mip_level as usize]);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-                self.dispatch_compute_pipeline(
-                    command_buffer,
-                    max(1, self._post_process_data_hiz._dispatch_group_x >> (mip_level + 1)),
-                    max(1, self._post_process_data_hiz._dispatch_group_y >> (mip_level + 1)),
-                    1
-                );
-            }
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
+        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let dispatch_count = self._post_process_data_hiz._descriptor_sets.len();
+        self.begin_compute_pipeline(command_buffer, pipeline_data);
+        for mip_level in 0..dispatch_count {
+            let descriptor_sets = Some(&self._post_process_data_hiz._descriptor_sets[mip_level as usize]);
+            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+            self.dispatch_compute_pipeline(
+                command_buffer,
+                max(1, self._post_process_data_hiz._dispatch_group_x >> (mip_level + 1)),
+                max(1, self._post_process_data_hiz._dispatch_group_y >> (mip_level + 1)),
+                1
+            );
         }
     }
 

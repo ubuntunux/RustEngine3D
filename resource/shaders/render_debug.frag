@@ -27,7 +27,7 @@ layout(binding = 4) uniform samplerCube texture_cube;
 layout( push_constant ) uniform PushConstant_Debug
 {
     uint _debug_target;
-    uint _reserved0;
+    uint _mip_level;
     uint _reserved1;
     uint _reserved2;
 } pushConstant;
@@ -39,7 +39,7 @@ layout(location = 0) out vec4 outColor;
 
 vec4 get_texture_2d_array(sampler2DArray texture_source)
 {
-    vec3 texture_size = textureSize(texture_source, 0);
+    vec3 texture_size = textureSize(texture_source, int(pushConstant._mip_level));
     float width = ceil(sqrt(texture_size.z));
     float height = ceil(texture_size.z / width);
     float layer = floor(vs_output.texCoord.x * width) + floor((1.0 - vs_output.texCoord.y) * height) * width;
@@ -48,12 +48,12 @@ vec4 get_texture_2d_array(sampler2DArray texture_source)
         return vec4(0.0, 0.0, 0.0, 0.0);
     }
     vec3 texcoord = vec3(fract(vs_output.texCoord.x * width), fract(vs_output.texCoord.y * height), layer);
-    return texture(texture_source, texcoord);
+    return textureLod(texture_source, texcoord, float(pushConstant._mip_level));
 }
 
 vec4 get_texture_3d(sampler3D texture_source)
 {
-    vec3 texture_size = textureSize(texture_source, 0);
+    vec3 texture_size = textureSize(texture_source, int(pushConstant._mip_level));
     float width = ceil(sqrt(texture_size.z));
     float height = ceil(texture_size.z / width);
     float depth = floor(vs_output.texCoord.x * width) + floor((1.0 - vs_output.texCoord.y) * height) * width;
@@ -63,7 +63,7 @@ vec4 get_texture_3d(sampler3D texture_source)
     }
     depth /= texture_size.z;
     vec3 texcoord = vec3(fract(vs_output.texCoord.x * width), fract(vs_output.texCoord.y * height), depth);
-    return texture(texture_source, texcoord);
+    return textureLod(texture_source, texcoord, float(pushConstant._mip_level));
 }
 
 void main() {
@@ -72,7 +72,7 @@ void main() {
     if(VK_IMAGE_VIEW_TYPE_2D == debug_target)
     {
         vec2 texcoord = vs_output.texCoord.xy;
-        outColor = texture(texture_2d, texcoord);
+        outColor = textureLod(texture_2d, texcoord, float(pushConstant._mip_level));
     }
     else if(VK_IMAGE_VIEW_TYPE_2D_ARRAY == debug_target)
     {
@@ -87,12 +87,12 @@ void main() {
         vec4 position = vec4(vs_output.texCoord.xy * 2.0 - 1.0, -1.0, 1.0);
         position = view_constants.INV_VIEW_ORIGIN_PROJECTION * position;
         position.xyz /= position.w;
-        outColor = texture(texture_cube, normalize(position.xyz));
+        outColor = textureLod(texture_cube, normalize(position.xyz), float(pushConstant._mip_level));
     }
     else
     {
         vec2 texcoord = vs_output.texCoord.xy;
-        outColor = texture(texture_2d, texcoord);
+        outColor = textureLod(texture_2d, texcoord, float(pushConstant._mip_level));
     }
 
 //    if(debug_absolute)
@@ -101,6 +101,5 @@ void main() {
 //    }
 
 //    outColor.xyz = clamp((outColor.xyz - debug_intensity_min) / (debug_intensity_max - debug_intensity_min), 0.0, 1.0);
-    outColor.xyz = pow(clamp(outColor.xyz, 0.0, 1.0), vec3(2.2));
     outColor.w = 1.0;
 }
