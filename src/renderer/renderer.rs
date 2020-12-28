@@ -401,10 +401,13 @@ impl RendererData {
                 *self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(),
             ],
             vec![
-                *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap()
+                *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
             ],
+            vec![],
         );
     }
 
@@ -1091,10 +1094,28 @@ impl RendererData {
         };
         let push_constans_render_color = Some(&push_constans_render_color);
         for framebuffer in self._clear_render_targets._framebuffer_datas_r16g16b16a16.iter() {
-            self.render_material_instance(command_buffer, swapchain_index, "render_color_r16g16b16a16", DEFAULT_PIPELINE, &quad_geometry_data, Some(framebuffer), None, push_constans_render_color);
+            self.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "render_color",
+                "render_color_r16g16b16a16/render_color_r16g16b16a16",
+                &quad_geometry_data,
+                Some(framebuffer),
+                None,
+                push_constans_render_color
+            );
         }
         for framebuffer in self._clear_render_targets._framebuffer_datas_r32.iter() {
-            self.render_material_instance(command_buffer, swapchain_index, "render_color_r32", DEFAULT_PIPELINE, &quad_geometry_data, Some(framebuffer), None, push_constans_render_color);
+            self.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "render_color",
+                "render_color_r32/render_color_r32",
+                &quad_geometry_data,
+                Some(framebuffer),
+                None,
+                push_constans_render_color
+            );
         }
     }
 

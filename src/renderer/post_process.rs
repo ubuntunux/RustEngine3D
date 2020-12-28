@@ -19,6 +19,7 @@ use crate::utilities::system::RcRefCell;
 pub struct PostProcessData_ClearRenderTargets {
     pub _framebuffer_datas_r16g16b16a16: Vec<FramebufferData>,
     pub _framebuffer_datas_r32: Vec<FramebufferData>,
+    pub _framebuffer_datas_r32g32b32a32: Vec<FramebufferData>,
 }
 
 impl Default for PostProcessData_ClearRenderTargets {
@@ -26,6 +27,7 @@ impl Default for PostProcessData_ClearRenderTargets {
         PostProcessData_ClearRenderTargets {
             _framebuffer_datas_r16g16b16a16: Vec::new(),
             _framebuffer_datas_r32: Vec::new(),
+            _framebuffer_datas_r32g32b32a32: Vec::new(),
         }
     }
 }
@@ -514,11 +516,13 @@ impl PostProcessData_ClearRenderTargets {
         resources: &RcRefCell<Resources>,
         render_targets_r16g16b16a16: Vec<&TextureData>,
         render_targets_r32: Vec<&TextureData>,
+        render_targets_r32g32b32a32: Vec<&TextureData>,
     ) {
         let resources = resources.borrow();
+        let material_instance = resources.get_material_instance_data("render_color").borrow();
+
         // R16G16B16A16
-        let material_instance = resources.get_material_instance_data("render_color_r16g16b16a16").borrow();
-        let pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_color_r16g16b16a16/render_color_r16g16b16a16");
         for render_target in render_targets_r16g16b16a16.iter() {
             for layer in 0..render_target._image_layer {
                 for mip_level in 0..render_target._image_mip_levels {
@@ -527,8 +531,7 @@ impl PostProcessData_ClearRenderTargets {
             }
         }
         // R32
-        let material_instance = resources.get_material_instance_data("render_color_r32").borrow();
-        let pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_color_r32/render_color_r32");
         for render_target in render_targets_r32.iter() {
             for layer in 0..render_target._image_layer {
                 for mip_level in 0..render_target._image_mip_levels {
@@ -536,6 +539,15 @@ impl PostProcessData_ClearRenderTargets {
                 }
             }
         }
+        // R32G32B32A32
+        // let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_color_r32g32b32a32/render_color_r32g32b32a32");
+        // for render_target in render_targets_r32g32b32a32.iter() {
+        //     for layer in 0..render_target._image_layer {
+        //         for mip_level in 0..render_target._image_mip_levels {
+        //             self._framebuffer_datas_r32g32b32a32.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
+        //         }
+        //     }
+        // }
     }
 
     pub fn destroy(&mut self, device: &Device) {
@@ -545,7 +557,11 @@ impl PostProcessData_ClearRenderTargets {
         for framebuffer_data in self._framebuffer_datas_r32.iter() {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
+        for framebuffer_data in self._framebuffer_datas_r32g32b32a32.iter() {
+            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
+        }
         self._framebuffer_datas_r16g16b16a16.clear();
         self._framebuffer_datas_r32.clear();
+        self._framebuffer_datas_r32g32b32a32.clear();
     }
 }

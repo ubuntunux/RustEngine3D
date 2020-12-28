@@ -604,10 +604,11 @@ pub fn create_image_datas(
     let sub_image_view_type = match image_view_type {
         vk::ImageViewType::TYPE_1D | vk::ImageViewType::TYPE_1D_ARRAY => vk::ImageViewType::TYPE_1D,
         vk::ImageViewType::TYPE_2D | vk::ImageViewType::TYPE_2D_ARRAY => vk::ImageViewType::TYPE_2D,
-        vk::ImageViewType::TYPE_3D => vk::ImageViewType::TYPE_2D,
+        vk::ImageViewType::TYPE_3D => vk::ImageViewType::TYPE_3D,
         vk::ImageViewType::CUBE | vk::ImageViewType::CUBE_ARRAY => vk::ImageViewType::CUBE,
         _ => vk::ImageViewType::TYPE_2D,
     };
+
     for layer in 0..layer_count {
         let mut miplevel_sub_image_views: MipLevels<vk::ImageView> = MipLevels::new();
         let mut miplevel_sub_image_infos: MipLevels<vk::DescriptorImageInfo> = MipLevels::new();
