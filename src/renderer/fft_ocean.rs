@@ -1,4 +1,5 @@
 use std::cmp::max;
+use std::fs::File;
 
 use ash::{
     vk,
@@ -23,8 +24,8 @@ use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::vulkan_context::{SwapchainIndexMap, Layers, MipLevels};
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 
-const CM: f32 = 0.23;
-const KM: f32 = 370.0;
+const CM: f64 = 0.23;
+const KM: f64 = 370.0;
 const WIND: f32 = 5.0;
 const OMEGA: f32 = 0.84;
 const AMPLITUDE: f32 = 0.5;
@@ -46,6 +47,7 @@ const INVERSE_GRID_SIZES: [f32; 4] = [
 ];
 const GRID_VERTEX_COUNT: u32 = 200;
 const GRID_CELL_SIZE: (f32, f32) = (1.0 / GRID_VERTEX_COUNT as f32, 1.0 / GRID_VERTEX_COUNT as f32);
+const DEFAULT_FFT_SEED: u32 = 1234;
 
 pub struct FFTOcean {
     _name: String,
@@ -93,7 +95,7 @@ impl Default for FFTOcean {
             _simulation_scale: simulation_scale,
             _is_render_ocean: true,
             _acc_time: 0.0,
-            _fft_seed: 1234,
+            _fft_seed: DEFAULT_FFT_SEED,
             _simulation_size: GRID_SIZES.iter().map(|grid_size| grid_size * simulation_scale).collect(),
             _caustic_index: 0,
             _spectrum12_data: Vec::new(),
@@ -116,20 +118,20 @@ impl Default for FFTOcean {
     }
 }
 
-fn log(t: f32) -> f32 {
-    (t as f64).log(std::f64::consts::E) as f32
+fn log(t: f64) -> f64 {
+    t.log(std::f64::consts::E)
 }
 
-fn sqr(x: f32) -> f32 {
+fn sqr(x: f64) -> f64 {
     x * x
 }
 
-fn get_omega(k: f32) -> f32 {
+fn get_omega(k: f64) -> f64 {
     (9.81 * k * (1.0 + sqr(k / KM))).sqrt()
 }
 
-fn frandom(seed_data: u32) -> f32 {
-    (seed_data >> (31 - 24)) as f32 / (1 << 24) as f32
+fn frandom(seed_data: u32) -> f64 {
+    (seed_data >> (31 - 24)) as f64 / (1 << 24) as f64
 }
 
 fn bit_reverse(i: i32, n: i32) -> i32 {
@@ -146,8 +148,8 @@ fn bit_reverse(i: i32, n: i32) -> i32 {
     sum
 }
 
-fn compute_weight(n: i32, k: f32) -> (f32, f32) {
-    ((2.0 * std::f32::consts::PI * k / n as f32).cos(), (2.0 * std::f32::consts::PI * k / n as f32).sin())
+fn compute_weight(n: i32, k: f64) -> (f64, f64) {
+    ((2.0 * std::f64::consts::PI * k / n as f64).cos(), (2.0 * std::f64::consts::PI * k / n as f64).sin())
 }
 
 impl FFTOcean {
@@ -155,6 +157,8 @@ impl FFTOcean {
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut butterfly_data: Vec<f32> = vec![0.0; (FFT_SIZE * PASSES * 4) as usize];
+
+        self._fft_seed = DEFAULT_FFT_SEED;
 
         // create fft mesh & textures
         {
@@ -332,18 +336,18 @@ impl FFTOcean {
         self._fft_a_generate_mips_dispatch_group_y = texture_fft_a._image_height;
     }
 
-    fn get_slope_variance(&self, kx: f32, ky: f32, spectrum_sample0: f32, spectrum_sample1: f32) -> f32 {
-        let k_square = kx * kx + ky * ky;
-        let real = spectrum_sample0;
-        let img = spectrum_sample1;
+    fn get_slope_variance(&self, kx: f32, ky: f32, spectrum_sample0: f32, spectrum_sample1: f32) -> f64 {
+        let k_square = (kx * kx + ky * ky) as f64;
+        let real = spectrum_sample0 as f64;
+        let img = spectrum_sample1 as f64;
         let h_square = real * real + img * img;
         k_square * h_square * 2.0
     }
 
-    fn spectrum(&self, kx: f32, ky: f32, omnispectrum: bool) -> f32 {
-        let u10 = self._wind.max(0.001);
-        let omega = self._omega;
-        let amp = self._amplitude;
+    fn spectrum(&self, kx: f64, ky: f64, omnispectrum: bool) -> f64 {
+        let u10 = self._wind.max(0.001) as f64;
+        let omega = self._omega as f64;
+        let amp = self._amplitude as f64;
 
         let k = (kx * kx + ky * ky).sqrt();
         let c = get_omega(k) / k;
@@ -361,7 +365,7 @@ impl FFTOcean {
         let sigma = 0.08 * (1.0 + 4.0 / omega.powf(3.0));
         let gamma_exp = (-1.0 / (2.0 * sqr(sigma)) * sqr((k / kp).sqrt() - 1.0)).exp();
         let jp = gamma.powf(gamma_exp);
-        let fp = lpm * jp * (-omega / 10.0f32.exp() * ((k / kp).sqrt() - 1.0)).exp();
+        let fp = lpm * jp * (-omega / 10.0f64.exp() * ((k / kp).sqrt() - 1.0)).exp();
         let alphap = 0.006 * omega.sqrt();
         let mut bl = 0.5 * alphap * cp / c * fp;
         let alpham = if u_star < CM {
@@ -379,7 +383,7 @@ impl FFTOcean {
         let a0 = log(2.0) / 4.0;
         let ap = 4.0;
         let am = 0.13 * u_star / CM;
-        let delta: f32 = (a0 + ap * (c / cp).powf(2.5) + am * (CM / c).powf(2.5)).tanh();
+        let delta = (a0 + ap * (c / cp).powf(2.5) + am * (CM / c).powf(2.5)).tanh();
         let phi = ky.atan2(kx);
 
         if kx < 0.0 {
@@ -388,28 +392,28 @@ impl FFTOcean {
             bl *= 2.0;
             bh *= 2.0;
         }
-        amp * (bl + bh) * (1.0 + delta * (2.0 * phi).cos()) / (2.0 * std::f32::consts::PI * sqr(sqr(k)))
+        amp * (bl + bh) * (1.0 + delta * (2.0 * phi).cos()) / (2.0 * std::f64::consts::PI * sqr(sqr(k)))
     }
 
-    fn get_spectrum_sample(&self, i: u32, j: u32, length_scale: f32, k_min: f32) -> (f32, f32) {
-        let dk = 2.0 * std::f32::consts::PI / length_scale;
-        let kx = i as f32 * dk;
-        let ky = j as f32 * dk;
+    fn get_spectrum_sample(&mut self, i: u32, j: u32, length_scale: f64, k_min: f64) -> (f64, f64) {
+        let dk = 2.0 * std::f64::consts::PI / length_scale;
+        let kx = i as f64 * dk;
+        let ky = j as f64 * dk;
         if kx.abs() < k_min && ky.abs() < k_min {
             return (0.0, 0.0);
         }
 
         let s = self.spectrum(kx, ky, false);
         let h = (s / 2.0).sqrt() * dk;
-        let fft_seed = (self._fft_seed * 1103515245 + 12345) & 0x7FFFFFFF;
-        let phi = frandom(fft_seed) * 2.0 * std::f32::consts::PI;
+        self._fft_seed = (self._fft_seed * 1103515245 + 12345) & 0x7FFFFFFF;
+        let phi = frandom(self._fft_seed) * 2.0 * std::f64::consts::PI;
         (h * phi.cos(), h * phi.sin())
     }
 
     fn compute_butterfly_lookup_texture(&self, butterfly_data: &mut Vec<f32>) {
         for i in 0..PASSES {
-            let blocks: i32 = (2.0f32).powf((PASSES - 1 - i) as f32) as i32;
-            let inputs: i32 = (2.0f32).powf(i as f32) as i32;
+            let blocks: i32 = (2.0f64).powf((PASSES - 1 - i) as f64) as i32;
+            let inputs: i32 = (2.0f64).powf(i as f64) as i32;
             for j in 0..blocks {
                 for k in 0..inputs {
                     let i1: i32;
@@ -428,42 +432,42 @@ impl FFTOcean {
                         j2 = i2;
                     }
 
-                    let (wr, wi) = compute_weight(FFT_SIZE as i32, (k * blocks) as f32);
+                    let (wr, wi) = compute_weight(FFT_SIZE as i32, (k * blocks) as f64);
 
                     let offset1 = 4 * (i1 as usize + (i * FFT_SIZE) as usize);
-                    butterfly_data[offset1 + 0] = (j1 as f32 + 0.5) / FFT_SIZE as f32;
-                    butterfly_data[offset1 + 1] = (j2 as f32 + 0.5) / FFT_SIZE as f32;
-                    butterfly_data[offset1 + 2] = wr;
-                    butterfly_data[offset1 + 3] = wi;
+                    butterfly_data[offset1 + 0] = ((j1 as f64 + 0.5) / FFT_SIZE as f64) as f32;
+                    butterfly_data[offset1 + 1] = ((j2 as f64 + 0.5) / FFT_SIZE as f64) as f32;
+                    butterfly_data[offset1 + 2] = wr as f32;
+                    butterfly_data[offset1 + 3] = wi as f32;
 
                     let offset2 = 4 * (i2 as usize + (i * FFT_SIZE) as usize);
-                    butterfly_data[offset2 + 0] = (j1 as f32 + 0.5) / FFT_SIZE as f32;
-                    butterfly_data[offset2 + 1] = (j2 as f32 + 0.5) / FFT_SIZE as f32;
-                    butterfly_data[offset2 + 2] = -wr;
-                    butterfly_data[offset2 + 3] = -wi;
+                    butterfly_data[offset2 + 0] = ((j1 as f64 + 0.5) / FFT_SIZE as f64) as f32;
+                    butterfly_data[offset2 + 1] = ((j2 as f64 + 0.5) / FFT_SIZE as f64) as f32;
+                    butterfly_data[offset2 + 2] = -wr as f32;
+                    butterfly_data[offset2 + 3] = -wi as f32;
                 }
             }
         }
     }
 
-    fn generate_waves_spectrum(&self, spectrum12_data: &mut Vec<f32>, spectrum34_data: &mut Vec<f32>) {
+    fn generate_waves_spectrum(&mut self, spectrum12_data: &mut Vec<f32>, spectrum34_data: &mut Vec<f32>) {
         for y in 0..FFT_SIZE {
             for x in 0..FFT_SIZE {
                 let offset = 4 * (x + y * FFT_SIZE) as usize;
                 let i = if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x };
                 let j = if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y };
-                let (s12_0, s12_1) = self.get_spectrum_sample(i, j, GRID1_SIZE, std::f32::consts::PI / GRID1_SIZE as f32);
-                let (s12_2, s12_3) = self.get_spectrum_sample(i, j, GRID2_SIZE, std::f32::consts::PI * FFT_SIZE as f32 / GRID1_SIZE as f32);
-                let (s34_0, s34_1) = self.get_spectrum_sample(i, j, GRID3_SIZE, std::f32::consts::PI * FFT_SIZE as f32 / GRID2_SIZE as f32);
-                let (s34_2, s34_3) = self.get_spectrum_sample(i, j, GRID4_SIZE, std::f32::consts::PI * FFT_SIZE as f32 / GRID3_SIZE as f32);
-                spectrum12_data[offset + 0] = s12_0;
-                spectrum12_data[offset + 1] = s12_1;
-                spectrum12_data[offset + 2] = s12_2;
-                spectrum12_data[offset + 3] = s12_3;
-                spectrum34_data[offset + 0] = s34_0;
-                spectrum34_data[offset + 1] = s34_1;
-                spectrum34_data[offset + 2] = s34_2;
-                spectrum34_data[offset + 3] = s34_3;
+                let (s12_0, s12_1) = self.get_spectrum_sample(i, j, GRID1_SIZE as f64, std::f64::consts::PI / GRID1_SIZE as f64);
+                let (s12_2, s12_3) = self.get_spectrum_sample(i, j, GRID2_SIZE as f64, std::f64::consts::PI * FFT_SIZE as f64 / GRID1_SIZE as f64);
+                let (s34_0, s34_1) = self.get_spectrum_sample(i, j, GRID3_SIZE as f64, std::f64::consts::PI * FFT_SIZE as f64 / GRID2_SIZE as f64);
+                let (s34_2, s34_3) = self.get_spectrum_sample(i, j, GRID4_SIZE as f64, std::f64::consts::PI * FFT_SIZE as f64 / GRID3_SIZE as f64);
+                spectrum12_data[offset + 0] = s12_0 as f32;
+                spectrum12_data[offset + 1] = s12_1 as f32;
+                spectrum12_data[offset + 2] = s12_2 as f32;
+                spectrum12_data[offset + 3] = s12_3 as f32;
+                spectrum34_data[offset + 0] = s34_0 as f32;
+                spectrum34_data[offset + 1] = s34_1 as f32;
+                spectrum34_data[offset + 2] = s34_2 as f32;
+                spectrum34_data[offset + 3] = s34_3 as f32;
             }
         }
     }
@@ -502,7 +506,7 @@ impl FFTOcean {
             _grid_sizes: GRID_SIZES,
             _n_slope_variance: N_SLOPE_VARIANCE as f32,
             _fft_size: FFT_SIZE,
-            _slope_variance_delta: (theoretic_slope_variance - total_slope_variance) * 0.5,
+            _slope_variance_delta: (theoretic_slope_variance - total_slope_variance) as f32 * 0.5,
             _c: 0.0,
         };
 
