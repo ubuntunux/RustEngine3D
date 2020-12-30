@@ -115,7 +115,6 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
         _texture_mag_filter: vk::Filter::NEAREST,
         _texture_initial_datas: default_3d_data,
         _enable_mipmap: true,
-        _enable_anisotropy: true,
         ..Default::default()
     });
 
@@ -131,7 +130,6 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
         _texture_mag_filter: vk::Filter::NEAREST,
         _texture_initial_datas: default_2d_array_data,
         _enable_mipmap: true,
-        _enable_anisotropy: true,
         ..Default::default()
     });
 

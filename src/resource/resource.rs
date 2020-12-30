@@ -473,7 +473,7 @@ impl Resources {
                         _texture_view_type: image_view_type,
                         _texture_initial_datas: image_data,
                         _enable_mipmap: true,
-                        _enable_anisotropy: true,
+                        _enable_anisotropy: false,
                         ..Default::default()
                     };
                     let texture_data = renderer_data.create_texture(&texture_create_info);

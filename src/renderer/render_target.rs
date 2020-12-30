@@ -82,12 +82,9 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
     let window_height = swapchain_data._swapchain_extent.height;
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_data._render_features._msaa_samples);
-    let _enable_anisotropy = true;
-    let disable_anisotropy = false;
     let hdr_texture_create_info = TextureCreateInfo {
         _texture_format: vk::Format::R16G16B16A16_SFLOAT,
         _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-        _enable_anisotropy: disable_anisotropy,
         ..Default::default()
     };
     let texture_create_infos = vec![
@@ -113,7 +110,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -126,7 +122,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: true,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -136,7 +131,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_samples: samples,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -146,7 +140,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_samples: samples,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -155,7 +148,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -166,7 +158,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -177,7 +168,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -188,7 +178,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -217,7 +206,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_height: window_height / 2,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -226,7 +214,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_height: window_height / 2,
             _texture_format: vk::Format::R16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -235,7 +222,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_height: window_height / 2,
             _texture_format: vk::Format::R16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -246,7 +232,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -278,7 +263,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _enable_mipmap: true,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -292,7 +276,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _enable_mipmap: true,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -305,23 +288,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_min_filter: vk::Filter::LINEAR,
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _enable_anisotropy: disable_anisotropy,
             ..Default::default()
         },
-        // texture_slope_variance = CreateTexture(
-        //     name='fft_ocean.slope_variance',
-        //     texture_type=Texture3D,
-        //     image_mode='RGBA',
-        //     width=N_SLOPE_VARIANCE,
-        //     height=N_SLOPE_VARIANCE,
-        //     depth=N_SLOPE_VARIANCE,
-        //     internal_format=GL_RGBA16F,
-        //     texture_format=GL_RGBA,
-        //     min_filter=GL_LINEAR,
-        //     mag_filter=GL_LINEAR,
-        //     wrap=GL_CLAMP_TO_EDGE,
-        //     data_type=GL_FLOAT,
-        // )
     ];
     texture_create_infos
 }
