@@ -42,7 +42,7 @@ vec4 get_texture_2d_array(sampler2DArray texture_source)
     vec3 texture_size = textureSize(texture_source, int(pushConstant._mip_level));
     float width = ceil(sqrt(texture_size.z));
     float height = ceil(texture_size.z / width);
-    float layer = floor(vs_output.texCoord.x * width) + floor((1.0 - vs_output.texCoord.y) * height) * width;
+    float layer = floor(vs_output.texCoord.x * width) + floor(vs_output.texCoord.y * height) * width;
     if(texture_size.z <= layer)
     {
         return vec4(0.0, 0.0, 0.0, 0.0);
@@ -56,7 +56,7 @@ vec4 get_texture_3d(sampler3D texture_source)
     vec3 texture_size = textureSize(texture_source, int(pushConstant._mip_level));
     float width = ceil(sqrt(texture_size.z));
     float height = ceil(texture_size.z / width);
-    float depth = floor(vs_output.texCoord.x * width) + floor((1.0 - vs_output.texCoord.y) * height) * width;
+    float depth = floor(vs_output.texCoord.x * width) + floor(vs_output.texCoord.y * height) * width;
     if(texture_size.z <= depth)
     {
         return vec4(0.0, 0.0, 0.0, 0.0);
