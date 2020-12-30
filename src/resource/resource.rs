@@ -469,10 +469,11 @@ impl Resources {
                         _texture_name: texture_data_name.clone(),
                         _texture_width: image_width,
                         _texture_height: image_height,
-                        _texture_depth: 1,
                         _texture_format: image_format,
                         _texture_view_type: image_view_type,
                         _texture_initial_datas: image_data,
+                        _enable_mipmap: true,
+                        _enable_anisotropy: true,
                         ..Default::default()
                     };
                     let texture_data = renderer_data.create_texture(&texture_create_info);

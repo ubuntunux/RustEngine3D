@@ -97,8 +97,8 @@ impl<T> Default for TextureCreateInfo<T> {
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _max_mip_levels: constants::INVALID_MIP_LEVEL,
-            _enable_mipmap: true,
-            _enable_anisotropy: true,
+            _enable_mipmap: false,
+            _enable_anisotropy: false,
             _texture_initial_datas: Vec::new(),
         }
     }
