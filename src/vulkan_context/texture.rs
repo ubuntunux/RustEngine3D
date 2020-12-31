@@ -607,10 +607,10 @@ pub fn create_image_datas(
         _ => vk::ImageViewType::TYPE_2D,
     };
 
-    for layer in 0..layer_count {
+    for layer in base_array_layer..layer_count {
         let mut miplevel_sub_image_views: MipLevels<vk::ImageView> = MipLevels::new();
         let mut miplevel_sub_image_infos: MipLevels<vk::DescriptorImageInfo> = MipLevels::new();
-        for mip_level in 0..mip_levels {
+        for mip_level in base_mip_level..mip_levels {
             let sub_image_view = create_image_view(
                 device,
                 image,
