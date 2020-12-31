@@ -188,6 +188,8 @@ impl SceneManagerData {
     }
 
     pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
+        self._fft_ocean.borrow_mut().update(delta_time);
+
         let mut main_camera = self._main_camera.borrow_mut();
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();

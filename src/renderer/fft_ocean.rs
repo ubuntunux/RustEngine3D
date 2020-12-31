@@ -526,9 +526,12 @@ impl FFTOcean {
         }
     }
 
-    pub fn update(&mut self, delta_time: f32) {
-        self._acc_time += delta_time;
-        self._caustic_index = (self._acc_time * 20.0) as u32 % self._render_fft_ocean_descriptor_sets.len() as u32;
+    pub fn update(&mut self, delta_time: f64) {
+        self._acc_time += delta_time as f32;
+        let caustic_count = self._render_fft_ocean_descriptor_sets.len();
+        if 0 < caustic_count {
+            self._caustic_index = (self._acc_time * 20.0) as u32 % self._render_fft_ocean_descriptor_sets.len() as u32;
+        }
     }
 
     pub fn simulate_fft_waves(&self, renderer_data: &RendererData, resources: &Resources) {
