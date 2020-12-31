@@ -677,12 +677,15 @@ impl RendererData {
             let pipeline_bind_point = pipeline_data.borrow()._pipeline_bind_point;
             let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
             self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+
             if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
                 self._device.cmd_set_viewport(command_buffer, 0, &[(*framebuffer_data)._framebuffer_info._framebuffer_view_port]);
             }
+
             if pipeline_dynamic_states.contains(&vk::DynamicState::SCISSOR) {
                 self._device.cmd_set_scissor(command_buffer, 0, &[(*framebuffer_data)._framebuffer_info._framebuffer_scissor_rect]);
             }
+
             self._device.cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline_data.borrow()._pipeline);
         }
     }
