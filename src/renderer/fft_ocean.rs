@@ -556,11 +556,13 @@ impl FFTOcean {
         };
         for i in 0..PASSES {
             push_constants._pass = (i as f32 + 0.5) / PASSES as f32;
+
             let (framebuffer, descriptor_sets) = if 0 == (i % 2) {
                 (&self._fft_wave_x_fft_b_framebuffer, &self._fft_wave_x_fft_a_descriptor_sets)
             } else {
                 (&self._fft_wave_x_fft_a_framebuffer, &self._fft_wave_x_fft_b_descriptor_sets)
             };
+
             renderer_data.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -576,11 +578,13 @@ impl FFTOcean {
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_waves/render_fft_y");
         for i in PASSES..(PASSES * 2) {
             push_constants._pass = ((i - PASSES) as f32 + 0.5) / PASSES as f32;
+
             let (framebuffer, descriptor_sets) = if 0 == (i % 2) {
                 (&self._fft_wave_y_fft_b_framebuffer, &self._fft_wave_y_fft_a_descriptor_sets)
             } else {
                 (&self._fft_wave_y_fft_a_framebuffer, &self._fft_wave_y_fft_b_descriptor_sets)
             };
+
             renderer_data.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
