@@ -214,6 +214,13 @@ pub fn create_renderer_data<T>(
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
         let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
         let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
+
+        log::info!("PhysicalDeviceProperties");
+        log::info!("    vulakn api_version: {}.{}.{}", vk::version_major(device_properties.api_version), vk::version_minor(device_properties.api_version), vk::version_patch(device_properties.api_version));
+        log::info!("    driver_version: {}.{}.{}", vk::version_major(device_properties.driver_version), vk::version_minor(device_properties.driver_version), vk::version_patch(device_properties.driver_version));
+        let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const std::os::raw::c_char);
+        log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
+
         let msaa_samples = device::get_max_usable_sample_count(&device_properties);
         let queue_family_indices = queue::get_queue_family_indices(
             &instance,

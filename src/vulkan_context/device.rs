@@ -128,7 +128,7 @@ pub fn create_vk_instance(
         application_version: app_version,
         p_engine_name: app_name.as_ptr(),
         engine_version: constants::ENGINE_VERSION,
-        api_version: constants::API_VERSION,
+        api_version: constants::VULKAN_API_VERSION,
         ..Default::default()
     };
 
@@ -141,13 +141,10 @@ pub fn create_vk_instance(
         ..Default::default()
     };
 
-    log::info!(
-        "create_vk_instance: {:?}, api version: {}.{}.{}",
-        app_name,
-        vk::version_major(constants::API_VERSION),
-        vk::version_minor(constants::API_VERSION),
-        vk::version_patch(constants::API_VERSION)
-    );
+    log::info!("create_instance");
+    log::info!("    app name: {:?}", app_name);
+    log::info!("    engine version: {}.{}.{}", vk::version_major(constants::ENGINE_VERSION), vk::version_minor(constants::ENGINE_VERSION), vk::version_patch(constants::ENGINE_VERSION));
+    log::info!("    require vulkan api version: {}.{}.{}", vk::version_major(constants::VULKAN_API_VERSION), vk::version_minor(constants::VULKAN_API_VERSION), vk::version_patch(constants::VULKAN_API_VERSION));
 
     unsafe {
         entry.create_instance(&create_info, None).expect("Instance creation error")
