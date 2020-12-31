@@ -72,7 +72,7 @@ void main() {
     if(VK_IMAGE_VIEW_TYPE_2D == debug_target)
     {
         vec2 texcoord = vs_output.texCoord.xy;
-        outColor = textureLod(texture_2d, texcoord, float(pushConstant._mip_level));
+        outColor = textureLod(texture_2d, texcoord, float(pushConstant._mip_level)) * 1000.0;
     }
     else if(VK_IMAGE_VIEW_TYPE_2D_ARRAY == debug_target)
     {

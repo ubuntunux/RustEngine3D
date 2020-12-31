@@ -8,9 +8,9 @@
 layout( push_constant ) uniform PushConstant_FFT_Waves
 {
     float _pass;
-    uint _reserved0;
-    uint _reserved1;
-    uint _reserved2;
+    int _reserved0;
+    int _reserved1;
+    int _reserved2;
 } pushConstant;
 
 layout(binding = 0) uniform sampler2D texture_butterfly;

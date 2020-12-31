@@ -9,7 +9,7 @@ layout( push_constant ) uniform PushConstant_FFT_Variance
 {
     vec4 _grid_sizes;
     float _n_slope_variance;
-    uint _fft_size;
+    int _fft_size;
     float _slope_variance_delta;
     float _c;
 } pushConstant;
@@ -45,12 +45,12 @@ void main()
     vec4 spectrum12;
     vec4 spectrum34;
 
-    for (uint y = 0; y < pushConstant._fft_size; ++y)
+    for (int y = 0; y < pushConstant._fft_size; ++y)
     {
-        for (uint x = 0; x < pushConstant._fft_size; ++x)
+        for (int x = 0; x < pushConstant._fft_size; ++x)
         {
-            uint i = ((pushConstant._fft_size / 2) <= x) ? x - pushConstant._fft_size : x;
-            uint j = ((pushConstant._fft_size / 2) <= y) ? y - pushConstant._fft_size : y;
+            int i = ((pushConstant._fft_size / 2) <= x) ? (x - pushConstant._fft_size) : x;
+            int j = ((pushConstant._fft_size / 2) <= y) ? (y - pushConstant._fft_size) : y;
             vec2 k = 2.0 * PI * vec2(i, j);
 
             spectrum12 = textureLod(texture_spectrum_1_2, vec2(float(x) + 0.5, float(y) + 0.5) / float(pushConstant._fft_size), 0.0);

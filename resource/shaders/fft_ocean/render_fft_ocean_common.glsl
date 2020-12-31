@@ -27,8 +27,8 @@ layout( push_constant ) uniform PushConstant_FFT_Ocean
     float _simulation_wind;
     float _simulation_amplitude;
     float _t;
-    uint _reserved0;
-    uint _reserved1;
+    int _reserved0;
+    int _reserved1;
 } pushConstant;
 
 struct VERTEX_OUTPUT

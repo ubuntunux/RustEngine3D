@@ -10,8 +10,8 @@ layout( push_constant ) uniform PushConstant_FFT_Init
     vec4 _inverse_grid_sizes;
     float _fft_size;
     float _t;
-    uint _reserved0;
-    uint _reserved1;
+    int _reserved0;
+    int _reserved1;
 } pushConstant;
 
 layout(binding = 0) uniform sampler2D texture_spectrum_1_2;

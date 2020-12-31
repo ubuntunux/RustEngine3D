@@ -1,3 +1,4 @@
+
 use std::cmp::max;
 use std::fs::File;
 
@@ -30,10 +31,10 @@ const WIND: f32 = 5.0;
 const OMEGA: f32 = 0.84;
 const AMPLITUDE: f32 = 0.5;
 const CHOPPY_FACTOR: [f32; 4] = [2.3, 2.1, 1.3, 0.9];
-const PASSES: u32 = 8; // number of passes needed for the FFT 6 -> 64, 7 -> 128, 8 -> 256, etc
-pub const FFT_SIZE: u32 = 1 << PASSES; // size of the textures storing the waves in frequency and spatial domains
-pub const N_SLOPE_VARIANCE: u32 = 10;
-pub const FFT_LAYER_COUNT: u32 = 5;
+const PASSES: i32 = 8; // number of passes needed for the FFT 6 -> 64, 7 -> 128, 8 -> 256, etc
+pub const FFT_SIZE: i32 = 1 << PASSES; // size of the textures storing the waves in frequency and spatial domains
+pub const N_SLOPE_VARIANCE: i32 = 10;
+pub const FFT_LAYER_COUNT: i32 = 5;
 const GRID1_SIZE: f32 = 5488.0;
 const GRID2_SIZE: f32 = 392.0;
 const GRID3_SIZE: f32 = 28.0;
@@ -47,7 +48,7 @@ const INVERSE_GRID_SIZES: [f32; 4] = [
 ];
 const GRID_VERTEX_COUNT: u32 = 200;
 const GRID_CELL_SIZE: (f32, f32) = (1.0 / GRID_VERTEX_COUNT as f32, 1.0 / GRID_VERTEX_COUNT as f32);
-const DEFAULT_FFT_SEED: u32 = 1234;
+const DEFAULT_FFT_SEED: i32 = 1234;
 
 pub struct FFTOcean {
     _name: String,
@@ -60,7 +61,7 @@ pub struct FFTOcean {
     _simulation_scale: f32,
     _is_render_ocean: bool,
     _acc_time: f32,
-    _fft_seed: u32,
+    _fft_seed: i32,
     _simulation_size: Vec<f32>,
     _caustic_index: u32,
     _spectrum12_data: Vec<f32>,
@@ -130,7 +131,7 @@ fn get_omega(k: f64) -> f64 {
     (9.81 * k * (1.0 + sqr(k / KM))).sqrt()
 }
 
-fn frandom(seed_data: u32) -> f64 {
+fn frandom(seed_data: i32) -> f64 {
     (seed_data >> (31 - 24)) as f64 / (1 << 24) as f64
 }
 
@@ -174,8 +175,8 @@ impl FFTOcean {
             if false == resources.has_texture_data("fft_ocean/spectrum_1_2") {
                 let texture_spectrum_1_2 = renderer_data.create_texture(&TextureCreateInfo {
                     _texture_name: String::from("fft_ocean/spectrum_1_2"),
-                    _texture_width: FFT_SIZE,
-                    _texture_height: FFT_SIZE,
+                    _texture_width: FFT_SIZE as u32,
+                    _texture_height: FFT_SIZE as u32,
                     _texture_format: vk::Format::R32G32B32A32_SFLOAT,
                     _texture_min_filter: vk::Filter::NEAREST,
                     _texture_mag_filter: vk::Filter::NEAREST,
@@ -188,8 +189,8 @@ impl FFTOcean {
             if false == resources.has_texture_data("fft_ocean/spectrum_3_4") {
                 let texture_spectrum_3_4 = renderer_data.create_texture(&TextureCreateInfo {
                     _texture_name: String::from("fft_ocean/spectrum_3_4"),
-                    _texture_width: FFT_SIZE,
-                    _texture_height: FFT_SIZE,
+                    _texture_width: FFT_SIZE as u32,
+                    _texture_height: FFT_SIZE as u32,
                     _texture_format: vk::Format::R32G32B32A32_SFLOAT,
                     _texture_min_filter: vk::Filter::NEAREST,
                     _texture_mag_filter: vk::Filter::NEAREST,
@@ -202,8 +203,8 @@ impl FFTOcean {
             if false == resources.has_texture_data("fft_ocean/butterfly") {
                 let texture_butterfly = renderer_data.create_texture(&TextureCreateInfo {
                     _texture_name: String::from("fft_ocean/butterfly"),
-                    _texture_width: FFT_SIZE,
-                    _texture_height: PASSES,
+                    _texture_width: FFT_SIZE as u32,
+                    _texture_height: PASSES as u32,
                     _texture_format: vk::Format::R32G32B32A32_SFLOAT,
                     _texture_min_filter: vk::Filter::NEAREST,
                     _texture_mag_filter: vk::Filter::NEAREST,
@@ -395,7 +396,7 @@ impl FFTOcean {
         amp * (bl + bh) * (1.0 + delta * (2.0 * phi).cos()) / (2.0 * std::f64::consts::PI * sqr(sqr(k)))
     }
 
-    fn get_spectrum_sample(&mut self, i: u32, j: u32, length_scale: f64, k_min: f64) -> (f64, f64) {
+    fn get_spectrum_sample(&mut self, i: i32, j: i32, length_scale: f64, k_min: f64) -> (f64, f64) {
         let dk = 2.0 * std::f64::consts::PI / length_scale;
         let kx = i as f64 * dk;
         let ky = j as f64 * dk;
@@ -454,8 +455,8 @@ impl FFTOcean {
         for y in 0..FFT_SIZE {
             for x in 0..FFT_SIZE {
                 let offset = 4 * (x + y * FFT_SIZE) as usize;
-                let i = if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x };
-                let j = if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y };
+                let i: i32 = if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x };
+                let j: i32 = if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y };
                 let (s12_0, s12_1) = self.get_spectrum_sample(i, j, GRID1_SIZE as f64, std::f64::consts::PI / GRID1_SIZE as f64);
                 let (s12_2, s12_3) = self.get_spectrum_sample(i, j, GRID2_SIZE as f64, std::f64::consts::PI * FFT_SIZE as f64 / GRID1_SIZE as f64);
                 let (s34_0, s34_1) = self.get_spectrum_sample(i, j, GRID3_SIZE as f64, std::f64::consts::PI * FFT_SIZE as f64 / GRID2_SIZE as f64);
@@ -482,11 +483,11 @@ impl FFTOcean {
         }
 
         let mut total_slope_variance = 0.0;
-        for y in 0..FFT_SIZE {
-            for x in 0..FFT_SIZE {
+        for y in 0..FFT_SIZE as i32 {
+            for x in 0..FFT_SIZE as i32 {
                 let offset = 4 * (x + y * FFT_SIZE) as usize;
-                let i = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x }) as f32;
-                let j = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y }) as f32;
+                let i: f32 = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x }) as f32;
+                let j: f32 = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y }) as f32;
                 total_slope_variance += self.get_slope_variance(i / GRID1_SIZE, j / GRID1_SIZE, self._spectrum12_data[offset    ], self._spectrum12_data[offset + 1]);
                 total_slope_variance += self.get_slope_variance(i / GRID2_SIZE, j / GRID2_SIZE, self._spectrum12_data[offset + 2], self._spectrum12_data[offset + 3]);
                 total_slope_variance += self.get_slope_variance(i / GRID3_SIZE, j / GRID3_SIZE, self._spectrum34_data[offset    ], self._spectrum34_data[offset + 1]);
@@ -527,7 +528,7 @@ impl FFTOcean {
 
     pub fn update(&mut self, delta_time: f32) {
         self._acc_time += delta_time;
-        self._caustic_index = ((self._acc_time * 20.0) as usize % self._render_fft_ocean_descriptor_sets.len()) as u32;
+        self._caustic_index = (self._acc_time * 20.0) as u32 % self._render_fft_ocean_descriptor_sets.len() as u32;
     }
 
     pub fn simulate_fft_waves(&self, renderer_data: &RendererData, resources: &Resources) {
