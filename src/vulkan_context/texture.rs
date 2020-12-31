@@ -41,9 +41,11 @@ pub struct TextureData {
     pub _image: vk::Image,
     pub _image_view: vk::ImageView,
     pub _image_info: vk::DescriptorImageInfo,
+    pub _image_view_type: vk::ImageViewType,
     pub _image_sampler:vk::Sampler,
     pub _sub_image_views: Layers<MipLevels<vk::ImageView>>,
     pub _sub_image_infos: Layers<MipLevels<vk::DescriptorImageInfo>>,
+    pub _sub_image_view_type: vk::ImageViewType,
     pub _image_memory: vk::DeviceMemory,
     pub _image_format: vk::Format,
     pub _image_width: u32,
@@ -51,7 +53,6 @@ pub struct TextureData {
     pub _image_layers: u32,
     pub _image_mip_levels: u32,
     pub _image_sample_count: vk::SampleCountFlags,
-    pub _image_view_type: vk::ImageViewType,
 }
 
 pub struct ImageDatas {
@@ -60,6 +61,7 @@ pub struct ImageDatas {
     pub _image_info: vk::DescriptorImageInfo,
     pub _sub_image_views: Layers<MipLevels<vk::ImageView>>,
     pub _sub_image_infos: Layers<MipLevels<vk::DescriptorImageInfo>>,
+    pub _sub_image_view_type: vk::ImageViewType,
 }
 
 #[derive(Clone, Debug, Copy)]
@@ -102,22 +104,6 @@ impl<T> Default for TextureCreateInfo<T> {
 }
 
 impl TextureData {
-    pub fn get_default_image_size(&self) -> (u32, u32) {
-        (std::cmp::max(1, self._image_width), std::cmp::max(1, self._image_height))
-    }
-
-    pub fn get_image_size(&self, mip_level: u32) -> (u32, u32) {
-        (std::cmp::max(1, self._image_width >> mip_level), std::cmp::max(1, self._image_height >> mip_level))
-    }
-
-    pub fn get_default_image_view(&self) -> vk::ImageView {
-        self._image_view
-    }
-
-    pub fn get_default_image_info(&self) -> vk::DescriptorImageInfo {
-        self._image_info
-    }
-
     pub fn get_valid_layer(&self, layer: u32) -> u32 {
         if constants::WHOLE_LAYERS == layer {
             return 0;
@@ -136,19 +122,38 @@ impl TextureData {
         mip_level
     }
 
-    pub fn get_base_sub_image_view(&self) -> vk::ImageView {
-        self.get_sub_image_view(0, 0)
+    // Image Size
+    pub fn get_image_size(&self, mip_level: u32) -> (u32, u32) {
+        (std::cmp::max(1, self._image_width >> mip_level), std::cmp::max(1, self._image_height >> mip_level))
     }
 
+    pub fn get_default_image_size(&self) -> (u32, u32) {
+        (std::cmp::max(1, self._image_width), std::cmp::max(1, self._image_height))
+    }
+
+    // Image view type
+    pub fn get_image_view_type(&self) -> vk::ImageViewType {
+        self._image_view_type
+    }
+
+    pub fn get_sub_image_view_type(&self) -> vk::ImageViewType {
+        self._sub_image_view_type
+    }
+
+    // Default image view & info
+    pub fn get_default_image_view(&self) -> vk::ImageView {
+        self._image_view
+    }
+
+    pub fn get_default_image_info(&self) -> vk::DescriptorImageInfo {
+        self._image_info
+    }
+
+    // Sub image view & info
     pub fn get_sub_image_view(&self, layer: u32, mip_level: u32) -> vk::ImageView {
         let layer = self.get_valid_layer(layer) as usize;
         let mip_level = self.get_valid_mip_level(mip_level) as usize;
-        let r = self._sub_image_views[layer][mip_level];
-        r
-    }
-
-    pub fn get_base_sub_image_info(&self) -> vk::DescriptorImageInfo {
-        self.get_sub_image_info(0, 0)
+        self._sub_image_views[layer][mip_level]
     }
 
     pub fn get_sub_image_info(&self, layer: u32, mip_level: u32) -> vk::DescriptorImageInfo {
@@ -555,6 +560,7 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 pub fn create_image_datas(
     device: &Device,
     image: vk::Image,
+    image_type: vk::ImageType,
     image_view_type: vk::ImageViewType,
     image_format: vk::Format,
     image_aspect: vk::ImageAspectFlags,
@@ -567,21 +573,8 @@ pub fn create_image_datas(
     mip_levels: u32,
     base_array_layer: u32,
     layer_count: u32,
-    image_depth: u32,
 ) -> ImageDatas {
-    // default image view, sampler, descriptor
-    let image_view = create_image_view(
-        device,
-        image,
-        image_view_type,
-        image_format,
-        image_aspect,
-        base_mip_level,
-        mip_levels,
-        base_array_layer,
-        layer_count,
-    );
-
+    // image sampler
     let image_sampler = create_image_sampler(
         device,
         mip_levels,
@@ -591,20 +584,30 @@ pub fn create_image_datas(
         enable_anisotropy,
     );
 
+    // default image view and descriptor
+    let image_view = create_image_view(
+        device,
+        image,
+        image_view_type,
+        image_format,
+        image_aspect,
+        base_mip_level,
+        mip_levels,
+        if vk::ImageType::TYPE_3D == image_type { 0 } else { base_array_layer },
+        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+    );
+
     let image_info = vk::DescriptorImageInfo {
         sampler: image_sampler,
         image_view,
         image_layout,
     };
 
-    // sub image view, sampler, descriptor
+    // sub image view and descriptor
     let mut sub_image_views: Layers<MipLevels<vk::ImageView>> = Layers::new();
     let mut sub_image_infos: Layers<MipLevels<vk::DescriptorImageInfo>> = Layers::new();
     let sub_image_view_type = match image_view_type {
         vk::ImageViewType::TYPE_1D | vk::ImageViewType::TYPE_1D_ARRAY => vk::ImageViewType::TYPE_1D,
-        vk::ImageViewType::TYPE_2D | vk::ImageViewType::TYPE_2D_ARRAY => vk::ImageViewType::TYPE_2D,
-        vk::ImageViewType::TYPE_3D => vk::ImageViewType::TYPE_2D,
-        vk::ImageViewType::CUBE | vk::ImageViewType::CUBE_ARRAY => vk::ImageViewType::CUBE,
         _ => vk::ImageViewType::TYPE_2D,
     };
 
@@ -641,6 +644,7 @@ pub fn create_image_datas(
         _image_info: image_info,
         _sub_image_views: sub_image_views,
         _sub_image_infos: sub_image_infos,
+        _sub_image_view_type: sub_image_view_type,
     }
 }
 
@@ -810,10 +814,10 @@ pub fn create_render_target<T>(
         true => vk::TRUE,
         _ => vk::FALSE
     };
-    let (texture_create_flags, texture_depth, layer_count) = match texture_create_info._texture_view_type {
-        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 1, 6),
-        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), 1, texture_create_info._texture_layers),
-        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, 1),
+    let (texture_create_flags, layer_count, texture_depth) = match texture_create_info._texture_view_type {
+        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6, 1),
+        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), texture_create_info._texture_layers, 1),
+        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, texture_create_info._texture_layers),
         _ => (vk::ImageCreateFlags::empty(), 1, 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -822,7 +826,6 @@ pub fn create_render_target<T>(
     };
     let is_depth_format = constants::DEPTH_FOMATS.contains(&texture_create_info._texture_format);
     let common_usage = vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
-    let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
     let (image_usage, image_aspect, image_layout_transition, image_format) =
         if is_depth_format {
             let depth_format = find_supported_format(
@@ -844,6 +847,7 @@ pub fn create_render_target<T>(
               texture_create_info._texture_format
             )
         };
+    let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
     let (image_memory, image) = create_image(
         instance,
         device,
@@ -852,8 +856,8 @@ pub fn create_render_target<T>(
         image_type,
         texture_create_info._texture_width,
         texture_create_info._texture_height,
-        texture_depth,
-        layer_count,
+        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
+        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
         mip_levels,
         texture_create_info._texture_samples,
         image_format,
@@ -864,13 +868,14 @@ pub fn create_render_target<T>(
     );
 
     run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
-        transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, 0, mip_levels, 0, layer_count);
+        transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, 0, mip_levels, 0, if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count });
     });
 
     // create image view, sampler, descriptor
     let image_datas = create_image_datas(
         device,
         image,
+        image_type,
         texture_create_info._texture_view_type,
         image_format,
         image_aspect,
@@ -883,7 +888,6 @@ pub fn create_render_target<T>(
         mip_levels,
         0,
         layer_count,
-        texture_depth,
     );
 
     log::info!("create_render_target: {} {:?} {:?} {} {} {}",
@@ -905,9 +909,11 @@ pub fn create_render_target<T>(
         _image: image,
         _image_view: image_datas._image_view,
         _image_info: image_datas._image_info,
+        _image_view_type: texture_create_info._texture_view_type,
         _image_sampler: image_datas._image_sampler,
         _sub_image_views: image_datas._sub_image_views,
         _sub_image_infos: image_datas._sub_image_infos,
+        _sub_image_view_type: image_datas._sub_image_view_type,
         _image_memory: image_memory,
         _image_format: image_format,
         _image_width: texture_create_info._texture_width,
@@ -915,7 +921,6 @@ pub fn create_render_target<T>(
         _image_layers: texture_create_info._texture_layers,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
-        _image_view_type: texture_create_info._texture_view_type,
     }
 }
 
@@ -934,10 +939,10 @@ pub fn create_texture_data<T: Copy>(
         true => vk::TRUE,
         _ => vk::FALSE
     };
-    let (texture_create_flags, texture_depth, layer_count) = match texture_create_info._texture_view_type {
-        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 1, 6),
-        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), 1, texture_create_info._texture_layers),
-        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, 1),
+    let (texture_create_flags, layer_count, texture_depth) = match texture_create_info._texture_view_type {
+        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6, 1),
+        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), texture_create_info._texture_layers, 1),
+        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, texture_create_info._texture_layers),
         _ => (vk::ImageCreateFlags::empty(), 1, 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -956,8 +961,8 @@ pub fn create_texture_data<T: Copy>(
         image_type,
         texture_create_info._texture_width,
         texture_create_info._texture_height,
-        texture_depth,
-        layer_count,
+        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
+        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
         mip_levels,
         texture_create_info._texture_samples,
         texture_create_info._texture_format,
@@ -976,7 +981,7 @@ pub fn create_texture_data<T: Copy>(
             0,
             mip_levels,
             0,
-            layer_count,
+            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
         );
     });
 
@@ -1017,8 +1022,8 @@ pub fn create_texture_data<T: Copy>(
         image_aspect,
         texture_create_info._texture_width,
         texture_create_info._texture_height,
-        texture_depth,
-        layer_count,
+        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
+        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
     );
 
     // generateMipmaps does this as a side effect:
@@ -1034,9 +1039,9 @@ pub fn create_texture_data<T: Copy>(
             texture_create_info._texture_format,
             texture_create_info._texture_width as i32,
             texture_create_info._texture_height as i32,
-            texture_depth as i32,
+            if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 } as i32,
             mip_levels,
-            layer_count,
+            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
         );
     });
 
@@ -1047,6 +1052,7 @@ pub fn create_texture_data<T: Copy>(
     let image_datas = create_image_datas(
         device,
         image,
+        image_type,
         texture_create_info._texture_view_type,
         texture_create_info._texture_format,
         image_aspect,
@@ -1059,7 +1065,6 @@ pub fn create_texture_data<T: Copy>(
         mip_levels,
         0,
         layer_count,
-        texture_depth,
     );
 
     log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
@@ -1077,9 +1082,11 @@ pub fn create_texture_data<T: Copy>(
         _image: image,
         _image_view: image_datas._image_view,
         _image_info: image_datas._image_info,
+        _image_view_type: texture_create_info._texture_view_type,
         _image_sampler: image_datas._image_sampler,
         _sub_image_views: image_datas._sub_image_views,
         _sub_image_infos: image_datas._sub_image_infos,
+        _sub_image_view_type: image_datas._sub_image_view_type,
         _image_memory: image_memory,
         _image_format: texture_create_info._texture_format,
         _image_width: texture_create_info._texture_width,
@@ -1087,7 +1094,6 @@ pub fn create_texture_data<T: Copy>(
         _image_layers: texture_create_info._texture_layers,
         _image_mip_levels: mip_levels,
         _image_sample_count: texture_create_info._texture_samples,
-        _image_view_type: texture_create_info._texture_view_type,
     }
 }
 

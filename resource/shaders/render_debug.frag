@@ -43,11 +43,11 @@ vec4 get_texture_2d_array(sampler2DArray texture_source)
     float width = ceil(sqrt(texture_size.z));
     float height = ceil(texture_size.z / width);
     float layer = floor(vs_output.texCoord.x * width) + floor(vs_output.texCoord.y * height) * width;
+    vec3 texcoord = vec3(fract(vs_output.texCoord.x * width), fract(vs_output.texCoord.y * height), layer);
     if(texture_size.z <= layer)
     {
         return vec4(0.0, 0.0, 0.0, 0.0);
     }
-    vec3 texcoord = vec3(fract(vs_output.texCoord.x * width), fract(vs_output.texCoord.y * height), layer);
     return textureLod(texture_source, texcoord, float(pushConstant._mip_level));
 }
 
@@ -56,13 +56,12 @@ vec4 get_texture_3d(sampler3D texture_source)
     vec3 texture_size = textureSize(texture_source, int(pushConstant._mip_level));
     float width = ceil(sqrt(texture_size.z));
     float height = ceil(texture_size.z / width);
-    float depth = floor(vs_output.texCoord.x * width) + floor(vs_output.texCoord.y * height) * width;
-    if(texture_size.z <= depth)
+    float layer = floor(vs_output.texCoord.x * width) + floor(vs_output.texCoord.y * height) * width;
+    vec3 texcoord = vec3(fract(vs_output.texCoord.x * width), fract(vs_output.texCoord.y * height), layer);
+    if(texture_size.z <= layer)
     {
         return vec4(0.0, 0.0, 0.0, 0.0);
     }
-    depth /= texture_size.z;
-    vec3 texcoord = vec3(fract(vs_output.texCoord.x * width), fract(vs_output.texCoord.y * height), depth);
     return textureLod(texture_source, texcoord, float(pushConstant._mip_level));
 }
 

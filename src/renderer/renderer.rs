@@ -1014,9 +1014,8 @@ impl RendererData {
                 // Render Debug
                 if RenderTargetType::BackBuffer != self._debug_render_target {
                     let render_debug_material_instance_name = "render_debug";
-                    let render_debug_render_pass_pipeline_name = "render_debug/render_debug";
                     let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
-                    let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_pipeline_binding_data_mut(&render_debug_render_pass_pipeline_name);
+                    let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
@@ -1027,7 +1026,7 @@ impl RendererData {
 
                     let debug_texture_data = self.get_render_target(self._debug_render_target);
                     //let debug_texture_data = resources.get_texture_data("fft_ocean/butterfly").borrow();
-                    let descriptor_index = match debug_texture_data._image_view_type {
+                    let descriptor_index = match debug_texture_data.get_image_view_type() {
                         vk::ImageViewType::TYPE_2D => 1,
                         vk::ImageViewType::TYPE_2D_ARRAY => 2,
                         vk::ImageViewType::TYPE_3D => 3,
@@ -1045,7 +1044,7 @@ impl RendererData {
                         command_buffer,
                         &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow(),
                         &PushConstant_RenderDebug {
-                            _debug_target: debug_texture_data._image_view_type.as_raw() as u32,
+                            _debug_target: debug_texture_data.get_image_view_type().as_raw() as u32,
                             _mip_level: self._debug_render_target_miplevel,
                             ..Default::default()
                         }

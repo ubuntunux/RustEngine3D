@@ -248,14 +248,9 @@ impl FFTOcean {
         let render_target = renderer_data.get_render_target(RenderTargetType::FFT_SLOPE_VARIANCE);
         let device = renderer_data.get_device();
         let mip_level = 0;
-
-        println!("===================================================================");
         for layer in 0..render_target._image_layers {
-            // self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
-            println!("TODO: 3D Texture FrameBuffers!!");
+            self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
         }
-        self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, 0, mip_level, None));
-        println!("===================================================================");
 
         // fft waves
         let mip_level = 0;
