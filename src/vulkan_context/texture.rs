@@ -567,6 +567,7 @@ pub fn create_image_datas(
     mip_levels: u32,
     base_array_layer: u32,
     layer_count: u32,
+    image_depth: u32,
 ) -> ImageDatas {
     // default image view, sampler, descriptor
     let image_view = create_image_view(
@@ -602,7 +603,7 @@ pub fn create_image_datas(
     let sub_image_view_type = match image_view_type {
         vk::ImageViewType::TYPE_1D | vk::ImageViewType::TYPE_1D_ARRAY => vk::ImageViewType::TYPE_1D,
         vk::ImageViewType::TYPE_2D | vk::ImageViewType::TYPE_2D_ARRAY => vk::ImageViewType::TYPE_2D,
-        vk::ImageViewType::TYPE_3D => vk::ImageViewType::TYPE_3D,
+        vk::ImageViewType::TYPE_3D => vk::ImageViewType::TYPE_2D,
         vk::ImageViewType::CUBE | vk::ImageViewType::CUBE_ARRAY => vk::ImageViewType::CUBE,
         _ => vk::ImageViewType::TYPE_2D,
     };
@@ -812,7 +813,7 @@ pub fn create_render_target<T>(
     let (texture_create_flags, texture_depth, layer_count) = match texture_create_info._texture_view_type {
         vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 1, 6),
         vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), 1, texture_create_info._texture_layers),
-        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::empty(), texture_create_info._texture_layers, 1),
+        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, 1),
         _ => (vk::ImageCreateFlags::empty(), 1, 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -881,7 +882,8 @@ pub fn create_render_target<T>(
         0,
         mip_levels,
         0,
-        max(layer_count, texture_depth), // TODO!!!
+        layer_count,
+        texture_depth,
     );
 
     log::info!("create_render_target: {} {:?} {:?} {} {} {}",
@@ -935,7 +937,7 @@ pub fn create_texture_data<T: Copy>(
     let (texture_create_flags, texture_depth, layer_count) = match texture_create_info._texture_view_type {
         vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 1, 6),
         vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), 1, texture_create_info._texture_layers),
-        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::empty(), texture_create_info._texture_layers, 1),
+        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, 1),
         _ => (vk::ImageCreateFlags::empty(), 1, 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -1057,6 +1059,7 @@ pub fn create_texture_data<T: Copy>(
         mip_levels,
         0,
         layer_count,
+        texture_depth,
     );
 
     log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
