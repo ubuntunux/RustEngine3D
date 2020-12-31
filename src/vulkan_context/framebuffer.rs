@@ -18,8 +18,7 @@ use crate::vulkan_context::texture::TextureData;
 pub struct FramebufferDataCreateInfo {
     pub _framebuffer_width: u32,
     pub _framebuffer_height: u32,
-    pub _framebuffer_depth: u32,
-    pub _framebuffer_layer: u32,
+    pub _framebuffer_layers: u32,
     pub _framebuffer_sample_count: vk::SampleCountFlags,
     pub _framebuffer_view_port: vk::Viewport,
     pub _framebuffer_scissor_rect: vk::Rect2D,
@@ -35,8 +34,7 @@ impl Default for FramebufferDataCreateInfo {
         FramebufferDataCreateInfo {
             _framebuffer_width: 1024,
             _framebuffer_height: 768,
-            _framebuffer_depth: 1,
-            _framebuffer_layer: 1,
+            _framebuffer_layers: 1,
             _framebuffer_sample_count: vk::SampleCountFlags::TYPE_1,
             _framebuffer_view_port: vulkan_context::create_viewport(0, 0, 1024, 768, 0.0, 1.0),
             _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, 1024, 768),
@@ -52,8 +50,8 @@ impl Default for FramebufferDataCreateInfo {
 #[derive(Clone)]
 pub struct RenderTargetInfo<'a> {
     pub _texture_data: &'a TextureData,
-    pub _layer: u32,
-    pub _mip_level: u32,
+    pub _target_layer: u32,
+    pub _target_mip_level: u32,
     pub _clear_value: Option<vk::ClearValue>,
 }
 
@@ -76,31 +74,36 @@ pub fn create_framebuffer_data_create_info(
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferDataCreateInfo {
-    let (mut width, mut height, mut _depth, _layer, sample_count, mip_level) = if false == color_render_targets.is_empty() {
+    let (mut width, mut height, mut layers, sample_count, target_layer, target_mip_level) = if false == color_render_targets.is_empty() {
         ( color_render_targets[0]._texture_data._image_width,
           color_render_targets[0]._texture_data._image_height,
-          color_render_targets[0]._texture_data._image_depth,
-          color_render_targets[0]._texture_data._image_layer,
+          color_render_targets[0]._texture_data._image_layers,
           color_render_targets[0]._texture_data._image_sample_count,
-          color_render_targets[0]._mip_level,
+          color_render_targets[0]._target_layer,
+          color_render_targets[0]._target_mip_level,
 
         )
     } else if false == depth_render_targets.is_empty() {
         ( depth_render_targets[0]._texture_data._image_width,
           depth_render_targets[0]._texture_data._image_height,
-          depth_render_targets[0]._texture_data._image_depth,
-          depth_render_targets[0]._texture_data._image_layer,
+          depth_render_targets[0]._texture_data._image_layers,
           depth_render_targets[0]._texture_data._image_sample_count,
-          depth_render_targets[0]._mip_level,
+          depth_render_targets[0]._target_layer,
+          depth_render_targets[0]._target_mip_level,
         )
     } else {
         panic!("create_framebuffer_data error");
     };
 
-    if constants::INVALID_MIP_LEVEL != mip_level {
-        width = max(1, width >> mip_level);
-        height = max(1, height >> mip_level);
-        _depth = max(1, _depth >> mip_level);
+    if constants::WHOLE_MIP_LEVELS != target_mip_level {
+        width = max(1, width >> target_mip_level);
+        height = max(1, height >> target_mip_level);
+    }
+
+    if constants::WHOLE_LAYERS != target_layer {
+        layers = 1;
+    } else {
+        panic!("Not implemented.")
     }
 
     let mut rendertarget_views = Vec::new();
@@ -109,29 +112,28 @@ pub fn create_framebuffer_data_create_info(
     let mut resolve_attachment_formats = Vec::new();
     let mut clear_values: Vec<vk::ClearValue> = Vec::new();
     for render_target in color_render_targets.iter() {
-        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._layer, render_target._mip_level));
+        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._target_layer, render_target._target_mip_level));
         color_attachment_formats.push(render_target._texture_data._image_format);
         if let Some(clear_value) = render_target._clear_value {
             clear_values.push(clear_value);
         }
     }
     for render_target in depth_render_targets.iter() {
-        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._layer, render_target._mip_level));
+        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._target_layer, render_target._target_mip_level));
         depth_attachment_formats.push(render_target._texture_data._image_format);
         if let Some(clear_value) = render_target._clear_value {
             clear_values.push(clear_value);
         }
     }
     for render_target in resolve_render_targets.iter() {
-        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._layer, render_target._mip_level));
+        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._target_layer, render_target._target_mip_level));
         resolve_attachment_formats.push(render_target._texture_data._image_format);
     }
 
     FramebufferDataCreateInfo {
         _framebuffer_width: width,
         _framebuffer_height: height,
-        _framebuffer_depth: 1,
-        _framebuffer_layer: 1,
+        _framebuffer_layers: layers,
         _framebuffer_sample_count: sample_count,
         _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
         _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
@@ -150,12 +152,13 @@ pub fn create_framebuffer_data(
     framebuffer_name: &str,
     framebuffer_data_create_info: FramebufferDataCreateInfo
 ) -> FramebufferData {
-    let layers = max(framebuffer_data_create_info._framebuffer_depth, framebuffer_data_create_info._framebuffer_layer);
+    let layers = framebuffer_data_create_info._framebuffer_layers;
+
     log::info!("create_framebuffer_data: {:?} {} {} {}",
         framebuffer_name,
         framebuffer_data_create_info._framebuffer_width,
         framebuffer_data_create_info._framebuffer_height,
-        layers
+        framebuffer_data_create_info._framebuffer_layers,
     );
 
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {

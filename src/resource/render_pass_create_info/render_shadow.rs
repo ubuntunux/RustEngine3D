@@ -34,8 +34,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_obj
         &[],
         &[RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(RenderTargetType::Shadow),
-            _layer: 0,
-            _mip_level: 0,
+            _target_layer: 0,
+            _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
         }],
         &[]

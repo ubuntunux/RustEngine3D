@@ -449,22 +449,6 @@ impl RendererData {
         log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
     }
 
-    pub fn next_debug_render_target_layer(&mut self) {
-        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
-        self._debug_render_target_layer = (self._debug_render_target_layer + 1) % texture_data._image_layer;
-        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_layer);
-    }
-
-    pub fn prev_debug_render_target_layer(&mut self) {
-        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
-        if 0 == self._debug_render_target_layer {
-            self._debug_render_target_layer = texture_data._image_layer - 1;
-        } else {
-            self._debug_render_target_layer -= 1;
-        }
-        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_layer);
-    }
-
     pub fn next_debug_render_target_miplevel(&mut self) {
         let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
         self._debug_render_target_miplevel = (self._debug_render_target_miplevel + 1) % texture_data._image_mip_levels;

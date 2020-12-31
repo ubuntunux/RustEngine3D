@@ -26,11 +26,11 @@ use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let render_target = renderer_data.get_render_target(RenderTargetType::FFT_B);
-    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layer).map(|index| {
+    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers).map(|index| {
         RenderTargetInfo {
             _texture_data: render_target,
-            _layer: index,
-            _mip_level: 0,
+            _target_layer: index,
+            _target_mip_level: 0,
             _clear_value: None,
         }
     }).collect();
@@ -50,6 +50,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _attachment_image_samples: sample_count,
                 _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+                _attachment_initial_layout: vk::ImageLayout::GENERAL,
                 _attachment_final_layout: vk::ImageLayout::GENERAL,
                 _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                 ..Default::default()

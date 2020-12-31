@@ -169,17 +169,9 @@ impl ApplicationData {
             }
 
             if released_key_subtract {
-                if modifier_keys_shift {
-                    (*renderer_data).prev_debug_render_target_layer();
-                } else {
-                    (*renderer_data).prev_debug_render_target_miplevel();
-                }
+                (*renderer_data).prev_debug_render_target_miplevel();
             } else if released_key_equals {
-                if modifier_keys_shift {
-                    (*renderer_data).next_debug_render_target_layer();
-                } else {
-                    (*renderer_data).next_debug_render_target_miplevel();
-                }
+                (*renderer_data).next_debug_render_target_miplevel();
             }
         }
 

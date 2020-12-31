@@ -26,8 +26,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
             _texture_data: render_target,
-            _layer: 0,
-            _mip_level: 0,
+            _target_layer: 0,
+            _target_mip_level: 0,
             _clear_value: None,
         }],
         &[],

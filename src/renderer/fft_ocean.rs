@@ -248,7 +248,7 @@ impl FFTOcean {
         let render_target = renderer_data.get_render_target(RenderTargetType::FFT_SLOPE_VARIANCE);
         let device = renderer_data.get_device();
         let mip_level = 0;
-        for layer in 0..render_target._image_depth {
+        for layer in 0..render_target._image_layers {
             self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
         }
 
@@ -269,16 +269,16 @@ impl FFTOcean {
             pipeline_binding_data,
             fft_waves_descriptor_binding_index,
             texture_fft_a,
-            constants::INVALID_LAYER,
-            constants::INVALID_MIP_LEVEL,
+            constants::WHOLE_LAYERS,
+            constants::WHOLE_MIP_LEVELS,
         );
         self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
             fft_waves_descriptor_binding_index,
             texture_fft_b,
-            constants::INVALID_LAYER,
-            constants::INVALID_MIP_LEVEL,
+            constants::WHOLE_LAYERS,
+            constants::WHOLE_MIP_LEVELS,
         );
 
         // fft wave y
@@ -290,16 +290,16 @@ impl FFTOcean {
             pipeline_binding_data,
             fft_waves_descriptor_binding_index,
             texture_fft_a,
-            constants::INVALID_LAYER,
-            constants::INVALID_MIP_LEVEL,
+            constants::WHOLE_LAYERS,
+            constants::WHOLE_MIP_LEVELS,
         );
         self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
             fft_waves_descriptor_binding_index,
             texture_fft_b,
-            constants::INVALID_LAYER,
-            constants::INVALID_MIP_LEVEL,
+            constants::WHOLE_LAYERS,
+            constants::WHOLE_MIP_LEVELS,
         );
 
         // fft a generate mips
@@ -311,7 +311,7 @@ impl FFTOcean {
             descriptor_data_create_info._descriptor_binding_index
         }).collect();
         let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
-        let layer_count = texture_fft_a._image_layer;
+        let layer_count = texture_fft_a._image_layers;
         let dispatch_count: u32 = texture_fft_a._image_mip_levels - 1;
         for layer in 0..layer_count {
             self._fft_a_generate_mips_descriptor_sets.push(Vec::new());

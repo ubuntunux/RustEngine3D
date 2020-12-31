@@ -40,8 +40,8 @@ impl Default for DescriptorDataCreateInfo {
             _descriptor_binding_index: 0,
             _descriptor_name: String::new(),
             _descriptor_resource_type: DescriptorResourceType::Texture,
-            _descriptor_image_layer: constants::INVALID_LAYER,
-            _descriptor_image_mip_level: constants::INVALID_MIP_LEVEL,
+            _descriptor_image_layer: constants::WHOLE_LAYERS,
+            _descriptor_image_mip_level: constants::WHOLE_MIP_LEVELS,
             _descriptor_shader_stage: vk::ShaderStageFlags::ALL,
         }
     }
@@ -49,7 +49,7 @@ impl Default for DescriptorDataCreateInfo {
 
 impl DescriptorDataCreateInfo {
     pub fn use_sub_image(&self) -> bool {
-        constants::INVALID_LAYER != self._descriptor_image_layer || constants::INVALID_MIP_LEVEL != self._descriptor_image_mip_level
+        constants::WHOLE_LAYERS != self._descriptor_image_layer || constants::WHOLE_MIP_LEVELS != self._descriptor_image_mip_level
     }
 }
 

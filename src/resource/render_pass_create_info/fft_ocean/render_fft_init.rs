@@ -23,11 +23,11 @@ use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let render_target = renderer_data.get_render_target(RenderTargetType::FFT_A);
-    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layer).map(|index| {
+    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers).map(|index| {
         RenderTargetInfo {
             _texture_data: render_target,
-            _layer: index,
-            _mip_level: 0,
+            _target_layer: index,
+            _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)),
         }
     }).collect();

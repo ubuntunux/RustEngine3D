@@ -489,8 +489,8 @@ impl PostProcessData_CompositeGBuffer {
         let render_copy_material_instance = resources.get_material_instance_data("composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let descriptor_binding_index: usize = 10;
-        let layer: u32 = constants::INVALID_LAYER;
-        let mip_level: u32 = constants::INVALID_MIP_LEVEL;
+        let layer: u32 = constants::WHOLE_LAYERS;
+        let mip_level: u32 = constants::WHOLE_MIP_LEVELS;
         let descriptor_sets0 = utility::create_descriptor_sets(
             device, pipeline_binding_data,
             descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
@@ -524,7 +524,7 @@ impl PostProcessData_ClearRenderTargets {
         // R16G16B16A16
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_color_r16g16b16a16/render_color_r16g16b16a16");
         for render_target in render_targets_r16g16b16a16.iter() {
-            for layer in 0..render_target._image_layer {
+            for layer in 0..render_target._image_layers {
                 for mip_level in 0..render_target._image_mip_levels {
                     self._framebuffer_datas_r16g16b16a16.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
                 }
@@ -533,7 +533,7 @@ impl PostProcessData_ClearRenderTargets {
         // R32
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_color_r32/render_color_r32");
         for render_target in render_targets_r32.iter() {
-            for layer in 0..render_target._image_layer {
+            for layer in 0..render_target._image_layers {
                 for mip_level in 0..render_target._image_mip_levels {
                     self._framebuffer_datas_r32.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
                 }
