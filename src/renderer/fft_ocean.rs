@@ -1,6 +1,4 @@
-
 use std::cmp::max;
-use std::fs::File;
 
 use ash::{
     vk,
@@ -9,6 +7,7 @@ use ash::{
 
 use crate::constants;
 use crate::renderer::push_constants::{
+    NONE_PUSH_CONSTANT,
     PushConstant_FFT_Init,
     PushConstant_FFT_Variance,
     PushConstant_FFT_Waves,
@@ -19,7 +18,7 @@ use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::utility;
 use crate::resource::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
-use crate::vulkan_context::geometry_buffer;
+use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::vulkan_context::{SwapchainIndexMap, Layers, MipLevels};
@@ -47,7 +46,7 @@ const INVERSE_GRID_SIZES: [f32; 4] = [
     2.0 * std::f32::consts::PI * FFT_SIZE as f32 / GRID4_SIZE
 ];
 const GRID_VERTEX_COUNT: u32 = 200;
-const GRID_CELL_SIZE: (f32, f32) = (1.0 / GRID_VERTEX_COUNT as f32, 1.0 / GRID_VERTEX_COUNT as f32);
+const GRID_CELL_SIZE: [f32; 2] = [1.0 / GRID_VERTEX_COUNT as f32, 1.0 / GRID_VERTEX_COUNT as f32];
 const DEFAULT_FFT_SEED: i32 = 1234;
 
 pub struct FFTOcean {
@@ -62,7 +61,7 @@ pub struct FFTOcean {
     _is_render_ocean: bool,
     _acc_time: f32,
     _fft_seed: i32,
-    _simulation_size: Vec<f32>,
+    _simulation_size: [f32; 4],
     _caustic_index: u32,
     _spectrum12_data: Vec<f32>,
     _spectrum34_data: Vec<f32>,
@@ -97,7 +96,7 @@ impl Default for FFTOcean {
             _is_render_ocean: true,
             _acc_time: 0.0,
             _fft_seed: DEFAULT_FFT_SEED,
-            _simulation_size: GRID_SIZES.iter().map(|grid_size| grid_size * simulation_scale).collect(),
+            _simulation_size: [GRID_SIZES[0] * simulation_scale, GRID_SIZES[1] * simulation_scale, GRID_SIZES[2] * simulation_scale, GRID_SIZES[3] * simulation_scale],
             _caustic_index: 0,
             _spectrum12_data: Vec::new(),
             _spectrum34_data: Vec::new(),
@@ -473,7 +472,14 @@ impl FFTOcean {
         }
     }
 
-    pub fn compute_slope_variance_texture(&self, renderer_data: &RendererData, resources: &Resources) {
+    pub fn compute_slope_variance_texture(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    ) {
         let mut theoretic_slope_variance = 0.0;
         let mut k = 5e-3;
         while k < 1e3 {
@@ -496,10 +502,6 @@ impl FFTOcean {
         }
 
         // fft variance
-        let swapchain_index = renderer_data.get_swap_chain_index();
-        let command_buffer = renderer_data.get_command_buffer(swapchain_index as usize);
-        let quad_mesh = resources.get_mesh_data("quad").borrow();
-        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
         let material_instance_data = resources.get_material_instance_data("render_fft_ocean").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_variance/render_fft_variance");
         let framebuffer_count = self._fft_variance_framebuffers.len();
@@ -534,11 +536,14 @@ impl FFTOcean {
         }
     }
 
-    pub fn simulate_fft_waves(&self, renderer_data: &RendererData, resources: &Resources) {
-        let swapchain_index = renderer_data.get_swap_chain_index();
-        let command_buffer = renderer_data.get_command_buffer(swapchain_index as usize);
-        let quad_mesh = resources.get_mesh_data("quad").borrow();
-        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
+    pub fn simulate_fft_waves(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    ) {
         let material_instance_data = resources.get_material_instance_data("render_fft_ocean").borrow();
 
         // fft init
@@ -621,31 +626,22 @@ impl FFTOcean {
         }
     }
 
-    pub fn render_ocean(&self, renderer_data: &RendererData, resources: &Resources) {
-    //     self.fft_render.use_program()
-    //     self.fft_render.bind_material_instance()
-    //     self.fft_render.bind_uniform_data("height", self.height)
-    //     self.fft_render.bind_uniform_data("simulation_wind", self.simulation_wind)
-    //     self.fft_render.bind_uniform_data("simulation_amplitude", self.simulation_amplitude)
-    //     self.fft_render.bind_uniform_data("simulation_size", self.simulation_size)
-    //     self.fft_render.bind_uniform_data("cell_size", GRID_CELL_SIZE)
-    //     self.fft_render.bind_uniform_data("t", self.acc_time * self.simulation_wind)
-    //
-    //     self.fft_render.bind_uniform_data("fftWavesSampler", RenderTarget.RenderTargets.FFT_A)
-    //     self.fft_render.bind_uniform_data("slopeVarianceSampler", self.texture_slope_variance)
-    //
-    //     self.fft_render.bind_uniform_data('texture_scene', texture_scene)
-    //     self.fft_render.bind_uniform_data('texture_linear_depth', texture_linear_depth)
-    //     self.fft_render.bind_uniform_data('texture_probe', texture_probe)
-    //     self.fft_render.bind_uniform_data('texture_shadow', texture_shadow)
-    //
-    //     self.fft_render.bind_uniform_data('texture_noise', self.texture_noise)
-    //     self.fft_render.bind_uniform_data('texture_caustic', self.texture_caustics[self.caustic_index])
-    //     self.fft_render.bind_uniform_data('texture_foam', self.texture_foam)
-    //
-    //     // Bind Atmosphere
-    //     // atmosphere.bind_precomputed_atmosphere(self.fft_render)
-    //
-    //     self.fft_grid.get_geometry().draw_elements()
+    pub fn render_ocean(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+    ) {
+        let push_constant = PushConstant_FFT_Ocean {
+            _simulation_size: self._simulation_size.clone(),
+            _cell_size: GRID_CELL_SIZE.clone(),
+            _height: self._height,
+            _simulation_wind: self._simulation_wind,
+            _simulation_amplitude: self._simulation_amplitude,
+            _t: self._acc_time * self._simulation_wind,
+            ..Default::default()
+        };
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_fft_ocean", "render_fft_ocean/render_fft_ocean", quad_geometry_data, None, None, Some(&push_constant));
     }
 }

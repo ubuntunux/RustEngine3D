@@ -79,7 +79,7 @@ use crate::utilities::system::{ self, RcRefCell };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
-const DEFAULT_PIPELINE: &str = "";
+pub const DEFAULT_PIPELINE: &str = "";
 
 // NOTE : RenderMode must match with scene_constants.glsl
 #[derive(Clone, Debug, Copy, PartialEq)]
@@ -989,7 +989,7 @@ impl RendererData {
 
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
-                    fft_ocean.compute_slope_variance_texture(self, &resources);
+                    fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                     self._is_first_rendering = false;
                 }
 
@@ -1003,8 +1003,8 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
-                fft_ocean.simulate_fft_waves(self, &resources);
-                fft_ocean.render_ocean(self, &resources);
+                fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
+                fft_ocean.render_ocean(command_buffer, swapchain_index, &quad_geometry_data, self);
 
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
