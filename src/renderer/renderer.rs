@@ -1004,7 +1004,7 @@ impl RendererData {
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
-                fft_ocean.render_ocean(command_buffer, swapchain_index, &quad_geometry_data, self);
+                fft_ocean.render_ocean(command_buffer, swapchain_index, self, &resources);
 
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 

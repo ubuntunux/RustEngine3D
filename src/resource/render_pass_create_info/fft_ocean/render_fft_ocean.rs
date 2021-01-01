@@ -28,7 +28,7 @@ use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColor),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: None,
@@ -133,28 +133,28 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
                     _descriptor_name: enum_to_string(&RenderTargetType::FFT_A),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 4,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 5,
                     _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 6,
                     _descriptor_name: enum_to_string(&RenderTargetType::Shadow),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT | vk::ShaderStageFlags::VERTEX,
                     ..Default::default()
                 },

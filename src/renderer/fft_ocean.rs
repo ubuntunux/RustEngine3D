@@ -7,7 +7,6 @@ use ash::{
 
 use crate::constants;
 use crate::renderer::push_constants::{
-    NONE_PUSH_CONSTANT,
     PushConstant_FFT_Init,
     PushConstant_FFT_Variance,
     PushConstant_FFT_Waves,
@@ -630,9 +629,11 @@ impl FFTOcean {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        quad_geometry_data: &GeometryData,
         renderer_data: &RendererData,
+        resources: &Resources,
     ) {
+        let fft_grid_mesh = resources.get_mesh_data("fft_grid").borrow();
+        let fft_grid = fft_grid_mesh.get_default_geometry_data().borrow();
         let push_constant = PushConstant_FFT_Ocean {
             _simulation_size: self._simulation_size.clone(),
             _cell_size: GRID_CELL_SIZE.clone(),
@@ -642,6 +643,6 @@ impl FFTOcean {
             _t: self._acc_time * self._simulation_wind,
             ..Default::default()
         };
-        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_fft_ocean", "render_fft_ocean/render_fft_ocean", quad_geometry_data, None, None, Some(&push_constant));
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_fft_ocean", "render_fft_ocean/render_fft_ocean", &fft_grid, None, None, Some(&push_constant));
     }
 }
