@@ -560,7 +560,6 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 pub fn create_image_datas(
     device: &Device,
     image: vk::Image,
-    image_type: vk::ImageType,
     image_view_type: vk::ImageViewType,
     image_format: vk::Format,
     image_aspect: vk::ImageAspectFlags,
@@ -573,6 +572,7 @@ pub fn create_image_datas(
     mip_levels: u32,
     base_array_layer: u32,
     layer_count: u32,
+    image_depth: u32,
 ) -> ImageDatas {
     // image sampler
     let image_sampler = create_image_sampler(
@@ -593,8 +593,8 @@ pub fn create_image_datas(
         image_aspect,
         base_mip_level,
         mip_levels,
-        if vk::ImageType::TYPE_3D == image_type { 0 } else { base_array_layer },
-        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+        base_array_layer,
+        layer_count,
     );
 
     let image_info = vk::DescriptorImageInfo {
@@ -611,7 +611,9 @@ pub fn create_image_datas(
         _ => vk::ImageViewType::TYPE_2D,
     };
 
-    for layer in base_array_layer..layer_count {
+    // NOTE : when create image view use layers for 3d texture
+    let sub_image_layer_count = max(layer_count, image_depth);
+    for layer in base_array_layer..sub_image_layer_count {
         let mut miplevel_sub_image_views: MipLevels<vk::ImageView> = MipLevels::new();
         let mut miplevel_sub_image_infos: MipLevels<vk::DescriptorImageInfo> = MipLevels::new();
         for mip_level in base_mip_level..mip_levels {
@@ -864,7 +866,7 @@ fn create_texture_data_inner<T: Copy>(
     let (texture_create_flags, layer_count, texture_depth) = match texture_create_info._texture_view_type {
         vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6, 1),
         vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), texture_create_info._texture_layers, 1),
-        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, texture_create_info._texture_layers),
+        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, 1, texture_create_info._texture_layers),
         _ => (vk::ImageCreateFlags::empty(), 1, 1),
     };
     let mip_levels = match texture_create_info._enable_mipmap {
@@ -917,8 +919,8 @@ fn create_texture_data_inner<T: Copy>(
         image_type,
         texture_create_info._texture_width,
         texture_create_info._texture_height,
-        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
-        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+        texture_depth,
+        layer_count,
         mip_levels,
         texture_create_info._texture_samples,
         image_format,
@@ -938,7 +940,7 @@ fn create_texture_data_inner<T: Copy>(
             0,
             mip_levels,
             0,
-            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+            layer_count,
         );
     });
 
@@ -980,8 +982,8 @@ fn create_texture_data_inner<T: Copy>(
             image_aspect,
             texture_create_info._texture_width,
             texture_create_info._texture_height,
-            if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
-            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+            texture_depth,
+            layer_count,
         );
 
         // generateMipmaps does this as a side effect:
@@ -997,9 +999,9 @@ fn create_texture_data_inner<T: Copy>(
                 texture_create_info._texture_format,
                 texture_create_info._texture_width as i32,
                 texture_create_info._texture_height as i32,
-                if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 } as i32,
+                texture_depth as i32,
                 mip_levels,
-                if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+                layer_count,
             );
         });
 
@@ -1012,7 +1014,6 @@ fn create_texture_data_inner<T: Copy>(
     let image_datas = create_image_datas(
         device,
         image,
-        image_type,
         texture_create_info._texture_view_type,
         image_format,
         image_aspect,
@@ -1024,7 +1025,8 @@ fn create_texture_data_inner<T: Copy>(
         0,
         mip_levels,
         0,
-        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { layer_count },
+        layer_count,
+        texture_depth,
     );
 
     log::info!("{}: {} {:?} {:?} {} {} {}",
