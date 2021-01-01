@@ -801,7 +801,7 @@ pub fn copy_buffer_to_image(
     );
 }
 
-pub fn create_render_target<T>(
+pub fn create_render_target<T: Copy>(
     instance: &Instance,
     device: &Device,
     physical_device: vk::PhysicalDevice,
@@ -810,6 +810,53 @@ pub fn create_render_target<T>(
     command_queue: vk::Queue,
     texture_create_info: &TextureCreateInfo<T>,
 ) -> TextureData {
+    let is_render_target = true;
+    create_texture_data_inner(
+        instance,
+        device,
+        physical_device,
+        memory_properties,
+        command_pool,
+        command_queue,
+        texture_create_info,
+        is_render_target,
+    )
+}
+pub fn create_texture_data<T: Copy>(
+    instance: &Instance,
+    device: &Device,
+    physical_device: vk::PhysicalDevice,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    texture_create_info: &TextureCreateInfo<T>,
+) -> TextureData {
+    let is_render_target = false;
+    create_texture_data_inner(
+        instance,
+        device,
+        physical_device,
+        memory_properties,
+        command_pool,
+        command_queue,
+        texture_create_info,
+        is_render_target,
+    )
+}
+
+fn create_texture_data_inner<T: Copy>(
+    instance: &Instance,
+    device: &Device,
+    physical_device: vk::PhysicalDevice,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    texture_create_info: &TextureCreateInfo<T>,
+    is_render_target: bool,
+) -> TextureData {
+    let image_datas = &texture_create_info._texture_initial_datas;
+    let buffer_size = (image_datas.len() * std::mem::size_of::<T>()) as vk::DeviceSize;
+    let has_initial_datas = 0 < buffer_size;
     let enable_anisotropy = match texture_create_info._enable_anisotropy {
         true => vk::TRUE,
         _ => vk::FALSE
@@ -824,30 +871,44 @@ pub fn create_render_target<T>(
         true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_depth, texture_create_info._max_mip_levels),
         _ => 1
     };
+
     let is_depth_format = constants::DEPTH_FOMATS.contains(&texture_create_info._texture_format);
-    let common_usage = vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
-    let (image_usage, image_aspect, image_layout_transition, image_format) =
-        if is_depth_format {
-            let depth_format = find_supported_format(
-                instance,
-                physical_device,
-                texture_create_info._texture_format,
-                vk::ImageTiling::OPTIMAL,
-                vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT
-            );
-            ( common_usage | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-              vk::ImageAspectFlags::DEPTH,
-              ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt,
-              depth_format
-            )
+    let common_usage = vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
+    let (image_usage, image_aspect, image_layout_transition, image_format, image_layout) =
+        if is_render_target {
+            if is_depth_format {
+                ( common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                  vk::ImageAspectFlags::DEPTH,
+                  ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt,
+                  find_supported_format(
+                      instance,
+                      physical_device,
+                      texture_create_info._texture_format,
+                      vk::ImageTiling::OPTIMAL,
+                      vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT
+                  ),
+                  vk::ImageLayout::GENERAL,
+                )
+            } else {
+                ( common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE,
+                  vk::ImageAspectFlags::COLOR,
+                  ImageLayoutTransition::TransferUndefToColorAttachemnt,
+                  texture_create_info._texture_format,
+                  vk::ImageLayout::GENERAL,
+                )
+            }
         } else {
-            ( common_usage | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE,
+            // Texture Resource
+            ( common_usage,
               vk::ImageAspectFlags::COLOR,
-              ImageLayoutTransition::TransferUndefToColorAttachemnt,
-              texture_create_info._texture_format
+              ImageLayoutTransition::TransferUndefToTransferDst,
+              texture_create_info._texture_format,
+              vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
             )
         };
     let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
+
+    // we don't need to access the vk::DeviceMemory of the image, copyBufferToImage works with the vk::Image
     let (image_memory, image) = create_image(
         instance,
         device,
@@ -868,8 +929,84 @@ pub fn create_render_target<T>(
     );
 
     run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
-        transition_image_layout(device, command_buffer, image, image_format, image_layout_transition, 0, mip_levels, 0, if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count });
+        transition_image_layout(
+            device,
+            command_buffer,
+            image,
+            image_format,
+            image_layout_transition,
+            0,
+            mip_levels,
+            0,
+            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+        );
     });
+
+    if has_initial_datas {
+        // create temporary staging buffer
+        let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
+        let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+        let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
+            device,
+            memory_properties,
+            buffer_size,
+            staging_buffer_usage_flags,
+            staging_buffer_memory_property_flags
+        );
+
+        unsafe {
+            // upload data
+            let stageing_buffer_ptr: *mut c_void = device.map_memory(
+                staging_buffer_data._buffer_memory,
+                0,
+                buffer_size,
+                vk::MemoryMapFlags::empty()
+            ).expect("Failed to map_memory!");
+            let mut stageing_buffer_slice = Align::new(
+                stageing_buffer_ptr,
+                align_of::<T>() as u64,
+                staging_buffer_data._buffer_memory_requirements.size,
+            );
+            stageing_buffer_slice.copy_from_slice(image_datas);
+            device.unmap_memory(staging_buffer_data._buffer_memory);
+        }
+
+        copy_buffer_to_image(
+            device,
+            command_pool,
+            command_queue,
+            staging_buffer_data._buffer,
+            image,
+            image_aspect,
+            texture_create_info._texture_width,
+            texture_create_info._texture_height,
+            if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
+            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+        );
+
+        // generateMipmaps does this as a side effect:
+        // transitionImageLayout image VK_FORMAT_R8G8B8A8_UNORM TransferDst_ShaderReadOnly mipLevels
+        run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+            generate_mipmaps(
+                instance,
+                device,
+                physical_device,
+                command_buffer,
+                image,
+                image_aspect,
+                texture_create_info._texture_format,
+                texture_create_info._texture_width as i32,
+                texture_create_info._texture_height as i32,
+                if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 } as i32,
+                mip_levels,
+                if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
+            );
+        });
+
+        // destroy staging buffer
+        buffer::destroy_buffer_data(device, &staging_buffer_data);
+    }
+
 
     // create image view, sampler, descriptor
     let image_datas = create_image_datas(
@@ -879,7 +1016,7 @@ pub fn create_render_target<T>(
         texture_create_info._texture_view_type,
         image_format,
         image_aspect,
-        vk::ImageLayout::GENERAL,
+        image_layout,
         texture_create_info._texture_min_filter,
         texture_create_info._texture_mag_filter,
         texture_create_info._texture_wrap_mode,
@@ -887,10 +1024,11 @@ pub fn create_render_target<T>(
         0,
         mip_levels,
         0,
-        layer_count,
+        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { layer_count },
     );
 
-    log::info!("create_render_target: {} {:?} {:?} {} {} {}",
+    log::info!("{}: {} {:?} {:?} {} {} {}",
+               if is_render_target { "create_render_target" } else { "create_texture_data" },
                texture_create_info._texture_name,
                texture_create_info._texture_view_type,
                image_format,
@@ -898,7 +1036,6 @@ pub fn create_render_target<T>(
                texture_create_info._texture_height,
                texture_create_info._texture_layers,
     );
-
     log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
     if false == image_datas._sub_image_views.is_empty() {
         log::info!("                 sub_image_views: {:?}", image_datas._sub_image_views);
@@ -916,179 +1053,6 @@ pub fn create_render_target<T>(
         _sub_image_view_type: image_datas._sub_image_view_type,
         _image_memory: image_memory,
         _image_format: image_format,
-        _image_width: texture_create_info._texture_width,
-        _image_height: texture_create_info._texture_height,
-        _image_layers: texture_create_info._texture_layers,
-        _image_mip_levels: mip_levels,
-        _image_sample_count: texture_create_info._texture_samples,
-    }
-}
-
-pub fn create_texture_data<T: Copy>(
-    instance: &Instance,
-    device: &Device,
-    physical_device: vk::PhysicalDevice,
-    memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    command_pool: vk::CommandPool,
-    command_queue: vk::Queue,
-    texture_create_info: &TextureCreateInfo<T>,
-) -> TextureData {
-    let image_datas = &texture_create_info._texture_initial_datas;
-    let buffer_size = (image_datas.len() * std::mem::size_of::<T>()) as vk::DeviceSize;
-    let enable_anisotropy = match texture_create_info._enable_anisotropy {
-        true => vk::TRUE,
-        _ => vk::FALSE
-    };
-    let (texture_create_flags, layer_count, texture_depth) = match texture_create_info._texture_view_type {
-        vk::ImageViewType::CUBE => (vk::ImageCreateFlags::CUBE_COMPATIBLE, 6, 1),
-        vk::ImageViewType::TYPE_2D_ARRAY => (vk::ImageCreateFlags::empty(), texture_create_info._texture_layers, 1),
-        vk::ImageViewType::TYPE_3D => (vk::ImageCreateFlags::TYPE_2D_ARRAY_COMPATIBLE, texture_create_info._texture_layers, texture_create_info._texture_layers),
-        _ => (vk::ImageCreateFlags::empty(), 1, 1),
-    };
-    let mip_levels = match texture_create_info._enable_mipmap {
-        true => calc_mip_levels(texture_create_info._texture_width, texture_create_info._texture_height, texture_depth, texture_create_info._max_mip_levels),
-        _ => 1
-    };
-    let image_aspect = vk::ImageAspectFlags::COLOR;
-    let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
-    let image_usage = vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED;
-    // we don't need to access the vk::DeviceMemory of the image, copyBufferToImage works with the vk::Image
-    let (image_memory, image) = create_image(
-        instance,
-        device,
-        physical_device,
-        memory_properties,
-        image_type,
-        texture_create_info._texture_width,
-        texture_create_info._texture_height,
-        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
-        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
-        mip_levels,
-        texture_create_info._texture_samples,
-        texture_create_info._texture_format,
-        vk::ImageTiling::OPTIMAL,
-        image_usage,
-        texture_create_flags,
-        vk::MemoryPropertyFlags::DEVICE_LOCAL
-    );
-    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
-        transition_image_layout(
-            device,
-            command_buffer,
-            image,
-            texture_create_info._texture_format,
-            ImageLayoutTransition::TransferUndefToTransferDst,
-            0,
-            mip_levels,
-            0,
-            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
-        );
-    });
-
-    // create temporary staging buffer
-    let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
-    let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-    let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
-        device,
-        memory_properties,
-        buffer_size,
-        staging_buffer_usage_flags,
-        staging_buffer_memory_property_flags
-    );
-
-    unsafe {
-        // upload data
-        let stageing_buffer_ptr: *mut c_void = device.map_memory(
-            staging_buffer_data._buffer_memory,
-            0,
-            buffer_size,
-            vk::MemoryMapFlags::empty()
-        ).expect("Failed to map_memory!");
-        let mut stageing_buffer_slice = Align::new(
-            stageing_buffer_ptr,
-            align_of::<T>() as u64,
-            staging_buffer_data._buffer_memory_requirements.size,
-        );
-        stageing_buffer_slice.copy_from_slice(image_datas);
-        device.unmap_memory(staging_buffer_data._buffer_memory);
-    }
-
-    copy_buffer_to_image(
-        device,
-        command_pool,
-        command_queue,
-        staging_buffer_data._buffer,
-        image,
-        image_aspect,
-        texture_create_info._texture_width,
-        texture_create_info._texture_height,
-        if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 },
-        if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
-    );
-
-    // generateMipmaps does this as a side effect:
-    // transitionImageLayout image VK_FORMAT_R8G8B8A8_UNORM TransferDst_ShaderReadOnly mipLevels
-    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
-        generate_mipmaps(
-            instance,
-            device,
-            physical_device,
-            command_buffer,
-            image,
-            image_aspect,
-            texture_create_info._texture_format,
-            texture_create_info._texture_width as i32,
-            texture_create_info._texture_height as i32,
-            if vk::ImageType::TYPE_3D == image_type { texture_depth } else { 1 } as i32,
-            mip_levels,
-            if vk::ImageType::TYPE_3D == image_type { 1 } else { layer_count },
-        );
-    });
-
-    // destroy staging buffer
-    buffer::destroy_buffer_data(device, &staging_buffer_data);
-
-    // create image view, sampler, descriptor
-    let image_datas = create_image_datas(
-        device,
-        image,
-        image_type,
-        texture_create_info._texture_view_type,
-        texture_create_info._texture_format,
-        image_aspect,
-        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-        texture_create_info._texture_min_filter,
-        texture_create_info._texture_mag_filter,
-        texture_create_info._texture_wrap_mode,
-        enable_anisotropy,
-        0,
-        mip_levels,
-        0,
-        layer_count,
-    );
-
-    log::info!("create_texture_data: {} {:?} {:?} {} {} {}",
-               texture_create_info._texture_name,
-               texture_create_info._texture_view_type,
-               texture_create_info._texture_format,
-               texture_create_info._texture_width,
-               texture_create_info._texture_height,
-               texture_create_info._texture_layers,
-    );
-    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
-
-    TextureData {
-        _texture_data_name: texture_create_info._texture_name.clone(),
-        _image: image,
-        _image_view: image_datas._image_view,
-        _image_info: image_datas._image_info,
-        _image_view_type: texture_create_info._texture_view_type,
-        _image_sampler: image_datas._image_sampler,
-        _sub_image_views: image_datas._sub_image_views,
-        _sub_image_infos: image_datas._sub_image_infos,
-        _sub_image_view_type: image_datas._sub_image_view_type,
-        _image_memory: image_memory,
-        _image_format: texture_create_info._texture_format,
         _image_width: texture_create_info._texture_width,
         _image_height: texture_create_info._texture_height,
         _image_layers: texture_create_info._texture_layers,

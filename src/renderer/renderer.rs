@@ -485,7 +485,7 @@ impl RendererData {
         }
     }
 
-    pub fn create_render_target<T>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
+    pub fn create_render_target<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_render_target(
             self.get_instance(),
             self.get_device(),
