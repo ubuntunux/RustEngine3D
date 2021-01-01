@@ -141,6 +141,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_binding_index: 4,
                     _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_image_mip_level: 2,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
