@@ -78,8 +78,8 @@ void main()
     float inv_opacity = 1.0f - opacity;
 
     // Water Color
-    const vec3 sea_color_near = pow(vec3(15.0, 60.0, 45.0) / 255.0, vec3(2.2));
-    const vec3 sea_color_far = pow(vec3(15.0, 60.0, 60.0) / 255.0, vec3(2.2));
+    const vec3 sea_color_near = pow(vec3(15.0, 60.0, 45.0) / 255.0, vec3(2.2)) * 0.5;
+    const vec3 sea_color_far = pow(vec3(15.0, 60.0, 60.0) / 255.0, vec3(2.2)) * 0.5;
     vec3 water_color = mix(sea_color_near, sea_color_far, saturate(1.0 - exp(-dist * 0.025)));
 
     // Under Water
