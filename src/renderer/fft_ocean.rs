@@ -343,55 +343,59 @@ impl FFTOcean {
         k_square * h_square * 2.0
     }
 
+    #[allow(non_snake_case)]
     fn spectrum(&self, kx: f64, ky: f64, omnispectrum: bool) -> f64 {
-        let u10 = self._wind.max(0.001) as f64;
-        let omega = self._omega as f64;
-        let amp = self._amplitude as f64;
+        let U10: f64 = (self._wind as f64).max(0.001);
+        let Omega: f64 = self._omega as f64;
+        let Amp: f64 = self._amplitude as f64;
 
         let k = (kx * kx + ky * ky).sqrt();
         let c = get_omega(k) / k;
 
         // spectral peak
-        let kp = 9.81 * sqr(omega / u10);
+        let kp = 9.81 * sqr(Omega / U10);
         let cp = get_omega(kp) / kp;
 
         // friction velocity
-        let z0 = 3.7e-5 * sqr(u10) / 9.81 * (u10 / cp).powf(0.9);
-        let u_star = 0.41 * u10 / log(10.0 / z0);
+        let z0 = 3.7e-5 * sqr(U10) / 9.81 * (U10 / cp).powf(0.9);
+        let u_star = 0.41 * U10 / log(10.0 / z0);
 
-        let lpm = (-5.0 / 4.0 * sqr(kp / k)).exp();
-        let gamma = if omega < 1.0 { 1.7 } else { 1.7 + 6.0 * log(omega) };
-        let sigma = 0.08 * (1.0 + 4.0 / omega.powf(3.0));
-        let gamma_exp = (-1.0 / (2.0 * sqr(sigma)) * sqr((k / kp).sqrt() - 1.0)).exp();
-        let jp = gamma.powf(gamma_exp);
-        let fp = lpm * jp * (-omega / 10.0f64.exp() * ((k / kp).sqrt() - 1.0)).exp();
-        let alphap = 0.006 * omega.sqrt();
-        let mut bl = 0.5 * alphap * cp / c * fp;
-        let alpham = if u_star < CM {
-            (1.0 + log(u_star / CM)) * 0.01
+        let Lpm = (-5.0 / 4.0 * sqr(kp / k)).exp();
+        let gamma = if Omega < 1.0 { 1.7 } else { 1.7 + 6.0 * log(Omega) };
+        let sigma = 0.08 * (1.0 + 4.0 / Omega.powf(3.0));
+        let Gamma = (-1.0 / (2.0 * sqr(sigma)) * sqr((k / kp).sqrt() - 1.0)).exp();
+        let Jp = gamma.powf(Gamma);
+        let Fp = Lpm * Jp * (- Omega / (10.0f64).sqrt() * ((k / kp).sqrt() - 1.0)).exp();
+        let alphap = 0.006 * Omega.sqrt();
+        let mut Bl = 0.5 * alphap * cp / c * Fp;
+        let mut alpham = 0.01;
+        if u_star < CM {
+            alpham *= 1.0 + log(u_star / CM);
         } else {
-            (1.0 + 3.0 * log(u_star / CM)) * 0.01
-        };
-        let fm = (-0.25 * sqr(k / KM - 1.0)).exp();
-        let mut bh = 0.5 * alpham * CM / c * fm * lpm;
+            alpham *= 1.0 + 3.0 * log(u_star / CM);
+        }
+
+        let Fm = (-0.25 * sqr(k / KM - 1.0)).exp();
+        let mut Bh = 0.5 * alpham * CM / c * Fm * Lpm;
 
         if omnispectrum {
-            return amp * (bl + bh) / (k * sqr(k));
+            return Amp * (Bl + Bh) / (k * sqr(k));
         }
 
         let a0 = log(2.0) / 4.0;
         let ap = 4.0;
         let am = 0.13 * u_star / CM;
-        let delta = (a0 + ap * (c / cp).powf(2.5) + am * (CM / c).powf(2.5)).tanh();
+        let Delta = (a0 + ap * (c / cp).powf(2.5) + am * (CM / c).powf(2.5)).tanh();
         let phi = ky.atan2(kx);
 
         if kx < 0.0 {
             return 0.0;
         } else {
-            bl *= 2.0;
-            bh *= 2.0;
+            Bl *= 2.0;
+            Bh *= 2.0;
         }
-        amp * (bl + bh) * (1.0 + delta * (2.0 * phi).cos()) / (2.0 * std::f64::consts::PI * sqr(sqr(k)))
+
+        Amp * (Bl + Bh) * (1.0 + Delta * (2.0 * phi).cos()) / (2.0 * std::f64::consts::PI * sqr(sqr(k)))
     }
 
     fn get_spectrum_sample(&mut self, i: i32, j: i32, length_scale: f64, k_min: f64) -> (f64, f64) {
@@ -480,9 +484,9 @@ impl FFTOcean {
         resources: &Resources,
     ) {
         let mut theoretic_slope_variance = 0.0;
-        let mut k = 5e-3;
-        while k < 1e3 {
-            let next_k = k * 1.001;
+        let mut k: f64 = 0.005;
+        while k < 1000.0 {
+            let next_k: f64 = k * 1.001;
             theoretic_slope_variance += k * k * self.spectrum(k, 0.0, true) * (next_k - k);
             k = next_k;
         }
