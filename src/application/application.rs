@@ -249,6 +249,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     );
 
     // initialize grphics
+    scene_manager_data.borrow().get_fft_ocean().borrow_mut().regist_fft_ocean_textures(&renderer_data, &resources);
     resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
     renderer_data.borrow_mut().initialize_post_process_datas();
     let camera_data = CameraCreateInfo {
@@ -257,7 +258,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
         position: Vector3::new(0.0, 0.0, 10.0),
         ..Default::default()
     };
-    scene_manager_data.borrow_mut().initialize_graphics_data(&renderer_data.borrow());
+    scene_manager_data.borrow_mut().initialize_scene_graphics_data(&renderer_data.borrow());
     scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
 
     // main loop
@@ -291,9 +292,9 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
 
                     if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
                         if false == renderer_data.get_is_first_resize_event() {
-                            scene_manager_data.destroy_graphics_data(renderer_data.get_device());
+                            scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
                             renderer_data.resize_window();
-                            scene_manager_data.initialize_graphics_data(&renderer_data);
+                            scene_manager_data.initialize_scene_graphics_data(&renderer_data);
                         }
                         let window_size = renderer_data._window.inner_size();
                         scene_manager_data.get_main_camera().borrow_mut().set_aspect(window_size.width, window_size.height);

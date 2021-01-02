@@ -1009,7 +1009,6 @@ fn create_texture_data_inner<T: Copy>(
         buffer::destroy_buffer_data(device, &staging_buffer_data);
     }
 
-
     // create image view, sampler, descriptor
     let image_datas = create_image_datas(
         device,
@@ -1040,7 +1039,7 @@ fn create_texture_data_inner<T: Copy>(
     );
     log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
     if false == image_datas._sub_image_views.is_empty() {
-        log::info!("                 sub_image_views: {:?}", image_datas._sub_image_views);
+        log::debug!("                 sub_image_views: {:?}", image_datas._sub_image_views);
     }
 
     TextureData {
@@ -1074,7 +1073,7 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
         );
 
         if false == texture_data._sub_image_views.is_empty() {
-            log::info!("    sub_image_views: {:?}", texture_data._sub_image_views);
+            log::debug!("    sub_image_views: {:?}", texture_data._sub_image_views);
         }
 
         device.destroy_sampler(texture_data._image_sampler, None);

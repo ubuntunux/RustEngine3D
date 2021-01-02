@@ -102,14 +102,14 @@ impl SceneManagerData {
     }
 
     pub fn close_scene_manager_data(&mut self, device: &Device) {
-        self.destroy_graphics_data(device);
+        self.destroy_scene_graphics_data(device);
     }
 
-    pub fn initialize_graphics_data(&mut self, renderer_data: &RendererData) {
-        self._fft_ocean.borrow_mut().initialize_fft_ocean(renderer_data, &self._resources);
+    pub fn initialize_scene_graphics_data(&mut self, renderer_data: &RendererData) {
+        self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, &self._resources.borrow());
     }
 
-    pub fn destroy_graphics_data(&mut self, device: &Device) {
+    pub fn destroy_scene_graphics_data(&mut self, device: &Device) {
         self._fft_ocean.borrow_mut().destroy_fft_ocean(device);
     }
 
