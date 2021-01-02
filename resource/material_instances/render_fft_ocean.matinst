@@ -6,6 +6,7 @@
     "texture_probe": "common/default_cube",
     "texture_noise": "common/noise",
     "texture_caustic": "common/water_caustic_00",
-    "texture_foam": "common/water_foam"
+    "texture_foam": "common/water_foam",
+    "ibl_brdf_lut": "common/ibl_brdf_lut"
  }
 }

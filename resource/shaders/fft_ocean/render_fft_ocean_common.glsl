@@ -18,6 +18,7 @@ layout(binding = 7) uniform samplerCube texture_probe;
 layout(binding = 8) uniform sampler2D texture_noise;
 layout(binding = 9) uniform sampler2D texture_caustic;
 layout(binding = 10) uniform sampler2D texture_foam;
+layout(binding = 11) uniform sampler2D ibl_brdf_lut;
 
 layout( push_constant ) uniform PushConstant_FFT_Ocean
 {

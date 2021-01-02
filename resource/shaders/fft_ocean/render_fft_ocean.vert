@@ -42,14 +42,12 @@ vec3 oceanWorldPos(vec4 vertex)
 
 void main()
 {
-    vec3 vertex_scale = vec3(1.5, 1.5, 1.0);
+    vec3 vertex_scale = vec3(1.5, 2.0, 1.0);
     vec4 vertex_pos = vec4(inPosition * vertex_scale, 1.0);
     vec3 world_pos = oceanWorldPos(vertex_pos);
     vec3 relative_pos = world_pos - view_constants.CAMERA_POSITION.xyz;
     float dist_xz = length(relative_pos.xz);
     float dist = length(relative_pos);
-
-    float screen_fade = 1.0f - saturate(ceil(max(abs(inPosition.x), abs(inPosition.y)) - 0.999f));
 
     vec2 u = world_pos.xz;
     vec2 ux = oceanWorldPos(vertex_pos + vec4(pushConstant._cell_size.x, 0.0, 0.0, 0.0)).xz;
@@ -77,10 +75,11 @@ void main()
     vec3 eye_direction = normalize(relative_pos);
     vec4 proj_pos = view_constants.VIEW_PROJECTION * vec4(world_pos.xyz, 1.0);
 
-    float fade = 1.0f;
-    if(dist_xz < view_constants.NEAR_FAR.y && inPosition.y < 0.0)
+    // water line
+    float screen_fade = 1.0f - saturate(ceil(max(abs(inPosition.x), abs(inPosition.y)) - 0.999f));
+    if(dist_xz < view_constants.NEAR_FAR.y && (1.0 <= vertex_pos.y || 1.0 <= vertex_pos.x || vertex_pos.x <= -1.0))
     {
-        proj_pos.xy = mix(inPosition.xy * proj_pos.w, proj_pos.xy, screen_fade);
+        proj_pos.xy = mix(vertex_pos.xy * proj_pos.w, proj_pos.xy, screen_fade);
     }
 
     vec2 screen_coord = (proj_pos.xy / proj_pos.w) * 0.5 + 0.5;

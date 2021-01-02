@@ -181,6 +181,38 @@ vec2 env_BRDF_pproximate(float NdV, float roughness)
     return vec2(-1.04, 1.04) * a004 + r.zw;
 }
 
+void apply_image_based_lighting(
+    in samplerCube texture_probe,
+    in sampler2D ibl_brdf_lut,
+    in vec4 scene_reflect_color,
+    float roughness,
+    in vec3 F0,
+    in vec3 N,
+    in vec3 R,
+    float NdV,
+    inout vec3 diffuse_light,
+    inout vec3 specular_light
+)
+{
+    const vec2 env_size = textureSize(texture_probe, 0);
+    const float max_env_mipmap = min(8.0, log2(max(env_size.x, env_size.y)) - 1.0);
+    vec2 envBRDF = env_BRDF_pproximate(NdV, roughness);
+    // clamp uv ( half_texel ~ 1.0 - half_texel)
+    //vec2 envBRDF2  = texture(ibl_brdf_lut, clamp(vec2(NdV, 1.0 - roughness), vec2(0.0009765625), vec2(0.9990234375))).xy;
+    const vec3 kS = fresnelSchlickRoughness(NdV, F0, roughness);
+    const vec3 kD = vec3(1.0) - kS;
+    const vec3 shValue = kS * envBRDF.x + envBRDF.y;
+    const vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
+    const vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
+
+    //ambient_light = normalize(mix(ibl_diffuse_light, scene_sky_irradiance, 0.5)) * length(scene_sky_irradiance);
+    diffuse_light += ibl_diffuse_light * kD;
+    // if(RENDER_SSR)
+    {
+        specular_light.xyz += mix(ibl_specular_light, scene_reflect_color.xyz, scene_reflect_color.w) * shValue;
+    }
+}
+
 
 /* PBR reference
     - http://www.curious-creature.com/pbr_sandbox/shaders/pbr.fs
@@ -244,25 +276,18 @@ vec4 surface_shading(
     light_color *= scene_sun_irradiance * shadow_factor;
 
     // Image based lighting
-    {
-        const vec2 env_size = textureSize(texture_probe, 0);
-        const float max_env_mipmap = min(8.0, log2(max(env_size.x, env_size.y)) - 1.0);
-        vec2 envBRDF = env_BRDF_pproximate(NdV, roughness);
-        // clamp uv ( half_texel ~ 1.0 - half_texel)
-        //vec2 envBRDF2  = texture(ibl_brdf_lut, clamp(vec2(NdV, 1.0 - roughness), vec2(0.0009765625), vec2(0.9990234375))).xy;
-        const vec3 kS = fresnelSchlickRoughness(NdV, F0, roughness);
-        const vec3 kD = vec3(1.0) - kS;
-        const vec3 shValue = kS * envBRDF.x + envBRDF.y;
-        const vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
-        const vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
-
-        //ambient_light = normalize(mix(ibl_diffuse_light, scene_sky_irradiance, 0.5)) * length(scene_sky_irradiance);
-        diffuse_light += ibl_diffuse_light * kD;
-        // if(RENDER_SSR)
-        {
-            specular_light.xyz += mix(ibl_specular_light, scene_reflect_color.xyz, scene_reflect_color.w) * shValue;
-        }
-    }
+    apply_image_based_lighting(
+        texture_probe,
+        ibl_brdf_lut,
+        scene_reflect_color,
+        roughness,
+        F0,
+        N,
+        R,
+        NdV,
+        diffuse_light,
+        specular_light
+    );
 
 #if TRANSPARENT_MATERIAL == 1
     float reflectivity = max(max(fresnel.r, fresnel.g), fresnel.b);
