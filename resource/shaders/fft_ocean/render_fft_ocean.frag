@@ -78,9 +78,9 @@ void main()
     float inv_opacity = 1.0f - opacity;
 
     // Water Color
-    const vec3 sea_color_near = pow(vec3(25.0, 60.0, 55.0) / 255.0, vec3(2.2));
-    const vec3 sea_color_far = pow(vec3(15.0, 50.0, 60.0) / 255.0, vec3(2.2));
-    vec3 water_color = mix(sea_color_near, sea_color_far, saturate(1.0 - exp(-dist * 0.1)));
+    const vec3 sea_color_near = pow(vec3(15.0, 60.0, 45.0) / 255.0, vec3(2.2));
+    const vec3 sea_color_far = pow(vec3(15.0, 60.0, 60.0) / 255.0, vec3(2.2));
+    vec3 water_color = mix(sea_color_near, sea_color_far, saturate(1.0 - exp(-dist * 0.025)));
 
     // Under Water
     vec3 under_water_color = textureLod(texture_scene, (refracted_scene_dist <= dist) ? screen_texcoord : reflected_screen_uv, 0.0).xyz;
@@ -163,7 +163,8 @@ void main()
     vec3 scattering_normal = normalize(vec3(vertex_normal.x, 5.0, vertex_normal.z));
     float scattering = pow(abs(dot(H, scattering_normal)), 20.0) * (0.5 - dot(scattering_normal, V) * 0.5);
     scattering = clamp(wave_peak * scattering, 0.0, 1.0);
-    vec3 transmission = light_color * sea_color_near * 20.0;
+    float sea_color_max_intensity = max(sea_color_near.x, max(sea_color_near.y, sea_color_near.z));
+    vec3 transmission = light_color * sea_color_near / sea_color_max_intensity * 0.5;
 
     fs_output.xyz = mix(diffuse_light * water_color, transmission, scattering) + specular_light;
 
