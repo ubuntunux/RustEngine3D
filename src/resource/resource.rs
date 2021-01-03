@@ -1,4 +1,6 @@
 use std::fs::{ self, File };
+use byteorder::{ LittleEndian };
+
 use std::str::FromStr;
 use std::io::prelude::*;
 use std::path::{ PathBuf };
@@ -33,6 +35,7 @@ use crate::vulkan_context::render_pass::{
 };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
+use byteorder::ReadBytesExt;
 
 const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;
@@ -55,7 +58,7 @@ const EXT_MATERIAL_INSTANCE: &str = "matinst";
 const EXT_MESH: &str = "mesh";
 const EXT_MODEL: &str = "model";
 const IMAGE_SOURCE_EXTS: [&str; 4] = ["jpg", "png", "tga", "bmp"];
-const EXT_TEXTURE: &str = "texture";
+const EXT_TEXTURE: [&str; 1] = ["texture"];
 
 const DEFAULT_MESH_NAME: &str = "quad";
 const DEFAULT_MODEL_NAME: &str = "quad";
@@ -437,13 +440,13 @@ impl Resources {
             self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
         }
 
-        //let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
+        let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
 
         // generate necessary texture datas
         texture_generator::generate_images(&texture_source_directory);
 
-        // load texture from files
+        // load texture from external files
         let texture_src_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
         for texture_src_file in texture_src_files.iter() {
             let (texture_data_name, cube_texture_files) = Resources::get_texture_data_name(
@@ -480,6 +483,44 @@ impl Resources {
                     self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
                 }
             }
+        }
+
+        // read binary texture data
+        let texture_files = system::walk_directory(texture_directory.as_path(), &EXT_TEXTURE);
+        for texture_file in texture_files.iter() {
+            let texture_data_name = get_resource_name_from_file_path(&texture_directory, texture_file);
+            let mut loaded_contents = fs::File::open(&texture_file).expect("Failed to create file");
+            let image_view_type: vk::ImageViewType = vk::ImageViewType::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let image_width: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
+            let image_height: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
+            let image_depth: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
+            let image_format: vk::Format = vk::Format::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let enable_mipmap: bool = if 0 != loaded_contents.read_i32::<LittleEndian>().unwrap() { true } else { false };
+            let min_filter: vk::Filter = vk::Filter::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let mag_filter: vk::Filter = vk::Filter::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let wrap: vk::SamplerAddressMode = vk::SamplerAddressMode::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let data_bytes: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
+            let mut image_data: Vec<u8> = Vec::new();
+            loaded_contents.read_to_end(&mut image_data).expect("Failed to read datas.");
+            assert_eq!(data_bytes as usize, image_data.len());
+
+            let texture_create_info = TextureCreateInfo {
+                _texture_name: texture_data_name.clone(),
+                _texture_width: image_width as u32,
+                _texture_height: image_height as u32,
+                _texture_layers: image_depth as u32,
+                _texture_format: image_format,
+                _texture_min_filter: min_filter,
+                _texture_mag_filter: mag_filter,
+                _texture_wrap_mode: wrap,
+                _texture_view_type: image_view_type,
+                _texture_initial_datas: image_data,
+                _enable_mipmap: enable_mipmap,
+                _enable_anisotropy: false,
+                ..Default::default()
+            };
+            let texture_data = renderer_data.create_texture(&texture_create_info);
+            self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
         }
     }
 
