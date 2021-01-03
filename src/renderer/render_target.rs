@@ -5,8 +5,8 @@ use ash::{
 use crate::constants;
 use crate::renderer::renderer::RendererData;
 use crate::renderer::fft_ocean;
+use crate::renderer::atmosphere;
 use crate::vulkan_context::texture::{ TextureCreateInfo };
-use log::Level::Debug;
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -32,9 +32,19 @@ pub enum RenderTargetType {
     SSR,
     SSRResolved,
     SSRResolvedPrev,
+    // FFT Ocean
     FFT_A,
     FFT_B,
     FFT_SLOPE_VARIANCE,
+    // Precomputed Atmosphere
+    PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE,
+    PRECOMPUTED_ATMOSPHERE_SCATTERING,
+    PRECOMPUTED_ATMOSPHERE_IRRADIANCE,
+    PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+    PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE,
+    PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING,
+    PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING,
+    PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY,
     MaxBound,
 }
 
@@ -71,6 +81,14 @@ impl std::str::FromStr for RenderTargetType {
             "FFT_A" => Ok(RenderTargetType::FFT_A),
             "FFT_B" => Ok(RenderTargetType::FFT_B),
             "FFT_SLOPE_VARIANCE" => Ok(RenderTargetType::FFT_SLOPE_VARIANCE),
+            "PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
+            "PRECOMPUTED_ATMOSPHERE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING),
+            "PRECOMPUTED_ATMOSPHERE_IRRADIANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE),
+            "PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
+            "PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE),
+            "PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING),
+            "PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING),
+            "PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY),
             _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
         }
     }
@@ -252,6 +270,7 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_height: window_height / 4,
             ..hdr_texture_create_info.clone()
         },
+        // FFT Ocean
         TextureCreateInfo {
             _texture_name: RenderTargetType::FFT_A.to_string(),
             _texture_width: fft_ocean::FFT_SIZE as u32,
@@ -285,6 +304,98 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_layers: fft_ocean::N_SLOPE_VARIANCE as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        // Precomputed Atmosphere
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE.to_string(),
+            _texture_width: atmosphere::TRANSMITTANCE_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::TRANSMITTANCE_TEXTURE_HEIGHT as u32,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING.to_string(),
+            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE.to_string(),
+            _texture_width: atmosphere::IRRADIANCE_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::IRRADIANCE_TEXTURE_HEIGHT as u32,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING.to_string(),
+            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE.to_string(),
+            _texture_width: atmosphere::IRRADIANCE_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::IRRADIANCE_TEXTURE_HEIGHT as u32,
+            _texture_view_type: vk::ImageViewType::TYPE_2D,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING.to_string(),
+            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING.to_string(),
+            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY.to_string(),
+            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_view_type: vk::ImageViewType::TYPE_3D,
+            _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_min_filter: vk::Filter::LINEAR,
             _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,

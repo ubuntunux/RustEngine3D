@@ -1,5 +1,5 @@
 pub mod animation;
-pub mod shader_buffer_datas;
+pub mod atmosphere;
 pub mod camera;
 pub mod image_sampler;
 pub mod fft_ocean;
@@ -14,11 +14,15 @@ pub mod render_element;
 pub mod render_object;
 pub mod render_target;
 pub mod renderer;
+pub mod shader_buffer_datas;
 pub mod transform_object;
 pub mod utility;
 
 #[allow(unused_imports)]
 pub use self::animation::*;
+
+#[allow(non_upper_case_globals)]
+pub use self::atmosphere::*;
 
 #[allow(unused_imports)]
 pub use self::shader_buffer_datas::*;
