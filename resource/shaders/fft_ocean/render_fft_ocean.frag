@@ -98,7 +98,7 @@ void main()
             caustic_color.r = texture(texture_caustic, caustic_uv + vec2(0.0f, chromaSeperation)).r;
             caustic_color.g = texture(texture_caustic, caustic_uv + vec2(chromaSeperation, 0.0f)).g;
             caustic_color.b = texture(texture_caustic, caustic_uv - vec2(chromaSeperation, chromaSeperation)).b;
-            caustic_color *= under_water_shadow * sun_irradiance * screen_fade * saturate(dist_diff);
+            caustic_color *= max(vec3(0.1), under_water_shadow) * sun_irradiance * screen_fade * saturate(dist_diff);
 
             // apply caustic
             under_water_color += caustic_color;
@@ -108,7 +108,7 @@ void main()
         vec3 fog_color = mix(under_water_color, sea_color_far, fog_ratio * fog_ratio);
 
         under_water_color = mix(under_water_color, water_color * under_water_color, opacity);
-        under_water_color = mix(fog_color, under_water_color, screen_fade) * inv_opacity;
+        under_water_color = mix(fog_color, under_water_color, screen_fade) * pow(inv_opacity, 4.0);
     }
 
     // White cap
