@@ -338,8 +338,8 @@ pub struct Atmosphere {
     pub _white_point: Vector3<f32>,
     pub _earth_center: Vector3<f32>,
     pub _sun_size: Vector2<f32>,
-    pub _kSky: Vector3<f32>,
-    pub _kSun: Vector3<f32>,
+    pub _sky: Vector3<f32>,
+    pub _sun: Vector3<f32>,
     pub _atmosphere_exposure: f32,
     pub _cloud_exposure: f32,
     pub _cloud_altitude: f32,
@@ -471,9 +471,6 @@ impl AtmosphereModel {
 
         // header
         vec![
-            String::from("#version 450"),
-            String::from("#extension GL_ARB_separate_shader_objects : enable"),
-            String::from("#extension GL_GOOGLE_include_directive : enable"),
             format!("const int TRANSMITTANCE_TEXTURE_WIDTH = {};", TRANSMITTANCE_TEXTURE_WIDTH),
             format!("const int TRANSMITTANCE_TEXTURE_HEIGHT = {};", TRANSMITTANCE_TEXTURE_HEIGHT),
             format!("const int SCATTERING_TEXTURE_R_SIZE = {};", SCATTERING_TEXTURE_R_SIZE),
@@ -699,8 +696,8 @@ impl Atmosphere {
             _white_point: Vector3::zeros(),
             _earth_center: Vector3::new(0.0, -kBottomRadius / kLengthUnitInMeters, 0.0),
             _sun_size: Vector2::new(kSunAngularRadius.tan(), kSunAngularRadius.cos()),
-            _kSky: Vector3::new(1.0, 1.0, 1.0),
-            _kSun: Vector3::new(1.0, 1.0, 1.0),
+            _sky: Vector3::new(1.0, 1.0, 1.0),
+            _sun: Vector3::new(1.0, 1.0, 1.0),
             _atmosphere_exposure: 0.0001,
             _cloud_exposure: 0.175,
             _cloud_altitude: 100.0,
@@ -769,11 +766,11 @@ impl Atmosphere {
         let mie_density: Vec<DensityProfileLayer> = vec![mie_layer];
 
         if Luminance::PRECOMPUTED == self._luminance_type {
-            self._kSky = Vector3::new(MAX_LUMINOUS_EFFICACY, MAX_LUMINOUS_EFFICACY, MAX_LUMINOUS_EFFICACY);
+            self._sky = Vector3::new(MAX_LUMINOUS_EFFICACY, MAX_LUMINOUS_EFFICACY, MAX_LUMINOUS_EFFICACY);
         } else {
-            self._kSky = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, -3.0);
+            self._sky = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, -3.0);
         }
-        self._kSun = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, 0.0);
+        self._sun = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, 0.0);
 
         // generate precomputed textures
         let atmosphere_model = AtmosphereModel::create_atmosphere_model(
