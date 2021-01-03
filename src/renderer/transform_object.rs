@@ -11,7 +11,8 @@ use crate::utilities::math::{
     get_world_up,
     get_world_front,
     make_rotation_matrix,
-    make_matrix
+    make_matrix,
+    TWO_PI,
 };
 
 #[derive(Debug, Clone)]
@@ -109,18 +110,18 @@ impl TransformObjectData {
     }
     pub fn set_rotation(&mut self, rotation: &Vector3<f32>) {
         self._rotation.copy_from(rotation);
-        self._rotation.x = self._rotation.x % std::f32::consts::PI;
-        self._rotation.y = self._rotation.y % std::f32::consts::PI;
-        self._rotation.z = self._rotation.z % std::f32::consts::PI;
+        self._rotation.x = self._rotation.x % TWO_PI;
+        self._rotation.y = self._rotation.y % TWO_PI;
+        self._rotation.z = self._rotation.z % TWO_PI;
     }
     pub fn rotation_pitch(&mut self, rotation_speed: f32) {
-        self._rotation.x = (self._rotation.x + rotation_speed) % std::f32::consts::PI;
+        self._rotation.x = (self._rotation.x + rotation_speed) % TWO_PI;
     }
     pub fn rotation_yaw(&mut self, rotation_speed: f32) {
-        self._rotation.y = (self._rotation.y + rotation_speed) % std::f32::consts::PI;
+        self._rotation.y = (self._rotation.y + rotation_speed) % TWO_PI;
     }
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
-        self._rotation.z = (self._rotation.z + rotation_speed) % std::f32::consts::PI;
+        self._rotation.z = (self._rotation.z + rotation_speed) % TWO_PI;
     }
     pub fn get_scale(&mut self) -> &Vector3<f32> {
         &self._scale
