@@ -6,6 +6,9 @@ use crate::renderer::renderer::RendererData;
 use crate::resource::Resources;
 use crate::utilities::system::RcRefCell;
 
+pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
+pub const DEFAULT_USE_COMBINED_TEXTURES: bool = true; // macro: COMBINED_SCATTERING_TEXTURES
+
 pub const kLambdaR: f32 = 680.0;
 pub const kLambdaG: f32 = 550.0;
 pub const kLambdaB: f32 = 440.0;
@@ -677,12 +680,14 @@ impl AtmosphereModel {
 
 
 impl Atmosphere {
-    pub fn create_atmosphere(is_render_atmosphere: bool, luminance_type: Luminance) -> Atmosphere {
+    pub fn create_atmosphere(is_render_atmosphere: bool) -> Atmosphere {
+        let luminance_type: Luminance = DEFAULT_LUMINANCE_TYPE;
+
         Atmosphere {
             _is_render_atmosphere: is_render_atmosphere,
             _use_constant_solar_spectrum: false,
             _use_ozone: true,
-            _use_combined_textures: true,
+            _use_combined_textures: DEFAULT_USE_COMBINED_TEXTURES,
             _luminance_type: luminance_type,
             _num_precomputed_wavelengths: if Luminance::PRECOMPUTED == luminance_type { 15 } else { 3 },
             _do_white_balance: false,
