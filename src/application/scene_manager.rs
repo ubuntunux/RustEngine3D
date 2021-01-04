@@ -11,6 +11,7 @@ use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData }
 use crate::renderer::render_element::{ RenderElementData };
 use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData, AnimationPlayArgs };
 use crate::renderer::fft_ocean::FFTOcean;
+use crate::renderer::atmosphere::Atmosphere;
 use crate::renderer::shader_buffer_datas::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
@@ -32,6 +33,7 @@ pub struct SceneManagerData {
     pub _skeletal_render_object_map: RenderObjectMap,
     pub _skeletal_render_elements: Vec<RenderElementData>,
     pub _fft_ocean: RcRefCell<FFTOcean>,
+    pub _atmosphere: RcRefCell<Atmosphere>,
 }
 
 pub fn create_scene_manager_data(
@@ -41,6 +43,7 @@ pub fn create_scene_manager_data(
     let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
     let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
     let fft_ocean = system::newRcRefCell(FFTOcean::default());
+    let atmosphere = system::newRcRefCell(Atmosphere::create_atmosphere(true));
     system::newRcRefCell(SceneManagerData {
         _renderer_data: renderer_data,
         _resources: resources,
@@ -53,6 +56,7 @@ pub fn create_scene_manager_data(
         _skeletal_render_object_map: HashMap::new(),
         _skeletal_render_elements: Vec::new(),
         _fft_ocean: fft_ocean,
+        _atmosphere: atmosphere,
     })
 }
 
@@ -107,14 +111,20 @@ impl SceneManagerData {
 
     pub fn initialize_scene_graphics_data(&mut self, renderer_data: &RendererData) {
         self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, &self._resources.borrow());
+        self._atmosphere.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, &self._resources.borrow());
     }
 
     pub fn destroy_scene_graphics_data(&mut self, device: &Device) {
         self._fft_ocean.borrow_mut().destroy_fft_ocean(device);
+        self._atmosphere.borrow_mut().destroy_atmosphere(device);
     }
 
     pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean> {
         &self._fft_ocean
+    }
+
+    pub fn get_atmosphere(&self) -> &RcRefCell<Atmosphere> {
+        &self._atmosphere
     }
 
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {

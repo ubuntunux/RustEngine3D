@@ -1,9 +1,9 @@
-use std::collections::HashMap;
-
+use ash::{ vk, Device };
 use nalgebra::{ Vector2, Vector3, Matrix3 };
 
 use crate::renderer::renderer::RendererData;
 use crate::resource::Resources;
+use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::utilities::system::RcRefCell;
 
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
@@ -319,7 +319,6 @@ pub struct AtmosphereModel {
     pub _num_precomputed_wavelengths: i32,
     pub _precompute_illuminance: bool,
     pub _use_combined_textures: bool,
-    pub _material_instance_macros: HashMap<String, i32>,
 }
 
 #[derive(Clone)]
@@ -337,7 +336,6 @@ pub struct Atmosphere {
     pub _view_azimuth_angle_radians: f32,
     pub _sun_zenith_angle_radians: f32,
     pub _sun_azimuth_angle_radians: f32,
-    pub _sun_direction: Vector3<f32>,
     pub _white_point: Vector3<f32>,
     pub _earth_center: Vector3<f32>,
     pub _sun_size: Vector2<f32>,
@@ -356,7 +354,6 @@ pub struct Atmosphere {
     pub _noise_contrast: f32,
     pub _noise_coverage: f32,
     pub _noise_tiling: f32,
-    pub _atmosphere_model: Option<AtmosphereModel>,
 }
 
 impl DensityProfileLayer {
@@ -393,8 +390,7 @@ impl AtmosphereModel {
         precompute_illuminance: bool,
         use_combined_textures: bool
     ) -> AtmosphereModel {
-
-        let mut atmosphere_model = AtmosphereModel {
+        AtmosphereModel {
             _wavelengths: wavelengths,
             _solar_irradiance: solar_irradiance,
             _sun_angular_radius: sun_angular_radius,
@@ -414,21 +410,7 @@ impl AtmosphereModel {
             _num_precomputed_wavelengths: num_precomputed_wavelengths,
             _precompute_illuminance: precompute_illuminance,
             _use_combined_textures: use_combined_textures,
-            _material_instance_macros: HashMap::new(),
-        };
-
-        atmosphere_model._material_instance_macros.insert(String::from("COMBINED_SCATTERING_TEXTURES"), if use_combined_textures { 1 } else { 0 });
-
-        // Atmosphere shader code
-        // resource_manager = CoreManager.instance().resource_manager
-        // shaderLoader = resource_manager.shader_loader
-        // shader_name = 'precomputed_atmosphere.atmosphere_predefine'
-        // recompute_atmosphere_predefine = resource_manager.get_shader(shader_name)
-        // recompute_atmosphere_predefine.shader_code = self.glsl_header_factory([kLambdaR, kLambdaG, kLambdaB])
-        // shaderLoader.save_resource(shader_name)
-        // shaderLoader.load_resource(shader_name)
-
-        atmosphere_model
+        }
     }
 
     pub fn regist_precomputed_atmosphere_textures(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
@@ -505,11 +487,30 @@ impl AtmosphereModel {
         ].join("\n")
     }
 
-    pub fn generate(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>, num_scattering_orders: i32) {
+    pub fn generate(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+        num_scattering_orders: i32
+    ) {
         if false == self._precompute_illuminance {
             let lambdas: [f32; 3] = [kLambdaR, kLambdaG, kLambdaB];
             let luminance_from_radiance = Matrix3::identity();
-            self.precompute(&lambdas, &luminance_from_radiance, false, num_scattering_orders);
+            let blend = false;
+            self.precompute(
+                command_buffer,
+                swapchain_index,
+                quad_geometry_data,
+                renderer_data,
+                resources,
+                &lambdas,
+                &luminance_from_radiance,
+                blend,
+                num_scattering_orders
+            );
         } else {
             let num_iterations: f32 = (self._num_precomputed_wavelengths as f32 + 2.0) / 3.0;
             let dlambda: f32 = (kLambdaMax - kLambdaMin) as f32 / (3.0 * num_iterations);
@@ -537,7 +538,19 @@ impl AtmosphereModel {
                     Vector3::new(coeff(lambdas[0], 1), coeff(lambdas[1], 1), coeff(lambdas[2], 1)),
                     Vector3::new(coeff(lambdas[0], 2), coeff(lambdas[1], 2), coeff(lambdas[2], 2)),
                 ]);
-                self.precompute(&lambdas, &luminance_from_radiance, 0 < i, num_scattering_orders);
+
+                let blend = 0 < i;
+                self.precompute(
+                    command_buffer,
+                    swapchain_index,
+                    quad_geometry_data,
+                    renderer_data,
+                    resources,
+                    &lambdas,
+                    &luminance_from_radiance,
+                    blend,
+                    num_scattering_orders
+                );
             }
         }
 
@@ -549,7 +562,18 @@ impl AtmosphereModel {
         // self.quad.draw_elements()
     }
 
-    fn precompute(&self, lambdas: &[f32; 3], luminance_from_radiance: &Matrix3<f32>, blend: bool, num_scattering_orders: i32) {
+    fn precompute(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+        lambdas: &[f32; 3],
+        luminance_from_radiance: &Matrix3<f32>,
+        blend: bool,
+        num_scattering_orders: i32
+    ) {
         // shader_name = 'precomputed_atmosphere.compute_atmosphere_predefine'
         // compute_atmosphere_predefine = resource_manager.get_shader(shader_name)
         // compute_atmosphere_predefine.shader_code = self.glsl_header_factory(lambdas)
@@ -697,7 +721,6 @@ impl Atmosphere {
             _view_azimuth_angle_radians: -0.1,
             _sun_zenith_angle_radians: 1.3,
             _sun_azimuth_angle_radians: 2.9,
-            _sun_direction: Vector3::new(1.0, 1.0, 1.0),
             _white_point: Vector3::zeros(),
             _earth_center: Vector3::new(0.0, -kBottomRadius / kLengthUnitInMeters, 0.0),
             _sun_size: Vector2::new(kSunAngularRadius.tan(), kSunAngularRadius.cos()),
@@ -716,19 +739,17 @@ impl Atmosphere {
             _noise_contrast: 1.0,
             _noise_coverage: 1.0,
             _noise_tiling: 0.0003,
-            _atmosphere_model: None
         }
     }
 
-    pub fn initialize(&mut self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
-        // self.atmosphere_material_instance = resource_manager.get_material_instance(
-        //     "precomputed_atmosphere.atmosphere",
-        //     macros = {
-        //         'USE_LUMINANCE': 1 if self.luminance_type else 0,
-        //         'COMBINED_SCATTERING_TEXTURES': 1 if self.use_combined_textures else 0
-        //     }
-        // )
-
+    pub fn precompute(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    ) {
         // precompute constants
         let max_sun_zenith_angle = 120.0 / 180.0 * kPi;
 
@@ -799,15 +820,22 @@ impl Atmosphere {
             Luminance::PRECOMPUTED == self._luminance_type,
             self._use_combined_textures
         );
+
         let num_scattering_orders: i32 = 4;
-        atmosphere_model.generate(renderer_data, resources, num_scattering_orders);
+        atmosphere_model.generate(
+            command_buffer,
+            swapchain_index,
+            quad_geometry_data,
+            renderer_data,
+            resources,
+            num_scattering_orders,
+        );
     }
 
-    pub fn update(&mut self, main_light_direction: &Vector3<f32>) {
-        if self._is_render_atmosphere {
-            //main_light.transform.front
-            self._sun_direction.copy_from(main_light_direction);
-        }
+    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
+    }
+
+    pub fn destroy_atmosphere(&mut self, device: &Device) {
     }
 
     pub fn bind_precomputed_atmosphere(&self) {

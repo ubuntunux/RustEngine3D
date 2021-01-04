@@ -1,0 +1,4 @@
+{"pipelines": [
+    {"render_pass": "compute_transmittance", "pipeline": "compute_transmittance"},
+ ]
+}

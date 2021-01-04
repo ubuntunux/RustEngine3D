@@ -2,20 +2,15 @@
 #include "precomputed_atmosphere/atmosphere_predefine.glsl"
 #include "precomputed_atmosphere/atmosphere_vs.glsl"
 
-uniform sampler2D texture_shadow;
-uniform sampler2D texture_linear_depth;
-uniform sampler2D texture_normal;
-
-
-#ifdef FRAGMENT_SHADER
 in vec3 view_ray;
 in vec2 uv;
+
 layout(location = 0) out vec4 color;
 
 void main()
 {
     color = vec4(0.0, 0.0, 0.0, 1.0);
-    vec3 camera = CAMERA_POSITION.xyz * atmosphere_ratio;
+    vec3 camera = CAMERA_POSITION.xyz * ATMOSPHERE_RATIO;
     vec3 sun_direction = LIGHT_DIRECTION.xyz;
 
     vec3 view_direction = normalize(view_ray);
@@ -31,8 +26,9 @@ void main()
     float sphere_shadow_out = 0.0;
 
     // Scene
-    float scene_linear_depth = texture2DLod(texture_linear_depth, uv, 0.0).x;
-    vec3 scene_point = view_direction * scene_linear_depth * atmosphere_ratio;
+    float device_depth = texture(texture_depth, uv).x;
+    float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
+    vec3 scene_point = view_direction * scene_linear_depth * ATMOSPHERE_RATIO;
     vec3 normal = normalize(texture2D(texture_normal, uv).xyz * 2.0 - 1.0);
     float scene_shadow_length;
     vec3 scene_radiance;
@@ -148,4 +144,3 @@ void main()
     color.w = scene_linear_depth < NEAR_FAR.y ? 0.0 : 1.0;
     color = max(color, 0.0);
 }
-#endif

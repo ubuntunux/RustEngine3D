@@ -929,6 +929,7 @@ impl RendererData {
                 let main_camera =  scene_manager.get_main_camera().borrow();
                 let main_light = scene_manager.get_main_light().borrow();
                 let fft_ocean =  scene_manager.get_fft_ocean().borrow();
+                let mut atmosphere =  scene_manager.get_atmosphere().borrow_mut();
                 let quad_mesh = resources.get_mesh_data("quad").borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
 
@@ -991,6 +992,7 @@ impl RendererData {
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
                     fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
+                    atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                     self._is_first_rendering = false;
                 }
 
