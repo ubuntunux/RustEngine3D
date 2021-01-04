@@ -1,4 +1,4 @@
 {"pipelines": [
-    {"render_pass": "compute_transmittance", "pipeline": "compute_transmittance"},
+    {"render_pass": "compute_transmittance", "pipeline": "compute_transmittance"}
  ]
 }

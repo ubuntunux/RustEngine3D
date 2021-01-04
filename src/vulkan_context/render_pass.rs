@@ -11,6 +11,8 @@ use ash::version::{
     DeviceV1_0
 };
 
+use crate::vulkan_context::geometry_buffer::{ VertexData };
+use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorData,
@@ -90,7 +92,7 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_vertex_shader_file: PathBuf::new(),
             _pipeline_fragment_shader_file: PathBuf::new(),
             _pipeline_shader_defines: Vec::new(),
-            _pipeline_dynamic_states: Vec::new(),
+            _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: vk::SampleCountFlags::TYPE_1,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
@@ -99,8 +101,8 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
-            _vertex_input_bind_descriptions: Vec::new(),
-            _vertex_input_attribute_descriptions: Vec::new(),
+            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_ranges: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }

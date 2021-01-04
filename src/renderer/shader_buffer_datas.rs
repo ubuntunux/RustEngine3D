@@ -28,6 +28,7 @@ pub enum ShaderBufferDataType {
     LightConstants,
     SSAOConstants,
     BoneMatrices,
+    AtmosphereConstants,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -97,6 +98,34 @@ pub struct BoneMatrices {
     pub _bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
 }
 
+// pecomputed_atmosphere/atmosphere_common.glsl - struct ATMOSPHERE_CONSTANTS
+#[derive(Clone, Debug)]
+pub struct AtmosphereConstants {
+    pub _sky_radiance_to_luminance: Vector3<f32>,
+    pub _cloud_exposure: f32,
+
+    pub _sun_radiance_to_luminance: Vector3<f32>,
+    pub _cloud_altitude: f32,
+
+    pub _cloud_height: f32,
+    pub _cloud_speed: f32,
+    pub _cloud_absorption: f32,
+    pub _cloud_tiling: f32,
+
+    pub _cloud_contrast: f32,
+    pub _cloud_coverage: f32,
+    pub _noise_tiling: f32,
+    pub _noise_contrast: f32,
+
+    pub _earth_center: Vector3<f32>,
+    pub _noise_coverage: f32,
+
+    pub _sun_size: Vector2<f32>,
+    pub _atmosphere_exposure: f32,
+    pub _reserved0: i32,
+}
+
+
 // Interfaces
 impl std::fmt::Display for ShaderBufferDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -113,6 +142,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightConstants" => Ok(ShaderBufferDataType::LightConstants),
             "SSAOConstants" => Ok(ShaderBufferDataType::SSAOConstants),
             "BoneMatrices" => Ok(ShaderBufferDataType::BoneMatrices),
+            "AtmosphereConstants" => Ok(ShaderBufferDataType::AtmosphereConstants),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -176,4 +206,5 @@ pub fn regist_shader_buffer_datas(
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>());
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>());
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>());
 }

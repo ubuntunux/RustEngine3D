@@ -4,16 +4,19 @@ use ash::{
     vk,
 };
 
-use crate::renderer::push_constants::{ PushConstant_FFT_Init };
+use crate::utilities::system::{
+    enum_to_string
+};
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::atmosphere::{ DEFAULT_USE_COMBINED_TEXTURES };
+use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
     ImageAttachmentDescription,
-    DepthStencilStateCreateInfo,
 };
 use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
@@ -22,11 +25,9 @@ use crate::vulkan_context::descriptor::{
 use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE);
-    let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER);
-    let render_target_infos: [RenderTargetInfo; 2] = [
-        RenderTargetInfo { _texture_data: render_target0, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
-        RenderTargetInfo { _texture_data: render_target1, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
+    let render_target = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE);
+    let render_target_infos: [RenderTargetInfo; 1] = [
+        RenderTargetInfo { _texture_data: render_target, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
     ];
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
@@ -34,13 +35,11 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("compute_transmittance");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
-    let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
-                _attachment_image_samples: sample_count,
                 _attachment_load_operation: vk::AttachmentLoadOp::DONT_CARE,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
                 _attachment_final_layout: vk::ImageLayout::GENERAL,
@@ -63,36 +62,37 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("compute_transmittance"),
-            _pipeline_vertex_shader_file: PathBuf::from("atmosphere.vert"),
+            _pipeline_vertex_shader_file: PathBuf::from("precomputed_atmosphere/atmosphere.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("precomputed_atmosphere/compute_transmittance.frag"),
+            _pipeline_shader_defines: vec![
+                format!("COMBINED_SCATTERING_TEXTURES={:?}", if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }),
+            ],
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-            _pipeline_shader_defines: Vec::new(),
-            _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
-            _pipeline_sample_count: sample_count,
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
-            _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: vec![vk::PushConstantRange {
-                stage_flags: vk::ShaderStageFlags::ALL,
-                offset: 0,
-                size: std::mem::size_of::<PushConstant_FFT_Init>() as u32,
-            }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: String::from("texture_spectrum_1_2"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: String::from("texture_spectrum_3_4"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 2,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::LightConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
             ],

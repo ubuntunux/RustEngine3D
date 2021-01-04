@@ -2,8 +2,9 @@ use ash::{ vk, Device };
 use nalgebra::{ Vector2, Vector3, Matrix3 };
 
 use crate::renderer::renderer::RendererData;
+use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
 use crate::resource::Resources;
-use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
+use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::utilities::system::RcRefCell;
 
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
@@ -574,26 +575,24 @@ impl AtmosphereModel {
         blend: bool,
         num_scattering_orders: i32
     ) {
-        // shader_name = 'precomputed_atmosphere.compute_atmosphere_predefine'
-        // compute_atmosphere_predefine = resource_manager.get_shader(shader_name)
-        // compute_atmosphere_predefine.shader_code = self.glsl_header_factory(lambdas)
-        // shaderLoader.save_resource(shader_name)
-        // shaderLoader.load_resource(shader_name)
-        //
         // glEnable(GL_BLEND)
         // glBlendEquation(GL_FUNC_ADD)
         // glBlendFunc(GL_ONE, GL_ONE)
-        //
-        // // compute_transmittance
-        // framebuffer_manager.bind_framebuffer(self.transmittance_texture)
-        //
+
+        // compute_transmittance
         // glDisablei(GL_BLEND, 0)
-        //
-        // compute_transmittance_mi = resource_manager.get_material_instance(
-        //     'precomputed_atmosphere.compute_transmittance',
-        //     macros=self.material_instance_macros)
-        // compute_transmittance_mi.use_program()
-        // self.quad.draw_elements()
+        renderer_data.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            "compute_transmittance/compute_transmittance",
+            quad_geometry_data,
+            None,
+            None,
+            NONE_PUSH_CONSTANT,
+        );
+
+
         //
         // // compute_direct_irradiance
         // framebuffer_manager.bind_framebuffer(self.delta_irradiance_texture, self.irradiance_texture)
