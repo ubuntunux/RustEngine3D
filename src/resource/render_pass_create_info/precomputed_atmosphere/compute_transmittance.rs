@@ -9,7 +9,7 @@ use crate::utilities::system::{
 };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::atmosphere::{ DEFAULT_USE_COMBINED_TEXTURES };
+use crate::renderer::precomputed_atmosphere::{ DEFAULT_USE_COMBINED_TEXTURES };
 use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
@@ -84,13 +84,6 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
-                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
-                    ..Default::default()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 2,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::LightConstants),
                     _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()

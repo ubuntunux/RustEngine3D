@@ -1,5 +1,5 @@
 pub mod animation;
-pub mod atmosphere;
+pub mod precomputed_atmosphere;
 pub mod camera;
 pub mod image_sampler;
 pub mod fft_ocean;
@@ -22,7 +22,7 @@ pub mod utility;
 pub use self::animation::*;
 
 #[allow(non_upper_case_globals)]
-pub use self::atmosphere::*;
+pub use self::precomputed_atmosphere::*;
 
 #[allow(unused_imports)]
 pub use self::shader_buffer_datas::*;

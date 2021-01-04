@@ -11,7 +11,7 @@ use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData }
 use crate::renderer::render_element::{ RenderElementData };
 use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData, AnimationPlayArgs };
 use crate::renderer::fft_ocean::FFTOcean;
-use crate::renderer::atmosphere::Atmosphere;
+use crate::renderer::precomputed_atmosphere::Atmosphere;
 use crate::renderer::shader_buffer_datas::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};

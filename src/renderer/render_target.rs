@@ -5,7 +5,7 @@ use ash::{
 use crate::constants;
 use crate::renderer::renderer::RendererData;
 use crate::renderer::fft_ocean;
-use crate::renderer::atmosphere;
+use crate::renderer::precomputed_atmosphere;
 use crate::vulkan_context::texture::{ TextureCreateInfo };
 
 #[repr(i32)]
@@ -326,17 +326,17 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE.to_string(),
-            _texture_width: atmosphere::TRANSMITTANCE_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::TRANSMITTANCE_TEXTURE_HEIGHT as u32,
+            _texture_width: precomputed_atmosphere::TRANSMITTANCE_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::TRANSMITTANCE_TEXTURE_HEIGHT as u32,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING.to_string(),
-            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
-            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -344,17 +344,17 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE.to_string(),
-            _texture_width: atmosphere::IRRADIANCE_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::IRRADIANCE_TEXTURE_HEIGHT as u32,
+            _texture_width: precomputed_atmosphere::IRRADIANCE_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::IRRADIANCE_TEXTURE_HEIGHT as u32,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING.to_string(),
-            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
-            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -362,8 +362,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE.to_string(),
-            _texture_width: atmosphere::IRRADIANCE_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::IRRADIANCE_TEXTURE_HEIGHT as u32,
+            _texture_width: precomputed_atmosphere::IRRADIANCE_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::IRRADIANCE_TEXTURE_HEIGHT as u32,
             _texture_view_type: vk::ImageViewType::TYPE_2D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -371,9 +371,9 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING.to_string(),
-            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
-            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -381,9 +381,9 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING.to_string(),
-            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
-            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -391,9 +391,9 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY.to_string(),
-            _texture_width: atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
-            _texture_height: atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
-            _texture_layers: atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
+            _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
+            _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
+            _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
             _texture_view_type: vk::ImageViewType::TYPE_3D,
             _texture_format: vk::Format::R32G32B32A32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
