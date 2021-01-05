@@ -951,8 +951,8 @@ impl RendererData {
                     _backbuffer_size: screen_size.clone() as Vector2<f32>,
                     _time: elapsed_time as f32,
                     _delta_time: delta_time as f32,
+                    _sea_height: fft_ocean.get_height(),
                     _scene_constants_dummy0: 0,
-                    _scene_constants_dummy1: 0,
                 };
                 let view_constants = shader_buffer_datas::ViewConstants {
                     _view: main_camera._view.into(),

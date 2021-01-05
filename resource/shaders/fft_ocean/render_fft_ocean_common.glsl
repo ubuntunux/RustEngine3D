@@ -24,12 +24,12 @@ layout( push_constant ) uniform PushConstant_FFT_Ocean
 {
     vec4 _simulation_size;
     vec2 _cell_size;
-    float _height;
     float _simulation_wind;
     float _simulation_amplitude;
     float _t;
     int _reserved0;
     int _reserved1;
+    int _reserved2;
 } pushConstant;
 
 struct VERTEX_OUTPUT

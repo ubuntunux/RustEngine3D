@@ -141,12 +141,12 @@ pub struct PushConstant_FFT_Variance {
 pub struct PushConstant_FFT_Ocean {
     pub _simulation_size: [f32; 4],
     pub _cell_size: [f32; 2],
-    pub _height: f32,
     pub _simulation_wind: f32,
     pub _simulation_amplitude: f32,
     pub _t: f32,
     pub _reserved0: i32,
     pub _reserved1: i32,
+    pub _reserved2: i32,
 }
 
 #[allow(non_camel_case_types)]

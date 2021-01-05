@@ -354,7 +354,7 @@ vec4 surface_shading(
 
     // final result
     result = diffuse_light * base_color * (1.0 - max(reflectance, metallic));
-    result += mix(specular_light, specular_light * base_color, vec3(metallic));
+    result += mix(specular_light, specular_light * F0, vec3(max(reflectance, metallic)));
 
     // SSAO
     //if(RENDER_SSAO)

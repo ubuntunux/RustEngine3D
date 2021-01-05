@@ -38,8 +38,8 @@ pub struct SceneConstants {
     pub _backbuffer_size: Vector2<f32>,
     pub _time: f32,
     pub _delta_time: f32,
+    pub _sea_height: f32,
     pub _scene_constants_dummy0: i32,
-    pub _scene_constants_dummy1: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS

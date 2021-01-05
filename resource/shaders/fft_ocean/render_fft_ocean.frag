@@ -73,7 +73,7 @@ void main()
     // groud pos
     vec3 groundPos = world_pos - V * dist_diff + vec3(N.x, 0.0f, N.z) * 0.5f;
 
-    bool isUnderWater = view_constants.CAMERA_POSITION.y < pushConstant._height;
+    bool isUnderWater = view_constants.CAMERA_POSITION.y < scene_constants.SEA_HEIGHT;
     float opacity = saturate(1.0 - exp(-dist_diff * 0.2)) * screen_fade;
     float inv_opacity = 1.0f - opacity;
 

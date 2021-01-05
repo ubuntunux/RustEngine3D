@@ -150,6 +150,10 @@ fn compute_weight(n: i32, k: f64) -> (f64, f64) {
 }
 
 impl FFTOcean {
+    pub fn get_height(&self) -> f32 {
+        self._height
+    }
+
     pub fn regist_fft_ocean_textures(&mut self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
@@ -632,7 +636,6 @@ impl FFTOcean {
         let push_constant = PushConstant_FFT_Ocean {
             _simulation_size: self._simulation_size.clone(),
             _cell_size: GRID_CELL_SIZE.clone(),
-            _height: self._height,
             _simulation_wind: self._simulation_wind,
             _simulation_amplitude: self._simulation_amplitude,
             _t: self._acc_time * self._simulation_wind,

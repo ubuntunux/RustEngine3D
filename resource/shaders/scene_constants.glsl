@@ -35,6 +35,8 @@ const vec3 kGroundAlbedo = vec3(0.0, 0.0, 0.04);
 
 const int MAX_POINT_LIGHTS = 10;
 
+const float SEA_COASTLINE_THICKNESS = 1.0;
+
 // uniform_buffer_datas.rs - struct SceneConstants
 struct SCENE_CONSTANTS
 {
@@ -42,8 +44,8 @@ struct SCENE_CONSTANTS
     vec2 BACKBUFFER_SIZE;
     float TIME;
     float DELTA_TIME;
+    float SEA_HEIGHT;
     int SCENE_CONSTANTS_DUMMY0;
-    int SCENE_CONSTANTS_DUMMY1;
 };
 
 // uniform_buffer_datas.rs - struct ViewConstants

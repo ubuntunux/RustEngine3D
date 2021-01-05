@@ -55,6 +55,15 @@ void main() {
     float metalicness = material.y;
     float reflectance = 0.0;
 
+    float sea_diff = world_position.y - scene_constants.SEA_HEIGHT;
+    if(sea_diff < SEA_COASTLINE_THICKNESS)
+    {
+        float sea_ratio = saturate(1.0 - sea_diff / SEA_COASTLINE_THICKNESS) * (1.0 - metalicness);
+        sea_ratio = sea_ratio * sea_ratio * 0.9;
+        roughness *= (1.0 - sea_ratio);
+        base_color *= (1.0 - sea_ratio);
+    }
+
     float ssao = texture(textureSSAO, vs_output.texCoord).x;
     vec4 scene_reflect_color = texture(textureSceneReflect, vs_output.texCoord);
 

@@ -17,7 +17,7 @@ layout (location = 0) out VERTEX_OUTPUT vs_output;
 
 vec3 oceanWorldPos(vec4 vertex)
 {
-    float height_diff = pushConstant._height - view_constants.CAMERA_POSITION.y;
+    float height_diff = scene_constants.SEA_HEIGHT - view_constants.CAMERA_POSITION.y;
     vec3 cameraDir = normalize((view_constants.INV_PROJECTION * (vertex + vec4(view_constants.JITTER_OFFSET, 0.0, 0.0))).xyz);
     vec3 worldDir = (view_constants.INV_VIEW_ORIGIN * vec4(cameraDir, 0.0)).xyz;
     const float far_dist = view_constants.NEAR_FAR.y * 2.0;
@@ -35,7 +35,7 @@ vec3 oceanWorldPos(vec4 vertex)
 
     dist = min(far_dist, dist);
 
-    vec3 world_pos = vec3(0.0, pushConstant._height, 0.0);
+    vec3 world_pos = vec3(0.0, scene_constants.SEA_HEIGHT, 0.0);
     world_pos.xz += view_constants.CAMERA_POSITION.xz + dist * worldDir.xz;
     return world_pos;
 }
