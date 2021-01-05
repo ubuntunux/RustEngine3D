@@ -580,35 +580,28 @@ impl AtmosphereModel {
         // glBlendFunc(GL_ONE, GL_ONE)
 
         // compute_transmittance
-        // glDisablei(GL_BLEND, 0)
         renderer_data.render_material_instance(
             command_buffer,
             swapchain_index,
             "precomputed_atmosphere",
-            "compute_transmittance/compute_transmittance",
+            "compute_transmittance/default",
             quad_geometry_data,
             None,
             None,
             NONE_PUSH_CONSTANT,
         );
 
-
-        //
-        // // compute_direct_irradiance
-        // framebuffer_manager.bind_framebuffer(self.delta_irradiance_texture, self.irradiance_texture)
-        //
-        // glDisablei(GL_BLEND, 0)
-        // if blend:
-        //     glEnablei(GL_BLEND, 1)
-        // else:
-        //     glDisablei(GL_BLEND, 1)
-        //
-        // compute_direct_irradiance_mi = resource_manager.get_material_instance(
-        //     'precomputed_atmosphere.compute_direct_irradiance',
-        //     macros=self.material_instance_macros)
-        // compute_direct_irradiance_mi.use_program()
-        // compute_direct_irradiance_mi.bind_uniform_data('transmittance_texture', self.transmittance_texture)
-        // self.quad.draw_elements()
+        // compute_direct_irradiance
+        renderer_data.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            if blend { "compute_direct_irradiance/default" } else { "compute_direct_irradiance/additive" },
+            quad_geometry_data,
+            None,
+            None,
+            NONE_PUSH_CONSTANT,
+        );
         //
         // // compute_single_scattering
         // compute_single_scattering_mi = resource_manager.get_material_instance(
