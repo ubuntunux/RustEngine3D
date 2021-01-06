@@ -7,7 +7,7 @@ use ash::{
 use crate::utilities::system::{
     enum_to_string
 };
-use crate::renderer::push_constants::{ PushConstant_FFT_Waves };
+use crate::renderer::fft_ocean::{ PushConstant_FFT_Waves };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };

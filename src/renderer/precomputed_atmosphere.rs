@@ -203,6 +203,33 @@ pub enum Luminance {
     PRECOMPUTED = 2,
 }
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_Atmosphere {
+    pub _render_light_probe_mode: i32,
+    pub _reserved0: i32,
+    pub _reserved1: i32,
+    pub _reserved2: i32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_CompositeAtmosphere {
+    pub _above_the_cloud: i32,
+    pub _inscatter_power: f32,
+    pub _reserved: i32,
+    pub _reserved1: i32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_PrecomputedAtmosphere {
+    pub _luminance_from_radiance: Matrix3<f32>,
+    pub _scattering_order: i32,
+    pub _layer: i32,
+    pub _reserved0: i32,
+}
+
 fn cie_color_matching_function_table_value(wavelength: f32, column: i32) -> f32 {
     if wavelength <= kLambdaMin || kLambdaMax <= wavelength {
         return 0.0;
@@ -579,6 +606,13 @@ impl AtmosphereModel {
         // glBlendEquation(GL_FUNC_ADD)
         // glBlendFunc(GL_ONE, GL_ONE)
 
+        let mut push_constant = PushConstant_PrecomputedAtmosphere {
+            _luminance_from_radiance: luminance_from_radiance.clone(),
+            _scattering_order: 0,
+            _layer: 0,
+            _reserved0: 0,
+        };
+
         // compute_transmittance
         renderer_data.render_material_instance(
             command_buffer,
@@ -602,15 +636,19 @@ impl AtmosphereModel {
             None,
             NONE_PUSH_CONSTANT,
         );
-        //
-        // // compute_single_scattering
-        // compute_single_scattering_mi = resource_manager.get_material_instance(
-        //     'precomputed_atmosphere.compute_single_scattering',
-        //     macros=self.material_instance_macros)
-        // compute_single_scattering_mi.use_program()
-        // compute_single_scattering_mi.bind_uniform_data('luminance_from_radiance', luminance_from_radiance)
-        // compute_single_scattering_mi.bind_uniform_data('transmittance_texture', self.transmittance_texture)
-        //
+
+        // compute_single_scattering
+        renderer_data.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            if blend { "compute_single_scattering/default" } else { "compute_single_scattering/additive" },
+            quad_geometry_data,
+            None,
+            None,
+            Some(&push_constant),
+        );
+
         // glDisablei(GL_BLEND, 0)
         // glDisablei(GL_BLEND, 1)
         // if blend:

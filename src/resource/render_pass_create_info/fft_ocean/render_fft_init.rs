@@ -4,7 +4,7 @@ use ash::{
     vk,
 };
 
-use crate::renderer::push_constants::{ PushConstant_FFT_Init };
+use crate::renderer::fft_ocean::{ PushConstant_FFT_Init };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };

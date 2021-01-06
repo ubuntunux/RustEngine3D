@@ -5,14 +5,7 @@
 #include "../scene_constants.glsl"
 #include "../utility.glsl"
 #include "atmosphere_common.glsl"
-
-layout( push_constant ) uniform PushConstant_SingleScattering
-{
-    mat3 luminance_from_radiance;
-    int layer;
-    int reserved0;
-    int reserved1;
-} pushConstant;
+#include "precomputed_atmosphere_common.glsl"
 
 layout (location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -24,8 +17,12 @@ layout(location = 3) out vec3 single_mie_scattering;
 void main()
 {
     ComputeSingleScatteringtexture2D(
-        ATMOSPHERE, transmittance_texture, vec3(gl_FragCoord.xy, float(pushConstant.layer) + 0.5),
-        delta_rayleigh, delta_mie);
-    scattering = vec4(pushConstant.luminance_from_radiance * delta_rayleigh.rgb, (pushConstant.luminance_from_radiance * delta_mie).r);
-    single_mie_scattering = pushConstant.luminance_from_radiance * delta_mie;
+        ATMOSPHERE,
+        transmittance_texture,
+        vec3(gl_FragCoord.xy, float(pushConstant._layer) + 0.5),
+        delta_rayleigh,
+        delta_mie
+    );
+    scattering = vec4(pushConstant._luminance_from_radiance * delta_rayleigh.rgb, (pushConstant._luminance_from_radiance * delta_mie).r);
+    single_mie_scattering = pushConstant._luminance_from_radiance * delta_mie;
 }

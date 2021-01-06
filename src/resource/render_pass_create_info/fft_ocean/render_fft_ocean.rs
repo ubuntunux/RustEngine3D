@@ -7,7 +7,7 @@ use ash::{
 use crate::utilities::system::{
     enum_to_string
 };
-use crate::renderer::push_constants::{ PushConstant_FFT_Ocean };
+use crate::renderer::fft_ocean::{ PushConstant_FFT_Ocean };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };

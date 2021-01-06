@@ -5,14 +5,7 @@
 #include "../scene_constants.glsl"
 #include "../utility.glsl"
 #include "atmosphere_common.glsl"
-
-layout( push_constant ) uniform PushConstant_SingleScattering
-{
-    mat3 luminance_from_radiance;
-    int layer;
-    int reserved0;
-    int reserved1;
-} pushConstant;
+#include "precomputed_atmosphere_common.glsl"
 
 layout (location = 0) in VERTEX_OUTPUT vs_output;
 
