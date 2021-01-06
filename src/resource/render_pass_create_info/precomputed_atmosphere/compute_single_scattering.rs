@@ -25,11 +25,15 @@ use crate::vulkan_context::descriptor::{
 use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE);
-    let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE);
-    let render_target_infos: [RenderTargetInfo; 2] = [
+    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
+    let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
+    let render_target2 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
+    let render_target3 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
+    let render_target_infos: [RenderTargetInfo; 4] = [
         RenderTargetInfo { _texture_data: render_target0, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
         RenderTargetInfo { _texture_data: render_target1, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
+        RenderTargetInfo { _texture_data: render_target2, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
+        RenderTargetInfo { _texture_data: render_target3, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
     ];
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
@@ -107,13 +111,15 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
 
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("defailt"),
+            _pipeline_data_create_info_name: String::from("default"),
             ..pipeline_data_create_info.clone()
         },
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("additive"),
             _pipeline_color_blend_modes: vec![
                 vulkan_context::get_color_blend_mode(BlendMode::None),
+                vulkan_context::get_color_blend_mode(BlendMode::None),
+                vulkan_context::get_color_blend_mode(BlendMode::Additive),
                 vulkan_context::get_color_blend_mode(BlendMode::Additive)
             ],
             ..pipeline_data_create_info.clone()

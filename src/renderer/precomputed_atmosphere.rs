@@ -2,10 +2,13 @@ use ash::{ vk, Device };
 use nalgebra::{ Vector2, Vector3, Matrix3 };
 
 use crate::renderer::renderer::RendererData;
+use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
+use crate::renderer::utility;
 use crate::resource::Resources;
 use crate::vulkan_context::geometry_buffer::{ GeometryData };
-use crate::utilities::system::RcRefCell;
+use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
+use crate::vulkan_context::vulkan_context::Layers;
 
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
 pub const DEFAULT_USE_COMBINED_TEXTURES: bool = true; // macro: COMBINED_SCATTERING_TEXTURES
@@ -225,6 +228,7 @@ pub struct PushConstant_CompositeAtmosphere {
 #[derive(Debug, Clone)]
 pub struct PushConstant_PrecomputedAtmosphere {
     pub _luminance_from_radiance: Matrix3<f32>,
+    pub _luminance_from_radiance_reserved: [f32; 3],
     pub _scattering_order: i32,
     pub _layer: i32,
     pub _reserved0: i32,
@@ -382,6 +386,7 @@ pub struct Atmosphere {
     pub _noise_contrast: f32,
     pub _noise_coverage: f32,
     pub _noise_tiling: f32,
+    pub _compute_single_scattering_framebuffers: [Layers<FramebufferData>; 2],
 }
 
 impl DensityProfileLayer {
@@ -439,10 +444,6 @@ impl AtmosphereModel {
             _precompute_illuminance: precompute_illuminance,
             _use_combined_textures: use_combined_textures,
         }
-    }
-
-    pub fn regist_precomputed_atmosphere_textures(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
-        // self.delta_multiple_scattering_texture = self.delta_rayleigh_scattering_texture
     }
 
     fn shader_header_factory(&mut self, lambdas: &[f32; 3]) -> String {
@@ -522,6 +523,7 @@ impl AtmosphereModel {
         quad_geometry_data: &GeometryData,
         renderer_data: &RendererData,
         resources: &Resources,
+        atmosphere: &Atmosphere,
         num_scattering_orders: i32
     ) {
         if false == self._precompute_illuminance {
@@ -534,6 +536,7 @@ impl AtmosphereModel {
                 quad_geometry_data,
                 renderer_data,
                 resources,
+                atmosphere,
                 &lambdas,
                 &luminance_from_radiance,
                 blend,
@@ -574,6 +577,7 @@ impl AtmosphereModel {
                     quad_geometry_data,
                     renderer_data,
                     resources,
+                    atmosphere,
                     &lambdas,
                     &luminance_from_radiance,
                     blend,
@@ -597,6 +601,7 @@ impl AtmosphereModel {
         quad_geometry_data: &GeometryData,
         renderer_data: &RendererData,
         resources: &Resources,
+        atmosphere: &Atmosphere,
         lambdas: &[f32; 3],
         luminance_from_radiance: &Matrix3<f32>,
         blend: bool,
@@ -608,6 +613,7 @@ impl AtmosphereModel {
 
         let mut push_constant = PushConstant_PrecomputedAtmosphere {
             _luminance_from_radiance: luminance_from_radiance.clone(),
+            _luminance_from_radiance_reserved: [0.0, 0.0, 0.0],
             _scattering_order: 0,
             _layer: 0,
             _reserved0: 0,
@@ -637,18 +643,6 @@ impl AtmosphereModel {
             NONE_PUSH_CONSTANT,
         );
 
-        // compute_single_scattering
-        renderer_data.render_material_instance(
-            command_buffer,
-            swapchain_index,
-            "precomputed_atmosphere",
-            if blend { "compute_single_scattering/default" } else { "compute_single_scattering/additive" },
-            quad_geometry_data,
-            None,
-            None,
-            Some(&push_constant),
-        );
-
         // glDisablei(GL_BLEND, 0)
         // glDisablei(GL_BLEND, 1)
         // if blend:
@@ -657,22 +651,22 @@ impl AtmosphereModel {
         // else:
         //     glDisablei(GL_BLEND, 2)
         //     glDisablei(GL_BLEND, 3)
-        //
-        // for layer in range(SCATTERING_TEXTURE_DEPTH):
-        //     if self.optional_single_mie_scattering_texture is None:
-        //         framebuffer_manager.bind_framebuffer(self.delta_rayleigh_scattering_texture,
-        //                                              self.delta_mie_scattering_texture,
-        //                                              self.scattering_texture,
-        //                                              target_layer=layer)
-        //     else:
-        //         framebuffer_manager.bind_framebuffer(self.delta_rayleigh_scattering_texture,
-        //                                              self.delta_mie_scattering_texture,
-        //                                              self.scattering_texture,
-        //                                              self.optional_single_mie_scattering_texture,
-        //                                              target_layer=layer)
-        //     compute_single_scattering_mi.bind_uniform_data("layer", layer)
-        //     self.quad.draw_elements()
-        //
+
+        // compute_single_scattering
+        for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
+            push_constant._layer = layer as i32;
+            renderer_data.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "precomputed_atmosphere",
+                if blend { "compute_single_scattering/additive" } else { "compute_single_scattering/default" },
+                quad_geometry_data,
+                Some(&atmosphere._compute_single_scattering_framebuffers[if blend { 1 } else { 0 }][layer]),
+                None,
+                Some(&push_constant),
+            );
+        }
+
         // for scattering_order in range(2, num_scattering_orders + 1):
         //     // compute_scattering_density
         //     glDisablei(GL_BLEND, 0)
@@ -769,6 +763,7 @@ impl Atmosphere {
             _noise_contrast: 1.0,
             _noise_coverage: 1.0,
             _noise_tiling: 0.0003,
+            _compute_single_scattering_framebuffers: [Layers::new(), Layers::new()],
         }
     }
 
@@ -858,14 +853,50 @@ impl Atmosphere {
             quad_geometry_data,
             renderer_data,
             resources,
+            self,
             num_scattering_orders,
         );
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        let device = renderer_data.get_device();
+        let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
+        {
+            let delta_rayleigh_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
+            let delta_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
+            let scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
+            let optional_single_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
+            for blend in 0..2 {
+                let render_pass_pipeline_name: &str = if 0 == blend { "compute_single_scattering/default" } else { "compute_single_scattering/additive" };
+                let pipeline_binding_data = material_instance.get_pipeline_binding_data(render_pass_pipeline_name);
+                for layer in 0..SCATTERING_TEXTURE_DEPTH as u32 {
+                    self._compute_single_scattering_framebuffers[blend].push(
+                        utility::create_framebuffers(
+                            device,
+                            pipeline_binding_data,
+                            render_pass_pipeline_name,
+                            &[
+                                RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                                RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                                RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                                RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                            ],
+                            &[],
+                            &[],
+                        )
+                    );
+                }
+            }
+        }
     }
 
     pub fn destroy_atmosphere(&mut self, device: &Device) {
+        for blend in 0..2 {
+            for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
+                framebuffer::destroy_framebuffer_data(device, &self._compute_single_scattering_framebuffers[blend][layer]);
+            }
+            self._compute_single_scattering_framebuffers[blend].clear();
+        }
     }
 
     pub fn bind_precomputed_atmosphere(&self) {

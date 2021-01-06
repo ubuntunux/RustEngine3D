@@ -33,6 +33,23 @@ pub fn create_framebuffer(
     )
 }
 
+pub fn create_framebuffers(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    framebuffer_name: &str,
+    color_render_targets: &[RenderTargetInfo],
+    depth_render_targets: &[RenderTargetInfo],
+    resolve_render_targets: &[RenderTargetInfo],
+) -> FramebufferData {
+    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
+    framebuffer::create_framebuffer_data(
+        device,
+        render_pass_data._render_pass,
+        format!("{}_{}", render_pass_data._render_pass_data_name, framebuffer_name).as_str(),
+        framebuffer::create_framebuffer_data_create_info(color_render_targets, depth_render_targets, resolve_render_targets),
+    )
+}
+
 pub fn create_framebuffer_2d_array(
     device: &Device,
     pipeline_binding_data: &PipelineBindingData,
@@ -58,23 +75,6 @@ pub fn create_framebuffer_2d_array(
             &[],
             &[]
         ),
-    )
-}
-
-pub fn create_framebuffers(
-    device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
-    framebuffer_name: &str,
-    color_render_targets: &[RenderTargetInfo],
-    depth_render_targets: &[RenderTargetInfo],
-    resolve_render_targets: &[RenderTargetInfo],
-) -> FramebufferData {
-    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
-    framebuffer::create_framebuffer_data(
-        device,
-        render_pass_data._render_pass,
-        format!("{}_{}", render_pass_data._render_pass_data_name, framebuffer_name).as_str(),
-        framebuffer::create_framebuffer_data_create_info(color_render_targets, depth_render_targets, resolve_render_targets),
     )
 }
 
