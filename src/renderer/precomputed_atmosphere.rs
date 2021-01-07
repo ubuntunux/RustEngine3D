@@ -386,7 +386,7 @@ pub struct Atmosphere {
     pub _noise_contrast: f32,
     pub _noise_coverage: f32,
     pub _noise_tiling: f32,
-    pub _compute_single_scattering_framebuffers: [Layers<FramebufferData>; 2],
+    pub _compute_single_scattering_framebuffers: Layers<FramebufferData>,
 }
 
 impl DensityProfileLayer {
@@ -661,7 +661,7 @@ impl AtmosphereModel {
                 "precomputed_atmosphere",
                 if blend { "compute_single_scattering/additive" } else { "compute_single_scattering/default" },
                 quad_geometry_data,
-                Some(&atmosphere._compute_single_scattering_framebuffers[if blend { 1 } else { 0 }][layer]),
+                Some(&atmosphere._compute_single_scattering_framebuffers[layer]),
                 None,
                 Some(&push_constant),
             );
@@ -763,7 +763,7 @@ impl Atmosphere {
             _noise_contrast: 1.0,
             _noise_coverage: 1.0,
             _noise_tiling: 0.0003,
-            _compute_single_scattering_framebuffers: [Layers::new(), Layers::new()],
+            _compute_single_scattering_framebuffers: Layers::new(),
         }
     }
 
@@ -866,37 +866,32 @@ impl Atmosphere {
             let delta_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
             let scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
             let optional_single_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
-            for blend in 0..2 {
-                let render_pass_pipeline_name: &str = if 0 == blend { "compute_single_scattering/default" } else { "compute_single_scattering/additive" };
-                let pipeline_binding_data = material_instance.get_pipeline_binding_data(render_pass_pipeline_name);
-                for layer in 0..SCATTERING_TEXTURE_DEPTH as u32 {
-                    self._compute_single_scattering_framebuffers[blend].push(
-                        utility::create_framebuffers(
-                            device,
-                            pipeline_binding_data,
-                            render_pass_pipeline_name,
-                            &[
-                                RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                                RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                                RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                                RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                            ],
-                            &[],
-                            &[],
-                        )
-                    );
-                }
+            let pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_single_scattering/default");
+            for layer in 0..SCATTERING_TEXTURE_DEPTH as u32 {
+                self._compute_single_scattering_framebuffers.push(
+                    utility::create_framebuffers(
+                        device,
+                        pipeline_binding_data,
+                        "compute_single_scattering",
+                        &[
+                            RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                            RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                            RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                            RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                        ],
+                        &[],
+                        &[],
+                    )
+                );
             }
         }
     }
 
     pub fn destroy_atmosphere(&mut self, device: &Device) {
-        for blend in 0..2 {
-            for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
-                framebuffer::destroy_framebuffer_data(device, &self._compute_single_scattering_framebuffers[blend][layer]);
-            }
-            self._compute_single_scattering_framebuffers[blend].clear();
+        for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
+            framebuffer::destroy_framebuffer_data(device, &self._compute_single_scattering_framebuffers[layer]);
         }
+        self._compute_single_scattering_framebuffers.clear();
     }
 
     pub fn bind_precomputed_atmosphere(&self) {
