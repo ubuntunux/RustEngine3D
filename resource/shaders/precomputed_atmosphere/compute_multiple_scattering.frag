@@ -16,7 +16,11 @@ void main()
 {
     float nu;
     delta_multiple_scattering = ComputeMultipleScatteringtexture2D(
-        ATMOSPHERE, transmittance_texture, scattering_density_texture,
-        vec3(gl_FragCoord.xy, float(pushConstant.layer) + 0.5), nu);
-    scattering = vec4(pushConstant.luminance_from_radiance * delta_multiple_scattering.rgb / RayleighPhaseFunction(nu), 0.0);
+        ATMOSPHERE,
+        transmittance_texture,
+        scattering_density_texture,
+        vec3(gl_FragCoord.xy, float(pushConstant._layer) + 0.5),
+        nu
+    );
+    scattering = vec4(pushConstant._luminance_from_radiance * delta_multiple_scattering.rgb / RayleighPhaseFunction(nu), 0.0);
 }

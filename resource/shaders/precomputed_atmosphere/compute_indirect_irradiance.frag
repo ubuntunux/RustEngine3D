@@ -15,9 +15,13 @@ layout(location = 1) out vec3 irradiance;
 void main()
 {
     delta_irradiance = ComputeIndirectIrradiancetexture2D(
-        ATMOSPHERE, single_rayleigh_scattering_texture,
-        single_mie_scattering_texture, multiple_scattering_texture,
-        gl_FragCoord.xy, pushConstant.scattering_order);
+        ATMOSPHERE,
+        single_rayleigh_scattering_texture,
+        single_mie_scattering_texture,
+        multiple_scattering_texture,
+        gl_FragCoord.xy,
+        pushConstant._scattering_order
+    );
 
-    irradiance = pushConstant.luminance_from_radiance * delta_irradiance;
+    irradiance = pushConstant._luminance_from_radiance * delta_irradiance;
 }
