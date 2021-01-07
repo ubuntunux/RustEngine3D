@@ -941,8 +941,6 @@ impl RendererData {
                 self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
                 // Upload Uniform Buffers
-                let ssao_constants = &self._post_process_data_ssao._ssao_constants;
-                let light_constants = main_light.get_light_constants();
                 let screen_width = self._swapchain_data._swapchain_extent.width as f32;
                 let screen_height = self._swapchain_data._swapchain_extent.height as f32;
                 let screen_size: Vector2<f32> = Vector2::new(screen_width, screen_height);
@@ -986,14 +984,14 @@ impl RendererData {
 
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &scene_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstants, &view_constants);
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstants, light_constants);
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstants, ssao_constants);
+                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
+                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstants, &self._post_process_data_ssao._ssao_constants);
+                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
 
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
                     fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
-                    self._is_first_rendering = false;
                 }
 
                 // Render
@@ -1008,6 +1006,8 @@ impl RendererData {
 
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                 fft_ocean.render_ocean(command_buffer, swapchain_index, self, &resources);
+                let render_light_probe_mode: bool = false;
+                atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, self, render_light_probe_mode);
 
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
@@ -1062,6 +1062,7 @@ impl RendererData {
                 self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
 
                 // End Render
+                self._is_first_rendering = false;
                 let present_result = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore);
                 match present_result {
                     Ok(is_swapchain_suboptimal) => if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS },

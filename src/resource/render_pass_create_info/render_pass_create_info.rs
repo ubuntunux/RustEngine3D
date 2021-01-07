@@ -42,6 +42,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         precomputed_atmosphere::compute_multiple_scattering::get_render_pass_data_create_info(renderer_data),
         precomputed_atmosphere::compute_single_scattering::get_render_pass_data_create_info(renderer_data),
         precomputed_atmosphere::compute_scattering_density::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::render_atmosphere::get_render_pass_data_create_info(renderer_data),
         generate_min_z::get_render_pass_data_create_info(renderer_data),
         render_bloom::get_render_pass_data_create_info(renderer_data),
         render_copy::get_render_pass_data_create_info(renderer_data),

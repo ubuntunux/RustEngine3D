@@ -6,6 +6,7 @@
     {"render_pass": "compute_multiple_scattering", "pipeline": "default"},
     {"render_pass": "compute_single_scattering", "pipeline": "default"},
     {"render_pass": "compute_single_scattering", "pipeline": "additive"},
-    {"render_pass": "compute_scattering_density", "pipeline": "default"}
+    {"render_pass": "compute_scattering_density", "pipeline": "default"},
+    {"render_pass": "render_atmosphere", "pipeline": "default"}
  ]
 }

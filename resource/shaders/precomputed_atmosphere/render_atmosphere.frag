@@ -24,10 +24,10 @@ float get_cloud_density(vec3 cloud_scale, vec3 noise_scale, vec3 uvw, vec3 speed
 {
     uvw.xy += view_constants.CAMERA_POSITION.xz;
 
-    float cloud = texture3D(texture_cloud, uvw * cloud_scale + speed * atmosphere_constants.cloud_tiling / atmosphere_constants.noise_tiling).x;
+    float cloud = texture(texture_cloud, uvw * cloud_scale + speed * atmosphere_constants.cloud_tiling / atmosphere_constants.noise_tiling).x;
     cloud = saturate(Contrast((cloud - 1.0 + atmosphere_constants.cloud_coverage), atmosphere_constants.cloud_contrast));
 
-    float noise = texture3D(texture_noise, uvw * noise_scale + speed * 0.3).x;
+    float noise = texture(texture_noise, uvw * noise_scale + speed * 0.3).x;
     noise = saturate(Contrast((noise - 1.0 + atmosphere_constants.noise_coverage) * weight, atmosphere_constants.noise_contrast));
 
     // Remap is very important!!
@@ -41,7 +41,7 @@ void main()
     const float min_dist = 1000.0;
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
 
-    vec3 camera = vec3(0.0, max(10.0, view_constants.CAMERA_POSITION.y), 0.0) * atmosphere_ratio;
+    vec3 camera = vec3(0.0, max(10.0, view_constants.CAMERA_POSITION.y), 0.0) * ATMOSPHERE_RATIO;
 
     float world_pos_y = max(0.0, view_constants.CAMERA_POSITION.y);
 
@@ -50,29 +50,29 @@ void main()
     vec3 screen_center_ray = -vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
     float VdotL = dot(eye_direction, sun_direction);
 
-    float device_depth = texture(texture_depth, texCoord).x;
+    float device_depth = texture(texture_depth, vs_output.uv).x;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
     float scene_dist = clamp(scene_linear_depth / dot(screen_center_ray, eye_direction), 0.0, view_constants.NEAR_FAR.y);
     float scene_shadow_length = GetSceneShadowLength(scene_dist, eye_direction, texture_shadow);
 
     // Sky
     vec3 transmittance;
-    vec3 radiance = GetSkyRadiance(ATMOSPHERE, camera - earth_center, eye_direction, scene_shadow_length, sun_direction, transmittance);
+    vec3 radiance = GetSkyRadiance(ATMOSPHERE, camera - atmosphere_constants.earth_center, eye_direction, scene_shadow_length, sun_direction, transmittance);
 
     // Sun
     vec3 sun_color = vec3(0.0);
     const float sun_absorption = 0.9;
     const float sun_intensity = 100.0;
-    if (0 == pushConstants.render_light_probe_mode && sun_size.y < VdotL)
+    if (0 == pushConstants.render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL)
     {
-        sun_color = transmittance * GetSolarRadiance(ATMOSPHERE) * pow(clamp((VdotL - sun_size.y) / (1.0 - sun_size.y), 0.0, 1.0), 2.0);
-        sun_color *= LIGHT_COLOR.xyz * sun_intensity;
+        sun_color = transmittance * GetSolarRadiance(ATMOSPHERE) * pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
+        sun_color *= light_constants.LIGHT_COLOR.xyz * sun_intensity;
         radiance += sun_color * sun_absorption;
     }
 
     // Cloud
     vec4 cloud = vec4(0.0);
-    vec3 earth_center_pos = earth_center / atmosphere_ratio;
+    vec3 earth_center_pos = atmosphere_constants.earth_center / ATMOSPHERE_RATIO;
 
     // distance from earch center
     const float cloud_bottom_dist = atmosphere_constants.cloud_altitude - earth_center_pos.y;
@@ -156,7 +156,7 @@ void main()
 
         if(0.0 <= hit_dist && hit_dist < far_dist)
         {
-            const vec3 speed = vec3(atmosphere_constants.cloud_speed, atmosphere_constants.cloud_speed, 0.0) * TIME;
+            const vec3 speed = vec3(atmosphere_constants.cloud_speed, atmosphere_constants.cloud_speed, 0.0) * scene_constants.TIME;
 
             vec3 cloud_scale = textureSize(texture_cloud, 0);
             cloud_scale = max(cloud_scale.x, max(cloud_scale.y, cloud_scale.z)) / cloud_scale;
@@ -253,10 +253,16 @@ void main()
     }
 
 
-    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_dist) * atmosphere_ratio;
+    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_dist) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
-        ATMOSPHERE, camera - earth_center, far_point.xyz - earth_center, scene_shadow_length, light_constants.LIGHT_DIRECTION.xyz, scene_transmittance);
+        ATMOSPHERE,
+        camera - atmosphere_constants.earth_center,
+        far_point.xyz - atmosphere_constants.earth_center,
+        scene_shadow_length,
+        light_constants.LIGHT_DIRECTION.xyz,
+        scene_transmittance
+    );
     scene_inscatter = max(vec3(0.0), scene_inscatter);
 
     if(0 != pushConstants.render_light_probe_mode)

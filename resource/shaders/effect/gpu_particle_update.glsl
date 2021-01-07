@@ -188,7 +188,7 @@ void update(inout ParticleData particle_data, uint id)
             if(PARTICLE_ENABLE_VECTOR_FIELD)
             {
                 vec3 uvw = (PARTICLE_VECTOR_FIELD_INV_MATRIX * vec4(particle_data.transform_position, 1.0)).xyz;
-                vec3 vector_field_force = texture3D(texture_vector_field, uvw - vec3(0.5)).xyz * PARTICLE_VECTOR_FIELD_STRENGTH;
+                vec3 vector_field_force = texture(texture_vector_field, uvw - vec3(0.5)).xyz * PARTICLE_VECTOR_FIELD_STRENGTH;
                 vector_field_force = mat3(PARTICLE_VECTOR_FIELD_MATRIX) * vector_field_force.xyz;
                 
                 force += vector_field_force * clamp(1.0 - PARTICLE_VECTOR_FIELD_TIGHTNESS, 0.0, 1.0);

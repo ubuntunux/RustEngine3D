@@ -99,7 +99,7 @@ pub struct BoneMatrices {
 }
 
 // pecomputed_atmosphere/atmosphere_common.glsl - struct ATMOSPHERE_CONSTANTS
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct AtmosphereConstants {
     pub _sky_radiance_to_luminance: Vector3<f32>,
     pub _cloud_exposure: f32,

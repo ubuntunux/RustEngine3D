@@ -133,7 +133,10 @@ fn get_resource_data_must<'a, T>(resource_data_map: &'a ResourceDataMap<T>, reso
 fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str, default_resource_name: &str) -> &'a RcRefCell<T> {
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
-        None => resource_data_map.get(default_resource_name).unwrap(),
+        None => {
+            log::error!("not found texture: {}", resource_name);
+            resource_data_map.get(default_resource_name).unwrap()
+        },
         _ => maybe_data.unwrap(),
     }
 }

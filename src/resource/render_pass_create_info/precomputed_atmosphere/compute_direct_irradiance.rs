@@ -63,7 +63,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     ];
 
     let pipeline_data_create_info = PipelineDataCreateInfo {
-        _pipeline_vertex_shader_file: PathBuf::from("precomputed_atmosphere/atmosphere.vert"),
+        _pipeline_vertex_shader_file: PathBuf::from("precomputed_atmosphere/render_atmosphere.vert"),
         _pipeline_fragment_shader_file: PathBuf::from("precomputed_atmosphere/compute_direct_irradiance.frag"),
         _pipeline_shader_defines: vec![
             format!("COMBINED_SCATTERING_TEXTURES={:?}", if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }),

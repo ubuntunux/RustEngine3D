@@ -4,6 +4,7 @@ use nalgebra::{ Vector2, Vector3, Matrix3 };
 use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
+use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
 use crate::renderer::utility;
 use crate::resource::Resources;
 use crate::vulkan_context::geometry_buffer::{ GeometryData };
@@ -207,7 +208,7 @@ pub enum Luminance {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_Atmosphere {
     pub _render_light_probe_mode: i32,
     pub _reserved0: i32,
@@ -216,7 +217,7 @@ pub struct PushConstant_Atmosphere {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_CompositeAtmosphere {
     pub _above_the_cloud: i32,
     pub _inscatter_power: f32,
@@ -373,6 +374,7 @@ pub struct Atmosphere {
     pub _sun_size: Vector2<f32>,
     pub _sky: Vector3<f32>,
     pub _sun: Vector3<f32>,
+    pub _atmosphere_constants: AtmosphereConstants,
     pub _atmosphere_exposure: f32,
     pub _cloud_exposure: f32,
     pub _cloud_altitude: f32,
@@ -741,6 +743,7 @@ impl Atmosphere {
             _sun_size: Vector2::new(kSunAngularRadius.tan(), kSunAngularRadius.cos()),
             _sky: Vector3::new(1.0, 1.0, 1.0),
             _sun: Vector3::new(1.0, 1.0, 1.0),
+            _atmosphere_constants: AtmosphereConstants::default(),
             _atmosphere_exposure: 0.0001,
             _cloud_exposure: 0.175,
             _cloud_altitude: 100.0,
@@ -815,6 +818,26 @@ impl Atmosphere {
             self._sky = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, -3.0);
         }
         self._sun = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, 0.0);
+
+        self._atmosphere_constants = AtmosphereConstants {
+            _sky_radiance_to_luminance: &self._sky * self._atmosphere_exposure,
+            _cloud_exposure: self._cloud_exposure,
+            _sun_radiance_to_luminance: &self._sky * self._atmosphere_exposure,
+            _cloud_altitude: self._cloud_altitude,
+            _cloud_height: self._cloud_height,
+            _cloud_speed: self._cloud_speed,
+            _cloud_absorption: self._cloud_absorption,
+            _cloud_tiling: self._cloud_tiling,
+            _cloud_contrast: self._cloud_contrast,
+            _cloud_coverage: self._cloud_coverage,
+            _noise_tiling: self._noise_tiling,
+            _noise_contrast: self._noise_contrast,
+            _earth_center: self._earth_center.into(),
+            _noise_coverage: self._noise_coverage,
+            _sun_size: self._sun_size.into(),
+            _atmosphere_exposure: self._atmosphere_exposure,
+            _reserved0: 0,
+        };
 
         // generate precomputed textures
         let atmosphere_model = AtmosphereModel::create_atmosphere_model(
@@ -919,51 +942,26 @@ impl Atmosphere {
         self._compute_scattering_density_framebuffers.clear();
     }
 
-    pub fn bind_precomputed_atmosphere(&self) {
-        // material_instance.bind_uniform_data("transmittance_texture", self.transmittance_texture)
-        // material_instance.bind_uniform_data("scattering_texture", self.scattering_texture)
-        // material_instance.bind_uniform_data("irradiance_texture", self.irradiance_texture)
-        //
-        // if not self.use_combined_textures:
-        //     material_instance.bind_uniform_data(
-        //         "single_mie_scattering_texture", self.optional_single_mie_scattering_texture)
-        //
-        // material_instance.bind_uniform_data("SKY_RADIANCE_TO_LUMINANCE", self.kSky * self.atmosphere_exposure)
-        // material_instance.bind_uniform_data("SUN_RADIANCE_TO_LUMINANCE", self.kSun * self.atmosphere_exposure)
-        //
-        // material_instance.bind_uniform_data("atmosphere_exposure", self.atmosphere_exposure)
-        // material_instance.bind_uniform_data("earth_center", self.earth_center)
-    }
-
-    pub fn bind_cloud(&self) {
-        // material_instance.bind_uniform_data("texture_cloud", self.cloud_texture)
-        // material_instance.bind_uniform_data("texture_noise", self.noise_texture)
-        //
-        // material_instance.bind_uniform_data('cloud_exposure', self.cloud_exposure)
-        // material_instance.bind_uniform_data('cloud_altitude', self.cloud_altitude)
-        // material_instance.bind_uniform_data('cloud_height', self.cloud_height)
-        // material_instance.bind_uniform_data('cloud_speed', self.cloud_speed)
-        // material_instance.bind_uniform_data('cloud_absorption', self.cloud_absorption)
-        //
-        // material_instance.bind_uniform_data('cloud_tiling', self.cloud_tiling)
-        // material_instance.bind_uniform_data('cloud_contrast', self.cloud_contrast)
-        // material_instance.bind_uniform_data('cloud_coverage', self.cloud_coverage)
-        //
-        // material_instance.bind_uniform_data('noise_tiling', self.noise_tiling)
-        // material_instance.bind_uniform_data('noise_contrast', self.noise_contrast)
-        // material_instance.bind_uniform_data('noise_coverage', self.noise_coverage)
-    }
-
-    pub fn render_precomputed_atmosphere(&self) {
-        // if self._is_render_atmosphere {
-        //     self.atmosphere_material_instance.use_program()
-        //     self.atmosphere_material_instance.bind_material_instance()
-        //     self.atmosphere_material_instance.bind_uniform_data("texture_linear_depth", texture_linear_depth)
-        //     self.atmosphere_material_instance.bind_uniform_data("texture_shadow", texture_shadow)
-        //     self.atmosphere_material_instance.bind_uniform_data("sun_size", self.sun_size)
-        //     self.atmosphere_material_instance.bind_uniform_data("render_light_probe_mode", render_light_probe_mode)
-        //     self.bind_precomputed_atmosphere(self.atmosphere_material_instance)
-        //     self.bind_cloud(self.atmosphere_material_instance)
-        //     self.quad.draw_elements()
+    pub fn render_precomputed_atmosphere(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        render_light_probe_mode: bool,
+    ) {
+        renderer_data.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            "render_atmosphere/default",
+            quad_geometry_data,
+            None,
+            None,
+            Some(&PushConstant_Atmosphere {
+                _render_light_probe_mode: if render_light_probe_mode { 1 } else { 0 },
+                ..Default::default()
+            }),
+        );
     }
 }
