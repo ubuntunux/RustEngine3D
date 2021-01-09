@@ -21,7 +21,7 @@ struct ATMOSPHERE_CONSTANTS
 
     vec2 sun_size;
     float atmosphere_exposure;
-    int reserved0;
+    float inscatter_power;
 };
 
 layout(binding = 0) uniform SceneConstants
@@ -53,6 +53,8 @@ layout(binding = 12) uniform sampler3D single_mie_scattering_texture;
 layout(binding = 13) uniform sampler3D single_rayleigh_scattering_texture;
 layout(binding = 14) uniform sampler3D scattering_density_texture;
 layout(binding = 15) uniform sampler3D multiple_scattering_texture;
+layout(binding = 16) uniform sampler2D texture_atmosphere;
+layout(binding = 17) uniform sampler2D texture_inscatter;
 
 struct VERTEX_OUTPUT
 {

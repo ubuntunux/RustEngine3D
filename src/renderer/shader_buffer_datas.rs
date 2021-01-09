@@ -122,7 +122,7 @@ pub struct AtmosphereConstants {
 
     pub _sun_size: Vector2<f32>,
     pub _atmosphere_exposure: f32,
-    pub _reserved0: i32,
+    pub _inscatter_power: f32,
 }
 
 
@@ -156,7 +156,7 @@ impl Default for LightConstants {
             _shadow_exp: constants::SHADOW_EXP,
             _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
             _shadow_bias: constants::SHADOW_BIAS,
-            _light_color: Vector3::new(10.0, 10.0, 10.0),
+            _light_color: Vector3::new(1.0, 1.0, 1.0),
             _shadow_samples: constants::SHADOW_SAMPLES,
             _shadow_dimensions: Vector4::new(
                 constants::SHADOW_DISTANCE * 2.0,

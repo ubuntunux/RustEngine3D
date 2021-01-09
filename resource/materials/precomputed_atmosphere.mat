@@ -1,4 +1,5 @@
 {"pipelines": [
+    {"render_pass": "composite_atmosphere", "pipeline": "default"},
     {"render_pass": "compute_transmittance", "pipeline": "default"},
     {"render_pass": "compute_transmittance", "pipeline": "recompute_transmittance"},
     {"render_pass": "compute_direct_irradiance", "pipeline": "default"},

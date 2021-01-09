@@ -36,6 +36,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         fft_ocean::render_fft_ocean::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_variance::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_waves::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::composite_atmosphere::get_render_pass_data_create_info(renderer_data),
         precomputed_atmosphere::compute_transmittance::get_render_pass_data_create_info(renderer_data),
         precomputed_atmosphere::compute_direct_irradiance::get_render_pass_data_create_info(renderer_data),
         precomputed_atmosphere::compute_indirect_irradiance::get_render_pass_data_create_info(renderer_data),

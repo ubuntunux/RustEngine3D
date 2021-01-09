@@ -29,12 +29,7 @@ void main() {
     vec3 color3 = max(vec3(0.0), texture(textureSrc, texCoord + inv_texture_size).xyz);
     vec3 color = (color0 + color1 + color2 + color3) * 0.25;
     float luminance = get_luminance(color);
-    if(pushConstant._bloom_threshold_min < luminance)
-    {
-        outColor = vec4(color, 1.0);
-    }
-    else
-    {
-        outColor = vec4(0.0);
-    }
+    float exp_value = 4.0;
+    luminance = pow(saturate(1.0 - exp(-luminance * exp_value)), exp_value);
+    outColor = vec4(color * luminance, 1.0);
 }

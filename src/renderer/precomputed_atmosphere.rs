@@ -217,15 +217,6 @@ pub struct PushConstant_Atmosphere {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
-pub struct PushConstant_CompositeAtmosphere {
-    pub _above_the_cloud: i32,
-    pub _inscatter_power: f32,
-    pub _reserved: i32,
-    pub _reserved1: i32,
-}
-
-#[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_PrecomputedAtmosphere {
     pub _luminance_from_radiance: Matrix3<f32>,
@@ -725,7 +716,7 @@ impl Atmosphere {
             _sun: Vector3::new(1.0, 1.0, 1.0),
             _atmosphere_constants: AtmosphereConstants::default(),
             _atmosphere_exposure: 0.0001,
-            _cloud_exposure: 0.175,
+            _cloud_exposure: 0.025,
             _cloud_altitude: 100.0,
             _cloud_height: 500.0,
             _cloud_speed: 0.01,
@@ -815,7 +806,7 @@ impl Atmosphere {
             _noise_coverage: self._noise_coverage,
             _sun_size: self._sun_size.into(),
             _atmosphere_exposure: self._atmosphere_exposure,
-            _reserved0: 0,
+            _inscatter_power: self._inscatter_power,
         };
 
         // generate precomputed textures
@@ -928,6 +919,7 @@ impl Atmosphere {
         renderer_data: &RendererData,
         render_light_probe_mode: bool,
     ) {
+        // Render Atmosphere
         renderer_data.render_material_instance(
             command_buffer,
             swapchain_index,
@@ -940,6 +932,18 @@ impl Atmosphere {
                 _render_light_probe_mode: if render_light_probe_mode { 1 } else { 0 },
                 ..Default::default()
             }),
+        );
+
+        // Composite Atmosphere
+        renderer_data.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            "composite_atmosphere/default",
+            quad_geometry_data,
+            None,
+            None,
+            NONE_PUSH_CONSTANT,
         );
     }
 }

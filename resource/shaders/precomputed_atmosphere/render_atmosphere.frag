@@ -37,6 +37,7 @@ float get_cloud_density(vec3 cloud_scale, vec3 noise_scale, vec3 uvw, vec3 speed
 void main()
 {
     out_color = vec4(0.0, 0.0, 0.0, 1.0);
+    out_inscatter = vec4(0.0, 0.0, 0.0, 1.0);
 
     const float min_dist = 1000.0;
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
@@ -51,23 +52,23 @@ void main()
     float VdotL = dot(eye_direction, sun_direction);
 
     float device_depth = texture(texture_depth, vs_output.uv).x;
-    float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
-    float scene_dist = clamp(scene_linear_depth / dot(screen_center_ray, eye_direction), 0.0, view_constants.NEAR_FAR.y);
-    float scene_shadow_length = GetSceneShadowLength(scene_dist, eye_direction, texture_shadow);
+    float scene_linear_depth = clamp(device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth), 0.0, view_constants.NEAR_FAR.y);
+    float scene_shadow_length = GetSceneShadowLength(scene_linear_depth, eye_direction, texture_shadow);
 
     // Sky
     vec3 transmittance;
     vec3 radiance = GetSkyRadiance(ATMOSPHERE, camera - atmosphere_constants.earth_center, eye_direction, scene_shadow_length, sun_direction, transmittance);
+    vec3 solar_radiance = GetSolarRadiance(ATMOSPHERE);
 
     // Sun
-    vec3 sun_color = vec3(0.0);
+    vec3 sun_disc = vec3(0.0);
     const float sun_absorption = 0.9;
-    const float sun_intensity = 100.0;
+    const float sun_disc_intensity = 100.0;
     if (0 == pushConstants.render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL)
     {
-        sun_color = transmittance * GetSolarRadiance(ATMOSPHERE) * pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
-        sun_color *= light_constants.LIGHT_COLOR.xyz * sun_intensity;
-        radiance += sun_color * sun_absorption;
+        sun_disc = transmittance * solar_radiance * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
+        sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
+        radiance += sun_disc * sun_absorption;
     }
 
     // Cloud
@@ -130,9 +131,6 @@ void main()
     // vec3 smooth_N = normalize(ray_start_pos.xyz - earth_center);
     vec3 N = normalize(ray_start_pos.xyz);
 
-    float altitude_ratio = saturate(world_pos_y / (atmosphere_constants.cloud_altitude + atmosphere_constants.cloud_height));
-    float atmosphere_lighting = max(0.2, pow(saturate(dot(N, sun_direction) * 0.5 + 0.5), 1.0));
-
     // Cloud
     if(render_cloud)
     {
@@ -143,16 +141,17 @@ void main()
         // NOTE : 0.1 is more colorful scattering cloud.
         float dist_to_point = hit_dist * (above_the_cloud ? 1.0 : 0.01);
 
-        GetCloudRadiance(ATMOSPHERE, dist_to_point, eye_direction, scene_shadow_length,
-            cloud_sun_irradiance, cloud_sky_irradiance, cloud_inscatter);
+        GetCloudRadiance(ATMOSPHERE, dist_to_point, eye_direction, scene_shadow_length, cloud_sun_irradiance, cloud_sky_irradiance, cloud_inscatter);
 
         if(in_the_cloud || above_the_cloud)
         {
             cloud_inscatter = vec3(0.0);
         }
 
-        vec3 light_color = light_constants.LIGHT_COLOR.xyz * (cloud_sun_irradiance + cloud_sky_irradiance) * atmosphere_lighting;
-        light_color *= atmosphere_constants.cloud_exposure;
+        float altitude_ratio = saturate(world_pos_y / (atmosphere_constants.cloud_altitude + atmosphere_constants.cloud_height));
+        float atmosphere_lighting = max(0.2, pow(saturate(dot(N, sun_direction) * 0.5 + 0.5), 1.0));
+        vec3 light_color = (cloud_sun_irradiance + cloud_sky_irradiance + solar_radiance) * atmosphere_constants.cloud_exposure;
+        light_color *= light_constants.LIGHT_COLOR.xyz * atmosphere_lighting;
 
         if(0.0 <= hit_dist && hit_dist < far_dist)
         {
@@ -248,12 +247,12 @@ void main()
         }
 
         out_color.xyz += max(vec3(0.0), mix(radiance, cloud.xyz, cloud.w));
-        out_color.xyz += cloud.xyz * sun_color * (1.0 - sun_absorption);
+        out_color.xyz += sun_disc * saturate(1.0 - cloud.w);
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
 
 
-    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_dist) * ATMOSPHERE_RATIO;
+    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
         ATMOSPHERE,

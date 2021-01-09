@@ -16,5 +16,5 @@ layout(location = 0) out VERTEX_OUTPUT vs_output;
 void main() {
     gl_Position = vec4(inPosition, 1.0);
     vs_output.uv = inTexCoord; //inPosition.xy * 0.5 + 0.5;
-    vs_output.eye_ray = (view_constants.INV_VIEW_ORIGIN_PROJECTION * vec4(inPosition, 0.0)).xyz;
+    vs_output.eye_ray = (view_constants.INV_VIEW_ORIGIN_PROJECTION * vec4(inPosition.xy, -1.0, 1.0)).xyz;
 }
