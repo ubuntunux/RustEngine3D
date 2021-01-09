@@ -539,9 +539,7 @@ impl AtmosphereModel {
                 swapchain_index,
                 quad_geometry_data,
                 renderer_data,
-                resources,
                 atmosphere,
-                &lambdas,
                 &luminance_from_radiance,
                 blend,
                 num_scattering_orders
@@ -564,10 +562,6 @@ impl AtmosphereModel {
                     kLambdaMin as f32 + (3.0 * i as f32 + 2.5) * dlambda
                 ];
 
-                println!("============================================");
-                println!("NOTE!! :Matrix column or row major???");
-                println!("============================================");
-
                 let luminance_from_radiance = Matrix3::from_columns(&[
                     Vector3::new(coeff(lambdas[0], 0), coeff(lambdas[1], 0), coeff(lambdas[2], 0)),
                     Vector3::new(coeff(lambdas[0], 1), coeff(lambdas[1], 1), coeff(lambdas[2], 1)),
@@ -580,9 +574,7 @@ impl AtmosphereModel {
                     swapchain_index,
                     quad_geometry_data,
                     renderer_data,
-                    resources,
                     atmosphere,
-                    &lambdas,
                     &luminance_from_radiance,
                     blend,
                     num_scattering_orders
@@ -604,19 +596,13 @@ impl AtmosphereModel {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         renderer_data: &RendererData,
-        resources: &Resources,
         atmosphere: &Atmosphere,
-        lambdas: &[f32; 3],
         luminance_from_radiance: &Matrix3<f32>,
         blend: bool,
         num_scattering_orders: i32
     ) {
-        // glEnable(GL_BLEND)
-        // glBlendEquation(GL_FUNC_ADD)
-        // glBlendFunc(GL_ONE, GL_ONE)
-
         let mut push_constant = PushConstant_PrecomputedAtmosphere {
-            _luminance_from_radiance: luminance_from_radiance.clone(),
+            _luminance_from_radiance: (*luminance_from_radiance).into(),
             _luminance_from_radiance_reserved: [0.0, 0.0, 0.0],
             _scattering_order: 0,
             _layer: 0,
@@ -646,15 +632,6 @@ impl AtmosphereModel {
             None,
             NONE_PUSH_CONSTANT,
         );
-
-        // glDisablei(GL_BLEND, 0)
-        // glDisablei(GL_BLEND, 1)
-        // if blend:
-        //     glEnablei(GL_BLEND, 2)
-        //     glEnablei(GL_BLEND, 3)
-        // else:
-        //     glDisablei(GL_BLEND, 2)
-        //     glDisablei(GL_BLEND, 3)
 
         // compute_single_scattering
         for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
