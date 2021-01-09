@@ -991,7 +991,7 @@ impl RendererData {
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
                     fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
-                    atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
+                    atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
                 }
 
                 // Render

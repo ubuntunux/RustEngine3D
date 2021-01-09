@@ -90,6 +90,37 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 },
             ],
             ..Default::default()
+        },
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("recompute_transmittance"),
+            _pipeline_vertex_shader_file: PathBuf::from("precomputed_atmosphere/render_atmosphere.vert"),
+            _pipeline_fragment_shader_file: PathBuf::from("precomputed_atmosphere/recompute_transmittance.frag"),
+            _pipeline_shader_defines: vec![
+                format!("COMBINED_SCATTERING_TEXTURES={:?}", if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }),
+            ],
+            _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _pipeline_cull_mode: vk::CullModeFlags::BACK,
+            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+            _descriptor_data_create_infos: vec![
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 0,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
         }
     ];
 

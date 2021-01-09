@@ -526,12 +526,10 @@ impl AtmosphereModel {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         renderer_data: &RendererData,
-        resources: &Resources,
         atmosphere: &Atmosphere,
         num_scattering_orders: i32
     ) {
         if false == self._precompute_illuminance {
-            let lambdas: [f32; 3] = [kLambdaR, kLambdaG, kLambdaB];
             let luminance_from_radiance = Matrix3::identity();
             let blend = false;
             self.precompute(
@@ -582,12 +580,17 @@ impl AtmosphereModel {
             }
         }
 
-        // Note : recompute compute_transmittance
-        // framebuffer_manager.bind_framebuffer(self.transmittance_texture)
-        //
-        // recompute_transmittance_mi = resource_manager.get_material_instance('precomputed_atmosphere.recompute_transmittance',macros=self.material_instance_macros)
-        // recompute_transmittance_mi.use_program()
-        // self.quad.draw_elements()
+        // recompute_transmittance
+        renderer_data.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            "compute_transmittance/recompute_transmittance",
+            quad_geometry_data,
+            None,
+            None,
+            NONE_PUSH_CONSTANT,
+        );
     }
 
     fn precompute(
@@ -745,8 +748,7 @@ impl Atmosphere {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        renderer_data: &RendererData,
-        resources: &Resources,
+        renderer_data: &RendererData
     ) {
         // precompute constants
         let max_sun_zenith_angle = 120.0 / 180.0 * kPi;
@@ -845,7 +847,6 @@ impl Atmosphere {
             swapchain_index,
             quad_geometry_data,
             renderer_data,
-            resources,
             self,
             num_scattering_orders,
         );
