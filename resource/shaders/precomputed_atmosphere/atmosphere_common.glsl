@@ -56,12 +56,6 @@ layout(binding = 15) uniform sampler3D multiple_scattering_texture;
 layout(binding = 16) uniform sampler2D texture_atmosphere;
 layout(binding = 17) uniform sampler2D texture_inscatter;
 
-struct VERTEX_OUTPUT
-{
-    vec3 eye_ray;
-    vec2 uv;
-};
-
 // Definitions
 struct DensityProfileLayer
 {

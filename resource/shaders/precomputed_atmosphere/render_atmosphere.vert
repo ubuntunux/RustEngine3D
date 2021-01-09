@@ -4,6 +4,7 @@
 
 #include "../scene_constants.glsl"
 #include "atmosphere_common.glsl"
+#include "render_atmosphere_common.glsl"
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;

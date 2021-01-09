@@ -6,6 +6,7 @@
 #include "../blending.glsl"
 #include "../utility.glsl"
 #include "atmosphere_common.glsl"
+#include "render_atmosphere_common.glsl"
 
 layout( push_constant ) uniform PushConstant_Atmosphere
 {
@@ -63,10 +64,10 @@ void main()
     // Sun
     vec3 sun_disc = vec3(0.0);
     const float sun_absorption = 0.9;
-    const float sun_disc_intensity = 100.0;
+    const float sun_disc_intensity = 20.0;
     if (0 == pushConstants.render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL)
     {
-        sun_disc = transmittance * solar_radiance * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
+        sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
         radiance += sun_disc * sun_absorption;
     }
@@ -150,8 +151,8 @@ void main()
 
         float altitude_ratio = saturate(world_pos_y / (atmosphere_constants.cloud_altitude + atmosphere_constants.cloud_height));
         float atmosphere_lighting = max(0.2, pow(saturate(dot(N, sun_direction) * 0.5 + 0.5), 1.0));
-        vec3 light_color = (cloud_sun_irradiance + cloud_sky_irradiance + solar_radiance) * atmosphere_constants.cloud_exposure;
-        light_color *= light_constants.LIGHT_COLOR.xyz * atmosphere_lighting;
+        vec3 light_color = (cloud_sun_irradiance + cloud_sky_irradiance);
+        light_color *= atmosphere_constants.cloud_exposure * light_constants.LIGHT_COLOR.xyz * atmosphere_lighting;
 
         if(0.0 <= hit_dist && hit_dist < far_dist)
         {

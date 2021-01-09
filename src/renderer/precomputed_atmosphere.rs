@@ -716,7 +716,7 @@ impl Atmosphere {
             _sun: Vector3::new(1.0, 1.0, 1.0),
             _atmosphere_constants: AtmosphereConstants::default(),
             _atmosphere_exposure: 0.0001,
-            _cloud_exposure: 0.025,
+            _cloud_exposure: 0.15,
             _cloud_altitude: 100.0,
             _cloud_height: 500.0,
             _cloud_speed: 0.01,

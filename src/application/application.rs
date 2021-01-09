@@ -136,12 +136,15 @@ impl ApplicationData {
         let pressed_key_e = self._keyboard_input_data.get_key_hold(VirtualKeyCode::E);
         let pressed_key_z = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Z);
         let pressed_key_c = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
+        let pressed_key_comma = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Comma);
+        let pressed_key_period = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Period);
         let released_key_left_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::LBracket);
         let released_key_right_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::RBracket);
         let released_key_subtract = self._keyboard_input_data.get_key_released(VirtualKeyCode::Subtract);
         let released_key_equals = self._keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
+        let mut main_light = scene_manager_data._main_light.borrow_mut();
         let camera_move_speed = self._camera_move_speed;
 
         // released_key_LeftBracket <- getKeyReleased keyboardInputData GLFW.Key'LeftBracket
@@ -173,6 +176,14 @@ impl ApplicationData {
             } else if released_key_equals {
                 (*renderer_data).next_debug_render_target_miplevel();
             }
+        }
+
+        // rotate sun
+        let rotation_speed = 1.0 * delta_time as f32;
+        if pressed_key_comma {
+            main_light._transform_object.rotation_pitch(rotation_speed);
+        } else if pressed_key_period {
+            main_light._transform_object.rotation_pitch(-rotation_speed);
         }
 
         // when (0.0 /= scroll_yoffset) $
