@@ -25,5 +25,8 @@ void main()
         delta_mie
     );
     scattering = vec4(pushConstant._luminance_from_radiance * delta_rayleigh.rgb, (pushConstant._luminance_from_radiance * delta_mie).r);
+
+#if 0 == COMBINED_SCATTERING_TEXTURES
     single_mie_scattering = pushConstant._luminance_from_radiance * delta_mie;
+#endif
 }

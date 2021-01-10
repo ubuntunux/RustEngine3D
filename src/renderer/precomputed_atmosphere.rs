@@ -876,17 +876,23 @@ impl Atmosphere {
                 )
             );
             // compute_single_scattering
+            let mut compute_single_scattering_rendertargets = vec![
+                RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
+            ];
+            if false == DEFAULT_USE_COMBINED_TEXTURES {
+                compute_single_scattering_rendertargets.push(
+                    RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
+                );
+            }
+
             self._compute_single_scattering_framebuffers.push(
                 utility::create_framebuffers(
                     device,
                     compute_single_scattering_pipeline_binding_data,
                     "compute_single_scattering",
-                    &[
-                        RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                        RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                        RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                        RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                    ],
+                    &compute_single_scattering_rendertargets,
                     &[],
                     &[],
                 )
