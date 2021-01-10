@@ -341,7 +341,7 @@ pub struct AtmosphereModel {
     pub _max_sun_zenith_angle: f32,
     pub _length_unit_in_meters: f32,
     pub _num_precomputed_wavelengths: i32,
-    pub _precompute_illuminance: bool,
+    pub _luminance_type: Luminance,
     pub _use_combined_textures: bool,
 }
 
@@ -415,7 +415,7 @@ impl AtmosphereModel {
         max_sun_zenith_angle: f32,
         length_unit_in_meters: f32,
         num_precomputed_wavelengths: i32,
-        precompute_illuminance: bool,
+        luminance_type: Luminance,
         use_combined_textures: bool
     ) -> AtmosphereModel {
         AtmosphereModel {
@@ -436,7 +436,7 @@ impl AtmosphereModel {
             _max_sun_zenith_angle: max_sun_zenith_angle,
             _length_unit_in_meters: length_unit_in_meters,
             _num_precomputed_wavelengths: num_precomputed_wavelengths,
-            _precompute_illuminance: precompute_illuminance,
+            _luminance_type: luminance_type,
             _use_combined_textures: use_combined_textures,
         }
     }
@@ -490,8 +490,6 @@ impl AtmosphereModel {
             format!("const int IRRADIANCE_TEXTURE_HEIGHT = {};", IRRADIANCE_TEXTURE_HEIGHT),
             format!("const vec2 IRRADIANCE_TEXTURE_SIZE = vec2({}, {});", IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT),
             String::from(""),
-            String::from("#include \"definitions.glsl\""),
-            String::from(""),
             String::from("const AtmosphereParameters ATMOSPHERE = AtmosphereParameters("),
             format!("{}, ", to_string(&self._solar_irradiance, lambdas, 1.0)),
             format!("{}, ", self._sun_angular_radius),
@@ -512,7 +510,7 @@ impl AtmosphereModel {
     }
 
     pub fn generate(
-        &self,
+        &mut self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -520,7 +518,8 @@ impl AtmosphereModel {
         atmosphere: &Atmosphere,
         num_scattering_orders: i32
     ) {
-        if false == self._precompute_illuminance {
+        if Luminance::PRECOMPUTED != self._luminance_type {
+            let lambdas: [f32; 3] = [kLambdaR, kLambdaG, kLambdaB];
             let luminance_from_radiance = Matrix3::identity();
             let blend = false;
             self.precompute(
@@ -529,6 +528,7 @@ impl AtmosphereModel {
                 quad_geometry_data,
                 renderer_data,
                 atmosphere,
+                &lambdas,
                 &luminance_from_radiance,
                 blend,
                 num_scattering_orders
@@ -555,7 +555,7 @@ impl AtmosphereModel {
                     Vector3::new(coeff(lambdas[0], 0), coeff(lambdas[1], 0), coeff(lambdas[2], 0)),
                     Vector3::new(coeff(lambdas[0], 1), coeff(lambdas[1], 1), coeff(lambdas[2], 1)),
                     Vector3::new(coeff(lambdas[0], 2), coeff(lambdas[1], 2), coeff(lambdas[2], 2)),
-                ]);
+                ]).transpose();
 
                 let blend = 0 < i;
                 self.precompute(
@@ -564,6 +564,7 @@ impl AtmosphereModel {
                     quad_geometry_data,
                     renderer_data,
                     atmosphere,
+                    &lambdas,
                     &luminance_from_radiance,
                     blend,
                     num_scattering_orders
@@ -585,16 +586,20 @@ impl AtmosphereModel {
     }
 
     fn precompute(
-        &self,
+        &mut self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         renderer_data: &RendererData,
         atmosphere: &Atmosphere,
+        lambdas: &[f32; 3],
         luminance_from_radiance: &Matrix3<f32>,
         blend: bool,
         num_scattering_orders: i32
     ) {
+        let shader_header = self.shader_header_factory(lambdas);
+        println!("{}", shader_header);
+
         let mut push_constant = PushConstant_PrecomputedAtmosphere {
             _luminance_from_radiance: (*luminance_from_radiance).into(),
             _luminance_from_radiance_reserved: [0.0, 0.0, 0.0],
@@ -810,7 +815,7 @@ impl Atmosphere {
         };
 
         // generate precomputed textures
-        let atmosphere_model = AtmosphereModel::create_atmosphere_model(
+        let mut atmosphere_model = AtmosphereModel::create_atmosphere_model(
             wavelengths,
             solar_irradiance,
             kSunAngularRadius,
@@ -828,7 +833,7 @@ impl Atmosphere {
             max_sun_zenith_angle,
             kLengthUnitInMeters,
             self._num_precomputed_wavelengths,
-            Luminance::PRECOMPUTED == self._luminance_type,
+            self._luminance_type,
             self._use_combined_textures
         );
 

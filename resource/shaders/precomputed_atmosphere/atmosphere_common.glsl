@@ -101,23 +101,22 @@ const int IRRADIANCE_TEXTURE_HEIGHT = 16;
 const vec2 IRRADIANCE_TEXTURE_SIZE = vec2(64, 16);
 const float ATMOSPHERE_RATIO = 0.1;
 
-
 const AtmosphereParameters ATMOSPHERE = AtmosphereParameters(
-    vec3(1.474000, 1.850400, 1.911980),
-    0.01175,
-    6361.0,
-    6420.0,
-    DensityProfile(DensityProfileLayer[2](DensityProfileLayer(0.000000, 0.000000, 0.000000, 0.000000, 0.000000), DensityProfileLayer(0.000000, 1.000000, -0.125000, 0.000000, 0.000000))),
-    vec3(0.005802, 0.013558, 0.033100),
-    DensityProfile(DensityProfileLayer[2](DensityProfileLayer(0.000000, 0.000000, 0.000000, 0.000000, 0.000000), DensityProfileLayer(0.000000, 1.000000, -0.833333, 0.000000, 0.000000))),
-    vec3(0.003996, 0.003996, 0.003996),
-    vec3(0.004440, 0.004440, 0.004440),
-    0.8,
-    DensityProfile(DensityProfileLayer[2](DensityProfileLayer(25.000000, 0.000000, 0.000000, 0.066667, -0.666667), DensityProfileLayer(0.000000, 0.000000, 0.000000, -0.066667, 2.666667))),
-    vec3(0.000650, 0.001881, 0.000085),
-    vec3(0.100000, 0.100000, 0.100000),
-    -0.4999999690599179
-);
+vec3(1.474, 1.8504, 1.91198),
+0.01175,
+6361,
+6420,
+DensityProfile(DensityProfileLayer[2](DensityProfileLayer(0, 0, 0, 0, 0),DensityProfileLayer(0, 1, -0.125, 0, 0))),
+vec3(0.005802339, 0.013557761, 0.033099998),
+DensityProfile(DensityProfileLayer[2](DensityProfileLayer(0, 0, 0, 0, 0),DensityProfileLayer(0, 1, -0.8333334, 0, 0))),
+vec3(0.0039959997, 0.0039959997, 0.0039959997),
+vec3(0.00444, 0.00444, 0.00444),
+0.8,
+DensityProfile(DensityProfileLayer[2](DensityProfileLayer(25, 0, 0, 0.06666667, -0.6666667),DensityProfileLayer(0, 0, 0, -0.06666667, 2.6666667))),
+vec3(0.0006497166, 0.0018809001, 0.00008501668),
+vec3(0.1, 0.1, 0.1),
+-0.50000006);
+
 
 // Functions
 float ClampCosine(float mu)
@@ -167,8 +166,7 @@ bool RayIntersectsGround(const in AtmosphereParameters atmosphere, float r, floa
 
 float GetLayerDensity(const in DensityProfileLayer layer, float altitude)
 {
-    float density =
-    layer.exp_term * exp(layer.exp_scale * altitude) + layer.linear_term * altitude + layer.constant_term;
+    float density = layer.exp_term * exp(layer.exp_scale * altitude) + layer.linear_term * altitude + layer.constant_term;
     return clamp(density, 0.0, 1.0);
 }
 
@@ -199,15 +197,13 @@ float ComputeOpticalLengthToTopAtmosphereBoundary(
 }
 
 
-vec3 ComputeTransmittanceToTopAtmosphereBoundary(
-const in AtmosphereParameters atmosphere,
-float r,
-float mu)
+vec3 ComputeTransmittanceToTopAtmosphereBoundary(const in AtmosphereParameters atmosphere, float r, float mu)
 {
     return exp(-(
-    atmosphere.rayleigh_scattering * ComputeOpticalLengthToTopAtmosphereBoundary(atmosphere, atmosphere.rayleigh_density, r, mu) +
-    atmosphere.mie_extinction * ComputeOpticalLengthToTopAtmosphereBoundary(atmosphere, atmosphere.mie_density, r, mu) +
-    atmosphere.absorption_extinction * ComputeOpticalLengthToTopAtmosphereBoundary(atmosphere, atmosphere.absorption_density, r, mu)));
+        atmosphere.rayleigh_scattering * ComputeOpticalLengthToTopAtmosphereBoundary(atmosphere, atmosphere.rayleigh_density, r, mu) +
+        atmosphere.mie_extinction * ComputeOpticalLengthToTopAtmosphereBoundary(atmosphere, atmosphere.mie_density, r, mu) +
+        atmosphere.absorption_extinction * ComputeOpticalLengthToTopAtmosphereBoundary(atmosphere, atmosphere.absorption_density, r, mu))
+    );
 }
 
 float GetTextureCoordFromUnitRange(float x, int texture_size)

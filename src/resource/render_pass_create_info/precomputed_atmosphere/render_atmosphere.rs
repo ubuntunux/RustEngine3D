@@ -152,22 +152,22 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 9,
-                    _descriptor_name: String::from("transmittance_texture"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 10,
-                    _descriptor_name: String::from("irradiance_texture"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 11,
-                    _descriptor_name: String::from("scattering_texture"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
