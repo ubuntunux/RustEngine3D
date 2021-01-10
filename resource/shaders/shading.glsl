@@ -189,10 +189,10 @@ void apply_image_based_lighting(
     const in vec4 scene_reflect_color,
     float roughness,
     const in vec3 F0,
+    const in vec3 sun_direction,
     const in vec3 N,
     const in vec3 R,
     float NdV,
-    float clampled_NdL,
     inout vec3 diffuse_light,
     inout vec3 specular_light
 )
@@ -210,8 +210,8 @@ void apply_image_based_lighting(
 
     // TODO : real time baked ibl
     //ibl_diffuse_light = normalize(mix(ibl_diffuse_light, sky_irradiance, 0.5)) * length(sky_irradiance) * kD;
-    ibl_diffuse_light *= clampled_NdL;
-    ibl_specular_light *= clampled_NdL;
+    ibl_diffuse_light *= saturate(sun_direction.y);
+    ibl_specular_light *= saturate(sun_direction.y);
 
     diffuse_light += ibl_diffuse_light * kD;
     // if(RENDER_SSR)
@@ -309,10 +309,10 @@ vec4 surface_shading(
         scene_reflect_color,
         roughness,
         F0,
+        L,
         N,
         R,
         NdV,
-        clampled_NdL,
         diffuse_light,
         specular_light
     );

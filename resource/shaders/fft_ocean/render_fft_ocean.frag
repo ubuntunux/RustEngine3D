@@ -145,10 +145,10 @@ void main()
         scene_reflect_color,
         roughness,
         F0,
+        L,
         N,
         smoothR,
         NdV,
-        clampled_NdL,
         diffuse_light,
         specular_light
     );
