@@ -31,5 +31,3 @@ layout(binding = 14) uniform sampler3D scattering_density_texture;
 layout(binding = 15) uniform sampler3D multiple_scattering_texture;
 layout(binding = 16) uniform sampler2D texture_atmosphere;
 layout(binding = 17) uniform sampler2D texture_inscatter;
-
-#include "atmosphere_postdefined.glsl"

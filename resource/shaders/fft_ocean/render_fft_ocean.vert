@@ -4,8 +4,8 @@
 
 #include "../scene_constants.glsl"
 #include "../utility.glsl"
-#include "../shading.glsl"
 #include "render_fft_ocean_common.glsl"
+#include "../shading.glsl"
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
@@ -88,15 +88,30 @@ void main()
     float shadow_factor = get_shadow_factor_simple(light_constants, world_pos, dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz), texture_shadow);
     //float shadow_factor = get_shadow_factor(light_constants, world_pos, dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz), texture_shadow);
 
-    // TODO: Atmosphere
+    // Atmosphere
     vec3 in_scatter = vec3(0.0);
-    vec3 sun_irradiance = light_constants.LIGHT_COLOR;
+    vec3 sun_irradiance = vec3(0.0);
     vec3 sky_irradiance = vec3(0.0);
-    // GetSceneRadiance(ATMOSPHERE, dist * 0.1, eye_direction, vertex_normal, sun_irradiance, sky_irradiance, in_scatter);
+    GetSceneRadiance(
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        irradiance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
+        dist,
+        view_constants.CAMERA_POSITION.xyz,
+        eye_direction,
+        light_constants.LIGHT_DIRECTION.xyz,
+        vertex_normal,
+        sun_irradiance,
+        sky_irradiance,
+        in_scatter
+    );
 
     vs_output.sun_irradiance = sun_irradiance;
     vs_output.sky_irradiance = sky_irradiance;
-
+    vs_output.in_scatter = in_scatter;
     vs_output.uvs.xy = u;
     vs_output.uvs.zw = world_pos.xz;
     vs_output.shadow_factor = shadow_factor;

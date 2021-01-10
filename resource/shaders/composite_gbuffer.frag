@@ -4,6 +4,7 @@
 
 #include "scene_constants.glsl"
 #include "utility.glsl"
+#include "precomputed_atmosphere/atmosphere_predefined.glsl"
 #include "shading.glsl"
 #include "render_quad_common.glsl"
 
@@ -19,15 +20,23 @@ layout(binding = 2) uniform LightConstants
 {
     LIGHT_CONSTANTS light_constants;
 };
-layout(binding = 3) uniform sampler2D textureSceneAlbedo;
-layout(binding = 4) uniform sampler2D textureSceneMaterial;
-layout(binding = 5) uniform sampler2D textureSceneNormal;
-layout(binding = 6) uniform sampler2D textureSceneDepth;
-layout(binding = 7) uniform sampler2D textureSSAO;
-layout(binding = 8) uniform sampler2D textureShadow;
-layout(binding = 9) uniform samplerCube textureProbe;
-layout(binding = 10) uniform sampler2D textureSceneReflect;
-layout(binding = 11) uniform sampler2D ibl_brdf_lut;
+layout(binding = 3) uniform AtmosphereConstants
+{
+    ATMOSPHERE_CONSTANTS atmosphere_constants;
+};
+layout(binding = 4) uniform sampler2D textureSceneAlbedo;
+layout(binding = 5) uniform sampler2D textureSceneMaterial;
+layout(binding = 6) uniform sampler2D textureSceneNormal;
+layout(binding = 7) uniform sampler2D textureSceneDepth;
+layout(binding = 8) uniform sampler2D textureSSAO;
+layout(binding = 9) uniform sampler2D textureShadow;
+layout(binding = 10) uniform samplerCube textureProbe;
+layout(binding = 11) uniform sampler2D textureSceneReflect;
+layout(binding = 12) uniform sampler2D ibl_brdf_lut;
+layout(binding = 13) uniform sampler2D transmittance_texture;
+layout(binding = 14) uniform sampler2D irradiance_texture;
+layout(binding = 15) uniform sampler3D scattering_texture;
+layout(binding = 16) uniform sampler3D single_mie_scattering_texture;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -73,7 +82,12 @@ void main() {
     vec3 L = normalize(light_constants.LIGHT_DIRECTION);
 
     outColor = surface_shading(
-        //const in AtmosphereParameters ATMOSPHERE,
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        irradiance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
         scene_constants,
         view_constants,
         light_constants,

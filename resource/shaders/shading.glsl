@@ -1,7 +1,9 @@
+#ifndef _SHADING_
+#define _SHADING_
+
 #include "scene_constants.glsl"
 #include "PCFKernels.glsl"
 #include "utility.glsl"
-//#include "precomputed_atmosphere/atmosphere_predefine.glsl"
 
 float get_shadow_factor_func(
     const in LIGHT_CONSTANTS light_constants,
@@ -182,14 +184,15 @@ vec2 env_BRDF_pproximate(float NdV, float roughness)
 }
 
 void apply_image_based_lighting(
-    in samplerCube texture_probe,
-    in sampler2D ibl_brdf_lut,
-    in vec4 scene_reflect_color,
+    const in samplerCube texture_probe,
+    const in sampler2D ibl_brdf_lut,
+    const in vec4 scene_reflect_color,
     float roughness,
-    in vec3 F0,
-    in vec3 N,
-    in vec3 R,
+    const in vec3 F0,
+    const in vec3 N,
+    const in vec3 R,
     float NdV,
+    float clampled_NdL,
     inout vec3 diffuse_light,
     inout vec3 specular_light
 )
@@ -202,10 +205,14 @@ void apply_image_based_lighting(
     const vec3 kS = fresnelSchlickRoughness(NdV, F0, roughness);
     const vec3 kD = vec3(1.0) - kS;
     const vec3 shValue = kS * envBRDF.x + envBRDF.y;
-    const vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
-    const vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
+    vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
+    vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
 
-    //ambient_light = normalize(mix(ibl_diffuse_light, scene_sky_irradiance, 0.5)) * length(scene_sky_irradiance);
+    // TODO : real time baked ibl
+    //ibl_diffuse_light = normalize(mix(ibl_diffuse_light, sky_irradiance, 0.5)) * length(sky_irradiance) * kD;
+    ibl_diffuse_light *= clampled_NdL;
+    ibl_specular_light *= clampled_NdL;
+
     diffuse_light += ibl_diffuse_light * kD;
     // if(RENDER_SSR)
     {
@@ -218,7 +225,12 @@ void apply_image_based_lighting(
     - http://www.curious-creature.com/pbr_sandbox/shaders/pbr.fs
     - https://gist.github.com/galek/53557375251e1a942dfa */
 vec4 surface_shading(
-    //const in AtmosphereParameters ATMOSPHERE,
+    const in AtmosphereParameters ATMOSPHERE,
+    const in ATMOSPHERE_CONSTANTS atmosphere_constants,
+    const in sampler2D transmittance_texture,
+    const in sampler2D irradiance_texture,
+    const in sampler3D scattering_texture,
+    const in sampler3D single_mie_scattering_texture,
     const in SCENE_CONSTANTS scene_constants,
     const in VIEW_CONSTANTS view_constants,
     const in LIGHT_CONSTANTS light_constants,
@@ -265,7 +277,22 @@ vec4 surface_shading(
     vec3 scene_sky_irradiance = vec3(0.0);
     float scene_shadow_length = 0.0;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
-    //GetSceneRadiance(ATMOSPHERE, scene_linear_depth, -V, N, scene_sun_irradiance, scene_sky_irradiance, scene_in_scatter);
+    GetSceneRadiance(
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        irradiance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
+        scene_linear_depth,
+        view_constants.CAMERA_POSITION.xyz,
+        -V,
+        light_constants.LIGHT_DIRECTION.xyz,
+        N,
+        scene_sun_irradiance,
+        scene_sky_irradiance,
+        scene_in_scatter
+    );
 
     vec3 result = vec3(0.0, 0.0, 0.0);
     vec3 F0 = mix(vec3(max(0.04, reflectance)), base_color.xyz, metallic);
@@ -285,6 +312,7 @@ vec4 surface_shading(
         N,
         R,
         NdV,
+        clampled_NdL,
         diffuse_light,
         specular_light
     );
@@ -367,3 +395,5 @@ vec4 surface_shading(
 
     return vec4(max(vec3(0.0), result), opacity);
 }
+
+#endif // _SHADING_

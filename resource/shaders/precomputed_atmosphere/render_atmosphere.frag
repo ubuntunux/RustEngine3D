@@ -54,12 +54,32 @@ void main()
 
     float device_depth = texture(texture_depth, vs_output.uv).x;
     float scene_linear_depth = clamp(device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth), 0.0, view_constants.NEAR_FAR.y);
-    float scene_shadow_length = GetSceneShadowLength(scene_linear_depth, eye_direction, texture_shadow);
+    float scene_shadow_length = GetSceneShadowLength(
+        atmosphere_constants,
+        scene_linear_depth,
+        view_constants.NEAR_FAR.y,
+        view_constants.CAMERA_POSITION.xyz,
+        eye_direction,
+        sun_direction,
+        light_constants.SHADOW_VIEW_PROJECTION,
+        texture_shadow
+    );
 
     // Sky
     vec3 transmittance;
-    vec3 radiance = GetSkyRadiance(ATMOSPHERE, camera - atmosphere_constants.earth_center, eye_direction, scene_shadow_length, sun_direction, transmittance);
-    vec3 solar_radiance = GetSolarRadiance(ATMOSPHERE);
+    vec3 radiance = GetSkyRadiance(
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
+        camera - atmosphere_constants.earth_center,
+        eye_direction,
+        scene_shadow_length,
+        sun_direction,
+        transmittance
+    );
+    vec3 solar_radiance = GetSolarRadiance(ATMOSPHERE, atmosphere_constants);
 
     // Sun
     vec3 sun_disc = vec3(0.0);
@@ -141,8 +161,23 @@ void main()
 
         // NOTE : 0.1 is more colorful scattering cloud.
         float dist_to_point = hit_dist * (above_the_cloud ? 1.0 : 0.01);
-
-        GetCloudRadiance(ATMOSPHERE, dist_to_point, eye_direction, scene_shadow_length, cloud_sun_irradiance, cloud_sky_irradiance, cloud_inscatter);
+        GetCloudRadiance(
+            ATMOSPHERE,
+            atmosphere_constants,
+            transmittance_texture,
+            irradiance_texture,
+            scattering_texture,
+            single_mie_scattering_texture,
+            dist_to_point,
+            view_constants.NEAR_FAR.x,
+            view_constants.CAMERA_POSITION.xyz,
+            eye_direction,
+            sun_direction,
+            scene_shadow_length,
+            cloud_sun_irradiance,
+            cloud_sky_irradiance,
+            cloud_inscatter
+        );
 
         if(in_the_cloud || above_the_cloud)
         {
@@ -252,11 +287,14 @@ void main()
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
 
-
     vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
         ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
         camera - atmosphere_constants.earth_center,
         far_point.xyz - atmosphere_constants.earth_center,
         scene_shadow_length,

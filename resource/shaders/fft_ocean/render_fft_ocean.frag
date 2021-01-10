@@ -4,8 +4,8 @@
 
 #include "../scene_constants.glsl"
 #include "../utility.glsl"
-#include "../shading.glsl"
 #include "render_fft_ocean_common.glsl"
+#include "../shading.glsl"
 
 layout (location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -125,7 +125,7 @@ void main()
         foam += pow(texture(texture_foam, uv * -0.05 + vertex_noise * 0.3).xyz, vec3(2.2));
         foam *= 0.5;
         foam_amount = saturate((foam.x - sharpen) / (1.0f - sharpen) * 2.0f * sea_coast_line);
-        water_color = mix(water_color, foam_albedo, foam * foam_amount);
+        water_color = mix(water_color, foam_albedo, saturate(foam * foam_amount));
     }
 
     // Lighting
@@ -133,10 +133,10 @@ void main()
     float fresnel = fresnelSchlick(max(0.2, dot(smooth_normal, V)), F0).x;
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
-    float roughness = clamp(0.1 + foam_amount, 0.0, 1.0);
+    float roughness = clamp(0.1, 0.0, 1.0);
     float roughness2 = roughness * roughness;
     vec4 scene_reflect_color = vec4(0.0);
-    vec3 light_color = sun_irradiance * shadow_factor;
+    vec3 light_color = mix(sky_irradiance, sun_irradiance, vec3(vs_output.shadow_factor));
 
     // Image based lighting
     apply_image_based_lighting(
@@ -148,6 +148,7 @@ void main()
         N,
         smoothR,
         NdV,
+        clampled_NdL,
         diffuse_light,
         specular_light
     );
@@ -166,7 +167,7 @@ void main()
     float sea_color_max_intensity = max(sea_color_near.x, max(sea_color_near.y, sea_color_near.z));
     vec3 transmission = light_color * sea_color_near / sea_color_max_intensity * 0.5;
 
-    fs_output.xyz = mix(diffuse_light * water_color, transmission, scattering) + specular_light;
+    fs_output.xyz = diffuse_light * water_color + transmission * scattering + specular_light;
 
     // final output
     float specular_intensity = max(specular_light.x, max(specular_light.y, specular_light.z));
