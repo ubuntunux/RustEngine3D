@@ -11,6 +11,7 @@ use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::vulkan_context::Layers;
 
+pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
 pub const DEFAULT_USE_COMBINED_TEXTURES: bool = true; // macro: COMBINED_SCATTERING_TEXTURES
 
@@ -815,40 +816,46 @@ impl Atmosphere {
         };
 
         // generate precomputed textures
-        let mut atmosphere_model = AtmosphereModel::create_atmosphere_model(
-            wavelengths,
-            solar_irradiance,
-            kSunAngularRadius,
-            kBottomRadius,
-            kTopRadius,
-            rayleigh_density,
-            rayleigh_scattering,
-            mie_density,
-            mie_scattering,
-            mie_extinction,
-            kMiePhaseFunctionG,
-            ozone_density,
-            absorption_extinction,
-            ground_albedo,
-            max_sun_zenith_angle,
-            kLengthUnitInMeters,
-            self._num_precomputed_wavelengths,
-            self._luminance_type,
-            self._use_combined_textures
-        );
+        if false == USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
+            let mut atmosphere_model = AtmosphereModel::create_atmosphere_model(
+                wavelengths,
+                solar_irradiance,
+                kSunAngularRadius,
+                kBottomRadius,
+                kTopRadius,
+                rayleigh_density,
+                rayleigh_scattering,
+                mie_density,
+                mie_scattering,
+                mie_extinction,
+                kMiePhaseFunctionG,
+                ozone_density,
+                absorption_extinction,
+                ground_albedo,
+                max_sun_zenith_angle,
+                kLengthUnitInMeters,
+                self._num_precomputed_wavelengths,
+                self._luminance_type,
+                self._use_combined_textures
+            );
 
-        let num_scattering_orders: i32 = 4;
-        atmosphere_model.generate(
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-            renderer_data,
-            self,
-            num_scattering_orders,
-        );
+            let num_scattering_orders: i32 = 4;
+            atmosphere_model.generate(
+                command_buffer,
+                swapchain_index,
+                quad_geometry_data,
+                renderer_data,
+                self,
+                num_scattering_orders,
+            );
+        }
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        if USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
+            return;
+        }
+
         let device = renderer_data.get_device();
         let delta_scattering_density = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
         let delta_rayleigh_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
@@ -879,13 +886,9 @@ impl Atmosphere {
             let mut compute_single_scattering_rendertargets = vec![
                 RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
                 RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
+                RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
             ];
-            if false == DEFAULT_USE_COMBINED_TEXTURES {
-                compute_single_scattering_rendertargets.push(
-                    RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
-                );
-            }
 
             self._compute_single_scattering_framebuffers.push(
                 utility::create_framebuffers(

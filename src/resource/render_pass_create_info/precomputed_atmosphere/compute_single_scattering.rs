@@ -29,15 +29,6 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
     let render_target2 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
     let render_target3 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
-    if DEFAULT_USE_COMBINED_TEXTURES {
-        let render_target_infos: [RenderTargetInfo; 3] = [
-            RenderTargetInfo { _texture_data: render_target0, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
-            RenderTargetInfo { _texture_data: render_target1, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
-            RenderTargetInfo { _texture_data: render_target2, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
-        ];
-        return framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[]);
-    }
-
     let render_target_infos: [RenderTargetInfo; 4] = [
         RenderTargetInfo { _texture_data: render_target0, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
         RenderTargetInfo { _texture_data: render_target1, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },

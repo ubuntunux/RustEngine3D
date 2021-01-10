@@ -21,10 +21,16 @@ use crate::vulkan_context::vulkan_context::{
 };
 
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format) -> FramebufferDataCreateInfo {
+    let render_target_type = match render_target_format {
+        vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
+        vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,
+        vk::Format::R32G32B32A32_SFLOAT => RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+        _ => panic!("Not implemented."),
+    };
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::HierarchicalMinZ),
+            _texture_data: renderer_data.get_render_target(render_target_type),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: None,
@@ -34,12 +40,13 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     )
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_color_r32");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format) -> RenderPassDataCreateInfo {
+    let render_pass_name = format!("{:?}", render_target_format);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
+        assert_eq!(render_target_format, *format);
         color_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
@@ -65,7 +72,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("render_color_r32"),
+            _pipeline_data_create_info_name: render_pass_name.clone(),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("render_color.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,

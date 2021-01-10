@@ -10,6 +10,7 @@ use crate::utilities::system::{
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::precomputed_atmosphere::{
+    USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES,
     DEFAULT_LUMINANCE_TYPE,
     DEFAULT_USE_COMBINED_TEXTURES,
     Luminance,
@@ -130,30 +131,31 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
         },
-        DescriptorDataCreateInfo {
-            _descriptor_binding_index: 9,
-            _descriptor_name: String::from("transmittance_texture"),
-            _descriptor_resource_type: DescriptorResourceType::Texture,
-            _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-            ..Default::default()
-        },
-        DescriptorDataCreateInfo {
-            _descriptor_binding_index: 10,
-            _descriptor_name: String::from("irradiance_texture"),
-            _descriptor_resource_type: DescriptorResourceType::Texture,
-            _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-            ..Default::default()
-        },
-        DescriptorDataCreateInfo {
-            _descriptor_binding_index: 11,
-            _descriptor_name: String::from("scattering_texture"),
-            _descriptor_resource_type: DescriptorResourceType::Texture,
-            _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-            ..Default::default()
-        },
     ];
-    if false == DEFAULT_USE_COMBINED_TEXTURES {
-        descriptor_data_create_infos.push(
+
+    if USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
+        descriptor_data_create_infos.extend(vec![
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 9,
+                _descriptor_name: String::from("transmittance_texture"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 10,
+                _descriptor_name: String::from("irradiance_texture"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 11,
+                _descriptor_name: String::from("scattering_texture"),
+                _descriptor_resource_type: DescriptorResourceType::Texture,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 12,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
@@ -161,7 +163,38 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             }
-        );
+        ]);
+    } else {
+        descriptor_data_create_infos.extend(vec![
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 9,
+                _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 10,
+                _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 11,
+                _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 12,
+                _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            }
+        ]);
     }
 
     let pipeline_data_create_infos = vec![

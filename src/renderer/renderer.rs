@@ -402,7 +402,7 @@ impl RendererData {
         self._clear_render_targets.initialize(
             &self._device,
             &self._resources,
-            vec![
+            &[
                 *self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
@@ -411,11 +411,9 @@ impl RendererData {
                 *self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(),
-            ],
-            vec![
                 *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(),
             ],
-            vec![],
         );
     }
 
@@ -1095,7 +1093,7 @@ impl RendererData {
                 command_buffer,
                 swapchain_index,
                 "render_color",
-                "render_color_r16g16b16a16/render_color_r16g16b16a16",
+                "R16G16B16A16_SFLOAT/R16G16B16A16_SFLOAT",
                 &quad_geometry_data,
                 Some(framebuffer),
                 None,
@@ -1107,7 +1105,7 @@ impl RendererData {
                 command_buffer,
                 swapchain_index,
                 "render_color",
-                "render_color_r32/render_color_r32",
+                "R32_SFLOAT/R32_SFLOAT",
                 &quad_geometry_data,
                 Some(framebuffer),
                 None,

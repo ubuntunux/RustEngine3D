@@ -1,3 +1,6 @@
+use ash::{
+    vk,
+};
 use crate::renderer::renderer::{
     RenderObjectType,
     RendererData,
@@ -11,8 +14,7 @@ use crate::resource::render_pass_create_info::{
     generate_min_z,
     render_bloom,
     render_copy,
-    render_color_r32,
-    render_color_r16g16b16a16,
+    render_color,
     render_debug,
     render_final,
     render_gaussian_blur,
@@ -47,8 +49,9 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         generate_min_z::get_render_pass_data_create_info(renderer_data),
         render_bloom::get_render_pass_data_create_info(renderer_data),
         render_copy::get_render_pass_data_create_info(renderer_data),
-        render_color_r16g16b16a16::get_render_pass_data_create_info(renderer_data),
-        render_color_r32::get_render_pass_data_create_info(renderer_data),
+        render_color::get_render_pass_data_create_info(renderer_data, vk::Format::R16G16B16A16_SFLOAT),
+        render_color::get_render_pass_data_create_info(renderer_data, vk::Format::R32_SFLOAT),
+        render_color::get_render_pass_data_create_info(renderer_data, vk::Format::R32G32B32A32_SFLOAT),
         render_debug::get_render_pass_data_create_info(renderer_data),
         render_final::get_render_pass_data_create_info(renderer_data),
         render_gaussian_blur::get_render_pass_data_create_info(renderer_data),
