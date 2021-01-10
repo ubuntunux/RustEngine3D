@@ -17,17 +17,13 @@ use crate::utilities::system::RcRefCell;
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct PostProcessData_ClearRenderTargets {
-    pub _framebuffer_datas_r16g16b16a16: Vec<FramebufferData>,
-    pub _framebuffer_datas_r32: Vec<FramebufferData>,
-    pub _framebuffer_datas_r32g32b32a32: Vec<FramebufferData>,
+    pub _framebuffer_datas: Vec<FramebufferData>,
 }
 
 impl Default for PostProcessData_ClearRenderTargets {
     fn default() -> PostProcessData_ClearRenderTargets {
         PostProcessData_ClearRenderTargets {
-            _framebuffer_datas_r16g16b16a16: Vec::new(),
-            _framebuffer_datas_r32: Vec::new(),
-            _framebuffer_datas_r32g32b32a32: Vec::new(),
+            _framebuffer_datas: Vec::new()
         }
     }
 }
@@ -522,24 +518,16 @@ impl PostProcessData_ClearRenderTargets {
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&format!("{:?}/{:?}", render_target._image_format, render_target._image_format));
             for layer in 0..render_target._image_layers {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._framebuffer_datas_r16g16b16a16.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
+                    self._framebuffer_datas.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
                 }
             }
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for framebuffer_data in self._framebuffer_datas_r16g16b16a16.iter() {
+        for framebuffer_data in self._framebuffer_datas.iter() {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
-        for framebuffer_data in self._framebuffer_datas_r32.iter() {
-            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
-        }
-        for framebuffer_data in self._framebuffer_datas_r32g32b32a32.iter() {
-            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
-        }
-        self._framebuffer_datas_r16g16b16a16.clear();
-        self._framebuffer_datas_r32.clear();
-        self._framebuffer_datas_r32g32b32a32.clear();
+        self._framebuffer_datas.clear();
     }
 }

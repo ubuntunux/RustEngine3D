@@ -915,10 +915,12 @@ impl Atmosphere {
     }
 
     pub fn destroy_atmosphere(&mut self, device: &Device) {
-        for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
-            framebuffer::destroy_framebuffer_data(device, &self._compute_multiple_scattering_framebuffers[layer]);
-            framebuffer::destroy_framebuffer_data(device, &self._compute_single_scattering_framebuffers[layer]);
-            framebuffer::destroy_framebuffer_data(device, &self._compute_scattering_density_framebuffers[layer]);
+        if false == USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
+            for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
+                framebuffer::destroy_framebuffer_data(device, &self._compute_multiple_scattering_framebuffers[layer]);
+                framebuffer::destroy_framebuffer_data(device, &self._compute_single_scattering_framebuffers[layer]);
+                framebuffer::destroy_framebuffer_data(device, &self._compute_scattering_density_framebuffers[layer]);
+            }
         }
         self._compute_multiple_scattering_framebuffers.clear();
         self._compute_single_scattering_framebuffers.clear();

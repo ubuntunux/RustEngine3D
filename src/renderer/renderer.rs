@@ -1088,24 +1088,13 @@ impl RendererData {
             _color: Vector4::new(0.0, 0.0, 0.0, 0.0),
         };
         let push_constans_render_color = Some(&push_constans_render_color);
-        for framebuffer in self._clear_render_targets._framebuffer_datas_r16g16b16a16.iter() {
+        for framebuffer in self._clear_render_targets._framebuffer_datas.iter() {
+            let image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
             self.render_material_instance(
                 command_buffer,
                 swapchain_index,
                 "render_color",
-                "R16G16B16A16_SFLOAT/R16G16B16A16_SFLOAT",
-                &quad_geometry_data,
-                Some(framebuffer),
-                None,
-                push_constans_render_color
-            );
-        }
-        for framebuffer in self._clear_render_targets._framebuffer_datas_r32.iter() {
-            self.render_material_instance(
-                command_buffer,
-                swapchain_index,
-                "render_color",
-                "R32_SFLOAT/R32_SFLOAT",
+                &format!("{:?}/{:?}", image_format, image_format),
                 &quad_geometry_data,
                 Some(framebuffer),
                 None,
