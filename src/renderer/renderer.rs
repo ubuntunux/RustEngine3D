@@ -404,6 +404,7 @@ impl RendererData {
             &self._device,
             &self._resources,
             &[
+                *self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
@@ -1001,6 +1002,7 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements);
+
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);

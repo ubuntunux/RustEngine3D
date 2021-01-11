@@ -70,7 +70,7 @@ void main() {
         float sea_ratio = saturate(1.0 - sea_diff / SEA_COASTLINE_THICKNESS) * (1.0 - metalicness);
         sea_ratio = sea_ratio * sea_ratio * 0.9;
         roughness *= (1.0 - sea_ratio);
-        base_color *= (1.0 - sea_ratio);
+        base_color.xyz *= (1.0 - sea_ratio);
     }
 
     float ssao = texture(textureSSAO, vs_output.texCoord).x;

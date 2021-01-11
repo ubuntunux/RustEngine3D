@@ -18,7 +18,6 @@ layout(binding = 3) buffer BoneConstants
 {
     mat4 bone_matrices[MAX_BONES];
 };
-
 #if (RenderMode_Forward == RenderMode)
 layout(binding = 4) uniform AtmosphereConstants
 {
@@ -47,6 +46,7 @@ struct VERTEX_OUTPUT
     mat3 tangent_to_world;
     vec4 color;
     vec2 texCoord;
+    vec3 relative_position;
     vec4 projection_pos;
     vec4 projection_pos_prev;
 };

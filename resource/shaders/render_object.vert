@@ -57,11 +57,10 @@ void main() {
 #endif
     gl_Position = vs_output.projection_pos;
 
+    vs_output.relative_position = relative_pos;
     vs_output.color = inColor;
-    vec3 bitangent = cross(vertex_tangent, vertex_normal);
-
     // Note : Normalization is very important because tangent_to_world may have been scaled..
+    vec3 bitangent = cross(vertex_tangent, vertex_normal);
     vs_output.tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
-
     vs_output.texCoord = inTexCoord;
 }

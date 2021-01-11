@@ -155,7 +155,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_name: RenderTargetType::LightProbeColor.to_string(),
             _texture_width: light_probe_size,
             _texture_height: light_probe_size,
-            _texture_layers: 6,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: true,

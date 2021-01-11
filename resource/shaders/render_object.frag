@@ -4,9 +4,13 @@
 
 #include "scene_constants.glsl"
 #include "render_object_common.glsl"
+#include "utility.glsl"
+#if (RenderMode_Forward == RenderMode)
+#include "shading.glsl"
+#endif
 
 #if (RenderMode_Forward == RenderMode)
-layout(binding = 5) uniform sampler2D texture_shadow;
+layout(binding = 5) uniform sampler2D textureShadow;
 layout(binding = 6) uniform samplerCube texture_probe;
 layout(binding = 7) uniform sampler2D ibl_brdf_lut;
 layout(binding = 8) uniform sampler2D transmittance_texture;
@@ -33,32 +37,85 @@ layout(location = 0) out vec4 outColor;
 layout(location = 0) out float outDepth;
 #endif
 
-
 void main() {
-#if (RenderMode_GBuffer == RenderMode)
-    vec4 baseColor = texture(textureBase, vs_output.texCoord);
-    baseColor.xyz = pow(baseColor.xyz, vec3(2.2));
-    outAlbedo = baseColor * vs_output.color;
-    if(outAlbedo.w < 0.333)
+    vec4 base_color = texture(textureBase, vs_output.texCoord);
+    base_color.xyz = pow(base_color.xyz, vec3(2.2));
+    base_color *= vs_output.color;
+    if(base_color.w < 0.333)
     {
         discard;
     }
 
-    vec3 normal = normalize(vs_output.tangent_to_world * (texture(textureNormal, vs_output.texCoord).xyz * 2.0 - 1.0)) * 0.5 + 0.5;
-    vec3 vertexNormal = normalize(vs_output.tangent_to_world[2]) * 0.5 + 0.5;
+#if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
+    vec4 material = texture(textureMaterial, vs_output.texCoord);
+    vec3 normal = normalize(vs_output.tangent_to_world * (texture(textureNormal, vs_output.texCoord).xyz * 2.0 - 1.0));
+    vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
+#endif
 
-    // x : roughness, y: metalicness
-    outMaterial.xy = texture(textureMaterial, vs_output.texCoord).xy;
-    outMaterial.zw = vertexNormal.xy;
-    outNormal.xyz = normal;
-    outNormal.w = vertexNormal.z;
+#if (RenderMode_GBuffer == RenderMode)
+    outAlbedo = base_color;
+    outMaterial.xy = material.xy; // x : roughness, y: metalicness
+    outMaterial.zw = vertex_normal.xy * 0.5 + 0.5;
+    outNormal.xyz = normal * 0.5 + 0.5;
+    outNormal.w = vertex_normal.z * 0.5 + 0.5;
     outVelocity = ((vs_output.projection_pos.xy / vs_output.projection_pos.w) - (vs_output.projection_pos_prev.xy / vs_output.projection_pos_prev.w)) * 0.5;
     outVelocity -= view_constants.JITTER_DELTA;
 #elif (RenderMode_Forward == RenderMode)
-    vec4 base_color = texture(textureBase, vs_output.texCoord);
-    outColor = base_color;
+    vec2 screen_texcoord = (vs_output.projection_pos.xy / vs_output.projection_pos.w) * 0.5 + 0.5;
+    float depth = gl_FragCoord.z;
+    vec3 world_position = vs_output.relative_position.xyz + view_constants.CAMERA_POSITION;
+    float opacity = base_color.w;
+    vec3 emissive_color = vec3(0.0);
+    float roughness = material.x;
+    float metalicness = material.y;
+    float reflectance = 0.0;
+    float ssao = 1.0;
+    vec4 scene_reflect_color = vec4(0.0);
+    vec3 V = normalize(-vs_output.relative_position.xyz);
+    vec3 L = normalize(light_constants.LIGHT_DIRECTION);
+
+    float sea_diff = world_position.y - scene_constants.SEA_HEIGHT;
+    if(sea_diff < SEA_COASTLINE_THICKNESS)
+    {
+        float sea_ratio = saturate(1.0 - sea_diff / SEA_COASTLINE_THICKNESS) * (1.0 - metalicness);
+        sea_ratio = sea_ratio * sea_ratio * 0.9;
+        roughness *= (1.0 - sea_ratio);
+        base_color.xyz *= (1.0 - sea_ratio);
+    }
+
+    outColor = surface_shading(
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        irradiance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
+        scene_constants,
+        view_constants,
+        light_constants,
+        //point_lights,
+        base_color.xyz,
+        opacity,
+        emissive_color,
+        metalicness,
+        roughness,
+        reflectance,
+        ssao,
+        scene_reflect_color,
+        texture_probe,
+        ibl_brdf_lut,
+        textureShadow,
+        screen_texcoord,
+        world_position.xyz,
+        light_constants.LIGHT_COLOR.xyz,
+        vertex_normal.xyz,
+        normal.xyz,
+        V,
+        L,
+        depth
+    );
+    outColor.w = 1.0;
 #elif (RenderMode_Shadow == RenderMode)
-    vec4 base_color = texture(textureBase, vs_output.texCoord);
     outDepth = gl_FragCoord.z;
 #endif
 }
