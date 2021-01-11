@@ -85,8 +85,9 @@ pub const DEFAULT_PIPELINE: &str = "";
 #[derive(Clone, Debug, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum RenderMode {
-    RenderMode_Common = 0,
-    RenderMode_Shadow = 1,
+    GBuffer = 0,
+    Forward = 1,
+    Shadow = 2,
 }
 
 // NOTE : RenderObjectType must match with scene_constants.glsl
@@ -996,10 +997,10 @@ impl RendererData {
                 let static_render_elements = scene_manager.get_static_render_elements();
                 let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
                 self.clear_gbuffer(command_buffer, swapchain_index);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Static, &static_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Static, &static_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::RenderMode_Common, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
@@ -1127,33 +1128,21 @@ impl RendererData {
 
         unsafe {
             let render_pass_pipeline_data_name = match (render_mode, render_object_type) {
-                (RenderMode::RenderMode_Common, RenderObjectType::Static) => "render_pass_static_gbuffer/render_object",
-                (RenderMode::RenderMode_Common, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
-                (RenderMode::RenderMode_Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
-                (RenderMode::RenderMode_Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
+                (RenderMode::GBuffer, RenderObjectType::Static) => "render_pass_static_gbuffer/render_object",
+                (RenderMode::GBuffer, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
+                (RenderMode::Forward, RenderObjectType::Static) => "render_pass_static_forward/render_object",
+                (RenderMode::Forward, RenderObjectType::Skeletal) => "render_pass_skeletal_forward/render_object",
+                (RenderMode::Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
+                (RenderMode::Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
             };
 
             let mut bone_metrices_offset: vk::DeviceSize = 0;
-            let mut material_instance_data: *const MaterialInstanceData = std::ptr::null();
             let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
 
-            if RenderMode::RenderMode_Shadow == render_mode {
-                let resources = self._resources.borrow();
-                let material_instance_name = match render_object_type {
-                    RenderObjectType::Static => "render_static_shadow",
-                    RenderObjectType::Skeletal => "render_skeletal_shadow",
-                };
-                material_instance_data = resources.get_material_instance_data(&material_instance_name).as_ptr();
-            }
-
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
-                if RenderMode::RenderMode_Common == render_mode {
-                    material_instance_data = render_element._material_instance_data.as_ptr();
-                }
-
-                let pipeline_binding_data: *const PipelineBindingData = (*material_instance_data).get_pipeline_binding_data(&render_pass_pipeline_data_name);
+                let pipeline_binding_data: *const PipelineBindingData = render_element._material_instance_data.borrow().get_pipeline_binding_data(&render_pass_pipeline_data_name);
                 let render_pass_data = &(*pipeline_binding_data)._render_pass_pipeline_data._render_pass_data;
                 let pipeline_data = &(*pipeline_binding_data)._render_pass_pipeline_data._pipeline_data;
                 let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();

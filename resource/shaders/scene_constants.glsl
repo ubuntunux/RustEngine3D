@@ -5,8 +5,9 @@
 #define SSAO_KERNEL_SIZE 64
 
 // enum RenderMode
-#define RenderMode_Common 0
-#define RenderMode_Shadow 1
+#define RenderMode_GBuffer 0
+#define RenderMode_Forward 1
+#define Shadow 2
 
 // enum RenderObjectType
 #define RenderObjectType_Static 0
