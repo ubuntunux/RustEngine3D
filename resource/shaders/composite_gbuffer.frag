@@ -30,7 +30,7 @@ layout(binding = 6) uniform sampler2D textureSceneNormal;
 layout(binding = 7) uniform sampler2D textureSceneDepth;
 layout(binding = 8) uniform sampler2D textureSSAO;
 layout(binding = 9) uniform sampler2D textureShadow;
-layout(binding = 10) uniform samplerCube textureProbe;
+layout(binding = 10) uniform samplerCube texture_probe;
 layout(binding = 11) uniform sampler2D textureSceneReflect;
 layout(binding = 12) uniform sampler2D ibl_brdf_lut;
 layout(binding = 13) uniform sampler2D transmittance_texture;
@@ -100,7 +100,7 @@ void main() {
         reflectance,
         ssao,
         scene_reflect_color,
-        textureProbe,
+        texture_probe,
         ibl_brdf_lut,
         textureShadow,
         vs_output.texCoord,

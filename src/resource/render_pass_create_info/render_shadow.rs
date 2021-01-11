@@ -95,7 +95,7 @@ pub fn get_render_pass_data_create_info(
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("render_object"),
             _pipeline_vertex_shader_file: PathBuf::from("render_object.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("shadowmap.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("render_object.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_shader_defines: vec![
                 format!("RenderMode={:?}", RenderMode::Shadow as i32),
@@ -152,7 +152,7 @@ pub fn get_render_pass_data_create_info(
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 4,
+                    _descriptor_binding_index: 12,
                     _descriptor_name: String::from("textureBase"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,

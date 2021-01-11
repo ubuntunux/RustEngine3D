@@ -7,7 +7,7 @@
 // enum RenderMode
 #define RenderMode_GBuffer 0
 #define RenderMode_Forward 1
-#define Shadow 2
+#define RenderMode_Shadow 2
 
 // enum RenderObjectType
 #define RenderObjectType_Static 0

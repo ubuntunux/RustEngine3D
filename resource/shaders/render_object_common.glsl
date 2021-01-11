@@ -1,3 +1,7 @@
+#if (RenderMode_Forward == RenderMode)
+#include "precomputed_atmosphere/atmosphere_predefined.glsl"
+#endif
+
 layout(binding = 0) uniform SceneConstants
 {
     SCENE_CONSTANTS scene_constants;
@@ -14,6 +18,13 @@ layout(binding = 3) buffer BoneConstants
 {
     mat4 bone_matrices[MAX_BONES];
 };
+
+#if (RenderMode_Forward == RenderMode)
+layout(binding = 4) uniform AtmosphereConstants
+{
+    ATMOSPHERE_CONSTANTS atmosphere_constants;
+};
+#endif
 
 #if (RenderObjectType_Static == RenderObjectType)
 layout( push_constant ) uniform PushConstant_StaticRenderObject
