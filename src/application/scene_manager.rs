@@ -5,6 +5,7 @@ use nalgebra::{
     Vector3
 };
 
+use crate::constants;
 use crate::renderer::{self, RendererData};
 use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
@@ -26,6 +27,7 @@ pub struct SceneManagerData {
     pub _resources: RcRefCell<Resources>,
     pub _main_camera: RcRefCell<CameraObjectData>,
     pub _main_light: RcRefCell<DirectionalLightData>,
+    pub _light_probe_cameras: Vec<RcRefCell<CameraObjectData>>,
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
     pub _static_render_object_map: RenderObjectMap,
@@ -41,6 +43,20 @@ pub fn create_scene_manager_data(
     resources: RcRefCell<resource::Resources>
 ) -> RcRefCell<SceneManagerData> {
     let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
+    let light_probe_camera_create_info = CameraCreateInfo {
+        fov: 45.0,
+        window_width: constants::LIGHT_PROBE_SIZE,
+        window_height: constants::LIGHT_PROBE_SIZE,
+        ..Default::default()
+    };
+    let light_probe_cameras = vec![
+        system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera0"), &light_probe_camera_create_info)),
+        system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera1"), &light_probe_camera_create_info)),
+        system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera2"), &light_probe_camera_create_info)),
+        system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera3"), &light_probe_camera_create_info)),
+        system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera4"), &light_probe_camera_create_info)),
+        system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera5"), &light_probe_camera_create_info))
+    ];
     let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
     let fft_ocean = system::newRcRefCell(FFTOcean::default());
     let atmosphere = system::newRcRefCell(Atmosphere::create_atmosphere(true));
@@ -49,6 +65,7 @@ pub fn create_scene_manager_data(
         _resources: resources,
         _main_camera: system::newRcRefCell(default_camera),
         _main_light: system::newRcRefCell(default_light),
+        _light_probe_cameras: light_probe_cameras,
         _camera_object_map: HashMap::new(),
         _directional_light_object_map: HashMap::new(),
         _static_render_object_map: HashMap::new(),
@@ -63,6 +80,9 @@ pub fn create_scene_manager_data(
 impl SceneManagerData {
     pub fn open_scene_manager_data(&mut self, camera_create_info: &CameraCreateInfo) {
         self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
+
+        self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
+
         let pitch: f32 = -std::f32::consts::PI * 0.47;
         self._main_light = self.add_light_object(&String::from("main_light"), &DirectionalLightCreateInfo {
             _position: Vector3::zeros(),
@@ -106,6 +126,13 @@ impl SceneManagerData {
     }
 
     pub fn close_scene_manager_data(&mut self, device: &Device) {
+        self._camera_object_map.clear();
+        self._directional_light_object_map.clear();
+        self._static_render_object_map.clear();
+        self._static_render_elements.clear();
+        self._skeletal_render_object_map.clear();
+        self._skeletal_render_elements.clear();
+
         self.destroy_scene_graphics_data(device);
     }
 
@@ -129,6 +156,10 @@ impl SceneManagerData {
 
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {
         &self._main_camera
+    }
+
+    pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
+        &self._light_probe_cameras[index]
     }
 
     pub fn add_camera_object(&mut self, object_name: &str, camera_create_info: &CameraCreateInfo) -> RcRefCell<CameraObjectData> {

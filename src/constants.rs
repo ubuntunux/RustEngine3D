@@ -53,3 +53,4 @@ pub const SSAO_RADIUS: f32 = 2.0;
 pub const SSAO_NOISE_DIM: i32 = 4;
 // MAX_BONES must match with scene_constants.glsl
 pub const MAX_BONES: usize = 128 * 128;
+pub const LIGHT_PROBE_SIZE: u32 = 256;

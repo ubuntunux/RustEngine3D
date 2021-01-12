@@ -9,10 +9,24 @@ use crate::renderer::shader_buffer_datas::{ SSAOConstants };
 use crate::renderer::utility;
 use crate::resource::Resources;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
-use crate::vulkan_context::framebuffer::{ self, FramebufferData };
+use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
 use crate::utilities::system::RcRefCell;
+
+#[derive(Clone)]
+#[allow(non_camel_case_types)]
+pub struct RendererData_LightProbe {
+    pub _framebuffer_data: FramebufferData,
+}
+
+impl Default for RendererData_LightProbe {
+    fn default() -> RendererData_LightProbe {
+        RendererData_LightProbe {
+            _framebuffer_data: FramebufferData::default(),
+        }
+    }
+}
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
@@ -529,5 +543,41 @@ impl RendererData_ClearRenderTargets {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
         self._framebuffer_datas.clear();
+    }
+}
+
+impl RendererData_LightProbe {
+    pub fn initialize(
+        &mut self,
+        device: &Device,
+        resources: &RcRefCell<Resources>,
+        light_probe_color: &TextureData,
+        light_probe_atmosphere_inscatter: &TextureData,
+        light_probe_depth: &TextureData,
+    ) {
+        let resources = resources.borrow();
+        let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
+        self._framebuffer_data = utility::create_framebuffers(
+            device,
+            pipeline_binding_data,
+            "render_targets_light_probe",
+            &[
+                RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
+                RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
+                RenderTargetInfo { _texture_data: &light_probe_depth, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
+            ],
+            &[],
+            &[],
+        );
+
+        let descriptor_sets0 = utility::create_descriptor_sets(
+            device, pipeline_binding_data,
+            descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
+        );
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        framebuffer::destroy_framebuffer_data(device, &self._framebuffer_data);
     }
 }

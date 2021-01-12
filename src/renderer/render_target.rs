@@ -16,7 +16,9 @@ pub enum RenderTargetType {
     SceneColorCopy,
     SceneDepth,
     HierarchicalMinZ,
+    LightProbe,
     LightProbeColor,
+    LightProbeAtmosphereInscatter,
     LightProbeDepth,
     BackBuffer,
     BackBufferCopy,
@@ -66,7 +68,9 @@ impl std::str::FromStr for RenderTargetType {
             "SceneColorCopy" => Ok(RenderTargetType::SceneColorCopy),
             "SceneDepth" => Ok(RenderTargetType::SceneDepth),
             "HierarchicalMinZ" => Ok(RenderTargetType::HierarchicalMinZ),
+            "LightProbe" => Ok(RenderTargetType::LightProbe),
             "LightProbeColor" => Ok(RenderTargetType::LightProbeColor),
+            "LightProbeAtmosphereInscatter" => Ok(RenderTargetType::LightProbeAtmosphereInscatter),
             "LightProbeDepth" => Ok(RenderTargetType::LightProbeDepth),
             "BackBuffer" => Ok(RenderTargetType::BackBuffer),
             "BackBufferCopy" => Ok(RenderTargetType::BackBufferCopy),
@@ -106,7 +110,6 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
     let swapchain_data = &renderer_data._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
-    let light_probe_size =  256;
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_data._render_features._msaa_samples);
     let hdr_texture_create_info = TextureCreateInfo {
@@ -152,18 +155,32 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::LightProbeColor.to_string(),
-            _texture_width: light_probe_size,
-            _texture_height: light_probe_size,
+            _texture_name: RenderTargetType::LightProbe.to_string(),
+            _texture_width: constants::LIGHT_PROBE_SIZE,
+            _texture_height: constants::LIGHT_PROBE_SIZE,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: true,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
+            _texture_name: RenderTargetType::LightProbeColor.to_string(),
+            _texture_width: constants::LIGHT_PROBE_SIZE,
+            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::LightProbeAtmosphereInscatter.to_string(),
+            _texture_width: constants::LIGHT_PROBE_SIZE,
+            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeDepth.to_string(),
-            _texture_width: light_probe_size,
-            _texture_height: light_probe_size,
+            _texture_width: constants::LIGHT_PROBE_SIZE,
+            _texture_height: constants::LIGHT_PROBE_SIZE,
             _texture_format: vk::Format::D32_SFLOAT,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,

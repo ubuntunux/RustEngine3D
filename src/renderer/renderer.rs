@@ -72,6 +72,7 @@ use crate::renderer::renderer_data::{
     RendererData_SSR,
     RendererData_CompositeGBuffer,
     RendererData_ClearRenderTargets,
+    RendererData_LightProbe,
 };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
@@ -190,6 +191,7 @@ pub struct RendererData {
     pub _renderer_data_ssr: RendererData_SSR,
     pub _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer,
     pub _clear_render_targets: RendererData_ClearRenderTargets,
+    pub _light_probe_datas: RendererData_LightProbe,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -317,6 +319,7 @@ pub fn create_renderer_data<T>(
             _renderer_data_ssr: RendererData_SSR::default(),
             _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer::default(),
             _clear_render_targets: RendererData_ClearRenderTargets::default(),
+            _light_probe_datas: RendererData_LightProbe::default(),
             _resources: resources.clone(),
         };
 
