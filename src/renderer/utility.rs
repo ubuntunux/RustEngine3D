@@ -81,10 +81,7 @@ pub fn create_framebuffer_2d_array(
 pub fn create_descriptor_sets(
     device: &Device,
     pipeline_binding_data: &PipelineBindingData,
-    descriptor_binding_index: usize,
-    input_texture: &TextureData,
-    input_texture_layer: u32,
-    input_texture_miplevel: u32,
+    descriptor_resource_infos: &[(usize, DescriptorResourceInfo)]
 ) -> SwapchainIndexMap<vk::DescriptorSet> {
     let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
     let descriptor_data = &pipeline_data._descriptor_data;
@@ -92,13 +89,9 @@ pub fn create_descriptor_sets(
         descriptor_data_create_info._descriptor_binding_index
     }).collect();
     let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
-    for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-        for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-            if constants::WHOLE_LAYERS != input_texture_layer || constants::WHOLE_MIP_LEVELS != input_texture_miplevel {
-                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_sub_image_info(input_texture_layer, input_texture_miplevel));
-            } else {
-                descriptor_resource_infos[descriptor_binding_index] = DescriptorResourceInfo::DescriptorImageInfo(input_texture.get_default_image_info());
-            }
+    for (descriptor_binding_index, descriptor_resource_info) in descriptor_resource_infos {
+        for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+            descriptor_resource_infos_list[*swapchain_index][*descriptor_binding_index] = descriptor_resource_info.clone();
         }
     }
     let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
@@ -118,11 +111,8 @@ pub fn create_framebuffer_and_descriptor_sets(
     render_target: &TextureData,
     render_target_layer: u32,
     render_target_miplevel: u32,
-    descriptor_binding_index: usize,
-    input_texture: &TextureData,
-    input_texture_layer: u32,
-    input_texture_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
+    descriptor_resource_infos: &[(usize, DescriptorResourceInfo)],
 ) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
@@ -135,10 +125,7 @@ pub fn create_framebuffer_and_descriptor_sets(
     let descriptor_sets = create_descriptor_sets(
         device,
         pipeline_binding_data,
-        descriptor_binding_index,
-        input_texture,
-        input_texture_layer,
-        input_texture_miplevel,
+        descriptor_resource_infos
     );
     (framebuffer_data, descriptor_sets)
 }

@@ -317,18 +317,12 @@ impl FFTOcean {
         self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            fft_waves_descriptor_binding_index,
-            texture_fft_a,
-            constants::WHOLE_LAYERS,
-            constants::WHOLE_MIP_LEVELS,
+            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_default_image_info()))]
         );
         self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            fft_waves_descriptor_binding_index,
-            texture_fft_b,
-            constants::WHOLE_LAYERS,
-            constants::WHOLE_MIP_LEVELS,
+            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_b.get_default_image_info()))]
         );
 
         // fft wave y
@@ -338,47 +332,29 @@ impl FFTOcean {
         self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            fft_waves_descriptor_binding_index,
-            texture_fft_a,
-            constants::WHOLE_LAYERS,
-            constants::WHOLE_MIP_LEVELS,
+            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_default_image_info()))]
         );
         self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            fft_waves_descriptor_binding_index,
-            texture_fft_b,
-            constants::WHOLE_LAYERS,
-            constants::WHOLE_MIP_LEVELS,
+            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_b.get_default_image_info()))]
         );
 
         // fft a generate mips
         let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
-        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-        let descriptor_data = &pipeline_data._descriptor_data;
-        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-            descriptor_data_create_info._descriptor_binding_index
-        }).collect();
-        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
         let layer_count = texture_fft_a._image_layers;
         let dispatch_count: u32 = texture_fft_a._image_mip_levels - 1;
         for layer in 0..layer_count {
             self._fft_a_generate_mips_descriptor_sets.push(Vec::new());
             for mip_level in 0..dispatch_count {
-                for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                    for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                        descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level));
-                        descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level + 1));
-                    }
-                }
-                let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
-                let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+                let descriptor_sets = utility::create_descriptor_sets(
                     device,
-                    &descriptor_sets,
-                    &descriptor_binding_indices,
-                    &descriptor_data._descriptor_set_layout_bindings,
-                    &descriptor_resource_infos_list,
+                    pipeline_binding_data,
+                    &[
+                        (0, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level))),
+                        (1, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level + 1))),
+                    ]
                 );
                 self._fft_a_generate_mips_descriptor_sets.last_mut().unwrap().push(descriptor_sets);
             }

@@ -228,8 +228,8 @@ impl RendererData_Bloom {
         for mip_level in 0..(render_target_bloom0._image_mip_levels - 1) {
             let (bloom_framebuffer_data, bloom_descriptor_set) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
-                render_target_bloom0, layer, mip_level + 1,
-                descriptor_binding_index, render_target_bloom0, layer, mip_level, None
+                render_target_bloom0, layer, mip_level + 1, None,
+                &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(render_target_bloom0.get_sub_image_info(layer, mip_level)))]
             );
             self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data);
             self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set);
@@ -241,12 +241,14 @@ impl RendererData_Bloom {
         for mip_level in 0..render_target_bloom0._image_mip_levels {
             let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
-                render_target_bloom_temp0, layer, mip_level,
-                descriptor_binding_index, render_target_bloom0, layer, mip_level, None);
+                render_target_bloom_temp0, layer, mip_level, None,
+                &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(render_target_bloom0.get_sub_image_info(layer, mip_level)))]
+            );
             let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
                 device, pipeline_binding_data,
-                render_target_bloom0, layer, mip_level,
-                descriptor_binding_index, render_target_bloom_temp0, layer, mip_level, None);
+                render_target_bloom0, layer, mip_level, None,
+                &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(render_target_bloom_temp0.get_sub_image_info(layer, mip_level)))]
+            );
             self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data);
             self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data);
             self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets);
@@ -298,8 +300,8 @@ impl RendererData_TAA {
         let mip_level: u32 = 0;
         let (framebuffer_data, descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            taa_resolve_texture, layer, mip_level,
-            descriptor_binding_index, taa_render_target, layer, mip_level, None,
+            taa_resolve_texture, layer, mip_level, None,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(taa_render_target.get_sub_image_info(layer, mip_level)))]
         );
         self._taa_resolve_framebuffer_data = framebuffer_data;
         self._taa_descriptor_sets = descriptor_sets;
@@ -329,13 +331,13 @@ impl RendererData_SSAO {
         let mip_level: u32 = 0;
         let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            render_target_ssao_temp, layer, mip_level,
-            descriptor_binding_index, render_target_ssao, layer, mip_level, None,
+            render_target_ssao_temp, layer, mip_level, None,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(render_target_ssao.get_sub_image_info(layer, mip_level)))]
         );
         let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            render_target_ssao, layer, mip_level,
-            descriptor_binding_index, render_target_ssao_temp, layer, mip_level, None,
+            render_target_ssao, layer, mip_level, None,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(render_target_ssao_temp.get_sub_image_info(layer, mip_level)))]
         );
         self._ssao_blur_framebuffer_data0 = ssao_blur_framebuffer_data0;
         self._ssao_blur_framebuffer_data1 = ssao_blur_framebuffer_data1;
@@ -361,29 +363,16 @@ impl RendererData_HierachicalMinZ {
         let resources = resources.borrow();
         let generate_min_z_material_instance = resources.get_material_instance_data("generate_min_z").borrow();
         let pipeline_binding_data = generate_min_z_material_instance.get_pipeline_binding_data("generate_min_z/generate_min_z");
-        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-        let descriptor_data = &pipeline_data._descriptor_data;
-        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-            descriptor_data_create_info._descriptor_binding_index
-        }).collect();
-
         let layer: u32 = 0;
-        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
         let dispatch_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
         for mip_level in 0..dispatch_count {
-            for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                    descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level));
-                    descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level + 1));
-                }
-            }
-            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
-            let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+            let descriptor_sets = utility::create_descriptor_sets(
                 device,
-                &descriptor_sets,
-                &descriptor_binding_indices,
-                &descriptor_data._descriptor_set_layout_bindings,
-                &descriptor_resource_infos_list,
+                pipeline_binding_data,
+                &[
+                    (0, DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level))),
+                    (1, DescriptorResourceInfo::DescriptorImageInfo(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level + 1))),
+                ]
             );
             self._descriptor_sets.push(descriptor_sets);
         }
@@ -409,29 +398,16 @@ impl RendererData_SceneColorDownSampling {
         let resources = resources.borrow();
         let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
-        let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
-        let descriptor_data = &pipeline_data._descriptor_data;
-        let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-            descriptor_data_create_info._descriptor_binding_index
-        }).collect();
-
         let layer: u32 = 0;
-        let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
         let dispatch_count: u32 = texture_scene_color._image_mip_levels - 1;
         for mip_level in 0..dispatch_count {
-            for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                for descriptor_resource_infos in descriptor_resource_infos_list.get_mut(*swapchain_index).iter_mut() {
-                    descriptor_resource_infos[0] = DescriptorResourceInfo::DescriptorImageInfo(texture_scene_color.get_sub_image_info(layer, mip_level));
-                    descriptor_resource_infos[1] = DescriptorResourceInfo::DescriptorImageInfo(texture_scene_color.get_sub_image_info(layer, mip_level + 1));
-                }
-            }
-            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
-            let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+            let descriptor_sets = utility::create_descriptor_sets(
                 device,
-                &descriptor_sets,
-                &descriptor_binding_indices,
-                &descriptor_data._descriptor_set_layout_bindings,
-                &descriptor_resource_infos_list,
+                pipeline_binding_data,
+                &[
+                    (0, DescriptorResourceInfo::DescriptorImageInfo(texture_scene_color.get_sub_image_info(layer, mip_level))),
+                    (1, DescriptorResourceInfo::DescriptorImageInfo(texture_scene_color.get_sub_image_info(layer, mip_level + 1))),
+                ]
             );
             self._descriptor_sets.push(descriptor_sets);
         }
@@ -460,13 +436,13 @@ impl RendererData_SSR {
         let mip_level: u32 = 0;
         let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            texture_ssr_resolved, layer, mip_level,
-            descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level, None,
+            texture_ssr_resolved, layer, mip_level, None,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_ssr_resolved_prev.get_sub_image_info(layer, mip_level)))]
         );
         let (framebuffer_data1, descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            texture_ssr_resolved_prev, layer, mip_level,
-            descriptor_binding_index, texture_ssr_resolved, layer, mip_level, None,
+            texture_ssr_resolved_prev, layer, mip_level, None,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_ssr_resolved.get_sub_image_info(layer, mip_level)))]
         );
         self._framebuffer_data0 = framebuffer_data0;
         self._framebuffer_data1 = framebuffer_data1;
@@ -499,18 +475,15 @@ impl RendererData_CompositeGBuffer {
         let render_copy_material_instance = resources.get_material_instance_data("composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let descriptor_binding_index: usize = 11;
-        let layer: u32 = constants::WHOLE_LAYERS;
-        let mip_level: u32 = constants::WHOLE_MIP_LEVELS;
-        let descriptor_sets0 = utility::create_descriptor_sets(
-            device, pipeline_binding_data,
-            descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
+        self._descriptor_sets0 = utility::create_descriptor_sets(
+            device,
+            pipeline_binding_data,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_ssr_resolved.get_default_image_info()))]
         );
-        let descriptor_sets1 = utility::create_descriptor_sets(
+        self._descriptor_sets1 = utility::create_descriptor_sets(
             device, pipeline_binding_data,
-            descriptor_binding_index, texture_ssr_resolved_prev, layer, mip_level,
+            &[(descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_ssr_resolved_prev.get_default_image_info()))]
         );
-        self._descriptor_sets0 = descriptor_sets0;
-        self._descriptor_sets1 = descriptor_sets1;
     }
 
     pub fn destroy(&mut self, device: &Device) {
