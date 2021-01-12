@@ -129,3 +129,28 @@ pub fn create_framebuffer_and_descriptor_sets(
     );
     (framebuffer_data, descriptor_sets)
 }
+
+pub fn create_framebuffers_and_descriptor_sets(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    framebuffer_name: &str,
+    color_render_targets: &[RenderTargetInfo],
+    depth_render_targets: &[RenderTargetInfo],
+    resolve_render_targets: &[RenderTargetInfo],
+    descriptor_resource_infos: &[(usize, DescriptorResourceInfo)],
+) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+    let framebuffer_data = create_framebuffers(
+        device,
+        pipeline_binding_data,
+        framebuffer_name,
+        color_render_targets,
+        depth_render_targets,
+        resolve_render_targets,
+    );
+    let descriptor_sets = create_descriptor_sets(
+        device,
+        pipeline_binding_data,
+        descriptor_resource_infos
+    );
+    (framebuffer_data, descriptor_sets)
+}
