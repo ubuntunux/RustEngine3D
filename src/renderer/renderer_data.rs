@@ -16,13 +16,13 @@ use crate::utilities::system::RcRefCell;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_ClearRenderTargets {
+pub struct RendererData_ClearRenderTargets {
     pub _framebuffer_datas: Vec<FramebufferData>,
 }
 
-impl Default for PostProcessData_ClearRenderTargets {
-    fn default() -> PostProcessData_ClearRenderTargets {
-        PostProcessData_ClearRenderTargets {
+impl Default for RendererData_ClearRenderTargets {
+    fn default() -> RendererData_ClearRenderTargets {
+        RendererData_ClearRenderTargets {
             _framebuffer_datas: Vec::new()
         }
     }
@@ -30,14 +30,14 @@ impl Default for PostProcessData_ClearRenderTargets {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_CompositeGBuffer {
+pub struct RendererData_CompositeGBuffer {
     pub _descriptor_sets0: SwapchainIndexMap<vk::DescriptorSet>,
     pub _descriptor_sets1: SwapchainIndexMap<vk::DescriptorSet>,
 }
 
-impl Default for PostProcessData_CompositeGBuffer {
-    fn default() -> PostProcessData_CompositeGBuffer {
-        PostProcessData_CompositeGBuffer {
+impl Default for RendererData_CompositeGBuffer {
+    fn default() -> RendererData_CompositeGBuffer {
+        RendererData_CompositeGBuffer {
             _descriptor_sets0: Vec::new(),
             _descriptor_sets1: Vec::new(),
         }
@@ -46,15 +46,15 @@ impl Default for PostProcessData_CompositeGBuffer {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_SceneColorDownSampling {
+pub struct RendererData_SceneColorDownSampling {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
     pub _descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
 }
 
-impl Default for PostProcessData_SceneColorDownSampling {
-    fn default() -> PostProcessData_SceneColorDownSampling {
-        PostProcessData_SceneColorDownSampling {
+impl Default for RendererData_SceneColorDownSampling {
+    fn default() -> RendererData_SceneColorDownSampling {
+        RendererData_SceneColorDownSampling {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
             _descriptor_sets: Vec::new(),
@@ -64,7 +64,7 @@ impl Default for PostProcessData_SceneColorDownSampling {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_Bloom {
+pub struct RendererData_Bloom {
     pub _bloom_downsample_framebuffer_datas: Vec<FramebufferData>,
     pub _bloom_downsample_descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
     pub _bloom_temp_framebuffer_datas: Vec<FramebufferData>,
@@ -74,9 +74,9 @@ pub struct PostProcessData_Bloom {
     pub _bloom_push_constants: PushConstant_BloomHighlight,
 }
 
-impl Default for PostProcessData_Bloom {
-    fn default() -> PostProcessData_Bloom {
-        PostProcessData_Bloom {
+impl Default for RendererData_Bloom {
+    fn default() -> RendererData_Bloom {
+        RendererData_Bloom {
             _bloom_downsample_framebuffer_datas: Vec::new(),
             _bloom_downsample_descriptor_sets: Vec::new(),
             _bloom_temp_framebuffer_datas: Vec::new(),
@@ -95,7 +95,7 @@ impl Default for PostProcessData_Bloom {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_SSAO {
+pub struct RendererData_SSAO {
     pub _ssao_kernel_size: i32,
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
@@ -106,8 +106,8 @@ pub struct PostProcessData_SSAO {
     pub _ssao_blur_descriptor_sets1: SwapchainIndexMap<vk::DescriptorSet>,
 }
 
-impl Default for PostProcessData_SSAO {
-    fn default() -> PostProcessData_SSAO {
+impl Default for RendererData_SSAO {
+    fn default() -> RendererData_SSAO {
         let mut random_normals: [Vector4<f32>; 64] = [Vector4::new(0.0, 0.0, 0.0, 0.0); constants::SSAO_KERNEL_SIZE];
         for i in 0..constants::SSAO_KERNEL_SIZE {
             let scale = rand::random::<f32>();
@@ -119,7 +119,7 @@ impl Default for PostProcessData_SSAO {
             random_normals[i] = Vector4::new(normal.x, normal.y, normal.z, 0.0);
         }
 
-        PostProcessData_SSAO {
+        RendererData_SSAO {
             _ssao_kernel_size: constants::SSAO_KERNEL_SIZE as i32,
             _ssao_radius: constants::SSAO_RADIUS,
             _ssao_noise_dim: constants::SSAO_NOISE_DIM,
@@ -136,7 +136,7 @@ impl Default for PostProcessData_SSAO {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_TAA {
+pub struct RendererData_TAA {
     pub _enable_taa: bool,
     pub _rendertarget_width: u32,
     pub _rendertarget_height: u32,
@@ -144,9 +144,9 @@ pub struct PostProcessData_TAA {
     pub _taa_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
 }
 
-impl Default for PostProcessData_TAA {
-    fn default() -> PostProcessData_TAA {
-        PostProcessData_TAA {
+impl Default for RendererData_TAA {
+    fn default() -> RendererData_TAA {
+        RendererData_TAA {
             _enable_taa: true,
             _rendertarget_width: 1024,
             _rendertarget_height: 768,
@@ -158,15 +158,15 @@ impl Default for PostProcessData_TAA {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_HierachicalMinZ {
+pub struct RendererData_HierachicalMinZ {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
     pub _descriptor_sets: Vec<SwapchainIndexMap<vk::DescriptorSet>>,
 }
 
-impl Default for PostProcessData_HierachicalMinZ {
-    fn default() -> PostProcessData_HierachicalMinZ {
-        PostProcessData_HierachicalMinZ {
+impl Default for RendererData_HierachicalMinZ {
+    fn default() -> RendererData_HierachicalMinZ {
+        RendererData_HierachicalMinZ {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
             _descriptor_sets: Vec::new(),
@@ -176,7 +176,7 @@ impl Default for PostProcessData_HierachicalMinZ {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct PostProcessData_SSR {
+pub struct RendererData_SSR {
     pub _framebuffer_data0: FramebufferData,
     pub _framebuffer_data1: FramebufferData,
     pub _descriptor_sets0: SwapchainIndexMap<vk::DescriptorSet>,
@@ -185,9 +185,9 @@ pub struct PostProcessData_SSR {
     pub _previous_ssr_resolved: RenderTargetType,
 }
 
-impl Default for PostProcessData_SSR {
-    fn default() -> PostProcessData_SSR {
-        PostProcessData_SSR {
+impl Default for RendererData_SSR {
+    fn default() -> RendererData_SSR {
+        RendererData_SSR {
             _framebuffer_data0: FramebufferData::default(),
             _framebuffer_data1: FramebufferData::default(),
             _descriptor_sets0: SwapchainIndexMap::new(),
@@ -198,7 +198,7 @@ impl Default for PostProcessData_SSR {
     }
 }
 
-impl PostProcessData_Bloom {
+impl RendererData_Bloom {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -268,7 +268,7 @@ impl PostProcessData_Bloom {
     }
 }
 
-impl PostProcessData_TAA {
+impl RendererData_TAA {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -299,7 +299,7 @@ impl PostProcessData_TAA {
     }
 }
 
-impl PostProcessData_SSAO {
+impl RendererData_SSAO {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -337,7 +337,7 @@ impl PostProcessData_SSAO {
     }
 }
 
-impl PostProcessData_HierachicalMinZ {
+impl RendererData_HierachicalMinZ {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -385,7 +385,7 @@ impl PostProcessData_HierachicalMinZ {
     }
 }
 
-impl PostProcessData_SceneColorDownSampling {
+impl RendererData_SceneColorDownSampling {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -430,7 +430,7 @@ impl PostProcessData_SceneColorDownSampling {
     }
 }
 
-impl PostProcessData_SSR {
+impl RendererData_SSR {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -473,7 +473,7 @@ impl PostProcessData_SSR {
 }
 
 
-impl PostProcessData_CompositeGBuffer {
+impl RendererData_CompositeGBuffer {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -505,7 +505,7 @@ impl PostProcessData_CompositeGBuffer {
     }
 }
 
-impl PostProcessData_ClearRenderTargets {
+impl RendererData_ClearRenderTargets {
     pub fn initialize(
         &mut self,
         device: &Device,

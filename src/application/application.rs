@@ -100,7 +100,7 @@ impl ApplicationData {
         renderer_data: &mut RendererData,
     ) {
         scene_manager_data.close_scene_manager_data(renderer_data.get_device());
-        renderer_data.destroy_post_process_datas();
+        renderer_data.destroy_framebuffer_and_descriptors();
         resources.destroy_resources(renderer_data);
         renderer_data.destroy_renderer_data();
     }
@@ -262,7 +262,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     // initialize grphics
     scene_manager_data.borrow().get_fft_ocean().borrow_mut().regist_fft_ocean_textures(&renderer_data, &resources);
     resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
-    renderer_data.borrow_mut().initialize_post_process_datas();
+    renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
     let camera_data = CameraCreateInfo {
         window_width: width,
         window_height: height,

@@ -63,15 +63,15 @@ use crate::renderer::shader_buffer_datas::{
     ShaderBufferDataType,
     ShaderBufferDataMap,
 };
-use crate::renderer::post_process::{
-    PostProcessData_Bloom,
-    PostProcessData_SSAO,
-    PostProcessData_TAA,
-    PostProcessData_HierachicalMinZ,
-    PostProcessData_SceneColorDownSampling,
-    PostProcessData_SSR,
-    PostProcessData_CompositeGBuffer,
-    PostProcessData_ClearRenderTargets,
+use crate::renderer::renderer_data::{
+    RendererData_Bloom,
+    RendererData_SSAO,
+    RendererData_TAA,
+    RendererData_HierachicalMinZ,
+    RendererData_SceneColorDownSampling,
+    RendererData_SSR,
+    RendererData_CompositeGBuffer,
+    RendererData_ClearRenderTargets,
 };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
@@ -182,14 +182,14 @@ pub struct RendererData {
     pub _debug_render_target_miplevel: u32,
     pub _render_target_data_map: RenderTargetDataMap,
     pub _shader_buffer_data_map: ShaderBufferDataMap,
-    pub _post_process_data_bloom: PostProcessData_Bloom,
-    pub _post_process_data_ssao: PostProcessData_SSAO,
-    pub _post_process_data_taa: PostProcessData_TAA,
-    pub _post_process_data_hiz: PostProcessData_HierachicalMinZ,
-    pub _scene_color_downsampling: PostProcessData_SceneColorDownSampling,
-    pub _post_process_data_ssr: PostProcessData_SSR,
-    pub _post_process_data_composite_gbuffer: PostProcessData_CompositeGBuffer,
-    pub _clear_render_targets: PostProcessData_ClearRenderTargets,
+    pub _renderer_data_bloom: RendererData_Bloom,
+    pub _renderer_data_ssao: RendererData_SSAO,
+    pub _renderer_data_taa: RendererData_TAA,
+    pub _renderer_data_hiz: RendererData_HierachicalMinZ,
+    pub _scene_color_downsampling: RendererData_SceneColorDownSampling,
+    pub _renderer_data_ssr: RendererData_SSR,
+    pub _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer,
+    pub _clear_render_targets: RendererData_ClearRenderTargets,
     pub _resources: RcRefCell<Resources>
 }
 
@@ -309,14 +309,14 @@ pub fn create_renderer_data<T>(
             _debug_render_target_miplevel: 0,
             _render_target_data_map: RenderTargetDataMap::new(),
             _shader_buffer_data_map: ShaderBufferDataMap::new(),
-            _post_process_data_bloom: PostProcessData_Bloom::default(),
-            _post_process_data_ssao: PostProcessData_SSAO::default(),
-            _post_process_data_taa: PostProcessData_TAA::default(),
-            _post_process_data_hiz: PostProcessData_HierachicalMinZ::default(),
-            _scene_color_downsampling: PostProcessData_SceneColorDownSampling::default(),
-            _post_process_data_ssr: PostProcessData_SSR::default(),
-            _post_process_data_composite_gbuffer: PostProcessData_CompositeGBuffer::default(),
-            _clear_render_targets: PostProcessData_ClearRenderTargets::default(),
+            _renderer_data_bloom: RendererData_Bloom::default(),
+            _renderer_data_ssao: RendererData_SSAO::default(),
+            _renderer_data_taa: RendererData_TAA::default(),
+            _renderer_data_hiz: RendererData_HierachicalMinZ::default(),
+            _scene_color_downsampling: RendererData_SceneColorDownSampling::default(),
+            _renderer_data_ssr: RendererData_SSR::default(),
+            _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer::default(),
+            _clear_render_targets: RendererData_ClearRenderTargets::default(),
             _resources: resources.clone(),
         };
 
@@ -351,30 +351,30 @@ impl RendererData {
         &self._shader_buffer_data_map.get(&buffer_data_type).unwrap()
     }
 
-    pub fn initialize_post_process_datas(&mut self) {
+    pub fn prepare_framebuffer_and_descriptors(&mut self) {
         // Bloom
-        self._post_process_data_bloom.initialize(
+        self._renderer_data_bloom.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::BloomTemp0).as_ref().unwrap(),
         );
         // Temporal AA
-        self._post_process_data_taa.initialize(
+        self._renderer_data_taa.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
         );
         // SSAO
-        self._post_process_data_ssao.initialize(
+        self._renderer_data_ssao.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SSAO).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSAOTemp).as_ref().unwrap(),
         );
         // Hierachical Min Z
-        self._post_process_data_hiz.initialize(
+        self._renderer_data_hiz.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
@@ -386,14 +386,14 @@ impl RendererData {
             self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
         );
         // SSR
-        self._post_process_data_ssr.initialize(
+        self._renderer_data_ssr.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
         );
         // Composite GBuffer
-        self._post_process_data_composite_gbuffer.initialize(
+        self._renderer_data_composite_gbuffer.initialize(
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
@@ -419,19 +419,19 @@ impl RendererData {
         );
     }
 
-    pub fn destroy_post_process_datas(&mut self) {
-        self._post_process_data_bloom.destroy(&self._device);
-        self._post_process_data_taa.destroy(&self._device);
-        self._post_process_data_ssao.destroy(&self._device);
-        self._post_process_data_hiz.destroy(&self._device);
+    pub fn destroy_framebuffer_and_descriptors(&mut self) {
+        self._renderer_data_bloom.destroy(&self._device);
+        self._renderer_data_taa.destroy(&self._device);
+        self._renderer_data_ssao.destroy(&self._device);
+        self._renderer_data_hiz.destroy(&self._device);
         self._scene_color_downsampling.destroy(&self._device);
-        self._post_process_data_ssr.destroy(&self._device);
-        self._post_process_data_composite_gbuffer.destroy(&self._device);
+        self._renderer_data_ssr.destroy(&self._device);
+        self._renderer_data_composite_gbuffer.destroy(&self._device);
         self._clear_render_targets.destroy(&self._device);
     }
 
     pub fn update_post_process_datas(&mut self) {
-        self._post_process_data_ssr.update();
+        self._renderer_data_ssr.update();
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -797,7 +797,7 @@ impl RendererData {
         let resources = self._resources.clone();
 
         // destroy swapchain & graphics resources
-        self.destroy_post_process_datas();
+        self.destroy_framebuffer_and_descriptors();
         resources.borrow_mut().unload_graphics_datas(self);
         self.destroy_render_targets();
 
@@ -805,7 +805,7 @@ impl RendererData {
         self.recreate_swapchain();
         self.create_render_targets();
         resources.borrow_mut().load_graphics_datas(self);
-        self.initialize_post_process_datas();
+        self.prepare_framebuffer_and_descriptors();
         self.reset_is_first_rendering();
     }
 
@@ -985,7 +985,7 @@ impl RendererData {
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &scene_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstants, &view_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstants, &self._post_process_data_ssao._ssao_constants);
+                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
 
                 if self._is_first_rendering {
@@ -1206,8 +1206,8 @@ impl RendererData {
         self.render_material_instance(command_buffer, swapchain_index, "render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // copy SceneColorCopy -> TAAResolve
-        let framebuffer = Some(&self._post_process_data_taa._taa_resolve_framebuffer_data);
-        let descriptor_sets = Some(&self._post_process_data_taa._taa_descriptor_sets);
+        let framebuffer = Some(&self._renderer_data_taa._taa_resolve_framebuffer_data);
+        let descriptor_sets = Some(&self._renderer_data_taa._taa_descriptor_sets);
         let push_constants = PushConstant_RenderCopy::default();
         self.render_material_instance(command_buffer, swapchain_index, "render_copy", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
     }
@@ -1229,20 +1229,20 @@ impl RendererData {
             quad_geometry_data,
             None,
             None,
-            Some(&self._post_process_data_bloom._bloom_push_constants)
+            Some(&self._renderer_data_bloom._bloom_push_constants)
         );
 
         // render_bloom_downsampling
         let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-        let framebuffer_count = self._post_process_data_bloom._bloom_downsample_framebuffer_datas.len();
+        let framebuffer_count = self._renderer_data_bloom._bloom_downsample_framebuffer_datas.len();
         for i in 0..framebuffer_count {
             self.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._post_process_data_bloom._bloom_downsample_framebuffer_datas[i]),
-                Some(&self._post_process_data_bloom._bloom_downsample_descriptor_sets[i]),
+                Some(&self._renderer_data_bloom._bloom_downsample_framebuffer_datas[i]),
+                Some(&self._renderer_data_bloom._bloom_downsample_descriptor_sets[i]),
                 NONE_PUSH_CONSTANT
             );
         }
@@ -1250,15 +1250,15 @@ impl RendererData {
         // render_gaussian_blur
         let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_gaussian_blur").borrow();
         let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
-        let framebuffer_count = self._post_process_data_bloom._bloom_temp_framebuffer_datas.len();
+        let framebuffer_count = self._renderer_data_bloom._bloom_temp_framebuffer_datas.len();
         for i in 0..framebuffer_count {
             self.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._post_process_data_bloom._bloom_temp_framebuffer_datas[i]),
-                Some(&self._post_process_data_bloom._bloom_temp_descriptor_sets[i]),
+                Some(&self._renderer_data_bloom._bloom_temp_framebuffer_datas[i]),
+                Some(&self._renderer_data_bloom._bloom_temp_descriptor_sets[i]),
                 Some(&PushConstant_GaussianBlur {
                     _blur_scale: if 0 == (i % 2) {
                         Vector2::new(1.0, 0.0)
@@ -1276,9 +1276,9 @@ impl RendererData {
         self.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Screen Space Reflection Resolve
-        let (framebuffer, descriptor_sets) = match self._post_process_data_ssr._current_ssr_resolved {
-            RenderTargetType::SSRResolved => (Some(&self._post_process_data_ssr._framebuffer_data0), Some(&self._post_process_data_ssr._descriptor_sets0)),
-            RenderTargetType::SSRResolvedPrev => (Some(&self._post_process_data_ssr._framebuffer_data1), Some(&self._post_process_data_ssr._descriptor_sets1)),
+        let (framebuffer, descriptor_sets) = match self._renderer_data_ssr._current_ssr_resolved {
+            RenderTargetType::SSRResolved => (Some(&self._renderer_data_ssr._framebuffer_data0), Some(&self._renderer_data_ssr._descriptor_sets0)),
+            RenderTargetType::SSRResolvedPrev => (Some(&self._renderer_data_ssr._framebuffer_data1), Some(&self._renderer_data_ssr._descriptor_sets1)),
             _ => panic!("error")
         };
         self.render_material_instance(command_buffer, swapchain_index, "render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, NONE_PUSH_CONSTANT);
@@ -1289,10 +1289,10 @@ impl RendererData {
         self.render_material_instance(command_buffer, swapchain_index, "render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // render ssao blur
-        let framebuffer_h = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data0);
-        let descriptor_sets_h = Some(&self._post_process_data_ssao._ssao_blur_descriptor_sets0);
-        let framebuffer_v = Some(&self._post_process_data_ssao._ssao_blur_framebuffer_data1);
-        let descriptor_sets_v = Some(&self._post_process_data_ssao._ssao_blur_descriptor_sets1);
+        let framebuffer_h = Some(&self._renderer_data_ssao._ssao_blur_framebuffer_data0);
+        let descriptor_sets_h = Some(&self._renderer_data_ssao._ssao_blur_descriptor_sets0);
+        let framebuffer_v = Some(&self._renderer_data_ssao._ssao_blur_framebuffer_data1);
+        let descriptor_sets_v = Some(&self._renderer_data_ssao._ssao_blur_descriptor_sets1);
         let push_constants_blur_h = PushConstant_GaussianBlur {
             _blur_scale: Vector2::new(1.0, 0.0),
             ..Default::default()
@@ -1306,9 +1306,9 @@ impl RendererData {
     }
 
     pub fn composite_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let descriptor_sets = match self._post_process_data_ssr._current_ssr_resolved {
-            RenderTargetType::SSRResolved => Some(&self._post_process_data_composite_gbuffer._descriptor_sets0),
-            RenderTargetType::SSRResolvedPrev => Some(&self._post_process_data_composite_gbuffer._descriptor_sets1),
+        let descriptor_sets = match self._renderer_data_ssr._current_ssr_resolved {
+            RenderTargetType::SSRResolved => Some(&self._renderer_data_composite_gbuffer._descriptor_sets0),
+            RenderTargetType::SSRResolvedPrev => Some(&self._renderer_data_composite_gbuffer._descriptor_sets1),
             _ => panic!("error")
         };
         self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, NONE_PUSH_CONSTANT);
@@ -1324,15 +1324,15 @@ impl RendererData {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        let dispatch_count = self._post_process_data_hiz._descriptor_sets.len();
+        let dispatch_count = self._renderer_data_hiz._descriptor_sets.len();
         self.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
-            let descriptor_sets = Some(&self._post_process_data_hiz._descriptor_sets[mip_level as usize]);
+            let descriptor_sets = Some(&self._renderer_data_hiz._descriptor_sets[mip_level as usize]);
             self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
             self.dispatch_compute_pipeline(
                 command_buffer,
-                max(1, self._post_process_data_hiz._dispatch_group_x >> (mip_level + 1)),
-                max(1, self._post_process_data_hiz._dispatch_group_y >> (mip_level + 1)),
+                max(1, self._renderer_data_hiz._dispatch_group_x >> (mip_level + 1)),
+                max(1, self._renderer_data_hiz._dispatch_group_y >> (mip_level + 1)),
                 1
             );
         }

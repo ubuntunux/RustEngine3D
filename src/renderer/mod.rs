@@ -8,7 +8,7 @@ pub mod material;
 pub mod material_instance;
 pub mod mesh;
 pub mod model;
-pub mod post_process;
+pub mod renderer_data;
 pub mod push_constants;
 pub mod render_element;
 pub mod render_object;
@@ -49,7 +49,7 @@ pub use self::mesh::*;
 pub use self::model::*;
 
 #[allow(unused_imports)]
-pub use self::post_process::*;
+pub use self::renderer_data::*;
 
 #[allow(unused_imports)]
 pub use self::render_element::*;
