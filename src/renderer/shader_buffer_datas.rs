@@ -17,6 +17,7 @@ use nalgebra::{
 };
 
 use crate::constants;
+use crate::renderer::camera::{ CameraObjectData };
 use crate::vulkan_context::buffer::{ self, ShaderBufferData };
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
@@ -29,6 +30,12 @@ pub enum ShaderBufferDataType {
     SSAOConstants,
     BoneMatrices,
     AtmosphereConstants,
+    LightProbeViewConstants0,
+    LightProbeViewConstants1,
+    LightProbeViewConstants2,
+    LightProbeViewConstants3,
+    LightProbeViewConstants4,
+    LightProbeViewConstants5,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -87,6 +94,26 @@ pub struct LightConstants {
   pub _shadow_dimensions: Vector4<f32>, // width height near far
 }
 
+impl Default for LightConstants {
+    fn default() -> LightConstants {
+        LightConstants {
+            _shadow_view_projection: Matrix4::identity(),
+            _light_position: Vector3::zeros(),
+            _shadow_exp: constants::SHADOW_EXP,
+            _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
+            _shadow_bias: constants::SHADOW_BIAS,
+            _light_color: Vector3::new(1.0, 1.0, 1.0),
+            _shadow_samples: constants::SHADOW_SAMPLES,
+            _shadow_dimensions: Vector4::new(
+                constants::SHADOW_DISTANCE * 2.0,
+                constants::SHADOW_DISTANCE * 2.0,
+                -constants::SHADOW_DEPTH,
+                constants::SHADOW_DEPTH
+            )
+        }
+    }
+}
+
 // render_ssao.frag - SSAOConstants
 #[derive(Clone)]
 pub struct SSAOConstants {
@@ -96,6 +123,14 @@ pub struct SSAOConstants {
 #[derive(Clone)]
 pub struct BoneMatrices {
     pub _bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
+}
+
+impl Default for BoneMatrices {
+    fn default() -> BoneMatrices {
+        BoneMatrices {
+            _bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
+        }
+    }
 }
 
 // pecomputed_atmosphere/atmosphere_common.glsl - struct ATMOSPHERE_CONSTANTS
@@ -143,35 +178,13 @@ impl std::str::FromStr for ShaderBufferDataType {
             "SSAOConstants" => Ok(ShaderBufferDataType::SSAOConstants),
             "BoneMatrices" => Ok(ShaderBufferDataType::BoneMatrices),
             "AtmosphereConstants" => Ok(ShaderBufferDataType::AtmosphereConstants),
+            "LightProbeViewConstants0" => Ok(ShaderBufferDataType::LightProbeViewConstants0),
+            "LightProbeViewConstants1" => Ok(ShaderBufferDataType::LightProbeViewConstants1),
+            "LightProbeViewConstants2" => Ok(ShaderBufferDataType::LightProbeViewConstants2),
+            "LightProbeViewConstants3" => Ok(ShaderBufferDataType::LightProbeViewConstants3),
+            "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
+            "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
-        }
-    }
-}
-
-impl Default for LightConstants {
-    fn default() -> LightConstants {
-        LightConstants {
-            _shadow_view_projection: Matrix4::identity(),
-            _light_position: Vector3::zeros(),
-            _shadow_exp: constants::SHADOW_EXP,
-            _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
-            _shadow_bias: constants::SHADOW_BIAS,
-            _light_color: Vector3::new(1.0, 1.0, 1.0),
-            _shadow_samples: constants::SHADOW_SAMPLES,
-            _shadow_dimensions: Vector4::new(
-                constants::SHADOW_DISTANCE * 2.0,
-                constants::SHADOW_DISTANCE * 2.0,
-                -constants::SHADOW_DEPTH,
-                constants::SHADOW_DEPTH
-            )
-        }
-    }
-}
-
-impl Default for BoneMatrices {
-    fn default() -> BoneMatrices {
-        BoneMatrices {
-            _bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
         }
     }
 }
@@ -207,4 +220,52 @@ pub fn regist_shader_buffer_datas(
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>());
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>());
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants0, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants1, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants2, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+}
+
+impl SceneConstants {
+    pub fn update_scene_constants(&mut self, screen_width: u32, screen_height: u32, elapsed_time: f64, delta_time: f64, sea_height: f32) {
+            self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
+            self._backbuffer_size = self._screen_size.into();
+            self._time = elapsed_time as f32;
+            self._delta_time = delta_time as f32;
+            self._sea_height = sea_height;
+    }
+}
+
+impl ViewConstants {
+    pub fn update_view_constants(&mut self, camera_data: &CameraObjectData) {
+        self._view = camera_data._view.into();
+        self._inv_view = camera_data._inv_view.into();
+        self._view_origin = camera_data._view_origin.into();
+        self._inv_view_origin = camera_data._inv_view_origin.into();
+        self._projection = camera_data._projection.into();
+        self._inv_projection = camera_data._inv_projection.into();
+        self._view_projection = camera_data._view_projection.into();
+        self._inv_view_projection = camera_data._inv_view_projection.into();
+        self._view_origin_projection = camera_data._view_origin_projection.into();
+        self._inv_view_origin_projection = camera_data._inv_view_origin_projection.into();
+        self._view_origin_projection_prev = camera_data._view_origin_projection_prev.into();
+        self._projection_jitter = camera_data._projection_jitter.into();
+        self._inv_projection_jitter = camera_data._inv_projection_jitter.into();
+        self._view_projection_jitter = camera_data._view_projection_jitter.into();
+        self._inv_view_projection_jitter = camera_data._inv_view_projection_jitter.into();
+        self._view_origin_projection_jitter = camera_data._view_origin_projection_jitter.into();
+        self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
+        self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
+        self._camera_position = camera_data._transform_object._position.clone() as Vector3<f32>;
+        self._jitter_frame = camera_data._jitter_frame;
+        self._camera_position_prev = camera_data._transform_object._prev_position.clone() as Vector3<f32>;
+        self._viewconstants_dummy0 = 0.0;
+        self._near_far = Vector2::new(camera_data._near, camera_data._far);
+        self._jitter_delta = camera_data._jitter_delta.into();
+        self._jitter_offset = camera_data._jitter.into();
+        self._viewconstants_dummy1 = 0.0;
+        self._viewconstants_dummy2 = 0.0;
+    }
 }

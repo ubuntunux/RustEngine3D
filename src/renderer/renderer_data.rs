@@ -571,10 +571,10 @@ impl RendererData_LightProbe {
             &[],
         );
 
-        let descriptor_sets0 = utility::create_descriptor_sets(
-            device, pipeline_binding_data,
-            descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
-        );
+        // let descriptor_sets0 = utility::create_descriptor_sets(
+        //     device, pipeline_binding_data,
+        //     descriptor_binding_index, texture_ssr_resolved, layer, mip_level,
+        // );
     }
 
     pub fn destroy(&mut self, device: &Device) {

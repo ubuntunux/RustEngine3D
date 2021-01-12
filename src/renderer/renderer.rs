@@ -178,6 +178,8 @@ pub struct RendererData {
     pub _command_buffers: SwapchainIndexMap<vk::CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
+    pub _scene_constants: shader_buffer_datas::SceneConstants,
+    pub _view_constants: shader_buffer_datas::ViewConstants,
     pub _debug_render_target: RenderTargetType,
     pub _debug_render_target_layer: u32,
     pub _debug_render_target_miplevel: u32,
@@ -306,6 +308,8 @@ pub fn create_renderer_data<T>(
             _command_buffers: command_buffers,
             _render_features: render_features,
             _image_samplers: ImageSamplerData::default(),
+            _scene_constants: shader_buffer_datas::SceneConstants::default(),
+            _view_constants: shader_buffer_datas::ViewConstants::default(),
             _debug_render_target: RenderTargetType::BackBuffer,
             _debug_render_target_layer: 0,
             _debug_render_target_miplevel: 0,
@@ -944,49 +948,17 @@ impl RendererData {
                 self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
                 // Upload Uniform Buffers
-                let screen_width = self._swapchain_data._swapchain_extent.width as f32;
-                let screen_height = self._swapchain_data._swapchain_extent.height as f32;
-                let screen_size: Vector2<f32> = Vector2::new(screen_width, screen_height);
-                let scene_constants = shader_buffer_datas::SceneConstants {
-                    _screen_size: screen_size.clone() as Vector2<f32>,
-                    _backbuffer_size: screen_size.clone() as Vector2<f32>,
-                    _time: elapsed_time as f32,
-                    _delta_time: delta_time as f32,
-                    _sea_height: fft_ocean.get_height(),
-                    _scene_constants_dummy0: 0,
-                };
-                let view_constants = shader_buffer_datas::ViewConstants {
-                    _view: main_camera._view.into(),
-                    _inv_view: main_camera._inv_view.into(),
-                    _view_origin: main_camera._view_origin.into(),
-                    _inv_view_origin: main_camera._inv_view_origin.into(),
-                    _projection: main_camera._projection.into(),
-                    _inv_projection: main_camera._inv_projection.into(),
-                    _view_projection: main_camera._view_projection.into(),
-                    _inv_view_projection: main_camera._inv_view_projection.into(),
-                    _view_origin_projection: main_camera._view_origin_projection.into(),
-                    _inv_view_origin_projection: main_camera._inv_view_origin_projection.into(),
-                    _view_origin_projection_prev: main_camera._view_origin_projection_prev.into(),
-                    _projection_jitter: main_camera._projection_jitter.into(),
-                    _inv_projection_jitter: main_camera._inv_projection_jitter.into(),
-                    _view_projection_jitter: main_camera._view_projection_jitter.into(),
-                    _inv_view_projection_jitter: main_camera._inv_view_projection_jitter.into(),
-                    _view_origin_projection_jitter: main_camera._view_origin_projection_jitter.into(),
-                    _inv_view_origin_projection_jitter: main_camera._inv_view_origin_projection_jitter.into(),
-                    _view_origin_projection_prev_jitter: main_camera._view_origin_projection_prev_jitter.into(),
-                    _camera_position: main_camera._transform_object._position.clone() as Vector3<f32>,
-                    _jitter_frame: main_camera._jitter_frame,
-                    _camera_position_prev: main_camera._transform_object._prev_position.clone() as Vector3<f32>,
-                    _viewconstants_dummy0: 0.0,
-                    _near_far: Vector2::new(constants::NEAR, constants::FAR),
-                    _jitter_delta: main_camera._jitter_delta.into(),
-                    _jitter_offset: main_camera._jitter.into(),
-                    _viewconstants_dummy1: 0.0,
-                    _viewconstants_dummy2: 0.0,
-                };
+                self._scene_constants.update_scene_constants(
+                    self._swapchain_data._swapchain_extent.width,
+                    self._swapchain_data._swapchain_extent.height,
+                    elapsed_time,
+                    delta_time,
+                    fft_ocean.get_height(),
+                );
+                self._view_constants.update_view_constants(&main_camera);
 
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &scene_constants);
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstants, &view_constants);
+                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &self._scene_constants);
+                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstants, &self._view_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
@@ -995,6 +967,7 @@ impl RendererData {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
                     fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
+                    self.render_light_probe(command_buffer, swapchain_index, &quad_geometry_data);
                 }
 
                 // Render
@@ -1107,6 +1080,10 @@ impl RendererData {
                 push_constans_render_color
             );
         }
+    }
+
+    pub fn render_light_probe(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+
     }
 
     pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {

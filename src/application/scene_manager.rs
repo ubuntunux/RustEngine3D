@@ -47,6 +47,7 @@ pub fn create_scene_manager_data(
         fov: 45.0,
         window_width: constants::LIGHT_PROBE_SIZE,
         window_height: constants::LIGHT_PROBE_SIZE,
+        enable_jitter: false,
         ..Default::default()
     };
     let light_probe_cameras = vec![

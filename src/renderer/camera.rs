@@ -18,6 +18,7 @@ pub struct CameraCreateInfo {
     pub fov: f32,
     pub window_width: u32,
     pub window_height: u32,
+    pub enable_jitter: bool,
     pub position: Vector3<f32>,
 }
 
@@ -30,6 +31,7 @@ impl Default for CameraCreateInfo {
             fov: constants::FOV,
             window_width: 1024,
             window_height: 768,
+            enable_jitter: true,
             position: Vector3::zeros(),
         }
     }
@@ -71,6 +73,7 @@ pub struct CameraObjectData {
     pub _jitter_prev: Vector2<f32>,
     pub _jitter_delta: Vector2<f32>,
     pub _jitter_frame: i32,
+    pub _enable_jitter: bool,
     pub _updated: bool,
 }
 
@@ -113,6 +116,7 @@ impl CameraObjectData {
             _jitter_prev: Vector2::new(0.0, 0.0),
             _jitter_delta: Vector2::new(0.0, 0.0),
             _jitter_frame: 0,
+            _enable_jitter: camera_create_info.enable_jitter,
             _updated: true,
         };
         // initialize
@@ -136,33 +140,30 @@ impl CameraObjectData {
     }
     pub fn get_camera_position_prev(&self) -> &Vector3<f32> { &self._transform_object.get_prev_position() }
     pub fn set_aspect(&mut self, window_width: u32, window_height: u32) {
-        let aspect: f32 = if 0 != window_height {
-            window_width as f32 / window_height as f32
-        } else {
-            1.0
-        };
-
+        let aspect: f32 = if 0 != window_height { window_width as f32 / window_height as f32 } else { 1.0 };
         self._window_width = window_width;
         self._window_height = window_height;
         self._aspect = aspect;
         self.update_projection();
     }
     pub fn update_projection(&mut self) {
-        self._updated = true;
         self._projection = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
         self._projection_jitter.copy_from(&self._projection);
         linalg::try_invert_to(self._projection.into(), &mut self._inv_projection);
         self._inv_projection_jitter.copy_from(&self._inv_projection);
+        self._updated = true;
     }
     pub fn update_camera_object_data(&mut self) {
-        self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
-        // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
-        self._jitter_prev = self._jitter.into();
-        self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
-        self._jitter[0] /= self._window_width as f32;
-        self._jitter[1] /= self._window_height as f32;
-        // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
-        self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
+        if self._enable_jitter {
+            self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
+            // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
+            self._jitter_prev = self._jitter.into();
+            self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
+            self._jitter[0] /= self._window_width as f32;
+            self._jitter[1] /= self._window_height as f32;
+            // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
+            self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
+        }
 
         // copy prev matrices
         self._view_origin_projection_prev.copy_from(&self._view_origin_projection);
@@ -187,12 +188,17 @@ impl CameraObjectData {
         }
 
         // Update projection jitter
-        self._projection_jitter.column_mut(2)[0] = -self._jitter[0];
-        self._projection_jitter.column_mut(2)[1] = -self._jitter[1];
-        linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
-
-        self._view_projection_jitter = &self._projection_jitter * &self._view;
-        self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
-        linalg::try_invert_to(self._view_origin_projection_jitter.into(), &mut self._inv_view_origin_projection_jitter);
+        if self._enable_jitter {
+            self._projection_jitter.column_mut(2)[0] = -self._jitter[0];
+            self._projection_jitter.column_mut(2)[1] = -self._jitter[1];
+            linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
+            self._view_projection_jitter = &self._projection_jitter * &self._view;
+            self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
+            linalg::try_invert_to(self._view_origin_projection_jitter.into(), &mut self._inv_view_origin_projection_jitter);
+        } else if updated || self._updated {
+            self._view_projection_jitter = self._view_projection.into();
+            self._view_origin_projection_jitter = self._view_origin_projection.into();
+            self._inv_view_origin_projection_jitter = self._inv_view_origin_projection.into();
+        }
     }
 }
