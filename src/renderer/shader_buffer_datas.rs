@@ -203,7 +203,6 @@ pub fn regist_shader_buffer_data(
         &String::from(format!("{:?}", shader_buffer_data_type)),
         buffer_usage,
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-        constants::SWAPCHAIN_IMAGE_COUNT,
         shader_buffer_data_size as vk::DeviceSize
     );
     shader_buffer_data_map.insert(shader_buffer_data_type.clone(), uniform_buffer_data);

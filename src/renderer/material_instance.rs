@@ -7,17 +7,17 @@ use ash::{
 
 use crate::renderer::material::MaterialData;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
-use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
+use crate::vulkan_context::vulkan_context::SwapchainArray;
 use crate::vulkan_context::render_pass::{ self, RenderPassPipelineData };
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
 pub struct PipelineBindingData {
     pub _render_pass_pipeline_data: RenderPassPipelineData,
-    pub _descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
-    pub _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>>,
+    pub _descriptor_sets: SwapchainArray<vk::DescriptorSet>,
+    pub _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>>,
     pub _descriptor_set_count: u32,
-    pub _descriptor_resource_infos_list: SwapchainIndexMap<Vec<DescriptorResourceInfo>>,
+    pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
 }
 
 type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
@@ -58,7 +58,7 @@ impl MaterialInstanceData {
             let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                 descriptor_data_create_info._descriptor_binding_index
             }).collect();
-            let write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+            let write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
                 device,
                 &descriptor_sets,
                 &descriptor_binding_indices,

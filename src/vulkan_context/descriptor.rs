@@ -5,7 +5,7 @@ use ash::{
 use ash::version::DeviceV1_0;
 
 use crate::constants;
-use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
+use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 #[derive(Debug, Clone)]
 pub enum DescriptorResourceInfo {
@@ -192,7 +192,7 @@ pub fn destroy_descriptor_data(device: &Device, descriptor_data: &DescriptorData
 pub fn create_descriptor_sets(
     device: &Device,
     descriptor_data: &DescriptorData
-) -> SwapchainIndexMap<vk::DescriptorSet> {
+) -> SwapchainArray<vk::DescriptorSet> {
     if vk::DescriptorPool::null() != descriptor_data._descriptor_pool {
         let descriptor_set_layouts: [vk::DescriptorSetLayout; constants::SWAPCHAIN_IMAGE_COUNT] = [
             descriptor_data._descriptor_set_layout; constants::SWAPCHAIN_IMAGE_COUNT
@@ -215,7 +215,7 @@ pub fn create_descriptor_sets(
 pub fn destroy_descriptor_sets(
     device: &Device,
     descriptor_pool: vk::DescriptorPool,
-    descriptor_sets: &SwapchainIndexMap<vk::DescriptorSet>,
+    descriptor_sets: &SwapchainArray<vk::DescriptorSet>,
 ) {
     log::debug!("    destroyDescriptorSet: {:?}", descriptor_sets);
     // need VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT flag for vkFreeDescriptorSets
@@ -226,11 +226,11 @@ pub fn destroy_descriptor_sets(
 
 pub fn create_write_descriptor_sets_with_update(
     device: &Device,
-    descriptor_sets: &SwapchainIndexMap<vk::DescriptorSet>,
+    descriptor_sets: &SwapchainArray<vk::DescriptorSet>,
     descriptor_bind_indices: &Vec<u32>,
     descriptor_set_layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>,
-    descriptor_resource_infos_list: &SwapchainIndexMap<Vec<DescriptorResourceInfo>>,
-) -> SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> {
+    descriptor_resource_infos_list: &SwapchainArray<Vec<DescriptorResourceInfo>>,
+) -> SwapchainArray<Vec<vk::WriteDescriptorSet>> {
     if descriptor_sets.is_empty() {
         return Vec::new();
     }

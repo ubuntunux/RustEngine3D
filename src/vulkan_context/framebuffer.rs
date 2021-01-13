@@ -9,7 +9,7 @@ use ash::version::DeviceV1_0;
 use crate::constants;
 use crate::vulkan_context::vulkan_context::{
     self,
-    SwapchainIndexMap
+    SwapchainArray
 };
 use crate::vulkan_context::texture::TextureData;
 
@@ -25,7 +25,7 @@ pub struct FramebufferDataCreateInfo {
     pub _framebuffer_color_attachment_formats: Vec<vk::Format>,
     pub _framebuffer_depth_attachment_formats: Vec<vk::Format>,
     pub _framebuffer_resolve_attachment_formats: Vec<vk::Format>,
-    pub _framebuffer_image_views: SwapchainIndexMap<Vec<vk::ImageView>>,
+    pub _framebuffer_image_views: SwapchainArray<Vec<vk::ImageView>>,
     pub _framebuffer_clear_values: Vec<vk::ClearValue>,
 }
 
@@ -41,7 +41,7 @@ impl Default for FramebufferDataCreateInfo {
             _framebuffer_color_attachment_formats: Vec::<vk::Format>::new(),
             _framebuffer_depth_attachment_formats: Vec::<vk::Format>::new(),
             _framebuffer_resolve_attachment_formats: Vec::<vk::Format>::new(),
-            _framebuffer_image_views: SwapchainIndexMap::<Vec<vk::ImageView>>::new(),
+            _framebuffer_image_views: SwapchainArray::<Vec<vk::ImageView>>::new(),
             _framebuffer_clear_values: Vec::<vk::ClearValue>::new()
         }
     }
@@ -59,8 +59,8 @@ pub struct RenderTargetInfo<'a> {
 pub struct FramebufferData {
     pub _framebuffer_name: String,
     pub _framebuffer_info: FramebufferDataCreateInfo,
-    pub _framebuffers: SwapchainIndexMap<vk::Framebuffer>,
-    pub _render_pass_begin_infos: SwapchainIndexMap<vk::RenderPassBeginInfo>,
+    pub _framebuffers: SwapchainArray<vk::Framebuffer>,
+    pub _render_pass_begin_infos: SwapchainArray<vk::RenderPassBeginInfo>,
 }
 
 impl FramebufferDataCreateInfo {

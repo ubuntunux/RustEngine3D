@@ -9,9 +9,9 @@ use ash::version::{
 };
 use ash::util::Align;
 
-use crate::vulkan_context::vulkan_context::{
-    run_commands_once,
-};
+use crate::constants;
+use crate::vulkan_context::descriptor::DescriptorResourceInfo;
+use crate::vulkan_context::vulkan_context::{run_commands_once, SwapchainArray};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BufferData {
@@ -23,9 +23,9 @@ pub struct BufferData {
 #[derive(Debug, Clone)]
 pub struct ShaderBufferData {
     pub _buffer_name: String,
-    pub _buffers: Vec<BufferData>,
+    pub _buffers: SwapchainArray<BufferData>,
     pub _buffer_data_size: vk::DeviceSize,
-    pub _descriptor_buffer_infos: Vec<vk::DescriptorBufferInfo>
+    pub _descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo>
 }
 
 impl Default for BufferData {
@@ -134,7 +134,7 @@ pub fn create_buffer_data(
         let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-        log::debug!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
+        log::info!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
         log::debug!("        buffer_size: {:?}", buffer_size);
         log::debug!("        memory_type_index: {:?}", memory_type_index);
         log::debug!("        memory_requirements: {:?}", buffer_memory_requirements);
@@ -149,7 +149,7 @@ pub fn create_buffer_data(
 
 pub fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
     unsafe {
-        log::debug!("    Destroy Buffer : buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
+        log::info!("    Destroy Buffer: buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
         device.destroy_buffer(buffer_data._buffer, None);
         device.free_memory(buffer_data._buffer_memory, None);
     }
@@ -220,11 +220,10 @@ pub fn create_shader_buffer_data(
     buffer_name: &String,
     buffer_usage: vk::BufferUsageFlags,
     memory_property: vk::MemoryPropertyFlags,
-    buffer_count: usize,
     buffer_size: vk::DeviceSize
 ) -> ShaderBufferData {
     log::info!("create_shader_buffer_data: {}", buffer_name);
-    let buffers: Vec<BufferData> = (0..buffer_count).map(|_i| {
+    let buffers: SwapchainArray<BufferData> = (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
         create_buffer_data(
             device,
             memory_properties,
@@ -233,12 +232,15 @@ pub fn create_shader_buffer_data(
             memory_property
         )
     }).collect();
-    let descriptor_buffer_infos: Vec<vk::DescriptorBufferInfo> = buffers.iter().map(|buffer_data| {
-        vk::DescriptorBufferInfo {
-            buffer: buffer_data._buffer,
-            offset: 0,
-            range: buffer_size,
-        }
+
+    let descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo> = buffers.iter().map(|buffer_data| {
+        DescriptorResourceInfo::DescriptorBufferInfo(
+            vk::DescriptorBufferInfo {
+                buffer: buffer_data._buffer,
+                offset: 0,
+                range: buffer_size,
+            }
+        )
     }).collect();
 
     ShaderBufferData {
@@ -250,7 +252,7 @@ pub fn create_shader_buffer_data(
 }
 
 pub fn destroy_shader_buffer_data(device: &Device, uniform_buffer_data: &ShaderBufferData) {
-    log::info!("destroy_shader_buffer_data");
+    log::info!("destroy_shader_buffer_data: {:?}", uniform_buffer_data._buffer_name);
     for uniform_buffer in uniform_buffer_data._buffers.iter() {
         destroy_buffer_data(device, uniform_buffer);
     }

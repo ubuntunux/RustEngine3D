@@ -12,7 +12,7 @@ use ash::extensions::khr::{
 use crate::constants;
 use crate::vulkan_context::queue;
 use crate::vulkan_context::texture;
-use crate::vulkan_context::vulkan_context::{ SwapchainIndexMap };
+use crate::vulkan_context::vulkan_context::{ SwapchainArray };
 
 #[derive(Debug)]
 pub struct SwapchainSupportDetails {
@@ -25,8 +25,8 @@ pub struct SwapchainSupportDetails {
 pub struct SwapchainData {
     pub _swapchain: vk::SwapchainKHR,
     pub _swapchain_image_format: vk::Format,
-    pub _swapchain_images: SwapchainIndexMap<vk::Image>,
-    pub _swapchain_image_views: SwapchainIndexMap<vk::ImageView>,
+    pub _swapchain_images: SwapchainArray<vk::Image>,
+    pub _swapchain_image_views: SwapchainArray<vk::ImageView>,
     pub _swapchain_extent: vk::Extent2D
 }
 
@@ -147,7 +147,7 @@ pub fn create_swapchain_data(
 
     unsafe {
         let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
-        let swapchain_images: SwapchainIndexMap<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
+        let swapchain_images: SwapchainArray<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
         let swapchain_image_views = create_swapchain_image_views(&device, &swapchain_images, swapchain_create_info.image_format);
 
         log::info!("create_swapchain_data : {:?}", swapchain);
@@ -179,9 +179,9 @@ pub fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, 
 
 pub fn create_swapchain_image_views(
     device: &Device,
-    swapchain_images: &SwapchainIndexMap<vk::Image>,
+    swapchain_images: &SwapchainArray<vk::Image>,
     image_format: vk::Format,
-) -> SwapchainIndexMap<vk::ImageView> {
+) -> SwapchainArray<vk::ImageView> {
     swapchain_images
         .iter()
         .map(|image| {
@@ -190,7 +190,7 @@ pub fn create_swapchain_image_views(
         .collect()
 }
 
-pub fn destroy_swapchain_image_views(device: &Device, swapchain_image_views: &SwapchainIndexMap<vk::ImageView>) {
+pub fn destroy_swapchain_image_views(device: &Device, swapchain_image_views: &SwapchainArray<vk::ImageView>) {
     for image_view in swapchain_image_views.iter() {
         texture::destroy_image_view(device, *image_view);
     }

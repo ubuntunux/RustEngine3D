@@ -706,7 +706,7 @@ impl Resources {
                         let descriptor_resource_info = match material_parameter_resource_type {
                             DescriptorResourceType::UniformBuffer | DescriptorResourceType::StorageBuffer => {
                                 let uniform_buffer_data = renderer_data.get_shader_buffer_data(ShaderBufferDataType::from_str(&material_parameter_name.as_str()).unwrap());
-                                DescriptorResourceInfo::DescriptorBufferInfo(uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone())
+                                uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone()
                             },
                             DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
                                 let texture_data = match maybe_material_parameter {

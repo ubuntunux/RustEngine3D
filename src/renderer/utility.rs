@@ -5,7 +5,15 @@ use crate::renderer::material_instance::{ PipelineBindingData };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
-use crate::vulkan_context::vulkan_context::SwapchainIndexMap;
+use crate::vulkan_context::vulkan_context::SwapchainArray;
+
+pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
+    vec![a; constants::SWAPCHAIN_IMAGE_COUNT]
+}
+
+pub fn create_descriptor_image_info_swapchain_array(image_info: vk::DescriptorImageInfo) -> SwapchainArray<DescriptorResourceInfo> {
+    vec![DescriptorResourceInfo::DescriptorImageInfo(image_info); constants::SWAPCHAIN_IMAGE_COUNT]
+}
 
 pub fn create_framebuffer(
     device: &Device,
@@ -81,26 +89,26 @@ pub fn create_framebuffer_2d_array(
 pub fn create_descriptor_sets(
     device: &Device,
     pipeline_binding_data: &PipelineBindingData,
-    descriptor_resource_infos: &[(usize, DescriptorResourceInfo)]
-) -> SwapchainIndexMap<vk::DescriptorSet> {
+    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)]
+) -> SwapchainArray<vk::DescriptorSet> {
     let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
     let descriptor_data = &pipeline_data._descriptor_data;
     let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
         descriptor_data_create_info._descriptor_binding_index
     }).collect();
-    let mut descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
-    for (descriptor_binding_index, descriptor_resource_info) in descriptor_resource_infos {
+    let mut new_descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+    for (descriptor_binding_index, descriptor_resource_infos) in descriptor_resource_infos_list {
         for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-            descriptor_resource_infos_list[*swapchain_index][*descriptor_binding_index] = descriptor_resource_info.clone();
+            new_descriptor_resource_infos_list[*swapchain_index][*descriptor_binding_index] = descriptor_resource_infos[*swapchain_index].clone();
         }
     }
     let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
-    let _write_descriptor_sets: SwapchainIndexMap<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+    let _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
         device,
         &descriptor_sets,
         &descriptor_binding_indices,
         &descriptor_data._descriptor_set_layout_bindings,
-        &descriptor_resource_infos_list,
+        &new_descriptor_resource_infos_list,
     );
     descriptor_sets
 }
@@ -112,8 +120,8 @@ pub fn create_framebuffer_and_descriptor_sets(
     render_target_layer: u32,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
-    descriptor_resource_infos: &[(usize, DescriptorResourceInfo)],
-) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
+) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
         pipeline_binding_data,
@@ -125,7 +133,7 @@ pub fn create_framebuffer_and_descriptor_sets(
     let descriptor_sets = create_descriptor_sets(
         device,
         pipeline_binding_data,
-        descriptor_resource_infos
+        descriptor_resource_infos_list
     );
     (framebuffer_data, descriptor_sets)
 }
@@ -137,8 +145,8 @@ pub fn create_framebuffers_and_descriptor_sets(
     color_render_targets: &[RenderTargetInfo],
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
-    descriptor_resource_infos: &[(usize, DescriptorResourceInfo)],
-) -> (FramebufferData, SwapchainIndexMap<vk::DescriptorSet>) {
+    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
+) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffers(
         device,
         pipeline_binding_data,
@@ -150,7 +158,7 @@ pub fn create_framebuffers_and_descriptor_sets(
     let descriptor_sets = create_descriptor_sets(
         device,
         pipeline_binding_data,
-        descriptor_resource_infos
+        descriptor_resource_infos_list
     );
     (framebuffer_data, descriptor_sets)
 }

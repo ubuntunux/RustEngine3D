@@ -5,16 +5,15 @@ use ash::{
     Device,
 };
 
-use crate::constants;
 use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::utility;
 use crate::resource::resource::Resources;
-use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
+use crate::vulkan_context::descriptor::{ DescriptorResourceInfo };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
-use crate::vulkan_context::vulkan_context::{SwapchainIndexMap, Layers, MipLevels};
+use crate::vulkan_context::vulkan_context::{SwapchainArray, Layers, MipLevels};
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 
 const CM: f64 = 0.23;
@@ -103,16 +102,16 @@ pub struct FFTOcean {
     _fft_variance_framebuffers: Vec<FramebufferData>,
     _fft_wave_x_fft_a_framebuffer: FramebufferData,
     _fft_wave_x_fft_b_framebuffer: FramebufferData,
-    _fft_wave_x_fft_a_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
-    _fft_wave_x_fft_b_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _fft_wave_x_fft_a_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
+    _fft_wave_x_fft_b_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
     _fft_wave_y_fft_a_framebuffer: FramebufferData,
     _fft_wave_y_fft_b_framebuffer: FramebufferData,
-    _fft_wave_y_fft_a_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
-    _fft_wave_y_fft_b_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
-    _fft_a_generate_mips_descriptor_sets: Layers<MipLevels<SwapchainIndexMap<vk::DescriptorSet>>>,
+    _fft_wave_y_fft_a_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
+    _fft_wave_y_fft_b_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
+    _fft_a_generate_mips_descriptor_sets: Layers<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
     _fft_a_generate_mips_dispatch_group_x: u32,
     _fft_a_generate_mips_dispatch_group_y: u32,
-    _render_fft_ocean_descriptor_sets: SwapchainIndexMap<vk::DescriptorSet>,
+    _render_fft_ocean_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
 impl Default for FFTOcean {
@@ -317,12 +316,12 @@ impl FFTOcean {
         self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_default_image_info()))]
+            &[(fft_waves_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_default_image_info()))]
         );
         self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_b.get_default_image_info()))]
+            &[(fft_waves_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_fft_b.get_default_image_info()))]
         );
 
         // fft wave y
@@ -332,12 +331,12 @@ impl FFTOcean {
         self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_default_image_info()))]
+            &[(fft_waves_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_default_image_info()))]
         );
         self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            &[(fft_waves_descriptor_binding_index, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_b.get_default_image_info()))]
+            &[(fft_waves_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_fft_b.get_default_image_info()))]
         );
 
         // fft a generate mips
@@ -352,8 +351,8 @@ impl FFTOcean {
                     device,
                     pipeline_binding_data,
                     &[
-                        (0, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level))),
-                        (1, DescriptorResourceInfo::DescriptorImageInfo(texture_fft_a.get_sub_image_info(layer, mip_level + 1))),
+                        (0, utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_sub_image_info(layer, mip_level))),
+                        (1, utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_sub_image_info(layer, mip_level + 1))),
                     ]
                 );
                 self._fft_a_generate_mips_descriptor_sets.last_mut().unwrap().push(descriptor_sets);

@@ -7,9 +7,9 @@ use ash::version::{
 };
 
 use crate::constants;
-use crate::vulkan_context::vulkan_context::{ FrameIndexMap };
+use crate::vulkan_context::vulkan_context::{ FrameArray };
 
-pub fn create_semaphores(device: &Device) -> FrameIndexMap<vk::Semaphore> {
+pub fn create_semaphores(device: &Device) -> FrameArray<vk::Semaphore> {
     unsafe {
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
         let semaphores = constants::SWAPCHAIN_IMAGE_INDICES
@@ -23,7 +23,7 @@ pub fn create_semaphores(device: &Device) -> FrameIndexMap<vk::Semaphore> {
     }
 }
 
-pub fn destroy_semaphores(device: &Device, semaphores: &FrameIndexMap<vk::Semaphore>) {
+pub fn destroy_semaphores(device: &Device, semaphores: &FrameArray<vk::Semaphore>) {
     log::info!("destroy_semaphores: {:?}", semaphores);
     unsafe {
         for semaphore in semaphores.iter() {
@@ -32,7 +32,7 @@ pub fn destroy_semaphores(device: &Device, semaphores: &FrameIndexMap<vk::Semaph
     }
 }
 
-pub fn create_fences(device: &Device) -> FrameIndexMap<vk::Fence> {
+pub fn create_fences(device: &Device) -> FrameArray<vk::Fence> {
     unsafe {
         let fence_create_info = vk::FenceCreateInfo {
             flags: vk::FenceCreateFlags::SIGNALED,
@@ -49,7 +49,7 @@ pub fn create_fences(device: &Device) -> FrameIndexMap<vk::Fence> {
     }
 }
 
-pub fn destroy_fences(device: &Device, fences: &FrameIndexMap<vk::Fence>) {
+pub fn destroy_fences(device: &Device, fences: &FrameArray<vk::Fence>) {
     log::info!("destroy_fences: {:?}", fences);
     unsafe {
         for fence in fences.iter() {
