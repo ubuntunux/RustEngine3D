@@ -5,6 +5,7 @@ use std::cell::{ Ref, RefMut };
 use std::borrow::{ Cow };
 use std::ffi::CStr;
 use std::vec::Vec;
+
 use ash::{
     vk,
     Device,
@@ -23,9 +24,13 @@ use winit::dpi;
 use winit::window::{
     Window,
     WindowBuilder
+
 };
 use winit::event_loop::EventLoop;
-use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+use sdl2;
+
+use nalgebra::{ Vector2, Vector4, Matrix4 };
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -77,6 +82,7 @@ use crate::renderer::renderer_data::{
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
+use ash::vk::Handle;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -156,7 +162,7 @@ pub struct RendererData {
     _need_recreate_swapchain: bool,
     _is_first_resize_event: bool,
     _is_first_rendering: bool,
-    pub _window: Window,
+
     pub _entry: Entry,
     pub _instance: Instance,
     pub _device: Device,
@@ -202,19 +208,26 @@ pub fn create_renderer_data<T>(
     app_version: u32,
     (window_width, window_height): (u32, u32),
     event_loop: &EventLoop<T>,
-    resources: RcRefCell<Resources>
+    resources: RcRefCell<Resources>,
+    sdl_context: &sdl2::Sdl,
+    window: &sdl2::video::Window
 ) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
-        let window = WindowBuilder::new()
-            .with_title(app_name)
-            .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_width, height: window_height }))
-            .build(&event_loop)
-            .unwrap();
+        // let window = WindowBuilder::new()
+        //     .with_title(app_name)
+        //     .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_width, height: window_height }))
+        //     .build(&event_loop)
+        //     .unwrap();
+
         let entry = Entry::new().unwrap();
-        let surface_extensions = ash_window::enumerate_required_extensions(&window).unwrap();
+
+        let surface_extensions = window.vulkan_instance_extensions().unwrap().iter().map(|s| CStr::from_ptr(s.as_ptr() as *const i8)).collect();
+        println!("surface_extensions:  {:?}", surface_extensions);
         let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
-        let surface = device::create_vk_surface(&entry, &instance, &window);
+        let surface = vk::SurfaceKHR::from_raw(window.vulkan_create_surface(instance.handle().as_raw() as sdl2::video::VkInstance).unwrap());
+        let surface = ash_window::create_surface(&entry, &instance, window as &HasRawWindowHandle, None).unwrap();
+
         let surface_interface = Surface::new(&entry, &instance);
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
         let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
@@ -286,7 +299,6 @@ pub fn create_renderer_data<T>(
             _need_recreate_swapchain: false,
             _is_first_resize_event: true,
             _is_first_rendering: true,
-            _window: window,
             _entry: entry,
             _instance: instance,
             _device: device,

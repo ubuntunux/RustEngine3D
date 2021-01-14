@@ -141,8 +141,8 @@ impl CameraObjectData {
     pub fn get_camera_position_prev(&self) -> &Vector3<f32> { &self._transform_object.get_prev_position() }
     pub fn set_aspect(&mut self, window_width: u32, window_height: u32) {
         let aspect: f32 = if 0 != window_height { window_width as f32 / window_height as f32 } else { 1.0 };
-        self._window_width = window_width;
-        self._window_height = window_height;
+        self._window_width = 800;
+        self._window_height = 600;
         self._aspect = aspect;
         self.update_projection();
     }
