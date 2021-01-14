@@ -57,6 +57,7 @@ use crate::renderer::push_constants::{
     PushConstant_RenderColor,
     PushConstant_RenderDebug,
 };
+use crate::renderer::precomputed_atmosphere::PushConstant_Atmosphere;
 use crate::renderer::render_target::{ self, RenderTargetType };
 use crate::renderer::shader_buffer_datas::{
     self,
@@ -424,6 +425,16 @@ impl RendererData {
                 *self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(),
             ],
         );
+        // RendererData_LightProbe
+        self._light_probe_datas.initialize(
+            &self._device,
+            &self._resources,
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
+            self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants0).as_ref().unwrap(),
+        );
     }
 
     pub fn destroy_framebuffer_and_descriptors(&mut self) {
@@ -435,6 +446,7 @@ impl RendererData {
         self._renderer_data_ssr.destroy(&self._device);
         self._renderer_data_composite_gbuffer.destroy(&self._device);
         self._clear_render_targets.destroy(&self._device);
+        self._light_probe_datas.destroy(&self._device);
     }
 
     pub fn update_post_process_datas(&mut self) {
@@ -967,8 +979,16 @@ impl RendererData {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
                     fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
-                    self.render_light_probe(command_buffer, swapchain_index, &quad_geometry_data);
                 }
+
+                TODO: Atmosphere Color Depth Test
+
+                // static mut TEST: bool = true;
+                // if 20.0 < elapsed_time && TEST {
+                //     TEST = false;
+                //     self.render_light_probe(&scene_manager, command_buffer, swapchain_index, &quad_geometry_data);
+                //     println!("TEST ----------- {}", elapsed_time);
+                // }
 
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();
@@ -1082,8 +1102,27 @@ impl RendererData {
         }
     }
 
-    pub fn render_light_probe(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-
+    pub fn render_light_probe(&self, scene_manager: &RefMut<SceneManagerData>, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+        // Render Atmosphere
+        let mut light_probe_view_constants0 = shader_buffer_datas::ViewConstants::default();
+        let mut light_probe_camera = scene_manager.get_light_probe_camera(0).borrow_mut();
+        light_probe_camera._updated = true;
+        light_probe_camera.update_camera_object_data();
+        light_probe_view_constants0.update_view_constants(&light_probe_camera);
+        self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightProbeViewConstants0, &light_probe_view_constants0);
+        self.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            "render_atmosphere/default",
+            &quad_geometry_data,
+            Some(&self._light_probe_datas._framebuffer_data),
+            Some(&self._light_probe_datas._descriptor_sets),
+            Some(&PushConstant_Atmosphere {
+                _render_light_probe_mode: 0,
+                ..Default::default()
+            }),
+        );
     }
 
     pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {

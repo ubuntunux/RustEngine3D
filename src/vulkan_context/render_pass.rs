@@ -263,6 +263,7 @@ pub fn create_render_pass_data(
                 device,
                 render_pass,
                 &render_pass_data_create_info._pipeline_data_create_infos[i],
+                false == render_pass_data_create_info._depth_attachment_descriptions.is_empty(),
                 &descriptor_datas[i].borrow()
             )
         } else {
@@ -412,6 +413,7 @@ pub fn create_graphics_pipeline_data(
     device: &Device,
     render_pass: vk::RenderPass,
     pipeline_data_create_info: &PipelineDataCreateInfo,
+    has_depth_stencil_attachment: bool,
     descriptor_data: &DescriptorData
 ) -> PipelineData {
     let vertex_shader_create_info = create_shader_stage_create_info(
@@ -426,7 +428,6 @@ pub fn create_graphics_pipeline_data(
         &pipeline_data_create_info._pipeline_shader_defines,
         vk::ShaderStageFlags::FRAGMENT
     );
-    let depth_stencil_state_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let shader_stage_infos = vec![vertex_shader_create_info, fragment_shader_create_info];
     let pipeline_layout = create_pipeline_layout(
@@ -490,34 +491,38 @@ pub fn create_graphics_pipeline_data(
         blend_constants,
         ..Default::default()
     };
-    let depth_stencil_sate_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
-    let depth_stencil_state = vk::PipelineDepthStencilStateCreateInfo {
-        depth_test_enable: depth_stencil_sate_create_info._depth_test_enable.into(),
-        depth_write_enable: depth_stencil_sate_create_info._depth_write_enable.into(),
-        depth_compare_op: depth_stencil_sate_create_info._depth_compare_op,
-        depth_bounds_test_enable: 0,
-        min_depth_bounds: 0.0,
-        max_depth_bounds: 1.0,
-        stencil_test_enable: depth_stencil_state_create_info._stencil_test_enable.into(),
-        front: vk::StencilOpState {
-            fail_op: depth_stencil_state_create_info._front_fail_op,
-            pass_op: depth_stencil_state_create_info._front_pass_op,
-            depth_fail_op: depth_stencil_state_create_info._front_depth_fail_op,
-            compare_op: depth_stencil_state_create_info._front_compare_op,
-            compare_mask: depth_stencil_state_create_info._front_compare_mask,
-            write_mask: depth_stencil_state_create_info._front_write_mask,
-            reference: depth_stencil_state_create_info._front_reference,
-        },
-        back: vk::StencilOpState {
-            fail_op: depth_stencil_state_create_info._back_fail_op,
-            pass_op: depth_stencil_state_create_info._back_pass_op,
-            depth_fail_op: depth_stencil_state_create_info._back_depth_fail_op,
-            compare_op: depth_stencil_state_create_info._back_compare_op,
-            compare_mask: depth_stencil_state_create_info._back_compare_mask,
-            write_mask: depth_stencil_state_create_info._back_write_mask,
-            reference: depth_stencil_state_create_info._back_reference,
-        },
-        ..Default::default()
+    let depth_stencil_state_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
+    let depth_stencil_state = if has_depth_stencil_attachment {
+        vk::PipelineDepthStencilStateCreateInfo {
+            depth_test_enable: depth_stencil_state_create_info._depth_test_enable.into(),
+            depth_write_enable: depth_stencil_state_create_info._depth_write_enable.into(),
+            depth_compare_op: depth_stencil_state_create_info._depth_compare_op,
+            depth_bounds_test_enable: 0,
+            min_depth_bounds: 0.0,
+            max_depth_bounds: 1.0,
+            stencil_test_enable: depth_stencil_state_create_info._stencil_test_enable.into(),
+            front: vk::StencilOpState {
+                fail_op: depth_stencil_state_create_info._front_fail_op,
+                pass_op: depth_stencil_state_create_info._front_pass_op,
+                depth_fail_op: depth_stencil_state_create_info._front_depth_fail_op,
+                compare_op: depth_stencil_state_create_info._front_compare_op,
+                compare_mask: depth_stencil_state_create_info._front_compare_mask,
+                write_mask: depth_stencil_state_create_info._front_write_mask,
+                reference: depth_stencil_state_create_info._front_reference,
+            },
+            back: vk::StencilOpState {
+                fail_op: depth_stencil_state_create_info._back_fail_op,
+                pass_op: depth_stencil_state_create_info._back_pass_op,
+                depth_fail_op: depth_stencil_state_create_info._back_depth_fail_op,
+                compare_op: depth_stencil_state_create_info._back_compare_op,
+                compare_mask: depth_stencil_state_create_info._back_compare_mask,
+                write_mask: depth_stencil_state_create_info._back_write_mask,
+                reference: depth_stencil_state_create_info._back_reference,
+            },
+            ..Default::default()
+        }
+    } else {
+        vk::PipelineDepthStencilStateCreateInfo::default()
     };
     let grphics_pipeline_create_info = [vk::GraphicsPipelineCreateInfo {
         stage_count: shader_stage_infos.len() as u32,

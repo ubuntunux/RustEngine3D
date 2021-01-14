@@ -12,7 +12,7 @@ use crate::vulkan_context::buffer::ShaderBufferData;
 use crate::vulkan_context::descriptor::{ DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
-use crate::vulkan_context::vulkan_context::SwapchainArray;
+use crate::vulkan_context::vulkan_context::{self, SwapchainArray};
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone)]
@@ -528,6 +528,7 @@ impl RendererData_LightProbe {
         device: &Device,
         resources: &RcRefCell<Resources>,
         light_probe_color: &TextureData,
+        light_probe_atmosphere_color: &TextureData,
         light_probe_atmosphere_inscatter: &TextureData,
         light_probe_depth: &TextureData,
         light_probe_view_constants0: &ShaderBufferData,
@@ -540,9 +541,9 @@ impl RendererData_LightProbe {
             pipeline_binding_data,
             "render_targets_light_probe",
             &[
-                RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
-                RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
-                RenderTargetInfo { _texture_data: &light_probe_depth, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
+                RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)) },
+                RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)) },
+                //RenderTargetInfo { _texture_data: &light_probe_depth, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
             ],
             &[],
             &[],

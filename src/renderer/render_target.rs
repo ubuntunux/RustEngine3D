@@ -16,8 +16,8 @@ pub enum RenderTargetType {
     SceneColorCopy,
     SceneDepth,
     HierarchicalMinZ,
-    LightProbe,
     LightProbeColor,
+    LightProbeAtmosphereColor,
     LightProbeAtmosphereInscatter,
     LightProbeDepth,
     BackBuffer,
@@ -68,8 +68,8 @@ impl std::str::FromStr for RenderTargetType {
             "SceneColorCopy" => Ok(RenderTargetType::SceneColorCopy),
             "SceneDepth" => Ok(RenderTargetType::SceneDepth),
             "HierarchicalMinZ" => Ok(RenderTargetType::HierarchicalMinZ),
-            "LightProbe" => Ok(RenderTargetType::LightProbe),
             "LightProbeColor" => Ok(RenderTargetType::LightProbeColor),
+            "LightProbeAtmosphereColor" => Ok(RenderTargetType::LightProbeAtmosphereColor),
             "LightProbeAtmosphereInscatter" => Ok(RenderTargetType::LightProbeAtmosphereInscatter),
             "LightProbeDepth" => Ok(RenderTargetType::LightProbeDepth),
             "BackBuffer" => Ok(RenderTargetType::BackBuffer),
@@ -155,7 +155,7 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::LightProbe.to_string(),
+            _texture_name: RenderTargetType::LightProbeColor.to_string(),
             _texture_width: constants::LIGHT_PROBE_SIZE,
             _texture_height: constants::LIGHT_PROBE_SIZE,
             _texture_view_type: vk::ImageViewType::CUBE,
@@ -164,16 +164,16 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::LightProbeColor.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_name: RenderTargetType::LightProbeAtmosphereColor.to_string(),
+            _texture_width: constants::LIGHT_PROBE_SIZE / 4,
+            _texture_height: constants::LIGHT_PROBE_SIZE / 4,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeAtmosphereInscatter.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: constants::LIGHT_PROBE_SIZE / 4,
+            _texture_height: constants::LIGHT_PROBE_SIZE / 4,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..hdr_texture_create_info.clone()
         },
