@@ -25,8 +25,3 @@ winit_input_helper = "0.7.0"
 which = "4.0.2"
 xml-rs = "0.8"
 #tobj = "2.0"
-
-[dependencies.sdl2]
-version = "0.34"
-default-features = false
-features = ["ttf","image","gfx","mixer"]
