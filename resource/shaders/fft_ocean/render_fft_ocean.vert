@@ -42,7 +42,7 @@ vec3 oceanWorldPos(vec4 vertex)
 
 void main()
 {
-    vec3 vertex_scale = vec3(1.5, 2.0, 1.0);
+    vec3 vertex_scale = vec3(1.5, 1.5, 1.0);
     vec4 vertex_pos = vec4(inPosition * vertex_scale, 1.0);
     vec3 world_pos = oceanWorldPos(vertex_pos);
     vec3 relative_pos = world_pos - view_constants.CAMERA_POSITION.xyz;
