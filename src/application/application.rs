@@ -17,7 +17,6 @@ use winit::event_loop::{
     EventLoop
 };
 use winit_input_helper::WinitInputHelper;
-use sdl2;
 
 use crate::constants;
 use crate::application::{scene_manager, SceneManagerData};
@@ -232,14 +231,6 @@ impl ApplicationData {
 
 pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)) {
     log::info!("run_application");
-    let sdl_context = sdl2::init().unwrap();
-    let video_subsystem = sdl_context.video().unwrap();
-    let window = video_subsystem.window("Window", window_size.0, window_size.1)
-        .vulkan()
-        .resizable()
-        .build()
-        .unwrap();
-
     let mut input_helper = WinitInputHelper::new();
     let time_instance = time::Instant::now();
     let elapsed_time = time_instance.elapsed().as_secs_f64();
@@ -247,7 +238,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     let (width, height) = window_size;
     let mouse_pos = (width / 2, height / 2);
     let resources = resource::create_resources();
-    let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone(), &sdl_context, &window);
+    let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone());
     let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
     let keyboard_input_data = input::create_keyboard_input_data();
     let mouse_move_data = input::create_mouse_move_data(mouse_pos);
@@ -281,33 +272,88 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
     scene_manager_data.borrow_mut().initialize_scene_graphics_data(&renderer_data.borrow());
     scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
 
-    let mut event_pump = sdl_context.event_pump().unwrap();
-
     // main loop
     let mut run_application: bool = true;
-    'running: loop {
-        for event in event_pump.poll_iter() {
-
-        }
+    event_loop.run(move |event, __window_target, control_flow|{
         let mut application_data: RefMut<ApplicationData> = application_data.borrow_mut();
         let mut renderer_data: RefMut<RendererData> = renderer_data.borrow_mut();
         let mut scene_manager_data: RefMut<SceneManagerData> = scene_manager_data.borrow_mut();
-        application_data._time_data.update_time_data(&time_instance);
-        let elapsed_time = application_data._time_data._elapsed_time;
-        let delta_time = application_data._time_data._delta_time;
 
-        if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
-            if false == renderer_data.get_is_first_resize_event() {
-                scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
-                renderer_data.resize_window();
-                scene_manager_data.initialize_scene_graphics_data(&renderer_data);
+        if run_application {
+            if input_helper.update(&event) {
+                if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
+                    *control_flow = ControlFlow::Exit;
+                    application_data.terminate_applicateion(
+                        &mut scene_manager_data,
+                        &mut resources.borrow_mut(),
+                        &mut renderer_data,
+                    );
+                    run_application = false;
+                    return;
+                }
+                application_data.update_event(&scene_manager_data, &input_helper);
+                application_data.clear_keyboard_events();
             }
-            scene_manager_data.get_main_camera().borrow_mut().set_aspect(800, 600);
-            renderer_data.set_is_first_resize_event(false);
-            renderer_data.set_need_recreate_swapchain(false);
+
+            match event {
+                Event::MainEventsCleared => {
+                    application_data._time_data.update_time_data(&time_instance);
+                    let elapsed_time = application_data._time_data._elapsed_time;
+                    let delta_time = application_data._time_data._delta_time;
+
+                    if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
+                        if false == renderer_data.get_is_first_resize_event() {
+                            scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
+                            renderer_data.resize_window();
+                            scene_manager_data.initialize_scene_graphics_data(&renderer_data);
+                        }
+                        let window_size = renderer_data._window.inner_size();
+                        scene_manager_data.get_main_camera().borrow_mut().set_aspect(window_size.width, window_size.height);
+                        renderer_data.set_is_first_resize_event(false);
+                        renderer_data.set_need_recreate_swapchain(false);
+                    }
+
+                    renderer_data.update_post_process_datas();
+                    scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
+                    renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
+                }
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => {
+                    },
+                    WindowEvent::Resized { .. } => {
+                        renderer_data.set_need_recreate_swapchain(true);
+                    },
+                    // WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
+                    //     if state == ElementState::Pressed {
+                    //         is_left_clicked = Some(true);
+                    //     } else {
+                    //         is_left_clicked = Some(false);
+                    //     }
+                    // }
+                    // WindowEvent::CursorMoved { position, .. } => {
+                    //     let position: (i32, i32) = position.into();
+                    //     cursor_position = Some([position.0, position.1]);
+                    // }
+                    // WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, v_lines), .. } => {
+                    //     wheel_delta = Some(v_lines);
+                    // }
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        match input.virtual_keycode {
+                            Some(key) => {
+                                if ElementState::Pressed == input.state {
+                                    application_data._keyboard_input_data.set_key_pressed(key);
+                                } else {
+                                    application_data._keyboard_input_data.set_key_released(key);
+                                }
+                            }
+                            None => {}
+                        }
+                    }
+                    _ => { },
+                },
+                Event::RedrawEventsCleared => { },
+                _ => { },
+            }
         }
-        renderer_data.update_post_process_datas();
-        scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
-        ::std::thread::sleep(::std::time::Duration::new(0, 1_000_000_000u32 / 60));
-    }
+    });
 }
