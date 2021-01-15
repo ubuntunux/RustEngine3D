@@ -89,7 +89,6 @@ void main()
     {
         sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
-        radiance += sun_disc * sun_absorption;
     }
 
     // Cloud
@@ -205,7 +204,7 @@ void main()
             // float view_angle = in_the_cloud ? 0.0 : pow(abs(eye_direction.y), 0.2);
             const float march_count = 128.0;
             const float light_march_count = 16.0;//32.0;
-            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption / light_march_count * 20.0, 0.0, 1.0);
+            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption / light_march_count * 20.0, 0.0, 1.0);
             float march_step = atmosphere_constants.cloud_height / march_count;
             float cloud_march_step = march_step;
             float increase_march_step = march_step * 0.05;
@@ -252,7 +251,7 @@ void main()
                     fade = 1.0 - pow(abs(saturate(relative_altitude / atmosphere_constants.cloud_height) * 2.0 - 1.0), 3.0);
 
                     float cloud_density_for_light = get_cloud_density(cloud_scale, noise_scale, light_pos.xzy, speed, fade);
-                    light_intensity *= (1.0 - cloud_density_for_light * cloud_absorption);
+                    light_intensity *= (1.0 - cloud_density_for_light * cloud_absorption_for_light);
                     if(light_intensity <= 0.01)
                     {
                         light_intensity = 0.0;
@@ -260,11 +259,11 @@ void main()
                     }
                 }
 
-                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * cloud.w * 2.0;
-                cloud.w = clamp(cloud.w + cloud_density * cloud_absorption, 0.0, 1.0);
-                if(1.0 <= cloud.w)
+                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * cloud.w;
+                cloud.w = clamp(cloud.w + cloud_density * cloud_absorption_for_light, 0.0, 1.0);
+                if(1.0 <= cloud.w || i == (int(march_count) - 1))
                 {
-                    hit_point_dist = min(hit_point_dist, length(ray_pos - ray_start_pos.xyz));
+                    hit_point_dist = mix(length(ray_pos - ray_start_pos.xyz), hit_point_dist, 1.0 - cloud.w * cloud.w);
                     break;
                 }
             }
@@ -273,7 +272,8 @@ void main()
             cloud.w *= horizontal_line;
         }
 
-        out_color.xyz += max(vec3(0.0), mix(radiance, cloud.xyz, cloud.w));
+        //out_color.xyz += max(vec3(0.0), mix(radiance, cloud.xyz * 3.0, cloud.w * cloud.w * 0.9));
+        out_color.xyz += radiance * (1.0 - cloud.w * cloud.w * 0.5) + cloud.xyz * 3.0;
         out_color.xyz += sun_disc * saturate(1.0 - cloud.w);
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
