@@ -97,6 +97,7 @@ void main()
     vec3 earth_center_pos = atmosphere_constants.earth_center / ATMOSPHERE_RATIO;
 
     // distance from earch center
+    float hit_point_dist = scene_linear_depth;
     const float cloud_bottom_dist = atmosphere_constants.cloud_altitude - earth_center_pos.y;
     const float cloud_top_dist = cloud_bottom_dist + atmosphere_constants.cloud_height;
     float altitude_diff = atmosphere_constants.cloud_altitude - world_pos_y;
@@ -202,16 +203,16 @@ void main()
             noise_scale *= atmosphere_constants.noise_tiling;
 
             // float view_angle = in_the_cloud ? 0.0 : pow(abs(eye_direction.y), 0.2);
-            float march_count = 128.0;
-            float light_march_count = 32.0;
+            const float march_count = 128.0;
+            const float light_march_count = 16.0;//32.0;
+            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption / light_march_count * 20.0, 0.0, 1.0);
             float march_step = atmosphere_constants.cloud_height / march_count;
             float cloud_march_step = march_step;
-            float increase_march_step = march_step * 0.03;
+            float increase_march_step = march_step * 0.05;
 
             for(int i=0; i<int(march_count); ++i)
             {
-                vec3 ray_pos;
-                ray_pos = ray_start_pos.xyz + eye_direction.xyz * float(i) * cloud_march_step;
+                vec3 ray_pos = ray_start_pos.xyz + eye_direction.xyz * float(i) * cloud_march_step;
 
                 // fade top and bottom
                 float relative_altitude = length(ray_pos - earth_center_pos.xyz) - cloud_bottom_dist;
@@ -226,7 +227,7 @@ void main()
 
                 float cloud_density = get_cloud_density(cloud_scale, noise_scale, ray_pos.xzy, speed, fade);
 
-                if(cloud_density <= 0.01)
+                if(cloud_density <= 0.005)
                 {
                     // increase march step
                     cloud_march_step += increase_march_step;
@@ -235,16 +236,14 @@ void main()
                 else
                 {
                     // NOTE : decrease is more detail, but not natural.
-                    // cloud_march_step = max(march_step, cloud_march_step - increase_march_step * 0.5);
+                    //cloud_march_step = max(march_step, cloud_march_step - increase_march_step * 0.5);
                 }
 
                 float light_intensity = 1.0;
-
                 for(int j=0; j<light_march_count; ++j)
                 {
                     vec3 light_pos = ray_pos + sun_direction * float(light_march_count - j) * march_step;
                     relative_altitude = length(light_pos.xyz - earth_center_pos.xyz) - cloud_bottom_dist;
-
                     if(atmosphere_constants.cloud_height < relative_altitude || relative_altitude < 0.0)
                     {
                         continue;
@@ -252,15 +251,8 @@ void main()
 
                     fade = 1.0 - pow(abs(saturate(relative_altitude / atmosphere_constants.cloud_height) * 2.0 - 1.0), 3.0);
 
-                    float light_density = get_cloud_density(cloud_scale, noise_scale, light_pos.xzy, speed, fade);
-
-                    if(light_density <= 0.01)
-                    {
-                        continue;
-                    }
-
-                    light_intensity *= (1.0 - light_density * atmosphere_constants.cloud_absorption);
-
+                    float cloud_density_for_light = get_cloud_density(cloud_scale, noise_scale, light_pos.xzy, speed, fade);
+                    light_intensity *= (1.0 - cloud_density_for_light * cloud_absorption);
                     if(light_intensity <= 0.01)
                     {
                         light_intensity = 0.0;
@@ -268,12 +260,11 @@ void main()
                     }
                 }
 
-                cloud.xyz += cloud_density * light_color * light_intensity;
-
-                cloud.w = clamp(cloud.w + cloud_density * atmosphere_constants.cloud_absorption, 0.0, 1.0);
-
+                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * cloud.w * 2.0;
+                cloud.w = clamp(cloud.w + cloud_density * cloud_absorption, 0.0, 1.0);
                 if(1.0 <= cloud.w)
                 {
+                    hit_point_dist = min(hit_point_dist, length(ray_pos - ray_start_pos.xyz));
                     break;
                 }
             }
@@ -287,7 +278,7 @@ void main()
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
 
-    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
+    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
         ATMOSPHERE,

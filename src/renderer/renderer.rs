@@ -924,7 +924,7 @@ impl RendererData {
         buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
     }
 
-    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64) {
+    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64, elapsed_frame: u64) {
         unsafe {
             // frame index
             let frame_index = self._frame_index as usize;
@@ -981,13 +981,9 @@ impl RendererData {
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
                 }
 
-                TODO: Atmosphere Color Depth Test
-
-                // static mut TEST: bool = true;
-                // if 20.0 < elapsed_time && TEST {
-                //     TEST = false;
+                // if self._light_probe_datas._next_refresh_time < elapsed_time {
                 //     self.render_light_probe(&scene_manager, command_buffer, swapchain_index, &quad_geometry_data);
-                //     println!("TEST ----------- {}", elapsed_time);
+                //     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 // }
 
                 // Render
@@ -1003,6 +999,7 @@ impl RendererData {
 
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                 fft_ocean.render_ocean(command_buffer, swapchain_index, self, &resources);
+
                 let render_light_probe_mode: bool = false;
                 atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, self, render_light_probe_mode);
 

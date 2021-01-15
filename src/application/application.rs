@@ -30,6 +30,7 @@ use crate::renderer::{RendererData, CameraCreateInfo};
 pub struct TimeData {
     _acc_frame_time: f64,
     _acc_frame_count: i32,
+    _elapsed_frame: u64,
     _average_frame_time: f64,
     _average_fps: f64,
     _current_time: f64,
@@ -42,6 +43,7 @@ pub fn create_time_data(elapsed_time: f64) -> TimeData {
     TimeData {
         _acc_frame_time: 0.0,
         _acc_frame_count: 0,
+        _elapsed_frame: 0,
         _average_frame_time: 0.0,
         _average_fps: 0.0,
         _elapsed_time_prev: elapsed_time,
@@ -60,6 +62,7 @@ impl TimeData {
         let elapsed_time = self._elapsed_time + delta_time;
         let acc_frame_time = self._acc_frame_time + delta_time;
         let acc_frame_count = self._acc_frame_count + 1;
+        self._elapsed_frame += 1;
         if 1.0 < acc_frame_time {
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;
             let average_fps = 1000.0 / average_frame_time;
@@ -300,6 +303,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                     application_data._time_data.update_time_data(&time_instance);
                     let elapsed_time = application_data._time_data._elapsed_time;
                     let delta_time = application_data._time_data._delta_time;
+                    let elapsed_frame = application_data._time_data._elapsed_frame;
 
                     if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
                         if false == renderer_data.get_is_first_resize_event() {
@@ -315,7 +319,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
 
                     renderer_data.update_post_process_datas();
                     scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
-                    renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time);
+                    renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time, elapsed_frame);
                 }
                 Event::WindowEvent { event, .. } => match event {
                     WindowEvent::CloseRequested => {

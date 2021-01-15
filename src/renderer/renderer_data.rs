@@ -18,6 +18,8 @@ use crate::utilities::system::RcRefCell;
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct RendererData_LightProbe {
+    pub _next_refresh_time: f64,
+    pub _light_probe_refresh_term: f64,
     pub _framebuffer_data: FramebufferData,
     pub _descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
@@ -25,6 +27,8 @@ pub struct RendererData_LightProbe {
 impl Default for RendererData_LightProbe {
     fn default() -> RendererData_LightProbe {
         RendererData_LightProbe {
+            _next_refresh_time: 0.0,
+            _light_probe_refresh_term: 5.0,
             _framebuffer_data: FramebufferData::default(),
             _descriptor_sets: SwapchainArray::new(),
         }
