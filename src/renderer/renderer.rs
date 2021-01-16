@@ -981,10 +981,10 @@ impl RendererData {
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
                 }
 
-                // if self._light_probe_datas._next_refresh_time < elapsed_time {
-                //     self.render_light_probe(&scene_manager, command_buffer, swapchain_index, &quad_geometry_data);
-                //     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
-                // }
+                if self._light_probe_datas._next_refresh_time < elapsed_time {
+                    self.render_light_probe(&scene_manager, command_buffer, swapchain_index, &quad_geometry_data);
+                    self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
+                }
 
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();

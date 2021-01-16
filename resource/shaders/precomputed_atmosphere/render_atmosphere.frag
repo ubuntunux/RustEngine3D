@@ -263,7 +263,7 @@ void main()
                 cloud.w = clamp(cloud.w + cloud_density * cloud_absorption_for_light, 0.0, 1.0);
                 if(1.0 <= cloud.w || i == (int(march_count) - 1))
                 {
-                    hit_point_dist = mix(length(ray_pos - ray_start_pos.xyz), hit_point_dist, 1.0 - cloud.w * cloud.w);
+                    hit_point_dist = min(hit_point_dist, mix(length(ray_pos - ray_start_pos.xyz), hit_point_dist, 1.0 - cloud.w * cloud.w));
                     break;
                 }
             }
@@ -278,7 +278,16 @@ void main()
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
 
-    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
+    vec3 far_point;
+    if(0 != pushConstants.render_light_probe_mode)
+    {
+        far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
+    }
+    else
+    {
+        far_point = camera + eye_direction.xyz * view_constants.NEAR_FAR.y * ATMOSPHERE_RATIO;
+    }
+
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
         ATMOSPHERE,
