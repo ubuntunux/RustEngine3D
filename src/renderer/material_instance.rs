@@ -35,7 +35,7 @@ impl MaterialInstanceData {
         device: &Device,
         material_instance_data_name: &String,
         material_data: RcRefCell<MaterialData>,
-        pipeline_bind_create_infos: Vec<(render_pass::RenderPassPipelineData, Vec<Vec<descriptor::DescriptorResourceInfo>>)>,
+        pipeline_bind_create_infos: Vec<(render_pass::RenderPassPipelineData, SwapchainArray<Vec<descriptor::DescriptorResourceInfo>>)>,
     ) -> MaterialInstanceData {
         log::info!("create_material_instance: {}", material_instance_data_name);
         log::info!("    material_data: {}", material_data.borrow()._material_data_name);

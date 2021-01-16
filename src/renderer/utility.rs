@@ -113,6 +113,34 @@ pub fn create_descriptor_sets(
     descriptor_sets
 }
 
+pub fn create_descriptor_sets2(
+    device: &Device,
+    pipeline_binding_data: &PipelineBindingData,
+    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)]
+) -> SwapchainArray<vk::DescriptorSet> {
+    let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+    let descriptor_data = &pipeline_data._descriptor_data;
+    let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
+        descriptor_data_create_info._descriptor_binding_index
+    }).collect();
+    let mut new_descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+    for (descriptor_binding_index, descriptor_resource_infos) in descriptor_resource_infos_list {
+        for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
+            new_descriptor_resource_infos_list[*swapchain_index][*descriptor_binding_index] = descriptor_resource_infos[*swapchain_index].clone();
+        }
+    }
+    let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+    let _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+        device,
+        &descriptor_sets,
+        &descriptor_binding_indices,
+        &descriptor_data._descriptor_set_layout_bindings,
+        &new_descriptor_resource_infos_list,
+    );
+    descriptor_sets
+}
+
+
 pub fn create_framebuffer_and_descriptor_sets(
     device: &Device,
     pipeline_binding_data: &PipelineBindingData,
