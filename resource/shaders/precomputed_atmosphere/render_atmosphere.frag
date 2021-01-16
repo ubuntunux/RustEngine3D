@@ -278,16 +278,7 @@ void main()
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
 
-    vec3 far_point;
-    if(0 != pushConstants.render_light_probe_mode)
-    {
-        far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
-    }
-    else
-    {
-        far_point = camera + eye_direction.xyz * view_constants.NEAR_FAR.y * ATMOSPHERE_RATIO;
-    }
-
+    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
         ATMOSPHERE,

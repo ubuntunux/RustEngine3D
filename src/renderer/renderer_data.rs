@@ -14,6 +14,7 @@ use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInf
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::{self, SwapchainArray};
 use crate::utilities::system::RcRefCell;
+use crate::constants::SWAPCHAIN_IMAGE_COUNT;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
@@ -534,7 +535,7 @@ impl RendererData_LightProbe {
         light_probe_color: &TextureData,
         light_probe_atmosphere_color: &TextureData,
         light_probe_atmosphere_inscatter: &TextureData,
-        light_probe_depth: &TextureData,
+        light_probe_scene_depth: &TextureData,
         light_probe_view_constants0: &ShaderBufferData,
     ) {
         let resources = resources.borrow();
@@ -547,7 +548,6 @@ impl RendererData_LightProbe {
             &[
                 RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)) },
                 RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)) },
-                //RenderTargetInfo { _texture_data: &light_probe_depth, _target_layer: 0, _target_mip_level: 0, _clear_value: None },
             ],
             &[],
             &[],
@@ -557,7 +557,8 @@ impl RendererData_LightProbe {
             device,
             pipeline_binding_data,
             &[
-                (1, light_probe_view_constants0._descriptor_buffer_infos.clone())
+                (1, light_probe_view_constants0._descriptor_buffer_infos.clone()),
+                (5, vec![DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone()); SWAPCHAIN_IMAGE_COUNT]),
             ]
         );
     }

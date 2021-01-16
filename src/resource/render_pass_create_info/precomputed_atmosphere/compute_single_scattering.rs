@@ -100,7 +100,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 9,
+                _descriptor_binding_index: 8,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,

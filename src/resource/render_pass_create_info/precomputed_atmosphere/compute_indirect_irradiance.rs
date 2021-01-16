@@ -100,21 +100,21 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 12,
+                _descriptor_binding_index: 11,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 13,
+                _descriptor_binding_index: 12,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 15,
+                _descriptor_binding_index: 14,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING), // equal to DELTA_MULTIPLE_SCATTERING_TEXTURE
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
