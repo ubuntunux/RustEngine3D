@@ -40,6 +40,7 @@ void main()
     out_color = vec4(0.0, 0.0, 0.0, 1.0);
     out_inscatter = vec4(0.0, 0.0, 0.0, 1.0);
 
+    const bool is_render_light_probe_mode = 0 != pushConstants.render_light_probe_mode;
     const float min_dist = 1000.0;
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
 
@@ -85,7 +86,7 @@ void main()
     vec3 sun_disc = vec3(0.0);
     const float sun_absorption = 0.9;
     const float sun_disc_intensity = 20.0;
-    if (0 == pushConstants.render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL)
+    if (atmosphere_constants.sun_size.y < VdotL)
     {
         sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
@@ -288,13 +289,13 @@ void main()
     );
     scene_inscatter = max(vec3(0.0), scene_inscatter);
 
-    if(0 != pushConstants.render_light_probe_mode)
+    if(is_render_light_probe_mode && render_cloud)
     {
         out_color.xyz += scene_inscatter;
     }
 
     if(render_cloud)
     {
-        out_inscatter.xyz += scene_inscatter;
+        out_inscatter.xyz = scene_inscatter;
     }
 }
