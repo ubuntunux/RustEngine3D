@@ -261,7 +261,7 @@ void main()
                     }
                 }
 
-                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * exp(-cloud.w);
+                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * (1.0 - cloud.w);
                 cloud.w = clamp(cloud.w + cloud_density * cloud_absorption, 0.0, 1.0);
                 if(1.0 <= cloud.w || i == (march_count - 1))
                 {
@@ -273,7 +273,7 @@ void main()
             cloud.w *= horizontal_line;
         }
 
-        out_color.xyz += radiance * exp(-cloud.w * 2.0) + cloud.xyz * 3.0;
+        out_color.xyz += radiance * (1.0 - cloud.w) + cloud.xyz * 3.0;
         out_color.xyz += sun_disc * saturate(1.0 - cloud.w);
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
