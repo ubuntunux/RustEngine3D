@@ -8,6 +8,9 @@
 #include "atmosphere_common.glsl"
 #include "render_atmosphere_common.glsl"
 
+const float ABSORPTION_SCALE = 1.0;
+const float CLOUD_COLOR_BRIGHTNESS = 5.0;
+
 layout( push_constant ) uniform PushConstant_Atmosphere
 {
     int render_light_probe_mode;
@@ -68,16 +71,16 @@ void main()
     // Sky
     vec3 transmittance;
     vec3 radiance = GetSkyRadiance(
-    ATMOSPHERE,
-    atmosphere_constants,
-    transmittance_texture,
-    scattering_texture,
-    single_mie_scattering_texture,
-    camera - atmosphere_constants.earth_center,
-    eye_direction,
-    scene_shadow_length,
-    sun_direction,
-    transmittance
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
+        camera - atmosphere_constants.earth_center,
+        eye_direction,
+        scene_shadow_length,
+        sun_direction,
+        transmittance
     );
     vec3 solar_radiance = GetSolarRadiance(ATMOSPHERE, atmosphere_constants);
 
@@ -90,12 +93,8 @@ void main()
         sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
     }
-
-    // Cloud
-    vec4 cloud = vec4(0.0);
-    vec3 earth_center_pos = atmosphere_constants.earth_center / ATMOSPHERE_RATIO;
-
     // distance from earch center
+    vec3 earth_center_pos = atmosphere_constants.earth_center / ATMOSPHERE_RATIO;
     float hit_point_dist = scene_linear_depth;
     const float cloud_bottom_dist = atmosphere_constants.cloud_altitude - earth_center_pos.y;
     const float cloud_top_dist = cloud_bottom_dist + atmosphere_constants.cloud_height;
@@ -153,6 +152,8 @@ void main()
     vec3 N = normalize(ray_start_pos.xyz);
 
     // Cloud
+    vec3 cloud_color = vec3(0.0);
+    float cloud_opacity = 0.0;
     if(render_cloud)
     {
         vec3 cloud_inscatter = vec3(0.0);
@@ -162,21 +163,21 @@ void main()
         // NOTE : 0.1 is more colorful scattering cloud.
         float dist_to_point = hit_dist * (above_the_cloud ? 1.0 : 0.01);
         GetCloudRadiance(
-        ATMOSPHERE,
-        atmosphere_constants,
-        transmittance_texture,
-        irradiance_texture,
-        scattering_texture,
-        single_mie_scattering_texture,
-        dist_to_point,
-        view_constants.NEAR_FAR.x,
-        view_constants.CAMERA_POSITION.xyz,
-        eye_direction,
-        sun_direction,
-        scene_shadow_length,
-        cloud_sun_irradiance,
-        cloud_sky_irradiance,
-        cloud_inscatter
+            ATMOSPHERE,
+            atmosphere_constants,
+            transmittance_texture,
+            irradiance_texture,
+            scattering_texture,
+            single_mie_scattering_texture,
+            dist_to_point,
+            view_constants.NEAR_FAR.x,
+            view_constants.CAMERA_POSITION.xyz,
+            eye_direction,
+            sun_direction,
+            scene_shadow_length,
+            cloud_sun_irradiance,
+            cloud_sky_irradiance,
+            cloud_inscatter
         );
 
         if(in_the_cloud || above_the_cloud)
@@ -201,23 +202,19 @@ void main()
             noise_scale = max(noise_scale.x, max(noise_scale.y, noise_scale.z)) / noise_scale;
             noise_scale *= atmosphere_constants.noise_tiling;
 
-            // float view_angle = in_the_cloud ? 0.0 : pow(abs(eye_direction.y), 0.2);
             const int march_count = 64;
             const int light_march_count = 16;
-            const float absorption_scale = 1.0;
-            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * absorption_scale, 0.0, 1.0);
-            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * absorption_scale * float(march_count) / float(light_march_count), 0, 1.0);
+            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * ABSORPTION_SCALE, 0.0, 1.0);
+            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * ABSORPTION_SCALE * float(march_count) / float(light_march_count), 0, 1.0);
             float march_step = atmosphere_constants.cloud_height / float(march_count);
             float cloud_march_step = march_step;
             float increase_march_step = march_step * 0.05;
-
-            for(int i=0; i<march_count; ++i)
+            for(int i = 0; i < march_count; ++i)
             {
                 vec3 ray_pos = ray_start_pos.xyz + eye_direction.xyz * float(i) * cloud_march_step;
 
                 // fade top and bottom
                 float relative_altitude = length(ray_pos - earth_center_pos.xyz) - cloud_bottom_dist;
-
                 if(atmosphere_constants.cloud_height < relative_altitude || relative_altitude < 0.0)
                 {
                     continue;
@@ -227,7 +224,6 @@ void main()
                 fade = 1.0 - pow(abs(fade * 2.0 - 1.0), 3.0);
 
                 float cloud_density = get_cloud_density(cloud_scale, noise_scale, ray_pos.xzy, speed, fade);
-
                 if(cloud_density <= 0.005)
                 {
                     // increase march step
@@ -241,7 +237,7 @@ void main()
                 }
 
                 float light_intensity = 1.0;
-                for(int j=0; j<light_march_count; ++j)
+                for(int j = 1; j <= light_march_count; ++j)
                 {
                     vec3 light_pos = ray_pos + sun_direction * float(light_march_count - j) * march_step;
                     relative_altitude = length(light_pos.xyz - earth_center_pos.xyz) - cloud_bottom_dist;
@@ -261,36 +257,36 @@ void main()
                     }
                 }
 
-                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * (1.0 - cloud.w);
-                cloud.w = clamp(cloud.w + cloud_density * cloud_absorption, 0.0, 1.0);
-                if(1.0 <= cloud.w || i == (march_count - 1))
+                cloud_color += light_color * light_intensity * light_intensity * cloud_density * (1.0 - cloud_opacity);
+                cloud_opacity = clamp(cloud_opacity + cloud_density * cloud_absorption, 0.0, 1.0);
+                if(1.0 <= cloud_opacity || i == (march_count - 1))
                 {
                     break;
                 }
             }
 
             float horizontal_line = pow(saturate(((N.y * 0.5 + 0.5) - 0.49) * 30.0), 0.1);
-            cloud.w *= horizontal_line;
+            cloud_opacity *= horizontal_line;
         }
 
-        out_color.xyz += radiance * (1.0 - cloud.w) + cloud.xyz * 3.0;
-        out_color.xyz += sun_disc * saturate(1.0 - cloud.w);
-        out_color.w = clamp(cloud.w, 0.0, 1.0);
+        out_color.xyz += radiance * (1.0 - cloud_opacity) + cloud_color * cloud_opacity * CLOUD_COLOR_BRIGHTNESS;
+        out_color.xyz += sun_disc * saturate(1.0 - cloud_opacity);
+        out_color.w = clamp(cloud_opacity, 0.0, 1.0);
     }
 
     vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
-    ATMOSPHERE,
-    atmosphere_constants,
-    transmittance_texture,
-    scattering_texture,
-    single_mie_scattering_texture,
-    camera - atmosphere_constants.earth_center,
-    far_point.xyz - atmosphere_constants.earth_center,
-    scene_shadow_length,
-    light_constants.LIGHT_DIRECTION.xyz,
-    scene_transmittance
+        ATMOSPHERE,
+        atmosphere_constants,
+        transmittance_texture,
+        scattering_texture,
+        single_mie_scattering_texture,
+        camera - atmosphere_constants.earth_center,
+        far_point.xyz - atmosphere_constants.earth_center,
+        scene_shadow_length,
+        light_constants.LIGHT_DIRECTION.xyz,
+        scene_transmittance
     );
     scene_inscatter = max(vec3(0.0), scene_inscatter);
 
