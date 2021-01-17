@@ -204,9 +204,9 @@ void main()
             // float view_angle = in_the_cloud ? 0.0 : pow(abs(eye_direction.y), 0.2);
             const int march_count = 64;
             const int light_march_count = 16;
-            const float absorption_scale = 30.0;
-            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption / float(march_count) * absorption_scale, 0.0, 1.0);
-            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption / float(light_march_count) * absorption_scale, 0, 1.0);
+            const float absorption_scale = 1.0;
+            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * absorption_scale, 0.0, 1.0);
+            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * absorption_scale * float(march_count) / float(light_march_count), 0, 1.0);
             float march_step = atmosphere_constants.cloud_height / float(march_count);
             float cloud_march_step = march_step;
             float increase_march_step = march_step * 0.05;
@@ -261,11 +261,10 @@ void main()
                     }
                 }
 
-                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * (1.0 - cloud.w);
-                cloud.w = clamp(cloud.w + cloud_density * cloud_absorption_for_light, 0.0, 1.0);
+                cloud.xyz += light_color * light_intensity * light_intensity * cloud_density * exp(-cloud.w);
+                cloud.w = clamp(cloud.w + cloud_density * cloud_absorption, 0.0, 1.0);
                 if(1.0 <= cloud.w || i == (march_count - 1))
                 {
-                    hit_point_dist = min(hit_point_dist, mix(length(ray_pos - ray_start_pos.xyz), hit_point_dist, exp(-cloud.w)));
                     break;
                 }
             }
@@ -274,7 +273,7 @@ void main()
             cloud.w *= horizontal_line;
         }
 
-        out_color.xyz += radiance * (1.0 - cloud.w) + cloud.xyz * 3.0;
+        out_color.xyz += radiance * exp(-cloud.w * 2.0) + cloud.xyz * 3.0;
         out_color.xyz += sun_disc * saturate(1.0 - cloud.w);
         out_color.w = clamp(cloud.w, 0.0, 1.0);
     }
