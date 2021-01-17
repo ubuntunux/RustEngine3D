@@ -1113,12 +1113,23 @@ impl RendererData {
             "precomputed_atmosphere",
             "render_atmosphere/default",
             &quad_geometry_data,
-            Some(&self._light_probe_datas._framebuffer_data),
-            Some(&self._light_probe_datas._descriptor_sets),
+            Some(&self._light_probe_datas._render_atmosphere_framebuffer_data),
+            Some(&self._light_probe_datas._render_atmosphere_descriptor_sets),
             Some(&PushConstant_Atmosphere {
                 _render_light_probe_mode: 0,
                 ..Default::default()
             }),
+        );
+
+        self.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "precomputed_atmosphere",
+            "composite_atmosphere/default",
+            &quad_geometry_data,
+            Some(&self._light_probe_datas._composite_atmosphere_framebuffer_data),
+            Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets),
+            NONE_PUSH_CONSTANT,
         );
     }
 

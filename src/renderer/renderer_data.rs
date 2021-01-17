@@ -21,8 +21,10 @@ use crate::constants::SWAPCHAIN_IMAGE_COUNT;
 pub struct RendererData_LightProbe {
     pub _next_refresh_time: f64,
     pub _light_probe_refresh_term: f64,
-    pub _framebuffer_data: FramebufferData,
-    pub _descriptor_sets: SwapchainArray<vk::DescriptorSet>,
+    pub _render_atmosphere_framebuffer_data: FramebufferData,
+    pub _render_atmosphere_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
+    pub _composite_atmosphere_framebuffer_data: FramebufferData,
+    pub _composite_atmosphere_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
 impl Default for RendererData_LightProbe {
@@ -30,8 +32,10 @@ impl Default for RendererData_LightProbe {
         RendererData_LightProbe {
             _next_refresh_time: 0.0,
             _light_probe_refresh_term: 0.0,
-            _framebuffer_data: FramebufferData::default(),
-            _descriptor_sets: SwapchainArray::new(),
+            _render_atmosphere_framebuffer_data: FramebufferData::default(),
+            _render_atmosphere_descriptor_sets: SwapchainArray::new(),
+            _composite_atmosphere_framebuffer_data: FramebufferData::default(),
+            _composite_atmosphere_descriptor_sets: SwapchainArray::new(),
         }
     }
 }
@@ -540,32 +544,60 @@ impl RendererData_LightProbe {
     ) {
         let resources = resources.borrow();
         let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
+        let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
+        let light_probe_atmosphere_color_image_info = DescriptorResourceInfo::DescriptorImageInfo(light_probe_atmosphere_color.get_default_image_info().clone());
+        let light_probe_atmosphere_inscatter_image_info = DescriptorResourceInfo::DescriptorImageInfo(light_probe_atmosphere_inscatter.get_default_image_info().clone());
+
+        // render atmosphere
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
-        self._framebuffer_data = utility::create_framebuffers(
+        self._render_atmosphere_framebuffer_data = utility::create_framebuffers(
             device,
             pipeline_binding_data,
             "render_targets_light_probe",
             &[
-                RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)) },
-                RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)) },
+                RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
+                RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
             ],
             &[],
             &[],
         );
-
-        let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
-        self._descriptor_sets = utility::create_descriptor_sets(
+        self._render_atmosphere_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
             &[
                 (1, light_probe_view_constants0._descriptor_buffer_infos.clone()),
-                (5, utility::create_swapchain_array(texture_white_image_info)),
+                (5, utility::create_swapchain_array(texture_white_image_info.clone())),
+            ]
+        );
+
+        // composite atmosphere
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
+        self._composite_atmosphere_framebuffer_data = utility::create_framebuffers(
+            device,
+            pipeline_binding_data,
+            "composite_atmosphere_light_probe",
+            &[
+                RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
+            ],
+            &[],
+            &[],
+        );
+        self._composite_atmosphere_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            pipeline_binding_data,
+            &[
+                (1, light_probe_view_constants0._descriptor_buffer_infos.clone()),
+                (5, utility::create_swapchain_array(texture_white_image_info.clone())),
+                (15, utility::create_swapchain_array(light_probe_atmosphere_color_image_info.clone())),
+                (16, utility::create_swapchain_array(light_probe_atmosphere_inscatter_image_info.clone())),
             ]
         );
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        framebuffer::destroy_framebuffer_data(device, &self._framebuffer_data);
-        self._descriptor_sets.clear();
+        framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_data);
+        framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_data);
+        self._render_atmosphere_descriptor_sets.clear();
+        self._composite_atmosphere_descriptor_sets.clear();
     }
 }
