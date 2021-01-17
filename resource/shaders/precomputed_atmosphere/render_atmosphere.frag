@@ -8,9 +8,6 @@
 #include "atmosphere_common.glsl"
 #include "render_atmosphere_common.glsl"
 
-const float ABSORPTION_SCALE = 1.0;
-const float CLOUD_COLOR_BRIGHTNESS = 5.0;
-
 layout( push_constant ) uniform PushConstant_Atmosphere
 {
     int render_light_probe_mode;
@@ -93,6 +90,7 @@ void main()
         sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
     }
+
     // distance from earch center
     vec3 earth_center_pos = atmosphere_constants.earth_center / ATMOSPHERE_RATIO;
     float hit_point_dist = scene_linear_depth;
@@ -189,7 +187,6 @@ void main()
         float atmosphere_lighting = max(0.2, pow(saturate(dot(N, sun_direction) * 0.5 + 0.5), 1.0));
         vec3 light_color = (cloud_sun_irradiance + cloud_sky_irradiance);
         light_color *= atmosphere_constants.cloud_exposure * light_constants.LIGHT_COLOR.xyz * atmosphere_lighting;
-
         if(0.0 <= hit_dist && hit_dist < far_dist)
         {
             const vec3 speed = vec3(atmosphere_constants.cloud_speed, atmosphere_constants.cloud_speed, 0.0) * scene_constants.TIME;
@@ -204,8 +201,10 @@ void main()
 
             const int march_count = 64;
             const int light_march_count = 16;
-            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * ABSORPTION_SCALE, 0.0, 1.0);
-            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * ABSORPTION_SCALE * float(march_count) / float(light_march_count), 0, 1.0);
+            const float cloud_absorption_ratio = 2.0;
+            const float cloud_absorption_ratio_for_light = 2.0;
+            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * cloud_absorption_ratio , 0.0, 1.0);
+            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * cloud_absorption_ratio_for_light, 0, 1.0);
             float march_step = atmosphere_constants.cloud_height / float(march_count);
             float cloud_march_step = march_step;
             float increase_march_step = march_step * 0.05;
@@ -269,7 +268,7 @@ void main()
             cloud_opacity *= horizontal_line;
         }
 
-        out_color.xyz += radiance * (1.0 - cloud_opacity) + cloud_color * cloud_opacity * CLOUD_COLOR_BRIGHTNESS;
+        out_color.xyz += radiance * (1.0 - cloud_opacity) + cloud_color * cloud_opacity * 4.0;
         out_color.xyz += sun_disc * saturate(1.0 - cloud_opacity);
         out_color.w = clamp(cloud_opacity, 0.0, 1.0);
     }
