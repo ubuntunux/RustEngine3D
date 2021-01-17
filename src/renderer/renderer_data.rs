@@ -553,12 +553,13 @@ impl RendererData_LightProbe {
             &[],
         );
 
+        let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
         self._descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
             &[
                 (1, light_probe_view_constants0._descriptor_buffer_infos.clone()),
-                (5, vec![DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone()); SWAPCHAIN_IMAGE_COUNT]),
+                (5, utility::create_swapchain_array(texture_white_image_info)),
             ]
         );
     }

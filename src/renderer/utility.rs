@@ -5,12 +5,10 @@ use crate::renderer::material_instance::{ PipelineBindingData };
 use crate::vulkan_context::descriptor::{
     self,
     DescriptorResourceInfo,
-    DescriptorDataCreateInfo,
 };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-use std::ops::Index;
 
 pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
     vec![a; constants::SWAPCHAIN_IMAGE_COUNT]

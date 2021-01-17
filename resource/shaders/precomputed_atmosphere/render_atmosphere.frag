@@ -93,7 +93,6 @@ void main()
 
     // distance from earch center
     vec3 earth_center_pos = atmosphere_constants.earth_center / ATMOSPHERE_RATIO;
-    float hit_point_dist = scene_linear_depth;
     const float cloud_bottom_dist = atmosphere_constants.cloud_altitude - earth_center_pos.y;
     const float cloud_top_dist = cloud_bottom_dist + atmosphere_constants.cloud_height;
     float altitude_diff = atmosphere_constants.cloud_altitude - world_pos_y;
@@ -199,9 +198,9 @@ void main()
             noise_scale = max(noise_scale.x, max(noise_scale.y, noise_scale.z)) / noise_scale;
             noise_scale *= atmosphere_constants.noise_tiling;
 
-            const int march_count = 64;
+            const int march_count = 32;
             const int light_march_count = 16;
-            const float cloud_absorption_ratio = 2.0;
+            const float cloud_absorption_ratio = 3.0;
             const float cloud_absorption_ratio_for_light = 2.0;
             const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * cloud_absorption_ratio , 0.0, 1.0);
             const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * cloud_absorption_ratio_for_light, 0, 1.0);
@@ -273,7 +272,7 @@ void main()
         out_color.w = clamp(cloud_opacity, 0.0, 1.0);
     }
 
-    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, hit_point_dist) * ATMOSPHERE_RATIO;
+    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
     vec3 scene_transmittance;
     vec3 scene_inscatter = GetSkyRadianceToPoint(
         ATMOSPHERE,
