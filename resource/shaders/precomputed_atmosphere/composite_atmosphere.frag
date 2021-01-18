@@ -16,62 +16,21 @@ void main()
     vec2 texcoord = vs_output.uv.xy;
     float device_depth = texture(texture_depth, texcoord).x;
     float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
-    vec4 color = textureLod(texture_atmosphere, texcoord, 0.0);
-
-    color.w = max(color.w, 0.0);
-
-    float depth_ratio = clamp(linear_depth / view_constants.NEAR_FAR.y, 0.0, 1.0);
+    float distance_ratio = clamp(linear_depth / view_constants.NEAR_FAR.y, 0.0, 1.0);
+    vec4 color = max(textureLod(texture_atmosphere, texcoord, 0.0), vec4(0.0));
+    vec3 inscatter_color = texture(texture_inscatter, texcoord).xyz * pow(distance_ratio, atmosphere_constants.inscatter_power);
 
     if(atmosphere_constants.cloud_altitude < view_constants.CAMERA_POSITION.y)
     {
         //color.w = (NEAR_FAR.y <= linear_depth) ? 1.0 : color.w;
-        color.w = saturate(max(pow(depth_ratio, 2.0), color.w));
+        color.w = saturate(max(pow(distance_ratio, 2.0), color.w));
     }
     else
     {
-        color.w = saturate(pow(depth_ratio, 2.0));
+        color.w = saturate(pow(distance_ratio, 2.0));
     }
 
     // for blending : src_color * one + dst_color * (1.0 - src_alpha)
-    //color.w = saturate(max(pow(depth_ratio, 2.0), color.w));
-    color.xyz *= color.w;
-
-    // Upscaling Inscatter
-    vec2 inv_lod_texel_size = 1.0 / textureSize(texture_depth, 2);
-    float fixed_device_depth = texture(texture_depth, texcoord).x;
-    float fixed_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, fixed_device_depth);
-    //float fixed_linear_depth = textureLod(texture_linear_depth, texcoord, 2.0).x;
-    float fixed_depth_diff = abs(linear_depth - fixed_linear_depth);
-    vec2 fixed_texcoord = (floor(texcoord / inv_lod_texel_size) + 0.5) * inv_lod_texel_size;
-    vec2 fixed_uv = fixed_texcoord;
-
-    vec2 offset[8] = {
-        vec2(-inv_lod_texel_size.x, 0.0),
-        vec2(inv_lod_texel_size.x, 0.0),
-        vec2(0.0, inv_lod_texel_size.y),
-        vec2(0.0, -inv_lod_texel_size.y),
-        vec2(inv_lod_texel_size.x, inv_lod_texel_size.y),
-        vec2(-inv_lod_texel_size.x, inv_lod_texel_size.y),
-        vec2(inv_lod_texel_size.x, -inv_lod_texel_size.y),
-        vec2(-inv_lod_texel_size.x, -inv_lod_texel_size.y),
-    };
-
-    for(int i=0; i<8; ++i)
-    {
-        float lod_device_depth = texture(texture_depth, fixed_texcoord + offset[i]).x;
-        float lod_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, lod_device_depth);
-        //float lod_linear_depth = textureLod(texture_linear_depth, fixed_texcoord + offset[i], 2.0).x;
-        float depth_diff = abs(linear_depth - lod_linear_depth);
-        if(depth_diff < fixed_depth_diff)
-        {
-            fixed_linear_depth = lod_linear_depth;
-            fixed_depth_diff = depth_diff;
-            fixed_uv = fixed_texcoord + offset[i];
-        }
-    }
-
-    // add inscatter
-    color.xyz += texture(texture_inscatter, texcoord).xyz * pow(depth_ratio, atmosphere_constants.inscatter_power);
-
-    fs_output = color;
+    fs_output.xyz = color.xyz * color.w + inscatter_color;
+    fs_output.w = color.w;
 }
