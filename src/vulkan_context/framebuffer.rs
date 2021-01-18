@@ -81,7 +81,6 @@ pub fn create_framebuffer_data_create_info(
           color_render_targets[0]._texture_data._image_sample_count,
           color_render_targets[0]._target_layer,
           color_render_targets[0]._target_mip_level,
-
         )
     } else if false == depth_render_targets.is_empty() {
         ( depth_render_targets[0]._texture_data._image_width,

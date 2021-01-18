@@ -544,8 +544,6 @@ impl RendererData_LightProbe {
         let resources = resources.borrow();
         let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
-        let light_probe_atmosphere_color_image_info = DescriptorResourceInfo::DescriptorImageInfo(light_probe_atmosphere_color.get_default_image_info().clone());
-        let light_probe_atmosphere_inscatter_image_info = DescriptorResourceInfo::DescriptorImageInfo(light_probe_atmosphere_inscatter.get_default_image_info().clone());
         let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
         let composite_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
 
@@ -556,8 +554,8 @@ impl RendererData_LightProbe {
                 render_atmosphere_pipeline_binding_data,
                 "render_targets_light_probe",
                 &[
-                    RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
-                    RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: 0, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
+                    RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
+                    RenderTargetInfo { _texture_data: &light_probe_atmosphere_inscatter, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
                 ],
                 &[],
                 &[],
@@ -582,6 +580,8 @@ impl RendererData_LightProbe {
                 &[],
                 &[],
             ));
+            let light_probe_atmosphere_color_image_info = DescriptorResourceInfo::DescriptorImageInfo(light_probe_atmosphere_color.get_sub_image_info(i as u32, 0).clone());
+            let light_probe_atmosphere_inscatter_image_info = DescriptorResourceInfo::DescriptorImageInfo(light_probe_atmosphere_inscatter.get_sub_image_info(i as u32, 0).clone());
             self._composite_atmosphere_descriptor_sets.push(utility::create_descriptor_sets(
                 device,
                 composite_atmosphere_pipeline_binding_data,

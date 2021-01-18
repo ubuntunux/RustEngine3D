@@ -80,7 +80,7 @@ pub fn create_scene_manager_data(
 
 impl SceneManagerData {
     pub fn open_scene_manager_data(&mut self, camera_create_info: &CameraCreateInfo) {
-        self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
+        self.initialize_light_probe_cameras();
 
         self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
 
@@ -227,6 +227,15 @@ impl SceneManagerData {
                 })
             }
         }
+    }
+
+    pub fn initialize_light_probe_cameras(&mut self) {
+        self._light_probe_cameras[0].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 270.0, 0.0));
+        self._light_probe_cameras[1].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 90.0, 0.0));
+        self._light_probe_cameras[2].borrow_mut()._transform_object.set_rotation(&Vector3::new(-90.0, 180.0, 0.0));
+        self._light_probe_cameras[3].borrow_mut()._transform_object.set_rotation(&Vector3::new(90.0, 180.0, 0.0));
+        self._light_probe_cameras[4].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 180.0, 0.0));
+        self._light_probe_cameras[5].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 0.0, 0.0));
     }
 
     pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
