@@ -37,7 +37,6 @@ use crate::vulkan_context::{
     sync,
     texture,
 };
-
 use crate::vulkan_context::buffer::{ ShaderBufferData };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
@@ -58,6 +57,7 @@ use crate::renderer::push_constants::{
     PushConstant_RenderDebug,
 };
 use crate::renderer::precomputed_atmosphere::PushConstant_Atmosphere;
+use crate::renderer::camera::CameraObjectData;
 use crate::renderer::render_target::{ self, RenderTargetType };
 use crate::renderer::shader_buffer_datas::{
     self,
@@ -433,7 +433,14 @@ impl RendererData {
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
-            self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants0).as_ref().unwrap(),
+            &[
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants0).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants1).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants2).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants3).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants4).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants5).as_ref().unwrap(),
+            ]
         );
     }
 
@@ -982,7 +989,7 @@ impl RendererData {
                 }
 
                 if self._light_probe_datas._next_refresh_time < elapsed_time {
-                    self.render_light_probe(&scene_manager, command_buffer, swapchain_index, &quad_geometry_data);
+                    self.render_light_probe(command_buffer, swapchain_index, &quad_geometry_data, &resources, &scene_manager, &main_camera);
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 }
 
@@ -1099,38 +1106,58 @@ impl RendererData {
         }
     }
 
-    pub fn render_light_probe(&self, scene_manager: &RefMut<SceneManagerData>, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        // Render Atmosphere
-        let mut light_probe_view_constants0 = shader_buffer_datas::ViewConstants::default();
-        let mut light_probe_camera = scene_manager.get_light_probe_camera(0).borrow_mut();
-        light_probe_camera._updated = true;
-        light_probe_camera.update_camera_object_data();
-        light_probe_view_constants0.update_view_constants(&light_probe_camera);
-        self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightProbeViewConstants0, &light_probe_view_constants0);
-        self.render_material_instance(
-            command_buffer,
-            swapchain_index,
-            "precomputed_atmosphere",
-            "render_atmosphere/default",
-            &quad_geometry_data,
-            Some(&self._light_probe_datas._render_atmosphere_framebuffer_data),
-            Some(&self._light_probe_datas._render_atmosphere_descriptor_sets),
-            Some(&PushConstant_Atmosphere {
-                _render_light_probe_mode: 0,
-                ..Default::default()
-            }),
-        );
+    pub fn render_light_probe(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        quad_geometry_data: &GeometryData,
+        resources: &Ref<Resources>,
+        scene_manager: &RefMut<SceneManagerData>,
+        main_camera: &CameraObjectData
+    ) {
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("precomputed_atmosphere").borrow();
+        let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
+        let composite_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
+        let mut light_probe_view_constants = shader_buffer_datas::ViewConstants::default();
+        let light_probe_view_constant_types = [
+            ShaderBufferDataType::LightProbeViewConstants0,
+            ShaderBufferDataType::LightProbeViewConstants1,
+            ShaderBufferDataType::LightProbeViewConstants2,
+            ShaderBufferDataType::LightProbeViewConstants3,
+            ShaderBufferDataType::LightProbeViewConstants4,
+            ShaderBufferDataType::LightProbeViewConstants5,
+        ];
+        let render_atmosphere_push_constants = PushConstant_Atmosphere {
+            _render_light_probe_mode: 1,
+            ..Default::default()
+        };
+        let main_camera_position = main_camera._transform_object.get_position();
+        for i in 0..constants::CUBE_LAYER_COUNT {
+            let mut light_probe_camera = scene_manager.get_light_probe_camera(i).borrow_mut();
+            light_probe_camera._transform_object.set_position(main_camera_position);
+            light_probe_camera.update_camera_object_data();
+            light_probe_view_constants.update_view_constants(&light_probe_camera);
+            self.upload_shader_buffer_data(swapchain_index, light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
+            self.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                render_atmosphere_pipeline_binding_data,
+                quad_geometry_data,
+                Some(&self._light_probe_datas._render_atmosphere_framebuffer_datas[i]),
+                Some(&self._light_probe_datas._render_atmosphere_descriptor_sets[i]),
+                Some(&render_atmosphere_push_constants)
+            );
 
-        self.render_material_instance(
-            command_buffer,
-            swapchain_index,
-            "precomputed_atmosphere",
-            "composite_atmosphere/default",
-            &quad_geometry_data,
-            Some(&self._light_probe_datas._composite_atmosphere_framebuffer_data),
-            Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets),
-            NONE_PUSH_CONSTANT,
-        );
+            self.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                composite_atmosphere_pipeline_binding_data,
+                quad_geometry_data,
+                Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
+                Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
+                NONE_PUSH_CONSTANT,
+            );
+        }
     }
 
     pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {

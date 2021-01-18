@@ -10,6 +10,7 @@ use ash::version::{
     DeviceV1_0,
 };
 
+pub type CubeMapArray<T> = Vec<T>; // equivalent to [T; constants::CUBE_LAYER_COUNT as usize]
 pub type SwapchainArray<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
 pub type FrameArray<T> = Vec<T>; // equivalent to [T; constants::MAX_FRAME_COUNT as usize]
 pub type Layers<T> = Vec<T>; // image layer array

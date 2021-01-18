@@ -19,7 +19,8 @@ pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D24_UNORM_S8_UINT,
     vk::Format::D16_UNORM_S8_UINT
 ];
-pub const CUBE_TEXTURE_FACES: [&str; 6] = ["right", "left", "top", "bottom", "front", "back"];
+pub const CUBE_LAYER_COUNT: usize = 6;
+pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] = ["right", "left", "top", "bottom", "front", "back"];
 pub const INVALID_QUEUE_INDEX: u32 = std::u32::MAX;
 pub const WHOLE_LAYERS: u32 = std::u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = std::u32::MAX;
