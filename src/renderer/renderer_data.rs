@@ -680,6 +680,7 @@ impl RendererData_LightProbe {
             self._composite_atmosphere_descriptor_sets[i].clear();
         }
         self._render_atmosphere_framebuffer_datas.clear();
+        self._composite_atmosphere_framebuffer_datas_only_sky.clear();
         self._composite_atmosphere_framebuffer_datas.clear();
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
