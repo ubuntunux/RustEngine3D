@@ -430,6 +430,7 @@ impl RendererData {
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
@@ -1146,6 +1147,16 @@ impl RendererData {
                 Some(&self._light_probe_datas._render_atmosphere_framebuffer_datas[i]),
                 Some(&self._light_probe_datas._render_atmosphere_descriptor_sets[i]),
                 Some(&render_atmosphere_push_constants)
+            );
+
+            self.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                composite_atmosphere_pipeline_binding_data,
+                quad_geometry_data,
+                Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas_only_sky[i]),
+                Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
+                NONE_PUSH_CONSTANT,
             );
 
             self.render_render_pass_pipeline(

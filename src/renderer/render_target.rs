@@ -17,6 +17,7 @@ pub enum RenderTargetType {
     SceneDepth,
     HierarchicalMinZ,
     LightProbeColor,
+    LightProbeColorOnlySky,
     LightProbeAtmosphereColor,
     LightProbeAtmosphereInscatter,
     LightProbeDepth,
@@ -69,6 +70,7 @@ impl std::str::FromStr for RenderTargetType {
             "SceneDepth" => Ok(RenderTargetType::SceneDepth),
             "HierarchicalMinZ" => Ok(RenderTargetType::HierarchicalMinZ),
             "LightProbeColor" => Ok(RenderTargetType::LightProbeColor),
+            "LightProbeColorOnlySky" => Ok(RenderTargetType::LightProbeColorOnlySky),
             "LightProbeAtmosphereColor" => Ok(RenderTargetType::LightProbeAtmosphereColor),
             "LightProbeAtmosphereInscatter" => Ok(RenderTargetType::LightProbeAtmosphereInscatter),
             "LightProbeDepth" => Ok(RenderTargetType::LightProbeDepth),
@@ -156,6 +158,16 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeColor.to_string(),
+            _texture_width: constants::LIGHT_PROBE_SIZE,
+            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_layers: constants::CUBE_LAYER_COUNT as u32,
+            _texture_view_type: vk::ImageViewType::CUBE,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _enable_mipmap: true,
+            ..hdr_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::LightProbeColorOnlySky.to_string(),
             _texture_width: constants::LIGHT_PROBE_SIZE,
             _texture_height: constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,

@@ -22,6 +22,7 @@ pub struct RendererData_LightProbe {
     pub _light_probe_refresh_term: f64,
     pub _render_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
     pub _render_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
+    pub _composite_atmosphere_framebuffer_datas_only_sky: CubeMapArray<FramebufferData>,
     pub _composite_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
     pub _composite_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
 }
@@ -33,6 +34,7 @@ impl Default for RendererData_LightProbe {
             _light_probe_refresh_term: 0.0,
             _render_atmosphere_framebuffer_datas: Vec::new(),
             _render_atmosphere_descriptor_sets: Vec::new(),
+            _composite_atmosphere_framebuffer_datas_only_sky: Vec::new(),
             _composite_atmosphere_framebuffer_datas: Vec::new(),
             _composite_atmosphere_descriptor_sets: Vec::new(),
         }
@@ -536,6 +538,7 @@ impl RendererData_LightProbe {
         device: &Device,
         resources: &RcRefCell<Resources>,
         light_probe_color: &TextureData,
+        light_probe_color_only_sky: &TextureData,
         light_probe_atmosphere_color: &TextureData,
         light_probe_atmosphere_inscatter: &TextureData,
         light_probe_scene_depth: &TextureData,
@@ -570,6 +573,16 @@ impl RendererData_LightProbe {
             ));
 
             // composite atmosphere
+            self._composite_atmosphere_framebuffer_datas_only_sky.push(utility::create_framebuffers(
+                device,
+                composite_atmosphere_pipeline_binding_data,
+                "composite_atmosphere_light_probe",
+                &[
+                    RenderTargetInfo { _texture_data: &light_probe_color_only_sky, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
+                ],
+                &[],
+                &[],
+            ));
             self._composite_atmosphere_framebuffer_datas.push(utility::create_framebuffers(
                 device,
                 composite_atmosphere_pipeline_binding_data,
@@ -598,6 +611,7 @@ impl RendererData_LightProbe {
     pub fn destroy(&mut self, device: &Device) {
         for i in 0..constants::CUBE_LAYER_COUNT {
             framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_datas[i]);
+            framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas_only_sky[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas[i]);
             self._render_atmosphere_descriptor_sets[i].clear();
             self._composite_atmosphere_descriptor_sets[i].clear();
