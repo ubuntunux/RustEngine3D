@@ -1037,7 +1037,7 @@ fn create_texture_data_inner<T: Copy>(
                texture_create_info._texture_height,
                texture_create_info._texture_layers,
     );
-    log::info!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
+    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
     if false == image_datas._sub_image_views.is_empty() {
         log::debug!("                 sub_image_views: {:?}", image_datas._sub_image_views);
     }

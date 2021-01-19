@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use rand;
 use nalgebra::{ Vector3, Vector4 };
 use ash::{ vk, Device };
@@ -44,15 +46,15 @@ impl Default for RendererData_LightProbe {
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct RendererData_ClearRenderTargets {
-    pub _color_framebuffer_datas: Vec<FramebufferData>,
-    pub _depth_framebuffer_datas: Vec<FramebufferData>,
+    pub _color_framebuffer_datas: HashMap<String, FramebufferData>,
+    pub _depth_framebuffer_datas: HashMap<String, FramebufferData>,
 }
 
 impl Default for RendererData_ClearRenderTargets {
     fn default() -> RendererData_ClearRenderTargets {
         RendererData_ClearRenderTargets {
-            _color_framebuffer_datas: Vec::new(),
-            _depth_framebuffer_datas: Vec::new()
+            _color_framebuffer_datas: HashMap::new(),
+            _depth_framebuffer_datas: HashMap::new()
         }
     }
 }
@@ -523,7 +525,22 @@ impl RendererData_ClearRenderTargets {
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
             for layer in 0..render_target._image_layers {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._color_framebuffer_datas.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, clear_color))
+                    self._color_framebuffer_datas.insert(
+                        render_target._texture_data_name.clone(),
+                        utility::create_framebuffers(
+                            device,
+                            pipeline_binding_data,
+                            &render_target._texture_data_name,
+                            &[RenderTargetInfo {
+                                _texture_data: &render_target,
+                                _target_layer: layer as u32,
+                                _target_mip_level: mip_level as u32,
+                                _clear_value: clear_color
+                            }],
+                            &[],
+                            &[],
+                        )
+                    );
                 }
             }
         }
@@ -535,17 +552,32 @@ impl RendererData_ClearRenderTargets {
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
             for layer in 0..depth_target._image_layers {
                 for mip_level in 0..depth_target._image_mip_levels {
-                    self._depth_framebuffer_datas.push(utility::create_framebuffer(device, pipeline_binding_data, depth_target, layer, mip_level, clear_depth_value))
+                    self._depth_framebuffer_datas.insert(
+                        depth_target._texture_data_name.clone(),
+                        utility::create_framebuffers(
+                            device,
+                            pipeline_binding_data,
+                            &depth_target._texture_data_name,
+                            &[],
+                            &[RenderTargetInfo {
+                                _texture_data: &depth_target,
+                                _target_layer: layer as u32,
+                                _target_mip_level: mip_level as u32,
+                                _clear_value: clear_depth_value
+                            }],
+                            &[],
+                        )
+                    );
                 }
             }
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for framebuffer_data in self._color_framebuffer_datas.iter() {
+        for (_, framebuffer_data) in self._color_framebuffer_datas.iter() {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
-        for framebuffer_data in self._depth_framebuffer_datas.iter() {
+        for (_, framebuffer_data) in self._depth_framebuffer_datas.iter() {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
         self._color_framebuffer_datas.clear();

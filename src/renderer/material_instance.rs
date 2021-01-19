@@ -38,7 +38,7 @@ impl MaterialInstanceData {
         pipeline_bind_create_infos: Vec<(render_pass::RenderPassPipelineData, SwapchainArray<Vec<descriptor::DescriptorResourceInfo>>)>,
     ) -> MaterialInstanceData {
         log::info!("create_material_instance: {}", material_instance_data_name);
-        log::info!("    material_data: {}", material_data.borrow()._material_data_name);
+        log::debug!("    material_data: {}", material_data.borrow()._material_data_name);
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
         let mut default_pipeline_binding_name = String::new();
         for (render_pass_pipeline_data, descriptor_resource_infos_list) in pipeline_bind_create_infos {
@@ -52,7 +52,7 @@ impl MaterialInstanceData {
                 default_pipeline_binding_name = render_pass_pipeline_data_name.clone();
             }
 
-            log::info!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
+            log::debug!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
             let descriptor_data = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
             let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
             let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {

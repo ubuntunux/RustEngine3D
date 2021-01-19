@@ -278,7 +278,7 @@ pub fn create_render_pass_data(
         }
         pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
-    log::info!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
+    log::debug!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
         _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
@@ -550,10 +550,10 @@ pub fn create_graphics_pipeline_data(
             None
         ).expect("vkCreateGraphicsPipelines failed!");
 
-        log::info!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
-        log::info!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::info!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
-        log::info!("    fragmentShader: {:#X} {:?}", fragment_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_fragment_shader_file);
+        log::debug!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
+        log::debug!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::debug!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
+        log::debug!("    fragmentShader: {:#X} {:?}", fragment_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_fragment_shader_file);
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),

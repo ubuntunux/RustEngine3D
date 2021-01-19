@@ -52,19 +52,15 @@ pub fn get_render_pass_data_create_info(
     };
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_object_type);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
-    let (attachment_load_operation, attachment_initial_layout) = match render_object_type  {
-        RenderObjectType::Static => (vk::AttachmentLoadOp::CLEAR, vk::ImageLayout::UNDEFINED),
-        RenderObjectType::Skeletal => (vk::AttachmentLoadOp::LOAD, vk::ImageLayout::GENERAL),
-    };
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
                 _attachment_image_samples: sample_count,
-                _attachment_load_operation: attachment_load_operation,
+                _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                _attachment_initial_layout: attachment_initial_layout,
+                _attachment_initial_layout: vk::ImageLayout::GENERAL,
                 _attachment_final_layout: vk::ImageLayout::GENERAL,
                 _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 ..Default::default()

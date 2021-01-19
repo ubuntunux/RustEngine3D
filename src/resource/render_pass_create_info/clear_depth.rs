@@ -4,7 +4,6 @@ use ash::{
     vk,
 };
 
-use crate::renderer::push_constants::{ PushConstant_RenderColor };
 use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
@@ -13,12 +12,8 @@ use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
     ImageAttachmentDescription,
-    DepthStencilStateCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{
-    self,
-    BlendMode,
-};
+use crate::vulkan_context::vulkan_context::{ self };
 
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format) -> FramebufferDataCreateInfo {

@@ -53,7 +53,6 @@ use crate::renderer::push_constants::{
     PushConstant_SkeletalRenderObject,
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
-    PushConstant_RenderColor,
     PushConstant_RenderDebug,
 };
 use crate::renderer::precomputed_atmosphere::PushConstant_Atmosphere;
@@ -77,7 +76,7 @@ use crate::renderer::renderer_data::{
 };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
-use crate::utilities::system::{ self, RcRefCell };
+use crate::utilities::system::{ self, RcRefCell, enum_to_string };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -1002,7 +1001,8 @@ impl RendererData {
                 // Render
                 let static_render_elements = scene_manager.get_static_render_elements();
                 let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
-                self.clear_gbuffer(command_buffer, swapchain_index);
+                self.clear_gbuffer(command_buffer, swapchain_index, &resources);
+                self.clear_shadow(command_buffer, swapchain_index, &resources);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements);
@@ -1095,7 +1095,7 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
-        for framebuffer in self._clear_render_targets._color_framebuffer_datas.iter() {
+        for (_, framebuffer) in self._clear_render_targets._color_framebuffer_datas.iter() {
             let image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
             let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
             let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
@@ -1110,8 +1110,8 @@ impl RendererData {
         }
 
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
-        for framebuffer in self._clear_render_targets._depth_framebuffer_datas.iter() {
-            let image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
+        for (_, framebuffer) in self._clear_render_targets._depth_framebuffer_datas.iter() {
+            let image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
             let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
             let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
             self.begin_render_pass_pipeline(
@@ -1189,8 +1189,23 @@ impl RendererData {
         }
     }
 
-    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
-        let resources: Ref<Resources> = self._resources.borrow();
+    pub fn clear_shadow(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>) {
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
+        let framebuffer = self._clear_render_targets._depth_framebuffer_datas.get(&enum_to_string(&RenderTargetType::Shadow)).unwrap();
+        let image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
+        let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+        self.begin_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
+            &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+            Some(framebuffer)
+        );
+        self.end_render_pass(command_buffer);
+    }
+
+    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_gbuffer").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;

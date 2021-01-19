@@ -134,7 +134,7 @@ pub fn create_buffer_data(
         let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-        log::info!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
+        log::debug!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
         log::debug!("        buffer_size: {:?}", buffer_size);
         log::debug!("        memory_type_index: {:?}", memory_type_index);
         log::debug!("        memory_requirements: {:?}", buffer_memory_requirements);
@@ -149,7 +149,7 @@ pub fn create_buffer_data(
 
 pub fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
     unsafe {
-        log::info!("    Destroy Buffer: buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
+        log::debug!("    Destroy Buffer: buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
         device.destroy_buffer(buffer_data._buffer, None);
         device.free_memory(buffer_data._buffer_memory, None);
     }

@@ -27,7 +27,7 @@ impl MaterialData {
                 render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
                 render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name
             );
-            log::info!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
+            log::debug!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
             render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, render_pass_pipeline_data.clone());
         }
         MaterialData {
