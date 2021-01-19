@@ -152,14 +152,6 @@ pub fn create_framebuffer_data(
     framebuffer_data_create_info: FramebufferDataCreateInfo
 ) -> FramebufferData {
     let layers = framebuffer_data_create_info._framebuffer_layers;
-
-    log::info!("create_framebuffer_data: {:?} {} {} {}",
-        framebuffer_name,
-        framebuffer_data_create_info._framebuffer_width,
-        framebuffer_data_create_info._framebuffer_height,
-        framebuffer_data_create_info._framebuffer_layers,
-    );
-
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {
         vk::FramebufferCreateInfo {
             render_pass,
@@ -196,6 +188,14 @@ pub fn create_framebuffer_data(
                     ..Default::default()
                 }
             }).collect();
+
+        log::info!("create_framebuffer_data: {:?} {} {} {} {:?}",
+                   framebuffer_name,
+                   framebuffer_data_create_info._framebuffer_width,
+                   framebuffer_data_create_info._framebuffer_height,
+                   framebuffer_data_create_info._framebuffer_layers,
+                   framebuffers
+        );
 
         FramebufferData {
             _framebuffer_name: String::from(framebuffer_name),

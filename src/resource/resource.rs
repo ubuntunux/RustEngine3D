@@ -618,7 +618,7 @@ impl Resources {
         let pipeline_data = render_pass_data.get_pipeline_data(pipeline_data_name);
         RenderPassPipelineData {
             _render_pass_data: render_pass_data_refcell.clone(),
-             _pipeline_data: pipeline_data.clone(),
+            _pipeline_data: pipeline_data.clone(),
         }
     }
 

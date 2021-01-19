@@ -14,7 +14,7 @@ use crate::vulkan_context::buffer::ShaderBufferData;
 use crate::vulkan_context::descriptor::{ DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
-use crate::vulkan_context::vulkan_context::{self, CubeMapArray, SwapchainArray};
+use crate::vulkan_context::vulkan_context::{self, CubeMapArray, SwapchainArray, Layers, MipLevels};
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone)]
@@ -46,8 +46,8 @@ impl Default for RendererData_LightProbe {
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct RendererData_ClearRenderTargets {
-    pub _color_framebuffer_datas: HashMap<String, FramebufferData>,
-    pub _depth_framebuffer_datas: HashMap<String, FramebufferData>,
+    pub _color_framebuffer_datas: HashMap<String, Layers<MipLevels<FramebufferData>>>,
+    pub _depth_framebuffer_datas: HashMap<String, Layers<MipLevels<FramebufferData>>>,
 }
 
 impl Default for RendererData_ClearRenderTargets {
@@ -521,12 +521,13 @@ impl RendererData_ClearRenderTargets {
         let material_instance = resources.get_material_instance_data("clear_color").borrow();
         let clear_color = Some(vulkan_context::get_color_clear_zero());
         for render_target in render_targets.iter() {
-            let render_pass_pipeline_name = format!("{:?}/{:?}", render_target._image_format, render_target._image_format);
+            let render_pass_pipeline_name = format!("clear_{:?}/clear", render_target._image_format);
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
+            let mut framebuffers: Layers<MipLevels<FramebufferData>> = Vec::new();
             for layer in 0..render_target._image_layers {
+                framebuffers.push(Vec::new());
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._color_framebuffer_datas.insert(
-                        render_target._texture_data_name.clone(),
+                    framebuffers.last_mut().unwrap().push(
                         utility::create_framebuffers(
                             device,
                             pipeline_binding_data,
@@ -543,17 +544,19 @@ impl RendererData_ClearRenderTargets {
                     );
                 }
             }
+            self._color_framebuffer_datas.insert(render_target._texture_data_name.clone(), framebuffers);
         }
 
         let material_instance = resources.get_material_instance_data("clear_depth").borrow();
         let clear_depth_value = Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0));
         for depth_target in depth_targets.iter() {
-            let render_pass_pipeline_name = format!("{:?}/{:?}", depth_target._image_format, depth_target._image_format);
+            let render_pass_pipeline_name = format!("clear_{:?}/clear", depth_target._image_format);
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
+            let mut framebuffers: Layers<MipLevels<FramebufferData>> = Vec::new();
             for layer in 0..depth_target._image_layers {
+                framebuffers.push(Vec::new());
                 for mip_level in 0..depth_target._image_mip_levels {
-                    self._depth_framebuffer_datas.insert(
-                        depth_target._texture_data_name.clone(),
+                    framebuffers.last_mut().unwrap().push(
                         utility::create_framebuffers(
                             device,
                             pipeline_binding_data,
@@ -570,18 +573,25 @@ impl RendererData_ClearRenderTargets {
                     );
                 }
             }
+            self._depth_framebuffer_datas.insert(depth_target._texture_data_name.clone(), framebuffers);
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for (_, framebuffer_data) in self._color_framebuffer_datas.iter() {
-            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
-        }
-        for (_, framebuffer_data) in self._depth_framebuffer_datas.iter() {
-            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
-        }
-        self._color_framebuffer_datas.clear();
-        self._depth_framebuffer_datas.clear();
+        let func_clear_framebuffers = |framebuffer_map: &mut HashMap<String, Layers<MipLevels<FramebufferData>>>| {
+            for (_, framebuffer_datas) in framebuffer_map.iter_mut() {
+                for layer in 0..framebuffer_datas.len() {
+                    for mip_level in 0..framebuffer_datas[layer].len() {
+                        framebuffer::destroy_framebuffer_data(device, &framebuffer_datas[layer][mip_level]);
+                    }
+                    framebuffer_datas[layer].clear();
+                }
+                framebuffer_datas.clear();
+            }
+            framebuffer_map.clear();
+        };
+        func_clear_framebuffers(&mut self._color_framebuffer_datas);
+        func_clear_framebuffers(&mut self._depth_framebuffer_datas);
     }
 }
 

@@ -1095,33 +1095,41 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
-        for (_, framebuffer) in self._clear_render_targets._color_framebuffer_datas.iter() {
-            let image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
-            let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
-            self.begin_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
-                &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
-                Some(framebuffer)
-            );
-            self.end_render_pass(command_buffer);
+        for (_, framebuffers) in self._clear_render_targets._color_framebuffer_datas.iter() {
+            for layer in 0..framebuffers.len() {
+                for mip_level in 0.. framebuffers[layer].len() {
+                    let image_format = framebuffers[layer][mip_level]._framebuffer_info._framebuffer_color_attachment_formats[0];
+                    let render_pass_pipeline_name = format!("clear_{:?}/clear", image_format);
+                    let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+                    self.begin_render_pass_pipeline(
+                        command_buffer,
+                        swapchain_index,
+                        &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
+                        &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                        Some(&framebuffers[layer][mip_level])
+                    );
+                    self.end_render_pass(command_buffer);
+                }
+            }
         }
 
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
-        for (_, framebuffer) in self._clear_render_targets._depth_framebuffer_datas.iter() {
-            let image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
-            let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
-            self.begin_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
-                &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
-                Some(framebuffer)
-            );
-            self.end_render_pass(command_buffer);
+        for (_, framebuffers) in self._clear_render_targets._depth_framebuffer_datas.iter() {
+            for layer in 0..framebuffers.len() {
+                for mip_level in 0..framebuffers[layer].len() {
+                    let image_format = framebuffers[layer][mip_level]._framebuffer_info._framebuffer_depth_attachment_formats[0];
+                    let render_pass_pipeline_name = format!("clear_{:?}/clear", image_format);
+                    let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+                    self.begin_render_pass_pipeline(
+                        command_buffer,
+                        swapchain_index,
+                        &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
+                        &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                        Some(&framebuffers[layer][mip_level])
+                    );
+                    self.end_render_pass(command_buffer);
+                }
+            }
         }
     }
 
@@ -1191,9 +1199,9 @@ impl RendererData {
 
     pub fn clear_shadow(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
-        let framebuffer = self._clear_render_targets._depth_framebuffer_datas.get(&enum_to_string(&RenderTargetType::Shadow)).unwrap();
+        let framebuffer = &self._clear_render_targets._depth_framebuffer_datas.get(&enum_to_string(&RenderTargetType::Shadow)).unwrap()[0][0];
         let image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
-        let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
+        let render_pass_pipeline_name = format!("clear_{:?}/clear", image_format);
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
         self.begin_render_pass_pipeline(
             command_buffer,

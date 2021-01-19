@@ -41,7 +41,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_tar
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format) -> RenderPassDataCreateInfo {
-    let render_pass_name = format!("{:?}", render_target_format);
+    let render_pass_name = format!("clear_{:?}", render_target_format);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -73,7 +73,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: render_pass_name.clone(),
+            _pipeline_data_create_info_name: String::from("clear"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("clear_color.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,

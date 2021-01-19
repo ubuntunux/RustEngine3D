@@ -602,9 +602,9 @@ pub fn create_compute_pipeline_data(
             None
         ).expect("vkCreateComputePipelines failed!");
 
-        log::info!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, compute_pipelines);
-        log::info!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::info!("    computeShader: {:#X} {:?}", compute_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
+        log::debug!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, compute_pipelines);
+        log::debug!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::debug!("    computeShader: {:#X} {:?}", compute_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
