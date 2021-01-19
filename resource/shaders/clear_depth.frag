@@ -8,7 +8,7 @@
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
-layout(location = 0) out vec4 outColor;
+layout(location = 0) out float outColor;
 
 void main() {
 }

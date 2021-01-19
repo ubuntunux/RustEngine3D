@@ -6,6 +6,8 @@ use crate::renderer::renderer::{
     RendererData,
 };
 use crate::resource::render_pass_create_info::{
+    clear_color,
+    clear_depth,
     clear_gbuffer,
     composite_gbuffer,
     downsampling,
@@ -32,6 +34,10 @@ use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
     vec![
+        clear_color::get_render_pass_data_create_info(renderer_data, vk::Format::R16G16B16A16_SFLOAT),
+        clear_color::get_render_pass_data_create_info(renderer_data, vk::Format::R32_SFLOAT),
+        clear_color::get_render_pass_data_create_info(renderer_data, vk::Format::R32G32B32A32_SFLOAT),
+        clear_depth::get_render_pass_data_create_info(renderer_data, vk::Format::D32_SFLOAT),
         clear_gbuffer::get_render_pass_data_create_info(renderer_data),
         composite_gbuffer::get_render_pass_data_create_info(renderer_data),
         downsampling::get_render_pass_data_create_info(renderer_data),

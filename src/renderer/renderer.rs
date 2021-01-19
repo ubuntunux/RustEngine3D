@@ -413,6 +413,7 @@ impl RendererData {
             &self._resources,
             &[
                 *self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
@@ -424,6 +425,11 @@ impl RendererData {
                 *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
                 *self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(),
             ],
+            &[
+                *self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(),
+                *self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
+            ]
         );
         // RendererData_LightProbe
         self._light_probe_datas.initialize(
@@ -637,7 +643,6 @@ impl RendererData {
         } else {
             material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name)
         };
-
         self.render_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, geometry_data, custom_framebuffer_data, custom_descriptor_sets, push_constant_data);
     }
 
@@ -1088,22 +1093,35 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
     ) {
-        let push_constans_render_color = PushConstant_RenderColor {
-            _color: Vector4::new(0.0, 0.0, 0.0, 0.0),
-        };
-        let push_constans_render_color = Some(&push_constans_render_color);
-        for framebuffer in self._clear_render_targets._framebuffer_datas.iter() {
+        let resources: Ref<Resources> = self._resources.borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
+        for framebuffer in self._clear_render_targets._color_framebuffer_datas.iter() {
             let image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
-            self.render_material_instance(
+            let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+            self.begin_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
-                "render_color",
-                &format!("{:?}/{:?}", image_format, image_format),
-                &quad_geometry_data,
-                Some(framebuffer),
-                None,
-                push_constans_render_color
+                &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
+                &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                Some(framebuffer)
             );
+            self.end_render_pass(command_buffer);
+        }
+
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
+        for framebuffer in self._clear_render_targets._depth_framebuffer_datas.iter() {
+            let image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
+            let render_pass_pipeline_name = format!("{:?}/{:?}", image_format, image_format);
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+            self.begin_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
+                &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                Some(framebuffer)
+            );
+            self.end_render_pass(command_buffer);
         }
     }
 

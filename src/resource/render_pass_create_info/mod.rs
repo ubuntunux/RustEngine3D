@@ -1,5 +1,7 @@
-pub mod composite_gbuffer;
+pub mod clear_color;
+pub mod clear_depth;
 pub mod clear_gbuffer;
+pub mod composite_gbuffer;
 pub mod downsampling;
 pub mod fft_ocean;
 pub mod generate_min_z;

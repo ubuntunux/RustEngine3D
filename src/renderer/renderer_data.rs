@@ -44,13 +44,15 @@ impl Default for RendererData_LightProbe {
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct RendererData_ClearRenderTargets {
-    pub _framebuffer_datas: Vec<FramebufferData>,
+    pub _color_framebuffer_datas: Vec<FramebufferData>,
+    pub _depth_framebuffer_datas: Vec<FramebufferData>,
 }
 
 impl Default for RendererData_ClearRenderTargets {
     fn default() -> RendererData_ClearRenderTargets {
         RendererData_ClearRenderTargets {
-            _framebuffer_datas: Vec::new()
+            _color_framebuffer_datas: Vec::new(),
+            _depth_framebuffer_datas: Vec::new()
         }
     }
 }
@@ -511,24 +513,43 @@ impl RendererData_ClearRenderTargets {
         device: &Device,
         resources: &RcRefCell<Resources>,
         render_targets: &[&TextureData],
+        depth_targets: &[&TextureData],
     ) {
         let resources = resources.borrow();
-        let material_instance = resources.get_material_instance_data("render_color").borrow();
+        let material_instance = resources.get_material_instance_data("clear_color").borrow();
+        let clear_color = Some(vulkan_context::get_color_clear_zero());
         for render_target in render_targets.iter() {
-            let pipeline_binding_data = material_instance.get_pipeline_binding_data(&format!("{:?}/{:?}", render_target._image_format, render_target._image_format));
+            let render_pass_pipeline_name = format!("{:?}/{:?}", render_target._image_format, render_target._image_format);
+            let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
             for layer in 0..render_target._image_layers {
                 for mip_level in 0..render_target._image_mip_levels {
-                    self._framebuffer_datas.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
+                    self._color_framebuffer_datas.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, clear_color))
+                }
+            }
+        }
+
+        let material_instance = resources.get_material_instance_data("clear_depth").borrow();
+        let clear_depth_value = Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0));
+        for depth_target in depth_targets.iter() {
+            let render_pass_pipeline_name = format!("{:?}/{:?}", depth_target._image_format, depth_target._image_format);
+            let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
+            for layer in 0..depth_target._image_layers {
+                for mip_level in 0..depth_target._image_mip_levels {
+                    self._depth_framebuffer_datas.push(utility::create_framebuffer(device, pipeline_binding_data, depth_target, layer, mip_level, clear_depth_value))
                 }
             }
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for framebuffer_data in self._framebuffer_datas.iter() {
+        for framebuffer_data in self._color_framebuffer_datas.iter() {
             framebuffer::destroy_framebuffer_data(device, framebuffer_data);
         }
-        self._framebuffer_datas.clear();
+        for framebuffer_data in self._depth_framebuffer_datas.iter() {
+            framebuffer::destroy_framebuffer_data(device, framebuffer_data);
+        }
+        self._color_framebuffer_datas.clear();
+        self._depth_framebuffer_datas.clear();
     }
 }
 
