@@ -19,7 +19,7 @@ use crate::utilities::math;
 use crate::utilities::xml::{ self, XmlTree, };
 use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, SkeletalVertexData };
-
+use crate::constants;
 
 
 #[derive(Debug, Clone)]
@@ -954,9 +954,7 @@ impl Collada {
         animations: &mut Vec<ColladaAnimation>,
         children_hierachy: &SkeletonHierachyTree,
         bone_names: &Vec<String>,
-        precompute_inv_bind_matrix: bool,
         inv_bind_matrices: &Vec<Matrix4<f32>>,
-        precompute_parent_matrix: bool,
         parent_matrix: &Matrix4<f32>,
         frame: usize)
     {
@@ -965,11 +963,11 @@ impl Collada {
                 if *child == animations[i]._target {
                     // just Transpose child bones, no swap y-z.
                     let mut child_transform: Matrix4<f32> = animations[i]._outputs[frame].transpose();
-                    if precompute_parent_matrix {
+                    if constants::PRECOMPUTED_ROOT_MATRIX {
                         child_transform = parent_matrix * child_transform;
                     }
 
-                    if precompute_inv_bind_matrix {
+                    if constants::PRECOMPUTED_COMBINE_INV_BIND_MATRIX {
                         let child_bone_index = bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap() as usize;
                         let child_inv_bind_matrix = &inv_bind_matrices[child_bone_index];
                         animations[i]._outputs[frame] = child_transform * child_inv_bind_matrix;
@@ -981,9 +979,7 @@ impl Collada {
                         animations,
                         children_hierachy._children.get(&animations[i]._target).unwrap(),
                         bone_names,
-                        precompute_inv_bind_matrix,
                         inv_bind_matrices,
-                        precompute_parent_matrix,
                         &child_transform,
                         frame,
                     );
@@ -994,9 +990,6 @@ impl Collada {
     }
 
     pub fn get_animation_data(&mut self, skeleton_datas: &Vec<SkeletonDataCreateInfo>) -> Vec<Vec<AnimationNodeCreateInfo>> {
-        let precompute_parent_matrix = true;
-        let precompute_inv_bind_matrix = false;
-
         // precompute_animation
         let mut animation_datas: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
         for skeleton_data in skeleton_datas.iter() {
@@ -1019,7 +1012,7 @@ impl Collada {
                         let is_inverse_matrix: bool = false;
                         let mut transform: Matrix4<f32> = animations[i]._outputs[frame].clone() as Matrix4<f32>;
                         math::swap_up_axis_matrix(&mut transform, transpose, is_inverse_matrix, self._up_axis.as_str());
-                        if precompute_inv_bind_matrix {
+                        if constants::PRECOMPUTED_COMBINE_INV_BIND_MATRIX {
                             let bone_index = bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap() as usize;
                             let inv_bind_matrix: &Matrix4<f32> = &inv_bind_matrices[bone_index];
                             animations[i]._outputs[frame] = transform * inv_bind_matrix;
@@ -1031,9 +1024,7 @@ impl Collada {
                             animations,
                             hierachy._children.get(&animations[i]._target).unwrap(),
                             bone_names,
-                            precompute_inv_bind_matrix,
                             inv_bind_matrices,
-                            precompute_parent_matrix,
                             &transform,
                             frame
                         );
@@ -1049,8 +1040,8 @@ impl Collada {
                     if *bone_name == animation_node._target {
                         let animation_node_data = AnimationNodeCreateInfo {
                             _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
-                            _precompute_parent_matrix: precompute_parent_matrix,
-                            _precompute_inv_bind_matrix: precompute_inv_bind_matrix,
+                            _precomputed_root_matrix: constants::PRECOMPUTED_ROOT_MATRIX,
+                            _precomputed_combine_inv_bind_matrix: constants::PRECOMPUTED_COMBINE_INV_BIND_MATRIX,
                             _target: animation_node._target.clone(),
                             _times: animation_node._inputs.clone(),
                             _locations: animation_node._outputs.iter().map(|output| { math::extract_location(output) }).collect(),

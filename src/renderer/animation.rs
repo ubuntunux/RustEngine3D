@@ -6,6 +6,7 @@ use nalgebra_glm as glm;
 
 use crate::renderer::transform_object::{ TransformObjectData };
 use crate::utilities::math;
+use crate::constants;
 
 #[derive(Clone, Debug)]
 pub struct BoneData {
@@ -30,8 +31,8 @@ pub struct SkeletonData {
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct AnimationNodeCreateInfo {
     pub _name: String,
-    pub _precompute_parent_matrix: bool,
-    pub _precompute_inv_bind_matrix: bool,
+    pub _precomputed_root_matrix: bool,
+    pub _precomputed_combine_inv_bind_matrix: bool,
     pub _target: String,
     pub _times: Vec<f32>,
     pub _locations: Vec<Vector3<f32>>,
@@ -45,8 +46,8 @@ pub struct AnimationNodeCreateInfo {
 #[derive(Clone, Debug)]
 pub struct AnimationNodeData {
     pub _name: String,
-    pub _precompute_parent_matrix: bool,
-    pub _precompute_inv_bind_matrix: bool,
+    pub _precomputed_root_matrix: bool,
+    pub _precomputed_combine_inv_bind_matrix: bool,
     pub _target: String,
     pub _frame_times: Vec<f32>,
     pub _locations: Vec<Vector3<f32>>,
@@ -88,8 +89,8 @@ impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
             _name: String::new(),
-            _precompute_parent_matrix: false,
-            _precompute_inv_bind_matrix: false,
+            _precomputed_root_matrix: constants::PRECOMPUTED_ROOT_MATRIX,
+            _precomputed_combine_inv_bind_matrix: constants::PRECOMPUTED_COMBINE_INV_BIND_MATRIX,
             _target: String::new(),
             _times: Vec::new(),
             _locations: Vec::new(),
@@ -243,7 +244,7 @@ impl AnimationData {
         0.0
     }
 
-    pub fn update_animation_transform(
+    pub fn update_hierarchical_animation_transform(
         &self,
         frame: f32,
         parent_bone: *const BoneData,
@@ -253,24 +254,34 @@ impl AnimationData {
         unsafe {
             for bone in (*parent_bone)._children.iter() {
                 let index: usize = (**bone)._index;
-                self._nodes[index].update_animation_node(frame, &mut animation_transforms[index]);
+                let node = &self._nodes[index];
+                node.update_animation_node(frame, &mut animation_transforms[index]);
                 animation_transforms[index] = &(*parent_matrix) * &animation_transforms[index];
-                self.update_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
+                self.update_hierarchical_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
+
+                // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
+                // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
+                if false == node._precomputed_combine_inv_bind_matrix {
+                    animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
+                }
             }
         }
     }
 
     pub fn update_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
         unsafe {
-            if (*self._root_node)._precompute_parent_matrix {
+            if (*self._root_node)._precomputed_root_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {
                     node.update_animation_node(frame, &mut animation_transforms[index]);
+                    if false == node._precomputed_combine_inv_bind_matrix {
+                        animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
+                    }
                 }
             } else {
                 for bone in (*self._skeleton)._hierachy.iter() {
                     let index: usize = (**bone)._index;
                     self._nodes[index].update_animation_node(frame, &mut animation_transforms[index]);
-                    self.update_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
+                    self.update_hierarchical_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
                 }
             }
         }
@@ -281,8 +292,8 @@ impl AnimationNodeData {
     pub fn create_animation_node_data(bone: *const BoneData, animation_node_create_info: &AnimationNodeCreateInfo) -> AnimationNodeData {
         AnimationNodeData {
             _name: animation_node_create_info._name.clone(),
-            _precompute_parent_matrix: animation_node_create_info._precompute_parent_matrix,
-            _precompute_inv_bind_matrix: animation_node_create_info._precompute_inv_bind_matrix,
+            _precomputed_root_matrix: animation_node_create_info._precomputed_root_matrix,
+            _precomputed_combine_inv_bind_matrix: animation_node_create_info._precomputed_combine_inv_bind_matrix,
             _target: animation_node_create_info._target.clone(),  // bone name
             _frame_times: animation_node_create_info._times.clone(),
             _locations: animation_node_create_info._locations.clone(),
@@ -308,14 +319,6 @@ impl AnimationNodeData {
                 transform.copy_from(&math::quaternion_to_matrix(&rotation));
                 math::matrix_scale(transform, scale.x, scale.y, scale.z);
                 transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
-
-                // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
-                // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
-                if false == self._precompute_inv_bind_matrix {
-                    unsafe {
-                        transform.copy_from(&(&(*transform) * &(*self._bone)._inv_bind_matrix));
-                    }
-                }
             }
         }
     }

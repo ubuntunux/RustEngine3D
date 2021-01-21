@@ -54,4 +54,6 @@ pub const SSAO_RADIUS: f32 = 2.0;
 pub const SSAO_NOISE_DIM: i32 = 4;
 // MAX_BONES must match with scene_constants.glsl
 pub const MAX_BONES: usize = 128 * 128;
+pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
+pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.
 pub const LIGHT_PROBE_SIZE: u32 = 256;
