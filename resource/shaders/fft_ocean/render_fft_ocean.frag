@@ -92,12 +92,11 @@ void main()
             under_water_shadow = max(sky_irradiance, under_water_shadow);
 
             const float chromaSeperation = sin(pushConstant._t * 3.5f) * 0.0025;
-            vec2 caustic_uv = (groundPos + L * dist_diff).xz * 0.3 + vertex_normal.xz * 0.5;
-
+            vec3 caustic_uv = vec3((groundPos + L * dist_diff).xz * 0.3 + vertex_normal.xz * 0.5, scene_constants.TIME);
             vec3 caustic_color;
-            caustic_color.r = texture(texture_caustic, caustic_uv + vec2(0.0f, chromaSeperation)).r;
-            caustic_color.g = texture(texture_caustic, caustic_uv + vec2(chromaSeperation, 0.0f)).g;
-            caustic_color.b = texture(texture_caustic, caustic_uv - vec2(chromaSeperation, chromaSeperation)).b;
+            caustic_color.r = texture(texture_caustic, caustic_uv + vec3(0.0f, chromaSeperation, 0.0)).r;
+            caustic_color.g = texture(texture_caustic, caustic_uv + vec3(chromaSeperation, 0.0f, 0.0)).g;
+            caustic_color.b = texture(texture_caustic, caustic_uv - vec3(chromaSeperation, chromaSeperation, 0.0)).b;
             caustic_color *= max(vec3(0.1), under_water_shadow) * sun_irradiance * screen_fade * saturate(dist_diff);
 
             // apply caustic

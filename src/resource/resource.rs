@@ -81,6 +81,8 @@ pub type TextureDataMap = ResourceDataMap<TextureData>;
 pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
 pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
+type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
+
 // TODO: ImageSamplerMap
 
 
@@ -375,36 +377,15 @@ impl Resources {
     }
 
     // TextureLoader
-    pub fn get_texture_data_name(
-        texture_source_directory: &PathBuf,
-        texture_file: &PathBuf
-    ) -> (String, Vec<PathBuf>) {
-        let texture_data_name = get_resource_name_from_file_path(texture_source_directory, texture_file);
-        let split_texture_file_names: Vec<&str> = texture_file.to_str().unwrap().rsplitn(2, "_").collect();
-        if 1 < split_texture_file_names.len() {
-            let texture_file_name: &str = split_texture_file_names[1];
-            let file_ext: &str = texture_file.extension().unwrap().to_str().unwrap();
-            let cube_face_files: Vec<PathBuf> = constants::CUBE_TEXTURE_FACES
-                .iter()
-                .map(|face| { PathBuf::from(format!("{}_{}.{}", texture_file_name, face, file_ext)) })
-                .filter(|cube_texture_file| { cube_texture_file.is_file() })
-                .collect();
-            if constants::CUBE_TEXTURE_FACES.len() == cube_face_files.len() {
-                let cube_texture_data_name = get_resource_name_from_file_path(texture_source_directory, &PathBuf::from(texture_file_name));
-                return (cube_texture_data_name, cube_face_files);
-            }
-        }
-        (texture_data_name, Vec::new())
-    }
-
-    pub fn load_image_data(texture_file: &PathBuf) -> (u32, u32, Vec<u8>, vk::Format) {
+    pub fn load_image_data(texture_file: &PathBuf) -> LoadImageInfoType {
         let image_file = image::io::Reader::open(texture_file).unwrap().decode();
         if image_file.is_err() {
             log::error!("load_image_data error: {:?}", texture_file);
-            return (0, 0, Vec::new(), vk::Format::UNDEFINED);
+            return (0, 0, 0, Vec::new(), vk::Format::UNDEFINED);
         }
         let dynamic_image: image::DynamicImage = image_file.unwrap();
         let (image_width, image_height) = dynamic_image.dimensions();
+        let image_layer = 1;
         let (image_data_raw, image_format): (Vec<u8>, vk::Format) = match dynamic_image {
             image::DynamicImage::ImageRgba8(_) => (dynamic_image.to_rgba().into_raw(), vk::Format::R8G8B8A8_UNORM),
             image::DynamicImage::ImageRgb8(_) => (dynamic_image .to_rgba().into_raw(), vk::Format::R8G8B8A8_UNORM),
@@ -415,25 +396,23 @@ impl Resources {
                 (Vec::new(), vk::Format::UNDEFINED)
             }
         };
-
-        //let image_data: Vec<u32> = system::convert_vec(image_data_raw);
-        (image_width, image_height, image_data_raw, image_format)
+        (image_width, image_height, image_layer, image_data_raw, image_format)
     }
 
-    pub fn load_image_datas(texture_files: &Vec<PathBuf>) -> (u32, u32, Vec<u8>, vk::Format) {
+    pub fn load_image_datas(texture_files: &Vec<PathBuf>) -> LoadImageInfoType {
         let mut image_width: u32 = 0;
         let mut image_height: u32 = 0;
         let mut image_format: vk::Format = vk::Format::UNDEFINED;
         let mut image_datas: Vec<Vec<u8>> = Vec::new();
         for texture_file in texture_files.iter() {
-            let (width, height, image_data, format): (u32, u32, Vec<u8>, vk::Format) = Resources::load_image_data(texture_file);
+            let (width, height, _layer, image_data, format): LoadImageInfoType = Resources::load_image_data(texture_file);
             image_width = width;
             image_height = height;
             image_format = format;
             image_datas.push(image_data.clone());
         }
         let image_datas = image_datas.concat();
-        (image_width, image_height, image_datas, image_format)
+        (image_width, image_height, texture_files.len() as u32, image_datas, image_format)
     }
 
     pub fn regist_texture_data(&mut self, texture_data_name: String, texture_data: RcRefCell<TextureData>) {
@@ -448,7 +427,6 @@ impl Resources {
 
         let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
-        let mut loaded_texture_files: HashMap<String, PathBuf> = HashMap::new();
         let mut combined_textures_name_map: HashMap<PathBuf, String> = HashMap::new();
         let mut combined_texture_files_map: HashMap<String, Vec::<PathBuf>> = HashMap::new();
         let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
@@ -456,18 +434,15 @@ impl Resources {
         // generate necessary texture datas
         texture_generator::generate_images(&texture_source_directory);
 
-        // cube texture list
-        let combined_texture_files = system::walk_directory(texture_source_directory.as_path(), &[EXT_TEXTURE_CUBE, EXT_TEXTURE_2D_ARRAY]);
+        // combined texture list
+        let combined_texture_files = system::walk_directory(texture_source_directory.as_path(), &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE]);
         for texture_src_file in combined_texture_files.iter() {
             let directory = texture_src_file.parent().unwrap();
-            let mut src_texture_name: PathBuf = PathBuf::from(directory);
-            src_texture_name.push(texture_src_file.file_stem().unwrap());
-            let src_texture_name = String::from(src_texture_name.to_str().unwrap());
+            let texture_data_name = get_resource_name_from_file_path(&texture_source_directory, &texture_src_file);
             let loaded_contents = fs::File::open(texture_src_file).expect("Failed to create file");
             let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let ext = texture_src_file.extension().unwrap();
             let mut texture_file_names: Vec<String> = Vec::new();
-            let mut texture_files: Vec<PathBuf> = Vec::new();
             let image_view_type = if EXT_TEXTURE_CUBE == ext {
                 if let Value::Object(texture_cube_faces) = contents {
                     for face in constants::CUBE_TEXTURE_FACES.iter() {
@@ -477,7 +452,7 @@ impl Resources {
                     }
                 }
                 vk::ImageViewType::CUBE
-            } else if EXT_TEXTURE_2D_ARRAY == ext {
+            } else if EXT_TEXTURE_2D_ARRAY == ext || EXT_TEXTURE_3D == ext {
                 if let Value::Array(texture_file_list) = contents {
                     for texture_file in texture_file_list {
                         if let Value::String(texture_file) = texture_file {
@@ -485,50 +460,54 @@ impl Resources {
                         }
                     }
                 }
-                vk::ImageViewType::TYPE_2D_ARRAY
+
+                if EXT_TEXTURE_2D_ARRAY == ext {
+                    vk::ImageViewType::TYPE_2D_ARRAY
+                } else if EXT_TEXTURE_3D == ext {
+                    vk::ImageViewType::TYPE_3D
+                } else {
+                    panic!("Not implementes.");
+                }
             } else {
                 panic!("Not implementes.");
             };
 
+            let mut texture_files: Vec<PathBuf> = Vec::new();
             for texture_file_name in texture_file_names {
                 let mut texture_file: PathBuf = PathBuf::from(directory);
                 texture_file.push(PathBuf::from(texture_file_name).file_name().unwrap());
-                combined_textures_name_map.insert(texture_file, src_texture_name.clone());
+                texture_files.push(texture_file.clone());
+                combined_textures_name_map.insert(texture_file.clone(), texture_data_name.clone());
             }
-            combined_texture_files_map.insert(src_texture_name.clone(), texture_files);
-            combined_texture_types_map.insert(src_texture_name, image_view_type);
+            combined_texture_files_map.insert(texture_data_name.clone(), texture_files);
+            combined_texture_types_map.insert(texture_data_name.clone(), image_view_type);
         }
-
-        println!("combined_textures_name_map: {:?}", combined_textures_name_map);
-        println!("combined_texture_files_map: {:?}", combined_texture_files_map);
-        println!("combined_texture_types_map: {:?}", combined_texture_types_map);
 
         // load texture from external files
         let texture_src_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
         for texture_src_file in texture_src_files.iter() {
-            let (texture_data_name, cube_texture_files) = Resources::get_texture_data_name(
-                &texture_source_directory,
-                &texture_src_file
-            );
-            let is_cube_texture: bool = false == cube_texture_files.is_empty();
+            let combined_texture_name = combined_textures_name_map.get(texture_src_file);
+            let texture_data_name: String = match combined_texture_name {
+                Some(combined_texture_name) => combined_texture_name.clone(),
+                _ => get_resource_name_from_file_path(&texture_source_directory, &texture_src_file)
+            };
+
             let existing_resource_data: Option<&RcRefCell<TextureData>> = self._texture_data_map.get(&texture_data_name);
             if existing_resource_data.is_none() {
-                let (image_width, image_height, image_data, image_format): (u32, u32, Vec<u8>, vk::Format) =
-                    if is_cube_texture {
-                        Resources::load_image_datas(&cube_texture_files)
+                let (image_view_type, (image_width, image_height, image_layers, image_data, image_format)): (vk::ImageViewType, LoadImageInfoType) =
+                    if combined_texture_name.is_some() {
+                        let combined_texture_files = combined_texture_files_map.get(texture_data_name.as_str()).unwrap();
+                        let image_view_type = combined_texture_types_map.get(texture_data_name.as_str()).unwrap();
+                        (*image_view_type, Resources::load_image_datas(&combined_texture_files))
                     } else {
-                        Resources::load_image_data(texture_src_file)
+                        (vk::ImageViewType::TYPE_2D, Resources::load_image_data(texture_src_file))
                     };
-                let image_view_type: vk::ImageViewType = if is_cube_texture {
-                    vk::ImageViewType::CUBE
-                } else {
-                    vk::ImageViewType::TYPE_2D
-                };
                 if vk::Format::UNDEFINED != image_format {
                     let texture_create_info = TextureCreateInfo {
                         _texture_name: texture_data_name.clone(),
                         _texture_width: image_width,
                         _texture_height: image_height,
+                        _texture_layers: image_layers,
                         _texture_format: image_format,
                         _texture_view_type: image_view_type,
                         _texture_initial_datas: image_data,
