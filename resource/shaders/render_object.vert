@@ -27,10 +27,14 @@ void main() {
     const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_matrix_count;
     for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
     {
-        prev_position += (bone_matrices[prev_bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
-        position += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * inBoneWeights[i];
-        vertex_normal += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * inBoneWeights[i];
-        vertex_tangent += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * inBoneWeights[i];
+        const float boneWeight = inBoneWeights[i];
+        if(0.0 < boneWeight)
+        {
+            prev_position += (bone_matrices[prev_bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * boneWeight;
+            position += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * boneWeight;
+            vertex_normal += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * boneWeight;
+            vertex_tangent += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * boneWeight;
+        }
     }
     position /= position.w;
     prev_position /= prev_position.w;
