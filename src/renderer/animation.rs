@@ -258,9 +258,6 @@ impl AnimationData {
                 node.update_animation_node(frame, &mut animation_transforms[index]);
                 animation_transforms[index] = &(*parent_matrix) * &animation_transforms[index];
                 self.update_hierarchical_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
-
-                // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
-                // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
                 if false == node._precomputed_combine_inv_bind_matrix {
                     animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
                 }
@@ -280,8 +277,12 @@ impl AnimationData {
             } else {
                 for bone in (*self._skeleton)._hierachy.iter() {
                     let index: usize = (**bone)._index;
-                    self._nodes[index].update_animation_node(frame, &mut animation_transforms[index]);
+                    let node = &self._nodes[index];
+                    node.update_animation_node(frame, &mut animation_transforms[index]);
                     self.update_hierarchical_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
+                    if false == node._precomputed_combine_inv_bind_matrix {
+                        animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
+                    }
                 }
             }
         }
