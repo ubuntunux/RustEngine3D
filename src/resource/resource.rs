@@ -58,6 +58,9 @@ const EXT_MATERIAL_INSTANCE: &str = "matinst";
 const EXT_MESH: &str = "mesh";
 const EXT_MODEL: &str = "model";
 const IMAGE_SOURCE_EXTS: [&str; 4] = ["jpg", "png", "tga", "bmp"];
+const EXT_TEXTURE_CUBE: &str = "cube";
+const EXT_TEXTURE_2D_ARRAY: &str = "2darray";
+const EXT_TEXTURE_3D: &str = "3d";
 const EXT_TEXTURE: [&str; 1] = ["texture"];
 
 const DEFAULT_MESH_NAME: &str = "quad";
@@ -445,9 +448,60 @@ impl Resources {
 
         let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
+        let mut loaded_texture_files: HashMap<String, PathBuf> = HashMap::new();
+        let mut combined_textures_name_map: HashMap<PathBuf, String> = HashMap::new();
+        let mut combined_texture_files_map: HashMap<String, Vec::<PathBuf>> = HashMap::new();
+        let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
 
         // generate necessary texture datas
         texture_generator::generate_images(&texture_source_directory);
+
+        // cube texture list
+        let combined_texture_files = system::walk_directory(texture_source_directory.as_path(), &[EXT_TEXTURE_CUBE, EXT_TEXTURE_2D_ARRAY]);
+        for texture_src_file in combined_texture_files.iter() {
+            let directory = texture_src_file.parent().unwrap();
+            let mut src_texture_name: PathBuf = PathBuf::from(directory);
+            src_texture_name.push(texture_src_file.file_stem().unwrap());
+            let src_texture_name = String::from(src_texture_name.to_str().unwrap());
+            let loaded_contents = fs::File::open(texture_src_file).expect("Failed to create file");
+            let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let ext = texture_src_file.extension().unwrap();
+            let mut texture_file_names: Vec<String> = Vec::new();
+            let mut texture_files: Vec<PathBuf> = Vec::new();
+            let image_view_type = if EXT_TEXTURE_CUBE == ext {
+                if let Value::Object(texture_cube_faces) = contents {
+                    for face in constants::CUBE_TEXTURE_FACES.iter() {
+                        if let Value::String(face_texture_name) = texture_cube_faces.get(*face).unwrap() {
+                            texture_file_names.push(face_texture_name.clone());
+                        }
+                    }
+                }
+                vk::ImageViewType::CUBE
+            } else if EXT_TEXTURE_2D_ARRAY == ext {
+                if let Value::Array(texture_file_list) = contents {
+                    for texture_file in texture_file_list {
+                        if let Value::String(texture_file) = texture_file {
+                            texture_file_names.push(texture_file);
+                        }
+                    }
+                }
+                vk::ImageViewType::TYPE_2D_ARRAY
+            } else {
+                panic!("Not implementes.");
+            };
+
+            for texture_file_name in texture_file_names {
+                let mut texture_file: PathBuf = PathBuf::from(directory);
+                texture_file.push(PathBuf::from(texture_file_name).file_name().unwrap());
+                combined_textures_name_map.insert(texture_file, src_texture_name.clone());
+            }
+            combined_texture_files_map.insert(src_texture_name.clone(), texture_files);
+            combined_texture_types_map.insert(src_texture_name, image_view_type);
+        }
+
+        println!("combined_textures_name_map: {:?}", combined_textures_name_map);
+        println!("combined_texture_files_map: {:?}", combined_texture_files_map);
+        println!("combined_texture_types_map: {:?}", combined_texture_types_map);
 
         // load texture from external files
         let texture_src_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
