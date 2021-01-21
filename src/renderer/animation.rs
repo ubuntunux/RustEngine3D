@@ -260,7 +260,7 @@ impl AnimationData {
         }
     }
 
-    pub fn get_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
+    pub fn update_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
         unsafe {
             if (*self._root_node)._precompute_parent_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {

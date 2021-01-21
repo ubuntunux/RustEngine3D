@@ -148,7 +148,7 @@ impl RenderObjectData {
             let mut animation_play_info = AnimationPlayInfo::default();
             for animation in self._mesh_data.borrow_mut()._animation_datas.iter_mut() {
                 let mut animation_buffers: Vec<Matrix4<f32>> = vec![Matrix4::identity(); animation.get_bone_count()];
-                animation.get_animation_transforms(0.0, &mut animation_buffers);
+                animation.update_animation_transforms(0.0, &mut animation_buffers);
                 animation_play_info._animation_buffers.push(animation_buffers.clone());
                 animation_play_info._prev_animation_buffers.push(animation_buffers.clone());
                 animation_play_info._blend_animation_buffers.push(animation_buffers.clone())
@@ -240,7 +240,7 @@ impl RenderObjectData {
                 // update animation buffers
                 if animation_play_info._last_animation_frame != animation_play_info._animation_frame {
                     animation_play_info._last_animation_frame = animation_play_info._animation_frame;
-                    animation.get_animation_transforms(animation_play_info._animation_frame, &mut animation_play_info._animation_buffers[i]);
+                    animation.update_animation_transforms(animation_play_info._animation_frame, &mut animation_play_info._animation_buffers[i]);
 
                     if blend_ratio < 1.0 {
                         for (buffer_index, animation_buffer) in animation_play_info._animation_buffers[i].iter_mut().enumerate() {
