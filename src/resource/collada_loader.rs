@@ -995,7 +995,7 @@ impl Collada {
 
     pub fn get_animation_data(&mut self, skeleton_datas: &Vec<SkeletonDataCreateInfo>) -> Vec<Vec<AnimationNodeCreateInfo>> {
         let precompute_parent_matrix = true;
-        let precompute_inv_bind_matrix = true;
+        let precompute_inv_bind_matrix = false;
 
         // precompute_animation
         let mut animation_datas: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
