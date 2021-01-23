@@ -3,6 +3,9 @@ use ash::vk;
 
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_version(1, 0, 0);
+#[cfg(target_os = "android")]
+pub const VULKAN_API_VERSION: u32 = vk::make_version(1, 0, 0);
+#[cfg(not(target_os = "android"))]
 pub const VULKAN_API_VERSION: u32 = vk::make_version(1, 2, 0);
 pub const DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::WARNING;
 pub const VULKAN_LAYERS: [&str; 1] = ["VK_LAYER_LUNARG_standard_validation"];

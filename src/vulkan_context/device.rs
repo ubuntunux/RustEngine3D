@@ -102,10 +102,13 @@ pub fn create_vk_instance(
     surface_extensions: &Vec<&'static CStr>
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
-    // let layer_names: Vec<CString> = constants::VULKAN_LAYERS
-    //     .iter()
-    //     .map(|layer_name| CString::new(*layer_name).unwrap())
-    //     .collect();
+    #[cfg(target_os = "android")]
+    let layer_names: Vec<CString> = Vec::new();
+    #[cfg(not(target_os = "android"))]
+    let layer_names: Vec<CString> = constants::VULKAN_LAYERS
+        .iter()
+        .map(|layer_name| CString::new(*layer_name).unwrap())
+        .collect();
     // let layers_names_raw: Vec<*const i8> = layer_names
     //     .iter()
     //     .map(|raw_name| raw_name.as_ptr())
@@ -145,7 +148,8 @@ pub fn create_vk_instance(
     log::info!("    app name: {:?}", app_name);
     log::info!("    engine version: {}.{}.{}", vk::version_major(constants::ENGINE_VERSION), vk::version_minor(constants::ENGINE_VERSION), vk::version_patch(constants::ENGINE_VERSION));
     log::info!("    require vulkan api version: {}.{}.{}", vk::version_major(constants::VULKAN_API_VERSION), vk::version_minor(constants::VULKAN_API_VERSION), vk::version_patch(constants::VULKAN_API_VERSION));
-
+    log::info!("    layer_names: {:?}", layer_names);
+    log::info!("    surface_extensions: {:?}", surface_extensions);
     unsafe {
         entry.create_instance(&create_info, None).expect("Instance creation error")
     }

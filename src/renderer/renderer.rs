@@ -207,7 +207,7 @@ pub fn create_renderer_data(
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
         let entry = Entry::new().unwrap();
-        let surface_extensions = ash_window::enumerate_required_extensions(window as &HasRawWindowHandle).unwrap();
+        let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
         let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
         let surface = device::create_vk_surface(&entry, &instance, window);
         let surface_interface = Surface::new(&entry, &instance);
@@ -222,6 +222,7 @@ pub fn create_renderer_data(
         log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
 
         let msaa_samples = device::get_max_usable_sample_count(&device_properties);
+
         let queue_family_indices = queue::get_queue_family_indices(
             &instance,
             &surface_interface,

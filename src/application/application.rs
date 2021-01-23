@@ -236,7 +236,6 @@ impl ApplicationData {
     }
 }
 
-
 pub fn run_application() {
     log::info!("run_application");
 
@@ -258,7 +257,8 @@ pub fn run_application() {
     let mut maybe_application_data: Option<RcRefCell<ApplicationData>> = None;
 
     // main loop
-    let mut need_initialize: bool = true;
+    let mut initialize_done: bool = false;
+    let mut need_initialize: bool = false;
     let mut run_application: bool = false;
     event_loop.run(move |event, __window_target, control_flow|{
         if run_application {
@@ -327,12 +327,16 @@ pub fn run_application() {
             maybe_application_data = Some(application_data);
             run_application = true;
             need_initialize = false;
+            initialize_done = true;
         }
+
         match event {
             #[cfg(target_os = "android")]
             Event::Resumed => {
                 log::debug!("Application was resumed");
-
+                if false == initialize_done {
+                    need_initialize = true;
+                }
             },
             // Destroy app on suspend for android target.
             #[cfg(target_os = "android")]
