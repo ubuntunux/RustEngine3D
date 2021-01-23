@@ -143,7 +143,7 @@ impl ApplicationData {
         let pressed_key_period = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Period);
         let released_key_left_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::LBracket);
         let released_key_right_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::RBracket);
-        let released_key_subtract = self._keyboard_input_data.get_key_released(VirtualKeyCode::Subtract);
+        let released_key_subtract = self._keyboard_input_data.get_key_released(VirtualKeyCode::Minus);
         let released_key_equals = self._keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
