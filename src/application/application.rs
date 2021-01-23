@@ -238,10 +238,11 @@ impl ApplicationData {
 
 
 pub fn run_application() {
+    log::info!("run_application");
+
     let app_name: &str = "RustEngine3D";
     let app_version: u32 = 1;
-    let window_size: (u32, u32) = (1024, 786);
-    log::info!("run_application");
+    let window_size: (u32, u32) = (800, 600);
     let mut input_helper = WinitInputHelper::new();
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
