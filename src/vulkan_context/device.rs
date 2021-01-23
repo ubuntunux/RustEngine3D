@@ -102,22 +102,19 @@ pub fn create_vk_instance(
     surface_extensions: &Vec<&'static CStr>
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
-    #[cfg(target_os = "android")]
-    let layer_names: Vec<CString> = Vec::new();
-    #[cfg(not(target_os = "android"))]
     let layer_names: Vec<CString> = constants::VULKAN_LAYERS
         .iter()
         .map(|layer_name| CString::new(*layer_name).unwrap())
         .collect();
-    // let layers_names_raw: Vec<*const i8> = layer_names
-    //     .iter()
-    //     .map(|raw_name| raw_name.as_ptr())
-    //     .collect();
+    let layers_names_raw: Vec<_> = layer_names
+        .iter()
+        .map(|raw_name| raw_name.as_ptr())
+        .collect();
     let mut extension_names_raw = surface_extensions
         .iter()
         .map(|ext| ext.as_ptr())
         .collect::<Vec<_>>();
-    extension_names_raw.push(DebugUtils::name().as_ptr());
+    //extension_names_raw.push(DebugUtils::name().as_ptr());
 
     let require_extension_names = surface_extensions
         .iter()
@@ -203,11 +200,9 @@ pub fn select_physical_device(
         log::info!("Found {} devices", physical_devices.len());
         for physical_device in physical_devices {
             let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
-            if result {
-                // set enable clip distance
-                physical_device_features.shader_clip_distance = 1;
-                return Some((physical_device, swapchain_support_details, physical_device_features));
-            }
+            // set enable clip distance
+            physical_device_features.shader_clip_distance = 1;
+            return Some((physical_device, swapchain_support_details, physical_device_features));
         }
     }
     None
@@ -231,7 +226,7 @@ pub fn create_device(
             }
         })
         .collect();
-    let layer_names: Vec<CString> = constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect();
+    let layer_names: Vec<CString> = Vec::new();//constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect();
     let layer_names_raw: Vec<*const c_char> = layer_names.iter().map(|layer_name| { layer_name.as_ptr() }).collect();
     let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|extension| { CString::new(*extension).unwrap() }).collect();
     let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
