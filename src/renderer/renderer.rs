@@ -24,6 +24,7 @@ use winit::window::{
     Window,
     WindowBuilder
 };
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 use winit::event_loop::EventLoop;
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 
@@ -156,7 +157,6 @@ pub struct RendererData {
     _need_recreate_swapchain: bool,
     _is_first_resize_event: bool,
     _is_first_rendering: bool,
-    pub _window: Window,
     pub _entry: Entry,
     pub _instance: Instance,
     pub _device: Device,
@@ -197,24 +197,19 @@ pub struct RendererData {
     pub _resources: RcRefCell<Resources>
 }
 
-pub fn create_renderer_data<T>(
+pub fn create_renderer_data(
     app_name: &str,
     app_version: u32,
     (window_width, window_height): (u32, u32),
-    event_loop: &EventLoop<T>,
+    window: &Window,
     resources: RcRefCell<Resources>
 ) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
-        let window = WindowBuilder::new()
-            .with_title(app_name)
-            .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_width, height: window_height }))
-            .build(&event_loop)
-            .unwrap();
         let entry = Entry::new().unwrap();
-        let surface_extensions = ash_window::enumerate_required_extensions(&window).unwrap();
+        let surface_extensions = ash_window::enumerate_required_extensions(window as &HasRawWindowHandle).unwrap();
         let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
-        let surface = device::create_vk_surface(&entry, &instance, &window);
+        let surface = device::create_vk_surface(&entry, &instance, window);
         let surface_interface = Surface::new(&entry, &instance);
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
         let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
@@ -286,7 +281,6 @@ pub fn create_renderer_data<T>(
             _need_recreate_swapchain: false,
             _is_first_resize_event: true,
             _is_first_rendering: true,
-            _window: window,
             _entry: entry,
             _instance: instance,
             _device: device,

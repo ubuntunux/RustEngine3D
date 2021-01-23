@@ -16,6 +16,11 @@ use winit::event_loop::{
     ControlFlow,
     EventLoop
 };
+use winit::dpi;
+use winit::window::{
+    Window,
+    WindowBuilder
+};
 use winit_input_helper::WinitInputHelper;
 
 use crate::constants;
@@ -232,63 +237,89 @@ impl ApplicationData {
 }
 
 
-pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)) {
+pub fn run_application() {
+    let app_name: &str = "RustEngine3D";
+    let app_version: u32 = 1;
+    let window_size: (u32, u32) = (1024, 786);
     log::info!("run_application");
     let mut input_helper = WinitInputHelper::new();
     let time_instance = time::Instant::now();
-    let elapsed_time = time_instance.elapsed().as_secs_f64();
     let event_loop = EventLoop::new();
-    let (width, height) = window_size;
-    let mouse_pos = (width / 2, height / 2);
-    let resources = resource::create_resources();
-    let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &event_loop, resources.clone());
-    let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
-    let keyboard_input_data = input::create_keyboard_input_data();
-    let mouse_move_data = input::create_mouse_move_data(mouse_pos);
-    let mouse_input_data = input::create_mouse_input_data();
-    let application_data = system::newRcRefCell(
-        ApplicationData {
-            _window: false,
-            _window_size_changed: false,
-            _window_size: window_size,
-            _time_data: create_time_data(elapsed_time),
-            _camera_move_speed: 1.0,
-            _keyboard_input_data: keyboard_input_data.clone(),
-            _mouse_move_data: mouse_move_data.clone(),
-            _mouse_input_data: mouse_input_data.clone(),
-            _scene_manager_data: scene_manager_data.clone(),
-            _renderer_data: renderer_data.clone(),
-            _resources: resources.clone(),
-        }
-    );
+    let window = WindowBuilder::new()
+        .with_title(app_name)
+        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_size.0, height: window_size.1 }))
+        .build(&event_loop)
+        .unwrap();
 
-    // initialize grphics
-    scene_manager_data.borrow().get_fft_ocean().borrow_mut().regist_fft_ocean_textures(&renderer_data, &resources);
-    resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
-    renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
-    let camera_data = CameraCreateInfo {
-        window_width: width,
-        window_height: height,
-        position: Vector3::new(0.0, 0.0, 10.0),
-        ..Default::default()
-    };
-    scene_manager_data.borrow_mut().initialize_scene_graphics_data(&renderer_data.borrow());
-    scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
+    let mut maybe_resources: Option<RcRefCell<Resources>> = None;
+    let mut maybe_renderer_data: Option<RcRefCell<RendererData>> = None;
+    let mut maybe_scene_manager_data: Option<RcRefCell<SceneManagerData>> = None;
+    let mut maybe_application_data: Option<RcRefCell<ApplicationData>> = None;
 
     // main loop
-    let mut run_application: bool = true;
+    let mut need_initialize: bool = true;
+    let mut run_application: bool = false;
     event_loop.run(move |event, __window_target, control_flow|{
-        let mut application_data: RefMut<ApplicationData> = application_data.borrow_mut();
-        let mut renderer_data: RefMut<RendererData> = renderer_data.borrow_mut();
-        let mut scene_manager_data: RefMut<SceneManagerData> = scene_manager_data.borrow_mut();
+        if need_initialize {
+            let elapsed_time = time_instance.elapsed().as_secs_f64();
+            let (width, height) = window_size;
+            let mouse_pos = (width / 2, height / 2);
+            let resources = resource::create_resources();
+            let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &window, resources.clone());
+            let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
+            let keyboard_input_data = input::create_keyboard_input_data();
+            let mouse_move_data = input::create_mouse_move_data(mouse_pos);
+            let mouse_input_data = input::create_mouse_input_data();
+            let application_data = system::newRcRefCell(
+                ApplicationData {
+                    _window: false,
+                    _window_size_changed: false,
+                    _window_size: window_size,
+                    _time_data: create_time_data(elapsed_time),
+                    _camera_move_speed: 1.0,
+                    _keyboard_input_data: keyboard_input_data.clone(),
+                    _mouse_move_data: mouse_move_data.clone(),
+                    _mouse_input_data: mouse_input_data.clone(),
+                    _scene_manager_data: scene_manager_data.clone(),
+                    _renderer_data: renderer_data.clone(),
+                    _resources: resources.clone(),
+                }
+            );
+
+            // initialize grphics
+            scene_manager_data.borrow().get_fft_ocean().borrow_mut().regist_fft_ocean_textures(&renderer_data, &resources);
+            resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
+            renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
+            let camera_data = CameraCreateInfo {
+                window_width: width,
+                window_height: height,
+                position: Vector3::new(0.0, 0.0, 10.0),
+                ..Default::default()
+            };
+            scene_manager_data.borrow_mut().initialize_scene_graphics_data(&renderer_data.borrow());
+            scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
+
+
+            maybe_resources = Some(resources);
+            maybe_renderer_data = Some(renderer_data);
+            maybe_scene_manager_data = Some(scene_manager_data);
+            maybe_application_data = Some(application_data);
+
+            need_initialize = false;
+            run_application = true;
+        }
 
         if run_application {
+            let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+            let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+            let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+
             if input_helper.update(&event) {
                 if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
                     *control_flow = ControlFlow::Exit;
                     application_data.terminate_applicateion(
                         &mut scene_manager_data,
-                        &mut resources.borrow_mut(),
+                        &mut maybe_resources.as_ref().unwrap().borrow_mut(),
                         &mut renderer_data,
                     );
                     run_application = false;
@@ -311,7 +342,7 @@ pub fn run_application(app_name: &str, app_version: u32, window_size: (u32, u32)
                             renderer_data.resize_window();
                             scene_manager_data.initialize_scene_graphics_data(&renderer_data);
                         }
-                        let window_size = renderer_data._window.inner_size();
+                        let window_size = window.inner_size();
                         scene_manager_data.get_main_camera().borrow_mut().set_aspect(window_size.width, window_size.height);
                         renderer_data.set_is_first_resize_event(false);
                         renderer_data.set_need_recreate_swapchain(false);
