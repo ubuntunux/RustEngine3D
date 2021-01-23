@@ -14,6 +14,7 @@ use ash::version::{
     DeviceV1_0
 };
 use ash::vk::Handle;
+use crate::utilities::system;
 
 pub const SHADER_CACHE_DIRECTORY: &str = "resource/shader_caches";
 pub const SHADER_DIRECTORY: &str = "resource/shaders";
@@ -40,19 +41,19 @@ pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &
 
 
 pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
-    let validator_exe = match which::which("glslangValidator") {
-        Ok(path) => path,
-        Err(_) => panic!("Cannot find glslangValidator executable.\nCheck if it is available in your $PATH\nRead more about it at https://www.khronos.org/opengles/sdk/tools/Reference-Compiler/")
-    };
-
-    let shader_define_args: Vec<String> = shader_defines
-        .iter()
-        .map(|shader_define| {
-            let mut arg = shader_define.clone().replace(" ", "");
-            arg.insert_str(0, "-D");
-            arg
-        })
-        .collect();
+    // let validator_exe = match which::which("glslangValidator") {
+    //     Ok(path) => path,
+    //     Err(_) => panic!("Cannot find glslangValidator executable.\nCheck if it is available in your $PATH\nRead more about it at https://www.khronos.org/opengles/sdk/tools/Reference-Compiler/")
+    // };
+    //
+    // let shader_define_args: Vec<String> = shader_defines
+    //     .iter()
+    //     .map(|shader_define| {
+    //         let mut arg = shader_define.clone().replace(" ", "");
+    //         arg.insert_str(0, "-D");
+    //         arg
+    //     })
+    //     .collect();
     let mut shader_file_path: PathBuf = PathBuf::from(SHADER_DIRECTORY);
     shader_file_path.push(shader_filename);
 
@@ -61,49 +62,49 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
     shader_dir.push(shader_file_path.file_stem().unwrap());
 
     let spirv_file_path: PathBuf = spirv_file_path_with_defines(&shader_filename, &shader_defines);
-    let force_convert: bool = true; // need recursive include file time diff implementation
-    // TODO : need recursive include file time diff implementation
-    let do_convert: bool = if spirv_file_path.is_file() {
-        let shader_file_metadata = fs::metadata(&shader_file_path).unwrap();
-        let spirv_file_metadata = fs::metadata(&spirv_file_path).unwrap();
-        spirv_file_metadata.modified().unwrap() < shader_file_metadata.modified().unwrap()
-    } else {
-        true
-    };
+    // let force_convert: bool = true; // need recursive include file time diff implementation
+    // // TODO : need recursive include file time diff implementation
+    // let do_convert: bool = if spirv_file_path.is_file() {
+    //     let shader_file_metadata = fs::metadata(&shader_file_path).unwrap();
+    //     let spirv_file_metadata = fs::metadata(&spirv_file_path).unwrap();
+    //     spirv_file_metadata.modified().unwrap() < shader_file_metadata.modified().unwrap()
+    // } else {
+    //     true
+    // };
 
     // convert glsl -> spirv
-    if do_convert || force_convert {
-        fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
-
-        if false == shader_file_path.is_file() {
-            panic!("compileGLSL: {:?} does not exist.", shader_file_path);
-        }
-
-        let mut command = process::Command::new(validator_exe);
-        command.arg("-V");
-        command.arg("-o");
-        command.arg(spirv_file_path.to_str().unwrap());
-        command.arg(shader_file_path.to_str().unwrap());
-        for shader_define_arg in shader_define_args.iter() {
-            command.arg(shader_define_arg);
-        }
-        command.current_dir(".");
-        match command.output() {
-            Ok(output) => {
-                let msg = String::from_utf8(output.stdout).unwrap();
-                if msg.contains("ERROR") {
-                    panic!("Compile error: {}", msg);
-                }
-                if msg.trim() != shader_file_path.to_str().unwrap() {
-                    log::info!("{}", msg);
-                }
-            },
-            Err(e) => panic!("failed to execute glslangValidator. {:?}", e),
-        }
-    }
+    // if do_convert || force_convert {
+    //     fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
+    //
+    //     if false == shader_file_path.is_file() {
+    //         panic!("compileGLSL: {:?} does not exist.", shader_file_path);
+    //     }
+    //
+    //     let mut command = process::Command::new(validator_exe);
+    //     command.arg("-V");
+    //     command.arg("-o");
+    //     command.arg(spirv_file_path.to_str().unwrap());
+    //     command.arg(shader_file_path.to_str().unwrap());
+    //     for shader_define_arg in shader_define_args.iter() {
+    //         command.arg(shader_define_arg);
+    //     }
+    //     command.current_dir(".");
+    //     match command.output() {
+    //         Ok(output) => {
+    //             let msg = String::from_utf8(output.stdout).unwrap();
+    //             if msg.contains("ERROR") {
+    //                 panic!("Compile error: {}", msg);
+    //             }
+    //             if msg.trim() != shader_file_path.to_str().unwrap() {
+    //                 log::info!("{}", msg);
+    //             }
+    //         },
+    //         Err(e) => panic!("failed to execute glslangValidator. {:?}", e),
+    //     }
+    // }
 
     // read spirv
-    let mut f = fs::File::open(&spirv_file_path).unwrap();
+    let mut f = system::load(&spirv_file_path);
     let mut buffer: Vec<u8> = Vec::new();
     f.read_to_end(&mut buffer).unwrap();
     let content_size = buffer.len() as u32;

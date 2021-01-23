@@ -235,7 +235,7 @@ impl Resources {
         let model_files: Vec<PathBuf> = system::walk_directory(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
             let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
-            let loaded_contents = fs::File::open(&model_file).expect("Failed to create file");
+            let loaded_contents = system::load(&model_file);
             let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let model_create_info = match contents {
                 Value::Object(model_create_info) => model_create_info,
@@ -321,7 +321,7 @@ impl Resources {
             let mesh_data_create_info = match (LOAD_FROM_EXTERNAL_FOR_MESH, mesh_file_map.get(&mesh_name)) {
                 (false, Some(mesh_file)) => {
                     // Load mesh
-                    let loaded_contents = fs::File::open(mesh_file).expect("Failed to create file");
+                    let loaded_contents = system::load(mesh_file);
                     if USE_JSON_FOR_MESH {
                         serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
                     } else {
@@ -439,7 +439,7 @@ impl Resources {
         for texture_src_file in combined_texture_files.iter() {
             let directory = texture_src_file.parent().unwrap();
             let texture_data_name = get_resource_name_from_file_path(&texture_source_directory, &texture_src_file);
-            let loaded_contents = fs::File::open(texture_src_file).expect("Failed to create file");
+            let loaded_contents = system::load(texture_src_file);
             let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let ext = texture_src_file.extension().unwrap();
             let mut texture_file_names: Vec<String> = Vec::new();
@@ -525,7 +525,7 @@ impl Resources {
         let texture_files = system::walk_directory(texture_directory.as_path(), &EXT_TEXTURE);
         for texture_file in texture_files.iter() {
             let texture_data_name = get_resource_name_from_file_path(&texture_directory, texture_file);
-            let mut loaded_contents = fs::File::open(&texture_file).expect("Failed to create file");
+            let mut loaded_contents = system::load(&texture_file);
             let image_view_type: vk::ImageViewType = vk::ImageViewType::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
             let image_width: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
             let image_height: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
@@ -661,7 +661,7 @@ impl Resources {
         let material_files = system::walk_directory(&material_directory.as_path(), &[EXT_MATERIAL]);
         for material_file in material_files {
             let material_name = get_unique_resource_name(&self._material_data_map, &material_directory, &material_file);
-            let loaded_contents = fs::File::open(material_file).expect("Failed to create file");
+            let loaded_contents = system::load(material_file);
             let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let material_create_info = match contents {
                 Value::Object(material_create_info) => material_create_info,
@@ -710,7 +710,7 @@ impl Resources {
         let material_instance_files = system::walk_directory(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
             let material_instance_name = get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file);
-            let loaded_contents = fs::File::open(material_instance_file).expect("Failed to create file");
+            let loaded_contents = system::load(material_instance_file);
             let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let material_instance_create_info = match contents {
                 Value::Object(material_instance_create_info) => material_instance_create_info,

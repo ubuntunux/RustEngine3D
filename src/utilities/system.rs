@@ -3,6 +3,7 @@ use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::path::{ Path, PathBuf };
+use std::io::Cursor;
 
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
@@ -80,4 +81,34 @@ pub fn convert_vec<S, D>(src: Vec<S>) -> Vec<D> {
         std::mem::forget(src); // Don't run the destructor for vec32
         Vec::from_raw_parts(ptr, length, capacity) // Construct new Vec
     }
+}
+
+
+
+#[cfg(not(target_os = "android"))]
+pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
+    use std::fs::File;
+    use std::io::Read;
+
+    let mut buf = Vec::new();
+    let fullpath = &Path::new("resource").join(&path);
+    let mut file = File::open(&path).unwrap();
+    file.read_to_end(&mut buf).unwrap();
+    Cursor::new(buf)
+}
+
+#[cfg(target_os = "android")]
+pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
+    use std::io::Read;
+
+    let asset_manager = ndk_glue::native_activity().asset_manager();
+
+    let path = path.as_ref().to_str().unwrap();
+    let mut asset = asset_manager
+        .open(&std::ffi::CString::new(path).unwrap())
+        .unwrap();
+
+    let mut buf = Vec::new();
+    asset.read_to_end(&mut buf).unwrap();
+    Cursor::new(buf)
 }
