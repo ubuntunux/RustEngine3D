@@ -168,7 +168,7 @@ pub struct RendererData {
     pub _swapchain_data: swapchain::SwapchainData,
     pub _swapchain_support_details: swapchain::SwapchainSupportDetails,
     pub _swapchain_interface: Swapchain,
-    pub _debug_util_interface: DebugUtils,
+    pub _debug_util_interface: Option<DebugUtils>,
     pub _debug_call_back: vk::DebugUtilsMessengerEXT,
     pub _image_available_semaphores: FrameArray<vk::Semaphore>,
     pub _render_finished_semaphores: FrameArray<vk::Semaphore>,
@@ -267,15 +267,23 @@ pub fn create_renderer_data(
         let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
         // debug utils
-        let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
-        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
-            message_severity: debug_message_level,
-            message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
-            pfn_user_callback: Some(vulkan_debug_callback),
-            ..Default::default()
-        };
-        let debug_util_interface = DebugUtils::new(&entry, &instance);
-        let debug_call_back = debug_util_interface.create_debug_utils_messenger(&debug_info, None).unwrap();
+        let debug_call_back: vk::DebugUtilsMessengerEXT;
+        let debug_util_interface: Option<DebugUtils>;
+        if constants::ENABLE_VALIDATION_LAYER {
+            let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
+            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+                message_severity: debug_message_level,
+                message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
+                pfn_user_callback: Some(vulkan_debug_callback),
+                ..Default::default()
+            };
+            debug_util_interface = Some(DebugUtils::new(&entry, &instance));
+            debug_call_back = debug_util_interface.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
+        } else {
+            debug_util_interface = None;
+            debug_call_back = vk::DebugUtilsMessengerEXT::null();
+        }
+
         let mut renderer_data = RendererData {
             _frame_index: 0,
             _swapchain_index: 0,
@@ -587,7 +595,9 @@ impl RendererData {
             swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
             device::destroy_device(&self._device);
             device::destroy_vk_surface(&self._surface_interface, self._surface);
-            self._debug_util_interface.destroy_debug_utils_messenger(self._debug_call_back, None);
+            if self._debug_util_interface.is_some() {
+                self._debug_util_interface.as_ref().unwrap().destroy_debug_utils_messenger(self._debug_call_back, None);
+            }
             device::destroy_vk_instance(&self._instance);
         }
     }

@@ -102,10 +102,14 @@ pub fn create_vk_instance(
     surface_extensions: &Vec<&'static CStr>
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
-    let layer_names: Vec<CString> = constants::VULKAN_LAYERS
-        .iter()
-        .map(|layer_name| CString::new(*layer_name).unwrap())
-        .collect();
+    let layer_names: Vec<CString> = if constants::ENABLE_VALIDATION_LAYER {
+        constants::VULKAN_LAYERS
+            .iter()
+            .map(|layer_name| CString::new(*layer_name).unwrap())
+            .collect()
+    } else {
+        Vec::new()
+    };
     let layers_names_raw: Vec<_> = layer_names
         .iter()
         .map(|raw_name| raw_name.as_ptr())
@@ -114,7 +118,10 @@ pub fn create_vk_instance(
         .iter()
         .map(|ext| ext.as_ptr())
         .collect::<Vec<_>>();
-    //extension_names_raw.push(DebugUtils::name().as_ptr());
+
+    if constants::ENABLE_VALIDATION_LAYER {
+        extension_names_raw.push(DebugUtils::name().as_ptr());
+    }
 
     let require_extension_names = surface_extensions
         .iter()
@@ -226,10 +233,23 @@ pub fn create_device(
             }
         })
         .collect();
-    let layer_names: Vec<CString> = Vec::new();//constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect();
+    let layer_names: Vec<CString> = if constants::ENABLE_VALIDATION_LAYER {
+        constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect()
+    } else {
+        Vec::new()
+    };
     let layer_names_raw: Vec<*const c_char> = layer_names.iter().map(|layer_name| { layer_name.as_ptr() }).collect();
     let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|extension| { CString::new(*extension).unwrap() }).collect();
     let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
+    #[cfg(target_os = "android")]
+    let device_features = vk::PhysicalDeviceFeatures {
+        sampler_anisotropy: 0,
+        shader_clip_distance: 0,
+        ..render_features._physical_device_features
+    };
+    #[cfg(not(target_os = "android"))]
+    let device_features = render_features._physical_device_features.clone();
+
     let device_create_info = vk::DeviceCreateInfo {
         queue_create_info_count: queue_create_infos.len() as u32,
         p_queue_create_infos: queue_create_infos.as_ptr(),
@@ -237,12 +257,13 @@ pub fn create_device(
         pp_enabled_layer_names: layer_names_raw.as_ptr(),
         enabled_extension_count: device_extension_names_raw.len() as u32,
         pp_enabled_extension_names: device_extension_names_raw.as_ptr(),
-        p_enabled_features: &render_features._physical_device_features,
+        p_enabled_features: &device_features,
         ..Default::default()
     };
+
     unsafe {
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
-        log::info!("create_device: {:?}, {:?}", constants::VULKAN_LAYERS, constants::REQUIRE_DEVICE_EXTENSIONS);
+        log::info!("create_device: {:?}, {:?}", layer_names, device_extension_names);
         device
     }
 }
