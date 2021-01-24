@@ -118,7 +118,6 @@ pub fn create_vk_instance(
         .iter()
         .map(|ext| ext.as_ptr())
         .collect::<Vec<_>>();
-
     if constants::ENABLE_VALIDATION_LAYER {
         extension_names_raw.push(DebugUtils::name().as_ptr());
     }
@@ -141,8 +140,8 @@ pub fn create_vk_instance(
 
     let create_info = vk::InstanceCreateInfo {
         p_application_info: &appinfo,
-        enabled_layer_count: 0, //layers_names_raw.len() as u32,
-        pp_enabled_layer_names: std::ptr::null(), //layers_names_raw.as_ptr(),
+        enabled_layer_count: layers_names_raw.len() as u32,
+        pp_enabled_layer_names: layers_names_raw.as_ptr(),
         enabled_extension_count: extension_names_raw.len() as u32,
         pp_enabled_extension_names: extension_names_raw.as_ptr(),
         ..Default::default()
