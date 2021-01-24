@@ -257,8 +257,11 @@ pub fn run_application() {
     let mut maybe_application_data: Option<RcRefCell<ApplicationData>> = None;
 
     // main loop
-    let mut initialize_done: bool = false;
+    #[cfg(target_os = "android")]
     let mut need_initialize: bool = false;
+    #[cfg(not(target_os = "android"))]
+    let mut need_initialize: bool = true;
+    let mut initialize_done: bool = false;
     let mut run_application: bool = false;
     event_loop.run(move |event, __window_target, control_flow|{
         if run_application {
