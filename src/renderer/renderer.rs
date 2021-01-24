@@ -19,14 +19,8 @@ use ash::extensions::khr::{
 };
 use ash::version::{InstanceV1_0, DeviceV1_0};
 use winit;
-use winit::dpi;
-use winit::window::{
-    Window,
-    WindowBuilder
-};
-use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
-use winit::event_loop::EventLoop;
-use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
+use winit::window::{ Window };
+use nalgebra::{ Vector2, Vector4, Matrix4 };
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -955,11 +949,11 @@ impl RendererData {
                 std::u64::MAX,
                 image_available_semaphore,
                 vk::Fence::null()
-            ).unwrap();;
+            ).unwrap();
 
             self._swapchain_index = swapchain_index;
 
-            let present_result: vk::Result = if false == is_swapchain_suboptimal {
+            let present_result: vk::Result = if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == is_swapchain_suboptimal {
                 let command_buffer = self._command_buffers[swapchain_index as usize];
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();

@@ -53,12 +53,12 @@ pub fn choose_swapchain_surface_format(
 }
 
 pub fn choose_swapchain_present_mode(swapchain_support_details: &SwapchainSupportDetails) -> vk::PresentModeKHR {
-    if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
-        return vk::PresentModeKHR::MAILBOX;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO) {
+    if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO) {
         return vk::PresentModeKHR::FIFO;
     } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
         return vk::PresentModeKHR::FIFO_RELAXED;
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
+        return vk::PresentModeKHR::MAILBOX;
     } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
         return vk::PresentModeKHR::IMMEDIATE;
     }
@@ -104,6 +104,13 @@ pub fn create_swapchain_data(
 ) -> SwapchainData
 {
     let surface_format = choose_swapchain_surface_format(swapchain_support_details, constants::SWAPCHAIN_IMAGE_FORMAT, constants::SWAPCHAIN_COLOR_SPACE);
+    #[cfg(target_os = "android")]
+        let present_mode = if immediate_mode {
+        vk::PresentModeKHR::IMMEDIATE
+    } else {
+        vk::PresentModeKHR::FIFO
+    };
+    #[cfg(not(target_os = "android"))]
     let present_mode = if immediate_mode {
         vk::PresentModeKHR::IMMEDIATE
     } else {

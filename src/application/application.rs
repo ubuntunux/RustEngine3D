@@ -314,12 +314,12 @@ pub fn run_application() {
             let camera_data = CameraCreateInfo {
                 window_width: width,
                 window_height: height,
-                position: Vector3::new(0.0, 0.0, 10.0),
+                position: Vector3::new(-25.28, 18.20, 24.5), // Vector3::new(-7.29, 6.345, -0.33),
+                rotation: Vector3::new(-0.157, -1.0, 0.0), // Vector3::new(-0.287, -1.5625, 0.0),
                 ..Default::default()
             };
             scene_manager_data.borrow_mut().initialize_scene_graphics_data(&renderer_data.borrow());
             scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
-
 
             maybe_resources = Some(resources);
             maybe_renderer_data = Some(renderer_data);
@@ -379,8 +379,12 @@ pub fn run_application() {
                 },
                 WindowEvent::Resized { .. } => {
                     if run_application {
-                        let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                        renderer_data.set_need_recreate_swapchain(true);
+                        let application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                        let elapsed_frame = application_data._time_data._elapsed_frame;
+                        if constants::SWAPCHAIN_IMAGE_COUNT as u64 <= elapsed_frame {
+                            let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                            renderer_data.set_need_recreate_swapchain(true);
+                        }
                     }
                 },
                 // WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
