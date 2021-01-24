@@ -3,7 +3,7 @@ use byteorder::{ LittleEndian };
 
 use std::str::FromStr;
 use std::io::prelude::*;
-use std::path::{ PathBuf };
+use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
 
 use serde_json::{ self, Value, json };
@@ -106,6 +106,7 @@ pub enum ResourceData {
 
 #[derive(Clone)]
 pub struct Resources {
+    pub _resource_filenames: Vec<PathBuf>,
     pub _meta_data_map: MetaDataMap,
     pub _mesh_data_map: MeshDataMap,
     pub _model_data_map: ModelDataMap,
@@ -119,6 +120,7 @@ pub struct Resources {
 
 pub fn create_resources() -> RcRefCell<Resources> {
     newRcRefCell(Resources {
+        _resource_filenames: Vec::new(),
         _meta_data_map: MetaDataMap::new(),
         _mesh_data_map: MeshDataMap::new(),
         _model_data_map: ModelDataMap::new(),
@@ -168,6 +170,7 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 impl Resources {
     pub fn initialize_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("initialize_resources");
+        self.load_resource_filenames();
         self.load_texture_datas(renderer_data);
         self.load_render_pass_datas(renderer_data);
         self.load_framebuffer_datas(renderer_data);
@@ -229,10 +232,36 @@ impl Resources {
         // nothing..
     }
 
+    pub fn load_resource_filenames(&mut self) {
+        let loaded_contents = system::load(&Path::new("resource/resources.txt"));
+        let contents: String = String::from_utf8(loaded_contents.into_inner()).unwrap();
+        for content in contents.split("\n") {
+            self._resource_filenames.push(PathBuf::from(content));
+        }
+    }
+
+    pub fn collect_resources_inner(&self, dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+        let mut out_resources: Vec<PathBuf> = Vec::new();
+        for resource_filename in self._resource_filenames.iter() {
+            let ext = resource_filename.extension();
+            if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
+                out_resources.push(PathBuf::from(resource_filename));
+            }
+        }
+        out_resources
+    }
+
+    pub fn collect_resources(&self, dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+        #[cfg(target_os = "android")]
+        return self.collect_resources_inner(dir, extensions);
+        #[cfg(not(target_os = "android"))]
+        return system::walk_directory(dir, extensions);
+    }
+
     // ModelData
     pub fn load_model_datas(&mut self, _renderer_data: &RendererData) {
         let model_directory = PathBuf::from(MODEL_FILE_PATH);
-        let model_files: Vec<PathBuf> = system::walk_directory(&model_directory, &[EXT_MODEL]);
+        let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
             let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
             let loaded_contents = system::load(&model_file);
@@ -308,13 +337,13 @@ impl Resources {
         let mesh_directory = PathBuf::from(MESH_FILE_PATH);
         let mesh_source_directory = PathBuf::from(MESH_SOURCE_FILE_PATH);
         let resource_ext = if USE_JSON_FOR_MESH { EXT_JSON } else { EXT_MESH };
-        let mesh_files = system::walk_directory(mesh_directory.as_path(), &[resource_ext]);
+        let mesh_files = self.collect_resources(mesh_directory.as_path(), &[resource_ext]);
         let mut mesh_file_map: HashMap<String, PathBuf> = HashMap::new();
         for mesh_file in mesh_files.iter() {
             let mesh_name = get_resource_name_from_file_path(&mesh_directory, &mesh_file);
             mesh_file_map.insert(mesh_name, mesh_file.clone());
         }
-        let mesh_source_files = system::walk_directory(mesh_source_directory.as_path(), &MESH_SOURCE_EXTS);
+        let mesh_source_files = self.collect_resources(mesh_source_directory.as_path(), &MESH_SOURCE_EXTS);
         for mesh_source_file in mesh_source_files {
             let mesh_name = get_unique_resource_name(&self._mesh_data_map, &mesh_source_directory, &mesh_source_file);
             let src_file_ext: String = String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
@@ -378,7 +407,9 @@ impl Resources {
 
     // TextureLoader
     pub fn load_image_data(texture_file: &PathBuf) -> LoadImageInfoType {
-        let image_file = image::io::Reader::open(texture_file).unwrap().decode();
+        let loaded_contents = system::load(texture_file);
+        let image_format = image::ImageFormat::from_path(texture_file);
+        let image_file = image::load(loaded_contents, image_format.unwrap());
         if image_file.is_err() {
             log::error!("load_image_data error: {:?}", texture_file);
             return (0, 0, 0, Vec::new(), vk::Format::UNDEFINED);
@@ -419,19 +450,6 @@ impl Resources {
         self._texture_data_map.insert(texture_data_name, texture_data);
     }
 
-    //#[cfg(target_os = "android")]
-    pub fn test_android(&self, dir: &str) {
-        let asset_manager = ndk_glue::native_activity().asset_manager();
-        let mut my_dir = asset_manager.open_dir(&std::ffi::CString::new("externals/textures/common").unwrap()).expect("Could not open directory");
-        // println!("{:?}", my_dir);
-        // println!("{:?}", my_dir.collect::<Vec<std::ffi::CString>>());
-
-        println!("contents: {:?}", fs::read_dir(""));
-        println!("contents: {:?}", fs::read_dir("."));
-        println!("contents: {:?}", fs::read_dir("resource"));
-        println!("contents: {:?}", fs::read_dir("externals"));
-    }
-
     pub fn load_texture_datas(&mut self, renderer_data: &RendererData) {
         let texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_data);
         for texture_data in texture_datas {
@@ -444,15 +462,12 @@ impl Resources {
         let mut combined_texture_files_map: HashMap<String, Vec::<PathBuf>> = HashMap::new();
         let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
 
-        #[cfg(target_os = "android")]
-        self.test_android("");
-
         // generate necessary texture datas
         #[cfg(not(target_os = "android"))]
         texture_generator::generate_images(&texture_source_directory);
 
         // combined texture list
-        let combined_texture_files = system::walk_directory(texture_source_directory.as_path(), &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE]);
+        let combined_texture_files = self.collect_resources(texture_source_directory.as_path(), &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE]);
         for texture_src_file in combined_texture_files.iter() {
             let directory = texture_src_file.parent().unwrap();
             let texture_data_name = get_resource_name_from_file_path(&texture_source_directory, &texture_src_file);
@@ -501,7 +516,7 @@ impl Resources {
         }
 
         // load texture from external files
-        let texture_src_files = system::walk_directory(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
+        let texture_src_files = self.collect_resources(texture_source_directory.as_path(), &IMAGE_SOURCE_EXTS);
         for texture_src_file in texture_src_files.iter() {
             let combined_texture_name = combined_textures_name_map.get(texture_src_file);
             let texture_data_name: String = match combined_texture_name {
@@ -539,7 +554,7 @@ impl Resources {
         }
 
         // read binary texture data
-        let texture_files = system::walk_directory(texture_directory.as_path(), &EXT_TEXTURE);
+        let texture_files = self.collect_resources(texture_directory.as_path(), &EXT_TEXTURE);
         for texture_file in texture_files.iter() {
             let texture_data_name = get_resource_name_from_file_path(&texture_directory, texture_file);
             let mut loaded_contents = system::load(&texture_file);
@@ -675,7 +690,7 @@ impl Resources {
     // Material_datas
     pub fn load_material_datas(&mut self, _renderer_data: &RendererData) {
         let material_directory = PathBuf::from(MATERIAL_FILE_PATH);
-        let material_files = system::walk_directory(&material_directory.as_path(), &[EXT_MATERIAL]);
+        let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
         for material_file in material_files {
             let material_name = get_unique_resource_name(&self._material_data_map, &material_directory, &material_file);
             let loaded_contents = system::load(material_file);
@@ -724,7 +739,7 @@ impl Resources {
     // MaterialInstance_datas
     pub fn load_material_instance_datas(&mut self, renderer_data: &RendererData) {
         let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_FILE_PATH);
-        let material_instance_files = system::walk_directory(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
+        let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
             let material_instance_name = get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file);
             let loaded_contents = system::load(material_instance_file);

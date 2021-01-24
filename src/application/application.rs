@@ -17,10 +17,7 @@ use winit::event_loop::{
     EventLoop
 };
 use winit::dpi;
-use winit::window::{
-    Window,
-    WindowBuilder
-};
+use winit::window::{ WindowBuilder };
 use winit_input_helper::WinitInputHelper;
 
 use crate::constants;

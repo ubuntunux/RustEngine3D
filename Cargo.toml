@@ -3,6 +3,7 @@ name = "rust_engine_3d"
 version = "0.1.0"
 authors = ["ubuntunux <ubuntunux@gmail.com>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 ash = "0.31.0"

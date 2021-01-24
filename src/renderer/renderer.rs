@@ -955,12 +955,12 @@ impl RendererData {
                 std::u64::MAX,
                 image_available_semaphore,
                 vk::Fence::null()
-            ).unwrap();
+            ).unwrap();;
 
             self._swapchain_index = swapchain_index;
 
-            let command_buffer = self._command_buffers[swapchain_index as usize];
             let present_result: vk::Result = if false == is_swapchain_suboptimal {
+                let command_buffer = self._command_buffers[swapchain_index as usize];
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
                 let main_light = scene_manager.get_main_light().borrow();
