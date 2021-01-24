@@ -20,6 +20,7 @@ pub struct CameraCreateInfo {
     pub window_height: u32,
     pub enable_jitter: bool,
     pub position: Vector3<f32>,
+    pub rotation: Vector3<f32>,
 }
 
 impl Default for CameraCreateInfo {
@@ -33,6 +34,7 @@ impl Default for CameraCreateInfo {
             window_height: 768,
             enable_jitter: true,
             position: Vector3::zeros(),
+            rotation: Vector3::zeros(),
         }
     }
 }
@@ -122,6 +124,7 @@ impl CameraObjectData {
         // initialize
         camera_object_data.set_aspect(camera_create_info.window_width, camera_create_info.window_height);
         camera_object_data._transform_object.set_position(&camera_create_info.position);
+        camera_object_data._transform_object.set_rotation(&camera_create_info.rotation);
         camera_object_data._transform_object.update_transform_object();
         camera_object_data._jitter_mode_uniform2x = [Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0), Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0)];
         for i in 0..4 {

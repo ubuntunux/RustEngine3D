@@ -19,13 +19,8 @@ use ash::extensions::khr::{
 };
 use ash::version::{InstanceV1_0, DeviceV1_0};
 use winit;
-use winit::dpi;
-use winit::window::{
-    Window,
-    WindowBuilder
-};
-use winit::event_loop::EventLoop;
-use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
+use winit::window::{ Window };
+use nalgebra::{ Vector2, Vector4, Matrix4 };
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -156,7 +151,6 @@ pub struct RendererData {
     _need_recreate_swapchain: bool,
     _is_first_resize_event: bool,
     _is_first_rendering: bool,
-    pub _window: Window,
     pub _entry: Entry,
     pub _instance: Instance,
     pub _device: Device,
@@ -168,7 +162,7 @@ pub struct RendererData {
     pub _swapchain_data: swapchain::SwapchainData,
     pub _swapchain_support_details: swapchain::SwapchainSupportDetails,
     pub _swapchain_interface: Swapchain,
-    pub _debug_util_interface: DebugUtils,
+    pub _debug_util_interface: Option<DebugUtils>,
     pub _debug_call_back: vk::DebugUtilsMessengerEXT,
     pub _image_available_semaphores: FrameArray<vk::Semaphore>,
     pub _render_finished_semaphores: FrameArray<vk::Semaphore>,
@@ -197,24 +191,19 @@ pub struct RendererData {
     pub _resources: RcRefCell<Resources>
 }
 
-pub fn create_renderer_data<T>(
+pub fn create_renderer_data(
     app_name: &str,
     app_version: u32,
     (window_width, window_height): (u32, u32),
-    event_loop: &EventLoop<T>,
+    window: &Window,
     resources: RcRefCell<Resources>
 ) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
-        let window = WindowBuilder::new()
-            .with_title(app_name)
-            .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_width, height: window_height }))
-            .build(&event_loop)
-            .unwrap();
         let entry = Entry::new().unwrap();
-        let surface_extensions = ash_window::enumerate_required_extensions(&window).unwrap();
+        let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
         let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
-        let surface = device::create_vk_surface(&entry, &instance, &window);
+        let surface = device::create_vk_surface(&entry, &instance, window);
         let surface_interface = Surface::new(&entry, &instance);
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
         let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
@@ -227,6 +216,7 @@ pub fn create_renderer_data<T>(
         log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
 
         let msaa_samples = device::get_max_usable_sample_count(&device_properties);
+
         let queue_family_indices = queue::get_queue_family_indices(
             &instance,
             &surface_interface,
@@ -271,22 +261,29 @@ pub fn create_renderer_data<T>(
         let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
         // debug utils
-        let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
-        let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
-            message_severity: debug_message_level,
-            message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
-            pfn_user_callback: Some(vulkan_debug_callback),
-            ..Default::default()
-        };
-        let debug_util_interface = DebugUtils::new(&entry, &instance);
-        let debug_call_back = debug_util_interface.create_debug_utils_messenger(&debug_info, None).unwrap();
+        let debug_call_back: vk::DebugUtilsMessengerEXT;
+        let debug_util_interface: Option<DebugUtils>;
+        if constants::ENABLE_VALIDATION_LAYER {
+            let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
+            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+                message_severity: debug_message_level,
+                message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
+                pfn_user_callback: Some(vulkan_debug_callback),
+                ..Default::default()
+            };
+            debug_util_interface = Some(DebugUtils::new(&entry, &instance));
+            debug_call_back = debug_util_interface.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
+        } else {
+            debug_util_interface = None;
+            debug_call_back = vk::DebugUtilsMessengerEXT::null();
+        }
+
         let mut renderer_data = RendererData {
             _frame_index: 0,
             _swapchain_index: 0,
             _need_recreate_swapchain: false,
             _is_first_resize_event: true,
             _is_first_rendering: true,
-            _window: window,
             _entry: entry,
             _instance: instance,
             _device: device,
@@ -592,7 +589,9 @@ impl RendererData {
             swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
             device::destroy_device(&self._device);
             device::destroy_vk_surface(&self._surface_interface, self._surface);
-            self._debug_util_interface.destroy_debug_utils_messenger(self._debug_call_back, None);
+            if self._debug_util_interface.is_some() {
+                self._debug_util_interface.as_ref().unwrap().destroy_debug_utils_messenger(self._debug_call_back, None);
+            }
             device::destroy_vk_instance(&self._instance);
         }
     }
@@ -954,8 +953,8 @@ impl RendererData {
 
             self._swapchain_index = swapchain_index;
 
-            let command_buffer = self._command_buffers[swapchain_index as usize];
-            let present_result: vk::Result = if false == is_swapchain_suboptimal {
+            let present_result: vk::Result = if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == is_swapchain_suboptimal {
+                let command_buffer = self._command_buffers[swapchain_index as usize];
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
                 let main_light = scene_manager.get_main_light().borrow();

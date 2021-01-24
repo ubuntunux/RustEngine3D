@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use std::fs::File;
 use std::io::BufReader;
 use xml::reader::{ EventReader, XmlEvent };
+use crate::utilities::system;
 
 type XmlTreeMap = HashMap<String, Vec<XmlTree>>;
 
@@ -64,7 +65,7 @@ pub fn get_element_text(xml_tree: &Option<&XmlTree>, default_value: &str) -> Str
 
 impl XmlTree {
     pub fn parse(filepath: &PathBuf) -> XmlTree {
-        let file = File::open(filepath).unwrap();
+        let file = system::load(filepath);
         let file = BufReader::new(file);
         let parser = EventReader::new(file);
 
