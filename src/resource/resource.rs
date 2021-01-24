@@ -419,12 +419,17 @@ impl Resources {
         self._texture_data_map.insert(texture_data_name, texture_data);
     }
 
-    #[cfg(target_os = "android")]
+    //#[cfg(target_os = "android")]
     pub fn test_android(&self, dir: &str) {
         let asset_manager = ndk_glue::native_activity().asset_manager();
         let mut my_dir = asset_manager.open_dir(&std::ffi::CString::new("externals/textures/common").unwrap()).expect("Could not open directory");
-        println!("{:?}", my_dir);
-        println!("{:?}", my_dir.collect::<Vec<std::ffi::CString>>());
+        // println!("{:?}", my_dir);
+        // println!("{:?}", my_dir.collect::<Vec<std::ffi::CString>>());
+
+        println!("contents: {:?}", fs::read_dir(""));
+        println!("contents: {:?}", fs::read_dir("."));
+        println!("contents: {:?}", fs::read_dir("resource"));
+        println!("contents: {:?}", fs::read_dir("externals"));
     }
 
     pub fn load_texture_datas(&mut self, renderer_data: &RendererData) {
