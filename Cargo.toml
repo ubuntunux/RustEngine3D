@@ -35,10 +35,46 @@ ndk-glue = "0.2"
 
 [package.metadata.android]
 apk_label = "RustEngine3D"
+#android_version = 29
+#target_sdk_version = 29
+#min_sdk_version = 26
 assets = "resource"
+#package_name = "rust.cargo.apk.advanced"
+#res = "resource"
+#fullscreen = false
+#icon = "@mipmap/ic_launcher"
+#opengles_version_major = 3
+#opengles_version_minor = 2
 build_targets = [
     "armv7-linux-androideabi",
     "aarch64-linux-android",
     "i686-linux-android",
     "x86_64-linux-android"
 ]
+
+#[package.metadata.android.activity_attributes]
+#"android:screenOrientation" = "unspecified"
+#"android:uiOptions" = "none"
+
+#[[package.metadata.android.feature]]
+#name = "android.hardware.camera"
+
+[[package.metadata.android.feature]]
+name = "android.hardware.vulkan.level"
+version = "1"
+required = true
+
+[[package.metadata.android.permission]]
+name = "android.permission.WRITE_EXTERNAL_STORAGE"
+#max_sdk_version = 18
+
+[[package.metadata.android.permission]]
+name = "android.permission.READ_EXTERNAL_STORAGE"
+#max_sdk_version = 18
+
+[[package.metadata.android.permission]]
+name = "android.permission.MANAGE_EXTERNAL_STORAGE"
+#max_sdk_version = 18
+
+#[[package.metadata.android.permission]]
+#name = "android.permission.CAMERA"
