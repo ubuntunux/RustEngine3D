@@ -8,7 +8,6 @@ use nalgebra::{
 use winit::event::{
     ElementState,
     Event,
-    ModifiersState,
     MouseButton,
     MouseScrollDelta,
     Touch,
@@ -22,7 +21,6 @@ use winit::event_loop::{
 };
 use winit::dpi;
 use winit::window::{ WindowBuilder };
-use winit_input_helper::WinitInputHelper;
 
 use crate::constants;
 use crate::application::{scene_manager, SceneManagerData};
@@ -121,7 +119,7 @@ impl ApplicationData {
         self._keyboard_input_data.clear_key_released();
     }
 
-    pub fn update_event(&mut self, scene_manager_data: &SceneManagerData, input_helper: &WinitInputHelper) {
+    pub fn update_event(&mut self, scene_manager_data: &SceneManagerData) {
         let renderer_data: *mut RendererData = scene_manager_data._renderer_data.as_ptr();
 
         let delta_time = self._time_data._delta_time;
@@ -227,7 +225,6 @@ pub fn run_application() {
     let app_name: &str = "RustEngine3D";
     let app_version: u32 = 1;
     let window_size: (u32, u32) = (800, 600);
-    let mut input_helper = WinitInputHelper::new();
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -298,9 +295,6 @@ pub fn run_application() {
             initialize_done = true;
         }
 
-        // update input
-        input_helper.update(&event);
-
         match event {
             #[cfg(target_os = "android")]
             Event::Resumed => {
@@ -334,7 +328,7 @@ pub fn run_application() {
                     let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
 
                     // exit
-                    if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
+                    if application_data._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
                         *control_flow = ControlFlow::Exit;
                         application_data.terminate_applicateion(
                             &mut scene_manager_data,
@@ -346,7 +340,7 @@ pub fn run_application() {
                     }
 
                     // update event
-                    application_data.update_event(&scene_manager_data, &input_helper);
+                    application_data.update_event(&scene_manager_data);
 
                     // update timer
                     application_data._time_data.update_time_data(&time_instance);
@@ -422,12 +416,27 @@ pub fn run_application() {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     let mouse_input_data = &mut application_data._mouse_input_data;
 
-                    if phase == TouchPhase::Started {
-                        mouse_input_data.btn_r_pressed(true);
-                    } else if phase == TouchPhase::Ended {
-                        mouse_input_data.btn_r_pressed(false);
+                    if 0 == id {
+                        if phase == TouchPhase::Started {
+                            mouse_input_data.btn_r_pressed(true);
+                        } else if phase == TouchPhase::Ended {
+                            mouse_input_data.btn_r_pressed(false);
+                        } else if phase == TouchPhase::Moved {
+                            application_data._mouse_move_data.update_mouse_move(&location.into());
+                        }
+                    } else if 1 == id {
+                        if phase == TouchPhase::Started {
+                            application_data._keyboard_input_data.set_key_pressed(VirtualKeyCode::W);
+                        } else if phase == TouchPhase::Ended {
+                            application_data._keyboard_input_data.set_key_released(VirtualKeyCode::W);
+                        }
+                    } else if 2 == id {
+                        if phase == TouchPhase::Started {
+                            application_data._keyboard_input_data.set_key_pressed(VirtualKeyCode::S);
+                        } else if phase == TouchPhase::Ended {
+                            application_data._keyboard_input_data.set_key_released(VirtualKeyCode::S);
+                        }
                     }
-                    application_data._mouse_move_data.update_mouse_move(&location.into());
                 }
                 _ => (),
             },
