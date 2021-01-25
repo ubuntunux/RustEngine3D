@@ -6,11 +6,15 @@ use nalgebra::{
     Vector3,
 };
 use winit::event::{
-    Event,
-    VirtualKeyCode,
-    WindowEvent,
-    //ModifiersState,
     ElementState,
+    Event,
+    ModifiersState,
+    MouseButton,
+    MouseScrollDelta,
+    Touch,
+    TouchPhase,
+    VirtualKeyCode,
+    WindowEvent
 };
 use winit::event_loop::{
     ControlFlow,
@@ -261,26 +265,6 @@ pub fn run_application() {
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
     event_loop.run(move |event, __window_target, control_flow|{
-        if run_application {
-            if input_helper.update(&event) {
-                let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
-                if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
-                    *control_flow = ControlFlow::Exit;
-                    application_data.terminate_applicateion(
-                        &mut scene_manager_data,
-                        &mut maybe_resources.as_ref().unwrap().borrow_mut(),
-                        &mut renderer_data,
-                    );
-                    run_application = false;
-                    return;
-                }
-                application_data.update_event(&scene_manager_data, &input_helper);
-                application_data.clear_keyboard_events();
-            }
-        }
-
         if need_initialize {
             let elapsed_time = time_instance.elapsed().as_secs_f64();
             let (width, height) = window_size;
@@ -330,6 +314,9 @@ pub fn run_application() {
             initialize_done = true;
         }
 
+        // update input
+        input_helper.update(&event);
+
         match event {
             #[cfg(target_os = "android")]
             Event::Resumed => {
@@ -345,6 +332,15 @@ pub fn run_application() {
                 if run_application {
                     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                     renderer_data.device_wait_idle();
+                    renderer_data.set_need_recreate_swapchain(true);
+                    run_application = false;
+                }
+            },
+            Event::NewEvents(_) => {
+                // reset input states on new frame
+                if run_application {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    application_data.clear_keyboard_events();
                 }
             },
             Event::MainEventsCleared => {
@@ -352,11 +348,29 @@ pub fn run_application() {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                     let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+
+                    // exit
+                    if input_helper.key_released(VirtualKeyCode::Escape) || input_helper.quit() {
+                        *control_flow = ControlFlow::Exit;
+                        application_data.terminate_applicateion(
+                            &mut scene_manager_data,
+                            &mut maybe_resources.as_ref().unwrap().borrow_mut(),
+                            &mut renderer_data,
+                        );
+                        run_application = false;
+                        return;
+                    }
+
+                    // update event
+                    application_data.update_event(&scene_manager_data, &input_helper);
+
+                    // update timer
                     application_data._time_data.update_time_data(&time_instance);
                     let elapsed_time = application_data._time_data._elapsed_time;
                     let delta_time = application_data._time_data._delta_time;
                     let elapsed_frame = application_data._time_data._elapsed_frame;
 
+                    // update && render
                     if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
                         if false == renderer_data.get_is_first_resize_event() {
                             scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
@@ -373,7 +387,7 @@ pub fn run_application() {
                     scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
                     renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time, elapsed_frame);
                 }
-            }
+            },
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                 },
@@ -387,20 +401,20 @@ pub fn run_application() {
                         }
                     }
                 },
-                // WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
-                //     if state == ElementState::Pressed {
-                //         is_left_clicked = Some(true);
-                //     } else {
-                //         is_left_clicked = Some(false);
-                //     }
-                // }
-                // WindowEvent::CursorMoved { position, .. } => {
-                //     let position: (i32, i32) = position.into();
-                //     cursor_position = Some([position.0, position.1]);
-                // }
-                // WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, v_lines), .. } => {
-                //     wheel_delta = Some(v_lines);
-                // }
+                WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
+                    // if state == ElementState::Pressed {
+                    //     is_left_clicked = Some(true);
+                    // } else {
+                    //     is_left_clicked = Some(false);
+                    // }
+                }
+                WindowEvent::CursorMoved { position, .. } => {
+                    // let position: (i32, i32) = position.into();
+                    // cursor_position = Some([position.0, position.1]);
+                }
+                WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, v_lines), .. } => {
+                    // wheel_delta = Some(v_lines);
+                }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
                         let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
@@ -416,10 +430,25 @@ pub fn run_application() {
                         }
                     }
                 }
-                _ => { },
+                WindowEvent::Touch(Touch { location, phase, .. }) => {
+                    // let position: (i32, i32) = location.into();
+                    // cursor_position = Some([-position.0, -position.1]);
+                    // if phase == TouchPhase::Started {
+                    //     last_position = cursor_position.unwrap();
+                    //     is_left_clicked = Some(true);
+                    // } else if phase == TouchPhase::Ended {
+                    //     is_left_clicked = Some(false);
+                    // }
+                }
+                _ => (),
             },
-            Event::RedrawEventsCleared => { },
-            _ => { },
+            Event::RedrawEventsCleared => {
+            },
+            Event::LoopDestroyed => {
+                let renderer_data = maybe_renderer_data.as_ref().unwrap().borrow();
+                renderer_data.device_wait_idle();
+            }
+            _ => (),
         }
     });
 }

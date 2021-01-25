@@ -944,12 +944,18 @@ impl RendererData {
             let render_finished_semaphore = self._render_finished_semaphores[frame_index];
 
             // Begin Render
-            let (swapchain_index, is_swapchain_suboptimal) = self._swapchain_interface.acquire_next_image(
+            let acquire_next_image_result: VkResult<(u32, bool)> = self._swapchain_interface.acquire_next_image(
                 self._swapchain_data._swapchain,
                 std::u64::MAX,
                 image_available_semaphore,
                 vk::Fence::null()
-            ).unwrap();
+            );
+
+            let (swapchain_index, is_swapchain_suboptimal) = if acquire_next_image_result.is_ok() {
+                acquire_next_image_result.unwrap()
+            } else {
+                (0, true)
+            };
 
             self._swapchain_index = swapchain_index;
 
