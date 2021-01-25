@@ -88,7 +88,7 @@ pub fn create_mouse_input_data() -> Box<MouseInputData> {
 }
 
 impl MouseMoveData {
-    pub fn clear_mouse_move(&mut self) {
+    pub fn clear_mouse_move_delta(&mut self) {
         self._mouse_pos_delta.x = 0;
         self._mouse_pos_delta.y = 0;
     }

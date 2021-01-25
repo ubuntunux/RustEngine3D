@@ -113,7 +113,7 @@ impl ApplicationData {
     }
 
     pub fn clear_input_events(&mut self) {
-        self._mouse_move_data.clear_mouse_move();
+        self._mouse_move_data.clear_mouse_move_delta();
         self._mouse_input_data.clear_mouse_input();
         self._keyboard_input_data.clear_key_pressed();
         self._keyboard_input_data.clear_key_released();
@@ -169,8 +169,11 @@ impl ApplicationData {
             }
         }
 
-        // rotate sun
-        let rotation_speed = 1.0 * delta_time as f32;
+        #[cfg(target_os = "android")]
+        let rotation_speed = 0.02 * delta_time as f32;
+        #[cfg(not(target_os = "android"))]
+        let rotation_speed = delta_time as f32;
+
         if pressed_key_comma {
             main_light._transform_object.rotation_pitch(rotation_speed);
         } else if pressed_key_period {
@@ -224,7 +227,8 @@ pub fn run_application() {
 
     let app_name: &str = "RustEngine3D";
     let app_version: u32 = 1;
-    let window_size: (u32, u32) = (800, 600);
+    let window_size: (u32, u32) = (1024, 768);
+
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -298,7 +302,7 @@ pub fn run_application() {
         match event {
             #[cfg(target_os = "android")]
             Event::Resumed => {
-                log::debug!("Application was resumed");
+                log::info!("Application was resumed");
                 if false == initialize_done {
                     need_initialize = true;
                 }
@@ -306,13 +310,13 @@ pub fn run_application() {
             // Destroy app on suspend for android target.
             #[cfg(target_os = "android")]
             Event::Suspended => {
-                log::debug!("Application was suspended");
-                if run_application {
-                    let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                    renderer_data.device_wait_idle();
-                    renderer_data.set_need_recreate_swapchain(true);
-                    run_application = false;
-                }
+                log::info!("Application was suspended");
+                // if run_application {
+                //     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                //     renderer_data.device_wait_idle();
+                //     renderer_data.set_need_recreate_swapchain(true);
+                //     run_application = false;
+                // }
             },
             Event::NewEvents(_) => {
                 // reset input states on new frame
@@ -369,7 +373,9 @@ pub fn run_application() {
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                 },
-                WindowEvent::Resized { .. } => {
+                WindowEvent::Resized(size) => {
+                    log::debug!("Resized: {:?}", size);
+
                     if run_application {
                         let application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                         let elapsed_frame = application_data._time_data._elapsed_frame;
@@ -414,27 +420,21 @@ pub fn run_application() {
                 }
                 WindowEvent::Touch(Touch { device_id, phase, location, force, id }) => {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    let mouse_input_data = &mut application_data._mouse_input_data;
 
                     if 0 == id {
+                        application_data._mouse_move_data.update_mouse_move(&location.into());
+
                         if phase == TouchPhase::Started {
-                            mouse_input_data.btn_r_pressed(true);
+                            application_data._mouse_input_data.btn_r_pressed(true);
+                            application_data._mouse_move_data.clear_mouse_move_delta();
                         } else if phase == TouchPhase::Ended {
-                            mouse_input_data.btn_r_pressed(false);
-                        } else if phase == TouchPhase::Moved {
-                            application_data._mouse_move_data.update_mouse_move(&location.into());
+                            application_data._mouse_input_data.btn_r_pressed(false);
                         }
                     } else if 1 == id {
                         if phase == TouchPhase::Started {
                             application_data._keyboard_input_data.set_key_pressed(VirtualKeyCode::W);
                         } else if phase == TouchPhase::Ended {
                             application_data._keyboard_input_data.set_key_released(VirtualKeyCode::W);
-                        }
-                    } else if 2 == id {
-                        if phase == TouchPhase::Started {
-                            application_data._keyboard_input_data.set_key_pressed(VirtualKeyCode::S);
-                        } else if phase == TouchPhase::Ended {
-                            application_data._keyboard_input_data.set_key_released(VirtualKeyCode::S);
                         }
                     }
                 }

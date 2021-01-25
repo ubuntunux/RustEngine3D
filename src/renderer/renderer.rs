@@ -905,8 +905,19 @@ impl RendererData {
             };
 
             let is_swapchain_suboptimal: VkResult<bool> = self._swapchain_interface.queue_present(self.get_present_queue(), &present_info);
+            if let Err(present_error) = is_swapchain_suboptimal {
+                log::debug!("present_error: {:?}", present_error);
+            }
+
             // waiting
-            self._device.device_wait_idle().expect("failed to device_wait_idle");
+            match self._device.device_wait_idle() {
+                Err(e) => {
+                    log::debug!("device_wait_idle: {:?}", e);
+                    return VkResult::Err(e)
+                },
+                _ => ()
+            }
+
             is_swapchain_suboptimal
         }
     }
