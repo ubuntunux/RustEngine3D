@@ -24,7 +24,6 @@ pub struct KeyboardInputData {
 #[derive(Clone)]
 pub struct MouseMoveData {
     pub _mouse_pos: Vector2<i32>,
-    pub _mouse_pos_prev: Vector2<i32>,
     pub _mouse_pos_delta: Vector2<i32>,
     pub _scroll_xoffset: f32,
     pub _scroll_yoffset: f32
@@ -32,12 +31,31 @@ pub struct MouseMoveData {
 
 #[derive(Clone)]
 pub struct MouseInputData {
-    pub _btn_l_down: bool,
-    pub _btn_m_down: bool,
-    pub _btn_r_down: bool,
-    pub _btn_l_up: bool,
-    pub _btn_m_up: bool,
-    pub _btn_r_up: bool
+    pub _btn_l_pressed: bool,
+    pub _btn_m_pressed: bool,
+    pub _btn_r_pressed: bool,
+    pub _btn_l_hold: bool,
+    pub _btn_m_hold: bool,
+    pub _btn_r_hold: bool,
+    pub _btn_l_released: bool,
+    pub _btn_m_released: bool,
+    pub _btn_r_released: bool
+}
+
+impl Default for MouseInputData {
+    fn default() -> MouseInputData {
+        MouseInputData {
+            _btn_l_pressed: false,
+            _btn_m_pressed: false,
+            _btn_r_pressed: false,
+            _btn_l_hold: false,
+            _btn_m_hold: false,
+            _btn_r_hold: false,
+            _btn_l_released: false,
+            _btn_m_released: false,
+            _btn_r_released: false,
+        }
+    }
 }
 
 pub fn create_keyboard_input_data() -> Box<KeyboardInputData> {
@@ -59,7 +77,6 @@ pub fn create_mouse_move_data((width, height): (u32, u32)) -> Box<MouseMoveData>
     let mouse_pos = Vector2::new(width as i32, height as i32);
     Box::new(MouseMoveData {
         _mouse_pos: mouse_pos.clone(),
-        _mouse_pos_prev: mouse_pos.clone(),
         _mouse_pos_delta: Vector2::new(0, 0),
         _scroll_xoffset: 0.0,
         _scroll_yoffset: 0.0,
@@ -67,14 +84,50 @@ pub fn create_mouse_move_data((width, height): (u32, u32)) -> Box<MouseMoveData>
 }
 
 pub fn create_mouse_input_data() -> Box<MouseInputData> {
-    Box::new(MouseInputData {
-        _btn_l_down: false,
-        _btn_m_down: false,
-        _btn_r_down: false,
-        _btn_l_up: false,
-        _btn_m_up: false,
-        _btn_r_up: false,
-    })
+    Box::new(MouseInputData::default())
+}
+
+impl MouseMoveData {
+    pub fn clear_mouse_move(&mut self) {
+        self._mouse_pos_delta.x = 0;
+        self._mouse_pos_delta.y = 0;
+    }
+
+    pub fn update_mouse_move(&mut self, position: &(i32, i32)) {
+        self._mouse_pos_delta.x += position.0 - self._mouse_pos.x;
+        self._mouse_pos_delta.y += position.1 - self._mouse_pos.y;
+        self._mouse_pos.x = position.0;
+        self._mouse_pos.y = position.1;
+    }
+}
+
+impl MouseInputData {
+    pub fn clear_mouse_input(&mut self) {
+        self._btn_l_pressed = false;
+        self._btn_m_pressed = false;
+        self._btn_r_pressed = false;
+        self._btn_l_released = false;
+        self._btn_m_released = false;
+        self._btn_r_released = false;
+    }
+
+    pub fn btn_l_pressed(&mut self, pressed: bool) {
+        self._btn_l_pressed = pressed;
+        self._btn_l_hold = pressed;
+        self._btn_l_released = !pressed;
+    }
+
+    pub fn btn_r_pressed(&mut self, pressed: bool) {
+        self._btn_r_pressed = pressed;
+        self._btn_r_hold = pressed;
+        self._btn_r_released = !pressed;
+    }
+
+    pub fn btn_m_pressed(&mut self, pressed: bool) {
+        self._btn_m_pressed = pressed;
+        self._btn_m_hold = pressed;
+        self._btn_m_released = !pressed;
+    }
 }
 
 impl KeyboardInputData {

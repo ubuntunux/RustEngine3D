@@ -114,28 +114,23 @@ impl ApplicationData {
         renderer_data.destroy_renderer_data();
     }
 
-    pub fn clear_keyboard_events(&mut self) {
+    pub fn clear_input_events(&mut self) {
+        self._mouse_move_data.clear_mouse_move();
+        self._mouse_input_data.clear_mouse_input();
         self._keyboard_input_data.clear_key_pressed();
         self._keyboard_input_data.clear_key_released();
     }
 
     pub fn update_event(&mut self, scene_manager_data: &SceneManagerData, input_helper: &WinitInputHelper) {
-        // TODO: Use Queue or Stack for IO Events
-        // let keyboard_input_data = self._keyboard_input_data.borrow();
-        //let mouse_move_data: &mut input::MouseMoveData = &mut self._mouse_move_data;
-        // let mouse_input_data = self._mouse_input_data.borrow_mut();
-
         let renderer_data: *mut RendererData = scene_manager_data._renderer_data.as_ptr();
 
         let delta_time = self._time_data._delta_time;
-        let (mouse_delta_x, mouse_delta_y)  = input_helper.mouse_diff();
-        let mouse_pos = input_helper.mouse();
-        const MOUSE_LEFT: usize = 0;
-        const MOUSE_RIGHT: usize = 1;
-        const MOUSE_MIDDLE: usize = 2;
-        let btn_left: bool = input_helper.mouse_held(MOUSE_LEFT);
-        let btn_right: bool = input_helper.mouse_held(MOUSE_RIGHT);
-        let btn_middle: bool = input_helper.mouse_held(MOUSE_MIDDLE);
+        let mouse_pos = &self._mouse_move_data._mouse_pos;
+        let mouse_delta_x = self._mouse_move_data._mouse_pos_delta.x;
+        let mouse_delta_y = self._mouse_move_data._mouse_pos_delta.y;
+        let btn_left: bool = self._mouse_input_data._btn_l_hold;
+        let btn_right: bool = self._mouse_input_data._btn_r_hold;
+        let btn_middle: bool = self._mouse_input_data._btn_m_hold;
 
         let pressed_key_a = self._keyboard_input_data.get_key_hold(VirtualKeyCode::A);
         let pressed_key_d = self._keyboard_input_data.get_key_hold(VirtualKeyCode::D);
@@ -155,18 +150,7 @@ impl ApplicationData {
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
         let mut main_light = scene_manager_data._main_light.borrow_mut();
         let camera_move_speed = self._camera_move_speed;
-
-        // released_key_LeftBracket <- getKeyReleased keyboardInputData GLFW.Key'LeftBracket
-        // released_key_RightBracket <- getKeyReleased keyboardInputData GLFW.Key'RightBracket
-        // let mousePosDelta = _mousePosDelta mouseMoveData
-        //     mousePosDeltaX = fromIntegral . unScalar $ (mousePosDelta .! Idx 0) :: Float
-        //     mousePosDeltaY = fromIntegral . unScalar $ (mousePosDelta .! Idx 1) :: Float
-        //     scroll_xoffset = _scroll_xoffset mouseMoveData
-        //     scroll_yoffset = _scroll_yoffset mouseMoveData
-        //     btn_left = _btn_l_down mouseInputData
-        //     btn_middle = _btn_m_down mouseInputData
-        //     btn_right = _btn_r_down mouseInputData
-        let modifier_keys_shift = input_helper.key_held(VirtualKeyCode::LShift);
+        let modifier_keys_shift = self._keyboard_input_data.get_key_hold(VirtualKeyCode::LShift);
         let modified_camera_move_speed = camera_move_speed; // max 0.1 $ min 100.0 (cameraMoveSpeed + scroll_yoffset)
         let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 } * modified_camera_move_speed;
         let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
@@ -199,12 +183,12 @@ impl ApplicationData {
         //     writeIORef _cameraMoveSpeed modifiedCameraMoveSpeed
 
         if btn_left && btn_right {
-            main_camera._transform_object.move_left(-pan_speed * mouse_delta_x);
-            main_camera._transform_object.move_up(pan_speed * mouse_delta_y);
+            main_camera._transform_object.move_left(-pan_speed * mouse_delta_x as f32);
+            main_camera._transform_object.move_up(pan_speed * mouse_delta_y as f32);
         }
         else if btn_right {
-            main_camera._transform_object.rotation_pitch(-rotation_speed * mouse_delta_y);
-            main_camera._transform_object.rotation_yaw(-rotation_speed * mouse_delta_x);
+            main_camera._transform_object.rotation_pitch(-rotation_speed * mouse_delta_y as f32);
+            main_camera._transform_object.rotation_yaw(-rotation_speed * mouse_delta_x as f32);
         }
 
         if pressed_key_z {
@@ -340,7 +324,7 @@ pub fn run_application() {
                 // reset input states on new frame
                 if run_application {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    application_data.clear_keyboard_events();
+                    application_data.clear_input_events();
                 }
             },
             Event::MainEventsCleared => {
@@ -401,16 +385,20 @@ pub fn run_application() {
                         }
                     }
                 },
-                WindowEvent::MouseInput { button: MouseButton::Left, state, .. } => {
-                    // if state == ElementState::Pressed {
-                    //     is_left_clicked = Some(true);
-                    // } else {
-                    //     is_left_clicked = Some(false);
-                    // }
+                WindowEvent::MouseInput { button, state, .. } => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mouse_input_data = &mut application_data._mouse_input_data;
+                    let pressed = state == ElementState::Pressed;
+                    match button {
+                        MouseButton::Left => mouse_input_data.btn_l_pressed(pressed),
+                        MouseButton::Middle => mouse_input_data.btn_m_pressed(pressed),
+                        MouseButton::Right => mouse_input_data.btn_r_pressed(pressed),
+                        _ => (),
+                    }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    // let position: (i32, i32) = position.into();
-                    // cursor_position = Some([position.0, position.1]);
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    application_data._mouse_move_data.update_mouse_move(&position.into());
                 }
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, v_lines), .. } => {
                     // wheel_delta = Some(v_lines);
@@ -430,15 +418,16 @@ pub fn run_application() {
                         }
                     }
                 }
-                WindowEvent::Touch(Touch { location, phase, .. }) => {
-                    // let position: (i32, i32) = location.into();
-                    // cursor_position = Some([-position.0, -position.1]);
-                    // if phase == TouchPhase::Started {
-                    //     last_position = cursor_position.unwrap();
-                    //     is_left_clicked = Some(true);
-                    // } else if phase == TouchPhase::Ended {
-                    //     is_left_clicked = Some(false);
-                    // }
+                WindowEvent::Touch(Touch { device_id, phase, location, force, id }) => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mouse_input_data = &mut application_data._mouse_input_data;
+
+                    if phase == TouchPhase::Started {
+                        mouse_input_data.btn_r_pressed(true);
+                    } else if phase == TouchPhase::Ended {
+                        mouse_input_data.btn_r_pressed(false);
+                    }
+                    application_data._mouse_move_data.update_mouse_move(&location.into());
                 }
                 _ => (),
             },
