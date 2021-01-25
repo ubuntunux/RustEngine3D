@@ -47,20 +47,17 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
     let spirv_file_path: PathBuf = spirv_file_path_with_defines(&shader_filename, &shader_defines);
 
     let force_convert: bool = true;
-    #[cfg(target_os = "android")]
-    let do_convert: bool = false;
     #[cfg(not(target_os = "android"))]
-    let do_convert: bool = force_convert || if spirv_file_path.is_file() {
+    let need_to_compile: bool = force_convert || false == spirv_file_path.is_file() || {
         // TODO : need recursive include file time diff implementation
         let shader_file_metadata = fs::metadata(&shader_file_path).unwrap();
         let spirv_file_metadata = fs::metadata(&spirv_file_path).unwrap();
         spirv_file_metadata.modified().unwrap() < shader_file_metadata.modified().unwrap()
-    } else {
-        true
     };
 
-    // convert glsl -> spirv
-    if do_convert {
+    // compile glsl -> spirv
+    #[cfg(not(target_os = "android"))]
+    if need_to_compile {
         fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
 
         if false == shader_file_path.is_file() {

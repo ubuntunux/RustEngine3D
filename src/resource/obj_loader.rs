@@ -1,7 +1,5 @@
-
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::fs;
 
 use nalgebra::{
     self,
@@ -17,6 +15,8 @@ use crate::vulkan_context::geometry_buffer::{
     VertexData,
 };
 use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::system;
+use std::io::Read;
 
 type Point3 = [u32; 3];
 
@@ -47,129 +47,127 @@ impl WaveFrontOBJ {
     }
 
     fn parse(&mut self, filename: &PathBuf, scale: f32, invert_texcoord_y: bool) {
-        // check is exist file
-        if filename.is_file() {
-            // load OBJ file
-            let default_name: String = String::from(filename.file_stem().unwrap().to_str().unwrap());
-            let mut pre_fix: &str = "";
+        // load OBJ file
+        let default_name: String = String::from(filename.file_stem().unwrap().to_str().unwrap());
+        let mut pre_fix: &str = "";
+        let mut load_contents = system::load(filename);
+        let mut contents: String = String::new();
+        load_contents.read_to_string(&mut contents).expect("failed to parse");
+        let lines = contents.lines();
+        for content in lines {
+            // is comment?
+            if content.is_empty() || content.starts_with("#") {
+                continue;
+            }
 
-            let contents = fs::read_to_string(filename).expect("Failed to read to string.");
-            let lines = contents.lines();
-            for content in lines {
-                // is comment?
-                if content.is_empty() || content.starts_with("#") {
-                    continue;
+            let values: Vec<&str> = content.split(" ").into_iter().filter(|x| { false == x.is_empty() }).collect();
+            if values.len() < 2 {
+                continue;
+            }
+
+            // start to paring a new mesh.
+            let head: &str = values[0];
+            let values: Vec<&str> = values[1..].to_vec();
+            if self.meshes.is_empty() || ("f" == pre_fix && "f" != head && "s" != head) {
+                self.meshes.push(MeshObject {
+                    name: default_name.clone(),
+                    group_name: String::new(),
+                    mtl_name: String::new(),
+                    indices: Vec::new(),
+                });
+            }
+            let mesh_count: usize = self.meshes.len();
+            let mut mesh_object: &mut MeshObject = &mut self.meshes[mesh_count - 1];
+
+            // first strings
+            pre_fix = head;
+
+            if "o" == pre_fix {
+                mesh_object.name = String::from(values.join(" "));
+            } else if "g" == pre_fix {
+                mesh_object.group_name = String::from(values.join(" "));
+                if mesh_object.name.is_empty() {
+                    mesh_object.name = mesh_object.group_name.clone();
+                }
+            } else if pre_fix == "mtllib" {
+                // TODO : Parsing mtllib
+            } else if "v" == pre_fix && 3 <= values.len() {
+                // vertex position, apply scale
+                self.positions.push(Vector3::new(
+                    values[0].parse::<f32>().unwrap() * scale,
+                    values[1].parse::<f32>().unwrap() * scale,
+                    values[2].parse::<f32>().unwrap() * scale,
+                ));
+            } else if "vn" == pre_fix && 3 <= values.len() {
+                // vertex normal
+                self.normals.push(Vector3::new(
+                    values[0].parse::<f32>().unwrap(),
+                    values[1].parse::<f32>().unwrap(),
+                    values[2].parse::<f32>().unwrap(),
+                ));
+            } else if "vt" == pre_fix && 2 <= values.len() {
+                // texture coordinate
+                let texcoord_y = values[1].parse::<f32>().unwrap();
+                self.texcoords.push(Vector2::new(
+                    values[0].parse::<f32>().unwrap(),
+                    if invert_texcoord_y { 1.0 - texcoord_y } else { texcoord_y },
+                ));
+            } else if "usemtl" == pre_fix || "usemat" == pre_fix {
+                // material name
+                mesh_object.mtl_name = String::from(values.join(" "));
+                if mesh_object.name.is_empty() {
+                    mesh_object.name = mesh_object.mtl_name.clone();
+                }
+            } else if pre_fix == "f" {
+                // faces
+                let mut pos_indices: Vec<u32> = Vec::new();
+                let mut normal_indices: Vec<u32> = Vec::new();
+                let mut tex_indices: Vec<u32> = Vec::new();
+
+                // parsing index data
+                for indices in values.iter() {
+                    let indices: Vec<u32> = indices
+                        .split("/")
+                        .into_iter()
+                        .map(|x| if x.is_empty() { 0 } else { x.trim().parse::<u32>().unwrap() - 1 })
+                        .collect();
+                    // insert vertex, texcoord, normal index
+                    let len_index = indices.len();
+                    pos_indices.push(indices[0]);
+
+                    if 1 < len_index {
+                        tex_indices.push(indices[1]);
+                    } else {
+                        tex_indices.push(0);
+                    }
+
+                    if 2 < len_index {
+                        normal_indices.push(indices[2]);
+                    } else {
+                        normal_indices.push(0);
+                    }
                 }
 
-                let values: Vec<&str> = content.split(" ").into_iter().filter(|x| { false == x.is_empty() }).collect();
-                if values.len() < 2 {
-                    continue;
+                // push face list
+                if 3 == pos_indices.len() {
+                    mesh_object.indices.push((
+                        [pos_indices[0], pos_indices[1], pos_indices[2]],
+                        [normal_indices[0], normal_indices[1], normal_indices[2]],
+                        [tex_indices[0], tex_indices[1], tex_indices[2]],
+                    ));
                 }
-
-                // start to paring a new mesh.
-                let head: &str = values[0];
-                let values: Vec<&str> = values[1..].to_vec();
-                if self.meshes.is_empty() || ("f" == pre_fix && "f" != head && "s" != head) {
-                    self.meshes.push(MeshObject {
-                        name: default_name.clone(),
-                        group_name: String::new(),
-                        mtl_name: String::new(),
-                        indices: Vec::new(),
-                    });
-                }
-                let mesh_count: usize = self.meshes.len();
-                let mut mesh_object: &mut MeshObject = &mut self.meshes[mesh_count - 1];
-
-                // first strings
-                pre_fix = head;
-
-                if "o" == pre_fix {
-                    mesh_object.name = String::from(values.join(" "));
-                } else if "g" == pre_fix {
-                    mesh_object.group_name = String::from(values.join(" "));
-                    if mesh_object.name.is_empty() {
-                        mesh_object.name = mesh_object.group_name.clone();
-                    }
-                } else if pre_fix == "mtllib" {
-                    // TODO : Parsing mtllib
-                } else if "v" == pre_fix && 3 <= values.len() {
-                    // vertex position, apply scale
-                    self.positions.push(Vector3::new(
-                        values[0].parse::<f32>().unwrap() * scale,
-                        values[1].parse::<f32>().unwrap() * scale,
-                        values[2].parse::<f32>().unwrap() * scale,
+                // Quad to Two Triangles.
+                else if 4 == pos_indices.len() {
+                    mesh_object.indices.push((
+                        [pos_indices[0], pos_indices[1], pos_indices[2]],
+                        [normal_indices[0], normal_indices[1], normal_indices[2]],
+                        [tex_indices[0], tex_indices[1], tex_indices[2]],
                     ));
-                } else if "vn" == pre_fix && 3 <= values.len() {
-                    // vertex normal
-                    self.normals.push(Vector3::new(
-                        values[0].parse::<f32>().unwrap(),
-                        values[1].parse::<f32>().unwrap(),
-                        values[2].parse::<f32>().unwrap(),
+                    mesh_object.indices.push((
+                        [pos_indices[2], pos_indices[3], pos_indices[0]],
+                        [normal_indices[2], normal_indices[3], normal_indices[0]],
+                        [tex_indices[2], tex_indices[3], tex_indices[0]],
                     ));
-                } else if "vt" == pre_fix && 2 <= values.len() {
-                    // texture coordinate
-                    let texcoord_y = values[1].parse::<f32>().unwrap();
-                    self.texcoords.push(Vector2::new(
-                        values[0].parse::<f32>().unwrap(),
-                        if invert_texcoord_y { 1.0 - texcoord_y } else { texcoord_y },
-                    ));
-                } else if "usemtl" == pre_fix || "usemat" == pre_fix {
-                    // material name
-                    mesh_object.mtl_name = String::from(values.join(" "));
-                    if mesh_object.name.is_empty() {
-                        mesh_object.name = mesh_object.mtl_name.clone();
-                    }
-                } else if pre_fix == "f" {
-                    // faces
-                    let mut pos_indices: Vec<u32> = Vec::new();
-                    let mut normal_indices: Vec<u32> = Vec::new();
-                    let mut tex_indices: Vec<u32> = Vec::new();
-
-                    // parsing index data
-                    for indices in values.iter() {
-                        let indices: Vec<u32> = indices
-                            .split("/")
-                            .into_iter()
-                            .map(|x| if x.is_empty() { 0 } else { x.trim().parse::<u32>().unwrap() - 1 })
-                            .collect();
-                        // insert vertex, texcoord, normal index
-                        let len_index = indices.len();
-                        pos_indices.push(indices[0]);
-
-                        if 1 < len_index {
-                            tex_indices.push(indices[1]);
-                        } else {
-                            tex_indices.push(0);
-                        }
-
-                        if 2 < len_index {
-                            normal_indices.push(indices[2]);
-                        } else {
-                            normal_indices.push(0);
-                        }
-                    }
-
-                    // push face list
-                    if 3 == pos_indices.len() {
-                        mesh_object.indices.push((
-                            [pos_indices[0], pos_indices[1], pos_indices[2]],
-                            [normal_indices[0], normal_indices[1], normal_indices[2]],
-                            [tex_indices[0], tex_indices[1], tex_indices[2]],
-                        ));
-                    }
-                    // Quad to Two Triangles.
-                    else if 4 == pos_indices.len() {
-                        mesh_object.indices.push((
-                            [pos_indices[0], pos_indices[1], pos_indices[2]],
-                            [normal_indices[0], normal_indices[1], normal_indices[2]],
-                            [tex_indices[0], tex_indices[1], tex_indices[2]],
-                        ));
-                        mesh_object.indices.push((
-                            [pos_indices[2], pos_indices[3], pos_indices[0]],
-                            [normal_indices[2], normal_indices[3], normal_indices[0]],
-                            [tex_indices[2], tex_indices[3], tex_indices[0]],
-                        ));
-                    }
                 }
             }
         }
