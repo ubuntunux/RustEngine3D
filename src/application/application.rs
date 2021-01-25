@@ -445,8 +445,7 @@ pub fn run_application() {
             Event::RedrawEventsCleared => {
             },
             Event::LoopDestroyed => {
-                let renderer_data = maybe_renderer_data.as_ref().unwrap().borrow();
-                renderer_data.device_wait_idle();
+                log::debug!("Application destroyed");
             }
             _ => (),
         }
