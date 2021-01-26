@@ -3,7 +3,6 @@
     "texture_spectrum_1_2": "fft_ocean/spectrum_1_2",
     "texture_spectrum_3_4": "fft_ocean/spectrum_3_4",
     "texture_butterfly": "fft_ocean/butterfly",
-    "texture_probe": "common/default_cube",
     "texture_noise": "common/noise",
     "texture_caustic": "common/water_caustic",
     "texture_foam": "common/water_foam",

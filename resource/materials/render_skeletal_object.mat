@@ -5,7 +5,6 @@
 , "material_parameters": { "textureBase": "common/default"
                          , "textureMaterial": "common/default_m"
                          , "textureNormal": "common/default_n"
-                         , "texture_probe": "common/default_cube"
                          , "ibl_brdf_lut": "common/ibl_brdf_lut"
                          , "transmittance_texture": "precomputed_atmosphere/transmittance"
                          , "irradiance_texture": "precomputed_atmosphere/irradiance"

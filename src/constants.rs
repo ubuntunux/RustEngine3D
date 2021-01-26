@@ -29,8 +29,10 @@ pub const WHOLE_LAYERS: u32 = std::u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = std::u32::MAX;
 pub const SWAPCHAIN_IMAGE_COUNT: usize = 3;
 pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2];
-pub const SWAPCHAIN_IMAGE_FORMAT:vk::Format = vk::Format::R8G8B8A8_SRGB;
-pub const SWAPCHAIN_COLOR_SPACE:vk::ColorSpaceKHR = vk::ColorSpaceKHR::SRGB_NONLINEAR;
+pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
+    vk::SurfaceFormatKHR { format: vk::Format::R8G8B8A8_SRGB, color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR },
+    vk::SurfaceFormatKHR { format: vk::Format::B8G8R8A8_SRGB, color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR },
+];
 pub const MAX_FRAME_COUNT: usize = 2;
 pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
 pub const MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 100;

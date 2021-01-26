@@ -185,8 +185,8 @@ pub fn get_render_pass_data_create_info(
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 6,
-                    _descriptor_name: String::from("texture_probe"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColor),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },

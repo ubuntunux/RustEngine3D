@@ -38,18 +38,20 @@ impl SwapchainData {
 
 pub fn choose_swapchain_surface_format(
     swap_chain_support_details: &SwapchainSupportDetails,
-    require_format: vk::Format,
-    require_color_space: vk::ColorSpaceKHR
+    require_surface_formats: &[vk::SurfaceFormatKHR],
 ) -> vk::SurfaceFormatKHR {
-    for format in swap_chain_support_details._formats.iter() {
-        if ((require_format == format.format) || (vk::Format::UNDEFINED == format.format)) && (require_color_space == format.color_space) {
-            return format.clone();
+    for require_surface_format in require_surface_formats.iter() {
+        for format in swap_chain_support_details._formats.iter() {
+            if format.format == require_surface_format.format && format.color_space == require_surface_format.color_space {
+                return require_surface_format.clone();
+            }
         }
     }
-    vk::SurfaceFormatKHR {
-        format: require_format,
-        color_space: require_color_space
+    let mut surface_format = require_surface_formats[0].clone();
+    if 0 < swap_chain_support_details._formats.len() && vk::Format::UNDEFINED != swap_chain_support_details._formats[0].format {
+        surface_format = swap_chain_support_details._formats[0].clone();
     }
+    surface_format
 }
 
 pub fn choose_swapchain_present_mode(swapchain_support_details: &SwapchainSupportDetails) -> vk::PresentModeKHR {
@@ -103,7 +105,7 @@ pub fn create_swapchain_data(
     immediate_mode: bool
 ) -> SwapchainData
 {
-    let surface_format = choose_swapchain_surface_format(swapchain_support_details, constants::SWAPCHAIN_IMAGE_FORMAT, constants::SWAPCHAIN_COLOR_SPACE);
+    let surface_format = choose_swapchain_surface_format(swapchain_support_details, &constants::SWAPCHAIN_SURFACE_FORMATS);
     #[cfg(target_os = "android")]
         let present_mode = if immediate_mode {
         vk::PresentModeKHR::IMMEDIATE
