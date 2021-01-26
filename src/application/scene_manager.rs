@@ -44,7 +44,7 @@ pub fn create_scene_manager_data(
 ) -> RcRefCell<SceneManagerData> {
     let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
     let light_probe_camera_create_info = CameraCreateInfo {
-        fov: 45.0,
+        fov: 90.0,
         window_width: constants::LIGHT_PROBE_SIZE,
         window_height: constants::LIGHT_PROBE_SIZE,
         enable_jitter: false,
@@ -230,12 +230,22 @@ impl SceneManagerData {
     }
 
     pub fn initialize_light_probe_cameras(&mut self) {
-        self._light_probe_cameras[0].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 270.0, 0.0));
-        self._light_probe_cameras[1].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 90.0, 0.0));
-        self._light_probe_cameras[2].borrow_mut()._transform_object.set_rotation(&Vector3::new(-90.0, 180.0, 0.0));
-        self._light_probe_cameras[3].borrow_mut()._transform_object.set_rotation(&Vector3::new(90.0, 180.0, 0.0));
-        self._light_probe_cameras[4].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 180.0, 0.0));
-        self._light_probe_cameras[5].borrow_mut()._transform_object.set_rotation(&Vector3::new(0.0, 0.0, 0.0));
+        let pi = std::f32::consts::PI;
+        let half_pi = std::f32::consts::PI * 0.5;
+        let rotations: [Vector3<f32>; constants::CUBE_LAYER_COUNT] = [
+            Vector3::new(0.0, half_pi, 0.0),
+            Vector3::new(0.0, -half_pi, 0.0),
+            Vector3::new(-half_pi, 0.0, 0.0),
+            Vector3::new(half_pi, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 0.0),
+            Vector3::new(0.0, pi, 0.0)
+        ];
+        let inverse_front = Vector3::new(1.0, 1.0, -1.0);
+        for i in 0..constants::CUBE_LAYER_COUNT {
+            self._light_probe_cameras[i].borrow_mut()._transform_object.set_rotation(&rotations[i]);
+            self._light_probe_cameras[i].borrow_mut()._transform_object.set_scale(&inverse_front);
+            self._light_probe_cameras[i].borrow_mut().update_camera_object_data();
+        }
     }
 
     pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
