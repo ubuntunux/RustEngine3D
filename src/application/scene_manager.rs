@@ -106,7 +106,7 @@ impl SceneManagerData {
         let sphere = self._resources.borrow().get_model_data("sphere").clone();
         self.add_static_render_object("sphere", RenderObjectCreateInfo {
             _model_data: Some(sphere),
-            _position: Vector3::new(0.0, 1.0, 0.0),
+            _position: Vector3::new(-2.0, 1.0, 0.0),
             _scale: Vector3::new(1.0, 1.0, 1.0),
             ..Default::default()
         });
