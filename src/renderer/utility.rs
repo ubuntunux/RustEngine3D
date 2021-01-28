@@ -9,6 +9,7 @@ use crate::vulkan_context::descriptor::{
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
+use crate::vulkan_context::render_pass::RenderPassData;
 
 pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
     vec![a; constants::SWAPCHAIN_IMAGE_COUNT]
@@ -20,13 +21,12 @@ pub fn create_descriptor_image_info_swapchain_array(image_info: vk::DescriptorIm
 
 pub fn create_framebuffer(
     device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
+    render_pass_data: &RenderPassData,
     render_target: &TextureData,
     render_target_layer: u32,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
 ) -> FramebufferData {
-    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
     framebuffer::create_framebuffer_data(
         device,
         render_pass_data._render_pass,
@@ -46,13 +46,12 @@ pub fn create_framebuffer(
 
 pub fn create_framebuffers(
     device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
+    render_pass_data: &RenderPassData,
     framebuffer_name: &str,
     color_render_targets: &[RenderTargetInfo],
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferData {
-    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
     framebuffer::create_framebuffer_data(
         device,
         render_pass_data._render_pass,
@@ -63,12 +62,11 @@ pub fn create_framebuffers(
 
 pub fn create_framebuffer_2d_array(
     device: &Device,
-    pipeline_binding_data: &PipelineBindingData,
+    render_pass_data: &RenderPassData,
     render_target: &TextureData,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
 ) -> FramebufferData {
-    let render_pass_data = pipeline_binding_data._render_pass_pipeline_data._render_pass_data.borrow();
     let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers).map(|layer|
         RenderTargetInfo {
             _texture_data: render_target,
@@ -94,7 +92,7 @@ pub fn create_descriptor_sets(
     pipeline_binding_data: &PipelineBindingData,
     descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)]
 ) -> SwapchainArray<vk::DescriptorSet> {
-    let pipeline_data = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow();
+    let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
     let descriptor_data = &pipeline_data._descriptor_data;
     let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
         descriptor_data_create_info._descriptor_binding_index
@@ -131,7 +129,7 @@ pub fn create_framebuffer_and_descriptor_sets(
 ) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
-        pipeline_binding_data,
+        &pipeline_binding_data.get_render_pass_data().borrow(),
         render_target,
         render_target_layer,
         render_target_miplevel,
@@ -156,7 +154,7 @@ pub fn create_framebuffers_and_descriptor_sets(
 ) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffers(
         device,
-        pipeline_binding_data,
+        &pipeline_binding_data.get_render_pass_data().borrow(),
         framebuffer_name,
         color_render_targets,
         depth_render_targets,

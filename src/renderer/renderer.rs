@@ -1,8 +1,8 @@
-use std::cmp::max;
+use std::cmp::{min, max};
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
-use std::borrow::{ Cow };
+use std::borrow::{Cow};
 use std::ffi::CStr;
 use std::vec::Vec;
 use ash::{
@@ -488,15 +488,12 @@ impl RendererData {
 
     pub fn next_debug_render_target_miplevel(&mut self) {
         let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
-        self._debug_render_target_miplevel = (self._debug_render_target_miplevel + 1) % texture_data._image_mip_levels;
+        self._debug_render_target_miplevel = min(texture_data._image_mip_levels, self._debug_render_target_miplevel + 1);
         log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
     }
 
     pub fn prev_debug_render_target_miplevel(&mut self) {
-        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
-        if 0 == self._debug_render_target_miplevel {
-            self._debug_render_target_miplevel = texture_data._image_mip_levels - 1;
-        } else {
+        if 0 < self._debug_render_target_miplevel {
             self._debug_render_target_miplevel -= 1;
         }
         log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
@@ -601,6 +598,7 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         material_instance_name: &str,
+        render_pass_pipeline_data_name: &str,
         group_count_x: u32,
         group_count_y: u32,
         group_count_z: u32,
@@ -609,14 +607,32 @@ impl RendererData {
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data(material_instance_name).borrow();
-        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
+            material_instance_data.get_default_pipeline_binding_data()
+        } else {
+            material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name)
+        };
+        self.dispatch_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, group_count_x, group_count_y, group_count_z, custom_descriptor_sets, push_constant_data);
+    }
+
+    pub fn dispatch_render_pass_pipeline<T>(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        pipeline_binding_data: &PipelineBindingData,
+        group_count_x: u32,
+        group_count_y: u32,
+        group_count_z: u32,
+        custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
+        push_constant_data: Option<&T>,
+    ) {
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         self.begin_compute_pipeline(command_buffer, pipeline_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
                 command_buffer,
-                &pipeline_data.borrow(),
+                pipeline_data,
                 push_constant_data
             );
         }
@@ -654,14 +670,14 @@ impl RendererData {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&T>,
     ) {
-        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
         self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(
                 command_buffer,
-                &pipeline_data.borrow(),
+                pipeline_data,
                 push_constant_data
             );
         }
@@ -672,10 +688,9 @@ impl RendererData {
     pub fn begin_compute_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
-        pipeline_data: &RcRefCell<PipelineData>,
+        pipeline_data: &PipelineData,
     ) {
         unsafe {
-            let pipeline_data = pipeline_data.borrow();
             self._device.cmd_bind_pipeline(command_buffer, pipeline_data._pipeline_bind_point, pipeline_data._pipeline);
         }
     }
@@ -684,20 +699,19 @@ impl RendererData {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        render_pass_data: &RcRefCell<RenderPassData>,
-        pipeline_data: &RcRefCell<PipelineData>,
+        render_pass_data: &RenderPassData,
+        pipeline_data: &PipelineData,
         custom_framebuffer: Option<&FramebufferData>,
     ) {
         let resources: Ref<Resources> = self._resources.borrow();
-        let render_pass_data: Ref<RenderPassData> = render_pass_data.borrow();
         let framebuffer_data: *const FramebufferData = match custom_framebuffer {
             Some(custom_framebuffer) => custom_framebuffer,
             None => resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).as_ptr()
         };
         unsafe {
             let render_pass_begin_info = (*framebuffer_data)._render_pass_begin_infos[swapchain_index as usize];
-            let pipeline_bind_point = pipeline_data.borrow()._pipeline_bind_point;
-            let pipeline_dynamic_states = &pipeline_data.borrow()._pipeline_dynamic_states;
+            let pipeline_bind_point = pipeline_data._pipeline_bind_point;
+            let pipeline_dynamic_states = &pipeline_data._pipeline_dynamic_states;
             self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
 
             if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
@@ -708,7 +722,7 @@ impl RendererData {
                 self._device.cmd_set_scissor(command_buffer, 0, &[(*framebuffer_data)._framebuffer_info._framebuffer_scissor_rect]);
             }
 
-            self._device.cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline_data.borrow()._pipeline);
+            self._device.cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline_data._pipeline);
         }
     }
 
@@ -718,8 +732,8 @@ impl RendererData {
         swapchain_index: u32,
         pipeline_binding_data: &PipelineBindingData,
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>) {
-        let pipeline_layout = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout;
-        let pipeline_bind_point = pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_bind_point;
+        let pipeline_layout = pipeline_binding_data.get_pipeline_layout();
+        let pipeline_bind_point = pipeline_binding_data.get_pipeline_bind_point();
         let descriptor_sets: &SwapchainArray<vk::DescriptorSet> = match custom_descriptor_sets {
             Some(custom_descriptor_sets) => custom_descriptor_sets,
             None => &pipeline_binding_data._descriptor_sets,
@@ -778,7 +792,7 @@ impl RendererData {
         group_count_z: u32
     ) {
         unsafe {
-            self._device.cmd_dispatch(command_buffer, group_count_x, group_count_y, group_count_z);
+            self._device.cmd_dispatch(command_buffer, max(1, group_count_x), max(1, group_count_y), max(1, group_count_z));
         }
     }
 
@@ -979,6 +993,8 @@ impl RendererData {
                 let mut atmosphere =  scene_manager.get_atmosphere().borrow_mut();
                 let quad_mesh = resources.get_mesh_data("quad").borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
+                let static_render_elements = scene_manager.get_static_render_elements();
+                let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
 
                 // Begin command buffer
                 let command_buffer_begin_info = vk::CommandBufferBeginInfo {
@@ -1010,19 +1026,26 @@ impl RendererData {
                 }
 
                 if self._light_probe_datas._next_refresh_time < elapsed_time {
-                    self.render_light_probe(command_buffer, swapchain_index, &quad_geometry_data, &resources, &scene_manager, &main_camera);
+                    self.render_light_probe(
+                        command_buffer,
+                        swapchain_index,
+                        &quad_geometry_data,
+                        &resources,
+                        &scene_manager,
+                        &main_camera,
+                        static_render_elements,
+                        skeletal_render_elements
+                    );
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 }
 
                 // Render
-                let static_render_elements = scene_manager.get_static_render_elements();
-                let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
-                self.clear_gbuffer(command_buffer, swapchain_index, &resources);
+                self.clear_gbuffer(command_buffer, swapchain_index, &resources, None);
                 self.clear_shadow(command_buffer, swapchain_index, &resources);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements, None);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
 
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
@@ -1045,8 +1068,8 @@ impl RendererData {
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
-                        &render_debug_pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
-                        &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                        &render_debug_pipeline_binding_data.get_render_pass_data().borrow(),
+                        &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
                         None,
                     );
 
@@ -1068,7 +1091,7 @@ impl RendererData {
 
                     self.upload_push_constant_data(
                         command_buffer,
-                        &render_debug_pipeline_binding_data._render_pass_pipeline_data._pipeline_data.borrow(),
+                        &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
                         &PushConstant_RenderDebug {
                             _debug_target: debug_texture_data.get_image_view_type().as_raw() as u32,
                             _mip_level: self._debug_render_target_miplevel,
@@ -1120,8 +1143,8 @@ impl RendererData {
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
-                        &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
-                        &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                        &pipeline_binding_data.get_render_pass_data().borrow(),
+                        &pipeline_binding_data.get_pipeline_data().borrow(),
                         Some(&framebuffers[layer][mip_level])
                     );
                     self.end_render_pass(command_buffer);
@@ -1139,8 +1162,8 @@ impl RendererData {
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
-                        &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
-                        &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+                        &pipeline_binding_data.get_render_pass_data().borrow(),
+                        &pipeline_binding_data.get_pipeline_data().borrow(),
                         Some(&framebuffers[layer][mip_level])
                     );
                     self.end_render_pass(command_buffer);
@@ -1156,11 +1179,16 @@ impl RendererData {
         quad_geometry_data: &GeometryData,
         resources: &Ref<Resources>,
         scene_manager: &RefMut<SceneManagerData>,
-        main_camera: &CameraObjectData
+        main_camera: &CameraObjectData,
+        static_render_elements: &Vec<RenderElementData>,
+        skeletal_render_elements: &Vec<RenderElementData>,
     ) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
         let composite_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
+        let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
+        let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+        let clear_color_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
         let mut light_probe_view_constants = shader_buffer_datas::ViewConstants::default();
         let light_probe_view_constant_types = [
             ShaderBufferDataType::LightProbeViewConstants0,
@@ -1210,6 +1238,48 @@ impl RendererData {
                 Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
                 NONE_PUSH_CONSTANT,
             );
+
+            // downsampling
+            self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
+            let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
+            let mip_levels = mip_level_descriptor_sets.len();
+            for mip_level in 0..mip_levels {
+                let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
+                self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
+                self.dispatch_compute_pipeline(
+                    command_buffer,
+                    self._light_probe_datas._only_sky_downsampling_dispatch_group_x >> (mip_level + 1),
+                    self._light_probe_datas._only_sky_downsampling_dispatch_group_y >> (mip_level + 1),
+                    1
+                );
+            }
+        }
+
+        // render static object for light probe
+        for i in 0..constants::CUBE_LAYER_COUNT {
+            let framebuffer = &self._light_probe_datas._light_probe_forward_framebuffer_datas[i];
+            let maybe_framebuffer = Some(framebuffer);
+            let color_image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
+            let depth_image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
+            let render_pass_pipeline_name = format!("clear_{:?}_{:?}/clear", color_image_format, depth_image_format);
+            let pipeline_binding_data = clear_color_material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+            self.begin_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                &pipeline_binding_data.get_render_pass_data().borrow(),
+                &pipeline_binding_data.get_pipeline_data().borrow(),
+                maybe_framebuffer
+            );
+            self.end_render_pass(command_buffer);
+
+            self.render_solid_object(
+                command_buffer,
+                swapchain_index,
+                RenderMode::Forward,
+                RenderObjectType::Static,
+                static_render_elements,
+                maybe_framebuffer
+            );
         }
     }
 
@@ -1222,19 +1292,28 @@ impl RendererData {
         self.begin_render_pass_pipeline(
             command_buffer,
             swapchain_index,
-            &pipeline_binding_data._render_pass_pipeline_data._render_pass_data,
-            &pipeline_binding_data._render_pass_pipeline_data._pipeline_data,
+            &pipeline_binding_data.get_render_pass_data().borrow(),
+            &pipeline_binding_data.get_pipeline_data().borrow(),
             Some(framebuffer)
         );
         self.end_render_pass(command_buffer);
     }
 
-    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>) {
+    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>, custom_framebuffer: Option<&FramebufferData>) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_gbuffer").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-        let render_pass_data = &pipeline_binding_data._render_pass_pipeline_data._render_pass_data;
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+        let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer);
+        self.end_render_pass(command_buffer);
+    }
+
+    pub fn clear_forward(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>, custom_framebuffer: Option<&FramebufferData>) {
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_forward").borrow();
+        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+        let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer);
         self.end_render_pass(command_buffer);
     }
 
@@ -1244,7 +1323,8 @@ impl RendererData {
         swapchain_index: u32,
         render_mode: RenderMode,
         render_object_type: RenderObjectType,
-        render_elements: &Vec<RenderElementData>
+        render_elements: &Vec<RenderElementData>,
+        custom_framebuffer: Option<&FramebufferData>,
     ) {
         if 0 == render_elements.len() {
             return;
@@ -1267,13 +1347,14 @@ impl RendererData {
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
                 let pipeline_binding_data: *const PipelineBindingData = render_element._material_instance_data.borrow().get_pipeline_binding_data(&render_pass_pipeline_data_name);
-                let render_pass_data = &(*pipeline_binding_data)._render_pass_pipeline_data._render_pass_data;
-                let pipeline_data = &(*pipeline_binding_data)._render_pass_pipeline_data._pipeline_data;
+                let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
+                let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
                 let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
+                let pipeline_data: &PipelineData = &pipeline_data.borrow();
 
                 if prev_pipeline_data != pipeline_data_ptr {
                     prev_pipeline_data = pipeline_data_ptr;
-                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer);
                 }
 
                 if prev_pipeline_binding_data != pipeline_binding_data {
@@ -1285,7 +1366,7 @@ impl RendererData {
                     RenderObjectType::Static => {
                         self.upload_push_constant_data(
                             command_buffer,
-                            &pipeline_data.borrow(),
+                            pipeline_data,
                             &PushConstant_StaticRenderObject {
                                 _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
                             }
@@ -1301,7 +1382,7 @@ impl RendererData {
                         self.upload_shader_buffer_datas_offset(swapchain_index, ShaderBufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
                         self.upload_push_constant_data(
                             command_buffer,
-                            &pipeline_data.borrow(),
+                            pipeline_data,
                             &PushConstant_SkeletalRenderObject {
                                 _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
                                 _bone_matrix_offset: bone_metrices_offset as u32,
@@ -1445,7 +1526,7 @@ impl RendererData {
         // Generate Hierachical Min Z
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._renderer_data_hiz._descriptor_sets.len();
         self.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
@@ -1453,8 +1534,8 @@ impl RendererData {
             self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
             self.dispatch_compute_pipeline(
                 command_buffer,
-                max(1, self._renderer_data_hiz._dispatch_group_x >> (mip_level + 1)),
-                max(1, self._renderer_data_hiz._dispatch_group_y >> (mip_level + 1)),
+                self._renderer_data_hiz._dispatch_group_x >> (mip_level + 1),
+                self._renderer_data_hiz._dispatch_group_y >> (mip_level + 1),
                 1
             );
         }
@@ -1464,7 +1545,7 @@ impl RendererData {
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._scene_color_downsampling._descriptor_sets.len();
         self.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
@@ -1472,8 +1553,8 @@ impl RendererData {
             self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
             self.dispatch_compute_pipeline(
                 command_buffer,
-                max(1, self._scene_color_downsampling._dispatch_group_x >> (mip_level + 1)),
-                max(1, self._scene_color_downsampling._dispatch_group_y >> (mip_level + 1)),
+                self._scene_color_downsampling._dispatch_group_x >> (mip_level + 1),
+                self._scene_color_downsampling._dispatch_group_y >> (mip_level + 1),
                 1
             );
         }

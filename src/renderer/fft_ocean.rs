@@ -298,7 +298,7 @@ impl FFTOcean {
         let device = renderer_data.get_device();
         let mip_level = 0;
         for layer in 0..render_target._image_layers {
-            self._fft_variance_framebuffers.push(utility::create_framebuffer(device, pipeline_binding_data, render_target, layer, mip_level, None))
+            self._fft_variance_framebuffers.push(utility::create_framebuffer(device, &pipeline_binding_data.get_render_pass_data().borrow(), render_target, layer, mip_level, None))
         }
 
         // fft waves
@@ -310,8 +310,8 @@ impl FFTOcean {
 
         // fft wave x
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
-        self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_a, mip_level, None);
-        self._fft_wave_x_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_b, mip_level, None);
+        self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, &pipeline_binding_data.get_render_pass_data().borrow(), texture_fft_a, mip_level, None);
+        self._fft_wave_x_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, &pipeline_binding_data.get_render_pass_data().borrow(), texture_fft_b, mip_level, None);
         let fft_waves_descriptor_binding_index = 1;
         self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
@@ -326,8 +326,8 @@ impl FFTOcean {
 
         // fft wave y
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_y");
-        self._fft_wave_y_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_a, mip_level, None);
-        self._fft_wave_y_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, pipeline_binding_data, texture_fft_b, mip_level, None);
+        self._fft_wave_y_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, &pipeline_binding_data.get_render_pass_data().borrow(), texture_fft_a, mip_level, None);
+        self._fft_wave_y_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, &pipeline_binding_data.get_render_pass_data().borrow(), texture_fft_b, mip_level, None);
         self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
@@ -616,7 +616,7 @@ impl FFTOcean {
         // fft a generate mips
         let material_instance_data = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-        let pipeline_data = &pipeline_binding_data._render_pass_pipeline_data._pipeline_data;
+        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         renderer_data.begin_compute_pipeline(command_buffer, pipeline_data);
         let layer_count = self._fft_a_generate_mips_descriptor_sets.len();
         for layer in 0..layer_count {

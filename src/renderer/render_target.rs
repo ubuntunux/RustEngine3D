@@ -198,6 +198,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
             _texture_name: RenderTargetType::LightProbeDepth.to_string(),
             _texture_width: constants::LIGHT_PROBE_SIZE,
             _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_layers: constants::CUBE_LAYER_COUNT as u32,
+            _texture_view_type: vk::ImageViewType::CUBE,
             _texture_format: vk::Format::D32_SFLOAT,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,

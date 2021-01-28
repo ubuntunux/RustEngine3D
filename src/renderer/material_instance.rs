@@ -8,7 +8,7 @@ use ash::{
 use crate::renderer::material::MaterialData;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-use crate::vulkan_context::render_pass::{ self, RenderPassPipelineData };
+use crate::vulkan_context::render_pass::{self, RenderPassPipelineData, RenderPassData, PipelineData};
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
@@ -29,6 +29,25 @@ pub struct MaterialInstanceData {
     pub _pipeline_binding_data_map: PipelineBindingDataMap,
     pub _default_pipeline_binding_name: String,
 }
+
+impl PipelineBindingData {
+    pub fn get_render_pass_data(&self) -> &RcRefCell<RenderPassData> {
+        &self._render_pass_pipeline_data._render_pass_data
+    }
+
+    pub fn get_pipeline_data(&self) -> &RcRefCell<PipelineData> {
+        &self._render_pass_pipeline_data._pipeline_data
+    }
+
+    pub fn get_pipeline_bind_point(&self) -> vk::PipelineBindPoint {
+        self._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_bind_point
+    }
+
+    pub fn get_pipeline_layout(&self) -> vk::PipelineLayout {
+        self._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout
+    }
+}
+
 
 impl MaterialInstanceData {
     pub fn create_material_instance(

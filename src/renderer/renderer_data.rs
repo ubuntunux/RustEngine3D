@@ -27,6 +27,10 @@ pub struct RendererData_LightProbe {
     pub _composite_atmosphere_framebuffer_datas_only_sky: CubeMapArray<FramebufferData>,
     pub _composite_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
     pub _composite_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
+    pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
+    pub _only_sky_downsampling_dispatch_group_x: u32,
+    pub _only_sky_downsampling_dispatch_group_y: u32,
+    pub _light_probe_forward_framebuffer_datas: CubeMapArray<FramebufferData>,
 }
 
 impl Default for RendererData_LightProbe {
@@ -39,6 +43,10 @@ impl Default for RendererData_LightProbe {
             _composite_atmosphere_framebuffer_datas_only_sky: Vec::new(),
             _composite_atmosphere_framebuffer_datas: Vec::new(),
             _composite_atmosphere_descriptor_sets: Vec::new(),
+            _only_sky_downsampling_descriptor_sets: Vec::new(),
+            _only_sky_downsampling_dispatch_group_x: 1,
+            _only_sky_downsampling_dispatch_group_y: 1,
+            _light_probe_forward_framebuffer_datas: Vec::new(),
         }
     }
 }
@@ -530,7 +538,7 @@ impl RendererData_ClearRenderTargets {
                     framebuffers.last_mut().unwrap().push(
                         utility::create_framebuffers(
                             device,
-                            pipeline_binding_data,
+                            &pipeline_binding_data.get_render_pass_data().borrow(),
                             &render_target._texture_data_name,
                             &[RenderTargetInfo {
                                 _texture_data: &render_target,
@@ -559,7 +567,7 @@ impl RendererData_ClearRenderTargets {
                     framebuffers.last_mut().unwrap().push(
                         utility::create_framebuffers(
                             device,
-                            pipeline_binding_data,
+                            &pipeline_binding_data.get_render_pass_data().borrow(),
                             &depth_target._texture_data_name,
                             &[],
                             &[RenderTargetInfo {
@@ -608,6 +616,7 @@ impl RendererData_LightProbe {
         light_probe_view_constants: &[&ShaderBufferData],
     ) {
         let resources = resources.borrow();
+        let static_forawrd_render_pass_pipeline_data = resources.get_render_pass_pipeline_data("render_pass_static_forward", "render_object");
         let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
         let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
@@ -617,7 +626,7 @@ impl RendererData_LightProbe {
             // render_atmosphere
             self._render_atmosphere_framebuffer_datas.push(utility::create_framebuffers(
                 device,
-                render_atmosphere_pipeline_binding_data,
+                &render_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
                 "render_targets_light_probe",
                 &[
                     RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
@@ -638,7 +647,7 @@ impl RendererData_LightProbe {
             // composite atmosphere
             self._composite_atmosphere_framebuffer_datas_only_sky.push(utility::create_framebuffers(
                 device,
-                composite_atmosphere_pipeline_binding_data,
+                &composite_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
                 "composite_atmosphere_light_probe",
                 &[
                     RenderTargetInfo { _texture_data: &light_probe_color_only_sky, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
@@ -648,7 +657,7 @@ impl RendererData_LightProbe {
             ));
             self._composite_atmosphere_framebuffer_datas.push(utility::create_framebuffers(
                 device,
-                composite_atmosphere_pipeline_binding_data,
+                &composite_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
                 "composite_atmosphere_light_probe",
                 &[
                     RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
@@ -668,6 +677,35 @@ impl RendererData_LightProbe {
                     (16, utility::create_swapchain_array(light_probe_atmosphere_inscatter_image_info.clone())),
                 ]
             ));
+
+            // downsampling only sky texture
+            let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
+            let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+            let dispatch_count: u32 = light_probe_color_only_sky._image_mip_levels - 1;
+            self._only_sky_downsampling_descriptor_sets.push(Vec::new());
+            for mip_level in 0..dispatch_count {
+                let descriptor_sets = utility::create_descriptor_sets(
+                    device,
+                    pipeline_binding_data,
+                    &[
+                        (0, utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky.get_sub_image_info(i as u32, mip_level))),
+                        (1, utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky.get_sub_image_info(i as u32, mip_level + 1))),
+                    ]
+                );
+                self._only_sky_downsampling_descriptor_sets.last_mut().unwrap().push(descriptor_sets);
+            }
+            self._only_sky_downsampling_dispatch_group_x = light_probe_color_only_sky._image_width;
+            self._only_sky_downsampling_dispatch_group_y = light_probe_color_only_sky._image_height;
+
+            // render forward for light probe
+            self._light_probe_forward_framebuffer_datas.push(utility::create_framebuffers(
+                device,
+                &static_forawrd_render_pass_pipeline_data._render_pass_data.borrow(),
+                "light_probe_forward_framebuffer",
+                &[RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
+                &[RenderTargetInfo { _texture_data: &light_probe_scene_depth, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
+                &[],
+            ));
         }
     }
 
@@ -676,13 +714,14 @@ impl RendererData_LightProbe {
             framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_datas[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas_only_sky[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas[i]);
-            self._render_atmosphere_descriptor_sets[i].clear();
-            self._composite_atmosphere_descriptor_sets[i].clear();
+            framebuffer::destroy_framebuffer_data(device, &self._light_probe_forward_framebuffer_datas[i]);
         }
         self._render_atmosphere_framebuffer_datas.clear();
         self._composite_atmosphere_framebuffer_datas_only_sky.clear();
         self._composite_atmosphere_framebuffer_datas.clear();
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
+        self._only_sky_downsampling_descriptor_sets.clear();
+        self._light_probe_forward_framebuffer_datas.clear();
     }
 }

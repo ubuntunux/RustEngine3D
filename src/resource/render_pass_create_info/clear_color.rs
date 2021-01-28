@@ -21,11 +21,16 @@ use crate::vulkan_context::vulkan_context::{
 };
 
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format, depth_format: vk::Format) -> FramebufferDataCreateInfo {
     let render_target_type = match render_target_format {
         vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
         vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,
         vk::Format::R32G32B32A32_SFLOAT => RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+        _ => panic!("Not implemented."),
+    };
+    let depth_format_type = match depth_format {
+        vk::Format::UNDEFINED => None,
+        vk::Format::D32_SFLOAT => Some(RenderTargetType::SceneDepth),
         _ => panic!("Not implemented."),
     };
     framebuffer::create_framebuffer_data_create_info(
@@ -35,14 +40,28 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_tar
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_color_clear_zero()),
         }],
-        &[],
+        &(if depth_format_type.is_some() {
+            vec![RenderTargetInfo {
+                _texture_data: renderer_data.get_render_target(depth_format_type.unwrap()),
+                _target_layer: 0,
+                _target_mip_level: 0,
+                _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
+            }]
+        } else {
+            vec![]
+        }),
         &[]
     )
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format) -> RenderPassDataCreateInfo {
-    let render_pass_name = format!("clear_{:?}", render_target_format);
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_format);
+pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format, depth_format: vk::Format) -> RenderPassDataCreateInfo {
+    let use_depth_target: bool = vk::Format::UNDEFINED != depth_format;
+    let render_pass_name = if use_depth_target {
+        format!("clear_{:?}_{:?}", render_target_format, depth_format)
+    } else {
+        format!("clear_{:?}", render_target_format)
+    };
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_format, depth_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
@@ -59,6 +78,24 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
                 ..Default::default()
             }
         );
+    }
+    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
+    if use_depth_target {
+        for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
+            assert_eq!(depth_format, *format);
+            depth_attachment_descriptions.push(
+                ImageAttachmentDescription {
+                    _attachment_image_format: *format,
+                    _attachment_image_samples: sample_count,
+                    _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
+                    _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+                    _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
+                    _attachment_final_layout: vk::ImageLayout::GENERAL,
+                    _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    ..Default::default()
+                }
+            );
+        }
     }
     let subpass_dependencies = vec![
         vk::SubpassDependency {
@@ -94,7 +131,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,
-        _depth_attachment_descriptions: Vec::new(),
+        _depth_attachment_descriptions: depth_attachment_descriptions,
         _resolve_attachment_descriptions: Vec::new(),
         _subpass_dependencies: subpass_dependencies,
         _pipeline_data_create_infos: pipeline_data_create_infos,

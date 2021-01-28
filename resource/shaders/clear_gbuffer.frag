@@ -12,8 +12,4 @@ layout(location = 1) out vec4 outMaterial;
 layout(location = 2) out vec4 outNormal;
 layout(location = 3) out vec2 outVelocity;
 void main() {
-    outAlbedo = vec4(0.0);
-    outMaterial = vec4(0.0);
-    outNormal = vec4(0.0);
-    outVelocity = vec2(0.0);
 }

@@ -871,7 +871,7 @@ impl Atmosphere {
             self._compute_multiple_scattering_framebuffers.push(
                 utility::create_framebuffers(
                     device,
-                    compute_multiple_scattering_pipeline_binding_data,
+                    &compute_multiple_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
                     "compute_multiple_scattering",
                     &[
                         // DELTA_RAYLEIGH_SCATTERING equal to DELTA_MULTIPLE_SCATTERING_TEXTURE
@@ -893,7 +893,7 @@ impl Atmosphere {
             self._compute_single_scattering_framebuffers.push(
                 utility::create_framebuffers(
                     device,
-                    compute_single_scattering_pipeline_binding_data,
+                    &compute_single_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
                     "compute_single_scattering",
                     &compute_single_scattering_rendertargets,
                     &[],
@@ -904,7 +904,7 @@ impl Atmosphere {
             self._compute_scattering_density_framebuffers.push(
                 utility::create_framebuffers(
                     device,
-                    compute_scattering_density_pipeline_binding_data,
+                    &compute_scattering_density_pipeline_binding_data.get_render_pass_data().borrow(),
                     "compute_scattering_density",
                     &[RenderTargetInfo { _texture_data: &delta_scattering_density, _target_layer: layer, _target_mip_level: 0, _clear_value: None }],
                     &[],
