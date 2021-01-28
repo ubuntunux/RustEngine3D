@@ -702,7 +702,7 @@ impl RendererData_LightProbe {
                 device,
                 &static_forawrd_render_pass_pipeline_data._render_pass_data.borrow(),
                 "light_probe_forward_framebuffer",
-                &[RenderTargetInfo { _texture_data: &light_probe_atmosphere_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
+                &[RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
                 &[RenderTargetInfo { _texture_data: &light_probe_scene_depth, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
                 &[],
             ));

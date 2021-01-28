@@ -1033,8 +1033,7 @@ impl RendererData {
                         &resources,
                         &scene_manager,
                         &main_camera,
-                        static_render_elements,
-                        skeletal_render_elements
+                        static_render_elements
                     );
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 }
@@ -1180,8 +1179,7 @@ impl RendererData {
         resources: &Ref<Resources>,
         scene_manager: &RefMut<SceneManagerData>,
         main_camera: &CameraObjectData,
-        static_render_elements: &Vec<RenderElementData>,
-        skeletal_render_elements: &Vec<RenderElementData>,
+        static_render_elements: &Vec<RenderElementData>
     ) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
@@ -1209,6 +1207,8 @@ impl RendererData {
             light_probe_camera.update_camera_object_data();
             light_probe_view_constants.update_view_constants(&light_probe_camera);
             self.upload_shader_buffer_data(swapchain_index, light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
+
+            // render atmosphere
             self.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -1219,22 +1219,13 @@ impl RendererData {
                 Some(&render_atmosphere_push_constants)
             );
 
+            // composite atmosphere for only sky
             self.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 composite_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
                 Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas_only_sky[i]),
-                Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
-                NONE_PUSH_CONSTANT,
-            );
-
-            self.render_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                composite_atmosphere_pipeline_binding_data,
-                quad_geometry_data,
-                Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
                 Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
                 NONE_PUSH_CONSTANT,
             );
@@ -1257,6 +1248,7 @@ impl RendererData {
 
         // render static object for light probe
         for i in 0..constants::CUBE_LAYER_COUNT {
+            // clear only sky framebuffer
             let framebuffer = &self._light_probe_datas._light_probe_forward_framebuffer_datas[i];
             let maybe_framebuffer = Some(framebuffer);
             let color_image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
@@ -1272,13 +1264,24 @@ impl RendererData {
             );
             self.end_render_pass(command_buffer);
 
+            // composite atmosphere
+            self.render_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                composite_atmosphere_pipeline_binding_data,
+                quad_geometry_data,
+                Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
+                Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
+                NONE_PUSH_CONSTANT,
+            );
+
             self.render_solid_object(
                 command_buffer,
                 swapchain_index,
                 RenderMode::Forward,
                 RenderObjectType::Static,
                 static_render_elements,
-                maybe_framebuffer
+                Some(&self._light_probe_datas._light_probe_forward_framebuffer_datas[i])
             );
         }
     }
