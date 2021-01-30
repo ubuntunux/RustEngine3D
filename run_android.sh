@@ -1,0 +1,1 @@
+ cargo apk run --release;adb logcat RustStdoutStderr:D *:S

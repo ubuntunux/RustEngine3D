@@ -24,12 +24,18 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, framebuffe
     match framebuffer_name {
         "clear_gbuffer" => crate::resource::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
         "clear_shadow" => crate::resource::render_shadow::get_framebuffer_data_create_info(renderer_data),
+        "clear_light_probe_0" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0),
+        "clear_light_probe_1" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 1),
+        "clear_light_probe_2" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 2),
+        "clear_light_probe_3" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 3),
+        "clear_light_probe_4" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 4),
+        "clear_light_probe_5" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 5),
         _ => panic!("Not implemented.")
     }
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData, framebuffer_name: &str) -> RenderPassDataCreateInfo {
-    let mut render_pass_name = String::from(framebuffer_name);
+    let render_pass_name = String::from(framebuffer_name);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, framebuffer_name);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();

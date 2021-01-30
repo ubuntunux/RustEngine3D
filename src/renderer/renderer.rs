@@ -430,10 +430,10 @@ impl RendererData {
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
             &[
                 &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants0).as_ref().unwrap(),
                 &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants1).as_ref().unwrap(),
@@ -1049,14 +1049,18 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
 
+                // pre-process: min-z, ssr, ssao, gbuffer, downsampling scnee color
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
+                // render ocean
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                 fft_ocean.render_ocean(command_buffer, swapchain_index, self, &resources);
 
+                // render atmosphere
                 let render_light_probe_mode: bool = false;
                 atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, self, render_light_probe_mode);
 
+                // post-process: taa, bloom, motion blur
                 self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // Render Final
@@ -1178,7 +1182,6 @@ impl RendererData {
         let composite_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
         let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
         let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
-        let clear_render_target_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_render_target").borrow();
         let mut light_probe_view_constants = shader_buffer_datas::ViewConstants::default();
         let light_probe_view_constant_types = [
             ShaderBufferDataType::LightProbeViewConstants0,
@@ -1224,46 +1227,32 @@ impl RendererData {
 
             // downsampling
             self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-            let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
+            let mip_level_descriptor_sets = &self._light_probe_datas._light_probe_downsampling_descriptor_sets[i];
             let mip_levels = mip_level_descriptor_sets.len();
             for mip_level in 0..mip_levels {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
                 self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
                 self.dispatch_compute_pipeline(
                     command_buffer,
-                    self._light_probe_datas._only_sky_downsampling_dispatch_group_x >> (mip_level + 1),
-                    self._light_probe_datas._only_sky_downsampling_dispatch_group_y >> (mip_level + 1),
+                    self._light_probe_datas._light_probe_downsampling_dispatch_group_x >> (mip_level + 1),
+                    self._light_probe_datas._light_probe_downsampling_dispatch_group_y >> (mip_level + 1),
                     1
                 );
             }
         }
 
-        let render_forward_render_pass_pipeline_names: [&str; 6] = [
-            "render_pass_static_forward_light_probe_0/render_object",
-            "render_pass_static_forward_light_probe_1/render_object",
-            "render_pass_static_forward_light_probe_2/render_object",
-            "render_pass_static_forward_light_probe_3/render_object",
-            "render_pass_static_forward_light_probe_4/render_object",
-            "render_pass_static_forward_light_probe_5/render_object",
-        ];
-
         // render static object for light probe
         for i in 0..constants::CUBE_LAYER_COUNT {
-            // clear only sky framebuffer
-            let framebuffer = &self._light_probe_datas._light_probe_light_probe[i];
-            let maybe_framebuffer = Some(framebuffer);
-            let color_image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
-            let depth_image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
-            let render_pass_pipeline_name = format!("clear_{:?}_{:?}/clear", color_image_format, depth_image_format);
-            let pipeline_binding_data = clear_render_target_material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
-            self.begin_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                &pipeline_binding_data.get_render_pass_data().borrow(),
-                &pipeline_binding_data.get_pipeline_data().borrow(),
-                maybe_framebuffer
-            );
-            self.end_render_pass(command_buffer);
+            // clear light probe
+            const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
+                "clear_light_probe_0/clear",
+                "clear_light_probe_1/clear",
+                "clear_light_probe_2/clear",
+                "clear_light_probe_3/clear",
+                "clear_light_probe_4/clear",
+                "clear_light_probe_5/clear",
+            ];
+            self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
             // composite atmosphere
             self.render_render_pass_pipeline(
@@ -1276,14 +1265,38 @@ impl RendererData {
                 NONE_PUSH_CONSTANT,
             );
 
+            // render forward for light probe
+            const RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES: [&str; 6] = [
+                "render_pass_static_forward_light_probe_0/render_object",
+                "render_pass_static_forward_light_probe_1/render_object",
+                "render_pass_static_forward_light_probe_2/render_object",
+                "render_pass_static_forward_light_probe_3/render_object",
+                "render_pass_static_forward_light_probe_4/render_object",
+                "render_pass_static_forward_light_probe_5/render_object",
+            ];
             self.render_solid_object(
                 command_buffer,
                 swapchain_index,
                 RenderMode::Forward,
                 RenderObjectType::Static,
                 static_render_elements,
-                Some(render_forward_render_pass_pipeline_names[i])
+                Some(RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i])
             );
+
+            // downsampling light probe
+            self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
+            let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
+            let mip_levels = mip_level_descriptor_sets.len();
+            for mip_level in 0..mip_levels {
+                let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
+                self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
+                self.dispatch_compute_pipeline(
+                    command_buffer,
+                    self._light_probe_datas._only_sky_downsampling_dispatch_group_x >> (mip_level + 1),
+                    self._light_probe_datas._only_sky_downsampling_dispatch_group_y >> (mip_level + 1),
+                    1
+                );
+            }
         }
     }
 
