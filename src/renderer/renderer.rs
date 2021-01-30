@@ -39,7 +39,7 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
-use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainArray, FrameArray };
+use crate::vulkan_context::vulkan_context::{ self, RenderFeatures, SwapchainArray, FrameArray };
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::push_constants::{
@@ -414,23 +414,21 @@ impl RendererData {
             &self._device,
             &self._resources,
             &[
-                *self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(),
-            ],
-            &[
-                *self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(),
-                *self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
+                (*self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
             ]
         );
         // RendererData_LightProbe
@@ -1031,6 +1029,15 @@ impl RendererData {
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
                 }
 
+                // clear
+                self.clear_gbuffer(command_buffer, swapchain_index, &resources);
+                self.clear_shadow(command_buffer, swapchain_index, &resources);
+
+                // shadow
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
+
+                // light probe
                 if self._light_probe_datas._next_refresh_time < elapsed_time {
                     self.render_light_probe(
                         command_buffer,
@@ -1044,11 +1051,7 @@ impl RendererData {
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 }
 
-                // Render
-                self.clear_gbuffer(command_buffer, swapchain_index, &resources, None);
-                self.clear_shadow(command_buffer, swapchain_index, &resources);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
+                // render solid object
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements);
 
@@ -1137,33 +1140,22 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
     ) {
+        // Clear render targets
         let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
         for (_, framebuffers) in self._clear_render_targets._color_framebuffer_datas.iter() {
+            let default_frame_buffer = &framebuffers[0][0];
+            let mut render_pass_pipeline_name = String::from("clear");
+            for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_color_attachment_formats.iter() {
+                render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
+            }
+            for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_depth_attachment_formats.iter() {
+                render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
+            }
+            render_pass_pipeline_name.push_str("/clear");
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
             for layer in 0..framebuffers.len() {
                 for mip_level in 0.. framebuffers[layer].len() {
-                    let image_format = framebuffers[layer][mip_level]._framebuffer_info._framebuffer_color_attachment_formats[0];
-                    let render_pass_pipeline_name = format!("clear_{:?}/clear", image_format);
-                    let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
-                    self.begin_render_pass_pipeline(
-                        command_buffer,
-                        swapchain_index,
-                        &pipeline_binding_data.get_render_pass_data().borrow(),
-                        &pipeline_binding_data.get_pipeline_data().borrow(),
-                        Some(&framebuffers[layer][mip_level])
-                    );
-                    self.end_render_pass(command_buffer);
-                }
-            }
-        }
-
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
-        for (_, framebuffers) in self._clear_render_targets._depth_framebuffer_datas.iter() {
-            for layer in 0..framebuffers.len() {
-                for mip_level in 0..framebuffers[layer].len() {
-                    let image_format = framebuffers[layer][mip_level]._framebuffer_info._framebuffer_depth_attachment_formats[0];
-                    let render_pass_pipeline_name = format!("clear_{:?}/clear", image_format);
-                    let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
                     self.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
@@ -1263,7 +1255,7 @@ impl RendererData {
         // render static object for light probe
         for i in 0..constants::CUBE_LAYER_COUNT {
             // clear only sky framebuffer
-            let framebuffer = &self._light_probe_datas._light_probe_clear_framebuffer_datas[i];
+            let framebuffer = &self._light_probe_datas._light_probe_light_probe[i];
             let maybe_framebuffer = Some(framebuffer);
             let color_image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
             let depth_image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
@@ -1300,8 +1292,8 @@ impl RendererData {
     }
 
     pub fn clear_shadow(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>) {
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_depth").borrow();
-        let framebuffer = &self._clear_render_targets._depth_framebuffer_datas.get(&enum_to_string(&RenderTargetType::Shadow)).unwrap()[0][0];
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
+        let framebuffer = &self._clear_render_targets._color_framebuffer_datas.get(&enum_to_string(&RenderTargetType::Shadow)).unwrap()[0][0];
         let image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
         let render_pass_pipeline_name = format!("clear_{:?}/clear", image_format);
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
@@ -1315,21 +1307,21 @@ impl RendererData {
         self.end_render_pass(command_buffer);
     }
 
-    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>, custom_framebuffer: Option<&FramebufferData>) {
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_gbuffer").borrow();
-        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+    pub fn clear_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>) {
+        let frame_buffer = resources.get_framebuffer_data("clear_gbuffer").borrow();
+        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_color").borrow();
+        let mut render_pass_pipeline_name = String::from("clear");
+        for attachment_format in frame_buffer._framebuffer_info._framebuffer_color_attachment_formats.iter() {
+            render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
+        }
+        for attachment_format in frame_buffer._framebuffer_info._framebuffer_depth_attachment_formats.iter() {
+            render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
+        }
+        render_pass_pipeline_name.push_str("/clear");
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
         let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer);
-        self.end_render_pass(command_buffer);
-    }
-
-    pub fn clear_forward(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, resources: &Ref<Resources>, custom_framebuffer: Option<&FramebufferData>) {
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_forward").borrow();
-        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-        let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
-        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer);
+        self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, Some(&frame_buffer));
         self.end_render_pass(command_buffer);
     }
 

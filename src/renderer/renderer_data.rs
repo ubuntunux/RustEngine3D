@@ -30,7 +30,7 @@ pub struct RendererData_LightProbe {
     pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
     pub _only_sky_downsampling_dispatch_group_x: u32,
     pub _only_sky_downsampling_dispatch_group_y: u32,
-    pub _light_probe_clear_framebuffer_datas: CubeMapArray<FramebufferData>,
+    pub _light_probe_light_probe: CubeMapArray<FramebufferData>,
 }
 
 impl Default for RendererData_LightProbe {
@@ -46,7 +46,7 @@ impl Default for RendererData_LightProbe {
             _only_sky_downsampling_descriptor_sets: Vec::new(),
             _only_sky_downsampling_dispatch_group_x: 1,
             _only_sky_downsampling_dispatch_group_y: 1,
-            _light_probe_clear_framebuffer_datas: Vec::new(),
+            _light_probe_light_probe: Vec::new(),
         }
     }
 }
@@ -55,14 +55,12 @@ impl Default for RendererData_LightProbe {
 #[allow(non_camel_case_types)]
 pub struct RendererData_ClearRenderTargets {
     pub _color_framebuffer_datas: HashMap<String, Layers<MipLevels<FramebufferData>>>,
-    pub _depth_framebuffer_datas: HashMap<String, Layers<MipLevels<FramebufferData>>>,
 }
 
 impl Default for RendererData_ClearRenderTargets {
     fn default() -> RendererData_ClearRenderTargets {
         RendererData_ClearRenderTargets {
-            _color_framebuffer_datas: HashMap::new(),
-            _depth_framebuffer_datas: HashMap::new()
+            _color_framebuffer_datas: HashMap::new()
         }
     }
 }
@@ -522,66 +520,46 @@ impl RendererData_ClearRenderTargets {
         &mut self,
         device: &Device,
         resources: &RcRefCell<Resources>,
-        render_targets: &[&TextureData],
-        depth_targets: &[&TextureData],
+        render_target_infos: &[(&TextureData, vk::ClearValue)],
     ) {
         let resources = resources.borrow();
         let material_instance = resources.get_material_instance_data("clear_color").borrow();
-        let clear_color = Some(vulkan_context::get_color_clear_zero());
-        for render_target in render_targets.iter() {
+        for (render_target, clear_value) in render_target_infos.iter() {
+            let is_depth_format = constants::DEPTH_FOMATS.contains(&render_target._image_format);
             let render_pass_pipeline_name = format!("clear_{:?}/clear", render_target._image_format);
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
             let mut framebuffers: Layers<MipLevels<FramebufferData>> = Vec::new();
             for layer in 0..render_target._image_layers {
                 framebuffers.push(Vec::new());
                 for mip_level in 0..render_target._image_mip_levels {
+                    let mut color_attachments = Vec::new();
+                    let mut depth_attachments = Vec::new();
+                    let attachment = RenderTargetInfo {
+                        _texture_data: &render_target,
+                        _target_layer: layer as u32,
+                        _target_mip_level: mip_level as u32,
+                        _clear_value: Some(*clear_value),
+                    };
+
+                    if is_depth_format {
+                        depth_attachments.push(attachment);
+                    } else {
+                        color_attachments.push(attachment);
+                    }
+
                     framebuffers.last_mut().unwrap().push(
                         utility::create_framebuffers(
                             device,
                             &pipeline_binding_data.get_render_pass_data().borrow(),
                             &render_target._texture_data_name,
-                            &[RenderTargetInfo {
-                                _texture_data: &render_target,
-                                _target_layer: layer as u32,
-                                _target_mip_level: mip_level as u32,
-                                _clear_value: clear_color
-                            }],
-                            &[],
+                            &color_attachments,
+                            &depth_attachments,
                             &[],
                         )
                     );
                 }
             }
             self._color_framebuffer_datas.insert(render_target._texture_data_name.clone(), framebuffers);
-        }
-
-        let material_instance = resources.get_material_instance_data("clear_depth").borrow();
-        let clear_depth_value = Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0));
-        for depth_target in depth_targets.iter() {
-            let render_pass_pipeline_name = format!("clear_{:?}/clear", depth_target._image_format);
-            let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
-            let mut framebuffers: Layers<MipLevels<FramebufferData>> = Vec::new();
-            for layer in 0..depth_target._image_layers {
-                framebuffers.push(Vec::new());
-                for mip_level in 0..depth_target._image_mip_levels {
-                    framebuffers.last_mut().unwrap().push(
-                        utility::create_framebuffers(
-                            device,
-                            &pipeline_binding_data.get_render_pass_data().borrow(),
-                            &depth_target._texture_data_name,
-                            &[],
-                            &[RenderTargetInfo {
-                                _texture_data: &depth_target,
-                                _target_layer: layer as u32,
-                                _target_mip_level: mip_level as u32,
-                                _clear_value: clear_depth_value
-                            }],
-                            &[],
-                        )
-                    );
-                }
-            }
-            self._depth_framebuffer_datas.insert(depth_target._texture_data_name.clone(), framebuffers);
         }
     }
 
@@ -599,7 +577,6 @@ impl RendererData_ClearRenderTargets {
             framebuffer_map.clear();
         };
         func_clear_framebuffers(&mut self._color_framebuffer_datas);
-        func_clear_framebuffers(&mut self._depth_framebuffer_datas);
     }
 }
 
@@ -699,7 +676,7 @@ impl RendererData_LightProbe {
             self._only_sky_downsampling_dispatch_group_y = light_probe_color_only_sky._image_height;
 
             // clear light probe
-            self._light_probe_clear_framebuffer_datas.push(utility::create_framebuffers(
+            self._light_probe_light_probe.push(utility::create_framebuffers(
                 device,
                 &clear_light_probe_render_pass_pipeline_data._render_pass_data.borrow(),
                 "light_probe_clear",
@@ -715,7 +692,7 @@ impl RendererData_LightProbe {
             framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_datas[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas_only_sky[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas[i]);
-            framebuffer::destroy_framebuffer_data(device, &self._light_probe_clear_framebuffer_datas[i]);
+            framebuffer::destroy_framebuffer_data(device, &self._light_probe_light_probe[i]);
         }
         self._render_atmosphere_framebuffer_datas.clear();
         self._composite_atmosphere_framebuffer_datas_only_sky.clear();
@@ -723,6 +700,6 @@ impl RendererData_LightProbe {
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
         self._only_sky_downsampling_descriptor_sets.clear();
-        self._light_probe_clear_framebuffer_datas.clear();
+        self._light_probe_light_probe.clear();
     }
 }

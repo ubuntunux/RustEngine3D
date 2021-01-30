@@ -21,54 +21,60 @@ use crate::vulkan_context::vulkan_context::{
 };
 
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format, depth_format: vk::Format) -> FramebufferDataCreateInfo {
-    let render_target_type = match render_target_format {
-        vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
-        vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,
-        vk::Format::R32G32B32A32_SFLOAT => RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
-        _ => panic!("Not implemented."),
-    };
-    let depth_format_type = match depth_format {
-        vk::Format::UNDEFINED => None,
-        vk::Format::D32_SFLOAT => Some(RenderTargetType::SceneDepth),
-        _ => panic!("Not implemented."),
-    };
-    framebuffer::create_framebuffer_data_create_info(
-        &[RenderTargetInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_formats: &[vk::Format], depth_format: vk::Format) -> FramebufferDataCreateInfo {
+    let mut color_render_targets = Vec::new();
+    for render_target_format in render_target_formats.iter() {
+        let render_target_type = match *render_target_format {
+            vk::Format::R8G8B8A8_UNORM => RenderTargetType::SceneAlbedo,
+            vk::Format::R16G16_SFLOAT => RenderTargetType::SceneVelocity,
+            vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
+            vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,
+            vk::Format::R32G32B32A32_SFLOAT => RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+            _ => panic!("Not implemented."),
+        };
+        color_render_targets.push(RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(render_target_type),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_color_clear_zero()),
-        }],
-        &(if depth_format_type.is_some() {
-            vec![RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(depth_format_type.unwrap()),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
-            }]
-        } else {
-            vec![]
-        }),
+        });
+    }
+
+    let mut depth_render_target = Vec::new();
+    if vk::Format::UNDEFINED != depth_format {
+        let depth_format_type = match depth_format {
+            vk::Format::D32_SFLOAT => Some(RenderTargetType::SceneDepth),
+            _ => panic!("Not implemented."),
+        };
+        depth_render_target.push(RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(depth_format_type.unwrap()),
+            _target_layer: 0,
+            _target_mip_level: 0,
+            _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
+        });
+    }
+
+    framebuffer::create_framebuffer_data_create_info(
+        &color_render_targets,
+        &depth_render_target,
         &[]
     )
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_format: vk::Format, depth_format: vk::Format) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_formats: &[vk::Format], depth_format: vk::Format) -> RenderPassDataCreateInfo {
     let use_depth_target: bool = vk::Format::UNDEFINED != depth_format;
-    let render_pass_name = if use_depth_target {
-        format!("clear_{:?}_{:?}", render_target_format, depth_format)
-    } else {
-        format!("clear_{:?}", render_target_format)
-    };
-    println!("=================================");
-    println!("get_render_pass_data_create_info: {}", render_pass_name);
-    println!("=================================");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_format, depth_format);
+    let mut render_pass_name = String::from("clear");
+    for render_target_format in render_target_formats.iter() {
+        render_pass_name.push_str(&format!("_{:?}", render_target_format));
+    }
+    if use_depth_target {
+        render_pass_name.push_str(&format!("_{:?}", depth_format));
+    }
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_formats, depth_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
-        assert_eq!(render_target_format, *format);
+    for (i, format) in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter().enumerate() {
+        assert_eq!(render_target_formats[i], *format);
         color_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
@@ -126,6 +132,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("clear_color.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+            _pipeline_shader_defines: vec![
+                format!("ColorAttachmentCount={:?}", color_attachment_descriptions.len() as i32),
+            ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
