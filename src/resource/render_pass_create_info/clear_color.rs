@@ -61,6 +61,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
     } else {
         format!("clear_{:?}", render_target_format)
     };
+    println!("=================================");
+    println!("get_render_pass_data_create_info: {}", render_pass_name);
+    println!("=================================");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_format, depth_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();

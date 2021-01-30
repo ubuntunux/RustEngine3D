@@ -30,7 +30,7 @@ pub struct RendererData_LightProbe {
     pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
     pub _only_sky_downsampling_dispatch_group_x: u32,
     pub _only_sky_downsampling_dispatch_group_y: u32,
-    pub _light_probe_forward_framebuffer_datas: CubeMapArray<FramebufferData>,
+    pub _light_probe_clear_framebuffer_datas: CubeMapArray<FramebufferData>,
 }
 
 impl Default for RendererData_LightProbe {
@@ -46,7 +46,7 @@ impl Default for RendererData_LightProbe {
             _only_sky_downsampling_descriptor_sets: Vec::new(),
             _only_sky_downsampling_dispatch_group_x: 1,
             _only_sky_downsampling_dispatch_group_y: 1,
-            _light_probe_forward_framebuffer_datas: Vec::new(),
+            _light_probe_clear_framebuffer_datas: Vec::new(),
         }
     }
 }
@@ -616,7 +616,8 @@ impl RendererData_LightProbe {
         light_probe_view_constants: &[&ShaderBufferData],
     ) {
         let resources = resources.borrow();
-        let static_forawrd_render_pass_pipeline_data = resources.get_render_pass_pipeline_data("render_pass_static_forward", "render_object");
+        let clear_light_probe_render_pass_name = format!("clear_{:?}_{:?}", light_probe_color._image_format, light_probe_scene_depth._image_format);
+        let clear_light_probe_render_pass_pipeline_data = resources.get_render_pass_pipeline_data(&clear_light_probe_render_pass_name, "clear");
         let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
         let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
@@ -697,13 +698,13 @@ impl RendererData_LightProbe {
             self._only_sky_downsampling_dispatch_group_x = light_probe_color_only_sky._image_width;
             self._only_sky_downsampling_dispatch_group_y = light_probe_color_only_sky._image_height;
 
-            // render forward for light probe
-            self._light_probe_forward_framebuffer_datas.push(utility::create_framebuffers(
+            // clear light probe
+            self._light_probe_clear_framebuffer_datas.push(utility::create_framebuffers(
                 device,
-                &static_forawrd_render_pass_pipeline_data._render_pass_data.borrow(),
-                "light_probe_forward_framebuffer",
-                &[RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
-                &[RenderTargetInfo { _texture_data: &light_probe_scene_depth, _target_layer: i as u32, _target_mip_level: 0, _clear_value: None }],
+                &clear_light_probe_render_pass_pipeline_data._render_pass_data.borrow(),
+                "light_probe_clear",
+                &[RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_zero()) }],
+                &[RenderTargetInfo { _texture_data: &light_probe_scene_depth, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)) }],
                 &[],
             ));
         }
@@ -714,7 +715,7 @@ impl RendererData_LightProbe {
             framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_datas[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas_only_sky[i]);
             framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas[i]);
-            framebuffer::destroy_framebuffer_data(device, &self._light_probe_forward_framebuffer_datas[i]);
+            framebuffer::destroy_framebuffer_data(device, &self._light_probe_clear_framebuffer_datas[i]);
         }
         self._render_atmosphere_framebuffer_datas.clear();
         self._composite_atmosphere_framebuffer_datas_only_sky.clear();
@@ -722,6 +723,6 @@ impl RendererData_LightProbe {
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
         self._only_sky_downsampling_descriptor_sets.clear();
-        self._light_probe_forward_framebuffer_datas.clear();
+        self._light_probe_clear_framebuffer_datas.clear();
     }
 }

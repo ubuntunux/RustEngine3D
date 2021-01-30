@@ -12,6 +12,7 @@ pub mod render_copy;
 pub mod render_debug;
 pub mod render_final;
 pub mod render_forward;
+pub mod render_forward_for_light_probe;
 pub mod render_gaussian_blur;
 pub mod render_motion_blur;
 pub mod render_gbuffer;

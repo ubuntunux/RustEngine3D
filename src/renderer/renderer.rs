@@ -83,7 +83,13 @@ pub const DEFAULT_PIPELINE: &str = "";
 pub enum RenderMode {
     GBuffer = 0,
     Forward = 1,
-    Shadow = 2,
+    ForwardForLightProbe0 = 2,
+    ForwardForLightProbe1 = 3,
+    ForwardForLightProbe2 = 4,
+    ForwardForLightProbe3 = 5,
+    ForwardForLightProbe4 = 6,
+    ForwardForLightProbe5 = 7,
+    Shadow = 8,
 }
 
 // NOTE : RenderObjectType must match with scene_constants.glsl
@@ -1041,10 +1047,10 @@ impl RendererData {
                 // Render
                 self.clear_gbuffer(command_buffer, swapchain_index, &resources, None);
                 self.clear_shadow(command_buffer, swapchain_index, &resources);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements);
 
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
@@ -1196,6 +1202,14 @@ impl RendererData {
             ShaderBufferDataType::LightProbeViewConstants4,
             ShaderBufferDataType::LightProbeViewConstants5,
         ];
+        let light_probe_render_modes = [
+            RenderMode::ForwardForLightProbe0,
+            RenderMode::ForwardForLightProbe1,
+            RenderMode::ForwardForLightProbe2,
+            RenderMode::ForwardForLightProbe3,
+            RenderMode::ForwardForLightProbe4,
+            RenderMode::ForwardForLightProbe5,
+        ];
         let render_atmosphere_push_constants = PushConstant_Atmosphere {
             _render_light_probe_mode: 1,
             ..Default::default()
@@ -1249,7 +1263,7 @@ impl RendererData {
         // render static object for light probe
         for i in 0..constants::CUBE_LAYER_COUNT {
             // clear only sky framebuffer
-            let framebuffer = &self._light_probe_datas._light_probe_forward_framebuffer_datas[i];
+            let framebuffer = &self._light_probe_datas._light_probe_clear_framebuffer_datas[i];
             let maybe_framebuffer = Some(framebuffer);
             let color_image_format = framebuffer._framebuffer_info._framebuffer_color_attachment_formats[0];
             let depth_image_format = framebuffer._framebuffer_info._framebuffer_depth_attachment_formats[0];
@@ -1278,10 +1292,9 @@ impl RendererData {
             self.render_solid_object(
                 command_buffer,
                 swapchain_index,
-                RenderMode::Forward,
+                light_probe_render_modes[i],
                 RenderObjectType::Static,
-                static_render_elements,
-                Some(&self._light_probe_datas._light_probe_forward_framebuffer_datas[i])
+                static_render_elements
             );
         }
     }
@@ -1326,8 +1339,7 @@ impl RendererData {
         swapchain_index: u32,
         render_mode: RenderMode,
         render_object_type: RenderObjectType,
-        render_elements: &Vec<RenderElementData>,
-        custom_framebuffer: Option<&FramebufferData>,
+        render_elements: &Vec<RenderElementData>
     ) {
         if 0 == render_elements.len() {
             return;
@@ -1336,10 +1348,22 @@ impl RendererData {
         unsafe {
             let render_pass_pipeline_data_name = match (render_mode, render_object_type) {
                 (RenderMode::GBuffer, RenderObjectType::Static) => "render_pass_static_gbuffer/render_object",
-                (RenderMode::GBuffer, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
                 (RenderMode::Forward, RenderObjectType::Static) => "render_pass_static_forward/render_object",
-                (RenderMode::Forward, RenderObjectType::Skeletal) => "render_pass_skeletal_forward/render_object",
+                (RenderMode::ForwardForLightProbe0, RenderObjectType::Static) => "render_pass_static_forward_light_probe_0/render_object",
+                (RenderMode::ForwardForLightProbe1, RenderObjectType::Static) => "render_pass_static_forward_light_probe_1/render_object",
+                (RenderMode::ForwardForLightProbe2, RenderObjectType::Static) => "render_pass_static_forward_light_probe_2/render_object",
+                (RenderMode::ForwardForLightProbe3, RenderObjectType::Static) => "render_pass_static_forward_light_probe_3/render_object",
+                (RenderMode::ForwardForLightProbe4, RenderObjectType::Static) => "render_pass_static_forward_light_probe_4/render_object",
+                (RenderMode::ForwardForLightProbe5, RenderObjectType::Static) => "render_pass_static_forward_light_probe_5/render_object",
                 (RenderMode::Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
+                (RenderMode::GBuffer, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
+                (RenderMode::Forward, RenderObjectType::Skeletal) => "render_pass_skeletal_forward/render_object",
+                (RenderMode::ForwardForLightProbe0, RenderObjectType::Skeletal) => "render_pass_skeletal_forward_light_probe_0/render_object",
+                (RenderMode::ForwardForLightProbe1, RenderObjectType::Skeletal) => "render_pass_skeletal_forward_light_probe_1/render_object",
+                (RenderMode::ForwardForLightProbe2, RenderObjectType::Skeletal) => "render_pass_skeletal_forward_light_probe_2/render_object",
+                (RenderMode::ForwardForLightProbe3, RenderObjectType::Skeletal) => "render_pass_skeletal_forward_light_probe_3/render_object",
+                (RenderMode::ForwardForLightProbe4, RenderObjectType::Skeletal) => "render_pass_skeletal_forward_light_probe_4/render_object",
+                (RenderMode::ForwardForLightProbe5, RenderObjectType::Skeletal) => "render_pass_skeletal_forward_light_probe_5/render_object",
                 (RenderMode::Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
             };
 
@@ -1357,7 +1381,7 @@ impl RendererData {
 
                 if prev_pipeline_data != pipeline_data_ptr {
                     prev_pipeline_data = pipeline_data_ptr;
-                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer);
+                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
                 }
 
                 if prev_pipeline_binding_data != pipeline_binding_data {
