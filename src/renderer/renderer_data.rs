@@ -39,7 +39,7 @@ impl Default for RendererData_LightProbe {
     fn default() -> RendererData_LightProbe {
         RendererData_LightProbe {
             _next_refresh_time: 0.0,
-            _light_probe_refresh_term: 0.0,
+            _light_probe_refresh_term: 1.0,
             _render_atmosphere_framebuffer_datas: Vec::new(),
             _render_atmosphere_descriptor_sets: Vec::new(),
             _composite_atmosphere_framebuffer_datas_only_sky: Vec::new(),
@@ -590,7 +590,6 @@ impl RendererData_LightProbe {
         device: &Device,
         resources: &RcRefCell<Resources>,
         light_probe_color: &TextureData,
-        light_probe_depth: &TextureData,
         light_probe_color_only_sky: &TextureData,
         light_probe_atmosphere_color: &TextureData,
         light_probe_atmosphere_inscatter: &TextureData,

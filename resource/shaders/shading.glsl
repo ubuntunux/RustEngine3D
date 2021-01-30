@@ -187,6 +187,8 @@ void apply_image_based_lighting(
     const in samplerCube texture_probe,
     const in sampler2D ibl_brdf_lut,
     const in vec4 scene_reflect_color,
+    const in vec3 scene_sky_irradiance,
+    const in vec3 shadow_factor,
     float roughness,
     const in vec3 F0,
     const in vec3 sun_direction,
@@ -208,8 +210,9 @@ void apply_image_based_lighting(
     vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
     vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
 
-    // TODO : real time baked ibl
-    //ibl_diffuse_light = normalize(mix(ibl_diffuse_light, sky_irradiance, 0.5)) * length(sky_irradiance) * kD;
+    ibl_diffuse_light += normalize(mix(ibl_diffuse_light, scene_sky_irradiance, vec3(0.5))) * length(scene_sky_irradiance);
+
+    // not correct
     ibl_diffuse_light *= saturate(sun_direction.y);
     ibl_specular_light *= saturate(sun_direction.y);
 
@@ -307,6 +310,8 @@ vec4 surface_shading(
         texture_probe,
         ibl_brdf_lut,
         scene_reflect_color,
+        scene_sky_irradiance,
+        shadow_factor,
         roughness,
         F0,
         L,

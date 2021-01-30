@@ -430,7 +430,6 @@ impl RendererData {
             &self._device,
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
