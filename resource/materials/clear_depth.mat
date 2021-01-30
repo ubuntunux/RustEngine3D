@@ -1,4 +1,0 @@
-{"pipelines": [
-        {"render_pass": "clear_D32_SFLOAT", "pipeline": "clear"}
-    ]
-}

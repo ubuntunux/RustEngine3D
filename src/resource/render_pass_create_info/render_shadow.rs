@@ -29,7 +29,7 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::vulkan_context::vulkan_context;
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_object_type: RenderObjectType) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[],
         &[RenderTargetInfo {
@@ -50,7 +50,7 @@ pub fn get_render_pass_data_create_info(
         RenderObjectType::Static => String::from("render_pass_static_shadow"),
         RenderObjectType::Skeletal => String::from("render_pass_skeletal_shadow"),
     };
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_object_type);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {

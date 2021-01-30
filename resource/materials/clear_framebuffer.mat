@@ -1,0 +1,5 @@
+{"pipelines": [
+        {"render_pass": "clear_gbuffer", "pipeline": "clear"},
+        {"render_pass": "clear_shadow", "pipeline": "clear"}
+    ]
+}

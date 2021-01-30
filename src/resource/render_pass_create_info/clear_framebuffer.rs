@@ -4,9 +4,7 @@ use ash::{
     vk,
 };
 
-use crate::renderer::renderer::{
-    RendererData,
-};
+use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData };
@@ -16,52 +14,26 @@ use crate::vulkan_context::render_pass::{
     ImageAttachmentDescription,
     DepthStencilStateCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
+use crate::vulkan_context::vulkan_context::{
+    self,
+    BlendMode,
+};
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    framebuffer::create_framebuffer_data_create_info(
-        &[
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneAlbedo),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            },
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneMaterial),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            },
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneNormal),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)),
-            },
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneVelocity),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            }
-        ],
-        &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
-            _target_layer: 0,
-            _target_mip_level: 0,
-            _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
-        }],
-        &[]
-    )
+
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, framebuffer_name: &str) -> FramebufferDataCreateInfo {
+    match framebuffer_name {
+        "clear_gbuffer" => crate::resource::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
+        "clear_shadow" => crate::resource::render_shadow::get_framebuffer_data_create_info(renderer_data),
+        _ => panic!("Not implemented.")
+    }
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("clear_gbuffer");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+pub fn get_render_pass_data_create_info(renderer_data: &RendererData, framebuffer_name: &str) -> RenderPassDataCreateInfo {
+    let mut render_pass_name = String::from(framebuffer_name);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, framebuffer_name);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
+    for (i, format) in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter().enumerate() {
         color_attachment_descriptions.push(
             ImageAttachmentDescription {
                 _attachment_image_format: *format,
@@ -94,19 +66,31 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
             dst_subpass: 0,
-            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            src_access_mask: vk::AccessFlags::empty(),
+            src_access_mask: vk::AccessFlags::MEMORY_READ,
             dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dependency_flags: vk::DependencyFlags::BY_REGION,
+        },
+        vk::SubpassDependency {
+            src_subpass: 0,
+            dst_subpass: vk::SUBPASS_EXTERNAL,
+            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: vk::AccessFlags::MEMORY_READ,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         }
     ];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("clear_gbuffer"),
+            _pipeline_data_create_info_name: String::from("clear"),
             _pipeline_vertex_shader_file: PathBuf::from("render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("clear_gbuffer.frag"),
+            _pipeline_fragment_shader_file: PathBuf::from("clear_color.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+            _pipeline_shader_defines: vec![
+                format!("ColorAttachmentCount={:?}", color_attachment_descriptions.len() as i32),
+            ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
@@ -116,12 +100,11 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: Vec::new(),
             ..Default::default()
         }
     ];
 
-    RenderPassDataCreateInfo  {
+    RenderPassDataCreateInfo {
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,

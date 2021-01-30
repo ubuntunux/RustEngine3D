@@ -8,9 +8,7 @@
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
-#if 0 < ColorAttachmentCount
 layout(location = 0) out vec4 outColor0;
-#endif
 #if 1 < ColorAttachmentCount
 layout(location = 1) out vec4 outColor1;
 #endif

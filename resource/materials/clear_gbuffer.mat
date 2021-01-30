@@ -1,4 +1,0 @@
-{ "pipelines": [{ "render_pass": "clear_gbuffer", "pipeline": "clear_gbuffer" }]
-, "material_parameters": {}
-}
-

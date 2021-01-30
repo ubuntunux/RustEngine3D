@@ -4,7 +4,6 @@ use ash::{
     vk,
 };
 
-use crate::renderer::push_constants::{ PushConstant_RenderColor };
 use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };

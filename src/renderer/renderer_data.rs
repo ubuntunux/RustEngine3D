@@ -523,7 +523,7 @@ impl RendererData_ClearRenderTargets {
         render_target_infos: &[(&TextureData, vk::ClearValue)],
     ) {
         let resources = resources.borrow();
-        let material_instance = resources.get_material_instance_data("clear_color").borrow();
+        let material_instance = resources.get_material_instance_data("clear_render_target").borrow();
         for (render_target, clear_value) in render_target_infos.iter() {
             let is_depth_format = constants::DEPTH_FOMATS.contains(&render_target._image_format);
             let render_pass_pipeline_name = format!("clear_{:?}/clear", render_target._image_format);
