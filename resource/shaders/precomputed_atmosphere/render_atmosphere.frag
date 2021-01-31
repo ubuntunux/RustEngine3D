@@ -268,34 +268,27 @@ void main()
             cloud_opacity *= horizontal_line;
         }
 
+        // atmosphere
         out_color.xyz += radiance * (1.0 - cloud_opacity) + cloud_color * cloud_opacity * 4.0;
         out_color.xyz += sun_disc * saturate(1.0 - cloud_opacity);
         out_color.w = clamp(cloud_opacity, 0.0, 1.0);
-    }
 
-    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
-    vec3 scene_transmittance;
-    vec3 scene_inscatter = GetSkyRadianceToPoint(
-        ATMOSPHERE,
-        atmosphere_constants,
-        transmittance_texture,
-        scattering_texture,
-        single_mie_scattering_texture,
-        camera - atmosphere_constants.earth_center,
-        far_point.xyz - atmosphere_constants.earth_center,
-        scene_shadow_length,
-        light_constants.LIGHT_DIRECTION.xyz,
-        scene_transmittance
-    );
-    scene_inscatter = max(vec3(0.0), scene_inscatter);
+        // inscattering
+        vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
+        vec3 scene_transmittance;
+        vec3 scene_inscatter = GetSkyRadianceToPoint(
+            ATMOSPHERE,
+            atmosphere_constants,
+            transmittance_texture,
+            scattering_texture,
+            single_mie_scattering_texture,
+            camera - atmosphere_constants.earth_center,
+            far_point.xyz - atmosphere_constants.earth_center,
+            scene_shadow_length,
+            light_constants.LIGHT_DIRECTION.xyz,
+            scene_transmittance
+        );
 
-    if(is_render_light_probe_mode && render_cloud)
-    {
-        out_color.xyz += scene_inscatter;
-    }
-
-    if(render_cloud)
-    {
-        out_inscatter.xyz = scene_inscatter;
+        out_inscatter.xyz = max(vec3(0.0), scene_inscatter);
     }
 }

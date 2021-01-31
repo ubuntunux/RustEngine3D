@@ -36,7 +36,6 @@ void main()
 
     vec3 sun_irradiance = vs_output.sun_irradiance;
     vec3 sky_irradiance = vs_output.sky_irradiance;
-    vec3 shadow_factor = max(sky_irradiance, vec3(vs_output.shadow_factor));
 
     vec2 slopes = textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.x, 1.0), 0.0).xy;
     slopes += textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.y, 1.0), 0.0).zw;
@@ -90,13 +89,14 @@ void main()
         {
             vec3 under_water_shadow = vec3(get_shadow_factor_simple(light_constants, world_pos, dot(L, vertex_normal.xyz), texture_shadow));
             under_water_shadow = max(sky_irradiance, under_water_shadow);
+
             const float chromaSeperation = sin(pushConstant._t * 3.5f) * 0.0025;
             vec3 caustic_uv = vec3((groundPos + L * dist_diff).xz * 0.3 + vertex_normal.xz * 0.5, scene_constants.TIME);
             vec3 caustic_color;
             caustic_color.r = texture(texture_caustic, caustic_uv + vec3(0.0f, chromaSeperation, 0.0)).r;
             caustic_color.g = texture(texture_caustic, caustic_uv + vec3(chromaSeperation, 0.0f, 0.0)).g;
             caustic_color.b = texture(texture_caustic, caustic_uv - vec3(chromaSeperation, chromaSeperation, 0.0)).b;
-            caustic_color *= max(vec3(0.01), under_water_shadow) * sun_irradiance * screen_fade * saturate(dist_diff);
+            caustic_color *= under_water_shadow * sun_irradiance * screen_fade * saturate(dist_diff);
 
             // apply caustic
             under_water_color += caustic_color;
@@ -131,7 +131,7 @@ void main()
     float fresnel = fresnelSchlick(max(0.2, dot(smooth_normal, V)), F0).x;
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
-    float roughness = clamp(0.1, 0.0, 1.0);
+    float roughness = clamp(abs(fresnel), 0.1, 0.8);
     float roughness2 = roughness * roughness;
     vec4 scene_reflect_color = vec4(0.0);
     vec3 light_color = mix(sky_irradiance, sun_irradiance, vec3(vs_output.shadow_factor));
@@ -142,7 +142,7 @@ void main()
         ibl_brdf_lut,
         scene_reflect_color,
         sky_irradiance,
-        shadow_factor,
+        vec3(vs_output.shadow_factor),
         roughness,
         F0,
         L,

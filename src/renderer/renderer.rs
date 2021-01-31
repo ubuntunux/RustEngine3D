@@ -40,6 +40,7 @@ use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::vulkan_context::{ self, RenderFeatures, SwapchainArray, FrameArray };
+use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::push_constants::{
@@ -1030,6 +1031,9 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements, None);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements, None);
 
+                // fft-simulation
+                fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
+
                 // light probe
                 if self._light_probe_datas._next_refresh_time < elapsed_time {
                     self.render_light_probe(
@@ -1039,7 +1043,8 @@ impl RendererData {
                         &resources,
                         &scene_manager,
                         &main_camera,
-                        static_render_elements
+                        static_render_elements,
+                        &fft_ocean
                     );
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 }
@@ -1052,7 +1057,6 @@ impl RendererData {
                 self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
 
                 // render ocean
-                fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
                 fft_ocean.render_ocean(command_buffer, swapchain_index, self, &resources);
 
                 // render atmosphere
@@ -1174,7 +1178,8 @@ impl RendererData {
         resources: &Ref<Resources>,
         scene_manager: &RefMut<SceneManagerData>,
         main_camera: &CameraObjectData,
-        static_render_elements: &Vec<RenderElementData>
+        static_render_elements: &Vec<RenderElementData>,
+        fft_ocean: &FFTOcean,
     ) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
@@ -1265,22 +1270,25 @@ impl RendererData {
             );
 
             // render forward for light probe
-            const RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES: [&str; 6] = [
-                "render_pass_static_forward_light_probe_0/render_object",
-                "render_pass_static_forward_light_probe_1/render_object",
-                "render_pass_static_forward_light_probe_2/render_object",
-                "render_pass_static_forward_light_probe_3/render_object",
-                "render_pass_static_forward_light_probe_4/render_object",
-                "render_pass_static_forward_light_probe_5/render_object",
-            ];
-            self.render_solid_object(
-                command_buffer,
-                swapchain_index,
-                RenderMode::Forward,
-                RenderObjectType::Static,
-                static_render_elements,
-                Some(RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i])
-            );
+            const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
+            if RENDER_OBJECT_FOR_LIGHT_PROBE {
+                const RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES: [&str; 6] = [
+                    "render_pass_static_forward_light_probe_0/render_object",
+                    "render_pass_static_forward_light_probe_1/render_object",
+                    "render_pass_static_forward_light_probe_2/render_object",
+                    "render_pass_static_forward_light_probe_3/render_object",
+                    "render_pass_static_forward_light_probe_4/render_object",
+                    "render_pass_static_forward_light_probe_5/render_object",
+                ];
+                self.render_solid_object(
+                    command_buffer,
+                    swapchain_index,
+                    RenderMode::Forward,
+                    RenderObjectType::Static,
+                    static_render_elements,
+                    Some(RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i])
+                );
+            }
 
             // downsampling light probe
             self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());

@@ -188,7 +188,7 @@ void apply_image_based_lighting(
     const in sampler2D ibl_brdf_lut,
     const in vec4 scene_reflect_color,
     const in vec3 scene_sky_irradiance,
-    const in vec3 shadow_factor,
+    in vec3 shadow_factor,
     float roughness,
     const in vec3 F0,
     const in vec3 sun_direction,
@@ -210,17 +210,17 @@ void apply_image_based_lighting(
     vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
     vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
 
-    ibl_diffuse_light += normalize(mix(ibl_diffuse_light, scene_sky_irradiance, vec3(0.5))) * length(scene_sky_irradiance);
+    shadow_factor = max(shadow_factor, vec3(dot(vec3(0.33333333), scene_sky_irradiance)));
+    ibl_diffuse_light = mix(ibl_diffuse_light * shadow_factor, scene_sky_irradiance, vec3(0.5));
+    ibl_specular_light *= shadow_factor;
 
-    // not correct
-    ibl_diffuse_light *= saturate(sun_direction.y);
-    ibl_specular_light *= saturate(sun_direction.y);
-
-    diffuse_light += ibl_diffuse_light * kD;
     // if(RENDER_SSR)
     {
-        specular_light.xyz += mix(ibl_specular_light, scene_reflect_color.xyz, scene_reflect_color.w) * shValue;
+        ibl_specular_light = mix(ibl_specular_light, scene_reflect_color.xyz, scene_reflect_color.w);
     }
+
+    diffuse_light += ibl_diffuse_light * kD;
+    specular_light.xyz += ibl_specular_light * shValue;
 }
 
 
