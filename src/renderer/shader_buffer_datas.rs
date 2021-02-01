@@ -91,7 +91,6 @@ pub struct LightConstants {
   pub _shadow_bias: f32,
   pub _light_color: Vector3<f32>,
   pub _shadow_samples: i32,
-  pub _shadow_dimensions: Vector4<f32>, // width height near far
 }
 
 impl Default for LightConstants {
@@ -104,12 +103,6 @@ impl Default for LightConstants {
             _shadow_bias: constants::SHADOW_BIAS,
             _light_color: Vector3::new(1.0, 1.0, 1.0),
             _shadow_samples: constants::SHADOW_SAMPLES,
-            _shadow_dimensions: Vector4::new(
-                constants::SHADOW_DISTANCE * 2.0,
-                constants::SHADOW_DISTANCE * 2.0,
-                -constants::SHADOW_DEPTH,
-                constants::SHADOW_DEPTH
-            )
         }
     }
 }

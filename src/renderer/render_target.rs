@@ -34,6 +34,7 @@ pub enum RenderTargetType {
     SSAO,
     SSAOTemp,
     Shadow,
+    CaptureHeightMap,
     SSR,
     SSRResolved,
     SSRResolvedPrev,
@@ -87,6 +88,7 @@ impl std::str::FromStr for RenderTargetType {
             "SSAO" => Ok(RenderTargetType::SSAO),
             "SSAOTemp" => Ok(RenderTargetType::SSAOTemp),
             "Shadow" => Ok(RenderTargetType::Shadow),
+            "CaptureHeightMap" => Ok(RenderTargetType::CaptureHeightMap),
             "SSR" => Ok(RenderTargetType::SSR),
             "SSRResolved" => Ok(RenderTargetType::SSRResolved),
             "SSRResolvedPrev" => Ok(RenderTargetType::SSRResolvedPrev),
@@ -308,6 +310,16 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Shadow.to_string(),
+            _texture_width: constants::SHADOW_MAP_SIZE,
+            _texture_height: constants::SHADOW_MAP_SIZE,
+            _texture_format: vk::Format::D32_SFLOAT,
+            _texture_min_filter: vk::Filter::NEAREST,
+            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::CaptureHeightMap.to_string(),
             _texture_width: constants::SHADOW_MAP_SIZE,
             _texture_height: constants::SHADOW_MAP_SIZE,
             _texture_format: vk::Format::D32_SFLOAT,

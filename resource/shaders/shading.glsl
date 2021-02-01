@@ -207,11 +207,11 @@ void apply_image_based_lighting(
     const vec3 kS = fresnelSchlickRoughness(NdV, F0, roughness);
     const vec3 kD = vec3(1.0) - kS;
     const vec3 shValue = kS * envBRDF.x + envBRDF.y;
-    vec3 ibl_diffuse_light = pow(textureLod(texture_probe, N, max_env_mipmap).xyz, vec3(2.2));
-    vec3 ibl_specular_light = pow(textureLod(texture_probe, R, roughness * max_env_mipmap).xyz, vec3(2.2));
+    vec3 ibl_diffuse_light = textureLod(texture_probe, N, max_env_mipmap).xyz;
+    vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_env_mipmap).xyz;
 
     shadow_factor = max(shadow_factor, vec3(dot(vec3(0.33333333), scene_sky_irradiance)));
-    ibl_diffuse_light = mix(ibl_diffuse_light * shadow_factor, scene_sky_irradiance, vec3(0.5));
+    ibl_diffuse_light *= shadow_factor;
     ibl_specular_light *= shadow_factor;
 
     // if(RENDER_SSR)

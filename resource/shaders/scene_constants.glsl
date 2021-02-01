@@ -91,7 +91,6 @@ struct LIGHT_CONSTANTS
     float SHADOW_BIAS;
     vec3 LIGHT_COLOR;
     int SHADOW_SAMPLES;
-    vec4 SHADOW_DIMENSIONS;
 };
 
 struct POINT_LIGHT

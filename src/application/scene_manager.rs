@@ -27,6 +27,7 @@ pub struct SceneManagerData {
     pub _resources: RcRefCell<Resources>,
     pub _main_camera: RcRefCell<CameraObjectData>,
     pub _main_light: RcRefCell<DirectionalLightData>,
+    pub _capture_height_map: RcRefCell<DirectionalLightData>,
     pub _light_probe_cameras: Vec<RcRefCell<CameraObjectData>>,
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
@@ -59,6 +60,13 @@ pub fn create_scene_manager_data(
         system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera5"), &light_probe_camera_create_info))
     ];
     let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
+    let capture_height_map = DirectionalLightData::create_light_data(
+        &String::from("capture_height_map"),
+        &DirectionalLightCreateInfo {
+            _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
+            ..Default::default()
+        }
+    );
     let fft_ocean = system::newRcRefCell(FFTOcean::default());
     let atmosphere = system::newRcRefCell(Atmosphere::create_atmosphere(true));
     system::newRcRefCell(SceneManagerData {
@@ -66,6 +74,7 @@ pub fn create_scene_manager_data(
         _resources: resources,
         _main_camera: system::newRcRefCell(default_camera),
         _main_light: system::newRcRefCell(default_light),
+        _capture_height_map: system::newRcRefCell(capture_height_map),
         _light_probe_cameras: light_probe_cameras,
         _camera_object_map: HashMap::new(),
         _directional_light_object_map: HashMap::new(),
@@ -174,6 +183,10 @@ impl SceneManagerData {
         &self._main_light
     }
 
+    pub fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLightData> {
+        &self._capture_height_map
+    }
+
     pub fn add_light_object(&mut self, object_name: &str, light_create_info: &DirectionalLightCreateInfo) -> RcRefCell<DirectionalLightData> {
         let new_object_name = system::generate_unique_name(&self._directional_light_object_map, object_name);
         let light_object_data = newRcRefCell(DirectionalLightData::create_light_data(&new_object_name, light_create_info));
@@ -257,6 +270,9 @@ impl SceneManagerData {
 
         let mut main_light = self._main_light.borrow_mut();
         main_light.update_light_data(camera_position);
+
+        let mut capture_height_map = self._capture_height_map.borrow_mut();
+        capture_height_map.update_light_data(camera_position);
 
         for (_key, render_object_data) in self._static_render_object_map.iter() {
             render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
