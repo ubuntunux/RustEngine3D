@@ -227,15 +227,16 @@ pub fn run_application() {
 
     let app_name: &str = "RustEngine3D";
     let app_version: u32 = 1;
-    let window_size: (u32, u32) = (1024, 768);
+    let initial_window_size: (u32, u32) = (1024, 768);
 
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title(app_name)
-        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: window_size.0, height: window_size.1 }))
+        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: initial_window_size.0, height: initial_window_size.1 }))
         .build(&event_loop)
         .unwrap();
+    let window_size: (u32, u32) = (window.inner_size().width, window.inner_size().height);
 
     let mut maybe_resources: Option<RcRefCell<Resources>> = None;
     let mut maybe_renderer_data: Option<RcRefCell<RendererData>> = None;
@@ -311,12 +312,13 @@ pub fn run_application() {
             #[cfg(target_os = "android")]
             Event::Suspended => {
                 log::info!("Application was suspended");
-                // if run_application {
+                #[cfg(target_os = "android")]
+                if run_application {
                 //     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                 //     renderer_data.device_wait_idle();
                 //     renderer_data.set_need_recreate_swapchain(true);
                 //     run_application = false;
-                // }
+                }
             },
             Event::NewEvents(_) => {
                 // reset input states on new frame
@@ -353,15 +355,10 @@ pub fn run_application() {
                     let elapsed_frame = application_data._time_data._elapsed_frame;
 
                     // update && render
-                    if renderer_data.get_need_recreate_swapchain() || renderer_data.get_is_first_resize_event() {
-                        if false == renderer_data.get_is_first_resize_event() {
-                            scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
-                            renderer_data.resize_window();
-                            scene_manager_data.initialize_scene_graphics_data(&renderer_data);
-                        }
-                        let window_size = window.inner_size();
-                        scene_manager_data.get_main_camera().borrow_mut().set_aspect(window_size.width, window_size.height);
-                        renderer_data.set_is_first_resize_event(false);
+                    if renderer_data.get_need_recreate_swapchain() {
+                        scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
+                        renderer_data.resize_window();
+                        scene_manager_data.initialize_scene_graphics_data(&renderer_data);
                         renderer_data.set_need_recreate_swapchain(false);
                     }
 
@@ -375,12 +372,12 @@ pub fn run_application() {
                 },
                 WindowEvent::Resized(size) => {
                     log::debug!("Resized: {:?}", size);
-
-                    if run_application {
-                        let application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                        let elapsed_frame = application_data._time_data._elapsed_frame;
-                        if constants::SWAPCHAIN_IMAGE_COUNT as u64 <= elapsed_frame {
-                            let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                    if initialize_done {
+                        let scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+                        let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                        scene_manager_data.get_main_camera().borrow_mut().set_aspect(size.width, size.height);
+                        let swapchain_extent = renderer_data._swapchain_data._swapchain_extent;
+                        if swapchain_extent.width != size.width || swapchain_extent.height != size.height {
                             renderer_data.set_need_recreate_swapchain(true);
                         }
                     }

@@ -150,7 +150,6 @@ pub struct RendererData {
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
-    _is_first_resize_event: bool,
     _is_first_rendering: bool,
     pub _entry: Entry,
     pub _instance: Instance,
@@ -283,7 +282,6 @@ pub fn create_renderer_data(
             _frame_index: 0,
             _swapchain_index: 0,
             _need_recreate_swapchain: false,
-            _is_first_resize_event: true,
             _is_first_rendering: true,
             _entry: entry,
             _instance: instance,
@@ -334,8 +332,6 @@ pub fn create_renderer_data(
 impl RendererData {
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) { self._need_recreate_swapchain = value; }
-    pub fn get_is_first_resize_event(&self) -> bool { self._is_first_resize_event }
-    pub fn set_is_first_resize_event(&mut self, value: bool) { self._is_first_resize_event = value; }
     pub fn reset_is_first_rendering(&mut self) { self._is_first_rendering = true; }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
