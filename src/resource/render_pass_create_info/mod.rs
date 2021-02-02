@@ -1,3 +1,4 @@
+pub mod capture_height_map;
 pub mod clear_render_target;
 pub mod clear_framebuffer;
 pub mod composite_gbuffer;

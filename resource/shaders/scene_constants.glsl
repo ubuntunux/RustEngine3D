@@ -8,6 +8,7 @@
 #define RenderMode_GBuffer 0
 #define RenderMode_Forward 1
 #define RenderMode_Shadow 2
+#define RenderMode_CaptureHeightMap 3
 
 // enum RenderObjectType
 #define RenderObjectType_Static 0
@@ -70,6 +71,7 @@ struct VIEW_CONSTANTS
     mat4 VIEW_ORIGIN_PROJECTION_JITTER;
     mat4 INV_VIEW_ORIGIN_PROJECTION_JITTER;
     mat4 VIEW_ORIGIN_PROJECTION_PREV_JITTER;
+    mat4 CAPTURE_HEIGHT_MAP_VIEW_PROJECTION;
     vec3 CAMERA_POSITION;
     int JITTER_FRAME;
     vec3 CAMERA_POSITION_PREV;

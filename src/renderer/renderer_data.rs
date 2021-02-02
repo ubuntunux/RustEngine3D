@@ -501,7 +501,7 @@ impl RendererData_CompositeGBuffer {
         let resources = resources.borrow();
         let render_copy_material_instance = resources.get_material_instance_data("composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
-        let descriptor_binding_index: usize = 11;
+        let descriptor_binding_index: usize = 12;
         self._descriptor_sets0 = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,

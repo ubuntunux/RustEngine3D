@@ -1,6 +1,7 @@
 {"pipelines": [
         {"render_pass": "clear_gbuffer", "pipeline": "clear"},
         {"render_pass": "clear_shadow", "pipeline": "clear"},
+        {"render_pass": "clear_capture_height_map", "pipeline": "clear"},
         {"render_pass": "clear_light_probe_0", "pipeline": "clear"},
         {"render_pass": "clear_light_probe_1", "pipeline": "clear"},
         {"render_pass": "clear_light_probe_2", "pipeline": "clear"},

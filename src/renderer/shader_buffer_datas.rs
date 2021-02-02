@@ -70,6 +70,7 @@ pub struct ViewConstants {
     pub _view_origin_projection_jitter: Matrix4<f32>,
     pub _inv_view_origin_projection_jitter: Matrix4<f32>,
     pub _view_origin_projection_prev_jitter: Matrix4<f32>,
+    pub _capture_height_map_view_projection: Matrix4<f32>,
     pub _camera_position: Vector3<f32>,
     pub _jitter_frame: i32,
     pub _camera_position_prev: Vector3<f32>,

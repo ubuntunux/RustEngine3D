@@ -38,8 +38,8 @@ impl Default for DirectionalLightCreateInfo {
             _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
             _light_constants: LightConstants::default(),
             _shadow_dimensions: Vector4::new(
-                constants::SHADOW_DISTANCE * 2.0,
-                constants::SHADOW_DISTANCE * 2.0,
+                constants::SHADOW_DISTANCE,
+                constants::SHADOW_DISTANCE,
                 -constants::SHADOW_DEPTH,
                 constants::SHADOW_DEPTH
             )

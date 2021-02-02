@@ -2,7 +2,8 @@ use std::collections::HashMap;
 
 use ash::Device;
 use nalgebra::{
-    Vector3
+    Vector3,
+    Vector4
 };
 
 use crate::constants;
@@ -64,6 +65,12 @@ pub fn create_scene_manager_data(
         &String::from("capture_height_map"),
         &DirectionalLightCreateInfo {
             _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
+            _shadow_dimensions: Vector4::new(
+                constants::CAPTURE_HEIGHT_MAP_DISTANCE,
+                constants::CAPTURE_HEIGHT_MAP_DISTANCE,
+                -constants::CAPTURE_HEIGHT_MAP_DEPTH,
+                constants::CAPTURE_HEIGHT_MAP_DEPTH
+            ),
             ..Default::default()
         }
     );

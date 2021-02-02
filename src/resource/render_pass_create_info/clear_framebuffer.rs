@@ -24,6 +24,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, framebuffe
     match framebuffer_name {
         "clear_gbuffer" => crate::resource::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
         "clear_shadow" => crate::resource::render_shadow::get_framebuffer_data_create_info(renderer_data),
+        "clear_capture_height_map" => crate::resource::capture_height_map::get_framebuffer_data_create_info(renderer_data),
         "clear_light_probe_0" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0),
         "clear_light_probe_1" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 1),
         "clear_light_probe_2" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 2),

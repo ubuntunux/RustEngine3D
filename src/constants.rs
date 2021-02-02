@@ -59,9 +59,13 @@ pub const SHADOW_MAP_SIZE: u32 = 2048;
 pub const SHADOW_SAMPLES: i32 = 4;
 pub const SHADOW_EXP: f32 = 100.0;
 pub const SHADOW_BIAS: f32 = 0.005;
-pub const SHADOW_DISTANCE: f32 = 25.0;
+pub const SHADOW_DISTANCE: f32 = 50.0;
 pub const SHADOW_DEPTH: f32 = 50.0;
 pub const SHADOW_UPDATE_DISTANCE: f32 = 10.0;
+pub const CAPTURE_HEIGHT_MAP_SIZE: u32 = 256;
+pub const CAPTURE_HEIGHT_MAP_DISTANCE: f32 = 100.0;
+pub const CAPTURE_HEIGHT_MAP_DEPTH: f32 = 100.0;
+pub const CAPTURE_HEIGHT_MAP_UPDATE_DISTANCE: f32 = 10.0;
 // SSAO_KERNEL_SIZE must match with scene_constants.glsl
 pub const SSAO_KERNEL_SIZE: usize = 64;
 pub const SSAO_RADIUS: f32 = 2.0;

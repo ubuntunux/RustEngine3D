@@ -7,6 +7,7 @@
                , {"render_pass": "render_pass_skeletal_forward_light_probe_4", "pipeline": "render_object"}
                , {"render_pass": "render_pass_skeletal_forward_light_probe_5", "pipeline": "render_object"}
                , {"render_pass": "render_pass_skeletal_shadow", "pipeline": "render_object"}
+               , {"render_pass": "capture_skeletal_height_map", "pipeline": "render_object"}
                ]
 , "material_parameters": { "textureBase": "common/default"
                          , "textureMaterial": "common/default_m"
