@@ -135,6 +135,7 @@ void main()
     float roughness2 = roughness * roughness;
     vec4 scene_reflect_color = vec4(0.0);
     vec3 light_color = mix(sky_irradiance, sun_irradiance, vec3(vs_output.shadow_factor));
+    const float sky_visibility = 1.0;
 
     // Image based lighting
     apply_image_based_lighting(
@@ -143,6 +144,7 @@ void main()
         scene_reflect_color,
         sky_irradiance,
         vec3(vs_output.shadow_factor),
+        sky_visibility,
         roughness,
         F0,
         L,

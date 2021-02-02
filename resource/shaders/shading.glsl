@@ -81,6 +81,49 @@ float get_shadow_factor(
     return get_shadow_factor_func(light_constants, world_position, NdotL, texture_shadow, isSimpleShadow);
 }
 
+float get_sky_visibility(
+    const in VIEW_CONSTANTS view_constants,
+    const in LIGHT_CONSTANTS light_constants,
+    const in vec3 world_position,
+    sampler2D texture_height_map
+)
+{
+    const vec2 height_map_size = textureSize(texture_height_map, 0);
+    const vec2 height_map_texel_size = 1.0 / height_map_size;
+    const vec2 height_map_uv_min = height_map_texel_size * 0.5;
+    const vec2 height_map_uv_max = vec2(1.0) - height_map_texel_size * 0.5;
+    vec4 height_map_proj = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(world_position, 1.0);
+    height_map_proj.xyz /= height_map_proj.w;
+    height_map_proj.xy = height_map_proj.xy * 0.5 + 0.5;
+
+    if(1.0 < height_map_proj.x || height_map_proj.x < 0.0 || 1.0 < height_map_proj.y || height_map_proj.y < 0.0 || 1.0 < height_map_proj.z || height_map_proj.z < 0.0)
+    {
+        return 1.0;
+    }
+
+    const vec2 uv_offsets[5] = {
+        vec2(0.0, 0.0),
+        vec2(height_map_texel_size.x, 0.0),
+        vec2(0.0, height_map_texel_size.y),
+        vec2(-height_map_texel_size.x, 0.0),
+        vec2(0.0, -height_map_texel_size.y),
+    };
+
+    vec2 uv = height_map_proj.xy;
+    float height_map_factors = 0.0;
+    for(int component_index = 0; component_index < 5; ++component_index)
+    {
+        const vec2 height_map_uv = clamp(uv + uv_offsets[component_index], height_map_uv_min, height_map_uv_max);
+        const float height_map_depth = textureLod(texture_height_map, height_map_uv, 0.0).x + light_constants.SHADOW_BIAS;
+        if(height_map_depth <= height_map_proj.z)
+        {
+            height_map_factors += 1.0;
+        }
+    }
+
+    return saturate(1.0 - height_map_factors * 0.2);
+}
+
 // https://en.wikipedia.org/wiki/Oren%E2%80%93Nayar_reflectance_model
 float oren_nayar(float roughness2, float NdotL, float NdotV, vec3 N, vec3 V, vec3 L)
 {
@@ -189,6 +232,7 @@ void apply_image_based_lighting(
     const in vec4 scene_reflect_color,
     const in vec3 scene_sky_irradiance,
     in vec3 shadow_factor,
+    const float sky_visibility,
     float roughness,
     const in vec3 F0,
     const in vec3 sun_direction,
@@ -210,7 +254,7 @@ void apply_image_based_lighting(
     vec3 ibl_diffuse_light = textureLod(texture_probe, N, max_env_mipmap).xyz;
     vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_env_mipmap).xyz;
 
-    shadow_factor = max(shadow_factor, vec3(dot(vec3(0.33333333), scene_sky_irradiance)));
+    shadow_factor = pow(max(shadow_factor, vec3(dot(vec3(0.33333333), scene_sky_irradiance))),  vec3(1.5 - sky_visibility * 0.5));
     ibl_diffuse_light *= shadow_factor;
     ibl_specular_light *= shadow_factor;
 
@@ -249,6 +293,7 @@ vec4 surface_shading(
     const in samplerCube texture_probe,
     const in sampler2D ibl_brdf_lut,
     const in sampler2D texture_shadow,
+    const in sampler2D texture_height_map,
     const in vec2 texCoord,
     const in vec3 world_position,
     vec3 light_color,
@@ -303,6 +348,8 @@ vec4 surface_shading(
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
     vec3 shadow_factor = vec3(get_shadow_factor(light_constants, world_position, NdL, texture_shadow));
+    float sky_visibility = get_sky_visibility(view_constants, light_constants, world_position, texture_height_map);
+
     light_color *= scene_sun_irradiance * shadow_factor;
 
     // Image based lighting
@@ -312,6 +359,7 @@ vec4 surface_shading(
         scene_reflect_color,
         scene_sky_irradiance,
         shadow_factor,
+        sky_visibility,
         roughness,
         F0,
         L,
