@@ -991,7 +991,9 @@ impl RendererData {
                 let quad_mesh = resources.get_mesh_data("quad").borrow();
                 let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
                 let static_render_elements = scene_manager.get_static_render_elements();
+                let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
                 let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
+                let skeletal_shadow_render_elements = scene_manager.get_skeletal_shadow_render_elements();
 
                 // Begin command buffer
                 let command_buffer_begin_info = vk::CommandBufferBeginInfo {
@@ -1010,8 +1012,7 @@ impl RendererData {
                 );
                 self._view_constants.update_view_constants(&main_camera);
                 if render_capture_height_map {
-                    log::info!("render_capture_height_map");
-                    self._view_constants._capture_height_map_view_projection = capture_height_map._light_constants._shadow_view_projection.into();
+                    self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
                 }
 
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &self._scene_constants);
@@ -1031,8 +1032,8 @@ impl RendererData {
 
                 // shadow
                 self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_shadow_render_elements, None);
+                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_shadow_render_elements, None);
 
                 // capture height map
                 if render_capture_height_map {

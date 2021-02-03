@@ -64,6 +64,7 @@ pub struct CameraObjectData {
     pub _view_origin_projection_jitter: Matrix4<f32>,
     pub _inv_view_origin_projection_jitter: Matrix4<f32>,
     pub _view_origin_projection_prev_jitter: Matrix4<f32>,
+    pub _view_frustum_planes: [Vector3<f32>; 4],
     pub _transform_object: TransformObjectData,
     pub _window_width: u32,
     pub _window_height: u32,
@@ -76,7 +77,7 @@ pub struct CameraObjectData {
     pub _jitter_delta: Vector2<f32>,
     pub _jitter_frame: i32,
     pub _enable_jitter: bool,
-    pub _updated: bool,
+    pub _updated_projection: bool,
 }
 
 impl CameraObjectData {
@@ -109,6 +110,7 @@ impl CameraObjectData {
             _view_origin_projection_jitter: Matrix4::identity(),
             _inv_view_origin_projection_jitter: Matrix4::identity(),
             _view_origin_projection_prev_jitter: Matrix4::identity(),
+            _view_frustum_planes: [Vector3::zeros(); 4],
             _transform_object: TransformObjectData::new_transform_object_data(),
             _jitter_mode_uniform2x: [Vector2::zeros(); 2],
             _jitter_mode_hammersley4x: [Vector2::zeros(); 4],
@@ -119,8 +121,9 @@ impl CameraObjectData {
             _jitter_delta: Vector2::new(0.0, 0.0),
             _jitter_frame: 0,
             _enable_jitter: camera_create_info.enable_jitter,
-            _updated: true,
+            _updated_projection: true,
         };
+
         // initialize
         camera_object_data.set_aspect(camera_create_info.window_width, camera_create_info.window_height);
         camera_object_data._transform_object.set_position(&camera_create_info.position);
@@ -149,13 +152,41 @@ impl CameraObjectData {
         self._aspect = aspect;
         self.update_projection();
     }
+
     pub fn update_projection(&mut self) {
         self._projection = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
         self._projection_jitter.copy_from(&self._projection);
         linalg::try_invert_to(self._projection.into(), &mut self._inv_projection);
         self._inv_projection_jitter.copy_from(&self._inv_projection);
-        self._updated = true;
+        self._updated_projection = true;
     }
+
+    pub fn update_view_frustum_planes(&mut self) {
+        // Left
+        self._view_frustum_planes[0].x = self._view_origin_projection.m41 + self._view_origin_projection.m11;
+        self._view_frustum_planes[0].y = self._view_origin_projection.m42 + self._view_origin_projection.m12;
+        self._view_frustum_planes[0].z = self._view_origin_projection.m43 + self._view_origin_projection.m13;
+        self._view_frustum_planes[0] = -self._transform_object.get_up().cross(&self._view_frustum_planes[0].normalize());
+
+        // Right
+        self._view_frustum_planes[1].x = self._view_origin_projection.m41 - self._view_origin_projection.m11;
+        self._view_frustum_planes[1].y = self._view_origin_projection.m42 - self._view_origin_projection.m12;
+        self._view_frustum_planes[1].z = self._view_origin_projection.m43 - self._view_origin_projection.m13;
+        self._view_frustum_planes[1] = self._transform_object.get_up().cross(&self._view_frustum_planes[1].normalize());
+
+        // Top
+        self._view_frustum_planes[2].x = self._view_origin_projection.m41 - self._view_origin_projection.m21;
+        self._view_frustum_planes[2].y = self._view_origin_projection.m42 - self._view_origin_projection.m22;
+        self._view_frustum_planes[2].z = self._view_origin_projection.m43 - self._view_origin_projection.m23;
+        self._view_frustum_planes[2] = self._transform_object.get_left().cross(&self._view_frustum_planes[2].normalize());
+
+        // Bottom
+        self._view_frustum_planes[3].x = self._view_origin_projection.m41 + self._view_origin_projection.m21;
+        self._view_frustum_planes[3].y = self._view_origin_projection.m42 + self._view_origin_projection.m22;
+        self._view_frustum_planes[3].z = self._view_origin_projection.m43 + self._view_origin_projection.m23;
+        self._view_frustum_planes[3] = -self._transform_object.get_left().cross(&self._view_frustum_planes[3].normalize());
+    }
+
     pub fn update_camera_object_data(&mut self) {
         if self._enable_jitter {
             self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
@@ -173,8 +204,10 @@ impl CameraObjectData {
         self._view_origin_projection_prev_jitter.copy_from(&self._view_origin_projection_jitter);
 
         // update matrices
-        let updated = self._transform_object.update_transform_object();
-        if updated || self._updated {
+        let updated = self._transform_object.update_transform_object() || self._updated_projection;
+        self._updated_projection = false;
+
+        if updated {
             // view matrix is inverse matrix of transform, cause it's camera.
             self._view = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
             self._inv_view = self._transform_object.get_matrix().clone() as Matrix4<f32>;
@@ -187,7 +220,8 @@ impl CameraObjectData {
             self._inv_view_projection = &self._inv_view * &self._inv_projection;
             self._view_origin_projection = &self._projection * &self._view_origin;
             self._inv_view_origin_projection = &self._inv_view_origin * &self._inv_projection;
-            self._updated = false;
+
+            self.update_view_frustum_planes();
         }
 
         // Update projection jitter
@@ -198,7 +232,7 @@ impl CameraObjectData {
             self._view_projection_jitter = &self._projection_jitter * &self._view;
             self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
             linalg::try_invert_to(self._view_origin_projection_jitter.into(), &mut self._inv_view_origin_projection_jitter);
-        } else if updated || self._updated {
+        } else if updated {
             self._view_projection_jitter = self._view_projection.into();
             self._view_origin_projection_jitter = self._view_origin_projection.into();
             self._inv_view_origin_projection_jitter = self._inv_view_origin_projection.into();

@@ -17,6 +17,7 @@ use crate::renderer::precomputed_atmosphere::Atmosphere;
 use crate::renderer::shader_buffer_datas::{ LightConstants };
 use crate::resource::{ self, Resources };
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
+use crate::utilities::bounding_box::BoundingBox;
 
 type CameraObjectMap = HashMap<String, RcRefCell<CameraObjectData>>;
 type DirectionalLightObjectMap = HashMap<String, RcRefCell<DirectionalLightData>>;
@@ -33,9 +34,11 @@ pub struct SceneManagerData {
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
     pub _static_render_object_map: RenderObjectMap,
-    pub _static_render_elements: Vec<RenderElementData>,
     pub _skeletal_render_object_map: RenderObjectMap,
+    pub _static_render_elements: Vec<RenderElementData>,
+    pub _static_shadow_render_elements: Vec<RenderElementData>,
     pub _skeletal_render_elements: Vec<RenderElementData>,
+    pub _skeletal_shadow_render_elements: Vec<RenderElementData>,
     pub _fft_ocean: RcRefCell<FFTOcean>,
     pub _atmosphere: RcRefCell<Atmosphere>,
 }
@@ -86,9 +89,11 @@ pub fn create_scene_manager_data(
         _camera_object_map: HashMap::new(),
         _directional_light_object_map: HashMap::new(),
         _static_render_object_map: HashMap::new(),
-        _static_render_elements: Vec::new(),
         _skeletal_render_object_map: HashMap::new(),
+        _static_render_elements: Vec::new(),
+        _static_shadow_render_elements: Vec::new(),
         _skeletal_render_elements: Vec::new(),
+        _skeletal_shadow_render_elements: Vec::new(),
         _fft_ocean: fft_ocean,
         _atmosphere: atmosphere,
     })
@@ -122,7 +127,7 @@ impl SceneManagerData {
         let sphere = self._resources.borrow().get_model_data("sphere").clone();
         self.add_static_render_object("sphere", RenderObjectCreateInfo {
             _model_data: Some(sphere),
-            _position: Vector3::new(-2.0, 1.0, 0.0),
+            _position: Vector3::new(-2.0, 0.0, 0.0),
             _scale: Vector3::new(1.0, 1.0, 1.0),
             ..Default::default()
         });
@@ -146,9 +151,11 @@ impl SceneManagerData {
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
         self._static_render_object_map.clear();
-        self._static_render_elements.clear();
         self._skeletal_render_object_map.clear();
+        self._static_render_elements.clear();
+        self._static_shadow_render_elements.clear();
         self._skeletal_render_elements.clear();
+        self._skeletal_shadow_render_elements.clear();
 
         self.destroy_scene_graphics_data(device);
     }
@@ -227,24 +234,73 @@ impl SceneManagerData {
         &self._static_render_elements
     }
 
+    pub fn get_static_shadow_render_elements(&self) -> &Vec<RenderElementData> {
+        &self._static_shadow_render_elements
+    }
+
     pub fn get_skeletal_render_elements(&self) -> &Vec<RenderElementData> {
         &self._skeletal_render_elements
     }
 
-    pub fn gather_render_elements(render_object_map: &RenderObjectMap, render_elements: &mut Vec<RenderElementData>) {
+    pub fn get_skeletal_shadow_render_elements(&self) -> &Vec<RenderElementData> {
+        &self._skeletal_shadow_render_elements
+    }
+
+    pub fn view_frustum_culling_geometry(camera: &CameraObjectData, geometry_bound_box: &BoundingBox) -> bool {
+        let to_geometry = &geometry_bound_box._center - camera.get_camera_position();
+        for plane in camera._view_frustum_planes.iter() {
+            let d = plane.dot(&to_geometry);
+            if geometry_bound_box._radius < d {
+                return true;
+            }
+        }
+        false
+    }
+
+    pub fn shadow_culling(light: &DirectionalLightData, geometry_bound_box: &BoundingBox) -> bool {
+        let shadow_view_projection = light.get_shadow_view_projection();
+        let bound_min: Vector4<f32> = shadow_view_projection * Vector4::new(geometry_bound_box._min.x, geometry_bound_box._min.y, geometry_bound_box._min.z, 1.0);
+        let bound_max: Vector4<f32> = shadow_view_projection * Vector4::new(geometry_bound_box._max.x, geometry_bound_box._max.y, geometry_bound_box._max.z, 1.0);
+        let minimum: Vector3<f32> = Vector3::new(bound_min.x.min(bound_max.x), bound_min.y.min(bound_max.y), bound_min.z.min(bound_max.z));
+        let maximum: Vector3<f32> = Vector3::new(bound_min.x.max(bound_max.x), bound_min.y.max(bound_max.y), bound_min.z.max(bound_max.z));
+        if maximum.x < -1.0 || 1.0 < minimum.x || maximum.y < -1.0 || 1.0 < minimum.y || maximum.z < -1.0 || 1.0 < minimum.z {
+            return true;
+        }
+        false
+    }
+
+    pub fn gather_render_elements(
+        camera: &CameraObjectData,
+        light: &DirectionalLightData,
+        render_object_map: &RenderObjectMap,
+        render_elements: &mut Vec<RenderElementData>,
+        render_shadow_elements: &mut Vec<RenderElementData>,
+    ) {
         render_elements.clear();
+        render_shadow_elements.clear();
         for (_key, render_object_data) in render_object_map.iter() {
             let render_object_data_ref = render_object_data.borrow();
             let mode_data = render_object_data_ref.get_model_data().borrow();
             let mesh_data = mode_data.get_mesh_data().borrow();
             let geometry_datas = mesh_data.get_geomtry_datas();
+            let geometry_bound_boxes = &render_object_data_ref._geometry_bound_boxes;
             let material_instance_datas = mode_data.get_material_instance_datas();
             for index in 0..geometry_datas.len() {
-                render_elements.push(RenderElementData {
-                    _render_object: render_object_data.clone(),
-                    _geometry_data: geometry_datas[index].clone(),
-                    _material_instance_data: material_instance_datas[index].clone(),
-                })
+                if false == SceneManagerData::view_frustum_culling_geometry(camera, &geometry_bound_boxes[index]) {
+                    render_elements.push(RenderElementData {
+                        _render_object: render_object_data.clone(),
+                        _geometry_data: geometry_datas[index].clone(),
+                        _material_instance_data: material_instance_datas[index].clone(),
+                    })
+                }
+
+                if false == SceneManagerData::shadow_culling(light, &geometry_bound_boxes[index]) {
+                    render_shadow_elements.push(RenderElementData {
+                        _render_object: render_object_data.clone(),
+                        _geometry_data: geometry_datas[index].clone(),
+                        _material_instance_data: material_instance_datas[index].clone(),
+                    })
+                }
             }
         }
     }
@@ -289,7 +345,20 @@ impl SceneManagerData {
             render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
-        SceneManagerData::gather_render_elements(&self._static_render_object_map, &mut self._static_render_elements);
-        SceneManagerData::gather_render_elements(&self._skeletal_render_object_map, &mut self._skeletal_render_elements);
+        SceneManagerData::gather_render_elements(
+            &main_camera,
+            &main_light,
+            &self._static_render_object_map,
+            &mut self._static_render_elements,
+            &mut self._static_shadow_render_elements
+        );
+
+        SceneManagerData::gather_render_elements(
+            &main_camera,
+            &main_light,
+            &self._skeletal_render_object_map,
+            &mut self._skeletal_render_elements,
+            &mut self._skeletal_shadow_render_elements
+        );
     }
 }

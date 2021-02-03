@@ -8,6 +8,7 @@ use crate::renderer::model::ModelData;
 use crate::renderer::animation::AnimationData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::RcRefCell;
+use crate::utilities::bounding_box::BoundingBox;
 
 #[derive(Clone, Debug)]
 pub struct RenderObjectCreateInfo {
@@ -22,6 +23,8 @@ pub struct RenderObjectData {
     pub _render_object_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _model_data: RcRefCell<ModelData>,
+    pub _bound_box: BoundingBox,
+    pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
     pub _animation_play_info: Option<AnimationPlayInfo>,
 }
@@ -129,12 +132,15 @@ impl RenderObjectData {
 
         let model_data = render_object_create_data._model_data.unwrap();
         let mesh_data = model_data.borrow()._mesh_data.clone();
+        let bound_box = mesh_data.borrow()._bound_box.clone();
         let has_animation_data = mesh_data.borrow().has_animation_data();
-
+        let geometry_bound_boxes = mesh_data.borrow()._geometry_datas.iter().map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone()).collect();
         let mut render_object_data = RenderObjectData {
             _render_object_name: render_object_name.clone(),
             _model_data: model_data,
             _mesh_data: mesh_data,
+            _bound_box: bound_box,
+            _geometry_bound_boxes: geometry_bound_boxes,
             _transform_object: transform_object_data,
             _animation_play_info: None,
         };
@@ -192,8 +198,19 @@ impl RenderObjectData {
         &self._animation_play_info.as_ref().unwrap()._animation_buffers[index]
     }
 
+    pub fn update_bound_box(&mut self) {
+        let transform_matrix = self._transform_object.get_matrix();
+        self._bound_box.update_with_matrix(&self._mesh_data.borrow()._bound_box, transform_matrix);
+        for (i, geometry_data) in self._mesh_data.borrow()._geometry_datas.iter().enumerate() {
+            self._geometry_bound_boxes.get_mut(i).unwrap().update_with_matrix(&geometry_data.borrow()._geometry_bounding_box, transform_matrix);
+        }
+    }
+
     pub fn update_render_object_data(&mut self, delta_time: f32) {
-        self._transform_object.update_transform_object();
+        let updated_transform = self._transform_object.update_transform_object();
+        if updated_transform {
+            self.update_bound_box();
+        }
 
         // update animation
         if self.has_animation_play_info() {

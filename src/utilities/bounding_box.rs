@@ -1,6 +1,6 @@
 use serde::{ Serialize, Deserialize };
 use nalgebra;
-use nalgebra::{ Vector3 };
+use nalgebra::{Vector3, Vector4, Matrix4};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct BoundingBox {
@@ -48,6 +48,17 @@ pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
         _max: bound_max,
         _center: center,
         _radius: radius,
+    }
+}
+
+impl BoundingBox {
+    pub fn update_with_matrix(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+        let bound_min: Vector4<f32> = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
+        let bound_max: Vector4<f32> = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
+        self._min = Vector3::new(bound_min.x.min(bound_max.x), bound_min.y.min(bound_max.y), bound_min.z.min(bound_max.z));
+        self._max = Vector3::new(bound_min.x.max(bound_max.x), bound_min.y.max(bound_max.y), bound_min.z.max(bound_max.z));
+        self._center = &self._min * 0.5 + &self._max * 0.5;
+        self._radius = (&self._max * 0.5 - &self._min * 0.5).norm();
     }
 }
 
