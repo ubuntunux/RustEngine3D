@@ -121,7 +121,9 @@ float get_sky_visibility(
         }
     }
 
-    return saturate(1.0 - height_map_factors * 0.2);
+    height_map_factors = saturate(1.0 - height_map_factors * 0.2);
+
+    return height_map_factors * height_map_factors;
 }
 
 // https://en.wikipedia.org/wiki/Oren%E2%80%93Nayar_reflectance_model
