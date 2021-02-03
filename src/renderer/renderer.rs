@@ -983,8 +983,10 @@ impl RendererData {
                 let command_buffer = self._command_buffers[swapchain_index as usize];
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
-                let main_light = scene_manager.get_main_light().borrow();
-                let capture_height_map = scene_manager.get_capture_height_map().borrow();
+                let mut main_light = scene_manager.get_main_light().borrow_mut();
+                let render_main_light_shadow = main_light.get_need_to_redraw_shadow_and_reset();
+                let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
+                let render_capture_height_map: bool = capture_height_map.get_need_to_redraw_shadow_and_reset();
                 let fft_ocean =  scene_manager.get_fft_ocean().borrow();
                 let mut atmosphere =  scene_manager.get_atmosphere().borrow_mut();
                 let quad_mesh = resources.get_mesh_data("quad").borrow();
@@ -1008,7 +1010,10 @@ impl RendererData {
                     fft_ocean.get_height(),
                 );
                 self._view_constants.update_view_constants(&main_camera);
-                self._view_constants._capture_height_map_view_projection = capture_height_map._light_constants._shadow_view_projection.into();
+                if render_capture_height_map {
+                    log::info!("render_capture_height_map");
+                    self._view_constants._capture_height_map_view_projection = capture_height_map._light_constants._shadow_view_projection.into();
+                }
 
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstants, &self._scene_constants);
                 self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstants, &self._view_constants);
@@ -1022,17 +1027,21 @@ impl RendererData {
                     atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
                 }
 
-                // clear
+                // clear gbuffer
                 self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
                 // shadow
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+                if render_main_light_shadow {
+                    self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+                    self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_render_elements, None);
+                    self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+                }
 
                 // capture height map
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
+                if render_capture_height_map {
+                    self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+                    self.render_solid_object(command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
+                }
 
                 // fft-simulation
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
