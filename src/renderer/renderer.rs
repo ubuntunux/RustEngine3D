@@ -1045,7 +1045,7 @@ impl RendererData {
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
 
                 // light probe
-                if self._light_probe_datas._next_refresh_time < elapsed_time {
+                if self._light_probe_datas._next_refresh_time <= elapsed_time {
                     self.render_light_probe(
                         command_buffer,
                         swapchain_index,
@@ -1210,6 +1210,8 @@ impl RendererData {
             ..Default::default()
         };
         let main_camera_position = main_camera._transform_object.get_position();
+
+        // render atmosphere, inscatter
         for i in 0..constants::CUBE_LAYER_COUNT {
             let mut light_probe_camera = scene_manager.get_light_probe_camera(i).borrow_mut();
             light_probe_camera._transform_object.set_position(main_camera_position);
@@ -1239,49 +1241,49 @@ impl RendererData {
                 NONE_PUSH_CONSTANT,
             );
 
-            // downsampling
+            // downsampling for only sky
             self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-            let mip_level_descriptor_sets = &self._light_probe_datas._light_probe_downsampling_descriptor_sets[i];
+            let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
             let mip_levels = mip_level_descriptor_sets.len();
             for mip_level in 0..mip_levels {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
                 self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
                 self.dispatch_compute_pipeline(
                     command_buffer,
-                    self._light_probe_datas._light_probe_downsampling_dispatch_group_x >> (mip_level + 1),
-                    self._light_probe_datas._light_probe_downsampling_dispatch_group_y >> (mip_level + 1),
+                    self._light_probe_datas._only_sky_downsampling_dispatch_group_x >> (mip_level + 1),
+                    self._light_probe_datas._only_sky_downsampling_dispatch_group_y >> (mip_level + 1),
                     1
                 );
             }
         }
 
         // render static object for light probe
-        for i in 0..constants::CUBE_LAYER_COUNT {
-            // clear light probe
-            const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
-                "clear_light_probe_0/clear",
-                "clear_light_probe_1/clear",
-                "clear_light_probe_2/clear",
-                "clear_light_probe_3/clear",
-                "clear_light_probe_4/clear",
-                "clear_light_probe_5/clear",
-            ];
-            self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = true;
+        if RENDER_OBJECT_FOR_LIGHT_PROBE {
+            for i in 0..constants::CUBE_LAYER_COUNT {
+                // clear light probe
+                const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
+                    "clear_light_probe_0/clear",
+                    "clear_light_probe_1/clear",
+                    "clear_light_probe_2/clear",
+                    "clear_light_probe_3/clear",
+                    "clear_light_probe_4/clear",
+                    "clear_light_probe_5/clear",
+                ];
+                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
-            // composite atmosphere
-            self.render_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                composite_atmosphere_pipeline_binding_data,
-                quad_geometry_data,
-                Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
-                Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
-                NONE_PUSH_CONSTANT,
-            );
+                // composite atmosphere
+                self.render_render_pass_pipeline(
+                    command_buffer,
+                    swapchain_index,
+                    composite_atmosphere_pipeline_binding_data,
+                    quad_geometry_data,
+                    Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
+                    Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
+                    NONE_PUSH_CONSTANT,
+                );
 
-            // render forward for light probe
-            const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
-            if RENDER_OBJECT_FOR_LIGHT_PROBE {
+                // render forward for light probe
                 const RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES: [&str; 6] = [
                     "render_pass_static_forward_light_probe_0/render_object",
                     "render_pass_static_forward_light_probe_1/render_object",
@@ -1298,21 +1300,21 @@ impl RendererData {
                     static_render_elements,
                     Some(RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i])
                 );
-            }
 
-            // downsampling light probe
-            self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-            let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
-            let mip_levels = mip_level_descriptor_sets.len();
-            for mip_level in 0..mip_levels {
-                let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
-                self.dispatch_compute_pipeline(
-                    command_buffer,
-                    self._light_probe_datas._only_sky_downsampling_dispatch_group_x >> (mip_level + 1),
-                    self._light_probe_datas._only_sky_downsampling_dispatch_group_y >> (mip_level + 1),
-                    1
-                );
+                // downsampling light probe
+                self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
+                let mip_level_descriptor_sets = &self._light_probe_datas._light_probe_downsampling_descriptor_sets[i];
+                let mip_levels = mip_level_descriptor_sets.len();
+                for mip_level in 0..mip_levels {
+                    let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
+                    self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
+                    self.dispatch_compute_pipeline(
+                        command_buffer,
+                        self._light_probe_datas._light_probe_downsampling_dispatch_group_x >> (mip_level + 1),
+                        self._light_probe_datas._light_probe_downsampling_dispatch_group_y >> (mip_level + 1),
+                        1
+                    );
+                }
             }
         }
     }
