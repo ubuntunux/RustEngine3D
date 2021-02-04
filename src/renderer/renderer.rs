@@ -408,6 +408,9 @@ impl RendererData {
             &[
                 (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -1261,14 +1264,14 @@ impl RendererData {
         const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = true;
         if RENDER_OBJECT_FOR_LIGHT_PROBE {
             for i in 0..constants::CUBE_LAYER_COUNT {
-                // clear light probe
+                // clear light probe depth
                 const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
-                    "clear_light_probe_0/clear",
-                    "clear_light_probe_1/clear",
-                    "clear_light_probe_2/clear",
-                    "clear_light_probe_3/clear",
-                    "clear_light_probe_4/clear",
-                    "clear_light_probe_5/clear",
+                    "clear_light_probe_depth_0/clear",
+                    "clear_light_probe_depth_1/clear",
+                    "clear_light_probe_depth_2/clear",
+                    "clear_light_probe_depth_3/clear",
+                    "clear_light_probe_depth_4/clear",
+                    "clear_light_probe_depth_5/clear",
                 ];
                 self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 

@@ -29,14 +29,18 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, layer: u32) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, layer: u32, light_probe_depth_only: bool) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        &[RenderTargetInfo {
+        &(if light_probe_depth_only {
+            vec![]
+        } else {
+            vec![RenderTargetInfo {
                 _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeColor),
                 _target_layer: layer,
                 _target_mip_level: 0,
                 _clear_value: Some(vulkan_context::get_color_clear_zero()),
-        }],
+            }]
+        }),
         &[RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeDepth),
             _target_layer: layer,
@@ -56,7 +60,8 @@ pub fn get_render_pass_data_create_info(
         RenderObjectType::Static => String::from(format!("render_pass_static_forward_light_probe_{}", layer)),
         RenderObjectType::Skeletal => String::from(format!("render_pass_skeletal_forward_light_probe_{}", layer)),
     };
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, layer);
+    let light_probe_depth_only: bool = false;
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, layer, light_probe_depth_only);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {

@@ -2,11 +2,11 @@
         {"render_pass": "clear_gbuffer", "pipeline": "clear"},
         {"render_pass": "clear_shadow", "pipeline": "clear"},
         {"render_pass": "clear_capture_height_map", "pipeline": "clear"},
-        {"render_pass": "clear_light_probe_0", "pipeline": "clear"},
-        {"render_pass": "clear_light_probe_1", "pipeline": "clear"},
-        {"render_pass": "clear_light_probe_2", "pipeline": "clear"},
-        {"render_pass": "clear_light_probe_3", "pipeline": "clear"},
-        {"render_pass": "clear_light_probe_4", "pipeline": "clear"},
-        {"render_pass": "clear_light_probe_5", "pipeline": "clear"}
+        {"render_pass": "clear_light_probe_depth_0", "pipeline": "clear"},
+        {"render_pass": "clear_light_probe_depth_1", "pipeline": "clear"},
+        {"render_pass": "clear_light_probe_depth_2", "pipeline": "clear"},
+        {"render_pass": "clear_light_probe_depth_3", "pipeline": "clear"},
+        {"render_pass": "clear_light_probe_depth_4", "pipeline": "clear"},
+        {"render_pass": "clear_light_probe_depth_5", "pipeline": "clear"}
     ]
 }

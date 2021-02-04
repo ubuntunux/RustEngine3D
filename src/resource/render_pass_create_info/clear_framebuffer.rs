@@ -21,16 +21,17 @@ use crate::vulkan_context::vulkan_context::{
 
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, framebuffer_name: &str) -> FramebufferDataCreateInfo {
+    let light_probe_depth_only: bool = true;
     match framebuffer_name {
         "clear_gbuffer" => crate::resource::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
         "clear_shadow" => crate::resource::render_shadow::get_framebuffer_data_create_info(renderer_data),
         "clear_capture_height_map" => crate::resource::capture_height_map::get_framebuffer_data_create_info(renderer_data),
-        "clear_light_probe_0" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0),
-        "clear_light_probe_1" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 1),
-        "clear_light_probe_2" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 2),
-        "clear_light_probe_3" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 3),
-        "clear_light_probe_4" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 4),
-        "clear_light_probe_5" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 5),
+        "clear_light_probe_depth_0" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0, light_probe_depth_only),
+        "clear_light_probe_depth_1" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 1, light_probe_depth_only),
+        "clear_light_probe_depth_2" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 2, light_probe_depth_only),
+        "clear_light_probe_depth_3" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 3, light_probe_depth_only),
+        "clear_light_probe_depth_4" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 4, light_probe_depth_only),
+        "clear_light_probe_depth_5" => crate::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 5, light_probe_depth_only),
         _ => panic!("Not implemented.")
     }
 }
