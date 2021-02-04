@@ -20,7 +20,7 @@ use winit::event_loop::{
     EventLoop
 };
 use winit::dpi;
-use winit::window::{ WindowBuilder };
+use winit::window::{ Window, WindowBuilder };
 
 use crate::constants;
 use crate::application::{scene_manager, SceneManagerData};
@@ -86,8 +86,6 @@ impl TimeData {
 }
 
 pub struct ApplicationData {
-    _window: bool,
-    _window_size_changed: bool,
     _window_size: (u32, u32),
     _time_data: TimeData,
     _camera_move_speed: f32,
@@ -122,10 +120,11 @@ impl ApplicationData {
     pub fn update_event(&mut self, scene_manager_data: &SceneManagerData) {
         let renderer_data: *mut RendererData = scene_manager_data._renderer_data.as_ptr();
 
+        const MOUSE_DELTA_RATIO: f32 = 500.0;
         let delta_time = self._time_data._delta_time;
         let mouse_pos = &self._mouse_move_data._mouse_pos;
-        let mouse_delta_x = self._mouse_move_data._mouse_pos_delta.x;
-        let mouse_delta_y = self._mouse_move_data._mouse_pos_delta.y;
+        let mouse_delta_x = self._mouse_move_data._mouse_pos_delta.x as f32 / self._window_size.0 as f32 * MOUSE_DELTA_RATIO;
+        let mouse_delta_y = self._mouse_move_data._mouse_pos_delta.y as f32 / self._window_size.1 as f32 * MOUSE_DELTA_RATIO;
         let btn_left: bool = self._mouse_input_data._btn_l_hold;
         let btn_right: bool = self._mouse_input_data._btn_r_hold;
         let btn_middle: bool = self._mouse_input_data._btn_m_hold;
@@ -263,8 +262,6 @@ pub fn run_application() {
             let mouse_input_data = input::create_mouse_input_data();
             let application_data = system::newRcRefCell(
                 ApplicationData {
-                    _window: false,
-                    _window_size_changed: false,
                     _window_size: window_size,
                     _time_data: create_time_data(elapsed_time),
                     _camera_move_speed: 1.0,
@@ -373,8 +370,10 @@ pub fn run_application() {
                 WindowEvent::Resized(size) => {
                     log::debug!("Resized: {:?}", size);
                     if initialize_done {
+                        let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                         let scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                         let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                        application_data._window_size = (size.width, size.height);
                         scene_manager_data.get_main_camera().borrow_mut().set_aspect(size.width, size.height);
                         let swapchain_extent = renderer_data._swapchain_data._swapchain_extent;
                         if swapchain_extent.width != size.width || swapchain_extent.height != size.height {
