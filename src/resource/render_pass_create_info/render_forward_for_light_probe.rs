@@ -35,7 +35,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, layer: u32
             vec![]
         } else {
             vec![RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeColor),
+                _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeColorForward),
                 _target_layer: layer,
                 _target_mip_level: 0,
                 _clear_value: Some(vulkan_context::get_color_clear_zero()),

@@ -35,7 +35,7 @@ pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
 ];
 pub const MAX_FRAME_COUNT: usize = 2;
 pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
-pub const MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 200;
+pub const MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 512;
 #[cfg(target_os = "android")]
 pub const ENABLE_IMMEDIATE_MODE: bool = false;
 #[cfg(not(target_os = "android"))]

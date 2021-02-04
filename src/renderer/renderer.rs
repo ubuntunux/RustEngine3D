@@ -39,7 +39,7 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
-use crate::vulkan_context::vulkan_context::{ self, RenderFeatures, SwapchainArray, FrameArray };
+use crate::vulkan_context::vulkan_context::{ self, RenderFeatures, SwapchainArray, FrameArray, MipLevels };
 use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
@@ -432,6 +432,9 @@ impl RendererData {
             &self._resources,
             self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
             &[
@@ -1062,6 +1065,15 @@ impl RendererData {
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                 }
 
+                // copy light_probe_color
+                self.copy_cube_map(
+                    command_buffer,
+                    swapchain_index,
+                    &resources,
+                    &self._light_probe_datas._light_probe_copy_from_only_sky_descriptor_sets,
+                    constants::LIGHT_PROBE_SIZE,
+                );
+
                 // render solid object
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
@@ -1183,6 +1195,26 @@ impl RendererData {
         }
     }
 
+    pub fn copy_cube_map(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        resources: &Ref<Resources>,
+        mip_level_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
+        image_width: u32,
+    ) {
+        let copy_cube_map_material_instance = resources.get_material_instance_data("copy_cube_map").borrow();
+        let copy_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_default_pipeline_binding_data();
+        self.begin_compute_pipeline(command_buffer, &copy_cube_map_pipeline_binding_data.get_pipeline_data().borrow());
+        let mip_levels = mip_level_descriptor_sets.len();
+        for mip_level in 0..mip_levels {
+            let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
+            self.bind_descriptor_sets(command_buffer, swapchain_index, copy_cube_map_pipeline_binding_data, descriptor_sets);
+            let dispatch_count = image_width >> mip_level;
+            self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+        }
+    }
+
     pub fn render_light_probe(
         &self,
         command_buffer: vk::CommandBuffer,
@@ -1213,6 +1245,15 @@ impl RendererData {
             ..Default::default()
         };
         let main_camera_position = main_camera._transform_object.get_position();
+
+        // copy only_sky to only_sky_prev
+        self.copy_cube_map(
+            command_buffer,
+            swapchain_index,
+            resources,
+            &self._light_probe_datas._only_sky_copy_descriptor_sets,
+            constants::LIGHT_PROBE_SIZE,
+        );
 
         // render atmosphere, inscatter
         for i in 0..constants::CUBE_LAYER_COUNT {
@@ -1251,18 +1292,23 @@ impl RendererData {
             for mip_level in 0..mip_levels {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
                 self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
-                self.dispatch_compute_pipeline(
-                    command_buffer,
-                    self._light_probe_datas._only_sky_downsampling_dispatch_group_x >> (mip_level + 1),
-                    self._light_probe_datas._only_sky_downsampling_dispatch_group_y >> (mip_level + 1),
-                    1
-                );
+                let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
+                self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
             }
         }
 
         // render static object for light probe
         const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = true;
         if RENDER_OBJECT_FOR_LIGHT_PROBE {
+            // copy light_probe_forward to light_probe_forward_prev
+            self.copy_cube_map(
+                command_buffer,
+                swapchain_index,
+                resources,
+                &self._light_probe_datas._light_probe_forward_copy_descriptor_sets,
+                constants::LIGHT_PROBE_SIZE,
+            );
+
             for i in 0..constants::CUBE_LAYER_COUNT {
                 // clear light probe depth
                 const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
@@ -1311,12 +1357,8 @@ impl RendererData {
                 for mip_level in 0..mip_levels {
                     let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
                     self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
-                    self.dispatch_compute_pipeline(
-                        command_buffer,
-                        self._light_probe_datas._light_probe_downsampling_dispatch_group_x >> (mip_level + 1),
-                        self._light_probe_datas._light_probe_downsampling_dispatch_group_y >> (mip_level + 1),
-                        1
-                    );
+                    let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
+                    self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
                 }
             }
         }

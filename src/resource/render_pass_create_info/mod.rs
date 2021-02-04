@@ -2,6 +2,7 @@ pub mod capture_height_map;
 pub mod clear_render_target;
 pub mod clear_framebuffer;
 pub mod composite_gbuffer;
+pub mod copy_cube_map;
 pub mod downsampling;
 pub mod fft_ocean;
 pub mod generate_min_z;
@@ -23,6 +24,7 @@ pub mod render_ssr;
 pub mod render_ssr_resolve;
 pub mod render_taa;
 pub mod render_pass_create_info;
+
 
 #[allow(unused_imports)]
 pub use self::render_pass_create_info::*;

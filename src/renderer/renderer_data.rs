@@ -28,11 +28,11 @@ pub struct RendererData_LightProbe {
     pub _composite_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
     pub _composite_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
     pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
-    pub _only_sky_downsampling_dispatch_group_x: u32,
-    pub _only_sky_downsampling_dispatch_group_y: u32,
     pub _light_probe_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
-    pub _light_probe_downsampling_dispatch_group_x: u32,
-    pub _light_probe_downsampling_dispatch_group_y: u32,
+    pub _light_probe_copy_from_only_sky_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _light_probe_copy_from_forward_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _only_sky_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _light_probe_forward_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
 }
 
 impl Default for RendererData_LightProbe {
@@ -46,11 +46,11 @@ impl Default for RendererData_LightProbe {
             _composite_atmosphere_framebuffer_datas: Vec::new(),
             _composite_atmosphere_descriptor_sets: Vec::new(),
             _only_sky_downsampling_descriptor_sets: Vec::new(),
-            _only_sky_downsampling_dispatch_group_x: 1,
-            _only_sky_downsampling_dispatch_group_y: 1,
             _light_probe_downsampling_descriptor_sets: Vec::new(),
-            _light_probe_downsampling_dispatch_group_x: 1,
-            _light_probe_downsampling_dispatch_group_y: 1,
+            _light_probe_copy_from_only_sky_descriptor_sets: Vec::new(),
+            _light_probe_copy_from_forward_descriptor_sets: Vec::new(),
+            _only_sky_copy_descriptor_sets: Vec::new(),
+            _light_probe_forward_copy_descriptor_sets: Vec::new(),
         }
     }
 }
@@ -391,8 +391,8 @@ impl RendererData_HierachicalMinZ {
         let generate_min_z_material_instance = resources.get_material_instance_data("generate_min_z").borrow();
         let pipeline_binding_data = generate_min_z_material_instance.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let layer: u32 = 0;
-        let dispatch_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
-        for mip_level in 0..dispatch_count {
+        let downsampling_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
+        for mip_level in 0..downsampling_count {
             let descriptor_sets = utility::create_descriptor_sets(
                 device,
                 pipeline_binding_data,
@@ -426,8 +426,8 @@ impl RendererData_SceneColorDownSampling {
         let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
         let layer: u32 = 0;
-        let dispatch_count: u32 = texture_scene_color._image_mip_levels - 1;
-        for mip_level in 0..dispatch_count {
+        let downsampling_count: u32 = texture_scene_color._image_mip_levels - 1;
+        for mip_level in 0..downsampling_count {
             let descriptor_sets = utility::create_descriptor_sets(
                 device,
                 pipeline_binding_data,
@@ -591,6 +591,9 @@ impl RendererData_LightProbe {
         resources: &RcRefCell<Resources>,
         light_probe_color: &TextureData,
         light_probe_color_only_sky: &TextureData,
+        light_probe_color_only_sky_prev: &TextureData,
+        light_probe_color_forward: &TextureData,
+        light_probe_color_forward_prev: &TextureData,
         light_probe_atmosphere_color: &TextureData,
         light_probe_atmosphere_inscatter: &TextureData,
         light_probe_view_constants: &[&ShaderBufferData],
@@ -602,6 +605,8 @@ impl RendererData_LightProbe {
         let composite_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
         let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
         let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+        let copy_cube_map_material_instance = resources.get_material_instance_data("copy_cube_map").borrow();
+        let copy_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_default_pipeline_binding_data();
 
         for i in 0..constants::CUBE_LAYER_COUNT {
             // render_atmosphere
@@ -641,7 +646,7 @@ impl RendererData_LightProbe {
                 &composite_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
                 "composite_atmosphere_light_probe",
                 &[
-                    RenderTargetInfo { _texture_data: &light_probe_color, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
+                    RenderTargetInfo { _texture_data: &light_probe_color_forward, _target_layer: i as u32, _target_mip_level: 0, _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)) },
                 ],
                 &[],
                 &[],
@@ -660,9 +665,9 @@ impl RendererData_LightProbe {
             ));
 
             // downsampling only sky texture
-            let dispatch_count: u32 = light_probe_color_only_sky._image_mip_levels - 1;
             self._only_sky_downsampling_descriptor_sets.push(Vec::new());
-            for mip_level in 0..dispatch_count {
+            let downsampling_count: u32 = light_probe_color_only_sky._image_mip_levels - 1;
+            for mip_level in 0..downsampling_count {
                 let descriptor_sets = utility::create_descriptor_sets(
                     device,
                     downsampling_pipeline_binding_data,
@@ -673,25 +678,54 @@ impl RendererData_LightProbe {
                 );
                 self._only_sky_downsampling_descriptor_sets.last_mut().unwrap().push(descriptor_sets);
             }
-            self._only_sky_downsampling_dispatch_group_x = light_probe_color_only_sky._image_width;
-            self._only_sky_downsampling_dispatch_group_y = light_probe_color_only_sky._image_height;
 
-            // downsampling light probe
-            let dispatch_count: u32 = light_probe_color._image_mip_levels - 1;
+            // downsampling light probe forward
             self._light_probe_downsampling_descriptor_sets.push(Vec::new());
-            for mip_level in 0..dispatch_count {
+            let downsampling_count: u32 = light_probe_color_forward._image_mip_levels - 1;
+            for mip_level in 0..downsampling_count {
                 let descriptor_sets = utility::create_descriptor_sets(
                     device,
                     downsampling_pipeline_binding_data,
                     &[
-                        (0, utility::create_descriptor_image_info_swapchain_array(light_probe_color.get_sub_image_info(i as u32, mip_level))),
-                        (1, utility::create_descriptor_image_info_swapchain_array(light_probe_color.get_sub_image_info(i as u32, mip_level + 1))),
+                        (0, utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward.get_sub_image_info(i as u32, mip_level))),
+                        (1, utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward.get_sub_image_info(i as u32, mip_level + 1))),
                     ]
                 );
                 self._light_probe_downsampling_descriptor_sets.last_mut().unwrap().push(descriptor_sets);
             }
-            self._light_probe_downsampling_dispatch_group_x = light_probe_color._image_width;
-            self._light_probe_downsampling_dispatch_group_y = light_probe_color._image_height;
+
+            // copy cube map
+            let image_mip_levels: u32 = light_probe_color_forward._image_mip_levels;
+            for mip_level in 0..image_mip_levels {
+                let mut light_probe_copy_from_only_sky_descriptor_resource_infos: SwapchainArray<(usize, SwapchainArray<DescriptorResourceInfo>)> = SwapchainArray::new();
+                let mut light_probe_copy_from_forward_descriptor_resource_infos: SwapchainArray<(usize, SwapchainArray<DescriptorResourceInfo>)> = SwapchainArray::new();
+                let mut only_sky_copy_descriptor_resource_infos: SwapchainArray<(usize, SwapchainArray<DescriptorResourceInfo>)> = SwapchainArray::new();
+                let mut light_probe_forward_copy_descriptor_resource_infos: SwapchainArray<(usize, SwapchainArray<DescriptorResourceInfo>)> = SwapchainArray::new();
+                // descriptor set input
+                for layer in 0..6usize {
+                    light_probe_copy_from_only_sky_descriptor_resource_infos.push((layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky.get_sub_image_info(layer as u32, mip_level))));
+                    light_probe_copy_from_forward_descriptor_resource_infos.push((layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward.get_sub_image_info(layer as u32, mip_level))));
+                    only_sky_copy_descriptor_resource_infos.push((layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky.get_sub_image_info(layer as u32, mip_level))));
+                    light_probe_forward_copy_descriptor_resource_infos.push((layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward.get_sub_image_info(layer as u32, mip_level))));
+                }
+                // descriptor set output
+                for layer in 0..6usize {
+                    light_probe_copy_from_only_sky_descriptor_resource_infos.push((6 + layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color.get_sub_image_info(layer as u32, mip_level))));
+                    light_probe_copy_from_forward_descriptor_resource_infos.push((6 + layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color.get_sub_image_info(layer as u32, mip_level))));
+                    only_sky_copy_descriptor_resource_infos.push((6 + layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky_prev.get_sub_image_info(layer as u32, mip_level))));
+                    light_probe_forward_copy_descriptor_resource_infos.push((6 + layer, utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward_prev.get_sub_image_info(layer as u32, mip_level))));
+                }
+
+                let light_probe_copy_from_only_sky_descriptor_sets = utility::create_descriptor_sets(device, copy_cube_map_pipeline_binding_data, &light_probe_copy_from_only_sky_descriptor_resource_infos);
+                let light_probe_copy_from_forward_descriptor_sets = utility::create_descriptor_sets(device, copy_cube_map_pipeline_binding_data, &light_probe_copy_from_forward_descriptor_resource_infos);
+                let only_sky_copy_descriptor_sets = utility::create_descriptor_sets(device, copy_cube_map_pipeline_binding_data, &only_sky_copy_descriptor_resource_infos);
+                let light_probe_forward_copy_descriptor_sets = utility::create_descriptor_sets(device, copy_cube_map_pipeline_binding_data, &light_probe_forward_copy_descriptor_resource_infos);
+
+                self._light_probe_copy_from_only_sky_descriptor_sets.push(light_probe_copy_from_only_sky_descriptor_sets);
+                self._light_probe_copy_from_forward_descriptor_sets.push(light_probe_copy_from_forward_descriptor_sets);
+                self._only_sky_copy_descriptor_sets.push(only_sky_copy_descriptor_sets);
+                self._light_probe_forward_copy_descriptor_sets.push(light_probe_forward_copy_descriptor_sets);
+            }
         }
     }
 
@@ -708,5 +742,9 @@ impl RendererData_LightProbe {
         self._composite_atmosphere_descriptor_sets.clear();
         self._only_sky_downsampling_descriptor_sets.clear();
         self._light_probe_downsampling_descriptor_sets.clear();
+        self._light_probe_copy_from_only_sky_descriptor_sets.clear();
+        self._light_probe_copy_from_forward_descriptor_sets.clear();
+        self._only_sky_copy_descriptor_sets.clear();
+        self._light_probe_forward_copy_descriptor_sets.clear();
     }
 }
