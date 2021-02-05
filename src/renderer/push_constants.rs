@@ -103,6 +103,15 @@ impl Default for PushConstant_RenderCopy {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
+pub struct PushConstant_BlendCubeMap {
+    pub _blend_ratio: f32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+    pub _reserved2: u32,
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
 pub struct PushConstant_RenderColor {
     pub _color: Vector4<f32>
 }

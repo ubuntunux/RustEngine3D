@@ -50,6 +50,7 @@ use crate::renderer::push_constants::{
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
     PushConstant_RenderDebug,
+    PushConstant_BlendCubeMap,
 };
 use crate::renderer::precomputed_atmosphere::PushConstant_Atmosphere;
 use crate::renderer::camera::CameraObjectData;
@@ -1063,16 +1064,32 @@ impl RendererData {
                         &fft_ocean
                     );
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
+                    self._light_probe_datas._light_probe_blend_time = 0.0;
                 }
 
-                // copy light_probe_color
-                self.copy_cube_map(
-                    command_buffer,
-                    swapchain_index,
-                    &resources,
-                    &self._light_probe_datas._light_probe_copy_from_only_sky_descriptor_sets,
-                    constants::LIGHT_PROBE_SIZE,
-                );
+                let light_probe_term = self._light_probe_datas._light_probe_blend_term.min(self._light_probe_datas._light_probe_refresh_term);
+                if self._light_probe_datas._light_probe_blend_time < light_probe_term {
+                    self._light_probe_datas._light_probe_blend_time += delta_time;
+                    let blend_ratio: f64 = 1.0f64.min(self._light_probe_datas._light_probe_blend_time / light_probe_term);
+                    self.copy_cube_map(
+                        command_buffer,
+                        swapchain_index,
+                        &resources,
+                        "copy_cube_map/blend",
+                        if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
+                            &self._light_probe_datas._light_probe_blend_from_forward_descriptor_sets
+                        } else {
+                            &self._light_probe_datas._light_probe_blend_from_only_sky_descriptor_sets
+                        },
+                        constants::LIGHT_PROBE_SIZE,
+                        Some(&PushConstant_BlendCubeMap {
+                            _blend_ratio: blend_ratio as f32,
+                            _reserved0: 0,
+                            _reserved1: 0,
+                            _reserved2: 0,
+                        })
+                    );
+                }
 
                 // render solid object
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
@@ -1195,21 +1212,31 @@ impl RendererData {
         }
     }
 
-    pub fn copy_cube_map(
+    pub fn copy_cube_map<T>(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         resources: &Ref<Resources>,
+        render_pass_pipeline_data_name: &str,
         mip_level_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
         image_width: u32,
+        push_constant_data: Option<&T>,
     ) {
         let copy_cube_map_material_instance = resources.get_material_instance_data("copy_cube_map").borrow();
-        let copy_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_default_pipeline_binding_data();
-        self.begin_compute_pipeline(command_buffer, &copy_cube_map_pipeline_binding_data.get_pipeline_data().borrow());
+        let pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data(render_pass_pipeline_data_name);
+        let pipeline_data = pipeline_binding_data.get_pipeline_data().borrow();
+        self.begin_compute_pipeline(command_buffer, &pipeline_data);
         let mip_levels = mip_level_descriptor_sets.len();
         for mip_level in 0..mip_levels {
+            if let Some(push_constant_data) = push_constant_data {
+                self.upload_push_constant_data(
+                    command_buffer,
+                    &pipeline_data,
+                    push_constant_data
+                );
+            }
             let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, copy_cube_map_pipeline_binding_data, descriptor_sets);
+            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
             let dispatch_count = image_width >> mip_level;
             self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
         }
@@ -1251,8 +1278,10 @@ impl RendererData {
             command_buffer,
             swapchain_index,
             resources,
+            "copy_cube_map/copy",
             &self._light_probe_datas._only_sky_copy_descriptor_sets,
             constants::LIGHT_PROBE_SIZE,
+            NONE_PUSH_CONSTANT
         );
 
         // render atmosphere, inscatter
@@ -1298,15 +1327,16 @@ impl RendererData {
         }
 
         // render static object for light probe
-        const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = true;
-        if RENDER_OBJECT_FOR_LIGHT_PROBE {
+        if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
             // copy light_probe_forward to light_probe_forward_prev
             self.copy_cube_map(
                 command_buffer,
                 swapchain_index,
                 resources,
+                "copy_cube_map/copy",
                 &self._light_probe_datas._light_probe_forward_copy_descriptor_sets,
                 constants::LIGHT_PROBE_SIZE,
+                NONE_PUSH_CONSTANT
             );
 
             for i in 0..constants::CUBE_LAYER_COUNT {
