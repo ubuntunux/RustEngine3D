@@ -41,9 +41,9 @@ impl Default for RendererData_LightProbe {
     fn default() -> RendererData_LightProbe {
         RendererData_LightProbe {
             _next_refresh_time: 0.0,
-            _light_probe_refresh_term: 2.0,
+            _light_probe_refresh_term: 5.0,
             _light_probe_blend_time: 0.0,
-            _light_probe_blend_term: 2.0,
+            _light_probe_blend_term: 1.0,
             _render_atmosphere_framebuffer_datas: Vec::new(),
             _render_atmosphere_descriptor_sets: Vec::new(),
             _composite_atmosphere_framebuffer_datas_only_sky: Vec::new(),
