@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
+use std::io::Read;
 
 use nalgebra::{
     self,
@@ -16,7 +17,6 @@ use crate::vulkan_context::geometry_buffer::{
 };
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system;
-use std::io::Read;
 
 type Point3 = [u32; 3];
 

@@ -2,6 +2,7 @@ pub mod animation;
 pub mod precomputed_atmosphere;
 pub mod camera;
 pub mod image_sampler;
+pub mod font;
 pub mod fft_ocean;
 pub mod light;
 pub mod material;
