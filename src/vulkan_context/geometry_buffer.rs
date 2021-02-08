@@ -35,6 +35,18 @@ pub struct VertexData {
     pub _texcoord: Vector2<f32>
 }
 
+impl Default for VertexData {
+    fn default() -> VertexData {
+        VertexData {
+            _position: Vector3::new(0.0, 0.0, 0.0),
+            _normal: Vector3::new(0.0, 0.0, 0.0),
+            _tangent: Vector3::new(0.0, 0.0, 0.0),
+            _color: 0,
+            _texcoord: Vector2::new(0.0, 0.0)
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct SkeletalVertexData {
     pub _position: Vector3<f32>,
@@ -46,12 +58,50 @@ pub struct SkeletalVertexData {
     pub _bone_weights: Vector4<f32>,
 }
 
+impl Default for SkeletalVertexData {
+    fn default() -> SkeletalVertexData {
+        SkeletalVertexData {
+            _position: Vector3::new(0.0, 0.0, 0.0),
+            _normal: Vector3::new(0.0, 0.0, 0.0),
+            _tangent: Vector3::new(0.0, 0.0, 0.0),
+            _color: 0,
+            _texcoord: Vector2::new(0.0, 0.0),
+            _bone_indices: Vector4::new(0, 0, 0, 0),
+            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct FontVertexData {
+    pub _position: Vector3<f32>,
+}
+
+impl Default for FontVertexData {
+    fn default() -> FontVertexData {
+        FontVertexData {
+            _position: Vector3::new(0.0, 0.0, 0.0)
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GeometryCreateInfo {
     pub _vertex_datas: Vec<VertexData>,
     pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,
     pub _indices: Vec<u32>,
     pub _bounding_box: BoundingBox
+}
+
+impl Default for GeometryCreateInfo {
+    fn default() -> GeometryCreateInfo {
+        GeometryCreateInfo {
+            _vertex_datas: Vec::new(),
+            _skeletal_vertex_datas: Vec::new(),
+            _indices: Vec::new(),
+            _bounding_box: BoundingBox::default(),
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -82,43 +132,6 @@ pub fn add_vertex_input_attribute_description(
         format,
         offset,
     });
-}
-
-impl Default for GeometryCreateInfo {
-    fn default() -> GeometryCreateInfo {
-        GeometryCreateInfo {
-            _vertex_datas: Vec::new(),
-            _skeletal_vertex_datas: Vec::new(),
-            _indices: Vec::new(),
-            _bounding_box: BoundingBox::default(),
-        }
-    }
-}
-
-impl Default for VertexData {
-    fn default() -> VertexData {
-        VertexData {
-            _position: Vector3::new(0.0, 0.0, 0.0),
-            _normal: Vector3::new(0.0, 0.0, 0.0),
-            _tangent: Vector3::new(0.0, 0.0, 0.0),
-            _color: 0,
-            _texcoord: Vector2::new(0.0, 0.0)
-        }
-    }
-}
-
-impl Default for SkeletalVertexData {
-    fn default() -> SkeletalVertexData {
-        SkeletalVertexData {
-            _position: Vector3::new(0.0, 0.0, 0.0),
-            _normal: Vector3::new(0.0, 0.0, 0.0),
-            _tangent: Vector3::new(0.0, 0.0, 0.0),
-            _color: 0,
-            _texcoord: Vector2::new(0.0, 0.0),
-            _bone_indices: Vector4::new(0, 0, 0, 0),
-            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
-        }
-    }
 }
 
 impl VertexData {
@@ -174,6 +187,25 @@ impl SkeletalVertexData {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
             stride: mem::size_of::<SkeletalVertexData>() as u32,
+            input_rate: vk::VertexInputRate::VERTEX
+        }]
+    }
+}
+
+impl FontVertexData {
+    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+
+    pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let binding = 0u32;
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
+        vertex_input_attribute_descriptions
+    }
+
+    pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+        vec![vk::VertexInputBindingDescription {
+            binding: 0,
+            stride: mem::size_of::<FontVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX
         }]
     }
