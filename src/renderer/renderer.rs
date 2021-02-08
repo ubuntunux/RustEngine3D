@@ -74,6 +74,7 @@ use crate::renderer::renderer_data::{
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell, enum_to_string };
+use crate::renderer::font::TextRenderData;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -1210,6 +1211,18 @@ impl RendererData {
                 }
             }
         }
+    }
+
+    pub fn render_text(&self, text_render_data: &TextRenderData, offset_x: i32, offset_y: i32, canvas_width: u32, canvas_height: u32) {
+        // if 0 < text_render_data.render_count:
+        //     self.font_shader.use_program()
+        //     self.font_shader.bind_material_instance()
+        //     self.font_shader.bind_uniform_data("texture_font", text_render_data.font_data.texture)
+        //     self.font_shader.bind_uniform_data("font_size", text_render_data.font_size)
+        //     self.font_shader.bind_uniform_data("offset", (offset_x, offset_y))
+        //     self.font_shader.bind_uniform_data("inv_canvas_size", (1.0 / canvas_width, 1.0 / canvas_height))
+        //     self.font_shader.bind_uniform_data("count_of_side", text_render_data.font_data.count_of_side)
+        //     self.postprocess.draw_elements_instanced(text_render_data.render_count, self.font_instance_buffer, [text_render_data.render_queue, ])
     }
 
     pub fn copy_cube_map<T>(

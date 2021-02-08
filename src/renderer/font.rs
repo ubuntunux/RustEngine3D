@@ -1,9 +1,13 @@
-use std::path::{ Path, PathBuf };
+use std::cmp::max;
+use std::path::{ PathBuf };
 
 use serde::{ Serialize, Deserialize };
+use nalgebra::Vector4;
 
 use crate::vulkan_context::texture::TextureData;
 use crate::utilities::system::RcRefCell;
+use crate::renderer::RendererData;
+use crate::resource::Resources;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct FontDataCreateInfo {
@@ -26,111 +30,157 @@ pub struct FontData {
     pub _texture: RcRefCell<TextureData>,
 }
 
-/*
-class TextRenderData:
-    def __init__(self):
-        self._text = ""
-        self.column = 0
-        self.row = 0
-        self.font_size = 10
-        self.width = 0.0
-        self.height = 0.0
-        self.initial_column = 0
-        self.initial_row = 0
-        self.font_data = None
-        self.render_count = 0
-        self.render_queue = np.zeros(1, (np.float32, 4))
+pub struct TextRenderData {
+    pub _text: String,
+    pub _column: i32,
+    pub _row: i32,
+    pub _font_size: u32,
+    pub _width: f32,
+    pub _height: f32,
+    pub _initial_column: i32,
+    pub _initial_row: i32,
+    pub _font_data: RcRefCell<FontData>,
+    pub _render_count: u32,
+    pub _render_queue: Vec<Vector4<f32>>,
+}
 
-    @property
-    def text(self):
-        return self._text
+pub struct FontManager {
+    pub _ascii: RcRefCell<FontData>,
+    pub _show: bool,
+    pub _logs: Vec<String>,
+    pub _text_render_data: TextRenderData,
+}
 
-    @text.setter
-    def text(self, text):
-        self._text = text
+impl TextRenderData {
+    pub fn create_text_render_data(font_data: &RcRefCell<FontData>) -> TextRenderData {
+        TextRenderData {
+            _text: String::new(),
+            _column: 0,
+            _row: 0,
+            _font_size: 10,
+            _width: 10.0,
+            _height: 0.0,
+            _initial_column: 0,
+            _initial_row: 0,
+            _font_data: font_data.clone(),
+            _render_count: 0,
+            _render_queue: Vec::new(),
+        }
+    }
 
-        ratio = 1.0 / self.font_data.count_of_side
-        text_count = len(text)
+    pub fn destroy_text_render_data(&mut self) {
 
-        if len(self.render_queue) < text_count:
-            self.render_queue.resize((text_count, 4), refcheck=False)
+    }
 
-        render_index = 0
-        max_column = self.initial_column
-        column = self.initial_column
-        row = self.initial_row
+    pub fn get_text(&self) -> &String {
+        &self._text
+    }
 
-        for c in text:
-            if c == '\n':
-                column = self.initial_column
-                row += 1
-            elif c == '\t':
-                column += 1
-            elif c == ' ':
-                column += 1
-            else:
-                index = max(0, ord(c) - self.font_data.range_min)
-                texcoord_x = (index % self.font_data.count_of_side) * ratio
-                texcoord_y = (self.font_data.count_of_side - 1 - int(index * ratio)) * ratio
-                self.render_queue[render_index][...] = [column, row, texcoord_x, texcoord_y]
-                render_index += 1
-                column += 1
-            max_column = max(max_column, column)
-        row += 1
+    pub fn set_text_inner(&mut self, text: String) {
+        self._text = text;
 
-        self.column = max_column - self.initial_column
-        self.row = row - self.initial_row
-        self.width = self.column * self.font_size
-        self.height = self.row * self.font_size
-        self.render_count = render_index
+        let font_data = &self._font_data.borrow();
+        let range_min = font_data._range_min;
+        let count_of_side = font_data._count_of_side;
+        let ratio = 1.0 / font_data._count_of_side as f32;
+        let text_count = self._text.len();
 
-    def set_text(self, text, font_data, initial_column=0, initial_row=0, font_size=10, skip_check=False):
-        if not skip_check and text == self.text:
-            return False
+        if self._render_queue.len() < text_count {
+            self._render_queue.resize(text_count, Vector4::zeros());
+        }
 
-        self.font_data = font_data
-        self.font_size = font_size
-        self.initial_column = initial_column
-        self.initial_row = initial_row
+        let mut render_index: u32 = 0;
+        let mut max_column: i32 = self._initial_column;
+        let mut column: i32 = self._initial_column;
+        let mut row: i32 = self._initial_row;
+        for c in self._text.as_bytes().iter() {
+            let ch = (*c) as char;
+            if '\n' == ch {
+                column = self._initial_column;
+                row += 1;
+            } else if '\t' == ch {
+                column += 1;
+            } else if ' ' == ch {
+                column += 1;
+            } else {
+                let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
+                let texcoord_x = (index % count_of_side) as f32 * ratio;
+                let texcoord_y = (count_of_side as i32 - 1 - (index as f32 * ratio) as i32) as f32 * ratio;
+                self._render_queue[render_index as usize] = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
+                render_index += 1;
+                column += 1;
+            }
+            max_column = max(max_column, column);
+        }
+        row += 1;
 
-        self.text = text
-        return True
+        self._column = max_column - self._initial_column;
+        self._row = row - self._initial_row;
+        self._width = self._column as f32 * self._font_size as f32;
+        self._height = self._row as f32 * self._font_size as f32;
+        self._render_count = render_index;
+    }
 
-class FontManager(Singleton):
-    def __init__(self):
-        self.name = 'FontManager'
-        self.core_manager = None
-        self.resource_manager = None
-        self.ascii = None
-        self.show = True
+    pub fn set_text_render_data(
+        &mut self,
+        text: String,
+        font_data: &RcRefCell<FontData>,
+        font_size: u32,
+        initial_column: i32,
+        initial_row: i32,
+        skip_check: bool
+    ) -> bool {
+        if !skip_check && text == self._text {
+            return false;
+        }
 
-        self.logs = []
-        self.text_render_data = None
+        self._font_data = font_data.clone();
+        self._font_size = font_size;
+        self._initial_column = initial_column;
+        self._initial_row = initial_row;
+        self.set_text_inner(text);
+        true
+    }
+}
 
-    def initialize(self, core_manager):
-        self.core_manager = core_manager
-        self.resource_manager = core_manager.resource_manager
-        self.ascii = self.resource_manager.get_default_font_data()
-        self.text_render_data = TextRenderData()
+impl FontManager {
+    pub fn create_font_manager(resources: &Resources) -> FontManager {
+        let ascii_font_data = resources.get_font_data("NanumBarunGothic_Basic_Latin");
+        FontManager {
+            _ascii: ascii_font_data.clone(),
+            _show: true,
+            _logs: Vec::new(),
+            _text_render_data: TextRenderData::create_text_render_data(ascii_font_data)
+        }
+    }
 
-    def clear_logs(self):
-        self.logs = []
-        self.text_render_data.set_text("", self.ascii, font_size=12)
+    pub fn destroy_font_manager(&mut self) {
+        self._text_render_data.destroy_text_render_data();
+    }
 
-    def toggle(self):
-        self.show = not self.show
+    pub fn clear_logs(&mut self) {
+        self._logs.clear();
+        self._text_render_data.set_text_render_data(String::from(""), &self._ascii, 12, 0, 0, false);
+    }
 
-    def log(self, text):
-        if not self.show or not RenderOption.RENDER_FONT:
-            return
+    pub fn toggle(&mut self) {
+        self._show = !self._show;
+    }
 
-        self.logs.append(text)
+    pub fn log(&mut self, text: String) {
+        if self._show {
+            self._logs.push(text);
+        }
+    }
 
-    def render_log(self, canvas_width, canvas_height):
-        if RenderOption.RENDER_FONT and self.show and 0 < len(self.logs):
-            text = "\n".join(self.logs)
-            self.logs = []
-            self.text_render_data.set_text(text, self.ascii, font_size=12, skip_check=True)
-            self.core_manager.renderer.render_text(self.text_render_data, 0.0, canvas_height - self.text_render_data.font_size, canvas_width, canvas_height)
-
-*/
+    pub fn render_log(&mut self, renderer_data: &RendererData, canvas_width: u32, canvas_height: u32) {
+        if self._show && 0 < self._logs.len() {
+            let text = self._logs.join("\n");
+            self._logs.clear();
+            self._text_render_data.set_text_render_data(text, &self._ascii, 12, 0, 0, true);
+            let offset_x = 0;
+            let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
+            renderer_data.render_text(&self._text_render_data, offset_x, offset_y, canvas_width, canvas_height);
+        }
+    }
+}
