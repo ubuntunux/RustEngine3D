@@ -194,20 +194,29 @@ impl SkeletalVertexData {
 
 impl FontVertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
 
     pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::FONT_INFOS);
         vertex_input_attribute_descriptions
     }
 
     pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
-        vec![vk::VertexInputBindingDescription {
-            binding: 0,
-            stride: mem::size_of::<FontVertexData>() as u32,
-            input_rate: vk::VertexInputRate::VERTEX
-        }]
+        vec![
+            vk::VertexInputBindingDescription {
+                binding: 0,
+                stride: mem::size_of::<Vector3<f32>>() as u32,
+                input_rate: vk::VertexInputRate::VERTEX
+            },
+            vk::VertexInputBindingDescription {
+                binding: 1,
+                stride: mem::size_of::<Vector4<f32>>() as u32,
+                input_rate: vk::VertexInputRate::INSTANCE
+            },
+        ]
     }
 }
 
