@@ -147,6 +147,44 @@ vec4 relative_world_from_device_depth(const in mat4x4 inv_view_origin_projection
     return relative_pos;
 }
 
+// generate random
+float random(inout uint seed)
+{
+    seed = seed * 214013 + 2531011;
+    uint ret = (seed >> 16) & 0xffff;
+    seed = seed * 214013 + 2531011;
+    ret = (ret | (seed & 0xffff0000));
+    float result = float(ret % 0x7fff) / float(0x7fff - 1);
+    seed = (seed >> 1) + (asuint(result) >> 1);
+    return result;
+}
+
+void generate_random1(inout uint randomSeed, inout float4 vRandom)
+{
+    vRandom.x = random(randomSeed);
+}
+
+void generate_random2(inout uint randomSeed, inout float4 vRandom)
+{
+    vRandom.x = random(randomSeed);
+    vRandom.y = random(randomSeed);
+}
+
+void generate_random3(inout uint randomSeed, inout float4 vRandom)
+{
+    vRandom.x = random(randomSeed);
+    vRandom.y = random(randomSeed);
+    vRandom.z = random(randomSeed);
+}
+
+void generate_random4(inout uint randomSeed, inout float4 vRandom)
+{
+    vRandom.x = random(randomSeed);
+    vRandom.y = random(randomSeed);
+    vRandom.z = random(randomSeed);
+    vRandom.w = random(randomSeed);
+}
+
 // @param xy should be a integer position (e.g. pixel position on the screen), repeats each 128x128 pixels
 // similar to a texture lookup but is only ALU
 // ~13 ALU operations (3 frac, 6 *, 4 mad)
