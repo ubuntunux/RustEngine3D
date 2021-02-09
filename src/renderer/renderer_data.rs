@@ -24,6 +24,7 @@ pub struct RendererData_LightProbe {
     pub _light_probe_refresh_term: f64,
     pub _light_probe_blend_time: f64,
     pub _light_probe_blend_term: f64,
+    pub _light_probe_capture_count: u64,
     pub _render_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
     pub _render_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
     pub _composite_atmosphere_framebuffer_datas_only_sky: CubeMapArray<FramebufferData>,
@@ -44,6 +45,7 @@ impl Default for RendererData_LightProbe {
             _light_probe_refresh_term: 5.0,
             _light_probe_blend_time: 0.0,
             _light_probe_blend_term: 1.0,
+            _light_probe_capture_count: 0,
             _render_atmosphere_framebuffer_datas: Vec::new(),
             _render_atmosphere_descriptor_sets: Vec::new(),
             _composite_atmosphere_framebuffer_datas_only_sky: Vec::new(),
@@ -612,6 +614,10 @@ impl RendererData_LightProbe {
         let copy_cube_map_material_instance = resources.get_material_instance_data("copy_cube_map").borrow();
         let copy_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/copy");
         let blend_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
+
+        self._next_refresh_time = 0.0;
+        self._light_probe_blend_time = 0.0;
+        self._light_probe_capture_count = 0;
 
         for i in 0..constants::CUBE_LAYER_COUNT {
             // render_atmosphere

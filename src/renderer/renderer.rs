@@ -1044,7 +1044,7 @@ impl RendererData {
                 self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_shadow_render_elements, None);
 
                 // capture height map
-                if render_capture_height_map {
+                if render_capture_height_map || self._is_first_rendering {
                     self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
                     self.render_solid_object(command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
                 }
@@ -1053,7 +1053,7 @@ impl RendererData {
                 fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
 
                 // light probe
-                if self._light_probe_datas._next_refresh_time <= elapsed_time {
+                if self._light_probe_datas._next_refresh_time <= elapsed_time || self._light_probe_datas._light_probe_capture_count < 2 {
                     self.render_light_probe(
                         command_buffer,
                         swapchain_index,
@@ -1066,6 +1066,7 @@ impl RendererData {
                     );
                     self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
                     self._light_probe_datas._light_probe_blend_time = 0.0;
+                    self._light_probe_datas._light_probe_capture_count += 1;
                 }
 
                 let light_probe_term = self._light_probe_datas._light_probe_blend_term.min(self._light_probe_datas._light_probe_refresh_term);
