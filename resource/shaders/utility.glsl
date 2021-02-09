@@ -209,50 +209,6 @@ float rand4(vec4 seed4){
     return fract(sin(dot(seed4, vec4(12.9898, 78.233, 45.164, 94.673))) * 43758.5453123);
 }
 
-
-// Random Generate Interface
-vec4 generate_random(float time, float random_seed)
-{
-    // float time = fract(sceneConstants.TIME * 0.001);
-
-    vec4 random_factor;
-    random_factor.x = rand(vec2(time, random_seed));
-    random_factor.y = rand(vec2(random_factor.x, time));
-    random_factor.z = rand(vec2(time, random_factor.y));
-    random_factor.w = rand(vec2(random_factor.z, time));
-    return random_factor;
-}
-
-void generate_random1(float time, inout vec4 random_factor)
-{
-    random_factor.x = rand(vec2(time, random_factor.w));
-    random_factor.w = random_factor.x;
-}
-
-void generate_random2(float time, inout vec4 random_factor)
-{
-    random_factor.x = rand(vec2(time, random_factor.w));
-    random_factor.y = rand(vec2(random_factor.x, time));
-    random_factor.w = random_factor.y;
-}
-
-void generate_random3(float time, inout vec4 random_factor)
-{
-    random_factor.x = rand(vec2(time, random_factor.w));
-    random_factor.y = rand(vec2(random_factor.x, time));
-    random_factor.z = rand(vec2(time, random_factor.y));
-    random_factor.w = random_factor.z;
-}
-
-void generate_random4(float time, inout vec4 random_factor)
-{
-    random_factor.x = rand(vec2(time, random_factor.w));
-    random_factor.y = rand(vec2(random_factor.x, time));
-    random_factor.z = rand(vec2(time, random_factor.y));
-    random_factor.w = rand(vec2(random_factor.z, time));
-}
-
-
 vec3 invert_y(vec3 vector)
 {
     return vec3(vector.x, -vector.y, vector.z);
