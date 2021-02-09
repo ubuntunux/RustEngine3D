@@ -155,7 +155,7 @@ float random(inout uint seed)
     seed = seed * 214013 + 2531011;
     ret = (ret | (seed & 0xffff0000));
     float result = float(ret % 0x7fff) / float(0x7fff - 1);
-    seed = (seed >> 1) + (asuint(result) >> 1);
+    seed = (seed >> 1) + (floatBitsToUint(result) >> 1);
     return result;
 }
 
