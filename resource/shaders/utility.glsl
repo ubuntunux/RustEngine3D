@@ -159,25 +159,25 @@ float random(inout uint seed)
     return result;
 }
 
-void generate_random1(inout uint randomSeed, inout float4 vRandom)
+void generate_random1(inout uint randomSeed, inout vec4 vRandom)
 {
     vRandom.x = random(randomSeed);
 }
 
-void generate_random2(inout uint randomSeed, inout float4 vRandom)
+void generate_random2(inout uint randomSeed, inout vec4 vRandom)
 {
     vRandom.x = random(randomSeed);
     vRandom.y = random(randomSeed);
 }
 
-void generate_random3(inout uint randomSeed, inout float4 vRandom)
+void generate_random3(inout uint randomSeed, inout vec4 vRandom)
 {
     vRandom.x = random(randomSeed);
     vRandom.y = random(randomSeed);
     vRandom.z = random(randomSeed);
 }
 
-void generate_random4(inout uint randomSeed, inout float4 vRandom)
+void generate_random4(inout uint randomSeed, inout vec4 vRandom)
 {
     vRandom.x = random(randomSeed);
     vRandom.y = random(randomSeed);
