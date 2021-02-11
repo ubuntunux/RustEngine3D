@@ -1214,7 +1214,7 @@ impl RendererData {
         }
     }
 
-    pub fn render_text(&self, text_render_data: &TextRenderData, offset_x: i32, offset_y: i32, canvas_width: u32, canvas_height: u32) {
+    pub fn render_text(&self, _text_render_data: &TextRenderData, _offset_x: i32, _offset_y: i32, _canvas_width: u32, _canvas_height: u32) {
         // if 0 < text_render_data.render_count:
         //     self.font_shader.use_program()
         //     self.font_shader.bind_material_instance()
