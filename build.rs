@@ -1,5 +1,5 @@
 use std::fs;
-use std::io::prelude::{Read, Write};
+use std::io::prelude::{ Write };
 use std::path::{ Path, PathBuf };
 
 fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
@@ -23,9 +23,9 @@ pub fn walk_directory(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     out_contents
 }
 
-fn get_root_path() -> &'static Path {
-    Path::new(env!("CARGO_MANIFEST_DIR"))
-}
+// fn get_root_path() -> &'static Path {
+//     Path::new(env!("CARGO_MANIFEST_DIR"))
+// }
 
 fn main() {
     let files = walk_directory(&Path::new("resource"), &[]);

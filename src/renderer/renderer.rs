@@ -20,7 +20,7 @@ use ash::extensions::khr::{
 use ash::version::{InstanceV1_0, DeviceV1_0};
 use winit;
 use winit::window::{ Window };
-use nalgebra::{ Vector2, Vector4, Matrix4 };
+use nalgebra::{ Vector2, Matrix4 };
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -73,7 +73,7 @@ use crate::renderer::renderer_data::{
 };
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
-use crate::utilities::system::{ self, RcRefCell, enum_to_string };
+use crate::utilities::system::{ self, RcRefCell };
 use crate::renderer::font::TextRenderData;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
@@ -963,7 +963,7 @@ impl RendererData {
         buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
     }
 
-    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64, elapsed_frame: u64) {
+    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64, _elapsed_frame: u64) {
         unsafe {
             // frame index
             let frame_index = self._frame_index as usize;
@@ -1183,7 +1183,7 @@ impl RendererData {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        quad_geometry_data: &GeometryData,
+        _quad_geometry_data: &GeometryData,
     ) {
         // Clear render targets
         let resources: Ref<Resources> = self._resources.borrow();
@@ -1265,7 +1265,7 @@ impl RendererData {
         scene_manager: &RefMut<SceneManagerData>,
         main_camera: &CameraObjectData,
         static_render_elements: &Vec<RenderElementData>,
-        fft_ocean: &FFTOcean,
+        _fft_ocean: &FFTOcean,
     ) {
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
@@ -1434,7 +1434,6 @@ impl RendererData {
                     (RenderMode::Forward, RenderObjectType::Skeletal) => "render_pass_skeletal_forward/render_object",
                     (RenderMode::Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
                     (RenderMode::CaptureHeightMap, RenderObjectType::Skeletal) => "capture_skeletal_height_map/render_object",
-                    _ => panic!("Not implemented.")
                 }
             };
 

@@ -1,4 +1,4 @@
-use nalgebra::{Vector3, Vector4, Matrix4, max};
+use nalgebra::{Vector3, Vector4, Matrix4};
 
 use crate::renderer::shader_buffer_datas::LightConstants;
 use crate::renderer::transform_object::{
@@ -9,7 +9,6 @@ use crate::utilities::math::{
     orthogonal,
 };
 use crate::constants;
-use cgmath::num_traits::real::Real;
 
 #[derive(Clone, Debug)]
 pub struct DirectionalLightCreateInfo {

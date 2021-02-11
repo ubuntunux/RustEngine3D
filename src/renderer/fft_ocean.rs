@@ -9,7 +9,6 @@ use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::utility;
 use crate::resource::resource::Resources;
-use crate::vulkan_context::descriptor::{ DescriptorResourceInfo };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };

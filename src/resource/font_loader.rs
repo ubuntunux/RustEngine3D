@@ -42,7 +42,7 @@ pub fn get_font_data_create_info(
         glyphs_list.push(glyphs);
     }
 
-    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba();
+    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba8();
     let mut text_index = range_min;
     for y in 0..count_of_side {
         for x in 0..count_of_side {
@@ -52,7 +52,7 @@ pub fn get_font_data_create_info(
                     glyph.draw(|px, py, v| {
                         let px = px + bounding_box.min.x as u32 + x * glyphs_width;
                         let py = py + bounding_box.min.y as u32 + y * glyphs_height;
-                        let v = (v * v * (3.0 - 2.0 * v));
+                        let v = v * v * (3.0 - 2.0 * v);
                         image.put_pixel(px, py, Rgba([colour.0, colour.1, colour.2, (v * 255.0) as u8]))
                     });
                 }

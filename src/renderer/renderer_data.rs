@@ -413,7 +413,7 @@ impl RendererData_HierachicalMinZ {
         self._dispatch_group_y = render_target_hierachical_min_z._image_height;
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&mut self, _device: &Device) {
         for descriptor_sets in self._descriptor_sets.iter_mut() {
             descriptor_sets.clear();
         }
@@ -448,7 +448,7 @@ impl RendererData_SceneColorDownSampling {
         self._dispatch_group_y = texture_scene_color._image_height;
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&mut self, _device: &Device) {
         self._descriptor_sets.clear();
     }
 }
@@ -519,7 +519,7 @@ impl RendererData_CompositeGBuffer {
         );
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&mut self, _device: &Device) {
         self._descriptor_sets0.clear();
         self._descriptor_sets1.clear();
     }

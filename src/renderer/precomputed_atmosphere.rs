@@ -15,23 +15,23 @@ pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
 pub const DEFAULT_USE_COMBINED_TEXTURES: bool = true; // macro: COMBINED_SCATTERING_TEXTURES
 
-pub const kLambdaR: f32 = 680.0;
-pub const kLambdaG: f32 = 550.0;
-pub const kLambdaB: f32 = 440.0;
+pub const K_LAMBDA_R: f32 = 680.0;
+pub const K_LAMBDA_G: f32 = 550.0;
+pub const K_LAMBDA_B: f32 = 440.0;
 
-pub const kPi: f32 = 3.1415926;
-pub const kSunAngularRadius: f32 = 0.0235 / 2.0; // default: 0.00935 / 2.0
-pub const kSunSolidAngle: f32 = kPi * kSunAngularRadius * kSunAngularRadius;
-pub const kLengthUnitInMeters: f32 = 1000.0;
+pub const K_PI: f32 = std::f32::consts::PI;
+pub const K_SUN_ANGULAR_RADIUS: f32 = 0.0235 / 2.0; // default: 0.00935 / 2.0
+pub const K_SUN_SOLID_ANGLE: f32 = K_PI * K_SUN_ANGULAR_RADIUS * K_SUN_ANGULAR_RADIUS;
+pub const K_LENGTH_UNIT_IN_METERS: f32 = 1000.0;
 
 // Values from "Reference Solar Spectral Irradiance: ASTM G-173", ETR column
 // http://rredc.nrel.gov/solar/spectra/am1.5/ASTMG173/ASTMG173.html
 // summed and averaged in each bin (e.g. the value for 360nm is the average
 // of the ASTM G-173 values for all wavelengths between 360 and 370nm).
 // Values in W.m^-2.
-pub const kLambdaMin: f32 = 360.0;
-pub const kLambdaMax: f32 = 830.0;
-pub const kSolarIrradiance: [f32; 48] = [
+pub const K_LAMBDA_MIN: f32 = 360.0;
+pub const K_LAMBDA_MAX: f32 = 830.0;
+pub const K_SOLAR_IRRADIANCE: [f32; 48] = [
   1.11776, 1.14259, 1.01249, 1.14716, 1.72765, 1.73054, 1.6887, 1.61253,
   1.91198, 2.03474, 2.02042, 2.02212, 1.93377, 1.95809, 1.91686, 1.8298,
   1.8685, 1.8931, 1.85149, 1.8504, 1.8341, 1.8345, 1.8147, 1.78158, 1.7533,
@@ -44,7 +44,7 @@ pub const kSolarIrradiance: [f32; 48] = [
 // referencespectra/o3spectra2011/index.html for 233K, summed and averaged in
 // each bin (e.g. the value for 360nm is the average of the original values
 // for all wavelengths between 360 and 370nm). Values in m^2.
-pub const kOzoneCrossSection: [f32; 48] = [
+pub const K_OZONE_CROSS_SECTION: [f32; 48] = [
   1.18e-27, 2.182e-28, 2.818e-28, 6.636e-28, 1.527e-27, 2.763e-27, 5.52e-27,
   8.451e-27, 1.582e-26, 2.316e-26, 3.669e-26, 4.924e-26, 7.752e-26, 9.016e-26,
   1.48e-25, 1.602e-25, 2.139e-25, 2.755e-25, 3.091e-25, 3.5e-25, 4.266e-25,
@@ -55,24 +55,24 @@ pub const kOzoneCrossSection: [f32; 48] = [
 ];
 
 // From https://en.wikipedia.org/wiki/Dobson_unit, in molecules.m^-2.
-pub const kDobsonUnit: f32 = 2.687e20;
+pub const K_DOBSON_UNIT: f32 = 2.687e20;
 // Maximum number density of ozone molecules, in m^-3 (computed so at to get
 // 300 Dobson units of ozone - for this we divide 300 DU by the integral of
 // the ozone density profile defined below, which is equal to 15km).
-pub const kMaxOzoneNumberDensity: f32 = 300.0 * kDobsonUnit / 15000.0;
+pub const K_MAX_OZONE_NUMBER_DENSITY: f32 = 300.0 * K_DOBSON_UNIT / 15000.0;
 // Wavelength independent solar irradiance "spectrum" (not physically
 // realistic, but was used in the original implementation).
-pub const kConstantSolarIrradiance: f32 = 1.5;
-pub const kBottomRadius: f32 = 6361000.0;  // default : 6360000.0
-pub const kTopRadius: f32 = 6420000.0;
-pub const kRayleigh: f32 = 1.24062e-6;
-pub const kRayleighScaleHeight: f32 = 8000.0;
-pub const kMieScaleHeight: f32 = 1200.0;
-pub const kMieAngstromAlpha: f32 = 0.0;
-pub const kMieAngstromBeta: f32 = 5.328e-3;
-pub const kMieSingleScatteringAlbedo: f32 = 0.9;
-pub const kMiePhaseFunctionG: f32 = 0.8;
-pub const kGroundAlbedo: f32 = 0.1;
+pub const K_CONSTANT_SOLAR_IRRADIANCE: f32 = 1.5;
+pub const K_BOTTOM_RADIUS: f32 = 6361000.0;  // default : 6360000.0
+pub const K_TOP_RADIUS: f32 = 6420000.0;
+pub const K_RAYLEIGH: f32 = 1.24062e-6;
+pub const K_RAYLEIGH_SCALE_HEIGHT: f32 = 8000.0;
+pub const K_MIE_SCALE_HEIGHT: f32 = 1200.0;
+pub const K_MIE_ANGSTROM_ALPHA: f32 = 0.0;
+pub const K_MIE_ANGSTROM_BETA: f32 = 5.328e-3;
+pub const K_MIE_SINGLE_SCATTERING_ALBEDO: f32 = 0.9;
+pub const K_MIE_PHASE_FUNCTION_G: f32 = 0.8;
+pub const K_GROUND_ALBEDO: f32 = 0.1;
 
 pub const TRANSMITTANCE_TEXTURE_WIDTH: i32 = 256;
 pub const TRANSMITTANCE_TEXTURE_HEIGHT: i32 = 64;
@@ -228,11 +228,11 @@ pub struct PushConstant_PrecomputedAtmosphere {
 }
 
 fn cie_color_matching_function_table_value(wavelength: f32, column: i32) -> f32 {
-    if wavelength <= kLambdaMin || kLambdaMax <= wavelength {
+    if wavelength <= K_LAMBDA_MIN || K_LAMBDA_MAX <= wavelength {
         return 0.0;
     }
 
-    let mut u: f32 = (wavelength - kLambdaMin) / 5.0;
+    let mut u: f32 = (wavelength - K_LAMBDA_MIN) / 5.0;
     let row: i32 = u as i32;
     assert!(0 <= row && (row + 1) < 95);
     assert!(CIE_2_DEG_COLOR_MATCHING_FUNCTIONS[4 * row as usize] <= wavelength && wavelength <= CIE_2_DEG_COLOR_MATCHING_FUNCTIONS[4 * (row as usize + 1)]);
@@ -263,21 +263,21 @@ fn compute_spectral_radiance_to_luminance_factors(wavelengths: &[f32], solar_irr
     let mut k_g: f32 = 0.0;
     let mut k_b: f32 = 0.0;
 
-    let solar_r = interpolate(wavelengths, solar_irradiance, kLambdaR);
-    let solar_g = interpolate(wavelengths, solar_irradiance, kLambdaG);
-    let solar_b = interpolate(wavelengths, solar_irradiance, kLambdaB);
+    let solar_r = interpolate(wavelengths, solar_irradiance, K_LAMBDA_R);
+    let solar_g = interpolate(wavelengths, solar_irradiance, K_LAMBDA_G);
+    let solar_b = interpolate(wavelengths, solar_irradiance, K_LAMBDA_B);
 
-    for L in (kLambdaMin as usize)..(kLambdaMax as usize) {
-        let x_bar: f32 = cie_color_matching_function_table_value(L as f32, 1);
-        let y_bar: f32 = cie_color_matching_function_table_value(L as f32, 2);
-        let z_bar: f32 = cie_color_matching_function_table_value(L as f32, 3);
+    for l in (K_LAMBDA_MIN as usize)..(K_LAMBDA_MAX as usize) {
+        let x_bar: f32 = cie_color_matching_function_table_value(l as f32, 1);
+        let y_bar: f32 = cie_color_matching_function_table_value(l as f32, 2);
+        let z_bar: f32 = cie_color_matching_function_table_value(l as f32, 3);
         let r_bar: f32 = XYZ_TO_SRGB[0] * x_bar + XYZ_TO_SRGB[1] * y_bar + XYZ_TO_SRGB[2] * z_bar;
         let g_bar: f32 = XYZ_TO_SRGB[3] * x_bar + XYZ_TO_SRGB[4] * y_bar + XYZ_TO_SRGB[5] * z_bar;
         let b_bar: f32 = XYZ_TO_SRGB[6] * x_bar + XYZ_TO_SRGB[7] * y_bar + XYZ_TO_SRGB[8] * z_bar;
-        let irradiance = interpolate(wavelengths, solar_irradiance, L as f32);
-        k_r += r_bar * irradiance / solar_r * (L as f32 / kLambdaR).powf(lambda_power);
-        k_g += g_bar * irradiance / solar_g * (L as f32 / kLambdaG).powf(lambda_power);
-        k_b += b_bar * irradiance / solar_b * (L as f32 / kLambdaB).powf(lambda_power);
+        let irradiance = interpolate(wavelengths, solar_irradiance, l as f32);
+        k_r += r_bar * irradiance / solar_r * (l as f32 / K_LAMBDA_R).powf(lambda_power);
+        k_g += g_bar * irradiance / solar_g * (l as f32 / K_LAMBDA_G).powf(lambda_power);
+        k_b += b_bar * irradiance / solar_b * (l as f32 / K_LAMBDA_B).powf(lambda_power);
     }
     k_r *= MAX_LUMINOUS_EFFICACY;
     k_g *= MAX_LUMINOUS_EFFICACY;
@@ -289,11 +289,11 @@ fn convert_spectrum_to_linear_srgb(wavelengths: &[f32], spectrum: &[f32]) -> [f3
     let mut x: f32 = 0.0;
     let mut y: f32 = 0.0;
     let mut z: f32 = 0.0;
-    for L in (kLambdaMin as usize)..(kLambdaMax as usize) {
-        let value: f32 = interpolate(wavelengths, spectrum, L as f32);
-        x += cie_color_matching_function_table_value(L as f32, 1) * value;
-        y += cie_color_matching_function_table_value(L as f32, 2) * value;
-        z += cie_color_matching_function_table_value(L as f32, 3) * value;
+    for l in (K_LAMBDA_MIN as usize)..(K_LAMBDA_MAX as usize) {
+        let value: f32 = interpolate(wavelengths, spectrum, l as f32);
+        x += cie_color_matching_function_table_value(l as f32, 1) * value;
+        y += cie_color_matching_function_table_value(l as f32, 2) * value;
+        z += cie_color_matching_function_table_value(l as f32, 3) * value;
     }
 
     let r = MAX_LUMINOUS_EFFICACY * (XYZ_TO_SRGB[0] * x + XYZ_TO_SRGB[1] * y + XYZ_TO_SRGB[2] * z);
@@ -463,14 +463,14 @@ impl AtmosphereModel {
         };
 
         let density_profile = |layers: &mut Vec<DensityProfileLayer>| -> String {
-            const kLayerCount: usize = 2;
-            while layers.len() < kLayerCount {
+            const K_LAYER_COUNT: usize = 2;
+            while layers.len() < K_LAYER_COUNT {
                 layers.insert(0, DensityProfileLayer::default());
             }
-            let mut result = format!("DensityProfile(DensityProfileLayer[{}](", kLayerCount);
-            for i in 0..kLayerCount {
+            let mut result = format!("DensityProfile(DensityProfileLayer[{}](", K_LAYER_COUNT);
+            for i in 0..K_LAYER_COUNT {
                 result.push_str(&density_layer(&layers[i]));
-                if i < kLayerCount - 1 {
+                if i < K_LAYER_COUNT - 1 {
                     result.push_str(",");
                 } else {
                     result.push_str("))");
@@ -520,7 +520,7 @@ impl AtmosphereModel {
         num_scattering_orders: i32
     ) {
         if Luminance::PRECOMPUTED != self._luminance_type {
-            let lambdas: [f32; 3] = [kLambdaR, kLambdaG, kLambdaB];
+            let lambdas: [f32; 3] = [K_LAMBDA_R, K_LAMBDA_G, K_LAMBDA_B];
             let luminance_from_radiance = Matrix3::identity();
             let blend = false;
             self.precompute(
@@ -536,20 +536,20 @@ impl AtmosphereModel {
             );
         } else {
             let num_iterations: f32 = (self._num_precomputed_wavelengths as f32 + 2.0) / 3.0;
-            let dlambda: f32 = (kLambdaMax - kLambdaMin) as f32 / (3.0 * num_iterations);
+            let dlambda: f32 = (K_LAMBDA_MAX - K_LAMBDA_MIN) as f32 / (3.0 * num_iterations);
 
-            let coeff = |L: f32, component: usize| -> f32 {
-                let x: f32 = cie_color_matching_function_table_value(L, 1);
-                let y: f32 = cie_color_matching_function_table_value(L, 2);
-                let z: f32 = cie_color_matching_function_table_value(L, 3);
+            let coeff = |l: f32, component: usize| -> f32 {
+                let x: f32 = cie_color_matching_function_table_value(l, 1);
+                let y: f32 = cie_color_matching_function_table_value(l, 2);
+                let z: f32 = cie_color_matching_function_table_value(l, 3);
                 (XYZ_TO_SRGB[component * 3] * x + XYZ_TO_SRGB[component * 3 + 1] * y + XYZ_TO_SRGB[component * 3 + 2] * z) * dlambda
             };
 
             for i in 0..num_iterations as i32 {
                 let lambdas: [f32; 3] = [
-                    kLambdaMin as f32 + (3.0 * i as f32 + 0.5) * dlambda,
-                    kLambdaMin as f32 + (3.0 * i as f32 + 1.5) * dlambda,
-                    kLambdaMin as f32 + (3.0 * i as f32 + 2.5) * dlambda
+                    K_LAMBDA_MIN as f32 + (3.0 * i as f32 + 0.5) * dlambda,
+                    K_LAMBDA_MIN as f32 + (3.0 * i as f32 + 1.5) * dlambda,
+                    K_LAMBDA_MIN as f32 + (3.0 * i as f32 + 2.5) * dlambda
                 ];
 
                 let luminance_from_radiance = Matrix3::from_columns(&[
@@ -716,8 +716,8 @@ impl Atmosphere {
             _sun_zenith_angle_radians: 1.3,
             _sun_azimuth_angle_radians: 2.9,
             _white_point: Vector3::zeros(),
-            _earth_center: Vector3::new(0.0, -kBottomRadius / kLengthUnitInMeters, 0.0),
-            _sun_size: Vector2::new(kSunAngularRadius.tan(), kSunAngularRadius.cos()),
+            _earth_center: Vector3::new(0.0, -K_BOTTOM_RADIUS / K_LENGTH_UNIT_IN_METERS, 0.0),
+            _sun_size: Vector2::new(K_SUN_ANGULAR_RADIUS.tan(), K_SUN_ANGULAR_RADIUS.cos()),
             _sky: Vector3::new(1.0, 1.0, 1.0),
             _sun: Vector3::new(1.0, 1.0, 1.0),
             _atmosphere_constants: AtmosphereConstants::default(),
@@ -748,10 +748,10 @@ impl Atmosphere {
         renderer_data: &RendererData
     ) {
         // precompute constants
-        let max_sun_zenith_angle = 120.0 / 180.0 * kPi;
+        let max_sun_zenith_angle = 120.0 / 180.0 * K_PI;
 
-        let rayleigh_layer = DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / kRayleighScaleHeight, 0.0, 0.0);
-        let mie_layer = DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / kMieScaleHeight, 0.0, 0.0);
+        let rayleigh_layer = DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / K_RAYLEIGH_SCALE_HEIGHT, 0.0, 0.0);
+        let mie_layer = DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / K_MIE_SCALE_HEIGHT, 0.0, 0.0);
         let ozone_density: Vec<DensityProfileLayer> = vec![
             DensityProfileLayer::create_density_profile_layer(25000.0, 0.0, 0.0, 1.0 / 15000.0, -2.0 / 3.0),
             DensityProfileLayer::create_density_profile_layer(0.0, 0.0, 0.0, -1.0 / 15000.0, 8.0 / 3.0)
@@ -765,24 +765,24 @@ impl Atmosphere {
         let mut absorption_extinction: Vec<f32> = Vec::new();
         let mut ground_albedo: Vec<f32> = Vec::new();
 
-        for i in ((kLambdaMin as usize)..(kLambdaMax as usize + 1)).step_by(10) {
-            let L = i as f32 * 1e-3;  // micro-meters
-            let mie = kMieAngstromBeta / kMieScaleHeight * L.powf(-kMieAngstromAlpha);
+        for i in ((K_LAMBDA_MIN as usize)..(K_LAMBDA_MAX as usize + 1)).step_by(10) {
+            let l = i as f32 * 1e-3;  // micro-meters
+            let mie = K_MIE_ANGSTROM_BETA / K_MIE_SCALE_HEIGHT * l.powf(-K_MIE_ANGSTROM_ALPHA);
             wavelengths.push(i as f32);
             if self._use_constant_solar_spectrum {
-                solar_irradiance.push(kConstantSolarIrradiance);
+                solar_irradiance.push(K_CONSTANT_SOLAR_IRRADIANCE);
             } else {
-                solar_irradiance.push(kSolarIrradiance[(i as usize - kLambdaMin as usize) / 10]);
+                solar_irradiance.push(K_SOLAR_IRRADIANCE[(i as usize - K_LAMBDA_MIN as usize) / 10]);
             }
-            rayleigh_scattering.push(kRayleigh * L.powf(-4.0));
-            mie_scattering.push(mie * kMieSingleScatteringAlbedo);
+            rayleigh_scattering.push(K_RAYLEIGH * l.powf(-4.0));
+            mie_scattering.push(mie * K_MIE_SINGLE_SCATTERING_ALBEDO);
             mie_extinction.push(mie);
             if self._use_ozone {
-                absorption_extinction.push(kMaxOzoneNumberDensity * kOzoneCrossSection[(i as usize - kLambdaMin as usize) / 10])
+                absorption_extinction.push(K_MAX_OZONE_NUMBER_DENSITY * K_OZONE_CROSS_SECTION[(i as usize - K_LAMBDA_MIN as usize) / 10])
             } else {
                 absorption_extinction.push(0.0);
             }
-            ground_albedo.push(kGroundAlbedo);
+            ground_albedo.push(K_GROUND_ALBEDO);
         }
 
         let rayleigh_density: Vec<DensityProfileLayer> = vec![rayleigh_layer];
@@ -820,20 +820,20 @@ impl Atmosphere {
             let mut atmosphere_model = AtmosphereModel::create_atmosphere_model(
                 wavelengths,
                 solar_irradiance,
-                kSunAngularRadius,
-                kBottomRadius,
-                kTopRadius,
+                K_SUN_ANGULAR_RADIUS,
+                K_BOTTOM_RADIUS,
+                K_TOP_RADIUS,
                 rayleigh_density,
                 rayleigh_scattering,
                 mie_density,
                 mie_scattering,
                 mie_extinction,
-                kMiePhaseFunctionG,
+                K_MIE_PHASE_FUNCTION_G,
                 ozone_density,
                 absorption_extinction,
                 ground_albedo,
                 max_sun_zenith_angle,
-                kLengthUnitInMeters,
+                K_LENGTH_UNIT_IN_METERS,
                 self._num_precomputed_wavelengths,
                 self._luminance_type,
                 self._use_combined_textures
@@ -883,7 +883,7 @@ impl Atmosphere {
                 )
             );
             // compute_single_scattering
-            let mut compute_single_scattering_rendertargets = vec![
+            let compute_single_scattering_rendertargets = vec![
                 RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
                 RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
                 RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },

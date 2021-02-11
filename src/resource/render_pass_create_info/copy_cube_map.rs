@@ -19,7 +19,7 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::renderer::push_constants::PushConstant_BlendCubeMap;
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("copy_cube_map");
     let input = DescriptorDataCreateInfo {
         _descriptor_binding_index: 0,

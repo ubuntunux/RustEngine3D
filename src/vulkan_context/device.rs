@@ -205,7 +205,7 @@ pub fn select_physical_device(
         let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
         log::info!("Found {} devices", physical_devices.len());
         for physical_device in physical_devices {
-            let (result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
+            let (_result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
             // set enable clip distance
             physical_device_features.shader_clip_distance = 1;
             return Some((physical_device, swapchain_support_details, physical_device_features));

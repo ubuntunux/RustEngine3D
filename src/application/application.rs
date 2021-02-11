@@ -20,7 +20,7 @@ use winit::event_loop::{
     EventLoop
 };
 use winit::dpi;
-use winit::window::{ Window, WindowBuilder };
+use winit::window::{ WindowBuilder };
 
 use crate::constants;
 use crate::application::{ scene_manager, SceneManagerData };
@@ -125,12 +125,12 @@ impl ApplicationData {
 
         const MOUSE_DELTA_RATIO: f32 = 500.0;
         let delta_time = self._time_data._delta_time;
-        let mouse_pos = &self._mouse_move_data._mouse_pos;
+        let _mouse_pos = &self._mouse_move_data._mouse_pos;
         let mouse_delta_x = self._mouse_move_data._mouse_pos_delta.x as f32 / self._window_size.0 as f32 * MOUSE_DELTA_RATIO;
         let mouse_delta_y = self._mouse_move_data._mouse_pos_delta.y as f32 / self._window_size.1 as f32 * MOUSE_DELTA_RATIO;
         let btn_left: bool = self._mouse_input_data._btn_l_hold;
         let btn_right: bool = self._mouse_input_data._btn_r_hold;
-        let btn_middle: bool = self._mouse_input_data._btn_m_hold;
+        let _btn_middle: bool = self._mouse_input_data._btn_m_hold;
 
         let pressed_key_a = self._keyboard_input_data.get_key_hold(VirtualKeyCode::A);
         let pressed_key_d = self._keyboard_input_data.get_key_hold(VirtualKeyCode::D);
@@ -155,7 +155,7 @@ impl ApplicationData {
         let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 } * modified_camera_move_speed;
         let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
         let pan_speed = constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
-        let rotation_speed = constants::CAMERA_ROTATION_SPEED;
+        let _rotation_speed = constants::CAMERA_ROTATION_SPEED;
 
         unsafe {
             if released_key_left_bracket {
@@ -407,7 +407,7 @@ pub fn run_application() {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     application_data._mouse_move_data.update_mouse_move(&position.into());
                 }
-                WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, v_lines), .. } => {
+                WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, _v_lines), .. } => {
                     // wheel_delta = Some(v_lines);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
@@ -425,7 +425,7 @@ pub fn run_application() {
                         }
                     }
                 }
-                WindowEvent::Touch(Touch { device_id, phase, location, force, id }) => {
+                WindowEvent::Touch(Touch { device_id: _device_id, phase, location, force: _force, id }) => {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
 
                     if 0 == id {

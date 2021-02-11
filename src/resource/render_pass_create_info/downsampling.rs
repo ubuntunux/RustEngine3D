@@ -18,7 +18,7 @@ use crate::vulkan_context::descriptor::{
     DescriptorResourceType,
 };
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("downsampling");
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {

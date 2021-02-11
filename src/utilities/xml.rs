@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
-use std::fs::File;
 use std::io::BufReader;
 use xml::reader::{ EventReader, XmlEvent };
 use crate::utilities::system;
@@ -74,7 +73,7 @@ impl XmlTree {
         unsafe {
             for e in parser {
                 match e {
-                    Ok(XmlEvent::StartElement { name, attributes, namespace }) => {
+                    Ok(XmlEvent::StartElement { name, attributes, namespace: _namespace }) => {
                         let children: &mut Vec<XmlTree> = match (*xml_tree).children.get_mut(&name.local_name) {
                             Some(children) => children,
                             None => {
@@ -96,7 +95,7 @@ impl XmlTree {
                     Ok(XmlEvent::Characters(text)) => {
                         (*xml_tree).text = text.clone();
                     },
-                    Ok(XmlEvent::EndElement { name }) => {
+                    Ok(XmlEvent::EndElement { name: _name }) => {
                         xml_tree = (*xml_tree).parent as *mut XmlTree;
                     },
                     Err(e) => {
