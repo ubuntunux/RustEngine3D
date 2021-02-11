@@ -20,8 +20,8 @@ void main()
 
     vs_output.texcoord = vs_in_font_infos.zw + texcoord * font_texcoord_size + inv_texture_size * 0.5;
 
-    float column = vs_in_font_infos.x;
-    float row = vs_in_font_infos.y;
+    float column = gl_InstanceIndex * 2;//vs_in_font_infos.x;
+    float row = 0.0;//vs_in_font_infos.y;
     vec2 position;
     position.x = (column + texcoord.x) * pushConstant._font_size * pushConstant._inv_canvas_size.x;
     position.y = (texcoord.y - row) * pushConstant._font_size * pushConstant._inv_canvas_size.y;

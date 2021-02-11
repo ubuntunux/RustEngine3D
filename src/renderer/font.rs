@@ -356,8 +356,8 @@ impl FontManager {
             let initial_column = 0;
             let initial_row = 0;
             self._text_render_data.set_text_render_data(text, &self._ascii, render_font_size, initial_column, initial_row, true);
-            let offset_x = 0;
-            let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
+            let offset_x = 10;
+            let offset_y = 10;
 
             let font_data = self._ascii.borrow();
             let material_instance_data = resources.get_material_instance_data("render_font").borrow();
