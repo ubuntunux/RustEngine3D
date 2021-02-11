@@ -1,30 +1,21 @@
 use std::path::PathBuf;
 
-use ash::{
-    vk,
-};
+use ash::{ vk };
 
 use crate::constants;
-use crate::renderer::renderer::{
-    RendererData,
-};
+use crate::renderer::renderer::{ RendererData };
 use crate::renderer::push_constants::{ PushConstant_RenderFont };
+use crate::renderer::font::{ FontVertexData };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
-use crate::vulkan_context::geometry_buffer::{ VertexData, FontVertexData };
+use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
     ImageAttachmentDescription,
     DepthStencilStateCreateInfo,
 };
-use crate::vulkan_context::descriptor::{
-    DescriptorDataCreateInfo,
-    DescriptorResourceType,
-};
-use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::vulkan_context::{
-    BlendMode,
-};
+use crate::vulkan_context::descriptor::{ DescriptorDataCreateInfo, DescriptorResourceType };
+use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {

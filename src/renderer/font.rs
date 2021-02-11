@@ -2,12 +2,14 @@ use std::cmp::max;
 use std::path::{ PathBuf };
 
 use serde::{ Serialize, Deserialize };
-use nalgebra::Vector4;
+use nalgebra::{ Vector3, Vector4 };
+use ash::{ vk };
 
-use crate::vulkan_context::texture::TextureData;
-use crate::utilities::system::RcRefCell;
-use crate::renderer::RendererData;
 use crate::resource::Resources;
+use crate::renderer::RendererData;
+use crate::utilities::system::RcRefCell;
+use crate::vulkan_context::texture::TextureData;
+use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct FontDataCreateInfo {
@@ -28,6 +30,32 @@ pub struct FontData {
     pub _count_of_side: u32,
     pub _font_size: f32,
     pub _texture: RcRefCell<TextureData>,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct FontVertexData {
+    pub _position: Vector3<f32>,
+}
+
+impl Default for FontVertexData {
+    fn default() -> FontVertexData {
+        FontVertexData {
+            _position: Vector3::zeros()
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct FontInstanceData {
+    pub _font_infos: Vector4<f32>,
+}
+
+impl Default for FontInstanceData {
+    fn default() -> FontInstanceData {
+        FontInstanceData {
+            _font_infos: Vector4::zeros()
+        }
+    }
 }
 
 pub struct TextRenderData {
@@ -154,6 +182,11 @@ impl FontManager {
         }
     }
 
+    pub fn create_font_mesh(&self) {
+        let _positions: Vec<Vector3<f32>> = vec![Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, -1.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)];
+        let _indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
+    }
+
     pub fn destroy_font_manager(&mut self) {
         self._text_render_data.destroy_text_render_data();
     }
@@ -182,5 +215,35 @@ impl FontManager {
             let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
             renderer_data.render_text(&self._text_render_data, offset_x, offset_y, canvas_width, canvas_height);
         }
+    }
+}
+
+impl FontVertexData {
+    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
+}
+
+impl VertexData for FontVertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let binding = 0u32;
+        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
+        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::FONT_INFOS);
+        vertex_input_attribute_descriptions
+    }
+
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+        vec![
+            vk::VertexInputBindingDescription {
+                binding: 0,
+                stride: std::mem::size_of::<FontVertexData>() as u32,
+                input_rate: vk::VertexInputRate::VERTEX
+            },
+            vk::VertexInputBindingDescription {
+                binding: 1,
+                stride: std::mem::size_of::<FontInstanceData>() as u32,
+                input_rate: vk::VertexInputRate::INSTANCE
+            },
+        ]
     }
 }

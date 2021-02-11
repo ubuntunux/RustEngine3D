@@ -2,29 +2,14 @@ use std::mem;
 use std::collections::HashMap;
 
 use serde::{ Serialize, Deserialize };
-
-use ash::{
-    vk,
-    Device,
-};
-use nalgebra;
-use nalgebra::{
-    Vector2,
-    Vector3,
-    Vector4,
-};
+use ash::{ vk, Device };
+use nalgebra::{ self, Vector2, Vector3, Vector4 };
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::vulkan_context::buffer;
-use crate::vulkan_context::vulkan_context::{
-    get_color32,
-    get_format_size,
-};
+use crate::vulkan_context::vulkan_context::{ get_color32, get_format_size };
 use crate::utilities::math;
-use crate::utilities::bounding_box::{
-    BoundingBox,
-    calc_bounding_box
-};
+use crate::utilities::bounding_box::{ BoundingBox, calc_bounding_box };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct StaticVertexData {
@@ -68,19 +53,6 @@ impl Default for SkeletalVertexData {
             _texcoord: Vector2::new(0.0, 0.0),
             _bone_indices: Vector4::new(0, 0, 0, 0),
             _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
-pub struct FontVertexData {
-    pub _position: Vector3<f32>,
-}
-
-impl Default for FontVertexData {
-    fn default() -> FontVertexData {
-        FontVertexData {
-            _position: Vector3::new(0.0, 0.0, 0.0)
         }
     }
 }
@@ -198,36 +170,6 @@ impl VertexData for SkeletalVertexData {
             stride: mem::size_of::<SkeletalVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX
         }]
-    }
-}
-
-impl FontVertexData {
-    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
-    const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
-}
-
-impl VertexData for FontVertexData {
-    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
-        let binding = 0u32;
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::FONT_INFOS);
-        vertex_input_attribute_descriptions
-    }
-
-    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
-        vec![
-            vk::VertexInputBindingDescription {
-                binding: 0,
-                stride: mem::size_of::<Vector3<f32>>() as u32,
-                input_rate: vk::VertexInputRate::VERTEX
-            },
-            vk::VertexInputBindingDescription {
-                binding: 1,
-                stride: mem::size_of::<Vector4<f32>>() as u32,
-                input_rate: vk::VertexInputRate::INSTANCE
-            },
-        ]
     }
 }
 
