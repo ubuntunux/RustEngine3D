@@ -3,13 +3,16 @@ use std::path::{ PathBuf };
 
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4 };
-use ash::{ vk };
+use ash::{ vk, Device };
 
 use crate::resource::Resources;
 use crate::renderer::RendererData;
 use crate::utilities::system::RcRefCell;
+use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
+
+const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct FontDataCreateInfo {
@@ -69,7 +72,8 @@ pub struct TextRenderData {
     pub _initial_row: i32,
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
-    pub _render_queue: Vec<Vector4<f32>>,
+    pub _render_instance_data: Vec<FontInstanceData>,
+    pub _font_mesh_instance_buffer: BufferData,
 }
 
 pub struct FontManager {
@@ -77,6 +81,40 @@ pub struct FontManager {
     pub _show: bool,
     pub _logs: Vec<String>,
     pub _text_render_data: TextRenderData,
+    pub _font_mesh_vertex_buffer: BufferData,
+    pub _font_mesh_instance_buffer: BufferData,
+    pub _font_mesh_index_buffer: BufferData,
+}
+
+
+impl FontVertexData {
+    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+    const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
+}
+
+impl VertexData for FontVertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let binding = 0u32;
+        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
+        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::FONT_INFOS);
+        vertex_input_attribute_descriptions
+    }
+
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+        vec![
+            vk::VertexInputBindingDescription {
+                binding: 0,
+                stride: std::mem::size_of::<FontVertexData>() as u32,
+                input_rate: vk::VertexInputRate::VERTEX
+            },
+            vk::VertexInputBindingDescription {
+                binding: 1,
+                stride: std::mem::size_of::<FontInstanceData>() as u32,
+                input_rate: vk::VertexInputRate::INSTANCE
+            },
+        ]
+    }
 }
 
 impl TextRenderData {
@@ -92,7 +130,8 @@ impl TextRenderData {
             _initial_row: 0,
             _font_data: font_data.clone(),
             _render_count: 0,
-            _render_queue: Vec::new(),
+            _render_instance_data: Vec::new(),
+            _font_mesh_instance_buffer: BufferData::default(),
         }
     }
 
@@ -113,8 +152,8 @@ impl TextRenderData {
         let ratio = 1.0 / font_data._count_of_side as f32;
         let text_count = self._text.len();
 
-        if self._render_queue.len() < text_count {
-            self._render_queue.resize(text_count, Vector4::zeros());
+        if self._render_instance_data.len() < text_count {
+            self._render_instance_data.resize(text_count, FontInstanceData::default());
         }
 
         let mut render_index: u32 = 0;
@@ -134,7 +173,9 @@ impl TextRenderData {
                 let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
                 let texcoord_y = (count_of_side as i32 - 1 - (index as f32 * ratio) as i32) as f32 * ratio;
-                self._render_queue[render_index as usize] = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
+                self._render_instance_data[render_index as usize] = FontInstanceData {
+                    _font_infos: Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y),
+                };
                 render_index += 1;
                 column += 1;
             }
@@ -173,22 +214,67 @@ impl TextRenderData {
 
 impl FontManager {
     pub fn create_font_manager(resources: &Resources) -> FontManager {
+        log::info!("create_font_manager");
         let ascii_font_data = resources.get_font_data("NanumBarunGothic_Basic_Latin");
         FontManager {
             _ascii: ascii_font_data.clone(),
             _show: true,
             _logs: Vec::new(),
-            _text_render_data: TextRenderData::create_text_render_data(ascii_font_data)
+            _text_render_data: TextRenderData::create_text_render_data(ascii_font_data),
+            _font_mesh_vertex_buffer: BufferData::default(),
+            _font_mesh_instance_buffer: BufferData::default(),
+            _font_mesh_index_buffer: BufferData::default(),
         }
     }
 
-    pub fn create_font_mesh(&self) {
-        let _positions: Vec<Vector3<f32>> = vec![Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, -1.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)];
-        let _indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
+    pub fn destroy_font_manager(&mut self, device: &Device) {
+        log::info!("destroy_font_manager");
+        self._text_render_data.destroy_text_render_data();
+        buffer::destroy_buffer_data(device, &self._font_mesh_vertex_buffer);
+        buffer::destroy_buffer_data(device, &self._font_mesh_instance_buffer);
+        buffer::destroy_buffer_data(device, &self._font_mesh_index_buffer);
     }
 
-    pub fn destroy_font_manager(&mut self) {
-        self._text_render_data.destroy_text_render_data();
+    pub fn create_font_vertex_data(
+        &mut self,
+        device: &Device,
+        command_pool: vk::CommandPool,
+        command_queue: vk::Queue,
+        device_memory_properties: &vk::PhysicalDeviceMemoryProperties
+    ) {
+        log::info!("create_font_vertex_data");
+        let positions: Vec<Vector3<f32>> = vec![Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, -1.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)];
+        let vertex_datas = positions.iter().map(|position| FontVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
+        let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
+
+        self._font_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            &vertex_datas,
+        );
+
+        let instance_buffer_size = (std::mem::size_of::<FontInstanceData>() * MAX_FONT_INSTANCE_COUNT as usize) as vk::DeviceSize;
+        let instance_buffer_usage_flags = vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
+        let instance_buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+        self._font_mesh_instance_buffer = buffer::create_buffer_data(
+            device,
+            device_memory_properties,
+            instance_buffer_size,
+            instance_buffer_usage_flags,
+            instance_buffer_memory_property_flags,
+        );
+
+        self._font_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            &indices
+        );
     }
 
     pub fn clear_logs(&mut self) {
@@ -215,35 +301,5 @@ impl FontManager {
             let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
             renderer_data.render_text(&self._text_render_data, offset_x, offset_y, canvas_width, canvas_height);
         }
-    }
-}
-
-impl FontVertexData {
-    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
-    const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
-}
-
-impl VertexData for FontVertexData {
-    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
-        let binding = 0u32;
-        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
-        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::FONT_INFOS);
-        vertex_input_attribute_descriptions
-    }
-
-    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
-        vec![
-            vk::VertexInputBindingDescription {
-                binding: 0,
-                stride: std::mem::size_of::<FontVertexData>() as u32,
-                input_rate: vk::VertexInputRate::VERTEX
-            },
-            vk::VertexInputBindingDescription {
-                binding: 1,
-                stride: std::mem::size_of::<FontInstanceData>() as u32,
-                input_rate: vk::VertexInputRate::INSTANCE
-            },
-        ]
     }
 }

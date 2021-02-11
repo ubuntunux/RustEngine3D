@@ -106,7 +106,7 @@ impl ApplicationData {
         resources: &mut Resources,
         renderer_data: &mut RendererData,
     ) {
-        font_manager.destroy_font_manager();
+        font_manager.destroy_font_manager(renderer_data.get_device());
         scene_manager_data.close_scene_manager_data(renderer_data.get_device());
         renderer_data.destroy_framebuffer_and_descriptors();
         resources.destroy_resources(renderer_data);
