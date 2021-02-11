@@ -7,7 +7,7 @@ use ash::{
 use crate::renderer::renderer::RendererData;
 use crate::renderer::render_target::RenderTargetType;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
-use crate::vulkan_context::geometry_buffer::{ VertexData };
+use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
@@ -141,8 +141,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
                 _depth_write_enable: false,
                 ..Default::default()
             },
-            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),
             ..Default::default()
         }
     ];

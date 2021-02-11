@@ -11,7 +11,7 @@ use ash::version::{
     DeviceV1_0
 };
 
-use crate::vulkan_context::geometry_buffer::{ VertexData };
+use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorData,
@@ -100,8 +100,8 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
-            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_ranges: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }

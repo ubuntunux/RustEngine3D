@@ -27,7 +27,7 @@ use crate::utilities::bounding_box::{
 };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
-pub struct VertexData {
+pub struct StaticVertexData {
     pub _position: Vector3<f32>,
     pub _normal: Vector3<f32>,
     pub _tangent: Vector3<f32>,
@@ -35,9 +35,9 @@ pub struct VertexData {
     pub _texcoord: Vector2<f32>
 }
 
-impl Default for VertexData {
-    fn default() -> VertexData {
-        VertexData {
+impl Default for StaticVertexData {
+    fn default() -> StaticVertexData {
+        StaticVertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
             _normal: Vector3::new(0.0, 0.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
@@ -87,10 +87,10 @@ impl Default for FontVertexData {
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct GeometryCreateInfo {
-    pub _vertex_datas: Vec<VertexData>,
+    pub _vertex_datas: Vec<StaticVertexData>,
     pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,
     pub _indices: Vec<u32>,
-    pub _bounding_box: BoundingBox
+    pub _bounding_box: BoundingBox,
 }
 
 impl Default for GeometryCreateInfo {
@@ -134,28 +134,35 @@ pub fn add_vertex_input_attribute_description(
     });
 }
 
-impl VertexData {
+pub trait VertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription>;
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription>;
+}
+
+impl StaticVertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const NORMAL: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const TANGENT: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const COLOR: vk::Format = vk::Format::R8G8B8A8_UNORM;
     const TEXCOORD: vk::Format = vk::Format::R32G32_SFLOAT;
+}
 
-    pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+impl VertexData for StaticVertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::POSITION);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::NORMAL);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TANGENT);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::COLOR);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TEXCOORD);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::POSITION);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::NORMAL);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::TANGENT);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::COLOR);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::TEXCOORD);
         vertex_input_attribute_descriptions
     }
 
-    pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: mem::size_of::<VertexData>() as u32,
+            stride: mem::size_of::<StaticVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX
         }]
     }
@@ -169,8 +176,10 @@ impl SkeletalVertexData {
     const TEXCOORD: vk::Format = vk::Format::R32G32_SFLOAT;
     const BONE_INDICES: vk::Format = vk::Format::R32G32B32A32_UINT;
     const BONE_WEIGHTS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
+}
 
-    pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+impl VertexData for SkeletalVertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::POSITION);
@@ -183,7 +192,7 @@ impl SkeletalVertexData {
         vertex_input_attribute_descriptions
     }
 
-    pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
             stride: mem::size_of::<SkeletalVertexData>() as u32,
@@ -195,8 +204,10 @@ impl SkeletalVertexData {
 impl FontVertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
+}
 
-    pub fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+impl VertexData for FontVertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
@@ -204,7 +215,7 @@ impl FontVertexData {
         vertex_input_attribute_descriptions
     }
 
-    pub fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![
             vk::VertexInputBindingDescription {
                 binding: 0,
@@ -362,7 +373,7 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
         .iter()
         .enumerate()
         .map(|(index, __position)| {
-            VertexData {
+            StaticVertexData {
                 _position: positions[index].clone() as Vector3<f32>,
                 _normal: normals[index].clone() as Vector3<f32>,
                 _tangent: tangents[index].clone() as Vector3<f32>,
@@ -417,7 +428,7 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
         .iter()
         .enumerate()
         .map(|(index, __position)| {
-            VertexData {
+            StaticVertexData {
                 _position: positions[index].clone() as Vector3<f32>,
                 _normal: normals[index].clone() as Vector3<f32>,
                 _tangent: tangents[index].clone() as Vector3<f32>,
@@ -487,7 +498,7 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
         .iter()
         .enumerate()
         .map(|(index, __position)| {
-            VertexData {
+            StaticVertexData {
                 _position: positions[index].clone() as Vector3<f32>,
                 _normal: normals[index].clone() as Vector3<f32>,
                 _tangent: tangents[index].clone() as Vector3<f32>,

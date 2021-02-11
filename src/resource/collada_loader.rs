@@ -18,7 +18,7 @@ use crate::utilities::bounding_box::{ self, BoundingBox, };
 use crate::utilities::math;
 use crate::utilities::xml::{ self, XmlTree, };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, SkeletalVertexData };
+use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, StaticVertexData, SkeletalVertexData };
 use crate::constants;
 
 
@@ -1114,7 +1114,7 @@ impl Collada {
 
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
 
-            let vertex_datas: Vec<VertexData>;
+            let vertex_datas: Vec<StaticVertexData>;
             let skeletal_vertex_datas: Vec<SkeletalVertexData>;
 
             if geometry._bone_indices.is_empty() {
@@ -1122,7 +1122,7 @@ impl Collada {
                     .iter()
                     .enumerate()
                     .map(|(index, position)| {
-                        VertexData {
+                        StaticVertexData {
                             _position: position.clone() as Vector3<f32>,
                             _normal: geometry._normals[index].clone() as Vector3<f32>,
                             _tangent: tangents[index].clone() as Vector3<f32>,

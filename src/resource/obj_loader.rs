@@ -13,7 +13,7 @@ use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{
     self,
     GeometryCreateInfo,
-    VertexData,
+    StaticVertexData,
 };
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system;
@@ -229,11 +229,11 @@ impl WaveFrontOBJ {
 
             let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
-            let vertex_datas: Vec<VertexData> = positions
+            let vertex_datas: Vec<StaticVertexData> = positions
                 .iter()
                 .enumerate()
                 .map(|(index, position)| {
-                    VertexData {
+                    StaticVertexData {
                         _position: position.clone() as Vector3<f32>,
                         _normal: normals[index].clone() as Vector3<f32>,
                         _tangent: tangents[index].clone() as Vector3<f32>,

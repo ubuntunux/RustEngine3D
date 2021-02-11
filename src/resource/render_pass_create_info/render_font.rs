@@ -10,7 +10,7 @@ use crate::renderer::renderer::{
 };
 use crate::renderer::push_constants::{ PushConstant_RenderFont };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
-use crate::vulkan_context::geometry_buffer::{ FontVertexData };
+use crate::vulkan_context::geometry_buffer::{ VertexData, FontVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
