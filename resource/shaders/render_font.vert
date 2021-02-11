@@ -28,4 +28,5 @@ void main()
     position.xy += pushConstant._offset * pushConstant._inv_canvas_size.xy;
 
     gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
+    //gl_Position = vec4(vs_in_position.xy * 0.0025 + position * 2.0 - 1.0 + vec2(0.5, -0.5), 0.0, 1.0);
 }

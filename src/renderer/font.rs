@@ -2,18 +2,20 @@ use std::cmp::max;
 use std::path::{ PathBuf };
 
 use serde::{ Serialize, Deserialize };
-use nalgebra::{ Vector3, Vector4 };
+use nalgebra::{ Vector2, Vector3, Vector4 };
 use ash::{ vk, Device };
 
 use crate::resource::Resources;
-use crate::renderer::renderer::{ self, RendererData };
-use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
+use crate::renderer::renderer::{ RendererData };
+use crate::renderer::push_constants::{ PushConstant_RenderFont };
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 
-const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
+pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
+pub const FONT_SIZE: u32 = 20;
+pub const FONT_PADDING: u32 = 1;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct FontDataCreateInfo {
@@ -118,6 +120,7 @@ pub struct FontManager {
     pub _font_mesh_vertex_buffer: BufferData,
     pub _font_mesh_instance_buffer: BufferData,
     pub _font_mesh_index_buffer: BufferData,
+    pub _font_mesh_index_count: u32,
 }
 
 
@@ -257,6 +260,7 @@ impl FontManager {
             _font_mesh_vertex_buffer: BufferData::default(),
             _font_mesh_instance_buffer: BufferData::default(),
             _font_mesh_index_buffer: BufferData::default(),
+            _font_mesh_index_count: 0,
         }
     }
 
@@ -315,6 +319,7 @@ impl FontManager {
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices
         );
+        self._font_mesh_index_count = indices.len() as u32;
     }
 
     pub fn clear_logs(&mut self) {
@@ -332,38 +337,59 @@ impl FontManager {
         }
     }
 
-    pub fn render_log(&mut self, renderer_data: &RendererData, resources: &Resources, canvas_width: u32, canvas_height: u32) {
+    pub fn render_log(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
+        canvas_width: u32,
+        canvas_height: u32
+    ) {
+        self.log(String::from("TEST TEST TEST"));
+
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
             self._logs.clear();
-            self._text_render_data.set_text_render_data(text, &self._ascii, 12, 0, 0, true);
+
+            let render_font_size = 12;
+            let initial_column = 0;
+            let initial_row = 0;
+            self._text_render_data.set_text_render_data(text, &self._ascii, render_font_size, initial_column, initial_row, true);
             let offset_x = 0;
             let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
 
+            let font_data = self._ascii.borrow();
             let material_instance_data = resources.get_material_instance_data("render_font").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+            let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
+            let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
+            let custom_framebuffer_data = None;
+            let custom_descriptor_sets = None;
+            let push_constant_data = PushConstant_RenderFont {
+                _offset: Vector2::new(offset_x as f32, offset_y as f32),
+                _inv_canvas_size: Vector2::new(1.0 / canvas_width as f32, 1.0 / canvas_height as f32),
+                _font_size: font_data._font_size,
+                _count_of_side: font_data._count_of_side as f32,
+                _reserved0: 0,
+                _reserved1: 0,
+            };
 
-            // self.render_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, geometry_data, custom_framebuffer_data, custom_descriptor_sets, push_constant_data);
-            //
-            //
-            // // Render Final
-            // renderer_data.render_material_instance(
-            //     command_buffer,
-            //     swapchain_index,
-            //     "render_final",
-            //     renderer_data::DEFAULT_PIPELINE,
-            //     &quad_geometry_data,
-            //     None,
-            //     None,
-            //     NONE_PUSH_CONSTANT
-            // );
+            let upload_data = &self._text_render_data._render_instance_data;
+            buffer::upload_buffer_data(&renderer_data.get_device(), &self._font_mesh_instance_buffer, upload_data);
 
-            //     self.font_shader.bind_uniform_data("texture_font", text_render_data.font_data.texture)
-            //     self.font_shader.bind_uniform_data("font_size", text_render_data.font_size)
-            //     self.font_shader.bind_uniform_data("offset", (offset_x, offset_y))
-            //     self.font_shader.bind_uniform_data("inv_canvas_size", (1.0 / canvas_width, 1.0 / canvas_height))
-            //     self.font_shader.bind_uniform_data("count_of_side", text_render_data.font_data.count_of_side)
-            //     self.postprocess.draw_elements_instanced(text_render_data.render_count, self.font_instance_buffer, [text_render_data.render_queue, ])
+            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
+            renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
+            renderer_data.draw_elements(
+                command_buffer,
+                &[self._font_mesh_vertex_buffer._buffer],
+                &[self._font_mesh_instance_buffer._buffer],
+                self._text_render_data._render_count,
+                self._font_mesh_index_buffer._buffer,
+                self._font_mesh_index_count,
+            );
+            renderer_data.end_render_pass(command_buffer);
         }
     }
 }

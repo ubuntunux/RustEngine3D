@@ -687,7 +687,7 @@ impl RendererData {
                 push_constant_data
             );
         }
-        self.draw_elements(command_buffer, geometry_data);
+        self.draw_geometry_data(command_buffer, geometry_data);
         self.end_render_pass(command_buffer);
     }
 
@@ -737,7 +737,8 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         pipeline_binding_data: &PipelineBindingData,
-        custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>) {
+        custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>
+    ) {
         let pipeline_layout = pipeline_binding_data.get_pipeline_layout();
         let pipeline_bind_point = pipeline_binding_data.get_pipeline_bind_point();
         let descriptor_sets: &SwapchainArray<vk::DescriptorSet> = match custom_descriptor_sets {
@@ -802,8 +803,8 @@ impl RendererData {
         }
     }
 
-    pub fn draw_elements(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData) {
-        self.draw_elements_inner(
+    pub fn draw_geometry_data(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData) {
+        self.draw_elements(
             command_buffer,
             &[geometry_data._vertex_buffer_data._buffer],
             &[],
@@ -813,7 +814,7 @@ impl RendererData {
         );
     }
 
-    pub fn draw_elements_inner(
+    pub fn draw_elements(
         &self,
         command_buffer: vk::CommandBuffer,
         vertex_buffers: &[vk::Buffer],
@@ -1142,7 +1143,7 @@ impl RendererData {
                 // Render Text
                 let canvas_width = 1024;
                 let canvas_height = 768;
-                font_manager.render_log(&self, &self._resources.borrow(), canvas_width, canvas_height);
+                font_manager.render_log(command_buffer, swapchain_index, &self, &self._resources.borrow(), canvas_width, canvas_height);
 
                 // Render Debug
                 if RenderTargetType::BackBuffer != self._debug_render_target {
@@ -1184,7 +1185,7 @@ impl RendererData {
                     );
 
                     self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
-                    self.draw_elements(command_buffer, &quad_geometry_data);
+                    self.draw_geometry_data(command_buffer, &quad_geometry_data);
                     self.end_render_pass(command_buffer);
                 }
 
@@ -1509,7 +1510,7 @@ impl RendererData {
                         bone_metrices_offset += bone_count * 2;
                     },
                 };
-                self.draw_elements(command_buffer, &render_element._geometry_data.borrow());
+                self.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
             }
             self.end_render_pass(command_buffer);
         }

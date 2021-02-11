@@ -18,7 +18,7 @@ use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::render_pass_create_info;
 use crate::resource::texture_generator;
-use crate::renderer::font::{ FontDataCreateInfo, FontData };
+use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
 use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::{ ModelData };
 use crate::renderer::material::{ self, MaterialData };
@@ -286,15 +286,12 @@ impl Resources {
         font_texture_file_path.push(&font_name);
         font_texture_file_path.set_extension("png");
 
-        let font_size: f32 = 20.0;
-        let padding: f32 = 1.0;
-
         fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
         let mut write_file = File::create(&font_file_path).expect("Failed to create file");
         let font_data_create_info = font_loader::get_font_data_create_info(
             &font_source_file,
-            font_size,
-            padding,
+            font::FONT_SIZE as f32,
+            font::FONT_PADDING as f32,
             &font_name,
             &font_texture_file_path,
             range_min,

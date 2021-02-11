@@ -49,7 +49,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _attachment_image_samples: sample_count,
                 _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                _attachment_initial_layout: vk::ImageLayout::GENERAL,
+                _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
                 _attachment_final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
                 _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                 ..Default::default()
