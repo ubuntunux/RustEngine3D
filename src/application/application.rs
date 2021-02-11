@@ -260,7 +260,7 @@ pub fn run_application() {
             let mouse_pos = (width / 2, height / 2);
             let resources = resource::create_resources();
             let font_manager: RcRefCell<FontManager> = newRcRefCell(FontManager::create_font_manager());
-            let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &window, resources.clone());
+            let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &window, resources.clone(), font_manager.clone());
             let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
@@ -372,7 +372,7 @@ pub fn run_application() {
 
                     renderer_data.update_post_process_datas();
                     scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
-                    renderer_data.render_scene(scene_manager_data, elapsed_time, delta_time, elapsed_frame);
+                    renderer_data.render_scene(scene_manager_data, &mut font_manager, elapsed_time, delta_time, elapsed_frame);
                 }
             },
             Event::WindowEvent { event, .. } => match event {

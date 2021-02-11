@@ -2,7 +2,7 @@ use std::cmp::{min, max};
 use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
-use std::borrow::{Cow};
+use std::borrow::Cow;
 use std::ffi::CStr;
 use std::vec::Vec;
 use ash::{
@@ -74,7 +74,7 @@ use crate::renderer::renderer_data::{
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
-use crate::renderer::font::TextRenderData;
+use crate::renderer::font::{ FontManager };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -191,7 +191,8 @@ pub struct RendererData {
     pub _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer,
     pub _clear_render_targets: RendererData_ClearRenderTargets,
     pub _light_probe_datas: RendererData_LightProbe,
-    pub _resources: RcRefCell<Resources>
+    pub _resources: RcRefCell<Resources>,
+    pub _font_manager: RcRefCell<FontManager>,
 }
 
 pub fn create_renderer_data(
@@ -199,7 +200,8 @@ pub fn create_renderer_data(
     app_version: u32,
     (window_width, window_height): (u32, u32),
     window: &Window,
-    resources: RcRefCell<Resources>
+    resources: RcRefCell<Resources>,
+    font_manager: RcRefCell<FontManager>,
 ) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
@@ -211,11 +213,11 @@ pub fn create_renderer_data(
         let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
         let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
         let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
+        let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const std::os::raw::c_char);
 
         log::info!("PhysicalDeviceProperties");
         log::info!("    vulakn api_version: {}.{}.{}", vk::version_major(device_properties.api_version), vk::version_minor(device_properties.api_version), vk::version_patch(device_properties.api_version));
         log::info!("    driver_version: {}.{}.{}", vk::version_major(device_properties.driver_version), vk::version_minor(device_properties.driver_version), vk::version_patch(device_properties.driver_version));
-        let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const std::os::raw::c_char);
         log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
 
         let msaa_samples = device::get_max_usable_sample_count(&device_properties);
@@ -324,6 +326,7 @@ pub fn create_renderer_data(
             _clear_render_targets: RendererData_ClearRenderTargets::default(),
             _light_probe_datas: RendererData_LightProbe::default(),
             _resources: resources.clone(),
+            _font_manager: font_manager.clone(),
         };
 
         renderer_data.initialize_renderer();
@@ -963,7 +966,7 @@ impl RendererData {
         buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
     }
 
-    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, elapsed_time: f64, delta_time: f64, _elapsed_frame: u64) {
+    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, font_manager: &mut FontManager, elapsed_time: f64, delta_time: f64, _elapsed_frame: u64) {
         unsafe {
             // frame index
             let frame_index = self._frame_index as usize;
@@ -1113,6 +1116,11 @@ impl RendererData {
                 // Render Final
                 self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
+                // Render Text
+                let canvas_width = 1024;
+                let canvas_height = 768;
+                font_manager.render_log(&self, canvas_width, canvas_height);
+
                 // Render Debug
                 if RenderTargetType::BackBuffer != self._debug_render_target {
                     let render_debug_material_instance_name = "render_debug";
@@ -1212,18 +1220,6 @@ impl RendererData {
                 }
             }
         }
-    }
-
-    pub fn render_text(&self, _text_render_data: &TextRenderData, _offset_x: i32, _offset_y: i32, _canvas_width: u32, _canvas_height: u32) {
-        // if 0 < text_render_data.render_count:
-        //     self.font_shader.use_program()
-        //     self.font_shader.bind_material_instance()
-        //     self.font_shader.bind_uniform_data("texture_font", text_render_data.font_data.texture)
-        //     self.font_shader.bind_uniform_data("font_size", text_render_data.font_size)
-        //     self.font_shader.bind_uniform_data("offset", (offset_x, offset_y))
-        //     self.font_shader.bind_uniform_data("inv_canvas_size", (1.0 / canvas_width, 1.0 / canvas_height))
-        //     self.font_shader.bind_uniform_data("count_of_side", text_render_data.font_data.count_of_side)
-        //     self.postprocess.draw_elements_instanced(text_render_data.render_count, self.font_instance_buffer, [text_render_data.render_queue, ])
     }
 
     pub fn copy_cube_map<T>(

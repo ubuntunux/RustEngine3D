@@ -338,7 +338,13 @@ impl FontManager {
             self._text_render_data.set_text_render_data(text, &self._ascii, 12, 0, 0, true);
             let offset_x = 0;
             let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
-            renderer_data.render_text(&self._text_render_data, offset_x, offset_y, canvas_width, canvas_height);
+
+            //     self.font_shader.bind_uniform_data("texture_font", text_render_data.font_data.texture)
+            //     self.font_shader.bind_uniform_data("font_size", text_render_data.font_size)
+            //     self.font_shader.bind_uniform_data("offset", (offset_x, offset_y))
+            //     self.font_shader.bind_uniform_data("inv_canvas_size", (1.0 / canvas_width, 1.0 / canvas_height))
+            //     self.font_shader.bind_uniform_data("count_of_side", text_render_data.font_data.count_of_side)
+            //     self.postprocess.draw_elements_instanced(text_render_data.render_count, self.font_instance_buffer, [text_render_data.render_queue, ])
         }
     }
 }
