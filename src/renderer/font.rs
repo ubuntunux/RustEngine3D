@@ -6,7 +6,8 @@ use nalgebra::{ Vector3, Vector4 };
 use ash::{ vk, Device };
 
 use crate::resource::Resources;
-use crate::renderer::RendererData;
+use crate::renderer::renderer::{ self, RendererData };
+use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
@@ -331,13 +332,31 @@ impl FontManager {
         }
     }
 
-    pub fn render_log(&mut self, renderer_data: &RendererData, canvas_width: u32, canvas_height: u32) {
+    pub fn render_log(&mut self, renderer_data: &RendererData, resources: &Resources, canvas_width: u32, canvas_height: u32) {
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
             self._logs.clear();
             self._text_render_data.set_text_render_data(text, &self._ascii, 12, 0, 0, true);
             let offset_x = 0;
             let offset_y = (canvas_height - self._text_render_data._font_size) as i32;
+
+            let material_instance_data = resources.get_material_instance_data("render_font").borrow();
+            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+
+            // self.render_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, geometry_data, custom_framebuffer_data, custom_descriptor_sets, push_constant_data);
+            //
+            //
+            // // Render Final
+            // renderer_data.render_material_instance(
+            //     command_buffer,
+            //     swapchain_index,
+            //     "render_final",
+            //     renderer_data::DEFAULT_PIPELINE,
+            //     &quad_geometry_data,
+            //     None,
+            //     None,
+            //     NONE_PUSH_CONSTANT
+            // );
 
             //     self.font_shader.bind_uniform_data("texture_font", text_render_data.font_data.texture)
             //     self.font_shader.bind_uniform_data("font_size", text_render_data.font_size)

@@ -803,15 +803,38 @@ impl RendererData {
     }
 
     pub fn draw_elements(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData) {
+        self.draw_elements_inner(
+            command_buffer,
+            &[geometry_data._vertex_buffer_data._buffer],
+            &[],
+            1,
+            geometry_data._index_buffer_data._buffer,
+            geometry_data._vertex_index_count,
+        );
+    }
+
+    pub fn draw_elements_inner(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        vertex_buffers: &[vk::Buffer],
+        instance_buffers: &[vk::Buffer],
+        instance_count: u32,
+        index_buffer: vk::Buffer,
+        index_count: u32,
+    ) {
         unsafe {
             let offsets: &[vk::DeviceSize] = &[0];
-            const INSTANCE_COUNT: u32 = 1;
             const FIRST_INDEX: u32 = 0;
             const VERTEX_OFFSET: i32 = 0;
             const FIRST_INSTANCE: u32 = 0;
-            self._device.cmd_bind_vertex_buffers(command_buffer, 0, &[geometry_data._vertex_buffer_data._buffer], offsets);
-            self._device.cmd_bind_index_buffer(command_buffer, geometry_data._index_buffer_data._buffer, 0, vk::IndexType::UINT32);
-            self._device.cmd_draw_indexed(command_buffer, geometry_data._vertex_index_count, INSTANCE_COUNT, FIRST_INDEX, VERTEX_OFFSET, FIRST_INSTANCE);
+            const VERTEX_BUFFER_BINDING_INDEX: u32 = 0;
+            const INSTANCE_BUFFER_BINDING_INDEX: u32 = 1;
+            self._device.cmd_bind_vertex_buffers(command_buffer, VERTEX_BUFFER_BINDING_INDEX, vertex_buffers, offsets);
+            if false == instance_buffers.is_empty() {
+                self._device.cmd_bind_vertex_buffers(command_buffer, INSTANCE_BUFFER_BINDING_INDEX, instance_buffers, offsets);
+            }
+            self._device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
+            self._device.cmd_draw_indexed(command_buffer, index_count, instance_count, FIRST_INDEX, VERTEX_OFFSET, FIRST_INSTANCE);
         }
     }
 
@@ -1119,7 +1142,7 @@ impl RendererData {
                 // Render Text
                 let canvas_width = 1024;
                 let canvas_height = 768;
-                font_manager.render_log(&self, canvas_width, canvas_height);
+                font_manager.render_log(&self, &self._resources.borrow(), canvas_width, canvas_height);
 
                 // Render Debug
                 if RenderTargetType::BackBuffer != self._debug_render_target {
