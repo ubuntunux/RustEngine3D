@@ -42,7 +42,7 @@ pub fn get_font_data_create_info(
         glyphs_list.push(glyphs);
     }
 
-    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba8();
+    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba();
     let mut text_index = range_min;
     for y in 0..count_of_side {
         for x in 0..count_of_side {
