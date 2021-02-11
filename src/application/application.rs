@@ -259,6 +259,7 @@ pub fn run_application() {
             let (width, height) = window_size;
             let mouse_pos = (width / 2, height / 2);
             let resources = resource::create_resources();
+            let font_manager: RcRefCell<FontManager> = newRcRefCell(FontManager::create_font_manager());
             let renderer_data: RcRefCell<RendererData> = renderer::create_renderer_data(app_name, app_version, window_size, &window, resources.clone());
             let scene_manager_data = scene_manager::create_scene_manager_data(renderer_data.clone(), resources.clone());
             let keyboard_input_data = input::create_keyboard_input_data();
@@ -268,6 +269,7 @@ pub fn run_application() {
             // initialize grphics
             scene_manager_data.borrow().get_fft_ocean().borrow_mut().regist_fft_ocean_textures(&renderer_data, &resources);
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
+            font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
             renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
             let camera_data = CameraCreateInfo {
                 window_width: width,
@@ -278,8 +280,6 @@ pub fn run_application() {
             };
             scene_manager_data.borrow_mut().initialize_scene_graphics_data(&renderer_data.borrow());
             scene_manager_data.borrow_mut().open_scene_manager_data(&camera_data);
-
-            let font_manager: RcRefCell<FontManager> = newRcRefCell(FontManager::create_font_manager(&resources.borrow()));
 
             let application_data = system::newRcRefCell(
                 ApplicationData {

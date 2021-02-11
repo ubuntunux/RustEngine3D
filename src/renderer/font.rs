@@ -7,7 +7,7 @@ use ash::{ vk, Device };
 
 use crate::resource::Resources;
 use crate::renderer::RendererData;
-use crate::utilities::system::RcRefCell;
+use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
@@ -33,6 +33,20 @@ pub struct FontData {
     pub _count_of_side: u32,
     pub _font_size: f32,
     pub _texture: RcRefCell<TextureData>,
+}
+
+impl Default for FontData {
+    fn default() -> FontData {
+        FontData {
+            _font_data_name: String::new(),
+            _range_min: 0,
+            _range_max: 0,
+            _text_count: 0,
+            _count_of_side: 0,
+            _font_size: 0.0,
+            _texture: newRcRefCell(TextureData::default()),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -74,6 +88,25 @@ pub struct TextRenderData {
     pub _render_count: u32,
     pub _render_instance_data: Vec<FontInstanceData>,
     pub _font_mesh_instance_buffer: BufferData,
+}
+
+impl Default for TextRenderData {
+    fn default() -> TextRenderData {
+        TextRenderData {
+            _text: String::new(),
+            _column: 0,
+            _row: 0,
+            _font_size: 0,
+            _width: 0.0,
+            _height: 0.0,
+            _initial_column: 0,
+            _initial_row: 0,
+            _font_data: newRcRefCell(FontData::default()),
+            _render_count: 0,
+            _render_instance_data: Vec::new(),
+            _font_mesh_instance_buffer: BufferData::default(),
+        }
+    }
 }
 
 pub struct FontManager {
@@ -213,18 +246,24 @@ impl TextRenderData {
 }
 
 impl FontManager {
-    pub fn create_font_manager(resources: &Resources) -> FontManager {
+    pub fn create_font_manager() -> FontManager {
         log::info!("create_font_manager");
-        let ascii_font_data = resources.get_font_data("NanumBarunGothic_Basic_Latin");
         FontManager {
-            _ascii: ascii_font_data.clone(),
+            _ascii: newRcRefCell(FontData::default()),
             _show: true,
             _logs: Vec::new(),
-            _text_render_data: TextRenderData::create_text_render_data(ascii_font_data),
+            _text_render_data: TextRenderData::default(),
             _font_mesh_vertex_buffer: BufferData::default(),
             _font_mesh_instance_buffer: BufferData::default(),
             _font_mesh_index_buffer: BufferData::default(),
         }
+    }
+
+    pub fn initialize_font_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        let ascii_font_data = resources.get_font_data("NanumBarunGothic_Basic_Latin");
+        self._ascii = ascii_font_data.clone();
+        self._text_render_data = TextRenderData::create_text_render_data(&ascii_font_data);
+        self.create_font_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
     }
 
     pub fn destroy_font_manager(&mut self, device: &Device) {

@@ -55,6 +55,29 @@ pub struct TextureData {
     pub _image_sample_count: vk::SampleCountFlags,
 }
 
+impl Default for TextureData {
+    fn default() -> TextureData {
+        TextureData {
+            _texture_data_name: String::new(),
+            _image: vk::Image::null(),
+            _image_view: vk::ImageView::null(),
+            _image_info: vk::DescriptorImageInfo::default(),
+            _image_view_type: vk::ImageViewType::default(),
+            _image_sampler:vk::Sampler::null(),
+            _sub_image_views: Layers::new(),
+            _sub_image_infos: Layers::new(),
+            _sub_image_view_type: vk::ImageViewType::default(),
+            _image_memory: vk::DeviceMemory::null(),
+            _image_format: vk::Format::default(),
+            _image_width: 0,
+            _image_height: 0,
+            _image_layers: 0,
+            _image_mip_levels: 0,
+            _image_sample_count: vk::SampleCountFlags::default(),
+        }
+    }
+}
+
 pub struct ImageDatas {
     pub _image_view: vk::ImageView,
     pub _image_sampler: vk::Sampler,
