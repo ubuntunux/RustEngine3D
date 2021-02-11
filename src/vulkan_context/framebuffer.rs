@@ -74,7 +74,7 @@ pub fn create_framebuffer_data_create_info(
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferDataCreateInfo {
-    let (mut width, mut height, mut layers, sample_count, target_layer, target_mip_level) = if false == color_render_targets.is_empty() {
+    let (mut width, mut height, mut _layers, sample_count, target_layer, target_mip_level) = if false == color_render_targets.is_empty() {
         ( color_render_targets[0]._texture_data._image_width,
           color_render_targets[0]._texture_data._image_height,
           color_render_targets[0]._texture_data._image_layers,
@@ -100,7 +100,7 @@ pub fn create_framebuffer_data_create_info(
     }
 
     if constants::WHOLE_LAYERS != target_layer {
-        layers = 1;
+        _layers = 1;
     } else {
         panic!("Not implemented.")
     }
@@ -132,7 +132,7 @@ pub fn create_framebuffer_data_create_info(
     FramebufferDataCreateInfo {
         _framebuffer_width: width,
         _framebuffer_height: height,
-        _framebuffer_layers: layers,
+        _framebuffer_layers: _layers,
         _framebuffer_sample_count: sample_count,
         _framebuffer_view_port: vulkan_context::create_viewport(0, 0, width, height, 0.0, 1.0),
         _framebuffer_scissor_rect: vulkan_context::create_rect_2d(0, 0, width, height),
