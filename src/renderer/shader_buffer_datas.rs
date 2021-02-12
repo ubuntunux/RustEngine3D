@@ -36,6 +36,19 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants3,
     LightProbeViewConstants4,
     LightProbeViewConstants5,
+
+    SceneConstantsStaging,
+    ViewConstantsStaging,
+    LightConstantsStaging,
+    SSAOConstantsStaging,
+    BoneMatricesStaging,
+    AtmosphereConstantsStaging,
+    LightProbeViewConstants0Staging,
+    LightProbeViewConstants1Staging,
+    LightProbeViewConstants2Staging,
+    LightProbeViewConstants3Staging,
+    LightProbeViewConstants4Staging,
+    LightProbeViewConstants5Staging,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -178,6 +191,18 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants3" => Ok(ShaderBufferDataType::LightProbeViewConstants3),
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
+            "SceneConstantsStaging" => Ok(ShaderBufferDataType::SceneConstantsStaging),
+            "ViewConstantsStaging" => Ok(ShaderBufferDataType::ViewConstantsStaging),
+            "LightConstantsStaging" => Ok(ShaderBufferDataType::LightConstantsStaging),
+            "SSAOConstantsStaging" => Ok(ShaderBufferDataType::SSAOConstantsStaging),
+            "BoneMatricesStaging" => Ok(ShaderBufferDataType::BoneMatricesStaging),
+            "AtmosphereConstantsStaging" => Ok(ShaderBufferDataType::AtmosphereConstantsStaging),
+            "LightProbeViewConstants0Staging" => Ok(ShaderBufferDataType::LightProbeViewConstants0Staging),
+            "LightProbeViewConstants1Staging" => Ok(ShaderBufferDataType::LightProbeViewConstants1Staging),
+            "LightProbeViewConstants2Staging" => Ok(ShaderBufferDataType::LightProbeViewConstants2Staging),
+            "LightProbeViewConstants3Staging" => Ok(ShaderBufferDataType::LightProbeViewConstants3Staging),
+            "LightProbeViewConstants4Staging" => Ok(ShaderBufferDataType::LightProbeViewConstants4Staging),
+            "LightProbeViewConstants5Staging" => Ok(ShaderBufferDataType::LightProbeViewConstants5Staging),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -189,14 +214,15 @@ pub fn regist_shader_buffer_data(
     shader_buffer_data_map: &mut ShaderBufferDataMap,
     shader_buffer_data_type: ShaderBufferDataType,
     buffer_usage: vk::BufferUsageFlags,
-    shader_buffer_data_size: usize
+    shader_buffer_data_size: usize,
+    is_staging: bool,
 ) {
     let uniform_buffer_data = buffer::create_shader_buffer_data(
         device,
         memory_properties,
         &String::from(format!("{:?}", shader_buffer_data_type)),
-        buffer_usage,
-        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        buffer_usage | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST,
+        if is_staging { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT } else { vk::MemoryPropertyFlags::DEVICE_LOCAL },
         shader_buffer_data_size as vk::DeviceSize
     );
     shader_buffer_data_map.insert(shader_buffer_data_type.clone(), uniform_buffer_data);
@@ -207,18 +233,31 @@ pub fn regist_shader_buffer_datas(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     shader_buffer_data_map: &mut ShaderBufferDataMap,
 ) {
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants0, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants1, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants2, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>());
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants0, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants1, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants2, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), false);
+
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SceneConstantsStaging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::ViewConstantsStaging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstantsStaging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstantsStaging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatricesStaging, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstantsStaging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants0Staging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants1Staging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants2Staging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3Staging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4Staging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5Staging, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), true);
 }
 
 impl SceneConstants {

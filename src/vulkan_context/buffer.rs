@@ -213,6 +213,24 @@ pub fn copy_buffer(
     copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
 }
 
+pub fn copy_buffer_offset(
+    device: &Device,
+    command_buffer: vk::CommandBuffer,
+    src_buffer: vk::Buffer,
+    src_offset: vk::DeviceSize,
+    dst_buffer: vk::Buffer,
+    dst_offset: vk::DeviceSize,
+    buffer_size: vk::DeviceSize
+) {
+    let copy_region: [vk::BufferCopy; 1] = [vk::BufferCopy {
+        src_offset,
+        dst_offset,
+        size: buffer_size
+    }];
+    copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
+}
+
+
 // ShaderBufferData
 pub fn create_shader_buffer_data(
     device: &Device,
