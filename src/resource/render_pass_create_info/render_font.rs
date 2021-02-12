@@ -50,7 +50,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _attachment_image_samples: sample_count,
                 _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
+                _attachment_initial_layout: vk::ImageLayout::PRESENT_SRC_KHR,
                 _attachment_final_layout: vk::ImageLayout::PRESENT_SRC_KHR,
                 _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
                 ..Default::default()
@@ -76,7 +76,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::AlphaBlend); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
                 _depth_write_enable: false,
                 ..Default::default()

@@ -222,7 +222,7 @@ impl TextRenderData {
             } else {
                 let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
-                let texcoord_y = (count_of_side as i32 - 1 - (index as f32 * ratio) as i32) as f32 * ratio;
+                let texcoord_y = (index / count_of_side) as f32 * ratio;
                 self._font_instance_data._font_instance_infos[render_index as usize] = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
                 render_index += 1;
                 column += 1;

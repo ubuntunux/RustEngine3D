@@ -10,7 +10,7 @@ layout (location = 0) out vec4 fs_output;
 
 void main()
 {
-    fs_output.xyz = vec3(1.0);
-    fs_output.w = pow(texture(texture_font, vs_output.texcoord).x, 0.1);
-    //fs_output.w = smoothstep(0.0, 1.0, fs_output.w);
+    fs_output = texture(texture_font, vs_output.texcoord);
+    //fs_output.w = pow(texture(texture_font, vs_output.texcoord).w, 0.1);
+    fs_output.w = smoothstep(0.0, 1.0, fs_output.w);
 }
