@@ -22,15 +22,32 @@ pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
 pub const FONT_SIZE: u32 = 20;
 pub const FONT_PADDING: u32 = 1;
 
+pub struct RenderTextInfo {
+    pub _render_font_size: u32,
+    pub _initial_column: i32,
+    pub _initial_row: i32,
+    pub _render_text_offset: Vector2<f32>
+}
+
+impl Default for RenderTextInfo {
+    fn default() -> RenderTextInfo {
+        RenderTextInfo {
+            _render_font_size: 12,
+            _initial_column: 0,
+            _initial_row: 0,
+            _render_text_offset: Vector2::zeros(),
+        }
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderFont {
     pub _offset: Vector2<f32>,
     pub _inv_canvas_size: Vector2<f32>,
-    pub _font_size: f32,
+    pub _font_size: Vector2<f32>,
     pub _count_of_side: f32,
     pub _reserved0: u32,
-    pub _reserved1: u32,
 }
 
 
@@ -51,7 +68,7 @@ pub struct FontData {
     pub _range_max: u32,
     pub _text_count: u32,
     pub _count_of_side: u32,
-    pub _font_size: f32,
+    pub _font_size: Vector2<f32>,
     pub _texture: RcRefCell<TextureData>,
 }
 
@@ -63,7 +80,7 @@ impl Default for FontData {
             _range_max: 0,
             _text_count: 0,
             _count_of_side: 0,
-            _font_size: 0.0,
+            _font_size: Vector2::zeros(),
             _texture: newRcRefCell(TextureData::default()),
         }
     }
@@ -166,32 +183,40 @@ impl VertexData for FontVertexData {
 
 impl TextRenderData {
     pub fn create_text_render_data(device: &Device, resources: &Resources, font_data: &RcRefCell<FontData>) -> TextRenderData {
-        let material_instance = resources.get_material_instance_data("render_font").borrow();
-        let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
-        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(font_data.borrow()._texture.borrow().get_default_image_info().clone());
-        let render_font_descriptor_sets = utility::create_descriptor_sets(
-            device,
-            render_font_pipeline_binding_data,
-            &[ (0, utility::create_swapchain_array(font_texture_image_info.clone())) ]
-        );
-
-        TextRenderData {
+        let mut text_render_data = TextRenderData {
             _text: String::new(),
             _column: 0,
             _row: 0,
-            _font_size: 10,
-            _width: 10.0,
+            _font_size: 0,
+            _width: 0.0,
             _height: 0.0,
             _initial_column: 0,
             _initial_row: 0,
             _font_data: font_data.clone(),
             _render_count: 0,
             _font_instance_data: FontInstanceData::default(),
-            _render_font_descriptor_sets: render_font_descriptor_sets,
-        }
+            _render_font_descriptor_sets: SwapchainArray::new(),
+        };
+        text_render_data.create_texture_render_data_descriptor_sets(device, resources);
+        text_render_data
+    }
+
+    pub fn create_texture_render_data_descriptor_sets(&mut self, device: &Device, resources: &Resources) {
+        let material_instance = resources.get_material_instance_data("render_font").borrow();
+        let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(self._font_data.borrow()._texture.borrow().get_default_image_info().clone());
+        self._render_font_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            render_font_pipeline_binding_data,
+            &[ (0, utility::create_swapchain_array(font_texture_image_info.clone())) ]
+        );
     }
 
     pub fn destroy_text_render_data(&mut self) {
+        self.destroy_text_render_data_descriptor_sets();
+    }
+
+    pub fn destroy_text_render_data_descriptor_sets(&mut self) {
         self._render_font_descriptor_sets.clear();
     }
 
@@ -233,8 +258,8 @@ impl TextRenderData {
 
         self._column = max_column - self._initial_column;
         self._row = row - self._initial_row;
-        self._width = self._column as f32 * self._font_size as f32;
-        self._height = self._row as f32 * self._font_size as f32;
+        self._width = self._column as f32 * font_data._font_size.x;
+        self._height = self._row as f32 * font_data._font_size.y;
         self._render_count = render_index;
     }
 
@@ -275,10 +300,18 @@ impl FontManager {
     }
 
     pub fn initialize_font_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
-        let ascii_font_data = resources.get_font_data("NanumBarunGothic_Basic_Latin");
+        let ascii_font_data = resources.get_font_data("NanumGothic_Coding_Basic_Latin");
         self._ascii = ascii_font_data.clone();
         self._text_render_data = TextRenderData::create_text_render_data(renderer_data.get_device(), resources, &ascii_font_data);
         self.create_font_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
+    }
+
+    pub fn create_font_descriptor_sets(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        self._text_render_data.create_texture_render_data_descriptor_sets(renderer_data.get_device(), resources);
+    }
+
+    pub fn destroy_font_descriptor_sets(&mut self) {
+        self._text_render_data.destroy_text_render_data_descriptor_sets();
     }
 
     pub fn destroy_font_manager(&mut self, device: &Device) {
@@ -335,42 +368,43 @@ impl FontManager {
         }
     }
 
-    pub fn render_log(
+    pub fn render_text(
         &mut self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_data: &RendererData,
         resources: &Resources,
-        canvas_width: u32,
-        canvas_height: u32
+        render_text_info: &RenderTextInfo
     ) {
-        self.log(String::from("Test test\nOK!"));
-
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
             self._logs.clear();
 
-            let render_font_size = 12;
-            let initial_column = 0;
-            let initial_row = 0;
-            self._text_render_data.set_text_render_data(text, &self._ascii, render_font_size, initial_column, initial_row, true);
-            let offset_x = 10;
-            let offset_y = 10;
-
+            let skip_check = true;
+            self._text_render_data.set_text_render_data(
+                text,
+                &self._ascii,
+                render_text_info._render_font_size,
+                render_text_info._initial_column,
+                render_text_info._initial_row,
+                skip_check
+            );
             let font_data = self._ascii.borrow();
+            let framebuffer_data = resources.get_framebuffer_data("render_font").borrow();
             let material_instance_data = resources.get_material_instance_data("render_font").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
             let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
             let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
             let none_framebuffer_data = None;
             let render_font_descriptor_sets = Some(&self._text_render_data._render_font_descriptor_sets);
+            let font_width_ratio = font_data._font_size.x / font_data._font_size.y;
+            let font_size = Vector2::new(render_text_info._render_font_size as f32 * font_width_ratio, render_text_info._render_font_size as f32);
             let push_constant_data = PushConstant_RenderFont {
-                _offset: Vector2::new(offset_x as f32, offset_y as f32),
-                _inv_canvas_size: Vector2::new(1.0 / canvas_width as f32, 1.0 / canvas_height as f32),
-                _font_size: font_data._font_size,
+                _offset: render_text_info._render_text_offset.into(),
+                _inv_canvas_size: Vector2::new(1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32, 1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32),
+                _font_size: font_size,
                 _count_of_side: font_data._count_of_side as f32,
                 _reserved0: 0,
-                _reserved1: 0,
             };
 
             // upload storage buffer

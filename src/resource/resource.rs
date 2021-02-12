@@ -1,15 +1,15 @@
 use std::fs::{ self, File };
-use byteorder::{ LittleEndian };
-
 use std::str::FromStr;
 use std::io::prelude::*;
 use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
+use byteorder::{ LittleEndian };
 
 use serde_json::{ self, Value, json };
 use bincode;
 use image::{ self, GenericImageView, };
 use ash::{ vk };
+use nalgebra::Vector2;
 
 use crate::application::SceneManagerData;
 use crate::constants;
@@ -349,15 +349,18 @@ impl Resources {
                     ..Default::default()
                 };
                 assert_ne!(vk::Format::UNDEFINED, image_format);
-                let texture_data = newRcRefCell(renderer_data.create_texture(&texture_create_info));
+                let texture_data = renderer_data.create_texture(&texture_create_info);
                 let font_data = newRcRefCell(FontData {
                     _font_data_name: font_data_create_info._font_data_name.clone(),
                     _range_min: font_data_create_info._range_min,
                     _range_max: font_data_create_info._range_max,
                     _text_count: font_data_create_info._text_count,
                     _count_of_side: font_data_create_info._count_of_side,
-                    _font_size: font_data_create_info._font_size,
-                    _texture: texture_data,
+                    _font_size: Vector2::new(
+                        (texture_data._image_width / font_data_create_info._count_of_side) as f32,
+                        (texture_data._image_height / font_data_create_info._count_of_side) as f32
+                    ),
+                    _texture: newRcRefCell(texture_data),
                 });
 
                 self._font_data_map.insert(font_name, font_data);

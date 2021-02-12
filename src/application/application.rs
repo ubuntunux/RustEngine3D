@@ -70,7 +70,6 @@ impl TimeData {
         if 1.0 < acc_frame_time {
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;
             let average_fps = 1000.0 / average_frame_time;
-            log::info!("{:.2}fps / {:.3}ms", average_fps, average_frame_time);
             self._acc_frame_time = 0.0;
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
@@ -362,10 +361,18 @@ pub fn run_application() {
                     let delta_time = application_data._time_data._delta_time;
                     let elapsed_frame = application_data._time_data._elapsed_frame;
 
+                    font_manager.log(format!("{:.2}fps / {:.3}ms", application_data._time_data._average_fps, application_data._time_data._average_frame_time));
+
                     // update && render
                     if renderer_data.get_need_recreate_swapchain() {
+                        // destroy
                         scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
+                        font_manager.destroy_font_descriptor_sets();
+
                         renderer_data.resize_window();
+
+                        // recreate
+                        font_manager.create_font_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
                         scene_manager_data.initialize_scene_graphics_data(&renderer_data);
                         renderer_data.set_need_recreate_swapchain(false);
                     }

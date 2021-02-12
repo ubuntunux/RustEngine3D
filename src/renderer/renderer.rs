@@ -74,7 +74,7 @@ use crate::renderer::renderer_data::{
 use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
-use crate::renderer::font::{ FontManager };
+use crate::renderer::font::{ FontManager, RenderTextInfo };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -1169,9 +1169,13 @@ impl RendererData {
                 self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
                 // Render Text
-                let canvas_width = 1024;
-                let canvas_height = 768;
-                font_manager.render_log(command_buffer, swapchain_index, &self, &self._resources.borrow(), canvas_width, canvas_height);
+                let render_text_info = RenderTextInfo {
+                    _render_font_size: 20   ,
+                    _initial_column: 0,
+                    _initial_row: 0,
+                    _render_text_offset: Vector2::new(10.0, 10.0),
+                };
+                font_manager.render_text(command_buffer, swapchain_index, &self, &self._resources.borrow(), &render_text_info);
 
                 // Render Debug
                 if RenderTargetType::BackBuffer != self._debug_render_target {
