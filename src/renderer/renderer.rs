@@ -966,89 +966,56 @@ impl RendererData {
         }
     }
 
-    pub fn copy_shader_buffer_data<T>(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        src_buffer_data_type: ShaderBufferDataType,
-        dst_buffer_data_type: ShaderBufferDataType,
-        upload_data: &T
-    ) {
-        let staging_buffer_data = self.get_shader_buffer_data(src_buffer_data_type)._buffers[swapchain_index as usize];
-        let dst_buffer_data = self.get_shader_buffer_data(dst_buffer_data_type)._buffers[swapchain_index as usize];
-        let upload_data_size = std::mem::size_of::<T>() as u64;
-        buffer::copy_buffer(self.get_device(), command_buffer, staging_buffer_data._buffer, dst_buffer_data._buffer, upload_data_size);
-    }
-
-    pub fn copy_shader_buffer_datas<T>(
-        &self,
-        device: &Device,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        src_buffer_data_type: ShaderBufferDataType,
-        dst_buffer_data_type: ShaderBufferDataType,
-        upload_datas: &[T]
-    ) {
-        let staging_buffer_data = self.get_shader_buffer_data(src_buffer_data_type)._buffers[swapchain_index as usize];
-        let dst_buffer_data = self.get_shader_buffer_data(dst_buffer_data_type)._buffers[swapchain_index as usize];
-        let upload_data_size = std::mem::size_of::<T>() as u64 * upload_datas.len() as u64;
-        buffer::copy_buffer(device, command_buffer, staging_buffer_data._buffer, dst_buffer_data._buffer, upload_data_size);
-    }
-
-    pub fn copy_shader_buffer_data_offset<T>(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        src_buffer_data_type: ShaderBufferDataType,
-        src_offset: vk::DeviceSize,
-        dst_buffer_data_type: ShaderBufferDataType,
-        dst_offset: vk::DeviceSize,
-        upload_data: &T
-    ) {
-        let staging_buffer_data = self.get_shader_buffer_data(src_buffer_data_type)._buffers[swapchain_index as usize];
-        let dst_buffer_data = self.get_shader_buffer_data(dst_buffer_data_type)._buffers[swapchain_index as usize];
-        let upload_data_size = std::mem::size_of::<T>() as u64;
-        buffer::copy_buffer_offset(self.get_device(), command_buffer, staging_buffer_data._buffer, src_offset, dst_buffer_data._buffer, dst_offset, upload_data_size);
-    }
-
-    pub fn copy_shader_buffer_datas_offset<T>(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        src_buffer_data_type: ShaderBufferDataType,
-        src_offset: vk::DeviceSize,
-        dst_buffer_data_type: ShaderBufferDataType,
-        dst_offset: vk::DeviceSize,
-        upload_datas: &[T]
-    ) {
-        let staging_buffer_data = self.get_shader_buffer_data(src_buffer_data_type)._buffers[swapchain_index as usize];
-        let dst_buffer_data = self.get_shader_buffer_data(dst_buffer_data_type)._buffers[swapchain_index as usize];
-        let upload_data_size = std::mem::size_of::<T>() as u64 * upload_datas.len() as u64;
-        buffer::copy_buffer_offset(self.get_device(), command_buffer, staging_buffer_data._buffer, src_offset, dst_buffer_data._buffer, dst_offset, upload_data_size);
-    }
-
-    pub fn upload_shader_buffer_data<T>(&self, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &T) {
+    pub fn upload_shader_buffer_data<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &T) {
         let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
-        buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
+        if shader_buffer_data._staging_buffers.is_some() {
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let upload_data_size = std::mem::size_of::<T>() as u64;
+            buffer::upload_buffer_data(&self._device, staging_buffer_data, system::to_bytes(upload_data));
+            buffer::copy_buffer(&self._device, command_buffer, staging_buffer_data._buffer, buffer_data._buffer, upload_data_size);
+        } else {
+            buffer::upload_buffer_data(&self._device, buffer_data, system::to_bytes(upload_data));
+        }
     }
 
-    pub fn upload_shader_buffer_datas<T: Copy>(&self, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &[T]) {
+    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &[T]) {
         let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
-        buffer::upload_buffer_data(&self._device, buffer_data, upload_data);
+        if shader_buffer_data._staging_buffers.is_some() {
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+            buffer::upload_buffer_data(&self._device, staging_buffer_data, upload_data);
+            buffer::copy_buffer(&self._device, command_buffer, staging_buffer_data._buffer, buffer_data._buffer, upload_data_size);
+        } else {
+            buffer::upload_buffer_data(&self._device, buffer_data, upload_data);
+        }
     }
 
-    pub fn upload_shader_buffer_data_offset<T>(&self, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &T, offset: vk::DeviceSize) {
+    pub fn upload_shader_buffer_data_offset<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &T, offset: vk::DeviceSize) {
         let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
-        buffer::upload_buffer_data_offset(&self._device, buffer_data, system::to_bytes(upload_data), offset);
+        if shader_buffer_data._staging_buffers.is_some() {
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let upload_data_size = std::mem::size_of::<T>() as u64;
+            buffer::upload_buffer_data_offset(&self._device, staging_buffer_data, system::to_bytes(upload_data), offset);
+            buffer::copy_buffer_offset(&self._device, command_buffer, staging_buffer_data._buffer, offset, buffer_data._buffer, offset, upload_data_size);
+        } else {
+            buffer::upload_buffer_data_offset(&self._device, buffer_data, system::to_bytes(upload_data), offset);
+        }
     }
 
-    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &[T], offset: vk::DeviceSize) {
+    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &[T], offset: vk::DeviceSize) {
         let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
-        buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
+        if shader_buffer_data._staging_buffers.is_some() {
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+            buffer::upload_buffer_data_offset(&self._device, staging_buffer_data, upload_data, offset);
+            buffer::copy_buffer_offset(&self._device, command_buffer, staging_buffer_data._buffer, offset, buffer_data._buffer, offset, upload_data_size);
+        } else {
+            buffer::upload_buffer_data_offset(&self._device, buffer_data, upload_data, offset);
+        }
     }
 
     pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, font_manager: &mut FontManager, elapsed_time: f64, delta_time: f64, _elapsed_frame: u64) {
@@ -1111,17 +1078,11 @@ impl RendererData {
                     self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
                 }
 
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SceneConstantsStaging, &self._scene_constants);
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::ViewConstantsStaging, &self._view_constants);
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::LightConstantsStaging, main_light.get_light_constants());
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::SSAOConstantsStaging, &self._renderer_data_ssao._ssao_constants);
-                self.upload_shader_buffer_data(swapchain_index, ShaderBufferDataType::AtmosphereConstantsStaging, &atmosphere._atmosphere_constants);
-
-                self.copy_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SceneConstantsStaging, ShaderBufferDataType::SceneConstants, &self._scene_constants);
-                self.copy_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::ViewConstantsStaging, ShaderBufferDataType::ViewConstants, &self._view_constants);
-                self.copy_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::LightConstantsStaging, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
-                self.copy_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SSAOConstantsStaging, ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
-                self.copy_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::AtmosphereConstantsStaging, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
+                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SceneConstants, &self._scene_constants);
+                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::ViewConstants, &self._view_constants);
+                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
+                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
+                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
 
                 if self._is_first_rendering {
                     self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
@@ -1368,14 +1329,6 @@ impl RendererData {
             ShaderBufferDataType::LightProbeViewConstants4,
             ShaderBufferDataType::LightProbeViewConstants5,
         ];
-        let light_probe_view_constant_staging_types = [
-            ShaderBufferDataType::LightProbeViewConstants0Staging,
-            ShaderBufferDataType::LightProbeViewConstants1Staging,
-            ShaderBufferDataType::LightProbeViewConstants2Staging,
-            ShaderBufferDataType::LightProbeViewConstants3Staging,
-            ShaderBufferDataType::LightProbeViewConstants4Staging,
-            ShaderBufferDataType::LightProbeViewConstants5Staging,
-        ];
         let render_atmosphere_push_constants = PushConstant_Atmosphere {
             _render_light_probe_mode: 1,
             ..Default::default()
@@ -1399,8 +1352,7 @@ impl RendererData {
             light_probe_camera._transform_object.set_position(main_camera_position);
             light_probe_camera.update_camera_object_data();
             light_probe_view_constants.update_view_constants(&light_probe_camera);
-            self.upload_shader_buffer_data(swapchain_index, light_probe_view_constant_staging_types[i].clone(), &light_probe_view_constants);
-            self.copy_shader_buffer_data(command_buffer, swapchain_index, light_probe_view_constant_staging_types[i].clone(), light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
+            self.upload_shader_buffer_data(command_buffer, swapchain_index, light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
 
             // render atmosphere
             self.render_render_pass_pipeline(
@@ -1533,10 +1485,10 @@ impl RendererData {
                 }
             };
 
+            // upload skeleton bone matrices
             let mut bone_metrices_offset: vk::DeviceSize = 0;
             let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
-
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
                 match render_object_type {
@@ -1548,15 +1500,18 @@ impl RendererData {
                         let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
                         let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
                         let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                        self.upload_shader_buffer_datas_offset(swapchain_index, ShaderBufferDataType::BoneMatricesStaging, &prev_animation_buffer, prev_animation_buffer_offset);
-                        self.upload_shader_buffer_datas_offset(swapchain_index, ShaderBufferDataType::BoneMatricesStaging, &animation_buffer, animation_buffer_offset);
-                        self.copy_shader_buffer_data_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatricesStaging, prev_animation_buffer_offset, ShaderBufferDataType::BoneMatrices, prev_animation_buffer_offset, &prev_animation_buffer);
-                        self.copy_shader_buffer_data_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatricesStaging, animation_buffer_offset, ShaderBufferDataType::BoneMatrices, animation_buffer_offset, &animation_buffer);
+
+                        // TODO : Upload at once
+                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
+                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
+
+                        // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
                         bone_metrices_offset += bone_count * 2;
                     },
                 };
             }
 
+            // render
             let mut bone_metrices_offset: vk::DeviceSize = 0;
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
@@ -1588,15 +1543,7 @@ impl RendererData {
                     },
                     RenderObjectType::Skeletal => {
                         let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                        // let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
-                         let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
-                        // let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                        // let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                        // self.upload_shader_buffer_datas_offset(swapchain_index, ShaderBufferDataType::BoneMatricesStaging, &prev_animation_buffer, prev_animation_buffer_offset);
-                        // self.upload_shader_buffer_datas_offset(swapchain_index, ShaderBufferDataType::BoneMatricesStaging, &animation_buffer, animation_buffer_offset);
-                        // self.copy_shader_buffer_data_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatricesStaging, prev_animation_buffer_offset, ShaderBufferDataType::BoneMatrices, prev_animation_buffer_offset, &prev_animation_buffer);
-                        // self.copy_shader_buffer_data_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatricesStaging, animation_buffer_offset, ShaderBufferDataType::BoneMatrices, animation_buffer_offset, &animation_buffer);
-
+                        let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
                         self.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,
@@ -1607,6 +1554,7 @@ impl RendererData {
                                 ..Default::default()
                             }
                         );
+                        // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
                         bone_metrices_offset += bone_count * 2;
                     },
                 };

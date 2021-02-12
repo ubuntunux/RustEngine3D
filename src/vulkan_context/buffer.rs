@@ -25,7 +25,8 @@ pub struct ShaderBufferData {
     pub _buffer_name: String,
     pub _buffers: SwapchainArray<BufferData>,
     pub _buffer_data_size: vk::DeviceSize,
-    pub _descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo>
+    pub _descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo>,
+    pub _staging_buffers: Option<SwapchainArray<BufferData>>,
 }
 
 impl Default for BufferData {
@@ -237,19 +238,34 @@ pub fn create_shader_buffer_data(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     buffer_name: &String,
     buffer_usage: vk::BufferUsageFlags,
-    memory_property: vk::MemoryPropertyFlags,
+    has_staging_buffer: bool,
     buffer_size: vk::DeviceSize
 ) -> ShaderBufferData {
     log::info!("create_shader_buffer_data: {}", buffer_name);
+
     let buffers: SwapchainArray<BufferData> = (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
         create_buffer_data(
             device,
             memory_properties,
             buffer_size,
             buffer_usage,
-            memory_property
+            if has_staging_buffer { vk::MemoryPropertyFlags::DEVICE_LOCAL } else { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT },
         )
     }).collect();
+
+    let staging_buffers: Option<SwapchainArray<BufferData>> = if has_staging_buffer {
+        Some((0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
+            create_buffer_data(
+                device,
+                memory_properties,
+                buffer_size,
+                buffer_usage,
+                if has_staging_buffer { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT } else { vk::MemoryPropertyFlags::DEVICE_LOCAL },
+            )
+        }).collect())
+    } else {
+        None
+    };
 
     let descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo> = buffers.iter().map(|buffer_data| {
         DescriptorResourceInfo::DescriptorBufferInfo(
@@ -265,7 +281,8 @@ pub fn create_shader_buffer_data(
         _buffer_name: buffer_name.clone(),
         _buffers: buffers,
         _buffer_data_size: buffer_size,
-        _descriptor_buffer_infos: descriptor_buffer_infos
+        _descriptor_buffer_infos: descriptor_buffer_infos,
+        _staging_buffers: staging_buffers,
     }
 }
 
@@ -273,5 +290,11 @@ pub fn destroy_shader_buffer_data(device: &Device, uniform_buffer_data: &ShaderB
     log::info!("destroy_shader_buffer_data: {:?}", uniform_buffer_data._buffer_name);
     for uniform_buffer in uniform_buffer_data._buffers.iter() {
         destroy_buffer_data(device, uniform_buffer);
+    }
+
+    if let Some(staging_buffers) = &uniform_buffer_data._staging_buffers {
+        for staging_buffer in staging_buffers.iter() {
+            destroy_buffer_data(device, staging_buffer);
+        }
     }
 }
