@@ -7,7 +7,6 @@ use ash::{ vk, Device };
 
 use crate::resource::Resources;
 use crate::renderer::renderer::{ RendererData };
-use crate::renderer::push_constants::{ PushConstant_RenderFont };
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
@@ -16,6 +15,18 @@ use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
 pub const FONT_SIZE: u32 = 20;
 pub const FONT_PADDING: u32 = 1;
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderFont {
+    pub _offset: Vector2<f32>,
+    pub _inv_canvas_size: Vector2<f32>,
+    pub _font_size: f32,
+    pub _count_of_side: f32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct FontDataCreateInfo {

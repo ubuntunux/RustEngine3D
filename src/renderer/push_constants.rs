@@ -135,15 +135,3 @@ impl Default for PushConstant_RenderDebug {
         }
     }
 }
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
-pub struct PushConstant_RenderFont {
-    pub _offset: Vector2<f32>,
-    pub _inv_canvas_size: Vector2<f32>,
-    pub _font_size: f32,
-    pub _count_of_side: f32,
-    pub _reserved0: u32,
-    pub _reserved1: u32,
-}
-
