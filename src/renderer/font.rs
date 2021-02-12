@@ -19,6 +19,7 @@ use crate::vulkan_context::vulkan_context::SwapchainArray;
 // MAX_FONT_INSTANCE_COUNT must match with render_font_common.glsl
 pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
 
+pub const USE_DISTANCE_FIELD: bool = false;
 pub const FONT_SIZE: u32 = 20;
 pub const FONT_PADDING: u32 = 1;
 

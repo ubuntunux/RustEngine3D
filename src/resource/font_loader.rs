@@ -1,10 +1,11 @@
 use std::cmp::max;
 use std::path::PathBuf;
 
+use nalgebra::{ self, Vector2 };
 use image::{ DynamicImage, Rgba };
 use rusttype::{ point, Font, Scale, PositionedGlyph };
 
-use crate::renderer::font::{ FontDataCreateInfo };
+use crate::renderer::font::{ self, FontDataCreateInfo };
 use crate::utilities::system;
 
 pub fn get_font_data_create_info(
@@ -67,7 +68,44 @@ pub fn get_font_data_create_info(
             break;
         }
     }
-    image.save(&font_texture_file_path).unwrap();
+
+    if font::USE_DISTANCE_FIELD {
+        let cell_width = image.width() / count_of_side;
+        let cell_height = image.height() / count_of_side;
+        let max_dist = (max(cell_width, cell_height) - 1) as f32;
+        let mut distance_field_image = DynamicImage::new_rgba8(image.width(), image.height()).to_rgba();
+        for y in 0..count_of_side {
+            for x in 0..count_of_side {
+                for py in 0..cell_height {
+                    for px in 0..cell_width {
+                        let mut min_dist: f32 = max_dist;
+                        let offset_x = x * cell_width;
+                        let offset_y = y * cell_height;
+                        let pos: Vector2<f32> = Vector2::new((offset_x + px) as f32, (offset_y + py) as f32);
+                        for sy in 0..cell_height {
+                            for sx in 0..cell_width {
+                                let pixel = image.get_pixel(offset_x + sx, offset_y + sy);
+                                let opacity: f32 = pixel[3] as f32 / 255.0;
+                                if 0.1 < opacity {
+                                    let src_pos: Vector2<f32> = Vector2::new((offset_x + sx) as f32, (offset_y + sy) as f32);
+                                    let dist = nalgebra_glm::distance(&pos, &src_pos);
+                                    if dist < min_dist {
+                                        min_dist = dist;
+                                    }
+                                }
+                            }
+                        }
+                        distance_field_image.put_pixel(offset_x + px, offset_y + py, Rgba([colour.0, colour.1, colour.2, 255 - 255u8.min(((min_dist / max_dist).sqrt() * 255.0) as u8)]));
+                    }
+                }
+            }
+        }
+
+        distance_field_image.save(&font_texture_file_path).unwrap();
+    } else {
+        image.save(&font_texture_file_path).unwrap();
+    }
+
 
     FontDataCreateInfo {
         _font_data_name: String::from(font_data_name),

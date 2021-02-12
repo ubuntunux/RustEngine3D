@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use ash::{ vk };
 
 use crate::constants;
-use crate::renderer::font::{ PushConstant_RenderFont, FontVertexData };
+use crate::renderer::font::{ self, PushConstant_RenderFont, FontVertexData };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
@@ -73,6 +73,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_data_create_info_name: String::from("render_font"),
             _pipeline_vertex_shader_file: PathBuf::from("render_font.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("render_font.frag"),
+            _pipeline_shader_defines: if font::USE_DISTANCE_FIELD { vec![String::from("USE_DISTANCE_FIELD")] } else { Vec::new() },
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
