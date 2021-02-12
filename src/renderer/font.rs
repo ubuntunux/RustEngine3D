@@ -11,8 +11,11 @@ use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
+use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 
+// MAX_FONT_INSTANCE_COUNT must match with render_font_common.glsl
 pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
+
 pub const FONT_SIZE: u32 = 20;
 pub const FONT_PADDING: u32 = 1;
 
@@ -76,18 +79,19 @@ impl Default for FontVertexData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy)]
 pub struct FontInstanceData {
-    pub _font_infos: Vector4<f32>,
+    pub _font_instance_infos: [Vector4<f32>; MAX_FONT_INSTANCE_COUNT as usize],
 }
 
 impl Default for FontInstanceData {
     fn default() -> FontInstanceData {
         FontInstanceData {
-            _font_infos: Vector4::zeros()
+            _font_instance_infos: [Vector4::zeros(); MAX_FONT_INSTANCE_COUNT as usize],
         }
     }
 }
+
 
 pub struct TextRenderData {
     pub _text: String,
@@ -100,8 +104,7 @@ pub struct TextRenderData {
     pub _initial_row: i32,
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
-    pub _render_instance_data: Vec<FontInstanceData>,
-    pub _font_mesh_instance_buffer: BufferData,
+    pub _font_instance_data: FontInstanceData,
 }
 
 impl Default for TextRenderData {
@@ -117,8 +120,7 @@ impl Default for TextRenderData {
             _initial_row: 0,
             _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
-            _render_instance_data: Vec::new(),
-            _font_mesh_instance_buffer: BufferData::default(),
+            _font_instance_data: FontInstanceData::default(),
         }
     }
 }
@@ -129,7 +131,6 @@ pub struct FontManager {
     pub _logs: Vec<String>,
     pub _text_render_data: TextRenderData,
     pub _font_mesh_vertex_buffer: BufferData,
-    pub _font_mesh_instance_buffer: BufferData,
     pub _font_mesh_index_buffer: BufferData,
     pub _font_mesh_index_count: u32,
 }
@@ -137,7 +138,6 @@ pub struct FontManager {
 
 impl FontVertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
-    const FONT_INFOS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
 }
 
 impl VertexData for FontVertexData {
@@ -145,7 +145,6 @@ impl VertexData for FontVertexData {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::POSITION);
-        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, FontVertexData::FONT_INFOS);
         vertex_input_attribute_descriptions
     }
 
@@ -155,11 +154,6 @@ impl VertexData for FontVertexData {
                 binding: 0,
                 stride: std::mem::size_of::<FontVertexData>() as u32,
                 input_rate: vk::VertexInputRate::VERTEX
-            },
-            vk::VertexInputBindingDescription {
-                binding: 1,
-                stride: std::mem::size_of::<FontInstanceData>() as u32,
-                input_rate: vk::VertexInputRate::INSTANCE
             },
         ]
     }
@@ -178,8 +172,7 @@ impl TextRenderData {
             _initial_row: 0,
             _font_data: font_data.clone(),
             _render_count: 0,
-            _render_instance_data: Vec::new(),
-            _font_mesh_instance_buffer: BufferData::default(),
+            _font_instance_data: FontInstanceData::default(),
         }
     }
 
@@ -198,12 +191,6 @@ impl TextRenderData {
         let range_min = font_data._range_min;
         let count_of_side = font_data._count_of_side;
         let ratio = 1.0 / font_data._count_of_side as f32;
-        let text_count = self._text.len();
-
-        if self._render_instance_data.len() < text_count {
-            self._render_instance_data.resize(text_count, FontInstanceData::default());
-        }
-
         let mut render_index: u32 = 0;
         let mut max_column: i32 = self._initial_column;
         let mut column: i32 = self._initial_column;
@@ -212,7 +199,7 @@ impl TextRenderData {
             let ch = (*c) as char;
             if '\n' == ch {
                 column = self._initial_column;
-                row += 1;
+                row -= 1;
             } else if '\t' == ch {
                 column += 1;
             } else if ' ' == ch {
@@ -221,9 +208,7 @@ impl TextRenderData {
                 let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
                 let texcoord_y = (count_of_side as i32 - 1 - (index as f32 * ratio) as i32) as f32 * ratio;
-                self._render_instance_data[render_index as usize] = FontInstanceData {
-                    _font_infos: Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y),
-                };
+                self._font_instance_data._font_instance_infos[render_index as usize] = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
                 render_index += 1;
                 column += 1;
             }
@@ -269,7 +254,6 @@ impl FontManager {
             _logs: Vec::new(),
             _text_render_data: TextRenderData::default(),
             _font_mesh_vertex_buffer: BufferData::default(),
-            _font_mesh_instance_buffer: BufferData::default(),
             _font_mesh_index_buffer: BufferData::default(),
             _font_mesh_index_count: 0,
         }
@@ -286,7 +270,6 @@ impl FontManager {
         log::info!("destroy_font_manager");
         self._text_render_data.destroy_text_render_data();
         buffer::destroy_buffer_data(device, &self._font_mesh_vertex_buffer);
-        buffer::destroy_buffer_data(device, &self._font_mesh_instance_buffer);
         buffer::destroy_buffer_data(device, &self._font_mesh_index_buffer);
     }
 
@@ -309,17 +292,6 @@ impl FontManager {
             device_memory_properties,
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &vertex_datas,
-        );
-
-        let instance_buffer_size = (std::mem::size_of::<FontInstanceData>() * MAX_FONT_INSTANCE_COUNT as usize) as vk::DeviceSize;
-        let instance_buffer_usage_flags = vk::BufferUsageFlags::VERTEX_BUFFER | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
-        let instance_buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL | vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-        self._font_mesh_instance_buffer = buffer::create_buffer_data(
-            device,
-            device_memory_properties,
-            instance_buffer_size,
-            instance_buffer_usage_flags,
-            instance_buffer_memory_property_flags,
         );
 
         self._font_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
@@ -357,7 +329,7 @@ impl FontManager {
         canvas_width: u32,
         canvas_height: u32
     ) {
-        self.log(String::from("TEST TEST TEST"));
+        self.log(String::from("Test test\nOK!"));
 
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
@@ -386,17 +358,20 @@ impl FontManager {
                 _reserved1: 0,
             };
 
-            let upload_data = &self._text_render_data._render_instance_data;
-            buffer::upload_buffer_data(&renderer_data.get_device(), &self._font_mesh_instance_buffer, upload_data);
+            // upload storage buffer
+            let text_count = self._text_render_data._render_count;
+            let upload_data = &self._text_render_data._font_instance_data._font_instance_infos[0..text_count as usize];
+            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceData, upload_data);
 
+            // render text
             renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
             renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
             renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
             renderer_data.draw_elements(
                 command_buffer,
                 &[self._font_mesh_vertex_buffer._buffer],
-                &[self._font_mesh_instance_buffer._buffer],
-                self._text_render_data._render_count,
+                &[],
+                text_count,
                 self._font_mesh_index_buffer._buffer,
                 self._font_mesh_index_count,
             );

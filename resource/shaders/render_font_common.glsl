@@ -1,3 +1,6 @@
+// MAX_FONT_INSTANCE_COUNT must match with font.rs
+const uint MAX_FONT_INSTANCE_COUNT = 1024;
+
 layout( push_constant ) uniform PushConstant_RenderFont
 {
     vec2 _offset;
@@ -9,6 +12,10 @@ layout( push_constant ) uniform PushConstant_RenderFont
 } pushConstant;
 
 layout(binding = 0) uniform sampler2D texture_font;
+layout(binding = 1) buffer FontInstanceData
+{
+    vec4 font_instance_infos[MAX_FONT_INSTANCE_COUNT];
+};
 
 
 struct VERTEX_OUTPUT

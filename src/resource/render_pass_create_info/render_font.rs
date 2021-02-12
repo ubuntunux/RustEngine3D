@@ -3,8 +3,9 @@ use std::path::PathBuf;
 use ash::{ vk };
 
 use crate::constants;
-use crate::renderer::renderer::{ RendererData };
 use crate::renderer::font::{ PushConstant_RenderFont, FontVertexData };
+use crate::renderer::renderer::{ RendererData };
+use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{ VertexData };
 use crate::vulkan_context::render_pass::{
@@ -14,6 +15,7 @@ use crate::vulkan_context::render_pass::{
     DepthStencilStateCreateInfo,
 };
 use crate::vulkan_context::descriptor::{ DescriptorDataCreateInfo, DescriptorResourceType };
+use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 
@@ -91,6 +93,13 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     _descriptor_binding_index: 0,
                     _descriptor_name: String::from("texture_font"),
                     _descriptor_resource_type: DescriptorResourceType::Texture,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::FontInstanceData),
+                    _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
