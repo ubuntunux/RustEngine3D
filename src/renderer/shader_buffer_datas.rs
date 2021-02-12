@@ -18,7 +18,7 @@ use nalgebra::{
 
 use crate::constants;
 use crate::renderer::camera::{ CameraObjectData };
-use crate::renderer::font::{ MAX_FONT_INSTANCE_COUNT, FontInstanceData };
+use crate::renderer::font::{ FontInstanceData };
 use crate::vulkan_context::buffer::{ self, ShaderBufferData };
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;

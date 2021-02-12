@@ -7,11 +7,14 @@ use ash::{ vk, Device };
 
 use crate::resource::Resources;
 use crate::renderer::renderer::{ RendererData };
+use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::renderer::utility;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
+use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 // MAX_FONT_INSTANCE_COUNT must match with render_font_common.glsl
 pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
@@ -105,6 +108,7 @@ pub struct TextRenderData {
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
     pub _font_instance_data: FontInstanceData,
+    pub _render_font_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
 impl Default for TextRenderData {
@@ -121,6 +125,7 @@ impl Default for TextRenderData {
             _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
             _font_instance_data: FontInstanceData::default(),
+            _render_font_descriptor_sets: SwapchainArray::new(),
         }
     }
 }
@@ -160,7 +165,16 @@ impl VertexData for FontVertexData {
 }
 
 impl TextRenderData {
-    pub fn create_text_render_data(font_data: &RcRefCell<FontData>) -> TextRenderData {
+    pub fn create_text_render_data(device: &Device, resources: &Resources, font_data: &RcRefCell<FontData>) -> TextRenderData {
+        let material_instance = resources.get_material_instance_data("render_font").borrow();
+        let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(font_data.borrow()._texture.borrow().get_default_image_info().clone());
+        let render_font_descriptor_sets = utility::create_descriptor_sets(
+            device,
+            render_font_pipeline_binding_data,
+            &[ (0, utility::create_swapchain_array(font_texture_image_info.clone())) ]
+        );
+
         TextRenderData {
             _text: String::new(),
             _column: 0,
@@ -173,11 +187,12 @@ impl TextRenderData {
             _font_data: font_data.clone(),
             _render_count: 0,
             _font_instance_data: FontInstanceData::default(),
+            _render_font_descriptor_sets: render_font_descriptor_sets,
         }
     }
 
     pub fn destroy_text_render_data(&mut self) {
-
+        self._render_font_descriptor_sets.clear();
     }
 
     pub fn get_text(&self) -> &String {
@@ -262,7 +277,7 @@ impl FontManager {
     pub fn initialize_font_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
         let ascii_font_data = resources.get_font_data("NanumBarunGothic_Basic_Latin");
         self._ascii = ascii_font_data.clone();
-        self._text_render_data = TextRenderData::create_text_render_data(&ascii_font_data);
+        self._text_render_data = TextRenderData::create_text_render_data(renderer_data.get_device(), resources, &ascii_font_data);
         self.create_font_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
     }
 
@@ -347,8 +362,8 @@ impl FontManager {
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
             let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
             let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-            let custom_framebuffer_data = None;
-            let custom_descriptor_sets = None;
+            let none_framebuffer_data = None;
+            let render_font_descriptor_sets = Some(&self._text_render_data._render_font_descriptor_sets);
             let push_constant_data = PushConstant_RenderFont {
                 _offset: Vector2::new(offset_x as f32, offset_y as f32),
                 _inv_canvas_size: Vector2::new(1.0 / canvas_width as f32, 1.0 / canvas_height as f32),
@@ -364,8 +379,8 @@ impl FontManager {
             renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceData, upload_data);
 
             // render text
-            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, custom_framebuffer_data);
-            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, custom_descriptor_sets);
+            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, none_framebuffer_data);
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, render_font_descriptor_sets);
             renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
             renderer_data.draw_elements(
                 command_buffer,
