@@ -11,12 +11,10 @@ layout (location = 0) out VERTEX_OUTPUT vs_output;
 
 void main()
 {
-    vec4 ui_infos = ui_instance_data[gl_InstanceIndex]._ui_instance_infos;
-    vec2 ratio = pushConstant._ui_size * pushConstant._inv_canvas_size;
+    UIInstanceData ui_instance_data = ui_instance_data[gl_InstanceIndex];
 
-    vs_output.texcoord = vs_in_position.xy + 0.5;
+    vs_output.texcoord = mix(ui_instance_data._ui_texcoord.xy, ui_instance_data._ui_texcoord.zw, vs_in_position.xy + 0.5);
 
-    vec2 position = (pushConstant._ui_pos + vs_in_position.xy * pushConstant._ui_size) * pushConstant._inv_canvas_size;
-
+    vec2 position = (ui_instance_data._ui_pos + vs_in_position.xy * ui_instance_data._ui_size) * pushConstant._inv_canvas_size;
     gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
 }

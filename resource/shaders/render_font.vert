@@ -11,15 +11,15 @@ layout (location = 0) out VERTEX_OUTPUT vs_output;
 
 void main()
 {
-    vec4 font_infos = font_instance_data[gl_InstanceIndex]._font_instance_infos;
+    FontInstanceData font_instance_data = font_instance_data[gl_InstanceIndex];
     vec2 inv_texture_size = 1.0 / textureSize(texture_font, 0).xy;
     vec2 ratio = pushConstant._font_size * pushConstant._inv_canvas_size;
     vec2 texcoord = vs_in_position.xy + 0.5;
 
-    vs_output.texcoord = font_infos.zw + texcoord * (1.0 / pushConstant._count_of_side - inv_texture_size) + inv_texture_size * 0.5;
+    vs_output.texcoord = font_instance_data._font_texcoord + texcoord * (1.0 / pushConstant._count_of_side - inv_texture_size) + inv_texture_size * 0.5;
 
-    const float column = font_infos.x;
-    const float row = font_infos.y;
+    const float column = font_instance_data._font_column;
+    const float row = font_instance_data._font_row;
     vec2 position;
     position.x = (column + texcoord.x) * ratio.x;
     position.y = (texcoord.y - row) * ratio.y;

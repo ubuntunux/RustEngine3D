@@ -392,6 +392,8 @@ pub fn run_application() {
 
                     renderer_data.update_post_process_datas();
                     scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
+                    font_manager.update();
+                    ui_manager.update(delta_time);
                     renderer_data.render_scene(scene_manager_data, &mut font_manager, &mut ui_manager, elapsed_time, delta_time, elapsed_frame);
                 }
             },

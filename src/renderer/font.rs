@@ -2,7 +2,7 @@ use std::cmp::max;
 use std::path::{ PathBuf };
 
 use serde::{ Serialize, Deserialize };
-use nalgebra::{ Vector2, Vector3, Vector4 };
+use nalgebra::{ Vector2, Vector3 };
 use ash::{ vk, Device };
 
 use crate::resource::Resources;
@@ -44,8 +44,8 @@ impl Default for RenderTextInfo {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderFont {
-    pub _offset: Vector2<f32>,
     pub _inv_canvas_size: Vector2<f32>,
+    pub _offset: Vector2<f32>,
     pub _font_size: Vector2<f32>,
     pub _count_of_side: f32,
     pub _reserved0: u32,
@@ -102,13 +102,17 @@ impl Default for FontVertexData {
 
 #[derive(Debug, Clone, Copy)]
 pub struct FontInstanceData {
-    pub _font_instance_infos: Vector4<f32>,
+    pub _font_texcoord: Vector2<f32>,
+    pub _font_column: f32,
+    pub _font_row: f32,
 }
 
 impl Default for FontInstanceData {
     fn default() -> FontInstanceData {
         FontInstanceData {
-            _font_instance_infos: Vector4::zeros(),
+            _font_texcoord: Vector2::zeros(),
+            _font_column: 0.0,
+            _font_row: 0.0,
         }
     }
 }
@@ -125,7 +129,7 @@ pub struct TextRenderData {
     pub _initial_row: i32,
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
-    pub _font_instance_data: [FontInstanceData; MAX_FONT_INSTANCE_COUNT as usize],
+    pub _font_instance_datas: [FontInstanceData; MAX_FONT_INSTANCE_COUNT as usize],
     pub _render_font_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
@@ -142,7 +146,7 @@ impl Default for TextRenderData {
             _initial_row: 0,
             _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
-            _font_instance_data: [FontInstanceData::default(); MAX_FONT_INSTANCE_COUNT as usize],
+            _font_instance_datas: [FontInstanceData::default(); MAX_FONT_INSTANCE_COUNT as usize],
             _render_font_descriptor_sets: SwapchainArray::new(),
         }
     }
@@ -239,7 +243,11 @@ impl TextRenderData {
                 let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
                 let texcoord_y = (index / count_of_side) as f32 * ratio;
-                self._font_instance_data[render_index as usize]._font_instance_infos = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
+                let font_instance_data = &mut self._font_instance_datas[render_index as usize];
+                font_instance_data._font_column = column as f32;
+                font_instance_data._font_row = row as f32;
+                font_instance_data._font_texcoord.x = texcoord_x;
+                font_instance_data._font_texcoord.y = texcoord_y;
                 render_index += 1;
                 column += 1;
             }
@@ -400,7 +408,7 @@ impl FontManager {
 
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
-            let upload_data = &self._text_render_data._font_instance_data[0..text_count as usize];
+            let upload_data = &self._text_render_data._font_instance_datas[0..text_count as usize];
             renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceDataBuffer, upload_data);
 
             // render text
@@ -417,5 +425,9 @@ impl FontManager {
             );
             renderer_data.end_render_pass(command_buffer);
         }
+    }
+
+    pub fn update(&self) {
+
     }
 }

@@ -30,13 +30,25 @@ impl Default for UIVertexData {
 
 #[derive(Debug, Clone, Copy)]
 pub struct UIInstanceData {
-    pub _ui_instance_infos: Vector4<f32>,
+    pub _ui_texcoord: Vector4<f32>,
+    pub _ui_pos: Vector2<f32>,
+    pub _ui_size: Vector2<f32>,
+    pub _ui_color: u32,
+    pub _ui_round: f32,
+    pub _ui_border: f32,
+    pub _ui_border_color: u32,
 }
 
 impl Default for UIInstanceData {
     fn default() -> UIInstanceData {
         UIInstanceData {
-            _ui_instance_infos: Vector4::zeros(),
+            _ui_texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
+            _ui_pos: Vector2::zeros(),
+            _ui_size: Vector2::zeros(),
+            _ui_color: 0xFFFFFFFF,
+            _ui_round: 0.0,
+            _ui_border: 0.0,
+            _ui_border_color: 0x00000000,
         }
     }
 }
@@ -44,8 +56,6 @@ impl Default for UIInstanceData {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderUI {
-    pub _ui_pos: Vector2<f32>,
-    pub _ui_size: Vector2<f32>,
     pub _inv_canvas_size: Vector2<f32>,
     pub _reserved0: u32,
     pub _reserved1: u32,
@@ -84,9 +94,12 @@ pub struct UIComponent {
     pub _layout_type: UILayoutType,
     pub _layout_orientation: Orientation,
     pub _changed_layout: bool,
+    pub _updated_layout: bool,
+    pub _render_ui_index: u32,
     pub _transform: TransformObjectData,
     pub _world_to_local_matrix: Matrix4<f32>,
     pub _local_to_world_matrix: Matrix4<f32>,
+    pub _pos: Vector2<f32>,
     pub _size: Vector2<f32>,
     pub _halign: HorizontalAlign,
     pub _valign: VerticalAlign,
@@ -104,6 +117,9 @@ pub struct UIComponent {
     pub _touched_offset: Vector2<f32>,
     pub _color: u32,
     pub _pressed_color: u32,
+    pub _round: f32,
+    pub _border: f32,
+    pub _border_color: u32,
     pub _texture: Option<RcRefCell<TextureData>>,
     pub _callback_touch_down: Option<Box<fn()>>,
     pub _callback_touch_move: Option<Box<fn()>>,
@@ -121,7 +137,7 @@ pub struct UIManager {
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
-    pub _render_ui_instance_data: [UIInstanceData; MAX_UI_INSTANCE_COUNT as usize],
+    pub _render_ui_instance_datas: [UIInstanceData; MAX_UI_INSTANCE_COUNT as usize],
     pub _render_ui_count: u32,
 }
 
@@ -133,12 +149,15 @@ impl UIComponent {
             _owner_widget: None,
             _parent: None,
             _children: Vec::new(),
-            _changed_layout: false,
+            _changed_layout: true,
+            _updated_layout: true,
+            _render_ui_index: std::u32::MAX,
             _layout_type: UILayoutType::Boxlayout,
             _layout_orientation: Orientation::HORIZONTAL,
             _transform: TransformObjectData::new_transform_object_data(),
             _world_to_local_matrix: Matrix4::identity(),
             _local_to_world_matrix: Matrix4::identity(),
+            _pos: Vector2::new(0.0, 0.0),
             _size: Vector2::new(100.0, 100.0),
             _halign: HorizontalAlign::LEFT,
             _valign: VerticalAlign::TOP,
@@ -148,6 +167,9 @@ impl UIComponent {
             _size_hint_y: None,
             _padding: Vector4::zeros(),
             _margine: Vector4::zeros(),
+            _round: 0.0,
+            _border: 0.0,
+            _border_color: 0,
             _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _visible: true,
             _touched: false,
@@ -322,22 +344,22 @@ impl UIComponent {
         }
     }
 
-    fn get_changed_layout(&self) -> bool { self._changed_layout }
-    fn get_owner_widget(&self) -> &Option<*mut dyn Widget> { &self._owner_widget }
-    fn set_owner_widget(&mut self, owner: Option<*mut dyn Widget>) {
+    pub fn get_changed_layout(&self) -> bool { self._changed_layout }
+    pub fn get_owner_widget(&self) -> &Option<*mut dyn Widget> { &self._owner_widget }
+    pub fn set_owner_widget(&mut self, owner: Option<*mut dyn Widget>) {
         if self._owner_widget.is_some() {
             panic!("Widget already has owner widget");
         }
         self._owner_widget = owner;
     }
-    fn get_parent(&self) -> &Option<*mut UIComponent> { &self._parent }
-    fn set_parent(&mut self, parent: Option<*mut UIComponent>) {
+    pub fn get_parent(&self) -> &Option<*mut UIComponent> { &self._parent }
+    pub fn set_parent(&mut self, parent: Option<*mut UIComponent>) {
         if self._parent.is_some() {
             panic!("Widget already has parent");
         }
         self._parent = parent;
     }
-    fn clear_children(&mut self) {
+    pub fn clear_children(&mut self) {
         for child in self._children.iter() {
             unsafe {
                 child.as_mut().unwrap().clear_children();
@@ -348,7 +370,8 @@ impl UIComponent {
         self._children.clear();
         self._changed_layout = true;
     }
-    fn add_ui_component(&mut self, child: *mut UIComponent) {
+
+    pub fn add_ui_component(&mut self, child: *mut UIComponent) {
         unsafe {
             if child.as_ref().unwrap().get_parent().is_some() {
                 panic!("Widget already has parent");
@@ -363,7 +386,8 @@ impl UIComponent {
             }
         }
     }
-    fn remove_ui_component(&mut self, child: *mut UIComponent) {
+
+    pub fn remove_ui_component(&mut self, child: *mut UIComponent) {
         unsafe {
             if let Some(index) = self._children.iter().position(|x| *x == child) {
                 // if self._viewport_manager.focused_widget is widget {
@@ -377,11 +401,38 @@ impl UIComponent {
             }
         }
     }
+
+    pub fn collect_ui_render_data(&mut self, render_ui_count: &mut u32, render_ui_instance_datas: &mut [UIInstanceData]) {
+        let render_ui_index = *render_ui_count;
+        *render_ui_count += 1;
+
+        if self._updated_layout || render_ui_index != self._render_ui_index {
+            let pos = self._transform.get_position();
+            let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+            render_ui_instance_data._ui_texcoord = self._texcoord.into();
+            render_ui_instance_data._ui_pos.x = pos.x;
+            render_ui_instance_data._ui_pos.y = pos.y;
+            render_ui_instance_data._ui_size.x = self._size.x;
+            render_ui_instance_data._ui_size.y = self._size.y;
+            render_ui_instance_data._ui_color = self._color;
+
+            self._render_ui_index = render_ui_index;
+            self._updated_layout = false;
+        }
+
+        for ui_component in self._children.iter() {
+            unsafe {
+                ui_component.as_mut().unwrap().collect_ui_render_data(render_ui_count, render_ui_instance_datas);
+            }
+        }
+    }
+
     fn update_layout(&mut self, changed_layout: bool, recursive: bool) {
         unsafe {
             let changed_layout = self._changed_layout || changed_layout;
             if changed_layout {
 
+                self._updated_layout = true;
                 self._changed_layout = false;
             }
 
@@ -392,7 +443,8 @@ impl UIComponent {
             }
         }
     }
-    fn update(&mut self, _delta_time: f32, _touch_event: bool) {
+
+    fn update(&mut self, _delta_time: f64, _touch_event: bool) {
         //     for widget in self._widgets:
         //         touch_event = widget.update(dt, touch_event)
         //
@@ -507,7 +559,7 @@ impl UIManager {
             _ui_mesh_vertex_buffer: BufferData::default(),
             _ui_mesh_index_buffer: BufferData::default(),
             _ui_mesh_index_count: 0,
-            _render_ui_instance_data: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
+            _render_ui_instance_datas: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
             _render_ui_count: 0,
         }
     }
@@ -561,6 +613,9 @@ impl UIManager {
     }
 
     pub fn collect_ui_render_data(&mut self) {
+        let mut render_ui_count: u32 = 0;
+        self._root._ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas);
+        self._render_ui_count = render_ui_count;
     }
 
     pub fn render_ui(
@@ -570,7 +625,6 @@ impl UIManager {
         renderer_data: &RendererData,
         resources: &Resources
     ) {
-        self.collect_ui_render_data();
         if 0 < self._render_ui_count {
             let framebuffer_data = resources.get_framebuffer_data("render_ui").borrow();
             let material_instance_data = resources.get_material_instance_data("render_ui").borrow();
@@ -580,15 +634,13 @@ impl UIManager {
             let render_ui_framebuffer_data = None;
             let render_ui_descriptor_sets = None;
             let push_constant_data = PushConstant_RenderUI {
-                _ui_pos: Vector2::zeros(),
-                _ui_size: Vector2::zeros(),
                 _inv_canvas_size: Vector2::new(1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32, 1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32),
                 _reserved0: 0,
                 _reserved1: 0,
             };
 
             // upload storage buffer
-            let upload_data = &self._render_ui_instance_data[0..self._render_ui_count as usize];
+            let upload_data = &self._render_ui_instance_datas[0..self._render_ui_count as usize];
             renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::UIInstanceDataBuffer, upload_data);
 
             // render ui
@@ -605,5 +657,14 @@ impl UIManager {
             );
             renderer_data.end_render_pass(command_buffer);
         }
+    }
+
+    pub fn update(&mut self, delta_time: f64) {
+        let changed_layout: bool = false;
+        let recursive: bool = true;
+        let touch_evemt: bool = false;
+        self._root._ui_component.update_layout(changed_layout, recursive);
+        self._root._ui_component.update(delta_time, touch_evemt);
+        self.collect_ui_render_data();
     }
 }

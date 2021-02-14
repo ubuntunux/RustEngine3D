@@ -2,13 +2,15 @@
 const uint MAX_FONT_INSTANCE_COUNT = 1024;
 
 struct FontInstanceData {
-    vec4 _font_instance_infos;
+    vec2 _font_texcoord;
+    float _font_column;
+    float _font_row;
 };
 
 layout( push_constant ) uniform PushConstant_RenderFont
 {
-    vec2 _offset;
     vec2 _inv_canvas_size;
+    vec2 _offset;
     vec2 _font_size;
     float _count_of_side;
     uint reserved0;
