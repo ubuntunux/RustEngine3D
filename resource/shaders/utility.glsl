@@ -115,6 +115,16 @@ float get_luminance(vec3 color)
     return dot(vec3(0.2126, 0.7152, 0.0722), color);
 }
 
+vec4 uint_color_to_float_color(uint color) {
+    const uint rmask = uint(255);
+    const uint gmask = uint(255 << 8);
+    const uint bmask = uint(255 << 16);
+    const uint amask = uint(255 << 24);
+    vec4 fColor = vec4(color & rmask, color & gmask, color & bmask, color & amask) / 255.0;
+    fColor.xyz = pow(fColor.xyz, vec3(2.2));
+    return fColor;
+}
+
 // depth(0.0 ~ 1.0) to linear depth(near ~ far)
 float device_depth_to_linear_depth(const float zNear, const float zFar, const float depth)
 {

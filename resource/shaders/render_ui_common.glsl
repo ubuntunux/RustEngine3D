@@ -1,9 +1,13 @@
 // MAX_UI_INSTANCE_COUNT must match with font.rs
 const uint MAX_UI_INSTANCE_COUNT = 1024;
 
+#define INSTANCE_ID_LOCATION 3
+
 struct VERTEX_OUTPUT
 {
-    vec2 texcoord;
+    vec4 _color;
+    vec4 _border_color;
+    vec2 _texcoord;
 };
 
 struct UIInstanceData {
@@ -11,9 +15,9 @@ struct UIInstanceData {
     vec2 _ui_pos;
     vec2 _ui_size;
     uint _ui_color;
-    uint _reserved0;
-    uint _reserved1;
-    uint _reserved2;
+    float _ui_round;
+    float _ui_border;
+    uint _ui_border_color;
 };
 
 layout(binding = 0) uniform sampler2D texture_normal;

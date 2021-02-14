@@ -14,6 +14,8 @@ use crate::vulkan_context::vulkan_context::{ get_color32 };
 
 // MAX_UI_INSTANCE_COUNT must match with render_ui_common.glsl
 pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
+pub const DEFAILT_HORIZONTAL_ALIGN: HorizontalAlign = HorizontalAlign::LEFT;
+pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct UIVertexData {
@@ -61,27 +63,27 @@ pub struct PushConstant_RenderUI {
     pub _reserved1: u32,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HorizontalAlign {
     LEFT,
     CENTER,
     RIGHT,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum VerticalAlign {
     BOTTOM,
     CENTER,
     TOP,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum Orientation {
     HORIZONTAL,
     VERTICAL,
 }
 
-#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum UILayoutType {
     Float,
     Boxlayout,
@@ -159,8 +161,8 @@ impl UIComponent {
             _local_to_world_matrix: Matrix4::identity(),
             _pos: Vector2::new(0.0, 0.0),
             _size: Vector2::new(100.0, 100.0),
-            _halign: HorizontalAlign::LEFT,
-            _valign: VerticalAlign::TOP,
+            _halign: DEFAILT_HORIZONTAL_ALIGN,
+            _valign: DEFAILT_VERTICAL_ALIGN,
             _pos_hint_x: None,
             _pos_hint_y: None,
             _size_hint_x: None,
@@ -169,7 +171,7 @@ impl UIComponent {
             _margine: Vector4::zeros(),
             _round: 0.0,
             _border: 0.0,
-            _border_color: 0,
+            _border_color: get_color32(0, 0, 0, 255),
             _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _visible: true,
             _touched: false,
@@ -228,38 +230,48 @@ impl UIComponent {
         }
     }
 
+    pub fn set_pos(&mut self, x: f32, y: f32) {
+        self.set_pos_x(x);
+        self.set_pos_y(y);
+    }
+
     pub fn set_pos_x(&mut self, x: f32) {
-        if x != self._transform._position.x {
+        if x != self._pos.x || self._pos_hint_x.is_some() {
             self._pos_hint_x = None;
-            self._transform._position.x = x;
+            self._pos.x = x;
             self._changed_layout = true;
         }
     }
 
     pub fn set_pos_y(&mut self, y: f32) {
-        if y != self._transform._position.y {
+        if y != self._pos.y || self._pos_hint_y.is_some() {
             self._pos_hint_y = None;
-            self._transform._position.y = y;
+            self._pos.y = y;
             self._changed_layout = true;
         }
     }
 
     pub fn set_pos_hint_x(&mut self, pos_hint_x: Option<f32>) {
-        if pos_hint_x.is_some() && pos_hint_x != self._pos_hint_x {
+        if pos_hint_x != self._pos_hint_x {
+            self._pos_hint_x = pos_hint_x;
             self._changed_layout = true;
         }
-        self._pos_hint_x = pos_hint_x;
     }
 
     pub fn set_pos_hint_y(&mut self, pos_hint_y: Option<f32>) {
-        if pos_hint_y.is_some() && pos_hint_y != self._pos_hint_y {
+        if pos_hint_y != self._pos_hint_y {
+            self._pos_hint_y = pos_hint_y;
             self._changed_layout = true;
         }
-        self._pos_hint_y = pos_hint_y;
+    }
+
+    pub fn set_size(&mut self, size_x: f32, size_y: f32) {
+        self.set_size_x(size_x);
+        self.set_size_y(size_y);
     }
 
     pub fn set_size_x(&mut self, size_x: f32) {
-        if size_x != self._size.x {
+        if size_x != self._size.x || self._size_hint_x.is_some() {
             self._size_hint_x = None;
             self._size.x = size_x;
             self._changed_layout = true;
@@ -267,7 +279,7 @@ impl UIComponent {
     }
 
     pub fn set_size_y(&mut self, size_y: f32) {
-        if size_y != self._size.y {
+        if size_y != self._size.y || self._size_hint_y.is_some() {
             self._size_hint_y = None;
             self._size.y = size_y;
             self._changed_layout = true;
@@ -275,17 +287,17 @@ impl UIComponent {
     }
 
     pub fn set_size_hint_x(&mut self, size_hint_x: Option<f32>) {
-        if size_hint_x.is_some() && size_hint_x != self._size_hint_x {
+        if size_hint_x != self._size_hint_x {
+            self._size_hint_x = size_hint_x;
             self._changed_layout = true;
         }
-        self._size_hint_x = size_hint_x;
     }
 
     pub fn set_size_hint_y(&mut self, size_hint_y: Option<f32>) {
-        if size_hint_y.is_some() && size_hint_y != self._size_hint_y {
+        if size_hint_y != self._size_hint_y {
+            self._size_hint_y = size_hint_y;
             self._changed_layout = true;
         }
-        self._size_hint_y = size_hint_y;
     }
 
     pub fn set_margine(&mut self, margine: Vector4<f32>) {
@@ -300,10 +312,10 @@ impl UIComponent {
             self._changed_layout = true;
         }
     }
-    pub fn get_margine_left(&mut self) { self._margine[0]; }
-    pub fn get_margine_right(&mut self) { self._margine[1]; }
-    pub fn get_margine_top(&mut self) { self._margine[2]; }
-    pub fn get_margine_bottom(&mut self) { self._margine[3]; }
+    pub fn get_margine_left(&mut self) -> f32 { self._margine[0] }
+    pub fn get_margine_right(&mut self) -> f32 { self._margine[1] }
+    pub fn get_margine_top(&mut self) -> f32 { self._margine[2] }
+    pub fn get_margine_bottom(&mut self) -> f32 { self._margine[3] }
     pub fn set_margine_left(&mut self, margine: f32) { self.set_margine_inner(0, margine); }
     pub fn set_margine_right(&mut self, margine: f32) { self.set_margine_inner(1, margine); }
     pub fn set_margine_top(&mut self, margine: f32) { self.set_margine_inner(2, margine); }
@@ -321,10 +333,10 @@ impl UIComponent {
             self._changed_layout = true;
         }
     }
-    pub fn get_padding_left(&mut self) { self._padding[0]; }
-    pub fn get_padding_right(&mut self) { self._padding[1]; }
-    pub fn get_padding_top(&mut self) { self._padding[2]; }
-    pub fn get_padding_bottom(&mut self) { self._padding[3]; }
+    pub fn get_padding_left(&mut self) -> f32 { self._padding[0] }
+    pub fn get_padding_right(&mut self) -> f32 { self._padding[1] }
+    pub fn get_padding_top(&mut self) -> f32 { self._padding[2] }
+    pub fn get_padding_bottom(&mut self) -> f32 { self._padding[3] }
     pub fn set_padding_left(&mut self, padding: f32) { self.set_padding_inner(0, padding); }
     pub fn set_padding_right(&mut self, padding: f32) { self.set_padding_inner(1, padding); }
     pub fn set_padding_top(&mut self, padding: f32) { self.set_padding_inner(2, padding); }
@@ -370,6 +382,29 @@ impl UIComponent {
         self._children.clear();
         self._changed_layout = true;
     }
+    pub fn get_visible(&mut self) -> bool { self._visible }
+    pub fn set_visible(&mut self, visible: bool) {
+        self._visible = visible;
+        self._updated_layout = true;
+    }
+    pub fn set_color(&mut self, color: u32) {
+        if self._color != color {
+            self._color = color;
+            self._updated_layout = true;
+        }
+    }
+    pub fn set_round(&mut self, round: f32) {
+        if round != self._round {
+            self._round = round;
+            self._updated_layout = true;
+        }
+    }
+    pub fn set_border(&mut self, border: f32) {
+        if border != self._border {
+            self._border = border;
+            self._updated_layout = true;
+        }
+    }
 
     pub fn add_ui_component(&mut self, child: *mut UIComponent) {
         unsafe {
@@ -403,21 +438,26 @@ impl UIComponent {
     }
 
     pub fn collect_ui_render_data(&mut self, render_ui_count: &mut u32, render_ui_instance_datas: &mut [UIInstanceData]) {
-        let render_ui_index = *render_ui_count;
-        *render_ui_count += 1;
+        if self._visible {
+            let render_ui_index = *render_ui_count;
+            *render_ui_count += 1;
 
-        if self._updated_layout || render_ui_index != self._render_ui_index {
-            let pos = self._transform.get_position();
-            let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
-            render_ui_instance_data._ui_texcoord = self._texcoord.into();
-            render_ui_instance_data._ui_pos.x = pos.x;
-            render_ui_instance_data._ui_pos.y = pos.y;
-            render_ui_instance_data._ui_size.x = self._size.x;
-            render_ui_instance_data._ui_size.y = self._size.y;
-            render_ui_instance_data._ui_color = self._color;
+            if self._updated_layout || render_ui_index != self._render_ui_index {
+                let pos = self._transform.get_position();
+                let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+                render_ui_instance_data._ui_texcoord = self._texcoord.into();
+                render_ui_instance_data._ui_pos.x = pos.x;
+                render_ui_instance_data._ui_pos.y = pos.y;
+                render_ui_instance_data._ui_size.x = self._size.x;
+                render_ui_instance_data._ui_size.y = self._size.y;
+                render_ui_instance_data._ui_color = self._color;
+                render_ui_instance_data._ui_round = self._round;
+                render_ui_instance_data._ui_border = self._border;
+                render_ui_instance_data._ui_border_color = self._border_color;
 
-            self._render_ui_index = render_ui_index;
-            self._updated_layout = false;
+                self._render_ui_index = render_ui_index;
+                self._updated_layout = false;
+            }
         }
 
         for ui_component in self._children.iter() {
@@ -431,6 +471,25 @@ impl UIComponent {
         unsafe {
             let changed_layout = self._changed_layout || changed_layout;
             if changed_layout {
+                let parent: *mut UIComponent = if self._parent.is_some() { *self._parent.as_ref().unwrap() } else { std::ptr::null_mut() };
+                let halign: HorizontalAlign = if parent.is_null() { DEFAILT_HORIZONTAL_ALIGN } else { parent.as_ref().unwrap()._halign };
+                let valign: VerticalAlign = if parent.is_null() { DEFAILT_VERTICAL_ALIGN } else { parent.as_ref().unwrap()._valign };
+                let half_size = &self._size * 0.5;
+                let mut pos = Vector3::new(self._pos.x, self._pos.y, 0.0);
+                pos.x += self.get_margine_left();
+                pos.y += self.get_margine_top();
+                match halign {
+                    HorizontalAlign::LEFT => pos.x += half_size.x,
+                    HorizontalAlign::CENTER => (),
+                    HorizontalAlign::RIGHT => pos.x -= half_size.x,
+                }
+                match valign {
+                    VerticalAlign::TOP => pos.y += half_size.y,
+                    VerticalAlign::CENTER => (),
+                    VerticalAlign::BOTTOM => pos.y -= half_size.y,
+                }
+
+                self._transform.set_position(&pos);
 
                 self._updated_layout = true;
                 self._changed_layout = false;
@@ -663,6 +722,14 @@ impl UIManager {
         let changed_layout: bool = false;
         let recursive: bool = true;
         let touch_evemt: bool = false;
+
+        self._root._ui_component.set_margine(Vector4::new(100.0, 100.0, 100.0, 100.0));
+        self._root._ui_component.set_pos(50.0, 50.0);
+        self._root._ui_component.set_size(200.0, 100.0);
+        self._root._ui_component.set_color(get_color32(255, 255, 0, 255));
+        self._root._ui_component.set_round(5.0);
+        self._root._ui_component.set_border(2.0);
+
         self._root._ui_component.update_layout(changed_layout, recursive);
         self._root._ui_component.update(delta_time, touch_evemt);
         self.collect_ui_render_data();
