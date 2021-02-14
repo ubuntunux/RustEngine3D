@@ -30,13 +30,13 @@ impl Default for UIVertexData {
 
 #[derive(Debug, Clone, Copy)]
 pub struct UIInstanceData {
-    pub _ui_instance_infos: [Vector4<f32>; MAX_UI_INSTANCE_COUNT as usize],
+    pub _ui_instance_infos: Vector4<f32>,
 }
 
 impl Default for UIInstanceData {
     fn default() -> UIInstanceData {
         UIInstanceData {
-            _ui_instance_infos: [Vector4::zeros(); MAX_UI_INSTANCE_COUNT as usize],
+            _ui_instance_infos: Vector4::zeros(),
         }
     }
 }
@@ -121,7 +121,7 @@ pub struct UIManager {
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
-    pub _render_ui_instance_data: UIInstanceData,
+    pub _render_ui_instance_data: [UIInstanceData; MAX_UI_INSTANCE_COUNT as usize],
     pub _render_ui_count: u32,
 }
 
@@ -507,7 +507,7 @@ impl UIManager {
             _ui_mesh_vertex_buffer: BufferData::default(),
             _ui_mesh_index_buffer: BufferData::default(),
             _ui_mesh_index_count: 0,
-            _render_ui_instance_data: UIInstanceData::default(),
+            _render_ui_instance_data: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
             _render_ui_count: 0,
         }
     }
@@ -588,8 +588,8 @@ impl UIManager {
             };
 
             // upload storage buffer
-            let upload_data = &self._render_ui_instance_data._ui_instance_infos[0..self._render_ui_count as usize];
-            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceData, upload_data);
+            let upload_data = &self._render_ui_instance_data[0..self._render_ui_count as usize];
+            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::UIInstanceDataBuffer, upload_data);
 
             // render ui
             renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, render_ui_framebuffer_data);

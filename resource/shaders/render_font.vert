@@ -11,7 +11,7 @@ layout (location = 0) out VERTEX_OUTPUT vs_output;
 
 void main()
 {
-    vec4 font_infos = font_instance_infos[gl_InstanceIndex];
+    vec4 font_infos = font_instance_data[gl_InstanceIndex]._font_instance_infos;
     vec2 inv_texture_size = 1.0 / textureSize(texture_font, 0).xy;
     vec2 ratio = pushConstant._font_size * pushConstant._inv_canvas_size;
     vec2 texcoord = vs_in_position.xy + 0.5;

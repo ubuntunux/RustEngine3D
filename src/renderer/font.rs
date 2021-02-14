@@ -102,13 +102,13 @@ impl Default for FontVertexData {
 
 #[derive(Debug, Clone, Copy)]
 pub struct FontInstanceData {
-    pub _font_instance_infos: [Vector4<f32>; MAX_FONT_INSTANCE_COUNT as usize],
+    pub _font_instance_infos: Vector4<f32>,
 }
 
 impl Default for FontInstanceData {
     fn default() -> FontInstanceData {
         FontInstanceData {
-            _font_instance_infos: [Vector4::zeros(); MAX_FONT_INSTANCE_COUNT as usize],
+            _font_instance_infos: Vector4::zeros(),
         }
     }
 }
@@ -125,7 +125,7 @@ pub struct TextRenderData {
     pub _initial_row: i32,
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
-    pub _font_instance_data: FontInstanceData,
+    pub _font_instance_data: [FontInstanceData; MAX_FONT_INSTANCE_COUNT as usize],
     pub _render_font_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
@@ -142,7 +142,7 @@ impl Default for TextRenderData {
             _initial_row: 0,
             _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
-            _font_instance_data: FontInstanceData::default(),
+            _font_instance_data: [FontInstanceData::default(); MAX_FONT_INSTANCE_COUNT as usize],
             _render_font_descriptor_sets: SwapchainArray::new(),
         }
     }
@@ -185,18 +185,8 @@ impl VertexData for FontVertexData {
 impl TextRenderData {
     pub fn create_text_render_data(device: &Device, resources: &Resources, font_data: &RcRefCell<FontData>) -> TextRenderData {
         let mut text_render_data = TextRenderData {
-            _text: String::new(),
-            _column: 0,
-            _row: 0,
-            _font_size: 0,
-            _width: 0.0,
-            _height: 0.0,
-            _initial_column: 0,
-            _initial_row: 0,
             _font_data: font_data.clone(),
-            _render_count: 0,
-            _font_instance_data: FontInstanceData::default(),
-            _render_font_descriptor_sets: SwapchainArray::new(),
+            ..Default::default()
         };
         text_render_data.create_texture_render_data_descriptor_sets(device, resources);
         text_render_data
@@ -249,7 +239,7 @@ impl TextRenderData {
                 let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
                 let texcoord_y = (index / count_of_side) as f32 * ratio;
-                self._font_instance_data._font_instance_infos[render_index as usize] = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
+                self._font_instance_data[render_index as usize]._font_instance_infos = Vector4::new(column as f32, row as f32, texcoord_x, texcoord_y);
                 render_index += 1;
                 column += 1;
             }
@@ -410,8 +400,8 @@ impl FontManager {
 
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
-            let upload_data = &self._text_render_data._font_instance_data._font_instance_infos[0..text_count as usize];
-            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceData, upload_data);
+            let upload_data = &self._text_render_data._font_instance_data[0..text_count as usize];
+            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceDataBuffer, upload_data);
 
             // render text
             renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, none_framebuffer_data);

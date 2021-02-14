@@ -10,10 +10,14 @@ layout( push_constant ) uniform PushConstant_RenderUI
     uint _reserved1;
 } pushConstant;
 
+struct UIInstanceData {
+    vec4 _ui_instance_infos;
+};
+
 layout(binding = 0) uniform sampler2D texture_normal;
-layout(binding = 1) buffer UIInstanceData
+layout(binding = 1) buffer UIInstanceDataBuffer
 {
-    vec4 ui_instance_infos[MAX_UI_INSTANCE_COUNT];
+    UIInstanceData ui_instance_data[MAX_UI_INSTANCE_COUNT];
 };
 
 struct VERTEX_OUTPUT

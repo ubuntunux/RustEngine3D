@@ -18,8 +18,8 @@ use nalgebra::{
 
 use crate::constants;
 use crate::renderer::camera::{ CameraObjectData };
-use crate::renderer::font::{ FontInstanceData };
-use crate::renderer::ui::{ UIInstanceData };
+use crate::renderer::font::{ MAX_FONT_INSTANCE_COUNT, FontInstanceData };
+use crate::renderer::ui::{ MAX_UI_INSTANCE_COUNT, UIInstanceData };
 use crate::vulkan_context::buffer::{ self, ShaderBufferData };
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
@@ -38,8 +38,8 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants3,
     LightProbeViewConstants4,
     LightProbeViewConstants5,
-    FontInstanceData,
-    UIInstanceData,
+    FontInstanceDataBuffer,
+    UIInstanceDataBuffer,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -182,8 +182,8 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants3" => Ok(ShaderBufferDataType::LightProbeViewConstants3),
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
-            "FontInstanceData" => Ok(ShaderBufferDataType::FontInstanceData),
-            "UIInstanceData" => Ok(ShaderBufferDataType::UIInstanceData),
+            "FontInstanceDataBuffer" => Ok(ShaderBufferDataType::FontInstanceDataBuffer),
+            "UIInstanceDataBuffer" => Ok(ShaderBufferDataType::UIInstanceDataBuffer),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -227,8 +227,8 @@ pub fn regist_shader_buffer_datas(
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::FontInstanceData, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<FontInstanceData>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIInstanceData, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIInstanceData>(), has_staging_buffer);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::FontInstanceDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<FontInstanceData>() * MAX_FONT_INSTANCE_COUNT as usize, has_staging_buffer);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIInstanceDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIInstanceData>() * MAX_UI_INSTANCE_COUNT as usize, has_staging_buffer);
 }
 
 impl SceneConstants {

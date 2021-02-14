@@ -11,7 +11,7 @@ layout (location = 0) out VERTEX_OUTPUT vs_output;
 
 void main()
 {
-    vec4 ui_infos = ui_instance_infos[gl_InstanceIndex];
+    vec4 ui_infos = ui_instance_data[gl_InstanceIndex]._ui_instance_infos;
     vec2 ratio = pushConstant._ui_size * pushConstant._inv_canvas_size;
 
     vs_output.texcoord = vs_in_position.xy + 0.5;
