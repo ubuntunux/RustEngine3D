@@ -19,6 +19,7 @@ use nalgebra::{
 use crate::constants;
 use crate::renderer::camera::{ CameraObjectData };
 use crate::renderer::font::{ FontInstanceData };
+use crate::renderer::ui::{ UIInstanceData };
 use crate::vulkan_context::buffer::{ self, ShaderBufferData };
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
@@ -38,6 +39,7 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants4,
     LightProbeViewConstants5,
     FontInstanceData,
+    UIInstanceData,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -181,6 +183,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
             "FontInstanceData" => Ok(ShaderBufferDataType::FontInstanceData),
+            "UIInstanceData" => Ok(ShaderBufferDataType::UIInstanceData),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -225,6 +228,7 @@ pub fn regist_shader_buffer_datas(
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
     regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::FontInstanceData, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<FontInstanceData>(), has_staging_buffer);
+    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIInstanceData, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIInstanceData>(), has_staging_buffer);
 }
 
 impl SceneConstants {

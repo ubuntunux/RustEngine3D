@@ -1,9 +1,55 @@
-use nalgebra::{ Vector2, Vector4, Matrix4 };
+use serde::{ Serialize, Deserialize };
+use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
+use ash::{ vk, Device };
 
-use crate::utilities::system::{ RcRefCell };
+use crate::resource::Resources;
+use crate::renderer::renderer::{ RendererData };
+use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
+use crate::utilities::system::{ RcRefCell };
+use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::texture::TextureData;
-use crate::vulkan_context::vulkan_context::get_color32;
+use crate::vulkan_context::geometry_buffer::{ self, VertexData };
+use crate::vulkan_context::vulkan_context::{ get_color32 };
+
+// MAX_UI_INSTANCE_COUNT must match with render_ui_common.glsl
+pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
+
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+pub struct UIVertexData {
+    pub _position: Vector3<f32>,
+}
+
+impl Default for UIVertexData {
+    fn default() -> UIVertexData {
+        UIVertexData {
+            _position: Vector3::zeros()
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UIInstanceData {
+    pub _ui_instance_infos: [Vector4<f32>; MAX_UI_INSTANCE_COUNT as usize],
+}
+
+impl Default for UIInstanceData {
+    fn default() -> UIInstanceData {
+        UIInstanceData {
+            _ui_instance_infos: [Vector4::zeros(); MAX_UI_INSTANCE_COUNT as usize],
+        }
+    }
+}
+
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderUI {
+    pub _ui_pos: Vector2<f32>,
+    pub _ui_size: Vector2<f32>,
+    pub _inv_canvas_size: Vector2<f32>,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+}
 
 #[derive(Clone, PartialEq, Eq, Hash, Debug)]
 pub enum HorizontalAlign {
@@ -25,10 +71,18 @@ pub enum Orientation {
     VERTICAL,
 }
 
+#[derive(Clone, PartialEq, Eq, Hash, Debug)]
+pub enum UILayoutType {
+    Float,
+    Boxlayout,
+}
+
 pub struct UIComponent {
     pub _owner_widget: Option<*mut dyn Widget>,
     pub _parent: Option<*mut UIComponent>,
     pub _children: Vec<*mut UIComponent>,
+    pub _layout_type: UILayoutType,
+    pub _layout_orientation: Orientation,
     pub _changed_layout: bool,
     pub _transform: TransformObjectData,
     pub _world_to_local_matrix: Matrix4<f32>,
@@ -62,6 +116,15 @@ pub struct WidgetDefault {
     pub _widgets: Vec<*mut dyn Widget>,
 }
 
+pub struct UIManager {
+    pub _root: WidgetDefault,
+    pub _ui_mesh_vertex_buffer: BufferData,
+    pub _ui_mesh_index_buffer: BufferData,
+    pub _ui_mesh_index_count: u32,
+    pub _render_ui_instance_data: UIInstanceData,
+    pub _render_ui_count: u32,
+}
+
 // interfaces
 
 impl UIComponent {
@@ -71,6 +134,8 @@ impl UIComponent {
             _parent: None,
             _children: Vec::new(),
             _changed_layout: false,
+            _layout_type: UILayoutType::Boxlayout,
+            _layout_orientation: Orientation::HORIZONTAL,
             _transform: TransformObjectData::new_transform_object_data(),
             _world_to_local_matrix: Matrix4::identity(),
             _local_to_world_matrix: Matrix4::identity(),
@@ -98,13 +163,6 @@ impl UIComponent {
         }
     }
 
-    pub fn set_text(&mut self, text: String, font_size: u32, halign: HorizontalAlign, valign: VerticalAlign) {
-        // if self.label is None:
-        //     self.label = Label(halign=halign, valign=valign)
-        //     self.add_widget(self.label)
-        // self.label.set_text(text, font_size, halign=halign, valign=valign)
-    }
-
     pub fn check_collide(&self, x: f32, y: f32) -> bool {
         let collide_pos = &self._world_to_local_matrix * &Vector4::new(x, y, 0.0, 1.0);
         let pos = self._transform.get_position();
@@ -125,7 +183,7 @@ impl UIComponent {
         }
     }
 
-    pub fn on_touch_move(&mut self, x: f32, y: f32) {
+    pub fn on_touch_move(&mut self, _x: f32, _y: f32) {
         if self._touched {
         //     if self._dragable:
         //         self._x = x + self._touch_offset_x
@@ -136,7 +194,7 @@ impl UIComponent {
         }
     }
 
-    pub fn on_touch_up(&mut self, x: f32, y: f32) {
+    pub fn on_touch_up(&mut self, _x: f32, _y: f32) {
         if self._touched {
             self._touched = false;
             // if self._dragable:
@@ -334,7 +392,7 @@ impl UIComponent {
             }
         }
     }
-    fn update(&mut self, delta_time: f32, touch_event: bool) {
+    fn update(&mut self, _delta_time: f32, _touch_event: bool) {
         //     for widget in self._widgets:
         //         touch_event = widget.update(dt, touch_event)
         //
@@ -416,4 +474,136 @@ impl Widget for WidgetDefault {
     fn has_cursor(&self) -> bool { false }
     fn get_ui_component(&self) -> &UIComponent { &self._ui_component }
     fn get_changed_layout(&self) -> bool { self._ui_component._changed_layout }
+}
+
+impl UIVertexData {
+    const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
+}
+
+impl VertexData for UIVertexData {
+    fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let binding = 0u32;
+        geometry_buffer::add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, UIVertexData::POSITION);
+        vertex_input_attribute_descriptions
+    }
+
+    fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
+        vec![
+            vk::VertexInputBindingDescription {
+                binding: 0,
+                stride: std::mem::size_of::<UIVertexData>() as u32,
+                input_rate: vk::VertexInputRate::VERTEX
+            },
+        ]
+    }
+}
+
+impl UIManager {
+    pub fn create_ui_manager() -> UIManager {
+        log::info!("create_ui_manager");
+        UIManager {
+            _root: WidgetDefault::create_widget(),
+            _ui_mesh_vertex_buffer: BufferData::default(),
+            _ui_mesh_index_buffer: BufferData::default(),
+            _ui_mesh_index_count: 0,
+            _render_ui_instance_data: UIInstanceData::default(),
+            _render_ui_count: 0,
+        }
+    }
+
+    pub fn initialize_ui_manager(&mut self, renderer_data: &RendererData, _resources: &Resources) {
+        self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
+    }
+
+    pub fn create_ui_descriptor_sets(&mut self, _renderer_data: &RendererData, _resources: &Resources) {
+    }
+
+    pub fn destroy_ui_descriptor_sets(&mut self) {
+    }
+
+    pub fn destroy_ui_manager(&mut self, device: &Device) {
+        log::info!("destroy_ui_manager");
+        buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);
+        buffer::destroy_buffer_data(device, &self._ui_mesh_index_buffer);
+    }
+
+    pub fn create_ui_vertex_data(
+        &mut self,
+        device: &Device,
+        command_pool: vk::CommandPool,
+        command_queue: vk::Queue,
+        device_memory_properties: &vk::PhysicalDeviceMemoryProperties
+    ) {
+        log::info!("create_ui_vertex_data");
+        let positions: Vec<Vector3<f32>> = vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(0.5, -0.5, 0.0), Vector3::new(0.5, 0.5, 0.0), Vector3::new(-0.5, 0.5, 0.0)];
+        let vertex_datas = positions.iter().map(|position| UIVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
+        let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
+
+        self._ui_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::VERTEX_BUFFER,
+            &vertex_datas,
+        );
+
+        self._ui_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::INDEX_BUFFER,
+            &indices
+        );
+        self._ui_mesh_index_count = indices.len() as u32;
+    }
+
+    pub fn collect_ui_render_data(&mut self) {
+    }
+
+    pub fn render_ui(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources
+    ) {
+        self.collect_ui_render_data();
+        if 0 < self._render_ui_count {
+            let framebuffer_data = resources.get_framebuffer_data("render_ui").borrow();
+            let material_instance_data = resources.get_material_instance_data("render_ui").borrow();
+            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+            let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
+            let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
+            let render_ui_framebuffer_data = None;
+            let render_ui_descriptor_sets = None;
+            let push_constant_data = PushConstant_RenderUI {
+                _ui_pos: Vector2::zeros(),
+                _ui_size: Vector2::zeros(),
+                _inv_canvas_size: Vector2::new(1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32, 1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32),
+                _reserved0: 0,
+                _reserved1: 0,
+            };
+
+            // upload storage buffer
+            let upload_data = &self._render_ui_instance_data._ui_instance_infos[0..self._render_ui_count as usize];
+            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceData, upload_data);
+
+            // render ui
+            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, render_ui_framebuffer_data);
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, render_ui_descriptor_sets);
+            renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
+            renderer_data.draw_elements(
+                command_buffer,
+                &[self._ui_mesh_vertex_buffer._buffer],
+                &[],
+                self._render_ui_count,
+                self._ui_mesh_index_buffer._buffer,
+                self._ui_mesh_index_count,
+            );
+            renderer_data.end_render_pass(command_buffer);
+        }
+    }
 }

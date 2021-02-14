@@ -330,7 +330,7 @@ impl FontManager {
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties
     ) {
         log::info!("create_font_vertex_data");
-        let positions: Vec<Vector3<f32>> = vec![Vector3::new(-1.0, -1.0, 0.0), Vector3::new(1.0, -1.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(-1.0, 1.0, 0.0)];
+        let positions: Vec<Vector3<f32>> = vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(0.5, -0.5, 0.0), Vector3::new(0.5, 0.5, 0.0), Vector3::new(-0.5, 0.5, 0.0)];
         let vertex_datas = positions.iter().map(|position| FontVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
         let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
 

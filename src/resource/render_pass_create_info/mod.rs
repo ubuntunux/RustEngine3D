@@ -24,6 +24,7 @@ pub mod render_ssao_blur;
 pub mod render_ssr;
 pub mod render_ssr_resolve;
 pub mod render_taa;
+pub mod render_ui;
 pub mod render_pass_create_info;
 
 

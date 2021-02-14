@@ -75,6 +75,7 @@ use crate::renderer::render_element::{ RenderElementData };
 use crate::resource::{ Resources };
 use crate::utilities::system::{ self, RcRefCell };
 use crate::renderer::font::{ FontManager, RenderTextInfo };
+use crate::renderer::ui::{ UIManager };
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -192,7 +193,6 @@ pub struct RendererData {
     pub _clear_render_targets: RendererData_ClearRenderTargets,
     pub _light_probe_datas: RendererData_LightProbe,
     pub _resources: RcRefCell<Resources>,
-    pub _font_manager: RcRefCell<FontManager>,
 }
 
 pub fn create_renderer_data(
@@ -200,8 +200,7 @@ pub fn create_renderer_data(
     app_version: u32,
     (window_width, window_height): (u32, u32),
     window: &Window,
-    resources: RcRefCell<Resources>,
-    font_manager: RcRefCell<FontManager>,
+    resources: RcRefCell<Resources>
 ) -> RcRefCell<RendererData> {
     unsafe {
         log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
@@ -326,7 +325,6 @@ pub fn create_renderer_data(
             _clear_render_targets: RendererData_ClearRenderTargets::default(),
             _light_probe_datas: RendererData_LightProbe::default(),
             _resources: resources.clone(),
-            _font_manager: font_manager.clone(),
         };
 
         renderer_data.initialize_renderer();
@@ -1018,7 +1016,15 @@ impl RendererData {
         }
     }
 
-    pub fn render_scene(&mut self, scene_manager: RefMut<SceneManagerData>, font_manager: &mut FontManager, elapsed_time: f64, delta_time: f64, _elapsed_frame: u64) {
+    pub fn render_scene(
+        &mut self,
+        scene_manager: RefMut<SceneManagerData>,
+        font_manager: &mut FontManager,
+        ui_manager: &mut UIManager,
+        elapsed_time: f64,
+        delta_time: f64,
+        _elapsed_frame: u64
+    ) {
         unsafe {
             // frame index
             let frame_index = self._frame_index as usize;
@@ -1167,6 +1173,9 @@ impl RendererData {
 
                 // Render Final
                 self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+
+                // Render UI
+                ui_manager.render_ui(command_buffer, swapchain_index, &self, &self._resources.borrow());
 
                 // Render Text
                 let render_text_info = RenderTextInfo {

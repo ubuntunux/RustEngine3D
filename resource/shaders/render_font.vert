@@ -14,7 +14,7 @@ void main()
     vec4 font_infos = font_instance_infos[gl_InstanceIndex];
     vec2 inv_texture_size = 1.0 / textureSize(texture_font, 0).xy;
     vec2 ratio = pushConstant._font_size * pushConstant._inv_canvas_size;
-    vec2 texcoord = vs_in_position.xy * 0.5 + 0.5;
+    vec2 texcoord = vs_in_position.xy + 0.5;
 
     vs_output.texcoord = font_infos.zw + texcoord * (1.0 / pushConstant._count_of_side - inv_texture_size) + inv_texture_size * 0.5;
 
