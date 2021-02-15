@@ -3,6 +3,22 @@ use std::io::Write;
 use chrono::Local;
 use log::LevelFilter;
 
+const LOG_LEVEL: LevelFilter = LevelFilter::Warn;
+
+#[cfg(target_os = "android")]
+pub fn initialize_logger() {
+    let debug_level = match LOG_LEVEL {
+        LevelFilter::Off => "off",
+        LevelFilter::Error => "error",
+        LevelFilter::Warn => "warn",
+        LevelFilter::Info => "info",
+        LevelFilter::Debug => "debug",
+        LevelFilter::Trace => "trace",
+    };
+    std::env::set_var("RUST_LOG", debug_level);
+    env_logger::init();
+}
+#[cfg(not(target_os = "android"))]
 pub fn initialize_logger() {
     env_logger::Builder::new()
         .format(|buffer, record| {
@@ -15,6 +31,6 @@ pub fn initialize_logger() {
                      record.line().unwrap(),
             )
         })
-        .filter(None, LevelFilter::Info)
+        .filter(None, LOG_LEVEL)
         .init();
 }
