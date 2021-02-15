@@ -325,15 +325,35 @@ pub fn run_application() {
                     need_initialize = true;
                 }
             },
-            // Destroy app on suspend for android target.
             Event::Suspended => {
                 log::info!("Application was suspended");
                 #[cfg(target_os = "android")]
                 if run_application {
-                //     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                //     renderer_data.device_wait_idle();
-                //     renderer_data.set_need_recreate_swapchain(true);
-                //     run_application = false;
+                    {
+                        // Destroy app on suspend for android target.
+                        let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                        let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                        let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+                        let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
+                        let mut ui_manager: RefMut<UIManager> = maybe_ui_manager.as_ref().unwrap().borrow_mut();
+                        application_data.terminate_applicateion(
+                            &mut font_manager,
+                            &mut ui_manager,
+                            &mut scene_manager_data,
+                            &mut maybe_resources.as_ref().unwrap().borrow_mut(),
+                            &mut renderer_data,
+                        );
+                    }
+
+                    maybe_resources = None;
+                    maybe_ui_manager = None;
+                    maybe_font_manager = None;
+                    maybe_renderer_data = None;
+                    maybe_scene_manager_data = None;
+                    maybe_application_data = None;
+
+                    run_application = false;
+                    initialize_done = false;
                 }
             },
             Event::NewEvents(_) => {

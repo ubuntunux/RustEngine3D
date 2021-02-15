@@ -1252,7 +1252,7 @@ impl RendererData {
                 }
             } else {
                 log::error!("failed_acquire_next_image: {}, swapchain_index: {}", failed_acquire_next_image, swapchain_index);
-                vk::Result::SUBOPTIMAL_KHR
+                vk::Result::ERROR_OUT_OF_DATE_KHR
             };
 
             if vk::Result::SUCCESS != present_result {
