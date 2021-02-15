@@ -15,19 +15,19 @@ void main()
 {
     UIInstanceData ui_instance_data = ui_instance_data[vs_out_instanceIndex];
 
-    const vec2 offset_from_center = gl_FragCoord.xy - ui_instance_data._ui_pos;
-    const vec2 dist_from_center = abs(offset_from_center);
+    const float ui_round = ui_instance_data._ui_round;
     const vec2 half_size = ui_instance_data._ui_size * 0.5;
+    const vec2 offset_from_center = gl_FragCoord.xy - ui_instance_data._ui_pos;
+    const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
     float round_opacity = 1.0;
     vec4 color = vs_output._color;
 
-    if(0.0 != ui_instance_data._ui_round)
+    if(0.0 != ui_round)
     {
-        vec2 round_thickness = dist_from_center - max(vec2(0.0), half_size - vec2(ui_instance_data._ui_round));
-        if(0.0 < round_thickness.x && 0.0 < round_thickness.y)
+        if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
         {
-            float round_dist = dot(round_thickness, round_thickness) - ui_instance_data._ui_round * ui_instance_data._ui_round;
-            if(0.0 < floor(round_dist))
+            vec2 round_offset = dist_from_outer - vec2(ui_round);
+            if((ui_round * ui_round - 0.707) < dot(round_offset, round_offset))
             {
                 round_opacity = 0.0;
             }
@@ -36,21 +36,19 @@ void main()
 
     if(0.0 != ui_instance_data._ui_border)
     {
-        vec2 border_thickness = dist_from_center - max(vec2(0.0), half_size - vec2(ui_instance_data._ui_border));
-        vec2 border_thickness_with_round = border_thickness + vec2(ui_instance_data._ui_round);
-        if(0.0 < border_thickness_with_round.x && 0.0 < border_thickness_with_round.y)
+        float ui_round_with_border = ui_round + ui_instance_data._ui_border;
+        if(dist_from_outer.x < ui_instance_data._ui_border || dist_from_outer.y < ui_instance_data._ui_border)
         {
-            float border_with_round_opacity = dot(border_thickness_with_round, border_thickness_with_round) - ui_instance_data._ui_round * ui_instance_data._ui_round;
-            if(0.0 < floor(border_with_round_opacity))
+            color = vs_output._border_color;
+        }
+        else if(dist_from_outer.x < ui_round_with_border && dist_from_outer.y < ui_round_with_border)
+        {
+            vec2 round_offset = dist_from_outer - vec2(ui_round_with_border);
+            if((ui_round * ui_round + 0.707) < dot(round_offset, round_offset))
             {
                 color = vs_output._border_color;
             }
         }
-        else if(0.0 < border_thickness.x || 0.0 < border_thickness.y)
-        {
-            color = vs_output._border_color;
-        }
-
     }
 
     color.w *= round_opacity;
