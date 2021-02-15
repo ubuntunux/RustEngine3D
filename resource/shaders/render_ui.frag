@@ -27,9 +27,9 @@ void main()
         if(0.0 < round_thickness.x && 0.0 < round_thickness.y)
         {
             float round_dist = dot(round_thickness, round_thickness) - ui_instance_data._ui_round * ui_instance_data._ui_round;
-            if(0.0 < round_dist)
+            if(0.0 < floor(round_dist))
             {
-                round_opacity = saturate((exp(-sqrt(round_dist)) - 0.1) / 0.9);
+                round_opacity = 0.0;
             }
         }
     }
@@ -38,20 +38,19 @@ void main()
     {
         vec2 border_thickness = dist_from_center - max(vec2(0.0), half_size - vec2(ui_instance_data._ui_border));
         vec2 border_thickness_with_round = border_thickness + vec2(ui_instance_data._ui_round);
-        if(0.0 < border_thickness.x || 0.0 < border_thickness.y)
+        if(0.0 < border_thickness_with_round.x && 0.0 < border_thickness_with_round.y)
+        {
+            float border_with_round_opacity = dot(border_thickness_with_round, border_thickness_with_round) - ui_instance_data._ui_round * ui_instance_data._ui_round;
+            if(0.0 < floor(border_with_round_opacity))
+            {
+                color = vs_output._border_color;
+            }
+        }
+        else if(0.0 < border_thickness.x || 0.0 < border_thickness.y)
         {
             color = vs_output._border_color;
         }
-        else if(0.0 < border_thickness_with_round.x && 0.0 < border_thickness_with_round.y)
-        {
-            float ui_round = ui_instance_data._ui_round + 0.707;
-            float border_with_round_opacity = dot(border_thickness_with_round, border_thickness_with_round) - ui_round * ui_round;
-            if(0.0 < border_with_round_opacity)
-            {
-                border_with_round_opacity = saturate((exp(-sqrt(border_with_round_opacity)) - 0.1) / 0.9);
-                color = mix(vs_output._border_color, color, vec4(border_with_round_opacity));
-            }
-        }
+
     }
 
     color.w *= round_opacity;
