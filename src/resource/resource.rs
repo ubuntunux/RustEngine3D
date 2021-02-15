@@ -324,7 +324,12 @@ impl Resources {
                     Some(font_file) => {
                         let loaded_contents = system::load(font_file);
                         let font_data_create_info: FontDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-                        if false == font_data_create_info._texture_file_path.is_file() {
+                        #[cfg(target_os = "android")]
+                        let check_font_texture_file_exists = false;
+                        #[cfg(not(target_os = "android"))]
+                        let check_font_texture_file_exists = true;
+
+                        if check_font_texture_file_exists && false == font_data_create_info._texture_file_path.is_file() {
                             self.get_font_data_create_info(&font_directory, &font_name, &font_source_file, *range_min, *range_max)
                         } else {
                             font_data_create_info

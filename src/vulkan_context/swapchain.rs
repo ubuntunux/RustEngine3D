@@ -110,7 +110,7 @@ pub fn create_swapchain_data(
         let present_mode = if immediate_mode {
         vk::PresentModeKHR::IMMEDIATE
     } else {
-        vk::PresentModeKHR::FIFO
+        vk::PresentModeKHR::MAILBOX
     };
     #[cfg(not(target_os = "android"))]
     let present_mode = if immediate_mode {
