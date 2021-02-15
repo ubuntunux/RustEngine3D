@@ -526,14 +526,14 @@ pub fn create_image_sampler(
 
     unsafe {
         let sampler = device.create_sampler(&sampler_create_info, None).expect("Failed to create sampler.");
-        log::debug!("create_image_sampler: {:?}", sampler);
+        log::trace!("create_image_sampler: {:?}", sampler);
         sampler
     }
 }
 
 pub fn destroy_image_sampler(device: &Device, sampler: vk::Sampler) {
     unsafe {
-        log::debug!("destroy_image_sampler: {:?}", sampler);
+        log::trace!("destroy_image_sampler: {:?}", sampler);
         device.destroy_sampler(sampler, None);
     }
 }
@@ -1051,7 +1051,7 @@ fn create_texture_data_inner<T: Copy>(
         texture_depth,
     );
 
-    log::info!("{}: {} {:?} {:?} {} {} {}",
+    log::debug!("{}: {} {:?} {:?} {} {} {}",
                if is_render_target { "create_render_target" } else { "create_texture_data" },
                texture_create_info._texture_name,
                texture_create_info._texture_view_type,
@@ -1060,9 +1060,9 @@ fn create_texture_data_inner<T: Copy>(
                texture_create_info._texture_height,
                texture_create_info._texture_layers,
     );
-    log::debug!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
+    log::trace!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
     if false == image_datas._sub_image_views.is_empty() {
-        log::debug!("                 sub_image_views: {:?}", image_datas._sub_image_views);
+        log::trace!("                 sub_image_views: {:?}", image_datas._sub_image_views);
     }
 
     TextureData {
@@ -1087,7 +1087,7 @@ fn create_texture_data_inner<T: Copy>(
 
 pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
     unsafe {
-        log::info!("destroy_texture_data({}): image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}",
+        log::debug!("destroy_texture_data({}): image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}",
             texture_data._texture_data_name,
             texture_data._image,
             texture_data._image_view,
@@ -1096,7 +1096,7 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
         );
 
         if false == texture_data._sub_image_views.is_empty() {
-            log::debug!("    sub_image_views: {:?}", texture_data._sub_image_views);
+            log::trace!("    sub_image_views: {:?}", texture_data._sub_image_views);
         }
 
         device.destroy_sampler(texture_data._image_sampler, None);

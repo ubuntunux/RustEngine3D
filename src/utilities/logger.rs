@@ -3,7 +3,7 @@ use std::io::Write;
 use chrono::Local;
 use log::LevelFilter;
 
-const LOG_LEVEL: LevelFilter = LevelFilter::Warn;
+const LOG_LEVEL: LevelFilter = LevelFilter::Info;
 
 #[cfg(target_os = "android")]
 pub fn initialize_logger() {

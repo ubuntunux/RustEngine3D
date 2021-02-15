@@ -30,6 +30,7 @@ use crate::renderer::{ self, RendererData, CameraCreateInfo };
 use crate::renderer::font::FontManager;
 use crate::renderer::ui::UIManager;
 use crate::utilities::system::{self, RcRefCell, newRcRefCell};
+use crate::utilities::logger;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -228,6 +229,8 @@ impl ApplicationData {
 }
 
 pub fn run_application() {
+    logger::initialize_logger();
+
     log::info!("run_application");
 
     let app_name: &str = "RustEngine3D";
@@ -315,15 +318,14 @@ pub fn run_application() {
         }
 
         match event {
-            #[cfg(target_os = "android")]
             Event::Resumed => {
                 log::info!("Application was resumed");
+                #[cfg(target_os = "android")]
                 if false == initialize_done {
                     need_initialize = true;
                 }
             },
             // Destroy app on suspend for android target.
-            #[cfg(target_os = "android")]
             Event::Suspended => {
                 log::info!("Application was suspended");
                 #[cfg(target_os = "android")]
@@ -376,6 +378,8 @@ pub fn run_application() {
 
                     // update && render
                     if renderer_data.get_need_recreate_swapchain() {
+                        log::info!("<<begin recreate_swapchain>>");
+
                         // destroy
                         scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
                         ui_manager.destroy_ui_descriptor_sets();
@@ -388,6 +392,8 @@ pub fn run_application() {
                         ui_manager.create_ui_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
                         scene_manager_data.initialize_scene_graphics_data(&renderer_data);
                         renderer_data.set_need_recreate_swapchain(false);
+
+                        log::info!("<<end recreate_swapchain>>");
                     }
 
                     renderer_data.update_post_process_datas();
@@ -401,7 +407,7 @@ pub fn run_application() {
                 WindowEvent::CloseRequested => {
                 },
                 WindowEvent::Resized(size) => {
-                    log::debug!("Resized: {:?}", size);
+                    log::info!("WindowEvent::Resized: {:?}, initialize_done: {}", size, initialize_done);
                     if initialize_done {
                         let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                         let scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
@@ -409,7 +415,9 @@ pub fn run_application() {
                         application_data._window_size = (size.width, size.height);
                         scene_manager_data.get_main_camera().borrow_mut().set_aspect(size.width, size.height);
                         let swapchain_extent = renderer_data._swapchain_data._swapchain_extent;
-                        if swapchain_extent.width != size.width || swapchain_extent.height != size.height {
+                        let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
+                        log::info!("need_recreate_swapchain: {}, swapchain_extent: {:?}", need_recreate_swapchain, swapchain_extent);
+                        if need_recreate_swapchain {
                             renderer_data.set_need_recreate_swapchain(true);
                         }
                     }
@@ -472,7 +480,7 @@ pub fn run_application() {
             Event::RedrawEventsCleared => {
             },
             Event::LoopDestroyed => {
-                log::debug!("Application destroyed");
+                log::trace!("Application destroyed");
             }
             _ => (),
         }

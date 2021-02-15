@@ -590,7 +590,7 @@ impl ColladaAnimation {
                         }
                     },
                     ColladaSourceData::FloatArray(data) => {
-                        log::info!("ignore animation OUTPUT: {:?} {:?}", output._source, data);
+                        log::debug!("ignore animation OUTPUT: {:?} {:?}", output._source, data);
                     },
                     _ => {},
                 }
@@ -1058,7 +1058,7 @@ impl Collada {
                 }
 
                 if false == find_animation_node {
-                    log::info!("not found {} animation datas", bone_name);
+                    log::debug!("not found {} animation datas", bone_name);
                     let animation_node_data = AnimationNodeCreateInfo {
                         _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
                         _target: bone_name.clone(),

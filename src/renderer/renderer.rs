@@ -335,8 +335,14 @@ pub fn create_renderer_data(
 
 impl RendererData {
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
-    pub fn set_need_recreate_swapchain(&mut self, value: bool) { self._need_recreate_swapchain = value; }
-    pub fn reset_is_first_rendering(&mut self) { self._is_first_rendering = true; }
+    pub fn set_need_recreate_swapchain(&mut self, value: bool) {
+        log::info!("set_need_recreate_swapchain: {}", value);
+        self._need_recreate_swapchain = value;
+    }
+    pub fn reset_is_first_rendering(&mut self) {
+        log::info!("reset_is_first_rendering");
+        self._is_first_rendering = true;
+    }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties { &self._device_properties }
@@ -357,6 +363,7 @@ impl RendererData {
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self) {
+        log::info!("RendererData::prepare_framebuffer_and_descriptors");
         // Bloom
         self._renderer_data_bloom.initialize(
             &self._device,
@@ -452,6 +459,7 @@ impl RendererData {
     }
 
     pub fn destroy_framebuffer_and_descriptors(&mut self) {
+        log::info!("RendererData::destroy_framebuffer_and_descriptors");
         self._renderer_data_bloom.destroy(&self._device);
         self._renderer_data_taa.destroy(&self._device);
         self._renderer_data_ssao.destroy(&self._device);
@@ -508,6 +516,7 @@ impl RendererData {
     }
 
     pub fn create_render_targets(&mut self) {
+        log::info!("create_render_targets");
         let render_taget_create_infos = render_target::get_render_target_create_infos(self);
         for render_taget_create_info in render_taget_create_infos.iter() {
             let render_target_type: RenderTargetType = RenderTargetType::from_str(render_taget_create_info._texture_name.as_str()).unwrap();
@@ -545,6 +554,7 @@ impl RendererData {
     }
 
     pub fn destroy_render_targets(&mut self) {
+        log::info!("destroy_render_targets");
         for render_target_data in self._render_target_data_map.values() {
             texture::destroy_texture_data(self.get_device(), render_target_data);
         }
@@ -948,13 +958,13 @@ impl RendererData {
 
             let is_swapchain_suboptimal: VkResult<bool> = self._swapchain_interface.queue_present(self.get_present_queue(), &present_info);
             if let Err(present_error) = is_swapchain_suboptimal {
-                log::debug!("present_error: {:?}", present_error);
+                log::error!("present_error: {:?}", present_error);
             }
 
             // waiting
             match self._device.device_wait_idle() {
                 Err(e) => {
-                    log::debug!("device_wait_idle: {:?}", e);
+                    log::error!("device_wait_idle: {:?}", e);
                     return VkResult::Err(e)
                 },
                 _ => ()
@@ -1040,15 +1050,15 @@ impl RendererData {
                 vk::Fence::null()
             );
 
-            let (swapchain_index, is_swapchain_suboptimal) = if acquire_next_image_result.is_ok() {
+            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok() {
                 acquire_next_image_result.unwrap()
             } else {
-                (0, true)
+                (self._swapchain_index, true)
             };
 
             self._swapchain_index = swapchain_index;
 
-            let present_result: vk::Result = if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == is_swapchain_suboptimal {
+            let present_result: vk::Result = if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == failed_acquire_next_image {
                 let command_buffer = self._command_buffers[swapchain_index as usize];
                 let resources = self._resources.borrow();
                 let main_camera =  scene_manager.get_main_camera().borrow();
@@ -1235,14 +1245,19 @@ impl RendererData {
 
                 // End Render
                 self._is_first_rendering = false;
-                let present_result = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore);
-                match present_result {
+                let present_swapchain_result = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore);
+                match present_swapchain_result {
                     Ok(is_swapchain_suboptimal) => if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS },
                     Err(err) => err,
                 }
             } else {
+                log::error!("failed_acquire_next_image: {}, swapchain_index: {}", failed_acquire_next_image, swapchain_index);
                 vk::Result::SUBOPTIMAL_KHR
             };
+
+            if vk::Result::SUCCESS != present_result {
+                log::error!("present swapchain result: {:?}", present_result);
+            }
 
             if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
                 self.set_need_recreate_swapchain(true);

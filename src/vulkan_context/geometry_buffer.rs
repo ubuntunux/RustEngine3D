@@ -181,7 +181,7 @@ pub fn create_geometry_data(
     geometry_name: &String,
     geometry_create_info: &GeometryCreateInfo
 ) -> GeometryData {
-    log::debug!("create_geometry_data: {:?}", geometry_name);
+    log::trace!("create_geometry_data: {:?}", geometry_name);
 
     let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_datas.is_empty() {
         buffer::create_buffer_data_with_uploads(
@@ -222,7 +222,7 @@ pub fn create_geometry_data(
 }
 
 pub fn destroy_geometry_data(device: &Device, geometry_data: &GeometryData) {
-    log::debug!("destroy_geometry_data");
+    log::trace!("destroy_geometry_data");
     buffer::destroy_buffer_data(device, &geometry_data._vertex_buffer_data);
     buffer::destroy_buffer_data(device, &geometry_data._index_buffer_data);
 }

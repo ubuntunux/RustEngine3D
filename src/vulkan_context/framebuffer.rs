@@ -189,7 +189,7 @@ pub fn create_framebuffer_data(
                 }
             }).collect();
 
-        log::info!("create_framebuffer_data: {:?} {} {} {} {:?}",
+        log::debug!("create_framebuffer_data: {:?} {} {} {} {:?}",
                    framebuffer_name,
                    framebuffer_data_create_info._framebuffer_width,
                    framebuffer_data_create_info._framebuffer_height,
@@ -207,7 +207,7 @@ pub fn create_framebuffer_data(
 }
 
 pub fn destroy_framebuffer_data(device: &Device, framebuffer_data: &FramebufferData) {
-    log::info!("destroy_framebuffer_data: {:?} {:?}", framebuffer_data._framebuffer_name, framebuffer_data._framebuffers);
+    log::debug!("destroy_framebuffer_data: {:?} {:?}", framebuffer_data._framebuffer_name, framebuffer_data._framebuffers);
     unsafe {
         for framebuffer in framebuffer_data._framebuffers.iter() {
             device.destroy_framebuffer(*framebuffer, None);

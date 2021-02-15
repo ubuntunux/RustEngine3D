@@ -71,7 +71,7 @@ impl MeshData {
         mesh_data_create_info: MeshDataCreateInfo,
         geometry_datas: Vec<RcRefCell<GeometryData>>
     ) -> MeshData {
-        log::info!("create_mesh_data: {}", mesh_name);
+        log::debug!("create_mesh_data: {}", mesh_name);
         let mut mesh_data = MeshData {
             _name: mesh_name.clone(),
             _bound_box: mesh_data_create_info._bound_box,

@@ -124,7 +124,7 @@ impl RenderObjectData {
         render_object_name: &String,
         render_object_create_data: RenderObjectCreateInfo
     ) -> RenderObjectData {
-        log::info!("create_render_object_data: {}", render_object_name);
+        log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::new_transform_object_data();
         transform_object_data.set_position(&render_object_create_data._position);
         transform_object_data.set_rotation(&render_object_create_data._rotation);

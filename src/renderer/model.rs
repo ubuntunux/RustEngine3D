@@ -23,7 +23,7 @@ impl ModelData {
         mesh_data: RcRefCell<MeshData>,
         material_instance_datas: Vec<RcRefCell<MaterialInstanceData>>
     ) -> ModelData {
-        log::info!("new_model_data: {}", model_name);
+        log::debug!("new_model_data: {}", model_name);
         ModelData {
             _model_data_name: model_name.clone(),
             _mesh_data: mesh_data,

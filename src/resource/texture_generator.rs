@@ -19,7 +19,7 @@ fn generate_flat_color_image_rgba8(texture_source_directory: &PathBuf, file_path
     let mut image_file_path = texture_source_directory.clone();
     image_file_path.push(file_path);
     if false == image_file_path.is_file() {
-        log::info!("generate_flat_color_image_rgba8: {:?}", image_file_path);
+        log::debug!("generate_flat_color_image_rgba8: {:?}", image_file_path);
         let directory = image_file_path.parent().unwrap();
         if false == directory.is_dir() {
             fs::create_dir_all(directory).expect("Failed to create directories.");

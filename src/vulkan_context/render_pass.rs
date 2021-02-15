@@ -277,7 +277,7 @@ pub fn create_render_pass_data(
         }
         pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
-    log::debug!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
+    log::trace!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
         _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
@@ -369,13 +369,13 @@ pub fn create_render_pass(
     };
     unsafe {
         let render_pass = deivce.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
-        log::info!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
+        log::debug!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
         render_pass
     }
 }
 
 pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_pass_name: &String) {
-    log::info!("destroy_render_pass: {} {:?}", render_pass_name, render_pass);
+    log::debug!("destroy_render_pass: {} {:?}", render_pass_name, render_pass);
     unsafe {
         device.destroy_render_pass(render_pass, None);
     }
@@ -396,13 +396,13 @@ pub fn create_pipeline_layout(
     };
     unsafe {
         let pipeline_layout = device.create_pipeline_layout(&pipeline_create_info, None).expect("VkCreatePipelineLayout failed!!");
-        log::debug!("    create_pipeline_layout: {:?}", pipeline_layout);
+        log::trace!("    create_pipeline_layout: {:?}", pipeline_layout);
         pipeline_layout
     }
 }
 
 pub fn destroy_pipieline_layout(device: &Device, pipeline_layout: vk::PipelineLayout) {
-    log::debug!("    destroy_pipieline_layout: {:?}", pipeline_layout);
+    log::trace!("    destroy_pipieline_layout: {:?}", pipeline_layout);
     unsafe {
         device.destroy_pipeline_layout(pipeline_layout, None);
     }
@@ -549,10 +549,10 @@ pub fn create_graphics_pipeline_data(
             None
         ).expect("vkCreateGraphicsPipelines failed!");
 
-        log::debug!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
-        log::debug!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::debug!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
-        log::debug!("    fragmentShader: {:#X} {:?}", fragment_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_fragment_shader_file);
+        log::trace!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
+        log::trace!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::trace!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
+        log::trace!("    fragmentShader: {:#X} {:?}", fragment_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_fragment_shader_file);
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
@@ -601,9 +601,9 @@ pub fn create_compute_pipeline_data(
             None
         ).expect("vkCreateComputePipelines failed!");
 
-        log::debug!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, compute_pipelines);
-        log::debug!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::debug!("    computeShader: {:#X} {:?}", compute_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
+        log::trace!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, compute_pipelines);
+        log::trace!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::trace!("    computeShader: {:#X} {:?}", compute_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
@@ -619,7 +619,7 @@ pub fn create_compute_pipeline_data(
 }
 
 pub fn destroy_pipeline_data(device: &Device, pipeline_data: &PipelineData) {
-    log::info!("    destroy_pipeline_data: {}, pipeline: {:?}, pipeline_layout: {:?}", pipeline_data._pipeline_data_name,pipeline_data._pipeline, pipeline_data._pipeline_layout);
+    log::debug!("    destroy_pipeline_data: {}, pipeline: {:?}, pipeline_layout: {:?}", pipeline_data._pipeline_data_name,pipeline_data._pipeline, pipeline_data._pipeline_layout);
     unsafe {
         device.destroy_pipeline(pipeline_data._pipeline, None);
         device.destroy_pipeline_layout(pipeline_data._pipeline_layout, None);

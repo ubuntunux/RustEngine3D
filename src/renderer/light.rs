@@ -49,7 +49,7 @@ pub struct DirectionalLightData {
 
 impl DirectionalLightData {
     pub fn create_light_data(light_name: &String, light_create_info: &DirectionalLightCreateInfo) -> DirectionalLightData {
-        log::info!("create_light_data: {}", light_name);
+        log::debug!("create_light_data: {}", light_name);
         let mut light_data = DirectionalLightData {
             _light_name: light_name.clone(),
             _light_constants: light_create_info._light_constants.clone(),

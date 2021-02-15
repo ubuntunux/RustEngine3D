@@ -105,7 +105,7 @@ pub fn create_descriptor_pool(
         };
         unsafe {
             let descriptor_pool = device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
-            log::debug!("    CreateDescriptorPool : {:?}", descriptor_pool);
+            log::trace!("    CreateDescriptorPool : {:?}", descriptor_pool);
             return descriptor_pool;
         }
     }
@@ -113,7 +113,7 @@ pub fn create_descriptor_pool(
 }
 
 pub fn destroy_descriptor_pool(device: &Device, descriptor_pool: vk::DescriptorPool) {
-    log::debug!("    DestroyDescriptorPool : {:?}", descriptor_pool);
+    log::trace!("    DestroyDescriptorPool : {:?}", descriptor_pool);
     unsafe {
         device.destroy_descriptor_pool(descriptor_pool, None);
     }
@@ -130,13 +130,13 @@ pub fn create_descriptor_set_layout(
     };
     unsafe {
         let descriptor_set_layout = device.create_descriptor_set_layout(&layout_create_info, None).expect("vkCreateDescriptorSetLayout failed!");
-        log::debug!("    CreateDescriptorSetLayout: {:?}", descriptor_set_layout);
+        log::trace!("    CreateDescriptorSetLayout: {:?}", descriptor_set_layout);
         descriptor_set_layout
     }
 }
 
 pub fn destroy_descriptor_set_layout(device: &Device, descriptor_set_layout: vk::DescriptorSetLayout) {
-    log::debug!("    DestroyDescriptorSetLayout: {:?}", descriptor_set_layout);
+    log::trace!("    DestroyDescriptorSetLayout: {:?}", descriptor_set_layout);
     unsafe {
         device.destroy_descriptor_set_layout(descriptor_set_layout, None);
     }
@@ -147,7 +147,7 @@ pub fn create_descriptor_data(
     descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
     max_descriptor_sets_count: u32
 ) -> DescriptorData {
-    log::debug!("createDescriptorData");
+    log::trace!("createDescriptorData");
     let descriptor_layout_bindings = descriptor_data_create_infos
         .iter()
         .map(|descriptor_data_create_info| {
@@ -182,7 +182,7 @@ pub fn create_descriptor_data(
 }
 
 pub fn destroy_descriptor_data(device: &Device, descriptor_data: &DescriptorData) {
-    log::debug!("destroyDescriptorData");
+    log::trace!("destroyDescriptorData");
     unsafe {
         device.destroy_descriptor_set_layout(descriptor_data._descriptor_set_layout, None);
         device.destroy_descriptor_pool(descriptor_data._descriptor_pool, None);
@@ -205,7 +205,7 @@ pub fn create_descriptor_sets(
         };
         unsafe {
             let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("");
-            log::debug!("    CreateDescriptorSet: {:?}", descriptor_sets);
+            log::trace!("    CreateDescriptorSet: {:?}", descriptor_sets);
             return descriptor_sets;
         }
     }
@@ -217,7 +217,7 @@ pub fn destroy_descriptor_sets(
     descriptor_pool: vk::DescriptorPool,
     descriptor_sets: &SwapchainArray<vk::DescriptorSet>,
 ) {
-    log::debug!("    destroyDescriptorSet: {:?}", descriptor_sets);
+    log::trace!("    destroyDescriptorSet: {:?}", descriptor_sets);
     // need VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT flag for vkFreeDescriptorSets
     unsafe {
         device.free_descriptor_sets(descriptor_pool, &descriptor_sets);

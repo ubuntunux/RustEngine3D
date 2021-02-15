@@ -94,7 +94,7 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
                     panic!("Compile error: {}", msg);
                 }
                 if msg.trim() != shader_file_path.to_str().unwrap() {
-                    log::info!("{}", msg);
+                    log::error!("{}", msg);
                 }
             },
             Err(e) => panic!("failed to execute glslangValidator. {:?}", e),
@@ -130,7 +130,7 @@ pub fn create_shader_stage_create_info(
     };
     unsafe {
         let shader_module = device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
-        log::debug!("    create_shader_module: {:#X} {:?}: {:?}", shader_module.as_raw(), stage_flag, shader_filename);
+        log::trace!("    create_shader_module: {:#X} {:?}: {:?}", shader_module.as_raw(), stage_flag, shader_filename);
         let main: *const c_char = "main\0".as_ptr() as *const c_char;
         vk::PipelineShaderStageCreateInfo {
             stage: stage_flag,
@@ -143,7 +143,7 @@ pub fn create_shader_stage_create_info(
 
 pub fn destroy_shader_stage_create_info(device: &Device, shader_stage_create_info: &vk::PipelineShaderStageCreateInfo) {
     if 0 != shader_stage_create_info.module.as_raw() {
-        log::info!("    destroy_shader_module : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
+        log::debug!("    destroy_shader_module : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
         unsafe {
             device.destroy_shader_module(shader_stage_create_info.module, None);
         }
