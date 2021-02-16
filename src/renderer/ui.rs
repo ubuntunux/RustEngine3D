@@ -727,8 +727,8 @@ impl UIManager {
         self._root._ui_component.set_pos(50.0, 50.0);
         self._root._ui_component.set_size(200.0, 100.0);
         self._root._ui_component.set_color(get_color32(255, 255, 0, 255));
-        self._root._ui_component.set_round(5.0);
-        self._root._ui_component.set_border(2.0);
+        self._root._ui_component.set_round(10.0);
+        self._root._ui_component.set_border(5.0);
 
         self._root._ui_component.update_layout(changed_layout, recursive);
         self._root._ui_component.update(delta_time, touch_evemt);

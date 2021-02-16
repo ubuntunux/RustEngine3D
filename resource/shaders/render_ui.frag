@@ -27,7 +27,7 @@ void main()
         if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
         {
             vec2 round_offset = dist_from_outer - vec2(ui_round);
-            if((ui_round * ui_round - 0.707) < dot(round_offset, round_offset))
+            if((ui_round * ui_round) < dot(round_offset, round_offset))
             {
                 round_opacity = 0.0;
             }
@@ -36,15 +36,15 @@ void main()
 
     if(0.0 != ui_instance_data._ui_border)
     {
-        float ui_round_with_border = ui_round + ui_instance_data._ui_border;
+        float inner_ui_round = ui_round - ui_instance_data._ui_border;
         if(dist_from_outer.x < ui_instance_data._ui_border || dist_from_outer.y < ui_instance_data._ui_border)
         {
             color = vs_output._border_color;
         }
-        else if(dist_from_outer.x < ui_round_with_border && dist_from_outer.y < ui_round_with_border)
+        else if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
         {
-            vec2 round_offset = dist_from_outer - vec2(ui_round_with_border);
-            if((ui_round * ui_round + 0.707) < dot(round_offset, round_offset))
+            vec2 round_offset = dist_from_outer - vec2(ui_round);
+            if((inner_ui_round * inner_ui_round) < dot(round_offset, round_offset))
             {
                 color = vs_output._border_color;
             }
