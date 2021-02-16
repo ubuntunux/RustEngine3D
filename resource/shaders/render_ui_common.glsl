@@ -20,8 +20,9 @@ struct UIInstanceData {
     uint _ui_border_color;
 };
 
-layout(binding = 0) uniform sampler2D texture_normal;
-layout(binding = 1) buffer UIInstanceDataBuffer
+layout(binding = 0) uniform sampler2D texture_font;
+layout(binding = 1) uniform sampler2D texture_normal;
+layout(binding = 2) buffer UIInstanceDataBuffer
 {
     UIInstanceData ui_instance_data[MAX_UI_INSTANCE_COUNT];
 };

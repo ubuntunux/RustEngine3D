@@ -1,2 +1,7 @@
-{"material_name": "render_ui",
- "material_parameters": {"texture_normal": "common/default"}}
+{
+    "material_name": "render_ui",
+    "material_parameters": {
+        "texture_font": "fonts/NanumBarunGothic_Basic_Latin",
+        "texture_normal": "common/default"
+    }
+}

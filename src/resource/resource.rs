@@ -45,6 +45,7 @@ const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
 const FONT_SOURCE_FILE_PATH: &str = "resource/externals/fonts";
 const FONT_FILE_PATH: &str = "resource/fonts";
+const FONT_TEXTURE_FILE_PATH: &str = "resource/externals/textures/fonts";
 const MATERIAL_FILE_PATH: &str = "resource/materials";
 const MATERIAL_INSTANCE_FILE_PATH: &str = "resource/material_instances";
 const MESH_SOURCE_FILE_PATH: &str = "resource/externals/meshes";
@@ -69,6 +70,7 @@ const EXT_TEXTURE_2D_ARRAY: &str = "2darray";
 const EXT_TEXTURE_3D: &str = "3d";
 const EXT_TEXTURE: [&str; 1] = ["texture"];
 
+const DEFAULT_FONT_NAME: &str = "NanumBarunGothic_Basic_Latin";
 const DEFAULT_MESH_NAME: &str = "quad";
 const DEFAULT_MODEL_NAME: &str = "quad";
 const DEFAULT_TEXTURE_NAME: &str = "common/default";
@@ -180,8 +182,8 @@ impl Resources {
     pub fn initialize_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("initialize_resources");
         self.load_resource_filenames();
-        self.load_font_datas(renderer_data);
         self.load_texture_datas(renderer_data);
+        self.load_font_datas(renderer_data);
         self.load_render_pass_datas(renderer_data);
         self.load_framebuffer_datas(renderer_data);
         self.load_material_datas(renderer_data);
@@ -198,8 +200,8 @@ impl Resources {
         self.unload_material_datas(renderer_data);
         self.unload_framebuffer_datas(renderer_data);
         self.unload_render_pass_datas(renderer_data);
-        self.unload_texture_datas(renderer_data);
         self.unload_font_datas(renderer_data);
+        self.unload_texture_datas(renderer_data);
         self.unload_descriptor_datas(renderer_data);
     }
 
@@ -273,6 +275,7 @@ impl Resources {
     pub fn get_font_data_create_info(
         &self,
         font_directory: &PathBuf,
+        font_texture_directory: &PathBuf,
         font_name: &String,
         font_source_file: &PathBuf,
         range_min: u32,
@@ -281,12 +284,13 @@ impl Resources {
         let mut font_file_path: PathBuf = font_directory.clone();
         font_file_path.push(font_name);
         font_file_path.set_extension(EXT_FONT);
+        fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
 
-        let mut font_texture_file_path: PathBuf = font_directory.clone();
+        let mut font_texture_file_path: PathBuf = font_texture_directory.clone();
         font_texture_file_path.push(&font_name);
         font_texture_file_path.set_extension("png");
+        fs::create_dir_all(font_texture_file_path.parent().unwrap()).expect("Failed to create directories.");
 
-        fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
         let mut write_file = File::create(&font_file_path).expect("Failed to create file");
         let font_data_create_info = font_loader::get_font_data_create_info(
             &font_source_file,
@@ -308,6 +312,7 @@ impl Resources {
         //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
 
         let font_directory = PathBuf::from(FONT_FILE_PATH);
+        let font_texture_directory = PathBuf::from(FONT_TEXTURE_FILE_PATH);
         let font_files = self.collect_resources(font_directory.as_path(), &[EXT_FONT]);
         let mut font_file_map: HashMap<String, PathBuf> = HashMap::new();
         for font_file in font_files.iter() {
@@ -319,8 +324,10 @@ impl Resources {
         let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &FONT_SOURCE_EXTS);
         for font_source_file in font_source_files {
             for (unicode_block_key, (range_min, range_max))  in unicode_blocks.iter() {
-                let font_name = format!("{}_{}", get_unique_resource_name(&self._font_data_map, &font_source_directory, &font_source_file), unicode_block_key);
-                let font_data_create_info = match font_file_map.get(&font_name) {
+                let font_name = get_unique_resource_name(&self._font_data_map, &font_source_directory, &font_source_file);
+                let font_data_name = format!("{}_{}", font_name, unicode_block_key);
+                let font_texture_name = format!("fonts/{}_{}", font_name, unicode_block_key);
+                let font_data_create_info = match font_file_map.get(&font_data_name) {
                     Some(font_file) => {
                         let loaded_contents = system::load(font_file);
                         let font_data_create_info: FontDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
@@ -328,33 +335,39 @@ impl Resources {
                         let check_font_texture_file_exists = false;
                         #[cfg(not(target_os = "android"))]
                         let check_font_texture_file_exists = true;
-
                         if check_font_texture_file_exists && false == font_data_create_info._texture_file_path.is_file() {
-                            self.get_font_data_create_info(&font_directory, &font_name, &font_source_file, *range_min, *range_max)
+                            self.get_font_data_create_info(&font_directory, &font_texture_directory, &font_data_name, &font_source_file, *range_min, *range_max)
                         } else {
                             font_data_create_info
                         }
                     },
                     _ => {
-                        self.get_font_data_create_info(&font_directory, &font_name, &font_source_file, *range_min, *range_max)
+                        self.get_font_data_create_info(&font_directory, &font_texture_directory, &font_data_name, &font_source_file, *range_min, *range_max)
                     },
                 };
 
-                let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType = Resources::load_image_data(&font_data_create_info._texture_file_path);
-                let texture_create_info = TextureCreateInfo {
-                    _texture_name: font_name.clone(),
-                    _texture_width: image_width,
-                    _texture_height: image_height,
-                    _texture_layers: image_layers,
-                    _texture_format: image_format,
-                    _texture_view_type: vk::ImageViewType::TYPE_2D,
-                    _texture_initial_datas: image_data,
-                    _enable_mipmap: false,
-                    _enable_anisotropy: false,
-                    ..Default::default()
+                if false == self.has_texture_data(&font_texture_name) {
+                    // regist font texture
+                    let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType = Resources::load_image_data(&font_data_create_info._texture_file_path);
+                    assert_ne!(vk::Format::UNDEFINED, image_format);
+                    let texture_create_info = TextureCreateInfo {
+                        _texture_name: font_texture_name.clone(),
+                        _texture_width: image_width,
+                        _texture_height: image_height,
+                        _texture_layers: image_layers,
+                        _texture_format: image_format,
+                        _texture_view_type: vk::ImageViewType::TYPE_2D,
+                        _texture_initial_datas: image_data,
+                        _enable_mipmap: false,
+                        _enable_anisotropy: false,
+                        ..Default::default()
+                    };
+                    let texture_data = newRcRefCell(renderer_data.create_texture(&texture_create_info));
+                    self.regist_texture_data(font_texture_name.clone(), texture_data);
                 };
-                assert_ne!(vk::Format::UNDEFINED, image_format);
-                let texture_data = renderer_data.create_texture(&texture_create_info);
+                let texture_data = self.get_texture_data(&font_texture_name);
+
+                // regist font data
                 let font_data = newRcRefCell(FontData {
                     _font_data_name: font_data_create_info._font_data_name.clone(),
                     _range_min: font_data_create_info._range_min,
@@ -362,26 +375,26 @@ impl Resources {
                     _text_count: font_data_create_info._text_count,
                     _count_of_side: font_data_create_info._count_of_side,
                     _font_size: Vector2::new(
-                        (texture_data._image_width / font_data_create_info._count_of_side) as f32,
-                        (texture_data._image_height / font_data_create_info._count_of_side) as f32
+                        (texture_data.borrow()._image_width / font_data_create_info._count_of_side) as f32,
+                        (texture_data.borrow()._image_height / font_data_create_info._count_of_side) as f32
                     ),
-                    _texture: newRcRefCell(texture_data),
+                    _texture: texture_data.clone(),
                 });
-
-                self._font_data_map.insert(font_name, font_data);
+                self._font_data_map.insert(font_data_name, font_data);
             }
         }
     }
 
-    pub fn unload_font_datas(&mut self, renderer_data: &RendererData) {
-        for font_data in self._font_data_map.values() {
-            renderer_data.destroy_texture(&font_data.borrow()._texture.borrow());
-        }
+    pub fn unload_font_datas(&mut self, _renderer_data: &RendererData) {
         self._font_data_map.clear();
     }
 
     pub fn has_font_data(&self, resource_name: &str) -> bool {
         self._font_data_map.contains_key(resource_name)
+    }
+
+    pub fn get_default_font_data(&self) -> &RcRefCell<FontData> {
+        get_resource_data_must(&self._font_data_map, DEFAULT_FONT_NAME)
     }
 
     pub fn get_font_data(&self, resource_name: &str) -> &RcRefCell<FontData> {

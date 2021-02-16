@@ -3,14 +3,17 @@ use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
 
 use crate::resource::Resources;
+use crate::renderer::font::FontData;
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
-use crate::utilities::system::{ RcRefCell };
+use crate::renderer::utility;
+use crate::utilities::system::{ self, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
+use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
-use crate::vulkan_context::vulkan_context::{ get_color32 };
+use crate::vulkan_context::vulkan_context::{ get_color32, SwapchainArray };
 
 // MAX_UI_INSTANCE_COUNT must match with render_ui_common.glsl
 pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
@@ -139,6 +142,8 @@ pub struct UIManager {
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
+    pub _font_data: RcRefCell<FontData>,
+    pub _render_ui_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
     pub _render_ui_instance_datas: [UIInstanceData; MAX_UI_INSTANCE_COUNT as usize],
     pub _render_ui_count: u32,
 }
@@ -618,19 +623,32 @@ impl UIManager {
             _ui_mesh_vertex_buffer: BufferData::default(),
             _ui_mesh_index_buffer: BufferData::default(),
             _ui_mesh_index_count: 0,
+            _font_data: system::newRcRefCell(FontData::default()),
+            _render_ui_descriptor_sets: Vec::new(),
             _render_ui_instance_datas: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
             _render_ui_count: 0,
         }
     }
 
-    pub fn initialize_ui_manager(&mut self, renderer_data: &RendererData, _resources: &Resources) {
+    pub fn initialize_ui_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        let font_data = resources.get_default_font_data();
+        self._font_data = font_data.clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
     }
 
-    pub fn create_ui_descriptor_sets(&mut self, _renderer_data: &RendererData, _resources: &Resources) {
+    pub fn create_ui_descriptor_sets(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        let material_instance = resources.get_material_instance_data("render_ui").borrow();
+        let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(self._font_data.borrow()._texture.borrow().get_default_image_info().clone());
+        self._render_ui_descriptor_sets = utility::create_descriptor_sets(
+            renderer_data.get_device(),
+            render_font_pipeline_binding_data,
+            &[ (0, utility::create_swapchain_array(font_texture_image_info.clone())) ]
+        );
     }
 
     pub fn destroy_ui_descriptor_sets(&mut self) {
+        self._render_ui_descriptor_sets.clear();
     }
 
     pub fn destroy_ui_manager(&mut self, device: &Device) {
