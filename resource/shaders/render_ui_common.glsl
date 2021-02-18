@@ -1,7 +1,9 @@
-// MAX_UI_INSTANCE_COUNT must match with font.rs
-const uint MAX_UI_INSTANCE_COUNT = 1024;
-
 #define INSTANCE_ID_LOCATION 3
+
+// must match with ui.rs
+const uint MAX_UI_INSTANCE_COUNT = 1024;
+const uint UI_RENDER_FLAG_NONE = 0;
+const uint UI_RENDER_FLAG_RENDER_TEXT = 1 << 0;
 
 struct VERTEX_OUTPUT
 {
@@ -18,6 +20,10 @@ struct UIInstanceData {
     float _ui_round;
     float _ui_border;
     uint _ui_border_color;
+    uint _ui_render_flags;
+    uint _reserved0;
+    uint _reserved1;
+    uint _reserved2;
 };
 
 layout(binding = 0) uniform sampler2D texture_font;

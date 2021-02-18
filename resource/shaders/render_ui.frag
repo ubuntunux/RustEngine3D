@@ -19,7 +19,6 @@ void main()
     const vec2 half_size = ui_instance_data._ui_size * 0.5;
     const vec2 offset_from_center = gl_FragCoord.xy - ui_instance_data._ui_pos;
     const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
-    float round_opacity = 1.0;
     vec4 color = vs_output._color;
 
     if(0.0 != ui_round)
@@ -29,28 +28,35 @@ void main()
             vec2 round_offset = dist_from_outer - vec2(ui_round);
             if((ui_round * ui_round) < dot(round_offset, round_offset))
             {
-                round_opacity = 0.0;
+                discard;
             }
         }
     }
 
-    if(0.0 != ui_instance_data._ui_border)
+    if(check_flag_any(UI_RENDER_FLAG_RENDER_TEXT, ui_instance_data._ui_render_flags))
     {
-        float inner_ui_round = ui_round - ui_instance_data._ui_border;
-        if(dist_from_outer.x < ui_instance_data._ui_border || dist_from_outer.y < ui_instance_data._ui_border)
+        vec4 font_texture_color = texture(texture_font, vs_output._texcoord);
+        font_texture_color.xyz = pow(font_texture_color.xyz, vec3(2.2));
+        color *= font_texture_color;
+    }
+    else
+    {
+        if(0.0 != ui_instance_data._ui_border)
         {
-            color = vs_output._border_color;
-        }
-        else if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
-        {
-            vec2 round_offset = dist_from_outer - vec2(ui_round);
-            if((inner_ui_round * inner_ui_round) < dot(round_offset, round_offset))
+            float inner_ui_round = ui_round - ui_instance_data._ui_border;
+            if(dist_from_outer.x < ui_instance_data._ui_border || dist_from_outer.y < ui_instance_data._ui_border)
             {
                 color = vs_output._border_color;
             }
+            else if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
+            {
+                vec2 round_offset = dist_from_outer - vec2(ui_round);
+                if((inner_ui_round * inner_ui_round) < dot(round_offset, round_offset))
+                {
+                    color = vs_output._border_color;
+                }
+            }
         }
     }
-
-    color.w *= round_opacity;
     fs_output = color;
 }

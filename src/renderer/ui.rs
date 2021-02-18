@@ -17,6 +17,9 @@ use crate::vulkan_context::vulkan_context::{ get_color32, SwapchainArray };
 
 // MAX_UI_INSTANCE_COUNT must match with render_ui_common.glsl
 pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
+pub const UI_RENDER_FLAG_NONE: u32 = 0;
+pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
+
 pub const DEFAILT_HORIZONTAL_ALIGN: HorizontalAlign = HorizontalAlign::LEFT;
 pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 
@@ -42,6 +45,10 @@ pub struct UIInstanceData {
     pub _ui_round: f32,
     pub _ui_border: f32,
     pub _ui_border_color: u32,
+    pub _ui_render_flags: u32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+    pub _reserved2: u32,
 }
 
 impl Default for UIInstanceData {
@@ -54,6 +61,10 @@ impl Default for UIInstanceData {
             _ui_round: 0.0,
             _ui_border: 0.0,
             _ui_border_color: 0x00000000,
+            _ui_render_flags: UI_RENDER_FLAG_NONE,
+            _reserved0: 0,
+            _reserved1: 0,
+            _reserved2: 0,
         }
     }
 }
@@ -125,6 +136,9 @@ pub struct UIComponent {
     pub _round: f32,
     pub _border: f32,
     pub _border_color: u32,
+    pub _text: String,
+    pub _changed_text: bool,
+    pub _render_text_count: u32,
     pub _texture: Option<RcRefCell<TextureData>>,
     pub _callback_touch_down: Option<Box<fn()>>,
     pub _callback_touch_move: Option<Box<fn()>>,
@@ -185,6 +199,9 @@ impl UIComponent {
             _touched_offset: Vector2::zeros(),
             _color: get_color32(255, 255, 255, 255),
             _pressed_color: get_color32(255, 255, 255, 255),
+            _text: String::new(),
+            _changed_text: false,
+            _render_text_count: 0,
             _texture: None,
             _callback_touch_down: None,
             _callback_touch_move: None,
@@ -442,32 +459,106 @@ impl UIComponent {
         }
     }
 
-    pub fn collect_ui_render_data(&mut self, render_ui_count: &mut u32, render_ui_instance_datas: &mut [UIInstanceData]) {
+    pub fn set_text(&mut self, text: String) {
+        if text != self._text {
+            self._text = text;
+            self._changed_text = true;
+            self._changed_layout = true;
+        }
+    }
+
+    pub fn collect_ui_font_render_data(&mut self, render_ui_count: u32, render_ui_instance_datas: &mut [UIInstanceData], font_data: &FontData) {
+        let mut render_ui_index = render_ui_count;
+
+        let count_of_side = font_data._count_of_side;
+        let inv_count_of_side = 1.0 / font_data._count_of_side as f32;
+        let font_size = &font_data._font_size;
+        let initial_column: i32 = 0;
+        let initial_row: i32 = 0;
+        let mut column: i32 = initial_column;
+        let mut row: i32 = initial_row;
+        let pos = self._transform.get_position();
+        self._render_text_count = 0;
+
+        for c in self._text.as_bytes().iter() {
+            let ch = (*c) as char;
+            if '\n' == ch {
+                column = initial_column;
+                row += 1;
+            } else if '\t' == ch {
+                column += 4;
+            } else if ' ' == ch {
+                column += 1;
+            } else {
+                let index: u32 = 0i32.max((*c) as i32 - font_data._range_min as i32) as u32;
+                let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
+                let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
+                let mut render_pos = Vector2::new(pos.x + column as f32 * font_size.x, pos.y + row as f32 * font_size.y);
+                render_pos = render_pos - (&self._size - font_size) * 0.5;
+
+                let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+                render_ui_instance_data._ui_texcoord = Vector4::new(
+                    texcoord_x,
+                    texcoord_y,
+                    texcoord_x + inv_count_of_side,
+                    texcoord_y + inv_count_of_side);
+                render_ui_instance_data._ui_pos = render_pos;
+                render_ui_instance_data._ui_size.x = font_size.x;
+                render_ui_instance_data._ui_size.y = font_size.y;
+                render_ui_instance_data._ui_color = get_color32(0, 0, 0, 255);
+                render_ui_instance_data._ui_round = 0.0;
+                render_ui_instance_data._ui_border = 0.0;
+                render_ui_instance_data._ui_border_color = 0;
+                render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
+
+                self._render_text_count += 1;
+                render_ui_index += 1;
+                column += 1;
+            }
+        }
+    }
+
+    pub fn collect_ui_render_data(&mut self, render_ui_count: &mut u32, render_ui_instance_datas: &mut [UIInstanceData], font_data: &FontData) {
         if self._visible {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 
-            if self._updated_layout || render_ui_index != self._render_ui_index {
+            let need_to_collect_render_data = self._updated_layout || render_ui_index != self._render_ui_index;
+
+            // collect ui render data
+            if need_to_collect_render_data {
                 let pos = self._transform.get_position();
                 let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
-                render_ui_instance_data._ui_texcoord = self._texcoord.into();
                 render_ui_instance_data._ui_pos.x = pos.x;
                 render_ui_instance_data._ui_pos.y = pos.y;
-                render_ui_instance_data._ui_size.x = self._size.x;
-                render_ui_instance_data._ui_size.y = self._size.y;
+                render_ui_instance_data._ui_size = self._size.into();
                 render_ui_instance_data._ui_color = self._color;
                 render_ui_instance_data._ui_round = self._round;
                 render_ui_instance_data._ui_border = self._border;
                 render_ui_instance_data._ui_border_color = self._border_color;
-
+                render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
+                if self._texture.is_some() {
+                    render_ui_instance_data._ui_texcoord = self._texcoord.into();
+                }
                 self._render_ui_index = render_ui_index;
                 self._updated_layout = false;
             }
+
+            // collect font render data
+            if need_to_collect_render_data || self._changed_text {
+                if self._text.is_empty() {
+                    self._render_text_count = 0;
+                } else {
+                    self.collect_ui_font_render_data(*render_ui_count, render_ui_instance_datas, font_data);
+                }
+                self._changed_text = false;
+            }
+            *render_ui_count += self._render_text_count;
         }
 
         for ui_component in self._children.iter() {
             unsafe {
-                ui_component.as_mut().unwrap().collect_ui_render_data(render_ui_count, render_ui_instance_datas);
+                ui_component.as_mut().unwrap().collect_ui_render_data(render_ui_count, render_ui_instance_datas, font_data);
             }
         }
     }
@@ -690,8 +781,9 @@ impl UIManager {
     }
 
     pub fn collect_ui_render_data(&mut self) {
+        let font_data = self._font_data.borrow();
         let mut render_ui_count: u32 = 0;
-        self._root._ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas);
+        self._root._ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas, &font_data);
         self._render_ui_count = render_ui_count;
     }
 
@@ -747,6 +839,7 @@ impl UIManager {
         self._root._ui_component.set_color(get_color32(255, 255, 0, 255));
         self._root._ui_component.set_round(10.0);
         self._root._ui_component.set_border(5.0);
+        self._root._ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
 
         self._root._ui_component.update_layout(changed_layout, recursive);
         self._root._ui_component.update(delta_time, touch_evemt);

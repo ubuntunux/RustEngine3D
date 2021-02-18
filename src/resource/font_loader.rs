@@ -53,7 +53,6 @@ pub fn get_font_data_create_info(
                     glyph.draw(|px, py, v| {
                         let px = px + bounding_box.min.x as u32 + x * glyphs_width;
                         let py = py + bounding_box.min.y as u32 + y * glyphs_height;
-                        let v = v * v * (3.0 - 2.0 * v);
                         image.put_pixel(px, py, Rgba([colour.0, colour.1, colour.2, (v * 255.0) as u8]))
                     });
                 }

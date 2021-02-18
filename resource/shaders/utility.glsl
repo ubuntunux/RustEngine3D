@@ -105,6 +105,8 @@ float Filter(in float x, in int filterType, in float filterRadius, in bool resca
     return 1.0f;
 }
 
+bool check_flag_any(uint a, uint b) { return 0 != (a & b); }
+
 float saturate(float value) { return clamp(value, 0.0, 1.0); }
 vec2 saturate(vec2 value) { return clamp(value, 0.0, 1.0); }
 vec3 saturate(vec3 value) { return clamp(value, 0.0, 1.0); }
@@ -120,7 +122,7 @@ vec4 uint_color_to_float_color(uint color) {
     const uint gmask = uint(255 << 8);
     const uint bmask = uint(255 << 16);
     const uint amask = uint(255 << 24);
-    vec4 fColor = vec4(color & rmask, color & gmask, color & bmask, color & amask) / 255.0;
+    vec4 fColor = saturate(vec4(color & rmask, color & gmask, color & bmask, color & amask) / 255.0);
     fColor.xyz = pow(fColor.xyz, vec3(2.2));
     return fColor;
 }

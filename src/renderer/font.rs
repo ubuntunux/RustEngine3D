@@ -236,7 +236,7 @@ impl TextRenderData {
                 column = self._initial_column;
                 row -= 1;
             } else if '\t' == ch {
-                column += 1;
+                column += 4;
             } else if ' ' == ch {
                 column += 1;
             } else {

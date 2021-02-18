@@ -387,7 +387,7 @@ pub fn run_application() {
                     let delta_time = application_data._time_data._delta_time;
                     let elapsed_frame = application_data._time_data._elapsed_frame;
 
-                    font_manager.log(format!("{:.2}fps / {:.3}ms", application_data._time_data._average_fps, application_data._time_data._average_frame_time));
+                    font_manager.log(format!("{:.2}fps / {:.3}ms\n\tTest", application_data._time_data._average_fps, application_data._time_data._average_frame_time));
 
                     if renderer_data.get_need_recreate_swapchain() {
                         #[cfg(target_os = "android")]
