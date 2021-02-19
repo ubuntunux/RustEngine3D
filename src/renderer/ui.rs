@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
@@ -8,7 +9,7 @@ use crate::renderer::renderer::{ RendererData };
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::renderer::utility;
-use crate::utilities::system::{ self, RcRefCell };
+use crate::utilities::system::{self, RcRefCell, newRcRefCell};
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
@@ -78,6 +79,11 @@ pub struct PushConstant_RenderUI {
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum UIWidgetTypes {
+    Default
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum HorizontalAlign {
     LEFT,
     CENTER,
@@ -131,6 +137,12 @@ pub struct UIComponent {
     pub _dragable: bool,
     pub _touchable: bool,
     pub _touched_offset: Vector2<f32>,
+    pub _scroll_x: bool,
+    pub _scroll_y: bool,
+    pub _expandable_x: bool,
+    pub _expandable_y: bool,
+    pub _resizable_x: bool,
+    pub _resizable_y: bool,
     pub _color: u32,
     pub _pressed_color: u32,
     pub _round: f32,
@@ -146,13 +158,18 @@ pub struct UIComponent {
 }
 
 pub struct WidgetDefault {
+    pub _ui_manager: *mut UIManager,
+    pub _id: usize,
+    pub _ui_widget_type: UIWidgetTypes,
     pub _ui_component: UIComponent,
     pub _parent: Option<*mut dyn Widget>,
     pub _widgets: Vec<*mut dyn Widget>,
 }
 
 pub struct UIManager {
-    pub _root: WidgetDefault,
+    pub _root: *mut dyn Widget,
+    pub _id_generator: usize,
+    pub _ui_widgets: HashMap<usize, RcRefCell<dyn Widget>>,
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
@@ -162,7 +179,9 @@ pub struct UIManager {
     pub _render_ui_count: u32,
 }
 
+//////////////////////////////////////////
 // interfaces
+/////////////////////////////////////////
 
 impl UIComponent {
     pub fn create_ui_component() -> UIComponent {
@@ -197,6 +216,12 @@ impl UIComponent {
             _dragable: false,
             _touchable: false,
             _touched_offset: Vector2::zeros(),
+            _scroll_x: false,
+            _scroll_y: false,
+            _expandable_x: true,
+            _expandable_y: true,
+            _resizable_x: false,
+            _resizable_y: false,
             _color: get_color32(255, 255, 255, 255),
             _pressed_color: get_color32(255, 255, 255, 255),
             _text: String::new(),
@@ -584,9 +609,7 @@ impl UIComponent {
                     VerticalAlign::CENTER => (),
                     VerticalAlign::BOTTOM => pos.y -= half_size.y,
                 }
-
                 self._transform.set_position(&pos);
-
                 self._updated_layout = true;
                 self._changed_layout = false;
             }
@@ -660,27 +683,106 @@ impl UIComponent {
 }
 
 pub trait Widget {
+    fn set_ui_manager(&mut self, ui_manager: *mut UIManager);
+    fn get_id(&self) -> usize;
+    fn set_id(&mut self, id: usize);
+    fn get_ui_widget_type(&self) -> UIWidgetTypes;
     fn has_cursor(&self) -> bool;
     fn get_ui_component(&self) -> &UIComponent;
+    fn get_ui_component_mut(&mut self) -> *mut UIComponent;
     fn get_changed_layout(&self) -> bool;
+    fn clear_parent(&mut self);
+    fn set_parent(&mut self, widget: *mut dyn Widget);
+    fn add_widget(&mut self, widget: *mut dyn Widget);
+    fn remove_widget(&mut self, widget: *mut dyn Widget);
+    fn clear_widgets(&mut self);
 }
 
 impl WidgetDefault {
-    pub fn create_widget() -> WidgetDefault {
-        let mut widget = WidgetDefault {
-            _ui_component: UIComponent::create_ui_component(),
-            _parent: None,
-            _widgets: Vec::new(),
-        };
-        widget._ui_component._owner_widget = Some(&mut widget);
-        widget
+    fn create_widget(ui_managet: *mut UIManager) -> WidgetDefault {
+        unsafe {
+            let mut widget = WidgetDefault {
+                _ui_manager: ui_managet,
+                _id: (*ui_managet).generate_id(),
+                _ui_widget_type: UIWidgetTypes::Default,
+                _ui_component: UIComponent::create_ui_component(),
+                _parent: None,
+                _widgets: Vec::new(),
+            };
+            widget._ui_component._owner_widget = Some(&mut widget);
+            widget
+        }
+    }
+}
+
+impl Drop for WidgetDefault {
+    fn drop(&mut self) {
+        unsafe {
+            (*self._ui_manager).remove_widget(self);
+        }
     }
 }
 
 impl Widget for WidgetDefault {
+    fn set_ui_manager(&mut self, ui_manager: *mut UIManager) {
+        self._ui_manager = ui_manager;
+    }
+    fn get_id(&self) -> usize {
+        self._id
+    }
+    fn set_id(&mut self, id: usize) {
+        self._id = id;
+    }
+    fn get_ui_widget_type(&self) -> UIWidgetTypes {
+        self._ui_widget_type
+    }
     fn has_cursor(&self) -> bool { false }
     fn get_ui_component(&self) -> &UIComponent { &self._ui_component }
+    fn get_ui_component_mut(&mut self) -> *mut UIComponent { &mut self._ui_component }
     fn get_changed_layout(&self) -> bool { self._ui_component._changed_layout }
+    fn clear_parent(&mut self) {
+        self._parent = None;
+        self._ui_component._parent = None;
+    }
+    fn set_parent(&mut self, widget: *mut dyn Widget) {
+        unsafe {
+            if self._parent.is_some() {
+                (*self._parent.unwrap()).remove_widget(self);
+            }
+            self._parent = Some(widget);
+            self._ui_component._parent = Some(widget.as_mut().unwrap().get_ui_component_mut());
+        }
+    }
+    fn add_widget(&mut self, widget: *mut dyn Widget) {
+        unsafe {
+            widget.as_mut().unwrap().set_parent(self);
+            self._widgets.push(widget);
+            self._ui_component._children.push(widget.as_mut().unwrap().get_ui_component_mut());
+        }
+    }
+    fn remove_widget(&mut self, widget: *mut dyn Widget) {
+        for (i, child_widget) in self._widgets.iter().enumerate() {
+            if *child_widget == widget {
+                unsafe {
+                    widget.as_mut().unwrap().clear_parent();
+                }
+                self._widgets.remove(i);
+                self._ui_component._children.remove(i);
+                return;
+            }
+        }
+    }
+    fn clear_widgets(&mut self) {
+        unsafe {
+            for child_widget in self._widgets.iter_mut() {
+                child_widget.as_mut().unwrap().clear_widgets();
+            }
+        }
+        self._parent = None;
+        self._widgets.clear();
+        self._ui_component._parent = None;
+        self._ui_component._children.clear();
+    }
 }
 
 impl UIVertexData {
@@ -706,11 +808,14 @@ impl VertexData for UIVertexData {
     }
 }
 
+
 impl UIManager {
     pub fn create_ui_manager() -> UIManager {
         log::info!("create_ui_manager");
-        UIManager {
-            _root: WidgetDefault::create_widget(),
+        let mut ui_manager = UIManager {
+            _root: std::ptr::null_mut::<WidgetDefault>(),
+            _id_generator: 0,
+            _ui_widgets: HashMap::new(),
             _ui_mesh_vertex_buffer: BufferData::default(),
             _ui_mesh_index_buffer: BufferData::default(),
             _ui_mesh_index_count: 0,
@@ -718,7 +823,15 @@ impl UIManager {
             _render_ui_descriptor_sets: Vec::new(),
             _render_ui_instance_datas: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
             _render_ui_count: 0,
-        }
+        };
+        ui_manager._root = ui_manager.create_widget(UIWidgetTypes::Default);
+        ui_manager
+    }
+
+    pub fn generate_id(&mut self) -> usize {
+        let id = self._id_generator;
+        self._id_generator += 1;
+        id
     }
 
     pub fn initialize_ui_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
@@ -744,6 +857,12 @@ impl UIManager {
 
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
+        if false == self._root.is_null() {
+            unsafe {
+                (*self._root).clear_widgets();
+            }
+        }
+        self._ui_widgets.clear();
         buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);
         buffer::destroy_buffer_data(device, &self._ui_mesh_index_buffer);
     }
@@ -780,10 +899,28 @@ impl UIManager {
         self._ui_mesh_index_count = indices.len() as u32;
     }
 
+    pub fn create_widget(&mut self, widget_type: UIWidgetTypes) -> *mut dyn Widget {
+        let widget = newRcRefCell(match widget_type {
+            UIWidgetTypes::Default => WidgetDefault::create_widget(self),
+        });
+        let widget_ptr: *mut dyn Widget = widget.as_ptr();
+        let id = widget.borrow().get_id();
+        self._ui_widgets.insert(id, widget);
+        widget_ptr
+    }
+
+    pub fn remove_widget(&mut self, widget: *mut dyn Widget) {
+        unsafe {
+            self._ui_widgets.remove(&(*widget).get_id());
+        }
+    }
+
     pub fn collect_ui_render_data(&mut self) {
         let font_data = self._font_data.borrow();
         let mut render_ui_count: u32 = 0;
-        self._root._ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas, &font_data);
+        unsafe {
+            (*(*self._root).get_ui_component_mut()).collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas, &font_data);
+        }
         self._render_ui_count = render_ui_count;
     }
 
@@ -832,17 +969,37 @@ impl UIManager {
         let changed_layout: bool = false;
         let recursive: bool = true;
         let touch_evemt: bool = false;
+        static mut test: bool = true;
+        unsafe {
+            if test {
+                let ui_component = &mut (*(*self._root).get_ui_component_mut());
+                ui_component.set_margine(Vector4::new(10.0, 10.0, 10.0, 10.0));
+                ui_component.set_pos(50.0, 50.0);
+                ui_component.set_size(200.0, 100.0);
+                ui_component.set_color(get_color32(255, 255, 0, 255));
+                ui_component.set_round(10.0);
+                ui_component.set_border(5.0);
+                ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
 
-        self._root._ui_component.set_margine(Vector4::new(100.0, 100.0, 100.0, 100.0));
-        self._root._ui_component.set_pos(50.0, 50.0);
-        self._root._ui_component.set_size(200.0, 100.0);
-        self._root._ui_component.set_color(get_color32(255, 255, 0, 255));
-        self._root._ui_component.set_round(10.0);
-        self._root._ui_component.set_border(5.0);
-        self._root._ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
+                let btn = self.create_widget(UIWidgetTypes::Default);
+                let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+                ui_component.set_margine(Vector4::new(10.0, 10.0, 10.0, 10.0));
+                ui_component.set_pos(10.0, 10.0);
+                ui_component.set_size(50.0, 50.0);
+                ui_component.set_color(get_color32(50, 50, 255, 128));
+                ui_component.set_round(5.0);
+                ui_component.set_border(2.0);
+                ui_component.set_text(String::from("Child\nChild Test"));
 
-        self._root._ui_component.update_layout(changed_layout, recursive);
-        self._root._ui_component.update(delta_time, touch_evemt);
-        self.collect_ui_render_data();
+                self._root.as_mut().unwrap().add_widget(btn);
+
+                test = false;
+            }
+
+            let ui_component = &mut (*(*self._root).get_ui_component_mut());
+            ui_component.update_layout(changed_layout, recursive);
+            ui_component.update(delta_time, touch_evemt);
+            self.collect_ui_render_data();
+        }
     }
 }
