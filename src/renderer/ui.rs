@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::boxed::Box;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
@@ -9,7 +9,7 @@ use crate::renderer::renderer::{ RendererData };
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::renderer::utility;
-use crate::utilities::system::{self, RcRefCell, newRcRefCell};
+use crate::utilities::system::{ self, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
@@ -158,8 +158,6 @@ pub struct UIComponent {
 }
 
 pub struct WidgetDefault {
-    pub _ui_manager: *mut UIManager,
-    pub _id: usize,
     pub _ui_widget_type: UIWidgetTypes,
     pub _ui_component: UIComponent,
     pub _parent: Option<*mut dyn Widget>,
@@ -167,9 +165,7 @@ pub struct WidgetDefault {
 }
 
 pub struct UIManager {
-    pub _root: *mut dyn Widget,
-    pub _id_generator: usize,
-    pub _ui_widgets: HashMap<usize, RcRefCell<dyn Widget>>,
+    pub _root: Box<dyn Widget>,
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
@@ -405,12 +401,6 @@ impl UIComponent {
 
     pub fn get_changed_layout(&self) -> bool { self._changed_layout }
     pub fn get_owner_widget(&self) -> &Option<*mut dyn Widget> { &self._owner_widget }
-    pub fn set_owner_widget(&mut self, owner: Option<*mut dyn Widget>) {
-        if self._owner_widget.is_some() {
-            panic!("Widget already has owner widget");
-        }
-        self._owner_widget = owner;
-    }
     pub fn get_parent(&self) -> &Option<*mut UIComponent> { &self._parent }
     pub fn set_parent(&mut self, parent: Option<*mut UIComponent>) {
         if self._parent.is_some() {
@@ -683,9 +673,6 @@ impl UIComponent {
 }
 
 pub trait Widget {
-    fn set_ui_manager(&mut self, ui_manager: *mut UIManager);
-    fn get_id(&self) -> usize;
-    fn set_id(&mut self, id: usize);
     fn get_ui_widget_type(&self) -> UIWidgetTypes;
     fn has_cursor(&self) -> bool;
     fn get_ui_component(&self) -> &UIComponent;
@@ -699,40 +686,19 @@ pub trait Widget {
 }
 
 impl WidgetDefault {
-    fn create_widget(ui_managet: *mut UIManager) -> WidgetDefault {
-        unsafe {
-            let mut widget = WidgetDefault {
-                _ui_manager: ui_managet,
-                _id: (*ui_managet).generate_id(),
-                _ui_widget_type: UIWidgetTypes::Default,
-                _ui_component: UIComponent::create_ui_component(),
-                _parent: None,
-                _widgets: Vec::new(),
-            };
-            widget._ui_component._owner_widget = Some(&mut widget);
-            widget
-        }
-    }
-}
-
-impl Drop for WidgetDefault {
-    fn drop(&mut self) {
-        unsafe {
-            (*self._ui_manager).remove_widget(self);
-        }
+    fn create_widget() -> Box<dyn Widget> {
+        let mut widget = Box::new(WidgetDefault {
+            _ui_widget_type: UIWidgetTypes::Default,
+            _ui_component: UIComponent::create_ui_component(),
+            _parent: None,
+            _widgets: Vec::new(),
+        });
+        widget._ui_component._owner_widget = Some(&mut (*widget));
+        widget
     }
 }
 
 impl Widget for WidgetDefault {
-    fn set_ui_manager(&mut self, ui_manager: *mut UIManager) {
-        self._ui_manager = ui_manager;
-    }
-    fn get_id(&self) -> usize {
-        self._id
-    }
-    fn set_id(&mut self, id: usize) {
-        self._id = id;
-    }
     fn get_ui_widget_type(&self) -> UIWidgetTypes {
         self._ui_widget_type
     }
@@ -764,7 +730,9 @@ impl Widget for WidgetDefault {
         for (i, child_widget) in self._widgets.iter().enumerate() {
             if *child_widget == widget {
                 unsafe {
-                    widget.as_mut().unwrap().clear_parent();
+                    (*widget).clear_parent();
+                    (*widget).clear_widgets();
+                    drop(Box::from_raw(widget));
                 }
                 self._widgets.remove(i);
                 self._ui_component._children.remove(i);
@@ -775,7 +743,8 @@ impl Widget for WidgetDefault {
     fn clear_widgets(&mut self) {
         unsafe {
             for child_widget in self._widgets.iter_mut() {
-                child_widget.as_mut().unwrap().clear_widgets();
+                (**child_widget).clear_widgets();
+                drop(Box::from_raw(*child_widget));
             }
         }
         self._parent = None;
@@ -812,26 +781,19 @@ impl VertexData for UIVertexData {
 impl UIManager {
     pub fn create_ui_manager() -> UIManager {
         log::info!("create_ui_manager");
-        let mut ui_manager = UIManager {
-            _root: std::ptr::null_mut::<WidgetDefault>(),
-            _id_generator: 0,
-            _ui_widgets: HashMap::new(),
-            _ui_mesh_vertex_buffer: BufferData::default(),
-            _ui_mesh_index_buffer: BufferData::default(),
-            _ui_mesh_index_count: 0,
-            _font_data: system::newRcRefCell(FontData::default()),
-            _render_ui_descriptor_sets: Vec::new(),
-            _render_ui_instance_datas: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
-            _render_ui_count: 0,
-        };
-        ui_manager._root = ui_manager.create_widget(UIWidgetTypes::Default);
-        ui_manager
-    }
-
-    pub fn generate_id(&mut self) -> usize {
-        let id = self._id_generator;
-        self._id_generator += 1;
-        id
+        unsafe {
+            let ui_manager = UIManager {
+                _root: Box::from_raw(UIManager::create_widget(UIWidgetTypes::Default)),
+                _ui_mesh_vertex_buffer: BufferData::default(),
+                _ui_mesh_index_buffer: BufferData::default(),
+                _ui_mesh_index_count: 0,
+                _font_data: system::newRcRefCell(FontData::default()),
+                _render_ui_descriptor_sets: Vec::new(),
+                _render_ui_instance_datas: [UIInstanceData::default(); MAX_UI_INSTANCE_COUNT as usize],
+                _render_ui_count: 0,
+            };
+            ui_manager
+        }
     }
 
     pub fn initialize_ui_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
@@ -857,12 +819,8 @@ impl UIManager {
 
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
-        if false == self._root.is_null() {
-            unsafe {
-                (*self._root).clear_widgets();
-            }
-        }
-        self._ui_widgets.clear();
+        self._root.clear_widgets();
+        drop(&self._root);
         buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);
         buffer::destroy_buffer_data(device, &self._ui_mesh_index_buffer);
     }
@@ -899,27 +857,17 @@ impl UIManager {
         self._ui_mesh_index_count = indices.len() as u32;
     }
 
-    pub fn create_widget(&mut self, widget_type: UIWidgetTypes) -> *mut dyn Widget {
-        let widget = newRcRefCell(match widget_type {
-            UIWidgetTypes::Default => WidgetDefault::create_widget(self),
-        });
-        let widget_ptr: *mut dyn Widget = widget.as_ptr();
-        let id = widget.borrow().get_id();
-        self._ui_widgets.insert(id, widget);
-        widget_ptr
-    }
-
-    pub fn remove_widget(&mut self, widget: *mut dyn Widget) {
-        unsafe {
-            self._ui_widgets.remove(&(*widget).get_id());
-        }
+    pub fn create_widget(widget_type: UIWidgetTypes) -> *mut dyn Widget {
+        Box::into_raw(match widget_type {
+            UIWidgetTypes::Default => WidgetDefault::create_widget(),
+        })
     }
 
     pub fn collect_ui_render_data(&mut self) {
         let font_data = self._font_data.borrow();
         let mut render_ui_count: u32 = 0;
         unsafe {
-            (*(*self._root).get_ui_component_mut()).collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas, &font_data);
+            self._root.get_ui_component_mut().as_mut().unwrap().collect_ui_render_data(&mut render_ui_count, &mut self._render_ui_instance_datas, &font_data);
         }
         self._render_ui_count = render_ui_count;
     }
@@ -972,7 +920,7 @@ impl UIManager {
         static mut test: bool = true;
         unsafe {
             if test {
-                let ui_component = &mut (*(*self._root).get_ui_component_mut());
+                let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_margine(Vector4::new(10.0, 10.0, 10.0, 10.0));
                 ui_component.set_pos(50.0, 50.0);
                 ui_component.set_size(200.0, 100.0);
@@ -981,7 +929,7 @@ impl UIManager {
                 ui_component.set_border(5.0);
                 ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
 
-                let btn = self.create_widget(UIWidgetTypes::Default);
+                let btn = UIManager::create_widget(UIWidgetTypes::Default);
                 let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_margine(Vector4::new(10.0, 10.0, 10.0, 10.0));
                 ui_component.set_pos(10.0, 10.0);
@@ -991,12 +939,12 @@ impl UIManager {
                 ui_component.set_border(2.0);
                 ui_component.set_text(String::from("Child\nChild Test"));
 
-                self._root.as_mut().unwrap().add_widget(btn);
+                self._root.add_widget(btn);
 
                 test = false;
             }
 
-            let ui_component = &mut (*(*self._root).get_ui_component_mut());
+            let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
             ui_component.update_layout(changed_layout, recursive);
             ui_component.update(delta_time, touch_evemt);
             self.collect_ui_render_data();
