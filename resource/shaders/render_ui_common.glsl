@@ -12,7 +12,7 @@ struct VERTEX_OUTPUT
     vec2 _texcoord;
 };
 
-struct UIInstanceData {
+struct UIRenderData {
     vec4 _ui_texcoord;
     vec2 _ui_pos;
     vec2 _ui_size;
@@ -28,9 +28,9 @@ struct UIInstanceData {
 
 layout(binding = 0) uniform sampler2D texture_font;
 layout(binding = 1) uniform sampler2D texture_normal;
-layout(binding = 2) buffer UIInstanceDataBuffer
+layout(binding = 2) buffer UIRenderDataBuffer
 {
-    UIInstanceData ui_instance_data[MAX_UI_INSTANCE_COUNT];
+    UIRenderData ui_render_datas[MAX_UI_INSTANCE_COUNT];
 };
 
 layout( push_constant ) uniform PushConstant_RenderUI

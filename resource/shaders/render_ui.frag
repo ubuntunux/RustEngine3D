@@ -13,11 +13,11 @@ layout (location = 0) out vec4 fs_output;
 
 void main()
 {
-    UIInstanceData ui_instance_data = ui_instance_data[vs_out_instanceIndex];
+    UIRenderData ui_render_data = ui_render_datas[vs_out_instanceIndex];
 
-    const float ui_round = ui_instance_data._ui_round;
-    const vec2 half_size = ui_instance_data._ui_size * 0.5;
-    const vec2 offset_from_center = gl_FragCoord.xy - ui_instance_data._ui_pos;
+    const float ui_round = ui_render_data._ui_round;
+    const vec2 half_size = ui_render_data._ui_size * 0.5;
+    const vec2 offset_from_center = gl_FragCoord.xy - ui_render_data._ui_pos;
     const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
     vec4 color = vs_output._color;
 
@@ -33,7 +33,7 @@ void main()
         }
     }
 
-    if(check_flag_any(UI_RENDER_FLAG_RENDER_TEXT, ui_instance_data._ui_render_flags))
+    if(check_flag_any(UI_RENDER_FLAG_RENDER_TEXT, ui_render_data._ui_render_flags))
     {
         vec4 font_texture_color = texture(texture_font, vs_output._texcoord);
         font_texture_color.xyz = pow(font_texture_color.xyz, vec3(2.2));
@@ -41,10 +41,10 @@ void main()
     }
     else
     {
-        if(0.0 != ui_instance_data._ui_border)
+        if(0.0 != ui_render_data._ui_border)
         {
-            float inner_ui_round = ui_round - ui_instance_data._ui_border;
-            if(dist_from_outer.x < ui_instance_data._ui_border || dist_from_outer.y < ui_instance_data._ui_border)
+            float inner_ui_round = ui_round - ui_render_data._ui_border;
+            if(dist_from_outer.x < ui_render_data._ui_border || dist_from_outer.y < ui_render_data._ui_border)
             {
                 color = vs_output._border_color;
             }
