@@ -122,7 +122,7 @@ vec4 uint_color_to_float_color(uint color) {
     const uint gmask = uint(255 << 8);
     const uint bmask = uint(255 << 16);
     const uint amask = uint(255 << 24);
-    vec4 fColor = saturate(vec4(color & rmask, color & gmask, color & bmask, color & amask) / 255.0);
+    vec4 fColor = saturate(vec4(color & rmask, (color & gmask) >> 8, (color & bmask) >> 16, (color & amask) >> 24) / 255.0);
     fColor.xyz = pow(fColor.xyz, vec3(2.2));
     return fColor;
 }

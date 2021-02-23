@@ -21,6 +21,7 @@ void main()
     const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
     vec4 color = vs_output._color;
 
+    // disacrd border
     if(0.0 != ui_round)
     {
         if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
@@ -33,6 +34,7 @@ void main()
         }
     }
 
+    // render text or render solid
     if(check_flag_any(UI_RENDER_FLAG_RENDER_TEXT, ui_render_data._ui_render_flags))
     {
         vec4 font_texture_color = texture(texture_font, vs_output._texcoord);
