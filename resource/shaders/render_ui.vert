@@ -21,8 +21,7 @@ void main()
 
     vs_output._color = color;
     vs_output._border_color = border_color;
-    vs_output._texcoord = mix(ui_render_data._ui_texcoord.xy, ui_render_data._ui_texcoord.zw, vs_in_position.xy + 0.5);
-
-    vec2 position = (ui_render_data._ui_pos + vs_in_position.xy * ui_render_data._ui_size) * pushConstant._inv_canvas_size;
+    vs_output._texcoord = mix(ui_render_data._ui_texcoord.xy, ui_render_data._ui_texcoord.zw, vs_in_position.xy);
+    vec2 position = mix(ui_render_data._ui_render_area.xy, ui_render_data._ui_render_area.zw, vs_in_position.xy) * pushConstant._inv_canvas_size;
     gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
 }

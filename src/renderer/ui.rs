@@ -16,18 +16,18 @@ use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::vulkan_context::{ get_color32, SwapchainArray };
 
-// MAX_UI_INSTANCE_COUNT must match with render_ui_common.glsl
+// must match with render_ui_common.glsl
 pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
+pub const UI_INDEX_LEFT: usize = 0;
+pub const UI_INDEX_TOP: usize = 1;
+pub const UI_INDEX_RIGHT: usize = 2;
+pub const UI_INDEX_BOTTOM: usize = 3;
 
 pub const DEFAILT_HORIZONTAL_ALIGN: HorizontalAlign = HorizontalAlign::LEFT;
 pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 
-pub const UI_INDEX_LEFT: usize = 0;
-pub const UI_INDEX_RIGHT: usize = 1;
-pub const UI_INDEX_TOP: usize = 2;
-pub const UI_INDEX_BOTTOM: usize = 3;
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct UIVertexData {
@@ -45,8 +45,8 @@ impl Default for UIVertexData {
 #[derive(Debug, Clone, Copy)]
 pub struct UIRenderData {
     pub _ui_texcoord: Vector4<f32>,
-    pub _ui_pos: Vector2<f32>,
-    pub _ui_size: Vector2<f32>,
+    pub _ui_render_area: Vector4<f32>,
+    pub _ui_parent_render_area: Vector4<f32>,
     pub _ui_color: u32,
     pub _ui_round: f32,
     pub _ui_border: f32,
@@ -61,8 +61,8 @@ impl Default for UIRenderData {
     fn default() -> UIRenderData {
         UIRenderData {
             _ui_texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
-            _ui_pos: Vector2::zeros(),
-            _ui_size: Vector2::zeros(),
+            _ui_render_area: Vector4::zeros(),
+            _ui_parent_render_area: Vector4::zeros(),
             _ui_color: 0xFFFFFFFF,
             _ui_round: 0.0,
             _ui_border: 0.0,
@@ -159,6 +159,7 @@ pub struct UIComponentInstance {
     pub _local_to_world_matrix: Matrix4<f32>,
     pub _spaces: Vector4<f32>, // margine + border + padding
     pub _contents_area: Vector4<f32>,
+    pub _render_area: Vector4<f32>,
     pub _visible: bool,
     pub _touched: bool,
     pub _touched_offset: Vector2<f32>,
@@ -243,6 +244,7 @@ impl UIComponentInstance {
             _local_to_world_matrix: Matrix4::identity(),
             _spaces: Vector4::zeros(),
             _contents_area: Vector4::zeros(),
+            _render_area: Vector4::zeros(),
             _visible: true,
             _touched: false,
             _touched_offset: Vector2::zeros(),
@@ -398,12 +400,12 @@ impl UIComponentInstance {
     }
     pub fn get_margine(&self) -> Vector4<f32> { self._ui_component_data._margine }
     pub fn get_margine_left(&self) -> f32 { self._ui_component_data._margine[UI_INDEX_LEFT] }
-    pub fn get_margine_right(&self) -> f32 { self._ui_component_data._margine[UI_INDEX_RIGHT] }
     pub fn get_margine_top(&self) -> f32 { self._ui_component_data._margine[UI_INDEX_TOP] }
+    pub fn get_margine_right(&self) -> f32 { self._ui_component_data._margine[UI_INDEX_RIGHT] }
     pub fn get_margine_bottom(&self) -> f32 { self._ui_component_data._margine[UI_INDEX_BOTTOM] }
     pub fn set_margine_left(&mut self, margine: f32) { self.set_margine_inner(UI_INDEX_LEFT, margine); }
-    pub fn set_margine_right(&mut self, margine: f32) { self.set_margine_inner(UI_INDEX_RIGHT, margine); }
     pub fn set_margine_top(&mut self, margine: f32) { self.set_margine_inner(UI_INDEX_TOP, margine); }
+    pub fn set_margine_right(&mut self, margine: f32) { self.set_margine_inner(UI_INDEX_RIGHT, margine); }
     pub fn set_margine_bottom(&mut self, margine: f32) { self.set_margine_inner(UI_INDEX_BOTTOM, margine); }
     pub fn set_padding(&mut self, padding: f32) { self.set_paddings(Vector4::new(padding, padding, padding, padding)); }
     pub fn set_paddings(&mut self, padding: Vector4<f32>) {
@@ -420,12 +422,12 @@ impl UIComponentInstance {
     }
     pub fn get_padding(&self) -> &Vector4<f32> { &self._ui_component_data._padding }
     pub fn get_padding_left(&self) -> f32 { self._ui_component_data._padding[UI_INDEX_LEFT] }
-    pub fn get_padding_right(&self) -> f32 { self._ui_component_data._padding[UI_INDEX_RIGHT] }
     pub fn get_padding_top(&self) -> f32 { self._ui_component_data._padding[UI_INDEX_TOP] }
+    pub fn get_padding_right(&self) -> f32 { self._ui_component_data._padding[UI_INDEX_RIGHT] }
     pub fn get_padding_bottom(&self) -> f32 { self._ui_component_data._padding[UI_INDEX_BOTTOM] }
     pub fn set_padding_left(&mut self, padding: f32) { self.set_padding_inner(UI_INDEX_LEFT, padding); }
-    pub fn set_padding_right(&mut self, padding: f32) { self.set_padding_inner(UI_INDEX_RIGHT, padding); }
     pub fn set_padding_top(&mut self, padding: f32) { self.set_padding_inner(UI_INDEX_TOP, padding); }
+    pub fn set_padding_right(&mut self, padding: f32) { self.set_padding_inner(UI_INDEX_RIGHT, padding); }
     pub fn set_padding_bottom(&mut self, padding: f32) { self.set_padding_inner(UI_INDEX_BOTTOM, padding); }
     pub fn get_halign(&self) -> HorizontalAlign { self._ui_component_data._halign }
     pub fn set_halign(&mut self, halign: HorizontalAlign) {
@@ -563,7 +565,7 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn collect_ui_font_render_data(&mut self, render_ui_count: u32, render_ui_instance_datas: &mut [UIRenderData], font_data: &FontData) {
+    pub fn collect_ui_font_render_data(&mut self, font_data: &FontData, render_ui_count: u32, render_ui_instance_datas: &mut [UIRenderData]) {
         let mut render_ui_index = render_ui_count;
 
         let count_of_side = font_data._count_of_side;
@@ -576,6 +578,8 @@ impl UIComponentInstance {
         let mut row: i32 = initial_row;
         let pos = self._transform.get_position();
         self._render_text_count = 0;
+
+        let parent_render_area = render_ui_instance_datas[self._render_ui_index as usize]._ui_render_area.clone() as Vector4<f32>;
 
         for c in self._text.as_bytes().iter() {
             let ch = (*c) as char;
@@ -592,24 +596,32 @@ impl UIComponentInstance {
                 let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
                 let mut render_pos = Vector2::new(pos.x + column as f32 * font_size.x, pos.y + row as f32 * font_size.y);
                 render_pos = render_pos - (self.get_size() - font_size) * 0.5;
-
-                let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
-                render_ui_instance_data._ui_texcoord = Vector4::new(
-                    texcoord_x,
-                    texcoord_y,
-                    texcoord_x + inv_count_of_side,
-                    texcoord_y + inv_count_of_side);
-                render_ui_instance_data._ui_pos = render_pos;
-                render_ui_instance_data._ui_size.x = font_size.x;
-                render_ui_instance_data._ui_size.y = font_size.y;
-                render_ui_instance_data._ui_color = self.get_font_color();
-                render_ui_instance_data._ui_round = 0.0;
-                render_ui_instance_data._ui_border = 0.0;
-                render_ui_instance_data._ui_border_color = 0;
-                render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
-
-                self._render_text_count += 1;
-                render_ui_index += 1;
+                let ui_render_area_left = render_pos.x - font_size.x * 0.5;
+                let ui_render_area_right = render_pos.y - font_size.x * 0.5;
+                let ui_render_area_top = render_pos.x + font_size.x * 0.5;
+                let ui_render_area_bottom = render_pos.y + font_size.y * 0.5;
+                if parent_render_area[UI_INDEX_LEFT] < ui_render_area_right && parent_render_area[UI_INDEX_TOP] < ui_render_area_top &&
+                    ui_render_area_left < parent_render_area[UI_INDEX_RIGHT] && ui_render_area_bottom < parent_render_area[UI_INDEX_BOTTOM]
+                {
+                    let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+                    render_ui_instance_data._ui_texcoord = Vector4::new(
+                        texcoord_x,
+                        texcoord_y,
+                        texcoord_x + inv_count_of_side,
+                        texcoord_y + inv_count_of_side);
+                    render_ui_instance_data._ui_render_area[UI_INDEX_LEFT] = render_pos.x - font_size.x * 0.5;
+                    render_ui_instance_data._ui_render_area[UI_INDEX_TOP] = render_pos.y - font_size.y * 0.5;
+                    render_ui_instance_data._ui_render_area[UI_INDEX_RIGHT] = render_pos.x + font_size.x * 0.5;
+                    render_ui_instance_data._ui_render_area[UI_INDEX_BOTTOM] = render_pos.y + font_size.y * 0.5;
+                    render_ui_instance_data._ui_parent_render_area = parent_render_area.clone() as Vector4<f32>;
+                    render_ui_instance_data._ui_color = self.get_font_color();
+                    render_ui_instance_data._ui_round = 0.0;
+                    render_ui_instance_data._ui_border = 0.0;
+                    render_ui_instance_data._ui_border_color = 0;
+                    render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
+                    render_ui_index += 1;
+                    self._render_text_count += 1;
+                }
                 column += 1;
             }
         }
@@ -624,11 +636,14 @@ impl UIComponentInstance {
 
             // collect ui render data
             if need_to_collect_render_data {
-                let pos = self._transform.get_position();
+                let ui_pos = self._transform.get_position();
+                let ui_size = self.get_size();
                 let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
-                render_ui_instance_data._ui_pos.x = pos.x;
-                render_ui_instance_data._ui_pos.y = pos.y;
-                render_ui_instance_data._ui_size = self.get_size().clone() as Vector2<f32>;
+                render_ui_instance_data._ui_render_area[UI_INDEX_LEFT] = ui_pos.x - ui_size.x * 0.5;
+                render_ui_instance_data._ui_render_area[UI_INDEX_TOP] = ui_pos.y - ui_size.x * 0.5;
+                render_ui_instance_data._ui_render_area[UI_INDEX_RIGHT] = ui_pos.x + ui_size.x * 0.5;
+                render_ui_instance_data._ui_render_area[UI_INDEX_BOTTOM] = ui_pos.y + ui_size.y * 0.5;
+                render_ui_instance_data._ui_parent_render_area = render_ui_instance_data._ui_render_area.clone() as Vector4<f32>;
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
@@ -646,7 +661,7 @@ impl UIComponentInstance {
                 if self._text.is_empty() {
                     self._render_text_count = 0;
                 } else {
-                    self.collect_ui_font_render_data(*render_ui_count, render_ui_instance_datas, font_data);
+                    self.collect_ui_font_render_data(font_data, *render_ui_count, render_ui_instance_datas);
                 }
                 self._changed_text = false;
             }
@@ -950,7 +965,7 @@ impl UIManager {
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties
     ) {
         log::debug!("create_ui_vertex_data");
-        let positions: Vec<Vector3<f32>> = vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(0.5, -0.5, 0.0), Vector3::new(0.5, 0.5, 0.0), Vector3::new(-0.5, 0.5, 0.0)];
+        let positions: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(0.0, 1.0, 0.0)];
         let vertex_datas = positions.iter().map(|position| UIVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
         let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
 
@@ -1043,7 +1058,9 @@ impl UIManager {
                 ui_component.set_margine(5.0);
                 ui_component.set_pos(50.0, 50.0);
                 ui_component.set_size(200.0, 100.0);
-                ui_component.set_color(get_color32(255, 255, 0, 32));
+                ui_component.set_font_size(45.0);
+                ui_component.set_color(get_color32(255, 255, 0, 255));
+                ui_component.set_font_color(get_color32(255, 0, 0, 255));
                 ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
                 ui_component.set_halign(HorizontalAlign::LEFT);
@@ -1053,9 +1070,10 @@ impl UIManager {
                 let btn = UIManager::create_widget(UIWidgetTypes::Default);
                 let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_margine(5.0);
-                ui_component.set_pos(100.0, 100.0);
+                ui_component.set_pos(25.0, 25.0);
                 ui_component.set_size(50.0, 50.0);
                 ui_component.set_color(get_color32(50, 50, 255, 128));
+                ui_component.set_font_color(get_color32(255, 255, 255, 128));
                 ui_component.set_round(5.0);
                 ui_component.set_border(2.0);
                 ui_component.set_text(String::from("Child\nChild Test"));
@@ -1063,9 +1081,9 @@ impl UIManager {
                 let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
                 let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_margine(5.0);
-                ui_component.set_pos(150.0, 150.0);
+                ui_component.set_pos(75.0, 75.0);
                 ui_component.set_size(25.0, 25.0);
-                ui_component.set_color(get_color32(255, 128, 128, 64));
+                ui_component.set_color(get_color32(255, 128, 128, 255));
                 ui_component.set_font_color(get_color32(255, 255, 255, 255));
                 ui_component.set_round(5.0);
                 ui_component.set_border(2.0);

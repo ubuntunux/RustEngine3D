@@ -15,9 +15,16 @@ void main()
 {
     UIRenderData ui_render_data = ui_render_datas[vs_out_instanceIndex];
 
+    if(gl_FragCoord.x < ui_render_data._ui_parent_render_area[UI_INDEX_LEFT] || ui_render_data._ui_parent_render_area[UI_INDEX_RIGHT] <= gl_FragCoord.x ||
+       gl_FragCoord.y < ui_render_data._ui_parent_render_area[UI_INDEX_TOP] || ui_render_data._ui_parent_render_area[UI_INDEX_BOTTOM] <= gl_FragCoord.y)
+    {
+        discard;
+    }
+
     const float ui_round = ui_render_data._ui_round;
-    const vec2 half_size = ui_render_data._ui_size * 0.5;
-    const vec2 offset_from_center = gl_FragCoord.xy - ui_render_data._ui_pos;
+    const vec2 half_size = (ui_render_data._ui_parent_render_area.zw - ui_render_data._ui_parent_render_area.xy) * 0.5;
+    const vec2 ui_center = ui_render_data._ui_parent_render_area.xy + half_size;
+    const vec2 offset_from_center = gl_FragCoord.xy - ui_center;
     const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
     vec4 color = vs_output._color;
 
