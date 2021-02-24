@@ -612,7 +612,6 @@ impl UIComponentInstance {
         let font_size = &font_data._font_size * font_size_ratio;
         let mut column: i32 = 0;
         let mut row: i32 = 0;
-        let pos = self._transform.get_position();
         self._render_text_count = 0;
 
         let parent_render_area = render_ui_instance_datas[self._render_ui_index as usize]._ui_render_area.clone() as Vector4<f32>;
@@ -630,7 +629,7 @@ impl UIComponentInstance {
                 let index: u32 = 0i32.max((*c) as i32 - font_data._range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
                 let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
-                let mut render_pos = Vector2::new(pos.x + column as f32 * font_size.x, pos.y + row as f32 * font_size.y);
+                let mut render_pos = Vector2::new(self.get_pivot().x + column as f32 * font_size.x, self.get_pivot().y + row as f32 * font_size.y);
                 render_pos = render_pos - (self.get_size() - font_size) * 0.5;
                 let ui_render_area_left = render_pos.x - font_size.x * 0.5;
                 let ui_render_area_right = render_pos.y - font_size.x * 0.5;
@@ -720,7 +719,7 @@ impl UIComponentInstance {
         parent_halign: HorizontalAlign,
         parent_valign: VerticalAlign
     ) {
-        let half_size = self.get_size() * 0.5;
+        let half_size = &self._contents_size * 0.5;
         let mut pivot = match parent_layout_type {
             UILayoutType::Boxlayout => Vector3::zeros(),
             UILayoutType::FloatLayout => Vector3::new(self.get_pos().x, self.get_pos().y, 0.0),
@@ -735,15 +734,21 @@ impl UIComponentInstance {
             VerticalAlign::CENTER => pivot.y += parent_pivot.y,
             VerticalAlign::BOTTOM => pivot.y += parent_pivot.y + parent_size.y * 0.5 - self._spaces[UI_INDEX_BOTTOM] - half_size.y,
         }
-        self._transform.set_position(&pivot);
 
-        // complete
-        self._changed_render_data = true;
-        self._changed_layout = false;
-        self._ui_layout_state = UILayoutState::Complete;
+        self._render_area[UI_INDEX_LEFT] = pivot.x - half_size.x;
+        self._render_area[UI_INDEX_TOP] = pivot.y - half_size.y;
+        self._render_area[UI_INDEX_RIGHT] = pivot.x + half_size.y;
+        self._render_area[UI_INDEX_BOTTOM] = pivot.y + half_size.y;
+        self._contents_area = self._render_area.clone() as Vector4<f32>;
+        self._ui_outer_area[UI_INDEX_LEFT] = self._render_area[UI_INDEX_LEFT] - self.get_padding_left();
+        self._ui_outer_area[UI_INDEX_TOP] = self._render_area[UI_INDEX_TOP] - self.get_padding_top();
+        self._ui_outer_area[UI_INDEX_RIGHT] = self._render_area[UI_INDEX_RIGHT] +  - self.get_padding_right();
+        self._ui_outer_area[UI_INDEX_BOTTOM] = self._render_area[UI_INDEX_BOTTOM] +  - self.get_padding_bottom();
+
+        self._transform.set_position(&pivot);
     }
 
-    fn update_layout(&mut self, font_data: &FontData, changed_layout: bool, ui_layout_state: UILayoutState) {
+    fn update_layout(&mut self, font_data: &FontData, changed_layout: bool, ui_layout_state: UILayoutState, is_root: bool) {
         unsafe {
             // if UILayoutType::FloatLayout == self.get_layout_type() {
             // }
@@ -753,7 +758,7 @@ impl UIComponentInstance {
             }
 
             for child in self._children.iter() {
-                child.as_mut().unwrap().update_layout(font_data, changed_layout, ui_layout_state);
+                child.as_mut().unwrap().update_layout(font_data, changed_layout, ui_layout_state, false);
             }
 
             let changed_layout = self._changed_layout || changed_layout;
@@ -774,6 +779,22 @@ impl UIComponentInstance {
                 if self.get_size_hint_y().is_none() {
                     self._contents_size.y = self._contents_size.y.max(self.get_size().y);
                 }
+
+                if is_root {
+                    self.update_layout_by_parent(
+                        UILayoutType::FloatLayout,
+                        &Vector3::zeros(),
+                        &Vector2::zeros(),
+                        &Vector4::zeros(),
+                        HorizontalAlign::LEFT,
+                        VerticalAlign::BOTTOM,
+                    );
+                }
+
+                // complete
+                self._changed_render_data = true;
+                self._changed_layout = false;
+                self._ui_layout_state = UILayoutState::Complete;
 
                 // update child layout
                 for child in self._children.iter() {
@@ -1099,41 +1120,41 @@ impl UIManager {
                 ui_component.set_layout_type(UILayoutType::FloatLayout);
                 ui_component.set_layout_orientation(Orientation::HORIZONTAL);
                 ui_component.set_margine(5.0);
-                ui_component.set_pos(50.0, 50.0);
+                ui_component.set_pos(300.0, 300.0);
                 ui_component.set_size(200.0, 100.0);
                 ui_component.set_font_size(45.0);
                 ui_component.set_color(get_color32(255, 255, 0, 255));
-                ui_component.set_font_color(get_color32(255, 0, 0, 255));
+                ui_component.set_font_color(get_color32(0, 0, 0, 255));
                 ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
                 ui_component.set_halign(HorizontalAlign::LEFT);
                 ui_component.set_valign(VerticalAlign::TOP);
                 ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
 
-                let btn = UIManager::create_widget(UIWidgetTypes::Default);
-                let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_margine(5.0);
-                ui_component.set_pos(25.0, 25.0);
-                ui_component.set_size(50.0, 50.0);
-                ui_component.set_color(get_color32(50, 50, 255, 128));
-                ui_component.set_font_color(get_color32(255, 255, 255, 128));
-                ui_component.set_round(5.0);
-                ui_component.set_border(2.0);
-                ui_component.set_text(String::from("Child\nChild Test"));
-
-                let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
-                let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_margine(5.0);
-                ui_component.set_pos(75.0, 75.0);
-                ui_component.set_size(25.0, 25.0);
-                ui_component.set_color(get_color32(255, 128, 128, 255));
-                ui_component.set_font_color(get_color32(255, 255, 255, 255));
-                ui_component.set_round(5.0);
-                ui_component.set_border(2.0);
-                ui_component.set_text(String::from("Btn2\nBtn2 Test"));
-
-                self._root.add_widget(btn);
-                self._root.add_widget(btn2);
+                // let btn = UIManager::create_widget(UIWidgetTypes::Default);
+                // let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+                // ui_component.set_margine(5.0);
+                // ui_component.set_pos(25.0, 25.0);
+                // ui_component.set_size(50.0, 50.0);
+                // ui_component.set_color(get_color32(50, 50, 255, 128));
+                // ui_component.set_font_color(get_color32(255, 255, 255, 128));
+                // ui_component.set_round(5.0);
+                // ui_component.set_border(2.0);
+                // ui_component.set_text(String::from("Child\nChild Test"));
+                //
+                // let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
+                // let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+                // ui_component.set_margine(5.0);
+                // ui_component.set_pos(75.0, 75.0);
+                // ui_component.set_size(25.0, 25.0);
+                // ui_component.set_color(get_color32(255, 128, 128, 255));
+                // ui_component.set_font_color(get_color32(255, 255, 255, 255));
+                // ui_component.set_round(5.0);
+                // ui_component.set_border(2.0);
+                // ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+                //
+                // self._root.add_widget(btn);
+                // self._root.add_widget(btn2);
 
                 test = false;
             }
@@ -1141,17 +1162,12 @@ impl UIManager {
             let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
             let changed_layout: bool = false;
             let touch_evemt: bool = false;
-            ui_component.update_layout_by_parent(
-                UILayoutType::FloatLayout,
-                &Vector3::zeros(),
-                &Vector2::zeros(),
-                &Vector4::zeros(),
-                HorizontalAlign::LEFT,
-                VerticalAlign::BOTTOM,
-            );
-            ui_component.update_layout(&self._font_data.borrow(), changed_layout, UILayoutState::Complete);
+            let is_root: bool = true;
+            let mut render_ui_count: u32 = 0;
+            ui_component.update_layout(&self._font_data.borrow(), changed_layout, UILayoutState::Complete, is_root);
             ui_component.update(delta_time, touch_evemt);
-            self.collect_ui_render_data();
+            ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._ui_render_datas, &self._font_data.borrow());
+            self._render_ui_count = render_ui_count;
         }
     }
 }
