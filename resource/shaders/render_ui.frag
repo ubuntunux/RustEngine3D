@@ -15,8 +15,8 @@ void main()
 {
     UIRenderData ui_render_data = ui_render_datas[vs_out_instanceIndex];
 
-    if(gl_FragCoord.x < ui_render_data._ui_parent_render_area[UI_INDEX_LEFT] || ui_render_data._ui_parent_render_area[UI_INDEX_RIGHT] <= gl_FragCoord.x ||
-       gl_FragCoord.y < ui_render_data._ui_parent_render_area[UI_INDEX_TOP] || ui_render_data._ui_parent_render_area[UI_INDEX_BOTTOM] <= gl_FragCoord.y)
+    if(gl_FragCoord.x < ui_render_data._ui_parent_render_area.x || ui_render_data._ui_parent_render_area.z <= gl_FragCoord.x ||
+       gl_FragCoord.y < ui_render_data._ui_parent_render_area.y || ui_render_data._ui_parent_render_area.w <= gl_FragCoord.y)
     {
         discard;
     }

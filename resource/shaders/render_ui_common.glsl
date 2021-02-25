@@ -4,11 +4,6 @@
 const uint MAX_UI_INSTANCE_COUNT = 1024;
 const uint UI_RENDER_FLAG_NONE = 0;
 const uint UI_RENDER_FLAG_RENDER_TEXT = 1 << 0;
-const uint UI_INDEX_LEFT = 0;
-const uint UI_INDEX_TOP = 1;
-const uint UI_INDEX_RIGHT = 2;
-const uint UI_INDEX_BOTTOM = 3;
-
 
 struct VERTEX_OUTPUT
 {
