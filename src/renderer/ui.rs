@@ -114,7 +114,7 @@ pub enum Orientation {
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum UILayoutType {
     FloatLayout,
-    Boxlayout,
+    BoxLayout,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -170,7 +170,8 @@ pub struct UIComponentInstance {
     pub _spaces: Vector4<f32>, // margine + border + padding
     pub _contents_area: Vector4<f32>, // (x,y) ~ ((x,y) + contents_size)
     pub _contents_size: Vector2<f32>, // text column size, text row size
-    pub _required_contents_size: Vector2<f32>, // text column size, text row size
+    pub _required_contents_area: Vector4<f32>,
+    pub _required_contents_size: Vector2<f32>,
     pub _text_counts: Vec<usize>, // text column count, text row count
     pub _render_area: Vector4<f32>, // border + size
     pub _ui_area: Vector4<f32>, // (x,y) ~ ((x,y) + _ui_size)
@@ -211,7 +212,7 @@ pub struct UIManager {
 impl Default for UIComponentData {
     fn default() -> UIComponentData {
         UIComponentData {
-            _layout_type: UILayoutType::Boxlayout,
+            _layout_type: UILayoutType::BoxLayout,
             _layout_orientation: Orientation::HORIZONTAL,
             _pos: Vector2::new(0.0, 0.0),
             _size: Vector2::new(100.0, 100.0),
@@ -261,6 +262,7 @@ impl UIComponentInstance {
             _spaces: Vector4::zeros(),
             _contents_area: Vector4::zeros(),
             _contents_size: Vector2::zeros(),
+            _required_contents_area: Vector4::zeros(),
             _required_contents_size: Vector2::zeros(),
             _render_area: Vector4::zeros(),
             _ui_area: Vector4::zeros(),
@@ -332,9 +334,9 @@ impl UIComponentInstance {
     pub fn set_layout_type(&mut self, layout_type: UILayoutType) { self._ui_component_data._layout_type = layout_type; }
     pub fn get_layout_orientation(&self) -> Orientation { self._ui_component_data._layout_orientation }
     pub fn set_layout_orientation(&mut self, layout_orientation: Orientation) { self._ui_component_data._layout_orientation = layout_orientation; }
-    pub fn get_pos(&self) -> &Vector2<f32> {
-        &self._ui_component_data._pos
-    }
+    pub fn get_pos_x(&self) -> f32 { self._ui_component_data._pos.x }
+    pub fn get_pos_y(&self) -> f32 { self._ui_component_data._pos.y }
+    pub fn get_pos(&self) -> &Vector2<f32> { &self._ui_component_data._pos }
     pub fn set_pos(&mut self, x: f32, y: f32) {
         self.set_pos_x(x);
         self.set_pos_y(y);
@@ -374,6 +376,8 @@ impl UIComponentInstance {
     pub fn get_size(&self) -> &Vector2<f32> {
         &self._ui_component_data._size
     }
+    pub fn get_size_x(&self) -> f32 { self._ui_component_data._size.x }
+    pub fn get_size_y(&self) -> f32 { self._ui_component_data._size.y }
     pub fn set_size(&mut self, size_x: f32, size_y: f32) {
         self.set_size_x(size_x);
         self.set_size_y(size_y);
@@ -619,7 +623,6 @@ impl UIComponentInstance {
     pub fn collect_ui_font_render_data(&mut self, font_data: &FontData, render_ui_count: u32, render_ui_instance_datas: &mut [UIRenderData]) {
         let mut render_ui_index = render_ui_count;
 
-        let border: f32 = self.get_border();
         let mut ui_render_area: Vector4<f32> = Vector4::zeros();
         let mut render_pos: Vector2<f32> = Vector2::zeros();
 
@@ -693,7 +696,13 @@ impl UIComponentInstance {
                 render_ui_instance_data._ui_render_area.y = ui_pos.y - ui_half_size.y;
                 render_ui_instance_data._ui_render_area.z = ui_pos.x + ui_half_size.x;
                 render_ui_instance_data._ui_render_area.w = ui_pos.y + ui_half_size.y;
-                render_ui_instance_data._ui_parent_render_area = render_ui_instance_data._ui_render_area.clone() as Vector4<f32>;
+                if self._parent.is_some() {
+                    unsafe {
+                        render_ui_instance_data._ui_parent_render_area = (*self._parent.unwrap())._contents_area.clone() as Vector4<f32>;
+                    }
+                } else {
+                    render_ui_instance_data._ui_parent_render_area = render_ui_instance_data._ui_render_area.clone() as Vector4<f32>;
+                }
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
@@ -725,137 +734,179 @@ impl UIComponentInstance {
         }
     }
 
+    fn update_layout_size(&mut self, parent_contents_size: &Vector2<f32>) {
+        let border = self.get_border();
+        let spaces = self.get_margine() + &Vector4::new(border, border, border, border) + self.get_padding();
+        let size_hint_x = self.get_size_hint_x();
+        let size_hint_y = self.get_size_hint_y();
+        let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
+        if size_hint_x.is_some() {
+            ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
+        }
+        if size_hint_y.is_some() {
+            ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+        }
+        self._spaces.clone_from(&spaces);
+        self._ui_size.clone_from(&ui_size);
+        self._contents_size.x = 0f32.max(ui_size.x - spaces.x - spaces.x);
+        self._contents_size.x = 0f32.max(ui_size.y - spaces.y - spaces.w);
+    }
+
     fn update_layout_area(
         &mut self,
         parent_layout_type: UILayoutType,
-        parent_pivot: &Vector3<f32>,
-        parent_size: &Vector2<f32>,
-        parent_spaces: &Vector4<f32>,
+        parent_layout_orientation: Orientation,
         parent_halign: HorizontalAlign,
-        parent_valign: VerticalAlign
+        parent_valign: VerticalAlign,
+        parent_contents_area: &Vector4<f32>,
+        parent_contents_size: &Vector2<f32>,
+        required_contents_size: &Vector2<f32>,
+        ui_area_pos: &mut Vector2<f32>
     ) {
-        let border = self.get_border();
-        let half_size = &self._contents_size * 0.5;
-        let mut pivot = match parent_layout_type {
-            UILayoutType::Boxlayout => Vector3::zeros(),
-            UILayoutType::FloatLayout => Vector3::new(self.get_pos().x, self.get_pos().y, 0.0),
-        };
-        match parent_halign {
-            HorizontalAlign::LEFT => pivot.x += parent_pivot.x - parent_size.x * 0.5 + self._spaces.x + half_size.x,
-            HorizontalAlign::CENTER => pivot.x += parent_pivot.x,
-            HorizontalAlign::RIGHT => pivot.x += parent_pivot.x + parent_size.x * 0.5 - self._spaces.z - half_size.x,
-        }
-        match parent_valign {
-            VerticalAlign::TOP => pivot.y += parent_pivot.y - parent_size.y * 0.5 + self._spaces.y + half_size.y,
-            VerticalAlign::CENTER => pivot.y += parent_pivot.y,
-            VerticalAlign::BOTTOM => pivot.y += parent_pivot.y + parent_size.y * 0.5 - self._spaces.w - half_size.y,
-        }
-
-        self._render_area.x = pivot.x - half_size.x - border;
-        self._render_area.y = pivot.y - half_size.y - border;
-        self._render_area.z = pivot.x + half_size.y + border;
-        self._render_area.w = pivot.y + half_size.y + border;
-
-        // calculate contents size
-        match parent_halign {
-            HorizontalAlign::LEFT => {
-                self._contents_area.x = self._render_area.x + border + self.get_padding_left();
-                self._contents_area.z = self._contents_area.x + self._contents_size.x;
+        // update ui_area.xy
+        match parent_layout_type {
+            UILayoutType::FloatLayout => {
+                let pos_hint_x = self.get_pos_hint_x();
+                let pos_hint_y = self.get_pos_hint_y();
+                if pos_hint_x.is_some() {
+                    self._ui_area.x = parent_contents_area.x + parent_contents_size.x * pos_hint_x.unwrap();
+                } else {
+                    self._ui_area.x = parent_contents_area.x + self.get_pos_x();
+                }
+                if pos_hint_y.is_some() {
+                    self._ui_area.y = parent_contents_area.y + parent_contents_size.y * pos_hint_y.unwrap();
+                } else {
+                    self._ui_area.y = parent_contents_area.y + self.get_pos_y();
+                }
             },
-            HorizontalAlign::CENTER => {
-                self._contents_area.x = pivot.x - self._contents_size.x * 0.5;
-                self._contents_area.z = pivot.x + self._contents_size.x * 0.5;
-            },
-            HorizontalAlign::RIGHT => {
-                self._contents_area.z = self._render_area.z - border - self.get_padding_right();
-                self._contents_area.x = self._contents_area.z - self._contents_size.x;
-            },
-        }
-        match parent_valign {
-            VerticalAlign::TOP => {
-                self._contents_area.y = self._render_area.y + border + self.get_padding_top();
-                self._contents_area.w = self._contents_area.y + self._contents_size.y;
-            },
-            VerticalAlign::CENTER => {
-                self._contents_area.y = pivot.x - self._contents_size.y * 0.5;
-                self._contents_area.w = pivot.x + self._contents_size.y * 0.5;
-            },
-            VerticalAlign::BOTTOM => {
-                self._contents_area.w = self._render_area.w - border - self.get_padding_bottom();
-                self._contents_area.y = self._contents_area.w - self._contents_size.y;
-            },
-        }
-
-        self._ui_area.x = self._render_area.x - self.get_padding_left();
-        self._ui_area.y = self._render_area.y - self.get_padding_top();
-        self._ui_area.z = self._render_area.z + self.get_padding_right();
-        self._ui_area.w = self._render_area.w + self.get_padding_bottom();
-
-        self._transform.set_position(&pivot);
-
-        // complete
-        self._changed_render_data = true;
-        self._changed_layout = false;
-        self._ui_layout_state = UILayoutState::Complete;
-
-        // update fixed layout child layout
-        let layout_type = self.get_layout_type();
-        let halign = self.get_halign();
-        let valign = self.get_valign();
-        let size = self.get_size();
-        let spaces = &self._spaces;
-        unsafe {
-            for child in self._children.iter() {
-                child.as_mut().unwrap().update_layout_area(layout_type, &pivot, size, spaces, halign, valign);
+            UILayoutType::BoxLayout => {
+                match parent_layout_orientation {
+                    Orientation::HORIZONTAL => {
+                        self._ui_area.x = ui_area_pos.x;
+                        match parent_valign {
+                            VerticalAlign::TOP => {},
+                            VerticalAlign::CENTER => self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5,
+                            VerticalAlign::BOTTOM => self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y),
+                        }
+                        ui_area_pos.x += self._ui_size.x;
+                    },
+                    Orientation::VERTICAL => {
+                        self._ui_area.y = ui_area_pos.y;
+                        match parent_halign {
+                            HorizontalAlign::LEFT => {},
+                            HorizontalAlign::CENTER => self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5,
+                            HorizontalAlign::RIGHT => self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x),
+                        }
+                        ui_area_pos.y += self._ui_size.y;
+                    },
+                }
             }
         }
+
+        // update ui area
+        self._ui_area.z = self._ui_area.x + self._ui_size.x;
+        self._ui_area.w = self._ui_area.y + self._ui_size.y;
+
+        self._render_area.x = self._ui_area.x + self.get_margine_left();
+        self._render_area.y = self._ui_area.y + self.get_margine_top();
+        self._render_area.z = self._ui_area.z - self.get_margine_right();
+        self._render_area.w = self._ui_area.w - self.get_margine_bottom();
+
+        self._contents_area.x = self._ui_area.x + self._spaces.x;
+        self._contents_area.y = self._ui_area.y + self._spaces.y;
+        self._contents_area.z = self._ui_area.z - self._spaces.z;
+        self._contents_area.w = self._ui_area.w - self._spaces.w;
+
+        let pivot = Vector3::new(
+            (self._render_area.x + self._render_area.z) * 0.5,
+            (self._render_area.y + self._render_area.w) * 0.5,
+            0.0
+        );
+        self._transform.set_position(&pivot);
     }
 
-    fn update_layout_size(&mut self, font_data: &FontData, ui_layout_state: UILayoutState, is_root: bool) -> bool {
+    fn update_layout(&mut self, font_data: &FontData) {
         unsafe {
-            let mut changed_layout: bool = false;
+            let mut changed_layout: bool = self._changed_layout;
+            let mut required_contents_area = self._contents_area.clone() as Vector4<f32>;
+            let mut required_contents_size = Vector2::<f32>::zeros();
 
-            // recursive update_layout
+            let layout_type = self.get_layout_type();
+            let layout_orientation = self.get_layout_orientation();
+            let halign = self.get_halign();
+            let valign = self.get_valign();
+            let contents_area = &self._contents_area;
+            let contents_size = &self._contents_size;
+
+            // preupdate layout size
             for child in self._children.iter() {
-                changed_layout |= child.as_mut().unwrap().update_layout_size(font_data, ui_layout_state, false);
+                let child_ui_instance = child.as_mut().unwrap();
+                changed_layout |= child_ui_instance._changed_layout;
+                if changed_layout {
+                    // update_layout_size
+                    child_ui_instance.update_layout_size(&self._contents_size);
+
+                    // accumulate required_contents_size
+                    if UILayoutType::BoxLayout == layout_type {
+                        match layout_orientation {
+                            Orientation::HORIZONTAL => {
+                                required_contents_size.x += child_ui_instance._ui_size.x;
+                                required_contents_size.y.max(child_ui_instance._ui_size.y);
+                            },
+                            Orientation::VERTICAL => {
+                                required_contents_size.x.max(child_ui_instance._ui_size.x);
+                                required_contents_size.y += child_ui_instance._ui_size.y;
+                            },
+                        }
+                    }
+                }
             }
 
-            changed_layout = self._changed_layout || changed_layout;
+            // calculate child_ui_pos
+            let mut child_ui_pos = Vector2::<f32>::new(contents_area.x, contents_area.y); // (left, top)
+            if UILayoutType::BoxLayout == layout_type {
+                match halign {
+                    HorizontalAlign::LEFT => {},
+                    HorizontalAlign::CENTER => child_ui_pos.x += (contents_size.x - required_contents_size.x) * 0.5,
+                    HorizontalAlign::RIGHT => child_ui_pos.x += contents_size.x - required_contents_size.x,
+                }
+                match valign {
+                    VerticalAlign::TOP => {},
+                    VerticalAlign::CENTER => child_ui_pos.y += (contents_size.y - required_contents_size.y) * 0.5,
+                    VerticalAlign::BOTTOM => child_ui_pos.y += contents_size.y - required_contents_size.y,
+                }
+            }
+
+            // update children layout area
+            for child in self._children.iter() {
+                let child_ui_instance = child.as_mut().unwrap();
+                changed_layout |= child_ui_instance._changed_layout;
+                if changed_layout {
+                    child_ui_instance.update_layout_area(layout_type, layout_orientation, halign, valign, contents_area, contents_size, &required_contents_size, &mut child_ui_pos);
+                    child_ui_instance.update_layout(font_data);
+                }
+                required_contents_area.x = required_contents_area.x.min(child_ui_instance._ui_area.x);
+                required_contents_area.y = required_contents_area.y.min(child_ui_instance._ui_area.y);
+                required_contents_area.z = required_contents_area.z.min(child_ui_instance._ui_area.z);
+                required_contents_area.w = required_contents_area.w.min(child_ui_instance._ui_area.w);
+                required_contents_size.x = 0f32.max(required_contents_area.z - required_contents_area.x);
+                required_contents_size.y = 0f32.max(required_contents_area.w - required_contents_area.y);
+            }
+
+            // update contents area
             if changed_layout {
-                // update space, contets area
-                let layout_type = self.get_layout_type(); // UILayoutType::FloatLayout
-                let halign = self.get_halign(); // DEFAILT_HORIZONTAL_ALIGN
-                let valign = self.get_valign(); // DEFAILT_VERTICAL_ALIGN
-                let border = self.get_border();
-                let borders = Vector4::new(border, border, border, border);
-                let spaces = self.get_margine() + &borders + self.get_padding();
-                self._spaces.clone_from(&spaces);
-
-                // caculate contents size, text count
-                let expected_contents_size: Vector2::<f32> = Vector2::new(
-                    0f32.max(self.get_size().x - spaces.x - spaces.z),
-                    0f32.max(self.get_size().y - spaces.y - spaces.w)
-                );
-                let mut contents_size = Vector2::<f32>::zeros();
+                let mut text_contents_size = Vector2::<f32>::zeros();
                 if self._changed_text {
-                    self.compute_text_contents_size(font_data, &mut contents_size);
+                    self.compute_text_contents_size(font_data, &mut text_contents_size);
                 }
-                if self.get_expandable_x() {
-                    contents_size.x.max(expected_contents_size.x);
-                } else if self.get_size_hint_x().is_none() {
-                    contents_size.x = expected_contents_size.x;
-                }
-                if self.get_expandable_y() {
-                    contents_size.y.max(expected_contents_size.y);
-                } else if self.get_size_hint_y().is_none() {
-                    contents_size.y = expected_contents_size.y;
-                }
+                self._required_contents_area = required_contents_area;
+                self._required_contents_size = required_contents_size;
 
-                self._contents_size.clone_from(&contents_size);
-                self._ui_size.x = contents_size.x + spaces.x + spaces.z;
-                self._ui_size.y = contents_size.y + spaces.y + spaces.w;
+                // complete
+                self._changed_render_data = true;
+                self._changed_layout = false;
+                self._ui_layout_state = UILayoutState::Complete;
             }
-            changed_layout
         }
     }
 
@@ -1165,7 +1216,7 @@ impl UIManager {
         unsafe {
             if test {
                 let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_layout_type(UILayoutType::Boxlayout);
+                ui_component.set_layout_type(UILayoutType::BoxLayout);
                 ui_component.set_layout_orientation(Orientation::HORIZONTAL);
                 ui_component.set_pos(300.0, 300.0);
                 ui_component.set_size(200.0, 200.0);
@@ -1210,14 +1261,24 @@ impl UIManager {
 
             let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
             let touch_evemt: bool = false;
-            let is_root: bool = true;
-            let pivot = Vector3::new(window_size.0 as f32 / 2.0, window_size.1 as f32 / 2.0, 0.0);
-            let size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
-            let spaces = Vector4::zeros();
+            let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
+            let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
+            let required_contents_size = Vector2::<f32>::zeros();
+            let mut child_ui_pos = Vector2::<f32>::zeros();
             let mut render_ui_count: u32 = 0;
 
-            ui_component.update_layout_size(&self._font_data.borrow(), UILayoutState::Complete, is_root);
-            ui_component.update_layout_area(UILayoutType::FloatLayout, &pivot, &size, &spaces, DEFAILT_HORIZONTAL_ALIGN, DEFAILT_VERTICAL_ALIGN);
+            ui_component.update_layout_size(&contents_size);
+            ui_component.update_layout_area(
+                UILayoutType::FloatLayout,
+                Orientation::HORIZONTAL,
+                DEFAILT_HORIZONTAL_ALIGN,
+                DEFAILT_VERTICAL_ALIGN,
+                &contents_area,
+                &contents_size,
+                &required_contents_size,
+                &mut child_ui_pos
+            );
+            ui_component.update_layout(&self._font_data.borrow());
             ui_component.update(delta_time, touch_evemt);
             ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._ui_render_datas, &self._font_data.borrow());
             self._render_ui_count = render_ui_count;
