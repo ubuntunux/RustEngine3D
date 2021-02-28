@@ -746,6 +746,7 @@ impl UIComponentInstance {
         self._contents_size.x = 0f32.max(ui_size.x - spaces.x - spaces.x);
         self._contents_size.y = 0f32.max(ui_size.y - spaces.y - spaces.w);
 
+        println!(">> update_layout_size");
         println!("self._spaces: {:?}", self._spaces);
         println!("self._ui_size: {:?}", self._ui_size);
         println!("self._contents_size: {:?}", self._contents_size);
@@ -784,7 +785,11 @@ impl UIComponentInstance {
                         self._ui_area.x = ui_area_pos.x;
                         match parent_valign {
                             VerticalAlign::TOP => self._ui_area.y = ui_area_pos.y,
-                            VerticalAlign::CENTER => self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5,
+                            VerticalAlign::CENTER => {
+                                self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
+                                println!("self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5");
+                                println!("{:?} = {:?} + ({:?} - {:?}) * 0.5", self._ui_area.y, ui_area_pos.y, required_contents_size.y, self._ui_size.y);
+                            },
                             VerticalAlign::BOTTOM => self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y),
                         }
                         ui_area_pos.x += self._ui_size.x;
@@ -823,10 +828,14 @@ impl UIComponentInstance {
         );
         self._transform.set_position(&pivot);
 
+        println!(">> update_layout_area");
         println!("ui_area: {:?}", ui_area_pos);
+        println!("ui_area: {:?}", ui_area_pos);
+        println!("self._ui_size: {:?}", self._ui_size);
         println!("self._ui_area: {:?}", self._ui_area);
         println!("self._render_area: {:?}", self._render_area);
         println!("self._contents_area: {:?}", self._contents_area);
+        println!("self._contents_size: {:?}", self._contents_size);
         println!("pivot: {:?}", pivot);
     }
 
@@ -843,8 +852,8 @@ impl UIComponentInstance {
             let contents_area = &self._contents_area;
             let contents_size = &self._contents_size;
 
-            if self._changed_layout {
-                println!("update_layout-----------------------------");
+            if changed_layout {
+                println!(">> update_layout-----------------------------");
             }
 
             // preupdate layout size
@@ -860,15 +869,19 @@ impl UIComponentInstance {
                         match layout_orientation {
                             Orientation::HORIZONTAL => {
                                 required_contents_size.x += child_ui_instance._ui_size.x;
-                                required_contents_size.y.max(child_ui_instance._ui_size.y);
+                                required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
                             },
                             Orientation::VERTICAL => {
-                                required_contents_size.x.max(child_ui_instance._ui_size.x);
+                                required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
                                 required_contents_size.y += child_ui_instance._ui_size.y;
                             },
                         }
                     }
                 }
+            }
+
+            if changed_layout {
+                println!(">>  required_contents_size: {:?}", required_contents_size);
             }
 
             if changed_layout {
@@ -896,8 +909,6 @@ impl UIComponentInstance {
                     required_contents_area.y = required_contents_area.y.min(child_ui_instance._ui_area.y);
                     required_contents_area.z = required_contents_area.z.min(child_ui_instance._ui_area.z);
                     required_contents_area.w = required_contents_area.w.min(child_ui_instance._ui_area.w);
-                    required_contents_size.x = 0f32.max(required_contents_area.z - required_contents_area.x);
-                    required_contents_size.y = 0f32.max(required_contents_area.w - required_contents_area.y);
                 }
 
                 // update contents area
@@ -905,6 +916,9 @@ impl UIComponentInstance {
                 if self._changed_text {
                     self.compute_text_contents_size(font_data, &mut text_contents_size);
                 }
+
+                required_contents_size.x = 0f32.max(required_contents_area.z - required_contents_area.x);
+                required_contents_size.y = 0f32.max(required_contents_area.w - required_contents_area.y);
                 self._required_contents_area = required_contents_area;
                 self._required_contents_size = required_contents_size;
 
@@ -1224,43 +1238,44 @@ impl UIManager {
                 let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_layout_type(UILayoutType::BoxLayout);
                 ui_component.set_layout_orientation(Orientation::VERTICAL);
+                ui_component.set_halign(HorizontalAlign::RIGHT);
+                ui_component.set_valign(VerticalAlign::TOP);
                 ui_component.set_pos(200.0, 200.0);
                 ui_component.set_size_x(400.0);
                 ui_component.set_size_y(300.0);
                 ui_component.set_color(get_color32(255, 255, 0, 255));
                 ui_component.set_font_color(get_color32(0, 0, 0, 255));
+                ui_component.set_border_color(get_color32(0, 0, 255, 255));
                 ui_component.set_margine(5.0);
                 ui_component.set_padding(5.0);
                 ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
-                ui_component.set_halign(HorizontalAlign::RIGHT);
-                ui_component.set_valign(VerticalAlign::TOP);
                 ui_component.set_font_size(20.0);
                 ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
 
                 let btn = UIManager::create_widget(UIWidgetTypes::Default);
                 let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_pos(25.0, 25.0);
-                ui_component.set_size(50.0, 100.0);
-                ui_component.set_size_hint_x(Some(0.3));
+                ui_component.set_size(200.0, 100.0);
                 ui_component.set_color(get_color32(50, 50, 255, 255));
                 ui_component.set_font_color(get_color32(255, 255, 255, 255));
+                ui_component.set_border_color(get_color32(0, 0, 255, 255));
                 ui_component.set_margine(5.0);
-                ui_component.set_round(5.0);
-                ui_component.set_border(2.0);
+                ui_component.set_round(10.0);
+                ui_component.set_border(5.0);
                 ui_component.set_text(String::from("Child\nChild Test"));
                 self._root.add_widget(btn);
 
                 let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
                 let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_pos(75.0, 75.0);
-                ui_component.set_size(25.0, 50.0);
-                ui_component.set_size_hint_x(Some(0.3));
+                ui_component.set_pos(0.0, 0.0);
+                ui_component.set_size(100.0, 50.0);
                 ui_component.set_color(get_color32(255, 128, 128, 255));
                 ui_component.set_font_color(get_color32(255, 255, 255, 255));
+                ui_component.set_border_color(get_color32(0, 0, 255, 255));
                 ui_component.set_margine(5.0);
-                ui_component.set_round(5.0);
-                ui_component.set_border(2.0);
+                ui_component.set_round(20.0);
+                ui_component.set_border(5.0);
                 ui_component.set_text(String::from("Btn2\nBtn2 Test"));
                 self._root.add_widget(btn2);
 
