@@ -13,8 +13,9 @@ layout (location = INSTANCE_ID_LOCATION) flat out uint vs_out_instanceIndex;
 
 void main()
 {
-    vs_out_instanceIndex = gl_InstanceIndex;
-    UIRenderData ui_render_data = ui_render_datas[gl_InstanceIndex];
+    uint instance_id = gl_InstanceIndex + pushConstant._instance_id_offset;
+    vs_out_instanceIndex = instance_id;
+    UIRenderData ui_render_data = ui_render_datas[instance_id];
 
     vec4 color = uint_color_to_float_color(ui_render_data._ui_color);
     vec4 border_color = uint_color_to_float_color(ui_render_data._ui_border_color);

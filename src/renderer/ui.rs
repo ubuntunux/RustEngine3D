@@ -5,14 +5,12 @@ use ash::{ vk, Device };
 
 use crate::resource::Resources;
 use crate::renderer::font::FontData;
+use crate::renderer::material_instance::MaterialInstanceData;
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
-use crate::renderer::utility;
 use crate::utilities::system::{ self, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
-use crate::vulkan_context::descriptor::DescriptorResourceInfo;
-use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::vulkan_context::{ get_color32, SwapchainArray };
 
@@ -20,6 +18,7 @@ use crate::vulkan_context::vulkan_context::{ get_color32, SwapchainArray };
 pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
+pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
 pub const UI_INDEX_LEFT: usize = 0; // x
 pub const UI_INDEX_TOP: usize = 1; // y
 pub const UI_INDEX_RIGHT: usize = 2; // z
@@ -82,8 +81,8 @@ impl Default for UIRenderData {
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderUI {
     pub _inv_canvas_size: Vector2<f32>,
+    pub _instance_id_offset: u32,
     pub _reserved0: u32,
-    pub _reserved1: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -152,7 +151,7 @@ pub struct UIComponentData {
     pub _border_color: u32,
     pub _font_size: f32,
     pub _font_color: u32,
-    pub _texture: Option<RcRefCell<TextureData>>,
+    pub _material: Option<RcRefCell<MaterialInstanceData>>,
 }
 
 pub struct UIComponentInstance {
@@ -200,7 +199,6 @@ pub struct UIManager {
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
     pub _font_data: RcRefCell<FontData>,
-    pub _render_ui_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
     pub _ui_render_datas: [UIRenderData; MAX_UI_INSTANCE_COUNT as usize],
     pub _render_ui_count: u32,
 }
@@ -211,36 +209,38 @@ pub struct UIManager {
 
 impl Default for UIComponentData {
     fn default() -> UIComponentData {
-        UIComponentData {
-            _layout_type: UILayoutType::BoxLayout,
-            _layout_orientation: Orientation::HORIZONTAL,
-            _pos: Vector2::new(0.0, 0.0),
-            _size: Vector2::new(100.0, 100.0),
-            _halign: DEFAILT_HORIZONTAL_ALIGN,
-            _valign: DEFAILT_VERTICAL_ALIGN,
-            _pos_hint_x: None,
-            _pos_hint_y: None,
-            _size_hint_x: None,
-            _size_hint_y: None,
-            _padding: Vector4::zeros(),
-            _margine: Vector4::zeros(),
-            _round: 0.0,
-            _border: 0.0,
-            _border_color: get_color32(0, 0, 0, 255),
-            _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
-            _dragable: false,
-            _touchable: false,
-            _scroll_x: false,
-            _scroll_y: false,
-            _expandable_x: true,
-            _expandable_y: true,
-            _resizable_x: false,
-            _resizable_y: false,
-            _color: get_color32(255, 255, 255, 255),
-            _pressed_color: get_color32(128, 128, 255, 255),
-            _font_size: 20.0,
-            _font_color: get_color32(0, 0, 0, 255),
-            _texture: None,
+        unsafe {
+            UIComponentData {
+                _layout_type: UILayoutType::BoxLayout,
+                _layout_orientation: Orientation::HORIZONTAL,
+                _pos: Vector2::new(0.0, 0.0),
+                _size: Vector2::new(100.0, 100.0),
+                _halign: DEFAILT_HORIZONTAL_ALIGN,
+                _valign: DEFAILT_VERTICAL_ALIGN,
+                _pos_hint_x: None,
+                _pos_hint_y: None,
+                _size_hint_x: None,
+                _size_hint_y: None,
+                _padding: Vector4::zeros(),
+                _margine: Vector4::zeros(),
+                _round: 0.0,
+                _border: 0.0,
+                _border_color: get_color32(0, 0, 0, 255),
+                _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
+                _dragable: false,
+                _touchable: false,
+                _scroll_x: false,
+                _scroll_y: false,
+                _expandable_x: true,
+                _expandable_y: true,
+                _resizable_x: false,
+                _resizable_y: false,
+                _color: get_color32(255, 255, 255, 255),
+                _pressed_color: get_color32(128, 128, 255, 255),
+                _font_size: 20.0,
+                _font_color: get_color32(0, 0, 0, 255),
+                _material: None,
+            }
         }
     }
 }
@@ -699,18 +699,12 @@ impl UIComponentInstance {
                     render_ui_instance_data._ui_parent_render_area = render_ui_instance_data._ui_render_area.clone() as Vector4<f32>;
                 }
 
-                println!(">> collect_ui_render_data");
-                println!("_ui_render_area: {:?}", render_ui_instance_data._ui_render_area);
-                println!("_ui_parent_render_area: {:?}", render_ui_instance_data._ui_parent_render_area);
-
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
                 render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
-                if self._ui_component_data._texture.is_some() {
-                    render_ui_instance_data._ui_texcoord = self._ui_component_data._texcoord.into();
-                }
+                render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
                 self._render_ui_index = render_ui_index;
                 self._changed_render_data = false;
             }
@@ -750,11 +744,6 @@ impl UIComponentInstance {
         self._ui_size.clone_from(&ui_size);
         self._contents_size.x = 0f32.max(ui_size.x - spaces.x - spaces.x);
         self._contents_size.y = 0f32.max(ui_size.y - spaces.y - spaces.w);
-
-        println!(">> update_layout_size");
-        println!("self._spaces: {:?}", self._spaces);
-        println!("self._ui_size: {:?}", self._ui_size);
-        println!("self._contents_size: {:?}", self._contents_size);
     }
 
     fn update_layout_area(
@@ -792,8 +781,6 @@ impl UIComponentInstance {
                             VerticalAlign::TOP => self._ui_area.y = ui_area_pos.y,
                             VerticalAlign::CENTER => {
                                 self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
-                                println!("self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5");
-                                println!("{:?} = {:?} + ({:?} - {:?}) * 0.5", self._ui_area.y, ui_area_pos.y, required_contents_size.y, self._ui_size.y);
                             },
                             VerticalAlign::BOTTOM => self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y),
                         }
@@ -832,16 +819,6 @@ impl UIComponentInstance {
             0.0
         );
         self._transform.set_position(&pivot);
-
-        println!(">> update_layout_area");
-        println!("ui_area: {:?}", ui_area_pos);
-        println!("ui_area: {:?}", ui_area_pos);
-        println!("self._ui_size: {:?}", self._ui_size);
-        println!("self._ui_area: {:?}", self._ui_area);
-        println!("self._render_area: {:?}", self._render_area);
-        println!("self._contents_area: {:?}", self._contents_area);
-        println!("self._contents_size: {:?}", self._contents_size);
-        println!("pivot: {:?}", pivot);
     }
 
     fn update_layout(&mut self, font_data: &FontData) {
@@ -856,10 +833,6 @@ impl UIComponentInstance {
             let valign = self.get_valign();
             let contents_area = &self._contents_area;
             let contents_size = &self._contents_size;
-
-            if changed_layout {
-                println!(">> update_layout-----------------------------");
-            }
 
             // preupdate layout size
             for child in self._children.iter() {
@@ -883,10 +856,6 @@ impl UIComponentInstance {
                         }
                     }
                 }
-            }
-
-            if changed_layout {
-                println!(">>  required_contents_size: {:?}", required_contents_size);
             }
 
             if changed_layout {
@@ -1111,7 +1080,6 @@ impl UIManager {
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
                 _font_data: system::newRcRefCell(FontData::default()),
-                _render_ui_descriptor_sets: Vec::new(),
                 _ui_render_datas: [UIRenderData::default(); MAX_UI_INSTANCE_COUNT as usize],
                 _render_ui_count: 0,
             };
@@ -1126,18 +1094,9 @@ impl UIManager {
     }
 
     pub fn create_ui_descriptor_sets(&mut self, renderer_data: &RendererData, resources: &Resources) {
-        let material_instance = resources.get_material_instance_data("render_ui").borrow();
-        let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
-        let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(self._font_data.borrow()._texture.borrow().get_default_image_info().clone());
-        self._render_ui_descriptor_sets = utility::create_descriptor_sets(
-            renderer_data.get_device(),
-            render_font_pipeline_binding_data,
-            &[ (0, utility::create_swapchain_array(font_texture_image_info.clone())) ]
-        );
     }
 
     pub fn destroy_ui_descriptor_sets(&mut self) {
-        self._render_ui_descriptor_sets.clear();
     }
 
     pub fn destroy_ui_manager(&mut self, device: &Device) {
@@ -1212,8 +1171,8 @@ impl UIManager {
             let render_ui_descriptor_sets = None;
             let push_constant_data = PushConstant_RenderUI {
                 _inv_canvas_size: Vector2::new(1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32, 1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32),
+                _instance_id_offset: 0,
                 _reserved0: 0,
-                _reserved1: 0,
             };
 
             // upload storage buffer
@@ -1221,6 +1180,8 @@ impl UIManager {
             renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::UIRenderDataBuffer, upload_data);
 
             // render ui
+            let instance_id_offset: u32 = 0;
+
             renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, render_ui_framebuffer_data);
             renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, render_ui_descriptor_sets);
             renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
