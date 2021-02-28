@@ -22,9 +22,9 @@ struct UIRenderData {
     float _ui_border;
     uint _ui_border_color;
     uint _ui_render_flags;
+    float _ui_opacity;
     uint _reserved0;
     uint _reserved1;
-    uint _reserved2;
 };
 
 layout(binding = 0) uniform sampler2D texture_font;

@@ -106,9 +106,9 @@ pub struct UIRenderData {
     pub _ui_border: f32,
     pub _ui_border_color: u32,
     pub _ui_render_flags: u32,
+    pub _ui_opacity: f32,
     pub _reserved0: u32,
     pub _reserved1: u32,
-    pub _reserved2: u32,
 }
 
 impl Default for UIRenderData {
@@ -122,9 +122,9 @@ impl Default for UIRenderData {
             _ui_border: 0.0,
             _ui_border_color: 0x00000000,
             _ui_render_flags: UI_RENDER_FLAG_NONE,
+            _ui_opacity: 1.0,
             _reserved0: 0,
             _reserved1: 0,
-            _reserved2: 0,
         }
     }
 }
@@ -183,6 +183,7 @@ pub struct UIComponentInstance {
     pub _ui_area: Vector4<f32>, // (x,y) ~ ((x,y) + _ui_size)
     pub _ui_size: Vector2<f32>, // margie + border + padding + size
     pub _ui_layout_state: UILayoutState,
+    pub _opacity: f32,
     pub _visible: bool,
     pub _touched: bool,
     pub _touched_offset: Vector2<f32>,
@@ -275,6 +276,7 @@ impl UIComponentInstance {
             _ui_area: Vector4::zeros(),
             _ui_size: Vector2::zeros(),
             _ui_layout_state: UILayoutState::Unknown,
+            _opacity: 1.0,
             _visible: true,
             _touched: false,
             _touched_offset: Vector2::zeros(),
@@ -501,6 +503,11 @@ impl UIComponentInstance {
         self._visible = visible;
         self._changed_render_data = true;
     }
+    pub fn get_opacity(&self) -> f32 { self._opacity }
+    pub fn set_opacity(&mut self, opacity: f32) {
+        self._opacity = opacity;
+        self._changed_render_data = true;
+    }
     pub fn get_color(&self) -> u32 { self._ui_component_data._color }
     pub fn set_color(&mut self, color: u32) {
         if color != self._ui_component_data._color {
@@ -638,6 +645,7 @@ impl UIComponentInstance {
         _render_ui_group: &mut Vec<UIRenderGroupData>,
         _prev_render_group_data: &mut UIRenderGroupData,
         render_ui_instance_datas: &mut [UIRenderData],
+        opacity: f32
     ) {
         let mut render_ui_index = render_ui_count;
 
@@ -689,7 +697,9 @@ impl UIComponentInstance {
                     render_ui_instance_data._ui_round = 0.0;
                     render_ui_instance_data._ui_border = 0.0;
                     render_ui_instance_data._ui_border_color = 0;
+                    render_ui_instance_data._ui_opacity = 1.0;
                     render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
+                    render_ui_instance_data._ui_opacity = opacity;
                     render_ui_index += 1;
                     self._render_text_count += 1;
                 }
@@ -704,26 +714,34 @@ impl UIComponentInstance {
         render_ui_count: &mut u32,
         render_ui_group: &mut Vec<UIRenderGroupData>,
         prev_render_group_data: &mut UIRenderGroupData,
-        render_ui_instance_datas: &mut [UIRenderData]
+        render_ui_instance_datas: &mut [UIRenderData],
+        mut need_to_collect_render_data: bool,
+        mut opacity: f32
     ) {
         if self._visible {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 
-            let need_to_collect_render_data = self._changed_render_data || render_ui_index != self._render_ui_index;
+            need_to_collect_render_data = need_to_collect_render_data || self._changed_render_data || render_ui_index != self._render_ui_index;
 
             // collect ui render data
             if need_to_collect_render_data {
-                let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
-                render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
+                opacity *= self.get_opacity();
+
+                let mut ui_parent_render_area: Vector4<f32> = Vector4::zeros();
                 if self._parent.is_some() {
                     unsafe {
-                        render_ui_instance_data._ui_parent_render_area = (*self._parent.unwrap())._contents_area.clone() as Vector4<f32>;
+                        let parent: &UIComponentInstance = &(*self._parent.unwrap());
+                        ui_parent_render_area.clone_from(&parent._contents_area);
                     }
                 } else {
-                    render_ui_instance_data._ui_parent_render_area = render_ui_instance_data._ui_render_area.clone() as Vector4<f32>;
+                    ui_parent_render_area.clone_from(&self._render_area);
                 }
 
+                let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+                render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
+                render_ui_instance_data._ui_parent_render_area = ui_parent_render_area;
+                render_ui_instance_data._ui_opacity = opacity;
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
@@ -761,6 +779,7 @@ impl UIComponentInstance {
                         render_ui_group,
                         prev_render_group_data,
                         render_ui_instance_datas,
+                        opacity,
                     );
                 }
                 self._changed_text = false;
@@ -776,6 +795,8 @@ impl UIComponentInstance {
                     render_ui_group,
                     prev_render_group_data,
                     render_ui_instance_datas,
+                    need_to_collect_render_data,
+                    opacity
                 );
             }
         }
@@ -1216,6 +1237,8 @@ impl UIManager {
 
     pub fn collect_ui_render_data(&mut self) {
         let font_data = self._font_data.borrow();
+        let need_to_collect_render_data: bool = false;
+        let opacity: f32 = 1.0;
         let mut render_ui_count: u32 = 0;
         let mut render_ui_group: Vec<UIRenderGroupData> = Vec::new();
         let mut prev_render_group_data = UIRenderGroupData {
@@ -1229,6 +1252,8 @@ impl UIManager {
                 &mut render_ui_group,
                 &mut prev_render_group_data,
                 &mut self._ui_render_datas,
+                need_to_collect_render_data,
+                opacity
             );
 
             // last render count
