@@ -1550,8 +1550,11 @@ impl RendererData {
                 let pipeline_data: &PipelineData = &pipeline_data.borrow();
 
                 if prev_pipeline_data != pipeline_data_ptr {
-                    prev_pipeline_data = pipeline_data_ptr;
+                    if false == prev_pipeline_data.is_null() {
+                        self.end_render_pass(command_buffer);
+                    }
                     self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+                    prev_pipeline_data = pipeline_data_ptr;
                 }
 
                 if prev_pipeline_binding_data != pipeline_binding_data {

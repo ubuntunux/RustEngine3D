@@ -5,14 +5,15 @@ use ash::{ vk, Device };
 
 use crate::resource::Resources;
 use crate::renderer::font::FontData;
-use crate::renderer::material_instance::MaterialInstanceData;
+use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
-use crate::vulkan_context::vulkan_context::{ get_color32, SwapchainArray };
+use crate::vulkan_context::render_pass::{ PipelineData };
+use crate::vulkan_context::vulkan_context::{ get_color32 };
 
 // must match with render_ui_common.glsl
 pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
@@ -42,6 +43,12 @@ impl Default for UIVertexData {
             _position: Vector3::zeros()
         }
     }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct UIRenderGroupData {
+    pub _accumulated_render_count: u32,
+    pub _material_instance: *const MaterialInstanceData
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -151,7 +158,7 @@ pub struct UIComponentData {
     pub _border_color: u32,
     pub _font_size: f32,
     pub _font_color: u32,
-    pub _material: Option<RcRefCell<MaterialInstanceData>>,
+    pub _material_instance: Option<RcRefCell<MaterialInstanceData>>,
 }
 
 pub struct UIComponentInstance {
@@ -201,6 +208,8 @@ pub struct UIManager {
     pub _font_data: RcRefCell<FontData>,
     pub _ui_render_datas: [UIRenderData; MAX_UI_INSTANCE_COUNT as usize],
     pub _render_ui_count: u32,
+    pub _render_ui_group: Vec<UIRenderGroupData>,
+    pub _default_render_ui_material: Option<RcRefCell<MaterialInstanceData>>,
 }
 
 //////////////////////////////////////////
@@ -239,7 +248,7 @@ impl Default for UIComponentData {
                 _pressed_color: get_color32(128, 128, 255, 255),
                 _font_size: 20.0,
                 _font_color: get_color32(0, 0, 0, 255),
-                _material: None,
+                _material_instance: None,
             }
         }
     }
@@ -530,6 +539,10 @@ impl UIComponentInstance {
         }
     }
     pub fn get_texcoord(&self) -> &Vector4<f32> { &self._ui_component_data._texcoord }
+    pub fn get_material_instance(&self) -> &Option<RcRefCell<MaterialInstanceData>> { &self._ui_component_data._material_instance }
+    pub fn set_material_instance(&mut self, material_instance: &RcRefCell<MaterialInstanceData>) {
+        self._ui_component_data._material_instance = Some(material_instance.clone());
+    }
     pub fn get_round(&self) -> f32 { self._ui_component_data._round }
     pub fn set_round(&mut self, round: f32) {
         if round != self._ui_component_data._round {
@@ -620,7 +633,14 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn collect_ui_font_render_data(&mut self, font_data: &FontData, render_ui_count: u32, render_ui_instance_datas: &mut [UIRenderData]) {
+    pub fn collect_ui_font_render_data(
+        &mut self,
+        font_data: &FontData,
+        render_ui_count: u32,
+        _render_ui_group: &mut Vec<UIRenderGroupData>,
+        _prev_render_group_data: &mut UIRenderGroupData,
+        render_ui_instance_datas: &mut [UIRenderData],
+    ) {
         let mut render_ui_index = render_ui_count;
 
         let mut ui_render_area: Vector4<f32> = Vector4::zeros();
@@ -680,7 +700,14 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn collect_ui_render_data(&mut self, render_ui_count: &mut u32, render_ui_instance_datas: &mut [UIRenderData], font_data: &FontData) {
+    pub fn collect_ui_render_data(
+        &mut self,
+        font_data: &FontData,
+        render_ui_count: &mut u32,
+        render_ui_group: &mut Vec<UIRenderGroupData>,
+        prev_render_group_data: &mut UIRenderGroupData,
+        render_ui_instance_datas: &mut [UIRenderData]
+    ) {
         if self._visible {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
@@ -705,8 +732,27 @@ impl UIComponentInstance {
                 render_ui_instance_data._ui_border_color = self.get_border_color();
                 render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
                 render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
+
                 self._render_ui_index = render_ui_index;
                 self._changed_render_data = false;
+            }
+
+            let mut changed_render_pipeline_data: bool = false;
+            {
+                // check changed material instance
+                let material_instance = match self.get_material_instance() {
+                    Some(material_instance) => material_instance.as_ptr() as *const MaterialInstanceData,
+                    None => std::ptr::null()
+                };
+
+                if prev_render_group_data._material_instance != material_instance {
+                    changed_render_pipeline_data = true;
+                }
+
+                if 0 < render_ui_index && changed_render_pipeline_data {
+                    UIRenderGroupData::add_ui_render_group_data(render_ui_group, render_ui_index, prev_render_group_data, material_instance);
+                    changed_render_pipeline_data = false;
+                }
             }
 
             // collect font render data
@@ -714,7 +760,13 @@ impl UIComponentInstance {
                 if self._text.is_empty() {
                     self._render_text_count = 0;
                 } else {
-                    self.collect_ui_font_render_data(font_data, *render_ui_count, render_ui_instance_datas);
+                    self.collect_ui_font_render_data(
+                        font_data,
+                        *render_ui_count,
+                        render_ui_group,
+                        prev_render_group_data,
+                        render_ui_instance_datas,
+                    );
                 }
                 self._changed_text = false;
             }
@@ -723,7 +775,13 @@ impl UIComponentInstance {
 
         unsafe {
             for ui_component in self._children.iter() {
-                ui_component.as_mut().unwrap().collect_ui_render_data(render_ui_count, render_ui_instance_datas, font_data);
+                ui_component.as_mut().unwrap().collect_ui_render_data(
+                    font_data,
+                    render_ui_count,
+                    render_ui_group,
+                    prev_render_group_data,
+                    render_ui_instance_datas,
+                );
             }
         }
     }
@@ -1069,6 +1127,19 @@ impl VertexData for UIVertexData {
     }
 }
 
+impl UIRenderGroupData {
+    pub fn add_ui_render_group_data(
+        render_ui_group: &mut Vec<UIRenderGroupData>,
+        render_ui_count: u32,
+        prev_render_group_data: &mut UIRenderGroupData,
+        current_material_instance: *const MaterialInstanceData,
+    ) {
+        prev_render_group_data._accumulated_render_count = render_ui_count;
+        render_ui_group.push(*prev_render_group_data);
+        prev_render_group_data._material_instance = current_material_instance;
+    }
+}
+
 
 impl UIManager {
     pub fn create_ui_manager() -> UIManager {
@@ -1082,6 +1153,8 @@ impl UIManager {
                 _font_data: system::newRcRefCell(FontData::default()),
                 _ui_render_datas: [UIRenderData::default(); MAX_UI_INSTANCE_COUNT as usize],
                 _render_ui_count: 0,
+                _render_ui_group: Vec::new(),
+                _default_render_ui_material: None,
             };
             ui_manager
         }
@@ -1091,9 +1164,10 @@ impl UIManager {
         let font_data = resources.get_default_font_data();
         self._font_data = font_data.clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
+        self._default_render_ui_material = Some(resources.get_material_instance_data("render_ui").clone());
     }
 
-    pub fn create_ui_descriptor_sets(&mut self, renderer_data: &RendererData, resources: &Resources) {
+    pub fn create_ui_descriptor_sets(&mut self, _renderer_data: &RendererData, _resources: &Resources) {
     }
 
     pub fn destroy_ui_descriptor_sets(&mut self) {
@@ -1148,10 +1222,27 @@ impl UIManager {
     pub fn collect_ui_render_data(&mut self) {
         let font_data = self._font_data.borrow();
         let mut render_ui_count: u32 = 0;
+        let mut render_ui_group: Vec<UIRenderGroupData> = Vec::new();
+        let mut prev_render_group_data = UIRenderGroupData {
+            _accumulated_render_count: 0,
+            _material_instance: std::ptr::null(),
+        };
         unsafe {
-            self._root.get_ui_component_mut().as_mut().unwrap().collect_ui_render_data(&mut render_ui_count, &mut self._ui_render_datas, &font_data);
+            self._root.get_ui_component_mut().as_mut().unwrap().collect_ui_render_data(
+                &font_data,
+                &mut render_ui_count,
+                &mut render_ui_group,
+                &mut prev_render_group_data,
+                &mut self._ui_render_datas,
+            );
+
+            // last render count
+            if 0 < render_ui_count {
+                UIRenderGroupData::add_ui_render_group_data(&mut render_ui_group, render_ui_count, &mut prev_render_group_data, std::ptr::null());
+            }
         }
         self._render_ui_count = render_ui_count;
+        self._render_ui_group = render_ui_group;
     }
 
     pub fn render_ui(
@@ -1163,13 +1254,7 @@ impl UIManager {
     ) {
         if 0 < self._render_ui_count {
             let framebuffer_data = resources.get_framebuffer_data("render_ui").borrow();
-            let material_instance_data = resources.get_material_instance_data("render_ui").borrow();
-            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-            let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
-            let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-            let render_ui_framebuffer_data = None;
-            let render_ui_descriptor_sets = None;
-            let push_constant_data = PushConstant_RenderUI {
+            let mut push_constant_data = PushConstant_RenderUI {
                 _inv_canvas_size: Vector2::new(1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32, 1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32),
                 _instance_id_offset: 0,
                 _reserved0: 0,
@@ -1180,24 +1265,58 @@ impl UIManager {
             renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::UIRenderDataBuffer, upload_data);
 
             // render ui
-            let instance_id_offset: u32 = 0;
+            let mut prev_material_instance_data: *const MaterialInstanceData = std::ptr::null();
+            let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
+            let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
+            for render_group_data in self._render_ui_group.iter() {
+                unsafe {
+                    let render_count = render_group_data._accumulated_render_count - push_constant_data._instance_id_offset;
+                    let material_instance_data = if render_group_data._material_instance.is_null() {
+                        self._default_render_ui_material.as_ref().unwrap().as_ptr()
+                    } else {
+                        render_group_data._material_instance
+                    };
 
-            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, render_ui_framebuffer_data);
-            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, render_ui_descriptor_sets);
-            renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
-            renderer_data.draw_elements(
-                command_buffer,
-                &[self._ui_mesh_vertex_buffer._buffer],
-                &[],
-                self._render_ui_count,
-                self._ui_mesh_index_buffer._buffer,
-                self._ui_mesh_index_count,
-            );
+                    if prev_material_instance_data != material_instance_data {
+                        let pipeline_binding_data: &PipelineBindingData = (*material_instance_data).get_default_pipeline_binding_data();
+                        let render_pass_data = pipeline_binding_data.get_render_pass_data().borrow();
+                        let pipeline_data = pipeline_binding_data.get_pipeline_data();
+                        let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
+                        let pipeline_data: &PipelineData = &pipeline_data.borrow();
+
+                        if prev_pipeline_data != pipeline_data_ptr {
+                            if false == prev_pipeline_data.is_null() {
+                                renderer_data.end_render_pass(command_buffer);
+                            }
+                            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, &render_pass_data, pipeline_data, None);
+                            prev_pipeline_data = pipeline_data_ptr;
+                        }
+
+                        if prev_pipeline_binding_data != pipeline_binding_data {
+                            prev_pipeline_binding_data = pipeline_binding_data;
+                            let render_ui_descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
+                            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), render_ui_descriptor_sets);
+                        }
+                        prev_material_instance_data = material_instance_data;
+                    }
+
+                    renderer_data.upload_push_constant_data(command_buffer, &(*prev_pipeline_data), &push_constant_data);
+                    renderer_data.draw_elements(
+                        command_buffer,
+                        &[self._ui_mesh_vertex_buffer._buffer],
+                        &[],
+                        render_count,
+                        self._ui_mesh_index_buffer._buffer,
+                        self._ui_mesh_index_count,
+                    );
+                    push_constant_data._instance_id_offset = render_group_data._accumulated_render_count;
+                }
+            }
             renderer_data.end_render_pass(command_buffer);
         }
     }
 
-    pub fn update(&mut self, window_size: (u32, u32), delta_time: f64) {
+    pub fn update(&mut self, window_size: (u32, u32), delta_time: f64, resources: &Resources) {
         static mut test: bool = true;
         unsafe {
             if test {
@@ -1230,6 +1349,7 @@ impl UIManager {
                 ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
                 ui_component.set_text(String::from("Child\nChild Test"));
+                ui_component.set_material_instance(&resources.get_material_instance_data("render_ui_test"));
                 self._root.add_widget(btn);
 
                 let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
@@ -1255,7 +1375,6 @@ impl UIManager {
             let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
             let required_contents_size = Vector2::<f32>::zeros();
             let mut child_ui_pos = Vector2::<f32>::zeros();
-            let mut render_ui_count: u32 = 0;
 
             if ui_component.get_changed_layout() {
                 ui_component.update_layout_size(&contents_size);
@@ -1272,8 +1391,8 @@ impl UIManager {
             }
             ui_component.update_layout(&self._font_data.borrow());
             ui_component.update(delta_time, touch_evemt);
-            ui_component.collect_ui_render_data(&mut render_ui_count, &mut self._ui_render_datas, &self._font_data.borrow());
-            self._render_ui_count = render_ui_count;
+
+            self.collect_ui_render_data();
         }
     }
 }

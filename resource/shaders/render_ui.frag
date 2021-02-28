@@ -67,5 +67,11 @@ void main()
             }
         }
     }
+
+
+    vec4 tex_color = texture(texture_normal, vs_output._texcoord);
+    tex_color.xyz = pow(tex_color.xyz, vec3(2.2));
+    color = mix(tex_color, color, 0.01);
+
     fs_output = color;
 }
