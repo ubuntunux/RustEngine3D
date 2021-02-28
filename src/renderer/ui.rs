@@ -32,6 +32,51 @@ pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 // |--margin--|--border--|--padding--|--contents-size--|--padding--|--border--|--margin--|
 //            |--render-size--------------------------------------------------|
 
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderUI {
+    pub _inv_canvas_size: Vector2<f32>,
+    pub _instance_id_offset: u32,
+    pub _reserved0: u32,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum UIWidgetTypes {
+    Default
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum HorizontalAlign {
+    LEFT,
+    CENTER,
+    RIGHT,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum VerticalAlign {
+    BOTTOM,
+    CENTER,
+    TOP,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum Orientation {
+    HORIZONTAL,
+    VERTICAL,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum UILayoutType {
+    FloatLayout,
+    BoxLayout,
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
+pub enum UILayoutState {
+    Unknown,
+    Complete,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 pub struct UIVertexData {
     pub _position: Vector3<f32>,
@@ -82,51 +127,6 @@ impl Default for UIRenderData {
             _reserved2: 0,
         }
     }
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
-pub struct PushConstant_RenderUI {
-    pub _inv_canvas_size: Vector2<f32>,
-    pub _instance_id_offset: u32,
-    pub _reserved0: u32,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum UIWidgetTypes {
-    Default
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum HorizontalAlign {
-    LEFT,
-    CENTER,
-    RIGHT,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum VerticalAlign {
-    BOTTOM,
-    CENTER,
-    TOP,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum Orientation {
-    HORIZONTAL,
-    VERTICAL,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum UILayoutType {
-    FloatLayout,
-    BoxLayout,
-}
-
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
-pub enum UILayoutState {
-    Unknown,
-    Complete,
 }
 
 pub struct UIComponentData {
@@ -737,9 +737,9 @@ impl UIComponentInstance {
                 self._changed_render_data = false;
             }
 
-            let mut changed_render_pipeline_data: bool = false;
+            // add_ui_render_group_data
             {
-                // check changed material instance
+                let mut changed_render_pipeline_data: bool = false;
                 let material_instance = match self.get_material_instance() {
                     Some(material_instance) => material_instance.as_ptr() as *const MaterialInstanceData,
                     None => std::ptr::null()
@@ -751,7 +751,6 @@ impl UIComponentInstance {
 
                 if 0 < render_ui_index && changed_render_pipeline_data {
                     UIRenderGroupData::add_ui_render_group_data(render_ui_group, render_ui_index, prev_render_group_data, material_instance);
-                    changed_render_pipeline_data = false;
                 }
             }
 
