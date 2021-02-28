@@ -698,6 +698,11 @@ impl UIComponentInstance {
                 } else {
                     render_ui_instance_data._ui_parent_render_area = render_ui_instance_data._ui_render_area.clone() as Vector4<f32>;
                 }
+
+                println!(">> collect_ui_render_data");
+                println!("_ui_render_area: {:?}", render_ui_instance_data._ui_render_area);
+                println!("_ui_parent_render_area: {:?}", render_ui_instance_data._ui_parent_render_area);
+
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
@@ -1237,9 +1242,9 @@ impl UIManager {
             if test {
                 let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_layout_type(UILayoutType::BoxLayout);
-                ui_component.set_layout_orientation(Orientation::VERTICAL);
+                ui_component.set_layout_orientation(Orientation::HORIZONTAL);
                 ui_component.set_halign(HorizontalAlign::RIGHT);
-                ui_component.set_valign(VerticalAlign::TOP);
+                ui_component.set_valign(VerticalAlign::BOTTOM);
                 ui_component.set_pos(200.0, 200.0);
                 ui_component.set_size_x(400.0);
                 ui_component.set_size_y(300.0);
@@ -1257,9 +1262,9 @@ impl UIManager {
                 let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
                 ui_component.set_pos(25.0, 25.0);
                 ui_component.set_size(200.0, 100.0);
-                ui_component.set_color(get_color32(50, 50, 255, 255));
-                ui_component.set_font_color(get_color32(255, 255, 255, 255));
-                ui_component.set_border_color(get_color32(0, 0, 255, 255));
+                ui_component.set_color(get_color32(255, 255, 255, 255));
+                ui_component.set_font_color(get_color32(0, 0, 0, 255));
+                ui_component.set_border_color(get_color32(255, 0, 0, 255));
                 ui_component.set_margine(5.0);
                 ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
@@ -1272,10 +1277,11 @@ impl UIManager {
                 ui_component.set_size(100.0, 50.0);
                 ui_component.set_color(get_color32(255, 128, 128, 255));
                 ui_component.set_font_color(get_color32(255, 255, 255, 255));
-                ui_component.set_border_color(get_color32(0, 0, 255, 255));
+                ui_component.set_border_color(get_color32(0, 0, 0, 255));
                 ui_component.set_margine(5.0);
-                ui_component.set_round(20.0);
+                ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
+
                 ui_component.set_text(String::from("Btn2\nBtn2 Test"));
                 self._root.add_widget(btn2);
 

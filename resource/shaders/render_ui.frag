@@ -22,8 +22,8 @@ void main()
     }
 
     const float ui_round = ui_render_data._ui_round;
-    const vec2 half_size = (ui_render_data._ui_parent_render_area.zw - ui_render_data._ui_parent_render_area.xy) * 0.5;
-    const vec2 ui_center = ui_render_data._ui_parent_render_area.xy + half_size;
+    const vec2 half_size = (ui_render_data._ui_render_area.zw - ui_render_data._ui_render_area.xy) * 0.5;
+    const vec2 ui_center = (ui_render_data._ui_render_area.xy + ui_render_data._ui_render_area.zw) * 0.5;
     const vec2 offset_from_center = gl_FragCoord.xy - ui_center;
     const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
     vec4 color = vs_output._color;
