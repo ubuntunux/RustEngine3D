@@ -738,18 +738,13 @@ impl UIComponentInstance {
             }
 
             // add_ui_render_group_data
-            {
-                let mut changed_render_pipeline_data: bool = false;
+            if 0 < render_ui_index {
                 let material_instance = match self.get_material_instance() {
                     Some(material_instance) => material_instance.as_ptr() as *const MaterialInstanceData,
                     None => std::ptr::null()
                 };
 
                 if prev_render_group_data._material_instance != material_instance {
-                    changed_render_pipeline_data = true;
-                }
-
-                if 0 < render_ui_index && changed_render_pipeline_data {
                     UIRenderGroupData::add_ui_render_group_data(render_ui_group, render_ui_index, prev_render_group_data, material_instance);
                 }
             }
