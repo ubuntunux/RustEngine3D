@@ -41,6 +41,14 @@ void main()
         }
     }
 
+    // texture color
+    if(check_flag_any(UI_RENDER_FLAG_RENDER_TEXTURE, ui_render_data._ui_render_flags))
+    {
+        vec4 texture_color = texture(texture_normal, vs_output._texcoord);
+        texture_color.xyz = pow(texture_color.xyz, vec3(2.2));
+        color *= texture_color;
+    }
+
     // render text or render solid
     if(check_flag_any(UI_RENDER_FLAG_RENDER_TEXT, ui_render_data._ui_render_flags))
     {
@@ -67,11 +75,6 @@ void main()
             }
         }
     }
-
-
-    vec4 tex_color = texture(texture_normal, vs_output._texcoord);
-    tex_color.xyz = pow(tex_color.xyz, vec3(2.2));
-    color = mix(tex_color, color, 0.01);
 
     fs_output = color;
 }

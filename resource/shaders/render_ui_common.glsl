@@ -4,6 +4,7 @@
 const uint MAX_UI_INSTANCE_COUNT = 1024;
 const uint UI_RENDER_FLAG_NONE = 0;
 const uint UI_RENDER_FLAG_RENDER_TEXT = 1 << 0;
+const uint UI_RENDER_FLAG_RENDER_TEXTURE = 1 << 1;
 
 struct VERTEX_OUTPUT
 {

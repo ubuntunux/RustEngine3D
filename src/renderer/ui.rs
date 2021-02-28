@@ -731,6 +731,9 @@ impl UIComponentInstance {
                 render_ui_instance_data._ui_border = self.get_border();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
                 render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
+                if self.get_material_instance().is_some() {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_RENDER_TEXTURE;
+                }
                 render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
 
                 self._render_ui_index = render_ui_index;
@@ -1343,7 +1346,7 @@ impl UIManager {
                 ui_component.set_round(10.0);
                 ui_component.set_border(5.0);
                 ui_component.set_text(String::from("Child\nChild Test"));
-                ui_component.set_material_instance(&resources.get_material_instance_data("render_ui_test"));
+                ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
                 self._root.add_widget(btn);
 
                 let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
