@@ -43,7 +43,7 @@ pub fn get_font_data_create_info(
         glyphs_list.push(glyphs);
     }
 
-    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba();
+    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba8();
     let mut text_index = range_min;
     for y in 0..count_of_side {
         for x in 0..count_of_side {
@@ -72,7 +72,7 @@ pub fn get_font_data_create_info(
         let cell_width = image.width() / count_of_side;
         let cell_height = image.height() / count_of_side;
         let max_dist = (max(cell_width, cell_height) - 1) as f32;
-        let mut distance_field_image = DynamicImage::new_rgba8(image.width(), image.height()).to_rgba();
+        let mut distance_field_image = DynamicImage::new_rgba8(image.width(), image.height()).to_rgba8();
         for y in 0..count_of_side {
             for x in 0..count_of_side {
                 for py in 0..cell_height {

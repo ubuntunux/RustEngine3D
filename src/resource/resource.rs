@@ -561,10 +561,10 @@ impl Resources {
         let (image_width, image_height) = dynamic_image.dimensions();
         let image_layer = 1;
         let (image_data_raw, image_format): (Vec<u8>, vk::Format) = match dynamic_image {
-            image::DynamicImage::ImageRgba8(_) => (dynamic_image.to_rgba().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageRgb8(_) => (dynamic_image .to_rgba().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageLuma8(_) => (dynamic_image.to_rgba().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageRgb16(_) => (dynamic_image.to_rgba().into_raw(), vk::Format::R16G16B16A16_UNORM),
+            image::DynamicImage::ImageRgba8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
+            image::DynamicImage::ImageRgb8(_) => (dynamic_image .to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
+            image::DynamicImage::ImageLuma8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
+            image::DynamicImage::ImageRgb16(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R16G16B16A16_UNORM),
             _ => {
                 log::error!("Unkown format: {:?}", texture_file);
                 (Vec::new(), vk::Format::UNDEFINED)
