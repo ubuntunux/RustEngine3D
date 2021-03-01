@@ -2,6 +2,10 @@
 name = "rust_engine_3d"
 version = "0.1.0"
 authors = ["ubuntunux <ubuntunux@gmail.com>"]
+license = "BSD 2-Clause"
+homepage = "https://github.com/ubuntunux/RustEngine3D"
+repository = "https://github.com/ubuntunux/RustEngine3D"
+readme = "RustEngine3D"
 edition = "2018"
 build = "build.rs"
 
