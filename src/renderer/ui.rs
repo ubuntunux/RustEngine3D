@@ -1252,36 +1252,6 @@ impl UIManager {
         })
     }
 
-    pub fn collect_ui_render_data(&mut self) {
-        let font_data = self._font_data.borrow();
-        let need_to_collect_render_data: bool = false;
-        let opacity: f32 = 1.0;
-        let mut render_ui_count: u32 = 0;
-        let mut render_ui_group: Vec<UIRenderGroupData> = Vec::new();
-        let mut prev_render_group_data = UIRenderGroupData {
-            _accumulated_render_count: 0,
-            _material_instance: std::ptr::null(),
-        };
-        unsafe {
-            self._root.get_ui_component_mut().as_mut().unwrap().collect_ui_render_data(
-                &font_data,
-                &mut render_ui_count,
-                &mut render_ui_group,
-                &mut prev_render_group_data,
-                &mut self._ui_render_datas,
-                need_to_collect_render_data,
-                opacity
-            );
-
-            // last render count
-            if 0 < render_ui_count {
-                UIRenderGroupData::add_ui_render_group_data(&mut render_ui_group, render_ui_count, &mut prev_render_group_data, std::ptr::null());
-            }
-        }
-        self._render_ui_count = render_ui_count;
-        self._render_ui_group = render_ui_group;
-    }
-
     pub fn render_ui(
         &mut self,
         command_buffer: vk::CommandBuffer,
