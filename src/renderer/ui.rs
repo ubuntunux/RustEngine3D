@@ -1004,38 +1004,6 @@ impl UIComponentInstance {
         //
         //     return self._touched or touch_event
     }
-    fn render(&self) {
-        //     if 0.0 <= self._opacity and self._visible:
-        //         render_widget_program.use_program()
-        //         render_widget_program.bind_material_instance()
-        //
-        //         if self._pressed:
-        //             render_widget_program.bind_uniform_data("color", self._pressed_color)
-        //         else:
-        //             render_widget_program.bind_uniform_data("color", self._color)
-        //
-        //         render_widget_program.bind_uniform_data("pos_size", [self._world_x, self._world_y, self._width, self._height])
-        //         render_widget_program.bind_uniform_data("texcoord", self._texcoord)
-        //         render_widget_program.bind_uniform_data("opacity", self._opacity)
-        //
-        //         if self._texture is not None:
-        //             render_widget_program.bind_uniform_data("texture_diffuse", self._texture)
-        //             render_widget_program.bind_uniform_data("is_render_diffuse", True)
-        //         else:
-        //             render_widget_program.bind_uniform_data("is_render_diffuse", False)
-        //
-        //         mesh.draw_elements()
-        //
-        //     if self._visible:
-        //         if isinstance(self, Label) and self._text_render_data is not None:
-        //             self._core_manager.renderer.render_text(self._text_render_data,
-        //                                                    self._world_x,
-        //                                                    self._world_y,
-        //                                                    self._root.width,
-        //                                                    self._root.height)
-        //         for widget in self._widgets:
-        //             widget.render(last_program, render_widget_program, mesh)
-    }
 }
 
 pub trait Widget {
@@ -1181,6 +1149,55 @@ impl UIManager {
         self._font_data = font_data.clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
         self._default_render_ui_material = Some(resources.get_material_instance_data("render_ui").clone());
+
+        // build ui
+        unsafe {
+            let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
+            ui_component.set_layout_type(UILayoutType::BoxLayout);
+            ui_component.set_layout_orientation(Orientation::HORIZONTAL);
+            ui_component.set_halign(HorizontalAlign::RIGHT);
+            ui_component.set_valign(VerticalAlign::BOTTOM);
+            ui_component.set_pos(200.0, 200.0);
+            ui_component.set_size_x(400.0);
+            ui_component.set_size_y(300.0);
+            ui_component.set_color(get_color32(255, 255, 0, 255));
+            ui_component.set_font_color(get_color32(0, 0, 0, 255));
+            ui_component.set_border_color(get_color32(0, 0, 255, 255));
+            ui_component.set_margine(5.0);
+            ui_component.set_padding(5.0);
+            ui_component.set_round(10.0);
+            ui_component.set_border(5.0);
+            ui_component.set_font_size(20.0);
+            ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
+
+            let btn = UIManager::create_widget(UIWidgetTypes::Default);
+            let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+            ui_component.set_pos(25.0, 25.0);
+            ui_component.set_size(200.0, 100.0);
+            ui_component.set_color(get_color32(255, 255, 255, 255));
+            ui_component.set_font_color(get_color32(0, 0, 0, 255));
+            ui_component.set_border_color(get_color32(255, 0, 0, 255));
+            ui_component.set_margine(5.0);
+            ui_component.set_round(10.0);
+            ui_component.set_border(5.0);
+            ui_component.set_text(String::from("Child\nChild Test"));
+            ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
+            self._root.add_widget(btn);
+
+            let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
+            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+            ui_component.set_pos(0.0, 0.0);
+            ui_component.set_size(100.0, 50.0);
+            ui_component.set_color(get_color32(255, 128, 128, 255));
+            ui_component.set_font_color(get_color32(255, 255, 255, 255));
+            ui_component.set_border_color(get_color32(0, 0, 0, 255));
+            ui_component.set_margine(5.0);
+            ui_component.set_round(10.0);
+            ui_component.set_border(5.0);
+
+            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            self._root.add_widget(btn2);
+        }
     }
 
     pub fn create_ui_descriptor_sets(&mut self, _renderer_data: &RendererData, _resources: &Resources) {
@@ -1336,59 +1353,8 @@ impl UIManager {
         }
     }
 
-    pub fn update(&mut self, window_size: (u32, u32), delta_time: f64, resources: &Resources) {
-        static mut test: bool = true;
+    pub fn update(&mut self, window_size: (u32, u32), delta_time: f64, _resources: &Resources) {
         unsafe {
-            if test {
-                let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_layout_type(UILayoutType::BoxLayout);
-                ui_component.set_layout_orientation(Orientation::HORIZONTAL);
-                ui_component.set_halign(HorizontalAlign::RIGHT);
-                ui_component.set_valign(VerticalAlign::BOTTOM);
-                ui_component.set_pos(200.0, 200.0);
-                ui_component.set_size_x(400.0);
-                ui_component.set_size_y(300.0);
-                ui_component.set_color(get_color32(255, 255, 0, 255));
-                ui_component.set_font_color(get_color32(0, 0, 0, 255));
-                ui_component.set_border_color(get_color32(0, 0, 255, 255));
-                ui_component.set_margine(5.0);
-                ui_component.set_padding(5.0);
-                ui_component.set_round(10.0);
-                ui_component.set_border(5.0);
-                ui_component.set_font_size(20.0);
-                ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
-
-                let btn = UIManager::create_widget(UIWidgetTypes::Default);
-                let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_pos(25.0, 25.0);
-                ui_component.set_size(200.0, 100.0);
-                ui_component.set_color(get_color32(255, 255, 255, 255));
-                ui_component.set_font_color(get_color32(0, 0, 0, 255));
-                ui_component.set_border_color(get_color32(255, 0, 0, 255));
-                ui_component.set_margine(5.0);
-                ui_component.set_round(10.0);
-                ui_component.set_border(5.0);
-                ui_component.set_text(String::from("Child\nChild Test"));
-                ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
-                self._root.add_widget(btn);
-
-                let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
-                let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
-                ui_component.set_pos(0.0, 0.0);
-                ui_component.set_size(100.0, 50.0);
-                ui_component.set_color(get_color32(255, 128, 128, 255));
-                ui_component.set_font_color(get_color32(255, 255, 255, 255));
-                ui_component.set_border_color(get_color32(0, 0, 0, 255));
-                ui_component.set_margine(5.0);
-                ui_component.set_round(10.0);
-                ui_component.set_border(5.0);
-
-                ui_component.set_text(String::from("Btn2\nBtn2 Test"));
-                self._root.add_widget(btn2);
-
-                test = false;
-            }
-
             let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
             let touch_evemt: bool = false;
             let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
@@ -1412,7 +1378,33 @@ impl UIManager {
             ui_component.update_layout(&self._font_data.borrow());
             ui_component.update(delta_time, touch_evemt);
 
-            self.collect_ui_render_data();
+            // collect_ui_render_data
+            let font_data = self._font_data.borrow();
+            let need_to_collect_render_data: bool = false;
+            let opacity: f32 = 1.0;
+            let mut render_ui_count: u32 = 0;
+            let mut render_ui_group: Vec<UIRenderGroupData> = Vec::new();
+            let mut prev_render_group_data = UIRenderGroupData {
+                _accumulated_render_count: 0,
+                _material_instance: std::ptr::null(),
+            };
+
+            self._root.get_ui_component_mut().as_mut().unwrap().collect_ui_render_data(
+                &font_data,
+                &mut render_ui_count,
+                &mut render_ui_group,
+                &mut prev_render_group_data,
+                &mut self._ui_render_datas,
+                need_to_collect_render_data,
+                opacity
+            );
+
+            // last render count
+            if 0 < render_ui_count {
+                UIRenderGroupData::add_ui_render_group_data(&mut render_ui_group, render_ui_count, &mut prev_render_group_data, std::ptr::null());
+            }
+            self._render_ui_count = render_ui_count;
+            self._render_ui_group = render_ui_group;
         }
     }
 }
