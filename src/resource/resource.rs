@@ -1,5 +1,4 @@
 use std::fs::{ self, File };
-use std::str::FromStr;
 use std::io::prelude::*;
 use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
@@ -11,21 +10,18 @@ use image::{ self, GenericImageView, };
 use ash::{ vk };
 use nalgebra::Vector2;
 
-use crate::application::SceneManagerData;
+use crate::application::scene_manager::SceneManagerData;
 use crate::constants;
 use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
-use crate::resource::render_pass_create_info;
 use crate::resource::texture_generator;
 use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
 use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
-use crate::renderer::model::{ ModelData };
+use crate::renderer::model::ModelData;
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
-use crate::renderer::renderer::{ RendererData };
-use crate::renderer::render_target::{ RenderTargetType };
-use crate::renderer::shader_buffer_datas::{ ShaderBufferDataType };
+use crate::renderer::renderer::RendererData;
 use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
@@ -39,7 +35,6 @@ use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 use byteorder::ReadBytesExt;
 
-const GATHER_ALL_FILES: bool = false;
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
@@ -74,7 +69,6 @@ const DEFAULT_FONT_NAME: &str = "NanumBarunGothic_Basic_Latin";
 const DEFAULT_MESH_NAME: &str = "quad";
 const DEFAULT_MODEL_NAME: &str = "quad";
 const DEFAULT_TEXTURE_NAME: &str = "common/default";
-const DEFAULT_MATERIAL_NAME: &str = "render_pass_static_opaque";
 const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
@@ -128,22 +122,6 @@ pub struct Resources {
     pub _descriptor_data_map: DescriptorDataMap
 }
 
-pub fn create_resources() -> RcRefCell<Resources> {
-    newRcRefCell(Resources {
-        _resource_filenames: Vec::new(),
-        _meta_data_map: MetaDataMap::new(),
-        _font_data_map: FontDataMap::new(),
-        _mesh_data_map: MeshDataMap::new(),
-        _model_data_map: ModelDataMap::new(),
-        _texture_data_map: TextureDataMap::new(),
-        _framebuffer_datas_map: FramebufferDatasMap::new(),
-        _render_pass_data_map: RenderPassDataMap::new(),
-        _material_data_map: MaterialDataMap::new(),
-        _material_instance_data_map: MaterialInstanceDataMap::new(),
-        _descriptor_data_map: DescriptorDataMap::new()
-    })
-}
-
 fn get_resource_data_must<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str) -> &'a RcRefCell<T> {
     resource_data_map.get(resource_name).unwrap()
 }
@@ -179,6 +157,22 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 }
 
 impl Resources {
+    pub fn create_resources() -> Resources {
+        Resources {
+            _resource_filenames: Vec::new(),
+            _meta_data_map: MetaDataMap::new(),
+            _font_data_map: FontDataMap::new(),
+            _mesh_data_map: MeshDataMap::new(),
+            _model_data_map: ModelDataMap::new(),
+            _texture_data_map: TextureDataMap::new(),
+            _framebuffer_datas_map: FramebufferDatasMap::new(),
+            _render_pass_data_map: RenderPassDataMap::new(),
+            _material_data_map: MaterialDataMap::new(),
+            _material_instance_data_map: MaterialInstanceDataMap::new(),
+            _descriptor_data_map: DescriptorDataMap::new()
+        }
+    }
+
     pub fn initialize_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("initialize_resources");
         self.load_resource_filenames();
@@ -752,7 +746,7 @@ impl Resources {
 
     // Framebuffer
     pub fn load_framebuffer_datas(&mut self, renderer_data: &RendererData) {
-        let render_pass_data_create_infos = render_pass_create_info::get_render_pass_data_create_infos(renderer_data);
+        let render_pass_data_create_infos = renderer_data.get_render_pass_data_create_infos();
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
             for render_pass_data_create_info in render_pass_data_create_infos.iter() {
@@ -789,7 +783,7 @@ impl Resources {
 
     // RenderPassLoader
     pub fn load_render_pass_datas(&mut self, renderer_data: &RendererData) {
-        let render_pass_data_create_infos = render_pass_create_info::get_render_pass_data_create_infos(renderer_data);
+        let render_pass_data_create_infos = renderer_data.get_render_pass_data_create_infos();
         for render_pass_data_create_info in render_pass_data_create_infos.iter() {
             let descriptor_datas = render_pass_data_create_info._pipeline_data_create_infos
                 .iter()
@@ -913,7 +907,7 @@ impl Resources {
                         };
                         let descriptor_resource_info = match material_parameter_resource_type {
                             DescriptorResourceType::UniformBuffer | DescriptorResourceType::StorageBuffer => {
-                                let uniform_buffer_data = renderer_data.get_shader_buffer_data(ShaderBufferDataType::from_str(&material_parameter_name.as_str()).unwrap());
+                                let uniform_buffer_data = renderer_data.get_shader_buffer_data_from_str(material_parameter_name.as_str());
                                 uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone()
                             },
                             DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
@@ -931,7 +925,7 @@ impl Resources {
                                 }
                             },
                             DescriptorResourceType::RenderTarget | DescriptorResourceType::StorageRenderTarget => {
-                                let texture_data = renderer_data.get_render_target(RenderTargetType::from_str(&material_parameter_name.as_str()).unwrap());
+                                let texture_data = renderer_data.get_render_target_from_str(material_parameter_name.as_str());
                                 if descriptor_data_create_info.use_sub_image() {
                                     DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_sub_image_info(
                                         descriptor_data_create_info._descriptor_image_layer,

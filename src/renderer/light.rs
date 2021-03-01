@@ -1,6 +1,5 @@
 use nalgebra::{Vector3, Vector4, Matrix4};
 
-use crate::renderer::shader_buffer_datas::LightConstants;
 use crate::renderer::transform_object::{
     TransformObjectData,
 };
@@ -9,6 +8,32 @@ use crate::utilities::math::{
     orthogonal,
 };
 use crate::constants;
+
+// scene_constants.glsl - struct LIGHT_CONSTANTS
+#[derive(Clone, Debug)]
+pub struct LightConstants {
+    pub _shadow_view_projection: Matrix4<f32>,
+    pub _light_position: Vector3<f32>,
+    pub _shadow_exp: f32,
+    pub _light_direction: Vector3<f32>,
+    pub _shadow_bias: f32,
+    pub _light_color: Vector3<f32>,
+    pub _shadow_samples: i32,
+}
+
+impl Default for LightConstants {
+    fn default() -> LightConstants {
+        LightConstants {
+            _shadow_view_projection: Matrix4::identity(),
+            _light_position: Vector3::zeros(),
+            _shadow_exp: constants::SHADOW_EXP,
+            _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
+            _shadow_bias: constants::SHADOW_BIAS,
+            _light_color: Vector3::new(1.0, 1.0, 1.0),
+            _shadow_samples: constants::SHADOW_SAMPLES,
+        }
+    }
+}
 
 #[derive(Clone, Debug)]
 pub struct DirectionalLightCreateInfo {

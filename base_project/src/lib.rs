@@ -1,5 +1,6 @@
-#![allow(dead_code)]
+pub mod application;
 pub mod constants;
+pub mod render_pass_create_info;
 pub mod renderer;
 
 use rust_engine_3d::application::*;

@@ -3,11 +3,10 @@ use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
 
-use crate::resource::Resources;
+use crate::resource::resource::Resources;
 use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::renderer::{ RendererData };
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
@@ -1261,7 +1260,8 @@ impl UIManager {
 
             // upload storage buffer
             let upload_data = &self._ui_render_datas[0..self._render_ui_count as usize];
-            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::UIRenderDataBuffer, upload_data);
+            let shader_buffer_data = renderer_data.get_shader_buffer_data_from_str("UIRenderDataBuffer");
+            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer_data, upload_data);
 
             // render ui
             let mut prev_material_instance_data: *const MaterialInstanceData = std::ptr::null();

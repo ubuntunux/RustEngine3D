@@ -5,9 +5,8 @@ use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3 };
 use ash::{ vk, Device };
 
-use crate::resource::Resources;
-use crate::renderer::renderer::{ RendererData };
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::resource::resource::Resources;
+use crate::renderer::renderer::RendererData;
 use crate::renderer::utility;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
@@ -409,7 +408,8 @@ impl FontManager {
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
             let upload_data = &self._text_render_data._font_instance_datas[0..text_count as usize];
-            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, ShaderBufferDataType::FontInstanceDataBuffer, upload_data);
+            let shader_buffer = renderer_data.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
+            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer, upload_data);
 
             // render text
             renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, none_framebuffer_data);

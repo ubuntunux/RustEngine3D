@@ -1,6 +1,3 @@
-use std::cmp::{min, max};
-use std::str::FromStr;
-use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
 use std::borrow::Cow;
 use std::ffi::CStr;
@@ -20,9 +17,8 @@ use ash::extensions::khr::{
 use ash::version::{InstanceV1_0, DeviceV1_0};
 use winit;
 use winit::window::{ Window };
-use nalgebra::{ Vector2, Matrix4 };
 
-use crate::application::SceneManagerData;
+use crate::application::scene_manager::SceneManagerData;
 use crate::constants;
 use crate::vulkan_context::{
     buffer,
@@ -36,67 +32,18 @@ use crate::vulkan_context::buffer::{ ShaderBufferData };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
-use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
+use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
-use crate::vulkan_context::vulkan_context::{ self, RenderFeatures, SwapchainArray, FrameArray, MipLevels };
-use crate::renderer::fft_ocean::FFTOcean;
+use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainArray, FrameArray };
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
-use crate::renderer::push_constants::{
-    NONE_PUSH_CONSTANT,
-    PushConstant_StaticRenderObject,
-    PushConstant_SkeletalRenderObject,
-    PushConstant_GaussianBlur,
-    PushConstant_RenderCopy,
-    PushConstant_RenderDebug,
-    PushConstant_BlendCubeMap,
-};
-use crate::renderer::precomputed_atmosphere::PushConstant_Atmosphere;
-use crate::renderer::camera::CameraObjectData;
-use crate::renderer::render_target::{ self, RenderTargetType };
-use crate::renderer::shader_buffer_datas::{
-    self,
-    ShaderBufferDataType,
-    ShaderBufferDataMap,
-};
-use crate::renderer::renderer_data::{
-    RendererData_Bloom,
-    RendererData_SSAO,
-    RendererData_TAA,
-    RendererData_HierachicalMinZ,
-    RendererData_SceneColorDownSampling,
-    RendererData_SSR,
-    RendererData_CompositeGBuffer,
-    RendererData_ClearRenderTargets,
-    RendererData_LightProbe,
-};
-use crate::renderer::render_element::{ RenderElementData };
-use crate::resource::{ Resources };
+use crate::resource::resource::Resources;
 use crate::utilities::system::{ self, RcRefCell };
-use crate::renderer::font::{ FontManager, RenderTextInfo };
+use crate::renderer::font::FontManager;
 use crate::renderer::ui::{ UIManager };
+use ash::vk::CommandBuffer;
 
-pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
-
-pub const DEFAULT_PIPELINE: &str = "";
-
-// NOTE : RenderMode must match with scene_constants.glsl
-#[derive(Clone, Debug, Copy, PartialEq)]
-#[allow(non_camel_case_types)]
-pub enum RenderMode {
-    GBuffer = 0,
-    Forward = 1,
-    Shadow = 2,
-    CaptureHeightMap = 3,
-}
-
-// NOTE : RenderObjectType must match with scene_constants.glsl
-#[derive(Clone, Debug, Copy, PartialEq)]
-pub enum RenderObjectType {
-    Static = 0,
-    Skeletal = 1,
-}
 
 pub unsafe extern "system" fn vulkan_debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
@@ -150,11 +97,45 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
     }
 }
 
+pub trait RendererBase {
+    fn initialize_renderer(&mut self, device: &Device, memory_properties: &vk::PhysicalDeviceMemoryProperties);
+    // {
+    //     shader_buffer_datas::regist_shader_buffer_datas(
+    //         &self._device,
+    //         &self._device_memory_properties,
+    //         &mut self._shader_buffer_data_map
+    //     );
+    //     self._renderer.borrow_mut().create_render_targets(self);
+    // }
+    fn rendering_at_first(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32);
+    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
+    fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
+    fn update_post_process_datas(&self);
+    fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
+    fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData;
+    fn get_render_pass_data_create_infos(&self, renderer_data: &RendererData) -> &Vec<RenderPassDataCreateInfo>;
+    fn create_render_targets(&self, renderer_data: &RendererData);
+    fn destroy_render_targets(&self, renderer_data: &RendererData);
+    fn destroy_uniform_buffers(&self, device: &Device);
+    fn render_scene(
+        &mut self,
+        command_buffer: CommandBuffer,
+        frame_index: usize,
+        swapchain_index: u32,
+        scene_manager: RefMut<SceneManagerData>,
+        font_manager: &mut FontManager,
+        ui_manager: &mut UIManager,
+        elapsed_time: f64,
+        delta_time: f64,
+        elapsed_frame: u64,
+    );
+}
+
+
 pub struct RendererData {
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
-    _is_first_rendering: bool,
     pub _entry: Entry,
     pub _instance: Instance,
     pub _device: Device,
@@ -176,172 +157,137 @@ pub struct RendererData {
     pub _command_buffers: SwapchainArray<vk::CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
-    pub _scene_constants: shader_buffer_datas::SceneConstants,
-    pub _view_constants: shader_buffer_datas::ViewConstants,
-    pub _debug_render_target: RenderTargetType,
-    pub _debug_render_target_layer: u32,
-    pub _debug_render_target_miplevel: u32,
-    pub _render_target_data_map: RenderTargetDataMap,
-    pub _shader_buffer_data_map: ShaderBufferDataMap,
-    pub _renderer_data_bloom: RendererData_Bloom,
-    pub _renderer_data_ssao: RendererData_SSAO,
-    pub _renderer_data_taa: RendererData_TAA,
-    pub _renderer_data_hiz: RendererData_HierachicalMinZ,
-    pub _scene_color_downsampling: RendererData_SceneColorDownSampling,
-    pub _renderer_data_ssr: RendererData_SSR,
-    pub _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer,
-    pub _clear_render_targets: RendererData_ClearRenderTargets,
-    pub _light_probe_datas: RendererData_LightProbe,
     pub _resources: RcRefCell<Resources>,
-}
-
-pub fn create_renderer_data(
-    app_name: &str,
-    app_version: u32,
-    (window_width, window_height): (u32, u32),
-    window: &Window,
-    resources: RcRefCell<Resources>
-) -> RcRefCell<RendererData> {
-    unsafe {
-        log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
-        let entry = Entry::new().unwrap();
-        let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
-        let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
-        let surface = device::create_vk_surface(&entry, &instance, window);
-        let surface_interface = Surface::new(&entry, &instance);
-        let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
-        let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
-        let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
-        let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const std::os::raw::c_char);
-
-        log::info!("PhysicalDeviceProperties");
-        log::info!("    vulakn api_version: {}.{}.{}", vk::version_major(device_properties.api_version), vk::version_minor(device_properties.api_version), vk::version_patch(device_properties.api_version));
-        log::info!("    driver_version: {}.{}.{}", vk::version_major(device_properties.driver_version), vk::version_minor(device_properties.driver_version), vk::version_patch(device_properties.driver_version));
-        log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
-
-        let msaa_samples = device::get_max_usable_sample_count(&device_properties);
-
-        let queue_family_indices = queue::get_queue_family_indices(
-            &instance,
-            &surface_interface,
-            surface,
-            physical_device,
-            constants::IS_CONCURRENT_MODE
-        );
-        let render_features = RenderFeatures {
-            _physical_device_features: physical_device_features.clone(),
-            _msaa_samples: msaa_samples,
-        };
-        let graphics_queue_index = queue_family_indices._graphics_queue_index;
-        let present_queue_index = queue_family_indices._present_queue_index;
-        let queue_family_index_set: Vec<u32> = if graphics_queue_index == present_queue_index {
-            vec![graphics_queue_index]
-        } else {
-            vec![graphics_queue_index, present_queue_index]
-        };
-        let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set);
-        let queue_map = queue::create_queues(&device, &queue_family_index_set);
-        let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
-        let queue_family_datas = queue::QueueFamilyDatas {
-            _graphics_queue: queue_map.get(&graphics_queue_index).unwrap_or(default_queue).clone(),
-            _present_queue: queue_map.get(&present_queue_index).unwrap_or(default_queue).clone(),
-            _queue_family_index_list: queue_family_index_set.clone(),
-            _queue_family_count: queue_map.len() as u32,
-            _queue_family_indices: queue_family_indices.clone()
-        };
-        let swapchain_interface = Swapchain::new(&instance, &device);
-        let swapchain_data: swapchain::SwapchainData = swapchain::create_swapchain_data(
-            &device,
-            &swapchain_interface,
-            surface,
-            &swapchain_support_details,
-            &queue_family_datas,
-            constants::ENABLE_IMMEDIATE_MODE
-        );
-        let image_available_semaphores = sync::create_semaphores(&device);
-        let render_finished_semaphores = sync::create_semaphores(&device);
-        let frame_fences = sync::create_fences(&device);
-        let command_pool = command_buffer::create_command_pool(&device, &queue_family_datas);
-        let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
-
-        // debug utils
-        let debug_call_back: vk::DebugUtilsMessengerEXT;
-        let debug_util_interface: Option<DebugUtils>;
-        if constants::ENABLE_VALIDATION_LAYER {
-            let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
-            let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
-                message_severity: debug_message_level,
-                message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
-                pfn_user_callback: Some(vulkan_debug_callback),
-                ..Default::default()
-            };
-            debug_util_interface = Some(DebugUtils::new(&entry, &instance));
-            debug_call_back = debug_util_interface.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
-        } else {
-            debug_util_interface = None;
-            debug_call_back = vk::DebugUtilsMessengerEXT::null();
-        }
-
-        let mut renderer_data = RendererData {
-            _frame_index: 0,
-            _swapchain_index: 0,
-            _need_recreate_swapchain: false,
-            _is_first_rendering: true,
-            _entry: entry,
-            _instance: instance,
-            _device: device,
-            _device_properties: device_properties,
-            _device_memory_properties: device_memory_properties,
-            _physical_device: physical_device,
-            _surface: surface,
-            _surface_interface: surface_interface,
-            _swapchain_data: swapchain_data,
-            _swapchain_support_details: swapchain_support_details,
-            _swapchain_interface: swapchain_interface,
-            _debug_util_interface: debug_util_interface,
-            _debug_call_back: debug_call_back,
-            _image_available_semaphores: image_available_semaphores,
-            _render_finished_semaphores: render_finished_semaphores,
-            _queue_family_datas: queue_family_datas,
-            _frame_fences: frame_fences,
-            _command_pool: command_pool,
-            _command_buffers: command_buffers,
-            _render_features: render_features,
-            _image_samplers: ImageSamplerData::default(),
-            _scene_constants: shader_buffer_datas::SceneConstants::default(),
-            _view_constants: shader_buffer_datas::ViewConstants::default(),
-            _debug_render_target: RenderTargetType::BackBuffer,
-            _debug_render_target_layer: 0,
-            _debug_render_target_miplevel: 0,
-            _render_target_data_map: RenderTargetDataMap::new(),
-            _shader_buffer_data_map: ShaderBufferDataMap::new(),
-            _renderer_data_bloom: RendererData_Bloom::default(),
-            _renderer_data_ssao: RendererData_SSAO::default(),
-            _renderer_data_taa: RendererData_TAA::default(),
-            _renderer_data_hiz: RendererData_HierachicalMinZ::default(),
-            _scene_color_downsampling: RendererData_SceneColorDownSampling::default(),
-            _renderer_data_ssr: RendererData_SSR::default(),
-            _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer::default(),
-            _clear_render_targets: RendererData_ClearRenderTargets::default(),
-            _light_probe_datas: RendererData_LightProbe::default(),
-            _resources: resources.clone(),
-        };
-
-        renderer_data.initialize_renderer();
-
-        system::newRcRefCell(renderer_data)
-    }
+    pub _renderer: RcRefCell<dyn RendererBase>,
 }
 
 impl RendererData {
+    pub fn create_renderer_data(
+        app_name: &str,
+        app_version: u32,
+        (window_width, window_height): (u32, u32),
+        window: &Window,
+        resources: &RcRefCell<Resources>,
+        renderer: &RcRefCell<dyn RendererBase>,
+    ) -> RendererData {
+        unsafe {
+            log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
+            let entry = Entry::new().unwrap();
+            let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
+            let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
+            let surface = device::create_vk_surface(&entry, &instance, window);
+            let surface_interface = Surface::new(&entry, &instance);
+            let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
+            let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
+            let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
+            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const std::os::raw::c_char);
+
+            log::info!("PhysicalDeviceProperties");
+            log::info!("    vulakn api_version: {}.{}.{}", vk::version_major(device_properties.api_version), vk::version_minor(device_properties.api_version), vk::version_patch(device_properties.api_version));
+            log::info!("    driver_version: {}.{}.{}", vk::version_major(device_properties.driver_version), vk::version_minor(device_properties.driver_version), vk::version_patch(device_properties.driver_version));
+            log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
+
+            let msaa_samples = device::get_max_usable_sample_count(&device_properties);
+
+            let queue_family_indices = queue::get_queue_family_indices(
+                &instance,
+                &surface_interface,
+                surface,
+                physical_device,
+                constants::IS_CONCURRENT_MODE
+            );
+            let render_features = RenderFeatures {
+                _physical_device_features: physical_device_features.clone(),
+                _msaa_samples: msaa_samples,
+            };
+            let graphics_queue_index = queue_family_indices._graphics_queue_index;
+            let present_queue_index = queue_family_indices._present_queue_index;
+            let queue_family_index_set: Vec<u32> = if graphics_queue_index == present_queue_index {
+                vec![graphics_queue_index]
+            } else {
+                vec![graphics_queue_index, present_queue_index]
+            };
+            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set);
+            let queue_map = queue::create_queues(&device, &queue_family_index_set);
+            let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
+            let queue_family_datas = queue::QueueFamilyDatas {
+                _graphics_queue: queue_map.get(&graphics_queue_index).unwrap_or(default_queue).clone(),
+                _present_queue: queue_map.get(&present_queue_index).unwrap_or(default_queue).clone(),
+                _queue_family_index_list: queue_family_index_set.clone(),
+                _queue_family_count: queue_map.len() as u32,
+                _queue_family_indices: queue_family_indices.clone()
+            };
+            let swapchain_interface = Swapchain::new(&instance, &device);
+            let swapchain_data: swapchain::SwapchainData = swapchain::create_swapchain_data(
+                &device,
+                &swapchain_interface,
+                surface,
+                &swapchain_support_details,
+                &queue_family_datas,
+                constants::ENABLE_IMMEDIATE_MODE
+            );
+            let image_available_semaphores = sync::create_semaphores(&device);
+            let render_finished_semaphores = sync::create_semaphores(&device);
+            let frame_fences = sync::create_fences(&device);
+            let command_pool = command_buffer::create_command_pool(&device, &queue_family_datas);
+            let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
+
+            // debug utils
+            let debug_call_back: vk::DebugUtilsMessengerEXT;
+            let debug_util_interface: Option<DebugUtils>;
+            if constants::ENABLE_VALIDATION_LAYER {
+                let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
+                let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+                    message_severity: debug_message_level,
+                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
+                    pfn_user_callback: Some(vulkan_debug_callback),
+                    ..Default::default()
+                };
+                debug_util_interface = Some(DebugUtils::new(&entry, &instance));
+                debug_call_back = debug_util_interface.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
+            } else {
+                debug_util_interface = None;
+                debug_call_back = vk::DebugUtilsMessengerEXT::null();
+            }
+
+            let mut renderer_data = RendererData {
+                _frame_index: 0,
+                _swapchain_index: 0,
+                _need_recreate_swapchain: false,
+                _entry: entry,
+                _instance: instance,
+                _device: device,
+                _device_properties: device_properties,
+                _device_memory_properties: device_memory_properties,
+                _physical_device: physical_device,
+                _surface: surface,
+                _surface_interface: surface_interface,
+                _swapchain_data: swapchain_data,
+                _swapchain_support_details: swapchain_support_details,
+                _swapchain_interface: swapchain_interface,
+                _debug_util_interface: debug_util_interface,
+                _debug_call_back: debug_call_back,
+                _image_available_semaphores: image_available_semaphores,
+                _render_finished_semaphores: render_finished_semaphores,
+                _queue_family_datas: queue_family_datas,
+                _frame_fences: frame_fences,
+                _command_pool: command_pool,
+                _command_buffers: command_buffers,
+                _render_features: render_features,
+                _image_samplers: ImageSamplerData::default(),
+                _resources: resources.clone(),
+                _renderer: renderer.clone(),
+            };
+
+            renderer_data.initialize_renderer_data();
+            renderer_data
+        }
+    }
+
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) {
         log::info!("set_need_recreate_swapchain: {}", value);
         self._need_recreate_swapchain = value;
-    }
-    pub fn reset_is_first_rendering(&mut self) {
-        log::info!("reset_is_first_rendering");
-        self._is_first_rendering = true;
     }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
@@ -358,173 +304,6 @@ impl RendererData {
     pub fn get_current_command_buffer(&self) -> vk::CommandBuffer { self._command_buffers[self._swapchain_index as usize] }
     pub fn get_graphics_queue(&self) -> vk::Queue { self._queue_family_datas._graphics_queue }
     pub fn get_present_queue(&self) -> vk::Queue { self._queue_family_datas._present_queue }
-    pub fn get_shader_buffer_data(&self, buffer_data_type: ShaderBufferDataType) -> &ShaderBufferData {
-        &self._shader_buffer_data_map.get(&buffer_data_type).unwrap()
-    }
-
-    pub fn prepare_framebuffer_and_descriptors(&mut self) {
-        log::info!("RendererData::prepare_framebuffer_and_descriptors");
-        // Bloom
-        self._renderer_data_bloom.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::BloomTemp0).as_ref().unwrap(),
-        );
-        // Temporal AA
-        self._renderer_data_taa.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
-        );
-        // SSAO
-        self._renderer_data_ssao.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::SSAO).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::SSAOTemp).as_ref().unwrap(),
-        );
-        // Hierachical Min Z
-        self._renderer_data_hiz.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
-        );
-        // SceneColor Downsampling
-        self._scene_color_downsampling.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
-        );
-        // SSR
-        self._renderer_data_ssr.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
-        );
-        // Composite GBuffer
-        self._renderer_data_composite_gbuffer.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
-        );
-        // Clear Render Targets
-        self._clear_render_targets.initialize(
-            &self._device,
-            &self._resources,
-            &[
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
-                (*self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
-            ]
-        );
-        // RendererData_LightProbe
-        self._light_probe_datas.initialize(
-            &self._device,
-            &self._resources,
-            self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
-            &[
-                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants0).as_ref().unwrap(),
-                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants1).as_ref().unwrap(),
-                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants2).as_ref().unwrap(),
-                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants3).as_ref().unwrap(),
-                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants4).as_ref().unwrap(),
-                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants5).as_ref().unwrap(),
-            ]
-        );
-    }
-
-    pub fn destroy_framebuffer_and_descriptors(&mut self) {
-        log::info!("RendererData::destroy_framebuffer_and_descriptors");
-        self._renderer_data_bloom.destroy(&self._device);
-        self._renderer_data_taa.destroy(&self._device);
-        self._renderer_data_ssao.destroy(&self._device);
-        self._renderer_data_hiz.destroy(&self._device);
-        self._scene_color_downsampling.destroy(&self._device);
-        self._renderer_data_ssr.destroy(&self._device);
-        self._renderer_data_composite_gbuffer.destroy(&self._device);
-        self._clear_render_targets.destroy(&self._device);
-        self._light_probe_datas.destroy(&self._device);
-    }
-
-    pub fn update_post_process_datas(&mut self) {
-        self._renderer_data_ssr.update();
-    }
-
-    pub fn next_debug_render_target(&mut self) {
-        self._debug_render_target_miplevel = 0;
-        let next_enum_value: i32 = self._debug_render_target as i32 + 1;
-        const MAX_BOUND: i32 = RenderTargetType::MaxBound  as i32;
-        self._debug_render_target = if next_enum_value < MAX_BOUND {
-            unsafe { std::mem::transmute(next_enum_value) }
-        } else {
-            unsafe { std::mem::transmute(0) }
-        };
-        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
-    }
-
-    pub fn prev_debug_render_target(&mut self) {
-        self._debug_render_target_miplevel = 0;
-        let enum_to_int: i32 = self._debug_render_target as i32;
-        self._debug_render_target = if 0 == enum_to_int {
-            unsafe { std::mem::transmute(RenderTargetType::MaxBound as i32 - 1) }
-        } else {
-            unsafe { std::mem::transmute(enum_to_int - 1) }
-        };
-        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
-    }
-
-    pub fn next_debug_render_target_miplevel(&mut self) {
-        let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
-        self._debug_render_target_miplevel = min(texture_data._image_mip_levels, self._debug_render_target_miplevel + 1);
-        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
-    }
-
-    pub fn prev_debug_render_target_miplevel(&mut self) {
-        if 0 < self._debug_render_target_miplevel {
-            self._debug_render_target_miplevel -= 1;
-        }
-        log::info!("Current DebugRenderTarget: {:?} mip({})", self._debug_render_target, self._debug_render_target_miplevel);
-    }
-
-    pub fn get_render_target(&self, render_target_type: RenderTargetType) -> &TextureData {
-        &self._render_target_data_map.get(&render_target_type).unwrap()
-    }
-
-    pub fn create_render_targets(&mut self) {
-        log::info!("create_render_targets");
-        let render_taget_create_infos = render_target::get_render_target_create_infos(self);
-        for render_taget_create_info in render_taget_create_infos.iter() {
-            let render_target_type: RenderTargetType = RenderTargetType::from_str(render_taget_create_info._texture_name.as_str()).unwrap();
-            let texture_data = self.create_render_target(render_taget_create_info);
-            self._render_target_data_map.insert(render_target_type, texture_data);
-        }
-    }
-
     pub fn create_render_target<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_render_target(
             self.get_instance(),
@@ -536,7 +315,6 @@ impl RendererData {
             texture_create_info
         )
     }
-
     pub fn create_texture<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_texture_data(
             self.get_instance(),
@@ -548,31 +326,10 @@ impl RendererData {
             texture_create_info
         )
     }
-
     pub fn destroy_texture(&self, texture_data: &TextureData) {
         texture::destroy_texture_data(self.get_device(), texture_data);
     }
-
-    pub fn destroy_render_targets(&mut self) {
-        log::info!("destroy_render_targets");
-        for render_target_data in self._render_target_data_map.values() {
-            texture::destroy_texture_data(self.get_device(), render_target_data);
-        }
-        self._render_target_data_map.clear();
-    }
-
-    pub fn destroy_uniform_buffers(&mut self) {
-        for shader_buffer_data in self._shader_buffer_data_map.values() {
-            buffer::destroy_shader_buffer_data(self.get_device(), shader_buffer_data);
-        }
-        self._shader_buffer_data_map.clear();
-    }
-
-    pub fn create_geometry_buffer(
-        &self,
-        geometry_name: &String,
-        geometry_create_info: &geometry_buffer::GeometryCreateInfo
-    ) -> geometry_buffer::GeometryData {
+    pub fn create_geometry_buffer(&self, geometry_name: &String, geometry_create_info: &geometry_buffer::GeometryCreateInfo) -> geometry_buffer::GeometryData {
         geometry_buffer::create_geometry_data(
             self.get_device(),
             self.get_command_pool(),
@@ -582,11 +339,9 @@ impl RendererData {
             geometry_create_info
         )
     }
-
     pub fn destroy_geomtry_buffer(&self, geometry_data: &geometry_buffer::GeometryData) {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
     }
-
     pub fn destroy_renderer_data(&mut self) {
         unsafe {
             self.destroy_uniform_buffers();
@@ -807,7 +562,7 @@ impl RendererData {
         group_count_z: u32
     ) {
         unsafe {
-            self._device.cmd_dispatch(command_buffer, max(1, group_count_x), max(1, group_count_y), max(1, group_count_z));
+            self._device.cmd_dispatch(command_buffer, 1u32.max(group_count_x), 1u32.max(group_count_y), 1u32.max(group_count_z));
         }
     }
 
@@ -859,17 +614,12 @@ impl RendererData {
         }
     }
 
-    pub fn initialize_renderer(&mut self) {
+    pub fn initialize_renderer_data(&mut self) {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
-        shader_buffer_datas::regist_shader_buffer_datas(
-            &self._device,
-            &self._device_memory_properties,
-            &mut self._shader_buffer_data_map
-        );
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
-        self.create_render_targets();
+        self._renderer.borrow_mut().initialize_renderer(&self._device, &self._device_memory_properties);
     }
 
     pub fn resize_window(&mut self) {
@@ -888,7 +638,7 @@ impl RendererData {
         self.create_render_targets();
         resources.borrow_mut().load_graphics_datas(self);
         self.prepare_framebuffer_and_descriptors();
-        self.reset_is_first_rendering();
+        self.set_is_first_rendering(true);
     }
 
     pub fn recreate_swapchain(&mut self) {
@@ -974,8 +724,7 @@ impl RendererData {
         }
     }
 
-    pub fn upload_shader_buffer_data<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &T) {
-        let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
+    pub fn upload_shader_buffer_data<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &T) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
             let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
@@ -987,8 +736,7 @@ impl RendererData {
         }
     }
 
-    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &[T]) {
-        let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
+    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T]) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
             let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
@@ -1000,8 +748,7 @@ impl RendererData {
         }
     }
 
-    pub fn upload_shader_buffer_data_offset<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &T, offset: vk::DeviceSize) {
-        let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
+    pub fn upload_shader_buffer_data_offset<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &T, offset: vk::DeviceSize) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
             let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
@@ -1013,8 +760,7 @@ impl RendererData {
         }
     }
 
-    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, buffer_data_type: ShaderBufferDataType, upload_data: &[T], offset: vk::DeviceSize) {
-        let shader_buffer_data = self.get_shader_buffer_data(buffer_data_type);
+    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T], offset: vk::DeviceSize) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
             let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
@@ -1033,7 +779,7 @@ impl RendererData {
         ui_manager: &mut UIManager,
         elapsed_time: f64,
         delta_time: f64,
-        _elapsed_frame: u64
+        elapsed_frame: u64
     ) {
         unsafe {
             // frame index
@@ -1059,192 +805,32 @@ impl RendererData {
             self._swapchain_index = swapchain_index;
 
             let present_result: vk::Result = if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == failed_acquire_next_image {
-                let command_buffer = self._command_buffers[swapchain_index as usize];
-                let resources = self._resources.borrow();
-                let main_camera =  scene_manager.get_main_camera().borrow();
-                let main_light = scene_manager.get_main_light().borrow();
-                let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
-                let render_capture_height_map: bool = capture_height_map.get_need_to_redraw_shadow_and_reset();
-                let fft_ocean =  scene_manager.get_fft_ocean().borrow();
-                let mut atmosphere =  scene_manager.get_atmosphere().borrow_mut();
-                let quad_mesh = resources.get_mesh_data("quad").borrow();
-                let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
-                let static_render_elements = scene_manager.get_static_render_elements();
-                let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
-                let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
-                let skeletal_shadow_render_elements = scene_manager.get_skeletal_shadow_render_elements();
-
                 // Begin command buffer
+                let command_buffer = self._command_buffers[swapchain_index as usize];
                 let command_buffer_begin_info = vk::CommandBufferBeginInfo {
                     flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
                     ..Default::default()
                 };
                 self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
-                // Upload Uniform Buffers
-                self._scene_constants.update_scene_constants(
-                    self._swapchain_data._swapchain_extent.width,
-                    self._swapchain_data._swapchain_extent.height,
+                // renderer - render_scene
+                self._renderer.borrow_mut().render_scene(
+                    command_buffer,
+                    frame_index,
+                    swapchain_index,
+                    scene_manager,
+                    font_manager,
+                    ui_manager,
                     elapsed_time,
                     delta_time,
-                    fft_ocean.get_height(),
+                    elapsed_frame
                 );
-                self._view_constants.update_view_constants(&main_camera);
-                if render_capture_height_map {
-                    self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
-                }
-
-                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SceneConstants, &self._scene_constants);
-                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::ViewConstants, &self._view_constants);
-                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
-                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
-                self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
-
-                if self._is_first_rendering {
-                    self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
-                    fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
-                    atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
-                }
-
-                // clear gbuffer
-                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-                // shadow
-                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_shadow_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_shadow_render_elements, None);
-
-                // capture height map
-                if render_capture_height_map || self._is_first_rendering {
-                    self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-                    self.render_solid_object(command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
-                }
-
-                // fft-simulation
-                fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
-
-                // light probe
-                if self._light_probe_datas._next_refresh_time <= elapsed_time || self._light_probe_datas._light_probe_capture_count < 2 {
-                    self.render_light_probe(
-                        command_buffer,
-                        swapchain_index,
-                        &quad_geometry_data,
-                        &resources,
-                        &scene_manager,
-                        &main_camera,
-                        static_render_elements,
-                        &fft_ocean
-                    );
-                    self._light_probe_datas._next_refresh_time = elapsed_time + self._light_probe_datas._light_probe_refresh_term;
-                    self._light_probe_datas._light_probe_blend_time = 0.0;
-                    self._light_probe_datas._light_probe_capture_count += 1;
-                }
-
-                let light_probe_term = self._light_probe_datas._light_probe_blend_term.min(self._light_probe_datas._light_probe_refresh_term);
-                if self._light_probe_datas._light_probe_blend_time < light_probe_term {
-                    self._light_probe_datas._light_probe_blend_time += delta_time;
-                    let blend_ratio: f64 = 1.0f64.min(self._light_probe_datas._light_probe_blend_time / light_probe_term);
-                    self.copy_cube_map(
-                        command_buffer,
-                        swapchain_index,
-                        &resources,
-                        "copy_cube_map/blend",
-                        if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
-                            &self._light_probe_datas._light_probe_blend_from_forward_descriptor_sets
-                        } else {
-                            &self._light_probe_datas._light_probe_blend_from_only_sky_descriptor_sets
-                        },
-                        constants::LIGHT_PROBE_SIZE,
-                        Some(&PushConstant_BlendCubeMap {
-                            _blend_ratio: blend_ratio as f32,
-                            _reserved0: 0,
-                            _reserved1: 0,
-                            _reserved2: 0,
-                        })
-                    );
-                }
-
-                // render solid object
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
-                self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
-
-                // pre-process: min-z, ssr, ssao, gbuffer, downsampling scnee color
-                self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
-
-                // render ocean
-                fft_ocean.render_ocean(command_buffer, swapchain_index, self, &resources);
-
-                // render atmosphere
-                let render_light_probe_mode: bool = false;
-                atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, self, render_light_probe_mode);
-
-                // post-process: taa, bloom, motion blur
-                self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
-
-                // Render Final
-                self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-                // Render UI
-                ui_manager.render_ui(command_buffer, swapchain_index, &self, &self._resources.borrow());
-
-                // Render Text
-                let render_text_info = RenderTextInfo {
-                    _render_font_size: 20,
-                    _initial_column: 0,
-                    _initial_row: 0,
-                    _render_text_offset: Vector2::new(10.0, 10.0),
-                };
-                font_manager.render_text(command_buffer, swapchain_index, &self, &self._resources.borrow(), &render_text_info);
-
-                // Render Debug
-                if RenderTargetType::BackBuffer != self._debug_render_target {
-                    let render_debug_material_instance_name = "render_debug";
-                    let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
-                    let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
-                    self.begin_render_pass_pipeline(
-                        command_buffer,
-                        swapchain_index,
-                        &render_debug_pipeline_binding_data.get_render_pass_data().borrow(),
-                        &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
-                        None,
-                    );
-
-                    let debug_texture_data = self.get_render_target(self._debug_render_target);
-                    //let debug_texture_data = resources.get_texture_data("fft_ocean/butterfly").borrow();
-                    let descriptor_index = match debug_texture_data.get_image_view_type() {
-                        vk::ImageViewType::TYPE_2D => 1,
-                        vk::ImageViewType::TYPE_2D_ARRAY => 2,
-                        vk::ImageViewType::TYPE_3D => 3,
-                        vk::ImageViewType::CUBE => 4,
-                        _ => panic!("Not implemented."),
-                    };
-                    self.update_descriptor_set_mut(
-                        swapchain_index,
-                        &mut render_debug_pipeline_binding_data,
-                        descriptor_index,
-                        &DescriptorResourceInfo::DescriptorImageInfo(debug_texture_data.get_default_image_info()),
-                    );
-
-                    self.upload_push_constant_data(
-                        command_buffer,
-                        &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
-                        &PushConstant_RenderDebug {
-                            _debug_target: debug_texture_data.get_image_view_type().as_raw() as u32,
-                            _mip_level: self._debug_render_target_miplevel,
-                            ..Default::default()
-                        }
-                    );
-
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
-                    self.draw_geometry_data(command_buffer, &quad_geometry_data);
-                    self.end_render_pass(command_buffer);
-                }
 
                 // End command buffer
                 self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
 
                 // End Render
-                self._is_first_rendering = false;
+                self.set_is_first_rendering(false);
                 let present_swapchain_result = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore);
                 match present_swapchain_result {
                     Ok(is_swapchain_suboptimal) => if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS },
@@ -1267,530 +853,55 @@ impl RendererData {
         }
     }
 
-    pub fn rendering_at_first(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        _quad_geometry_data: &GeometryData,
-    ) {
-        // Clear render targets
-        let resources: Ref<Resources> = self._resources.borrow();
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_render_target").borrow();
-        for (_, framebuffers) in self._clear_render_targets._color_framebuffer_datas.iter() {
-            let default_frame_buffer = &framebuffers[0][0];
-            let mut render_pass_pipeline_name = String::from("clear");
-            for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_color_attachment_formats.iter() {
-                render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
-            }
-            for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_depth_attachment_formats.iter() {
-                render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
-            }
-            render_pass_pipeline_name.push_str("/clear");
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
-            for layer in 0..framebuffers.len() {
-                for mip_level in 0.. framebuffers[layer].len() {
-                    self.begin_render_pass_pipeline(
-                        command_buffer,
-                        swapchain_index,
-                        &pipeline_binding_data.get_render_pass_data().borrow(),
-                        &pipeline_binding_data.get_pipeline_data().borrow(),
-                        Some(&framebuffers[layer][mip_level])
-                    );
-                    self.end_render_pass(command_buffer);
-                }
-            }
-        }
+    // renderer interface
+    pub fn set_is_first_rendering(&self, is_first_rendering: bool) {
+        log::info!("set_is_first_rendering: {}", is_first_rendering);
+        self.set_is_first_rendering(is_first_rendering);
     }
 
-    pub fn copy_cube_map<T>(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        resources: &Ref<Resources>,
-        render_pass_pipeline_data_name: &str,
-        mip_level_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
-        image_width: u32,
-        push_constant_data: Option<&T>,
-    ) {
-        let copy_cube_map_material_instance = resources.get_material_instance_data("copy_cube_map").borrow();
-        let pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data(render_pass_pipeline_data_name);
-        let pipeline_data = pipeline_binding_data.get_pipeline_data().borrow();
-        self.begin_compute_pipeline(command_buffer, &pipeline_data);
-        let mip_levels = mip_level_descriptor_sets.len();
-        for mip_level in 0..mip_levels {
-            if let Some(push_constant_data) = push_constant_data {
-                self.upload_push_constant_data(
-                    command_buffer,
-                    &pipeline_data,
-                    push_constant_data
-                );
-            }
-            let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            let dispatch_count = image_width >> mip_level;
-            self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
-        }
+    pub fn prepare_framebuffer_and_descriptors(&self) {
+        log::info!("RendererData::prepare_framebuffer_and_descriptors");
+        self._renderer.borrow_mut().prepare_framebuffer_and_descriptors(&self._device, &self._resources.borrow());
     }
 
-    pub fn render_light_probe(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData,
-        resources: &Ref<Resources>,
-        scene_manager: &RefMut<SceneManagerData>,
-        main_camera: &CameraObjectData,
-        static_render_elements: &Vec<RenderElementData>,
-        _fft_ocean: &FFTOcean,
-    ) {
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("precomputed_atmosphere").borrow();
-        let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
-        let composite_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
-        let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
-        let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
-        let mut light_probe_view_constants = shader_buffer_datas::ViewConstants::default();
-        let light_probe_view_constant_types = [
-            ShaderBufferDataType::LightProbeViewConstants0,
-            ShaderBufferDataType::LightProbeViewConstants1,
-            ShaderBufferDataType::LightProbeViewConstants2,
-            ShaderBufferDataType::LightProbeViewConstants3,
-            ShaderBufferDataType::LightProbeViewConstants4,
-            ShaderBufferDataType::LightProbeViewConstants5,
-        ];
-        let render_atmosphere_push_constants = PushConstant_Atmosphere {
-            _render_light_probe_mode: 1,
-            ..Default::default()
-        };
-        let main_camera_position = main_camera._transform_object.get_position();
-
-        // copy only_sky to only_sky_prev
-        self.copy_cube_map(
-            command_buffer,
-            swapchain_index,
-            resources,
-            "copy_cube_map/copy",
-            &self._light_probe_datas._only_sky_copy_descriptor_sets,
-            constants::LIGHT_PROBE_SIZE,
-            NONE_PUSH_CONSTANT
-        );
-
-        // render atmosphere, inscatter
-        for i in 0..constants::CUBE_LAYER_COUNT {
-            let mut light_probe_camera = scene_manager.get_light_probe_camera(i).borrow_mut();
-            light_probe_camera._transform_object.set_position(main_camera_position);
-            light_probe_camera.update_camera_object_data();
-            light_probe_view_constants.update_view_constants(&light_probe_camera);
-            self.upload_shader_buffer_data(command_buffer, swapchain_index, light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
-
-            // render atmosphere
-            self.render_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                render_atmosphere_pipeline_binding_data,
-                quad_geometry_data,
-                Some(&self._light_probe_datas._render_atmosphere_framebuffer_datas[i]),
-                Some(&self._light_probe_datas._render_atmosphere_descriptor_sets[i]),
-                Some(&render_atmosphere_push_constants)
-            );
-
-            // composite atmosphere for only sky
-            self.render_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                composite_atmosphere_pipeline_binding_data,
-                quad_geometry_data,
-                Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas_only_sky[i]),
-                Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
-                NONE_PUSH_CONSTANT,
-            );
-
-            // downsampling for only sky
-            self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-            let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
-            let mip_levels = mip_level_descriptor_sets.len();
-            for mip_level in 0..mip_levels {
-                let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
-                let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
-                self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
-            }
-        }
-
-        // render static object for light probe
-        if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
-            // copy light_probe_forward to light_probe_forward_prev
-            self.copy_cube_map(
-                command_buffer,
-                swapchain_index,
-                resources,
-                "copy_cube_map/copy",
-                &self._light_probe_datas._light_probe_forward_copy_descriptor_sets,
-                constants::LIGHT_PROBE_SIZE,
-                NONE_PUSH_CONSTANT
-            );
-
-            for i in 0..constants::CUBE_LAYER_COUNT {
-                // clear light probe depth
-                const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
-                    "clear_light_probe_depth_0/clear",
-                    "clear_light_probe_depth_1/clear",
-                    "clear_light_probe_depth_2/clear",
-                    "clear_light_probe_depth_3/clear",
-                    "clear_light_probe_depth_4/clear",
-                    "clear_light_probe_depth_5/clear",
-                ];
-                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-                // composite atmosphere
-                self.render_render_pass_pipeline(
-                    command_buffer,
-                    swapchain_index,
-                    composite_atmosphere_pipeline_binding_data,
-                    quad_geometry_data,
-                    Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
-                    Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
-                    NONE_PUSH_CONSTANT,
-                );
-
-                // render forward for light probe
-                const RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES: [&str; 6] = [
-                    "render_pass_static_forward_light_probe_0/render_object",
-                    "render_pass_static_forward_light_probe_1/render_object",
-                    "render_pass_static_forward_light_probe_2/render_object",
-                    "render_pass_static_forward_light_probe_3/render_object",
-                    "render_pass_static_forward_light_probe_4/render_object",
-                    "render_pass_static_forward_light_probe_5/render_object",
-                ];
-                self.render_solid_object(
-                    command_buffer,
-                    swapchain_index,
-                    RenderMode::Forward,
-                    RenderObjectType::Static,
-                    static_render_elements,
-                    Some(RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i])
-                );
-
-                // downsampling light probe
-                self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-                let mip_level_descriptor_sets = &self._light_probe_datas._light_probe_downsampling_descriptor_sets[i];
-                let mip_levels = mip_level_descriptor_sets.len();
-                for mip_level in 0..mip_levels {
-                    let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
-                    let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
-                    self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
-                }
-            }
-        }
+    pub fn destroy_framebuffer_and_descriptors(&self) {
+        log::info!("RendererData::destroy_framebuffer_and_descriptors");
+        self._renderer.borrow_mut().destroy_framebuffer_and_descriptors(&self._device);
     }
 
-    pub fn render_solid_object(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        render_mode: RenderMode,
-        render_object_type: RenderObjectType,
-        render_elements: &Vec<RenderElementData>,
-        custom_render_pass_pipeline_name: Option<&str>,
-    ) {
-        if 0 == render_elements.len() {
-            return;
-        }
+    pub fn update_post_process_datas(&self) {
+        self._renderer.borrow_mut().update_post_process_datas();
+    }
 
+    pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
         unsafe {
-            let render_pass_pipeline_data_name: &str = if custom_render_pass_pipeline_name.is_some() {
-                custom_render_pass_pipeline_name.unwrap()
-            } else {
-                match (render_mode, render_object_type) {
-                    (RenderMode::GBuffer, RenderObjectType::Static) => "render_pass_static_gbuffer/render_object",
-                    (RenderMode::Forward, RenderObjectType::Static) => "render_pass_static_forward/render_object",
-                    (RenderMode::Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
-                    (RenderMode::CaptureHeightMap, RenderObjectType::Static) => "capture_static_height_map/render_object",
-                    (RenderMode::GBuffer, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
-                    (RenderMode::Forward, RenderObjectType::Skeletal) => "render_pass_skeletal_forward/render_object",
-                    (RenderMode::Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
-                    (RenderMode::CaptureHeightMap, RenderObjectType::Skeletal) => "capture_skeletal_height_map/render_object",
-                }
-            };
-
-            // upload skeleton bone matrices
-            let mut bone_metrices_offset: vk::DeviceSize = 0;
-            let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
-            let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
-            for render_element in render_elements.iter() {
-                let render_object = render_element._render_object.borrow();
-                match render_object_type {
-                    RenderObjectType::Static => {
-                    },
-                    RenderObjectType::Skeletal => {
-                        let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                        let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
-                        let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
-                        let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                        let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-
-                        // TODO : Upload at once
-                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
-                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
-
-                        // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
-                        bone_metrices_offset += bone_count * 2;
-                    },
-                };
-            }
-
-            // render
-            let mut bone_metrices_offset: vk::DeviceSize = 0;
-            for render_element in render_elements.iter() {
-                let render_object = render_element._render_object.borrow();
-                let pipeline_binding_data: *const PipelineBindingData = render_element._material_instance_data.borrow().get_pipeline_binding_data(&render_pass_pipeline_data_name);
-                let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
-                let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
-                let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
-                let pipeline_data: &PipelineData = &pipeline_data.borrow();
-
-                if prev_pipeline_data != pipeline_data_ptr {
-                    if false == prev_pipeline_data.is_null() {
-                        self.end_render_pass(command_buffer);
-                    }
-                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-                    prev_pipeline_data = pipeline_data_ptr;
-                }
-
-                if prev_pipeline_binding_data != pipeline_binding_data {
-                    prev_pipeline_binding_data = pipeline_binding_data;
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
-                }
-
-                match render_object_type {
-                    RenderObjectType::Static => {
-                        self.upload_push_constant_data(
-                            command_buffer,
-                            pipeline_data,
-                            &PushConstant_StaticRenderObject {
-                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
-                            }
-                        );
-                    },
-                    RenderObjectType::Skeletal => {
-                        let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                        let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
-                        self.upload_push_constant_data(
-                            command_buffer,
-                            pipeline_data,
-                            &PushConstant_SkeletalRenderObject {
-                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
-                                _bone_matrix_offset: bone_metrices_offset as u32,
-                                _bone_matrix_count: bone_count as u32,
-                                ..Default::default()
-                            }
-                        );
-                        // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
-                        bone_metrices_offset += bone_count * 2;
-                    },
-                };
-                self.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
-            }
-            self.end_render_pass(command_buffer);
+            (*self._renderer.as_ptr()).get_shader_buffer_data_from_str(buffer_data_name)
         }
     }
 
-    pub fn render_taa(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData
-    ) {
-        // render_taa
-        self.render_material_instance(command_buffer, swapchain_index, "render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-        // copy SceneColorCopy -> TAAResolve
-        let framebuffer = Some(&self._renderer_data_taa._taa_resolve_framebuffer_data);
-        let descriptor_sets = Some(&self._renderer_data_taa._taa_descriptor_sets);
-        let push_constants = PushConstant_RenderCopy::default();
-        self.render_material_instance(command_buffer, swapchain_index, "render_copy", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
-    }
-
-    pub fn render_bloom(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData
-    ) {
-        let resources: Ref<Resources> = self._resources.borrow();
-        let render_bloom_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow();
-        // render_bloom_highlight
-        let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
-        self.render_render_pass_pipeline(
-            command_buffer,
-            swapchain_index,
-            pipeline_binding_data,
-            quad_geometry_data,
-            None,
-            None,
-            Some(&self._renderer_data_bloom._bloom_push_constants)
-        );
-
-        // render_bloom_downsampling
-        let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-        let framebuffer_count = self._renderer_data_bloom._bloom_downsample_framebuffer_datas.len();
-        for i in 0..framebuffer_count {
-            self.render_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                pipeline_binding_data,
-                quad_geometry_data,
-                Some(&self._renderer_data_bloom._bloom_downsample_framebuffer_datas[i]),
-                Some(&self._renderer_data_bloom._bloom_downsample_descriptor_sets[i]),
-                NONE_PUSH_CONSTANT
-            );
-        }
-
-        // render_gaussian_blur
-        let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_gaussian_blur").borrow();
-        let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
-        let framebuffer_count = self._renderer_data_bloom._bloom_temp_framebuffer_datas.len();
-        for i in 0..framebuffer_count {
-            self.render_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                pipeline_binding_data,
-                quad_geometry_data,
-                Some(&self._renderer_data_bloom._bloom_temp_framebuffer_datas[i]),
-                Some(&self._renderer_data_bloom._bloom_temp_descriptor_sets[i]),
-                Some(&PushConstant_GaussianBlur {
-                    _blur_scale: if 0 == (i % 2) {
-                        Vector2::new(1.0, 0.0)
-                    } else {
-                        Vector2::new(0.0, 1.0)
-                    },
-                    ..Default::default()
-                })
-            );
+    pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
+        unsafe {
+            (*self._renderer.as_ptr()).get_render_target_from_str(render_target_type_str)
         }
     }
 
-    pub fn render_ssr(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        // Screen Space Reflection
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-        // Screen Space Reflection Resolve
-        let (framebuffer, descriptor_sets) = match self._renderer_data_ssr._current_ssr_resolved {
-            RenderTargetType::SSRResolved => (Some(&self._renderer_data_ssr._framebuffer_data0), Some(&self._renderer_data_ssr._descriptor_sets0)),
-            RenderTargetType::SSRResolvedPrev => (Some(&self._renderer_data_ssr._framebuffer_data1), Some(&self._renderer_data_ssr._descriptor_sets1)),
-            _ => panic!("error")
-        };
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, NONE_PUSH_CONSTANT);
-    }
-
-    pub fn render_ssao(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        // render ssao
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-        // render ssao blur
-        let framebuffer_h = Some(&self._renderer_data_ssao._ssao_blur_framebuffer_data0);
-        let descriptor_sets_h = Some(&self._renderer_data_ssao._ssao_blur_descriptor_sets0);
-        let framebuffer_v = Some(&self._renderer_data_ssao._ssao_blur_framebuffer_data1);
-        let descriptor_sets_v = Some(&self._renderer_data_ssao._ssao_blur_descriptor_sets1);
-        let push_constants_blur_h = PushConstant_GaussianBlur {
-            _blur_scale: Vector2::new(1.0, 0.0),
-            ..Default::default()
-        };
-        let push_constants_blur_v = PushConstant_GaussianBlur {
-            _blur_scale: Vector2::new(0.0, 1.0),
-            ..Default::default()
-        };
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
-    }
-
-    pub fn composite_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let descriptor_sets = match self._renderer_data_ssr._current_ssr_resolved {
-            RenderTargetType::SSRResolved => Some(&self._renderer_data_composite_gbuffer._descriptor_sets0),
-            RenderTargetType::SSRResolvedPrev => Some(&self._renderer_data_composite_gbuffer._descriptor_sets1),
-            _ => panic!("error")
-        };
-        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, NONE_PUSH_CONSTANT);
-    }
-
-    pub fn generate_min_z(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let resources: Ref<Resources> = self._resources.borrow();
-
-        // Copy Scene Depth
-        self.render_material_instance(command_buffer, swapchain_index, "generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-
-        // Generate Hierachical Min Z
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
-        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
-        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-        let dispatch_count = self._renderer_data_hiz._descriptor_sets.len();
-        self.begin_compute_pipeline(command_buffer, pipeline_data);
-        for mip_level in 0..dispatch_count {
-            let descriptor_sets = Some(&self._renderer_data_hiz._descriptor_sets[mip_level as usize]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            self.dispatch_compute_pipeline(
-                command_buffer,
-                self._renderer_data_hiz._dispatch_group_x >> (mip_level + 1),
-                self._renderer_data_hiz._dispatch_group_y >> (mip_level + 1),
-                1
-            );
+    pub fn get_render_pass_data_create_infos(&self) -> &Vec<RenderPassDataCreateInfo> {
+        unsafe {
+            (*self._renderer.as_ptr()).get_render_pass_data_create_infos(self)
         }
     }
 
-    pub fn scene_color_downsampling(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
-        let resources: Ref<Resources> = self._resources.borrow();
-        let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("downsampling").borrow();
-        let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-        let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-        let dispatch_count = self._scene_color_downsampling._descriptor_sets.len();
-        self.begin_compute_pipeline(command_buffer, pipeline_data);
-        for mip_level in 0..dispatch_count {
-            let descriptor_sets = Some(&self._scene_color_downsampling._descriptor_sets[mip_level as usize]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            self.dispatch_compute_pipeline(
-                command_buffer,
-                self._scene_color_downsampling._dispatch_group_x >> (mip_level + 1),
-                self._scene_color_downsampling._dispatch_group_y >> (mip_level + 1),
-                1
-            );
-        }
+    pub fn create_render_targets(&self) {
+        log::info!("create_render_targets");
+        self._renderer.borrow_mut().create_render_targets(self);
     }
 
-    pub fn render_pre_process(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData
-    ) {
-        // Generate Hierachical Min Z
-        self.generate_min_z(command_buffer, swapchain_index, quad_geometry_data);
-
-        // Screen Space Reflection
-        self.render_ssr(command_buffer, swapchain_index, quad_geometry_data);
-
-        // SSAO
-        self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
-
-        // Composite GBuffer
-        self.composite_gbuffer(command_buffer, swapchain_index, quad_geometry_data);
-
-        // SceneColor Downsampling
-        self.scene_color_downsampling(command_buffer, swapchain_index);
+    pub fn destroy_render_targets(&self) {
+        log::info!("destroy_render_targets");
+        self._renderer.borrow_mut().destroy_render_targets(self);
     }
 
-    pub fn render_post_process(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        quad_geometry_data: &GeometryData
-    ) {
-        // TAA
-        self.render_taa(command_buffer, swapchain_index, quad_geometry_data);
-
-        // Bloom
-        self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
-
-        // Motion Blur
-        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+    pub fn destroy_uniform_buffers(&self) {
+        self._renderer.borrow_mut().destroy_uniform_buffers(self.get_device());
     }
 }
