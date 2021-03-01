@@ -8,5 +8,6 @@ pub mod vulkan_context;
 
 #[cfg_attr(target_os = "android", ndk_glue::main(backtrace = "on"))]
 pub fn main() {
-    application::run_application();
+    let constants = constants::Constants::default();
+    application::run_application(constants);
 }

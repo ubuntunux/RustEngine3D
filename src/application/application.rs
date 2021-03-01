@@ -22,7 +22,7 @@ use winit::event_loop::{
 use winit::dpi;
 use winit::window::{ WindowBuilder };
 
-use crate::constants;
+use crate::constants::{ Constants };
 use crate::application::{ scene_manager, SceneManagerData };
 use crate::application::input;
 use crate::resource::{ self, Resources};
@@ -87,6 +87,7 @@ impl TimeData {
 }
 
 pub struct ApplicationData {
+    _constants: Constants,
     _window_size: (u32, u32),
     _time_data: TimeData,
     _camera_move_speed: f32,
@@ -157,9 +158,9 @@ impl ApplicationData {
         let modifier_keys_shift = self._keyboard_input_data.get_key_hold(VirtualKeyCode::LShift);
         let modified_camera_move_speed = camera_move_speed; // max 0.1 $ min 100.0 (cameraMoveSpeed + scroll_yoffset)
         let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 } * modified_camera_move_speed;
-        let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
-        let pan_speed = constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
-        let _rotation_speed = constants::CAMERA_ROTATION_SPEED;
+        let move_speed: f32 = self._constants._camera_move_speed * camera_move_speed_multiplier * delta_time as f32;
+        let pan_speed = self._constants._camera_pan_speed * camera_move_speed_multiplier;
+        let _rotation_speed = self._constants._camera_rotation_speed;
 
         unsafe {
             if released_key_left_bracket {
@@ -228,7 +229,7 @@ impl ApplicationData {
     }
 }
 
-pub fn run_application() {
+pub fn run_application(constants: Constants) {
     logger::initialize_logger();
 
     log::info!("run_application");
@@ -308,6 +309,7 @@ pub fn run_application() {
 
             let application_data = system::newRcRefCell(
                 ApplicationData {
+                    _constants: constants.clone(),
                     _window_size: window_size,
                     _time_data: create_time_data(elapsed_time),
                     _camera_move_speed: 1.0,
