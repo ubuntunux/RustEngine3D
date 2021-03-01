@@ -184,7 +184,8 @@ pub struct UIComponentInstance {
     pub _ui_size: Vector2<f32>, // margie + border + padding + size
     pub _ui_layout_state: UILayoutState,
     pub _opacity: f32,
-    pub _visible: bool,
+    pub _renderable: bool,
+    pub _visible: bool, // hierachycal visible flag
     pub _touched: bool,
     pub _touched_offset: Vector2<f32>,
     pub _text: String,
@@ -277,6 +278,7 @@ impl UIComponentInstance {
             _ui_size: Vector2::zeros(),
             _ui_layout_state: UILayoutState::Unknown,
             _opacity: 1.0,
+            _renderable: true,
             _visible: true,
             _touched: false,
             _touched_offset: Vector2::zeros(),
@@ -498,6 +500,11 @@ impl UIComponentInstance {
         self._children.clear();
         self._changed_layout = true;
     }
+    pub fn get_renderable(&self) -> bool { self._renderable }
+    pub fn set_renderable(&mut self, renderable: bool) {
+        self._renderable = renderable;
+        self._changed_render_data = true;
+    }
     pub fn get_visible(&self) -> bool { self._visible }
     pub fn set_visible(&mut self, visible: bool) {
         self._visible = visible;
@@ -718,7 +725,7 @@ impl UIComponentInstance {
         mut need_to_collect_render_data: bool,
         mut opacity: f32
     ) {
-        if self._visible {
+        if self._visible && self._renderable{
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 
@@ -1010,7 +1017,7 @@ pub trait Widget {
     fn get_ui_widget_type(&self) -> UIWidgetTypes;
     fn has_cursor(&self) -> bool;
     fn get_ui_component(&self) -> &UIComponentInstance;
-    fn get_ui_component_mut(&mut self) -> *mut UIComponentInstance;
+    fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance;
     fn get_changed_layout(&self) -> bool;
     fn clear_parent(&mut self);
     fn set_parent(&mut self, widget: *mut dyn Widget);
@@ -1038,7 +1045,7 @@ impl Widget for WidgetDefault {
     }
     fn has_cursor(&self) -> bool { false }
     fn get_ui_component(&self) -> &UIComponentInstance { &self._ui_component }
-    fn get_ui_component_mut(&mut self) -> *mut UIComponentInstance { &mut self._ui_component }
+    fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance { &mut self._ui_component }
     fn get_changed_layout(&self) -> bool { self._ui_component._changed_layout }
     fn clear_parent(&mut self) {
         self._parent = None;
@@ -1129,7 +1136,7 @@ impl UIManager {
     pub fn create_ui_manager() -> UIManager {
         log::info!("create_ui_manager");
         unsafe {
-            let ui_manager = UIManager {
+            let mut ui_manager = UIManager {
                 _root: Box::from_raw(UIManager::create_widget(UIWidgetTypes::Default)),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
@@ -1140,6 +1147,9 @@ impl UIManager {
                 _render_ui_group: Vec::new(),
                 _default_render_ui_material: None,
             };
+            ui_manager._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
+            ui_manager._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
+            ui_manager._root.get_ui_component_mut().set_renderable(false);
             ui_manager
         }
     }
@@ -1152,26 +1162,8 @@ impl UIManager {
 
         // build ui
         unsafe {
-            let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
-            ui_component.set_layout_type(UILayoutType::BoxLayout);
-            ui_component.set_layout_orientation(Orientation::HORIZONTAL);
-            ui_component.set_halign(HorizontalAlign::RIGHT);
-            ui_component.set_valign(VerticalAlign::BOTTOM);
-            ui_component.set_pos(200.0, 200.0);
-            ui_component.set_size_x(400.0);
-            ui_component.set_size_y(300.0);
-            ui_component.set_color(get_color32(255, 255, 0, 255));
-            ui_component.set_font_color(get_color32(0, 0, 0, 255));
-            ui_component.set_border_color(get_color32(0, 0, 255, 255));
-            ui_component.set_margine(5.0);
-            ui_component.set_padding(5.0);
-            ui_component.set_round(10.0);
-            ui_component.set_border(5.0);
-            ui_component.set_font_size(20.0);
-            ui_component.set_text(String::from("Text ui\nNext line\tTab\n\tOver text"));
-
             let btn = UIManager::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+            let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(25.0, 25.0);
             ui_component.set_size(200.0, 100.0);
             ui_component.set_color(get_color32(255, 255, 255, 255));
@@ -1185,7 +1177,7 @@ impl UIManager {
             self._root.add_widget(btn);
 
             let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut().as_mut().unwrap();
+            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(0.0, 0.0);
             ui_component.set_size(100.0, 50.0);
             ui_component.set_color(get_color32(255, 128, 128, 255));
@@ -1324,57 +1316,55 @@ impl UIManager {
     }
 
     pub fn update(&mut self, window_size: (u32, u32), delta_time: f64, _resources: &Resources) {
-        unsafe {
-            let ui_component = &mut self._root.get_ui_component_mut().as_mut().unwrap();
-            let touch_evemt: bool = false;
-            let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
-            let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
-            let required_contents_size = Vector2::<f32>::zeros();
-            let mut child_ui_pos = Vector2::<f32>::zeros();
+        let ui_component = &mut self._root.get_ui_component_mut();
+        let touch_evemt: bool = false;
+        let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
+        let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
+        let required_contents_size = Vector2::<f32>::zeros();
+        let mut child_ui_pos = Vector2::<f32>::zeros();
 
-            if ui_component.get_changed_layout() {
-                ui_component.update_layout_size(&contents_size);
-                ui_component.update_layout_area(
-                    UILayoutType::FloatLayout,
-                    Orientation::HORIZONTAL,
-                    DEFAILT_HORIZONTAL_ALIGN,
-                    DEFAILT_VERTICAL_ALIGN,
-                    &contents_area,
-                    &contents_size,
-                    &required_contents_size,
-                    &mut child_ui_pos
-                );
-            }
-            ui_component.update_layout(&self._font_data.borrow());
-            ui_component.update(delta_time, touch_evemt);
-
-            // collect_ui_render_data
-            let font_data = self._font_data.borrow();
-            let need_to_collect_render_data: bool = false;
-            let opacity: f32 = 1.0;
-            let mut render_ui_count: u32 = 0;
-            let mut render_ui_group: Vec<UIRenderGroupData> = Vec::new();
-            let mut prev_render_group_data = UIRenderGroupData {
-                _accumulated_render_count: 0,
-                _material_instance: std::ptr::null(),
-            };
-
-            self._root.get_ui_component_mut().as_mut().unwrap().collect_ui_render_data(
-                &font_data,
-                &mut render_ui_count,
-                &mut render_ui_group,
-                &mut prev_render_group_data,
-                &mut self._ui_render_datas,
-                need_to_collect_render_data,
-                opacity
+        if ui_component.get_changed_layout() {
+            ui_component.update_layout_size(&contents_size);
+            ui_component.update_layout_area(
+                UILayoutType::FloatLayout,
+                Orientation::HORIZONTAL,
+                DEFAILT_HORIZONTAL_ALIGN,
+                DEFAILT_VERTICAL_ALIGN,
+                &contents_area,
+                &contents_size,
+                &required_contents_size,
+                &mut child_ui_pos
             );
-
-            // last render count
-            if 0 < render_ui_count {
-                UIRenderGroupData::add_ui_render_group_data(&mut render_ui_group, render_ui_count, &mut prev_render_group_data, std::ptr::null());
-            }
-            self._render_ui_count = render_ui_count;
-            self._render_ui_group = render_ui_group;
         }
+        ui_component.update_layout(&self._font_data.borrow());
+        ui_component.update(delta_time, touch_evemt);
+
+        // collect_ui_render_data
+        let font_data = self._font_data.borrow();
+        let need_to_collect_render_data: bool = false;
+        let opacity: f32 = 1.0;
+        let mut render_ui_count: u32 = 0;
+        let mut render_ui_group: Vec<UIRenderGroupData> = Vec::new();
+        let mut prev_render_group_data = UIRenderGroupData {
+            _accumulated_render_count: 0,
+            _material_instance: std::ptr::null(),
+        };
+
+        self._root.get_ui_component_mut().collect_ui_render_data(
+            &font_data,
+            &mut render_ui_count,
+            &mut render_ui_group,
+            &mut prev_render_group_data,
+            &mut self._ui_render_datas,
+            need_to_collect_render_data,
+            opacity
+        );
+
+        // last render count
+        if 0 < render_ui_count {
+            UIRenderGroupData::add_ui_render_group_data(&mut render_ui_group, render_ui_count, &mut prev_render_group_data, std::ptr::null());
+        }
+        self._render_ui_count = render_ui_count;
+        self._render_ui_group = render_ui_group;
     }
 }
