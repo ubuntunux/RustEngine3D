@@ -115,7 +115,7 @@ pub trait RendererBase {
         frame_index: usize,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        scene_manager: RefMut<SceneManagerData>,
+        scene_manager_data: RefMut<SceneManagerData>,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -767,7 +767,7 @@ impl RendererData {
 
     pub fn render_scene(
         &mut self,
-        scene_manager: RefMut<SceneManagerData>,
+        scene_manager_data: RefMut<SceneManagerData>,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -812,7 +812,7 @@ impl RendererData {
                     frame_index,
                     swapchain_index,
                     &self,
-                    scene_manager,
+                    scene_manager_data,
                     font_manager,
                     ui_manager,
                     elapsed_time,

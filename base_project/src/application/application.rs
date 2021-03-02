@@ -3,9 +3,9 @@ use winit::event::VirtualKeyCode;
 use rust_engine_3d::constants;
 use rust_engine_3d::application::application::{self, ApplicationBase, ApplicationData};
 use rust_engine_3d::application::scene_manager::{ SceneManagerData };
-use rust_engine_3d::renderer::renderer::{ RendererData };
 use rust_engine_3d::utilities::system::{ newRcRefCell };
 
+use crate::application_constants;
 use crate::application::scene_manager::SceneManager;
 use crate::renderer::renderer::Renderer;
 
@@ -14,7 +14,8 @@ pub struct Application {
 
 impl ApplicationBase for Application {
     fn update_event(&mut self, application_data: &ApplicationData, scene_manager_data: &SceneManagerData) {
-        let renderer_data: *mut RendererData = scene_manager_data._renderer_data.as_ptr();
+        let renderer: *mut Renderer = scene_manager_data._renderer_data.borrow()._renderer.as_ptr() as *mut Renderer;
+        let scene_manager: *const SceneManager = scene_manager_data._scene_manager.as_ptr() as *const SceneManager;
         let time_data = &application_data._time_data;
         let mouse_move_data = &application_data._mouse_move_data;
         let mouse_input_data = &application_data._mouse_input_data;
@@ -23,8 +24,8 @@ impl ApplicationBase for Application {
         const MOUSE_DELTA_RATIO: f32 = 500.0;
         let delta_time = time_data._delta_time;
         let _mouse_pos = &mouse_move_data._mouse_pos;
-        let mouse_delta_x = mouse_move_data._mouse_pos_delta.x as f32 / self._window_size.0 as f32 * MOUSE_DELTA_RATIO;
-        let mouse_delta_y = mouse_move_data._mouse_pos_delta.y as f32 / self._window_size.1 as f32 * MOUSE_DELTA_RATIO;
+        let mouse_delta_x = mouse_move_data._mouse_pos_delta.x as f32 / application_data._window_size.0 as f32 * MOUSE_DELTA_RATIO;
+        let mouse_delta_y = mouse_move_data._mouse_pos_delta.y as f32 / application_data._window_size.1 as f32 * MOUSE_DELTA_RATIO;
         let btn_left: bool = mouse_input_data._btn_l_hold;
         let btn_right: bool = mouse_input_data._btn_r_hold;
         let _btn_middle: bool = mouse_input_data._btn_m_hold;
@@ -44,25 +45,25 @@ impl ApplicationBase for Application {
         let released_key_subtract = keyboard_input_data.get_key_released(VirtualKeyCode::Minus);
         let released_key_equals = keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
 
-        let mut main_camera = scene_manager_data._main_camera.borrow_mut();
-        let mut main_light = scene_manager_data._main_light.borrow_mut();
+        let mut main_camera = unsafe { (*scene_manager)._main_camera.borrow_mut() };
+        let mut main_light = unsafe { (*scene_manager)._main_light.borrow_mut() };
         let modifier_keys_shift = keyboard_input_data.get_key_hold(VirtualKeyCode::LShift);
         let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 };
-        let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
-        let pan_speed = constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
-        let _rotation_speed = constants::CAMERA_ROTATION_SPEED;
+        let move_speed: f32 = application_constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
+        let pan_speed = application_constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
+        let _rotation_speed = application_constants::CAMERA_ROTATION_SPEED;
 
         unsafe {
             if released_key_left_bracket {
-                (*renderer_data).prev_debug_render_target();
+                (*renderer).prev_debug_render_target();
             } else if released_key_right_bracket {
-                (*renderer_data).next_debug_render_target();
+                (*renderer).next_debug_render_target();
             }
 
             if released_key_subtract {
-                (*renderer_data).prev_debug_render_target_miplevel();
+                (*renderer).prev_debug_render_target_miplevel();
             } else if released_key_equals {
-                (*renderer_data).next_debug_render_target_miplevel();
+                (*renderer).next_debug_render_target_miplevel();
             }
         }
 

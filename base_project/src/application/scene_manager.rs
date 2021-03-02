@@ -102,7 +102,7 @@ impl SceneManagerBase for SceneManager {
             ..Default::default()
         });
 
-        let model_data0 = self._resources.borrow().get_model_data("sponza/sponza").clone();
+        let model_data0 = resources.get_model_data("sponza/sponza").clone();
         self.add_static_render_object("sponza", RenderObjectCreateInfo {
             _model_data: Some(model_data0),
             _position: Vector3::new(0.0, 0.0, 0.0),
@@ -110,7 +110,7 @@ impl SceneManagerBase for SceneManager {
             ..Default::default()
         });
 
-        let sphere = self._resources.borrow().get_model_data("sphere").clone();
+        let sphere = resources.get_model_data("sphere").clone();
         self.add_static_render_object("sphere", RenderObjectCreateInfo {
             _model_data: Some(sphere),
             _position: Vector3::new(-2.0, 1.0, 0.0),
@@ -119,7 +119,7 @@ impl SceneManagerBase for SceneManager {
         });
 
         for i in 0..3 {
-            let model_data = self._resources.borrow().get_model_data("skeletal").clone();
+            let model_data = resources.get_model_data("skeletal").clone();
             let skeletal_actor = self.add_skeletal_render_object("skeletal", RenderObjectCreateInfo {
                 _model_data: Some(model_data),
                 _position: Vector3::new(i as f32, 1.0, 0.0),

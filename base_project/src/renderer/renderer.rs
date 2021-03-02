@@ -22,6 +22,7 @@ use rust_engine_3d::vulkan_context::texture::{ self, TextureData };
 use rust_engine_3d::vulkan_context::vulkan_context::{ self, SwapchainArray, MipLevels };
 
 use crate::application_constants;
+use crate::application::scene_manager::SceneManager;
 use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::precomputed_atmosphere::PushConstant_Atmosphere;
 use crate::renderer::push_constants::{
@@ -222,7 +223,7 @@ impl RendererBase for Renderer {
     }
     fn create_render_targets(&mut self, renderer_data: &RendererData) {
         log::info!("create_render_targets");
-        let render_taget_create_infos = render_target::get_render_target_create_infos(self);
+        let render_taget_create_infos = render_target::get_render_target_create_infos(renderer_data);
         for render_taget_create_info in render_taget_create_infos.iter() {
             let render_target_type: RenderTargetType = RenderTargetType::from_str(render_taget_create_info._texture_name.as_str()).unwrap();
             let texture_data = renderer_data.create_render_target(render_taget_create_info);
@@ -250,7 +251,7 @@ impl RendererBase for Renderer {
         frame_index: usize,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        scene_manager: RefMut<SceneManagerData>,
+        scene_manager_data: RefMut<SceneManagerData>,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,

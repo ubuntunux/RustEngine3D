@@ -11,7 +11,6 @@ use rust_engine_3d::vulkan_context::descriptor::DescriptorResourceInfo;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::texture::TextureData;
 use rust_engine_3d::vulkan_context::vulkan_context::{ self, CubeMapArray, SwapchainArray, Layers, MipLevels };
-use rust_engine_3d::utilities::system::RcRefCell;
 
 use crate::application_constants;
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
@@ -250,11 +249,10 @@ impl RendererData_Bloom {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         render_target_bloom0: &TextureData,
         render_target_bloom_temp0: &TextureData,
     ) {
-        let resources = resources.borrow();
         let render_bloom_material_instance = resources.get_material_instance_data("render_bloom").borrow();
         let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
         let descriptor_binding_index: usize = 0;
@@ -322,11 +320,10 @@ impl RendererData_TAA {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         taa_render_target: &TextureData,
         taa_resolve_texture: &TextureData,
     ) {
-        let resources = resources.borrow();
         let render_copy_material_instance = resources.get_material_instance_data("render_copy").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_pipeline_binding_data("render_copy/render_copy");
         let descriptor_binding_index: usize = 0;
@@ -353,11 +350,10 @@ impl RendererData_SSAO {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         render_target_ssao: &TextureData,
         render_target_ssao_temp: &TextureData,
     ) {
-        let resources = resources.borrow();
         let render_gaussian_blur_material_instance = resources.get_material_instance_data("render_ssao_blur").borrow();
         let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_ssao_blur/render_ssao_blur");
         let descriptor_binding_index: usize = 0;
@@ -391,10 +387,9 @@ impl RendererData_HierachicalMinZ {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         render_target_hierachical_min_z: &TextureData,
     ) {
-        let resources = resources.borrow();
         let generate_min_z_material_instance = resources.get_material_instance_data("generate_min_z").borrow();
         let pipeline_binding_data = generate_min_z_material_instance.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let layer: u32 = 0;
@@ -426,10 +421,9 @@ impl RendererData_SceneColorDownSampling {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         texture_scene_color: &TextureData,
     ) {
-        let resources = resources.borrow();
         let downsampling_material_instance = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
         let layer: u32 = 0;
@@ -458,11 +452,10 @@ impl RendererData_SSR {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         texture_ssr_resolved: &TextureData,
         texture_ssr_resolved_prev: &TextureData,
     ) {
-        let resources = resources.borrow();
         let render_copy_material_instance = resources.get_material_instance_data("render_ssr_resolve").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let descriptor_binding_index: usize = 1;
@@ -501,11 +494,10 @@ impl RendererData_CompositeGBuffer {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         texture_ssr_resolved: &TextureData,
         texture_ssr_resolved_prev: &TextureData,
     ) {
-        let resources = resources.borrow();
         let render_copy_material_instance = resources.get_material_instance_data("composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let descriptor_binding_index: usize = 12;
@@ -530,10 +522,9 @@ impl RendererData_ClearRenderTargets {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         render_target_infos: &[(&TextureData, vk::ClearValue)],
     ) {
-        let resources = resources.borrow();
         let material_instance = resources.get_material_instance_data("clear_render_target").borrow();
         for (render_target, clear_value) in render_target_infos.iter() {
             let is_depth_format = constants::DEPTH_FOMATS.contains(&render_target._image_format);
@@ -595,7 +586,7 @@ impl RendererData_LightProbe {
     pub fn initialize(
         &mut self,
         device: &Device,
-        resources: &RcRefCell<Resources>,
+        resources: &Resources,
         light_probe_color: &TextureData,
         light_probe_color_only_sky: &TextureData,
         light_probe_color_only_sky_prev: &TextureData,
@@ -605,7 +596,6 @@ impl RendererData_LightProbe {
         light_probe_atmosphere_inscatter: &TextureData,
         light_probe_view_constants: &[&ShaderBufferData],
     ) {
-        let resources = resources.borrow();
         let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
         let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
