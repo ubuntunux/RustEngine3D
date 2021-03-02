@@ -1,14 +1,8 @@
 use std::path::PathBuf;
 
-use ash::{
-    vk,
-};
-
-use rust_engine_3d::utilities::system::{
-    enum_to_string
-};
+use ash::vk;
+use rust_engine_3d::utilities::system::enum_to_string;
 use rust_engine_3d::renderer::renderer::RendererData;
-use rust_engine_3d::renderer::render_target::RenderTargetType;
 use rust_engine_3d::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
@@ -17,7 +11,9 @@ use rust_engine_3d::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
-use rust_engine_3d::renderer::push_constants::PushConstant_BlendCubeMap;
+
+use crate::renderer::push_constants::PushConstant_BlendCubeMap;
+use crate::renderer::render_target::RenderTargetType;
 
 pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("copy_cube_map");

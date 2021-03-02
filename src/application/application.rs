@@ -19,7 +19,6 @@ use winit::event_loop::{
 use winit::dpi;
 use winit::window::{ WindowBuilder };
 
-use crate::constants::{ Constants };
 use crate::application::scene_manager::{ SceneManagerData, SceneManagerBase };
 use crate::application::input;
 use crate::resource::resource::Resources;
@@ -31,15 +30,15 @@ use crate::utilities::logger;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
-    _acc_frame_time: f64,
-    _acc_frame_count: i32,
-    _elapsed_frame: u64,
-    _average_frame_time: f64,
-    _average_fps: f64,
-    _current_time: f64,
-    _elapsed_time_prev: f64,
-    _elapsed_time: f64,
-    _delta_time: f64
+    pub _acc_frame_time: f64,
+    pub _acc_frame_count: i32,
+    pub _elapsed_frame: u64,
+    pub _average_frame_time: f64,
+    pub _average_fps: f64,
+    pub _current_time: f64,
+    pub _elapsed_time_prev: f64,
+    pub _elapsed_time: f64,
+    pub _delta_time: f64
 }
 
 pub fn create_time_data(elapsed_time: f64) -> TimeData {
@@ -84,24 +83,23 @@ impl TimeData {
 }
 
 pub trait ApplicationBase {
-    fn update_event(&mut self, scene_manager_data: &SceneManagerData);
+    fn update_event(&mut self, application_data: &ApplicationData, scene_manager_data: &SceneManagerData);
     fn terminate_applicateion(&mut self);
 }
 
 pub struct ApplicationData {
-    _constants: Constants,
-    _window_size: (u32, u32),
-    _time_data: TimeData,
-    _camera_move_speed: f32,
-    _keyboard_input_data: Box<input::KeyboardInputData>,
-    _mouse_move_data: Box<input::MouseMoveData>,
-    _mouse_input_data: Box<input::MouseInputData>,
-    _scene_manager_data: RcRefCell<SceneManagerData>,
-    _renderer_data: RcRefCell<RendererData>,
-    _font_manager: RcRefCell<FontManager>,
-    _ui_manager: RcRefCell<UIManager>,
-    _resources: RcRefCell<Resources>,
-    _application: RcRefCell<dyn ApplicationBase>,
+    pub _window_size: (u32, u32),
+    pub _time_data: TimeData,
+    pub _camera_move_speed: f32,
+    pub _keyboard_input_data: Box<input::KeyboardInputData>,
+    pub _mouse_move_data: Box<input::MouseMoveData>,
+    pub _mouse_input_data: Box<input::MouseInputData>,
+    pub _scene_manager_data: RcRefCell<SceneManagerData>,
+    pub _renderer_data: RcRefCell<RendererData>,
+    pub _font_manager: RcRefCell<FontManager>,
+    pub _ui_manager: RcRefCell<UIManager>,
+    pub _resources: RcRefCell<Resources>,
+    pub _application: RcRefCell<dyn ApplicationBase>,
 }
 
 impl ApplicationData {
@@ -131,12 +129,11 @@ impl ApplicationData {
 
     pub fn update_event(&self) {
         let scene_manager = self._scene_manager_data.borrow();
-        self._application.borrow_mut().update_event(&scene_manager);
+        self._application.borrow_mut().update_event(self, &scene_manager);
     }
 }
 
 pub fn run_application(
-    constants: Constants,
     application: RcRefCell<dyn ApplicationBase>,
     scene_manager: RcRefCell<dyn SceneManagerBase>,
     renderer: RcRefCell<dyn RendererBase>,
@@ -197,7 +194,7 @@ pub fn run_application(
             let font_manager = newRcRefCell(FontManager::create_font_manager());
             let ui_manager = newRcRefCell(UIManager::create_ui_manager());
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, &renderer));
-            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, &scene_manager));
+            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, &scene_manager, width, height));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
             let mouse_input_data = input::create_mouse_input_data();
@@ -213,7 +210,6 @@ pub fn run_application(
 
             let application_data = system::newRcRefCell(
                 ApplicationData {
-                    _constants: constants.clone(),
                     _window_size: window_size,
                     _time_data: create_time_data(elapsed_time),
                     _camera_move_speed: 1.0,

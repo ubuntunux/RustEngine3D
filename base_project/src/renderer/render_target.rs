@@ -1,12 +1,11 @@
-use ash::{
-    vk,
-};
-
+use ash::vk;
 use rust_engine_3d::constants;
 use rust_engine_3d::renderer::renderer::RendererData;
-use rust_engine_3d::renderer::fft_ocean;
-use rust_engine_3d::renderer::precomputed_atmosphere;
-use rust_engine_3d::vulkan_context::texture::{ TextureCreateInfo };
+use rust_engine_3d::vulkan_context::texture::TextureCreateInfo;
+
+use crate::application_constants;
+use crate::renderer::fft_ocean;
+use crate::renderer::precomputed_atmosphere;
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -166,8 +165,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeAtmosphereColor.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE / 4,
-            _texture_height: constants::LIGHT_PROBE_SIZE / 4,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE / 4,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE / 4,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -175,8 +174,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeAtmosphereInscatter.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE / 4,
-            _texture_height: constants::LIGHT_PROBE_SIZE / 4,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE / 4,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE / 4,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -184,8 +183,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeColor.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -194,8 +193,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeColorOnlySky.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -204,8 +203,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeColorOnlySkyPrev.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -214,8 +213,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeColorForward.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -224,8 +223,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeColorForwardPrev.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -234,8 +233,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightProbeDepth.to_string(),
-            _texture_width: constants::LIGHT_PROBE_SIZE,
-            _texture_height: constants::LIGHT_PROBE_SIZE,
+            _texture_width: application_constants::LIGHT_PROBE_SIZE,
+            _texture_height: application_constants::LIGHT_PROBE_SIZE,
             _texture_layers: constants::CUBE_LAYER_COUNT as u32,
             _texture_view_type: vk::ImageViewType::CUBE,
             _texture_format: vk::Format::D32_SFLOAT,
@@ -346,8 +345,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Shadow.to_string(),
-            _texture_width: constants::SHADOW_MAP_SIZE,
-            _texture_height: constants::SHADOW_MAP_SIZE,
+            _texture_width: unsafe { constants::SHADOW_MAP_SIZE },
+            _texture_height: unsafe { constants::SHADOW_MAP_SIZE },
             _texture_format: vk::Format::D32_SFLOAT,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,
@@ -356,8 +355,8 @@ pub fn get_render_target_create_infos(renderer_data: &RendererData) -> Vec<Textu
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::CaptureHeightMap.to_string(),
-            _texture_width: constants::CAPTURE_HEIGHT_MAP_SIZE,
-            _texture_height: constants::CAPTURE_HEIGHT_MAP_SIZE,
+            _texture_width: application_constants::CAPTURE_HEIGHT_MAP_SIZE,
+            _texture_height: application_constants::CAPTURE_HEIGHT_MAP_SIZE,
             _texture_format: vk::Format::D32_SFLOAT,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,

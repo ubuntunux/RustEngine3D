@@ -3,19 +3,20 @@ use std::collections::HashMap;
 use rand;
 use nalgebra::{ Vector3, Vector4 };
 use ash::{ vk, Device };
-
 use rust_engine_3d::constants;
-use rust_engine_3d::renderer::push_constants::{ PushConstant_BloomHighlight };
-use rust_engine_3d::renderer::RenderTargetType;
-use rust_engine_3d::renderer::shader_buffer_datas::{ SSAOConstants };
 use rust_engine_3d::renderer::utility;
-use rust_engine_3d::resource::Resources;
+use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::vulkan_context::buffer::ShaderBufferData;
-use rust_engine_3d::vulkan_context::descriptor::{ DescriptorResourceInfo };
+use rust_engine_3d::vulkan_context::descriptor::DescriptorResourceInfo;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::texture::TextureData;
-use rust_engine_3d::vulkan_context::vulkan_context::{self, CubeMapArray, SwapchainArray, Layers, MipLevels};
+use rust_engine_3d::vulkan_context::vulkan_context::{ self, CubeMapArray, SwapchainArray, Layers, MipLevels };
 use rust_engine_3d::utilities::system::RcRefCell;
+
+use crate::application_constants;
+use crate::renderer::push_constants::PushConstant_BloomHighlight;
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::shader_buffer_datas::SSAOConstants;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
@@ -155,8 +156,8 @@ pub struct RendererData_SSAO {
 
 impl Default for RendererData_SSAO {
     fn default() -> RendererData_SSAO {
-        let mut random_normals: [Vector4<f32>; 64] = [Vector4::new(0.0, 0.0, 0.0, 0.0); constants::SSAO_KERNEL_SIZE];
-        for i in 0..constants::SSAO_KERNEL_SIZE {
+        let mut random_normals: [Vector4<f32>; 64] = [Vector4::new(0.0, 0.0, 0.0, 0.0); application_constants::SSAO_KERNEL_SIZE];
+        for i in 0..application_constants::SSAO_KERNEL_SIZE {
             let scale = rand::random::<f32>();
             let normal = Vector3::new(
                 rand::random::<f32>() * 2.0 - 1.0,
@@ -167,9 +168,9 @@ impl Default for RendererData_SSAO {
         }
 
         RendererData_SSAO {
-            _ssao_kernel_size: constants::SSAO_KERNEL_SIZE as i32,
-            _ssao_radius: constants::SSAO_RADIUS,
-            _ssao_noise_dim: constants::SSAO_NOISE_DIM,
+            _ssao_kernel_size: application_constants::SSAO_KERNEL_SIZE as i32,
+            _ssao_radius: application_constants::SSAO_RADIUS,
+            _ssao_noise_dim: unsafe { constants::SSAO_NOISE_DIM },
             _ssao_constants: SSAOConstants {
                 _ssao_kernel_samples: random_normals
             },

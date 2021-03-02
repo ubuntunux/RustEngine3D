@@ -25,16 +25,18 @@ pub struct CameraCreateInfo {
 
 impl Default for CameraCreateInfo {
     fn default() -> CameraCreateInfo {
-        CameraCreateInfo {
-            meter_per_unit: constants::METER_PER_UNIT,
-            near: constants::NEAR,
-            far: constants::FAR,
-            fov: constants::FOV,
-            window_width: 1024,
-            window_height: 768,
-            enable_jitter: true,
-            position: Vector3::zeros(),
-            rotation: Vector3::zeros(),
+        unsafe {
+            CameraCreateInfo {
+                meter_per_unit: constants::METER_PER_UNIT,
+                near: constants::NEAR,
+                far: constants::FAR,
+                fov: constants::FOV,
+                window_width: 1024,
+                window_height: 768,
+                enable_jitter: true,
+                position: Vector3::zeros(),
+                rotation: Vector3::zeros(),
+            }
         }
     }
 }

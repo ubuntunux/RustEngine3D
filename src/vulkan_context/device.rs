@@ -102,11 +102,8 @@ pub fn create_vk_instance(
     surface_extensions: &Vec<&'static CStr>
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
-    let layer_names: Vec<CString> = if constants::ENABLE_VALIDATION_LAYER {
-        constants::VULKAN_LAYERS
-            .iter()
-            .map(|layer_name| CString::new(*layer_name).unwrap())
-            .collect()
+    let layer_names: Vec<CString> = if unsafe { constants::ENABLE_VALIDATION_LAYER } {
+        unsafe { constants::VULKAN_LAYERS.iter() }.map(|layer_name| CString::new(layer_name.as_str()).unwrap()).collect()
     } else {
         Vec::new()
     };
@@ -118,7 +115,7 @@ pub fn create_vk_instance(
         .iter()
         .map(|ext| ext.as_ptr())
         .collect::<Vec<_>>();
-    if constants::ENABLE_VALIDATION_LAYER {
+    if unsafe { constants::ENABLE_VALIDATION_LAYER } {
         extension_names_raw.push(DebugUtils::name().as_ptr());
     }
 
@@ -134,7 +131,7 @@ pub fn create_vk_instance(
         application_version: app_version,
         p_engine_name: app_name.as_ptr(),
         engine_version: constants::ENGINE_VERSION,
-        api_version: constants::VULKAN_API_VERSION,
+        api_version: unsafe { constants::VULKAN_API_VERSION },
         ..Default::default()
     };
 
@@ -150,7 +147,9 @@ pub fn create_vk_instance(
     log::info!("create_instance");
     log::info!("    app name: {:?}", app_name);
     log::info!("    engine version: {}.{}.{}", vk::version_major(constants::ENGINE_VERSION), vk::version_minor(constants::ENGINE_VERSION), vk::version_patch(constants::ENGINE_VERSION));
-    log::info!("    require vulkan api version: {}.{}.{}", vk::version_major(constants::VULKAN_API_VERSION), vk::version_minor(constants::VULKAN_API_VERSION), vk::version_patch(constants::VULKAN_API_VERSION));
+    unsafe {
+        log::info!("    require vulkan api version: {}.{}.{}", vk::version_major(constants::VULKAN_API_VERSION), vk::version_minor(constants::VULKAN_API_VERSION), vk::version_patch(constants::VULKAN_API_VERSION));
+    }
     log::info!("    layer_names: {:?}", layer_names);
     log::info!("    surface_extensions: {:?}", surface_extensions);
     unsafe {
@@ -187,7 +186,7 @@ pub fn is_device_suitable(
 ) -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures) {
     unsafe {
         let available_device_extensions = get_device_extension_supports(instance, physical_device);
-        let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|str| CString::new(*str).unwrap() ).collect();
+        let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
         let has_extension: bool = check_extension_support(&"Device", &available_device_extensions, &device_extension_names);
         let physical_device_features = instance.get_physical_device_features(physical_device);
         let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface);
@@ -232,13 +231,13 @@ pub fn create_device(
             }
         })
         .collect();
-    let layer_names: Vec<CString> = if constants::ENABLE_VALIDATION_LAYER {
-        constants::VULKAN_LAYERS.iter().map(|layer_name| { CString::new(*layer_name).unwrap() }).collect()
+    let layer_names: Vec<CString> = if unsafe { constants::ENABLE_VALIDATION_LAYER } {
+        unsafe { constants::VULKAN_LAYERS.iter() }.map(|layer_name| { CString::new(layer_name.as_str()).unwrap() }).collect()
     } else {
         Vec::new()
     };
     let layer_names_raw: Vec<*const c_char> = layer_names.iter().map(|layer_name| { layer_name.as_ptr() }).collect();
-    let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|extension| { CString::new(*extension).unwrap() }).collect();
+    let device_extension_names: Vec<CString> = unsafe { constants::REQUIRE_DEVICE_EXTENSIONS.iter() }.map(|extension| { CString::new(extension.as_str()).unwrap() }).collect();
     let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
     #[cfg(target_os = "android")]
     let device_features = vk::PhysicalDeviceFeatures {

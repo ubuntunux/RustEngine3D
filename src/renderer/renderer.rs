@@ -18,8 +18,8 @@ use ash::version::{InstanceV1_0, DeviceV1_0};
 use winit;
 use winit::window::{ Window };
 
-use crate::application::scene_manager::SceneManagerData;
 use crate::constants;
+use crate::application::scene_manager::SceneManagerData;
 use crate::vulkan_context::{
     buffer,
     command_buffer,
@@ -99,29 +99,22 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 
 pub trait RendererBase {
     fn initialize_renderer(&mut self, device: &Device, memory_properties: &vk::PhysicalDeviceMemoryProperties);
-    // {
-    //     shader_buffer_datas::regist_shader_buffer_datas(
-    //         &self._device,
-    //         &self._device_memory_properties,
-    //         &mut self._shader_buffer_data_map
-    //     );
-    //     self._renderer.borrow_mut().create_render_targets(self);
-    // }
-    fn rendering_at_first(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32);
+    fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
-    fn update_post_process_datas(&self);
+    fn update_post_process_datas(&mut self);
     fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
     fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData;
-    fn get_render_pass_data_create_infos(&self, renderer_data: &RendererData) -> &Vec<RenderPassDataCreateInfo>;
-    fn create_render_targets(&self, renderer_data: &RendererData);
-    fn destroy_render_targets(&self, renderer_data: &RendererData);
-    fn destroy_uniform_buffers(&self, device: &Device);
+    fn get_render_pass_data_create_infos(&self, renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo>;
+    fn create_render_targets(&mut self, renderer_data: &RendererData);
+    fn destroy_render_targets(&mut self, device: &Device);
+    fn destroy_uniform_buffers(&mut self, device: &Device);
     fn render_scene(
         &mut self,
         command_buffer: CommandBuffer,
         frame_index: usize,
         swapchain_index: u32,
+        renderer_data: &RendererData,
         scene_manager: RefMut<SceneManagerData>,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
@@ -653,7 +646,7 @@ impl RendererData {
             self._surface,
             &self._swapchain_support_details,
             &self._queue_family_datas,
-            constants::ENABLE_IMMEDIATE_MODE
+            unsafe { constants::ENABLE_IMMEDIATE_MODE }
         );
         self._command_buffers = command_buffer::create_command_buffers(&self._device, self._command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
     }
@@ -818,6 +811,7 @@ impl RendererData {
                     command_buffer,
                     frame_index,
                     swapchain_index,
+                    &self,
                     scene_manager,
                     font_manager,
                     ui_manager,
@@ -856,7 +850,7 @@ impl RendererData {
     // renderer interface
     pub fn set_is_first_rendering(&self, is_first_rendering: bool) {
         log::info!("set_is_first_rendering: {}", is_first_rendering);
-        self.set_is_first_rendering(is_first_rendering);
+        self._renderer.borrow_mut().set_is_first_rendering(is_first_rendering);
     }
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
@@ -885,7 +879,7 @@ impl RendererData {
         }
     }
 
-    pub fn get_render_pass_data_create_infos(&self) -> &Vec<RenderPassDataCreateInfo> {
+    pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
         unsafe {
             (*self._renderer.as_ptr()).get_render_pass_data_create_infos(self)
         }
@@ -898,7 +892,7 @@ impl RendererData {
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self._renderer.borrow_mut().destroy_render_targets(self);
+        self._renderer.borrow_mut().destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {

@@ -8,19 +8,20 @@ use ash::{
     vk,
     Device,
 };
-
 use nalgebra::{
     Vector2,
     Vector3,
     Vector4,
     Matrix4,
 };
-
 use rust_engine_3d::constants;
-use rust_engine_3d::renderer::camera::{ CameraObjectData };
-use rust_engine_3d::renderer::font::{ MAX_FONT_INSTANCE_COUNT, FontInstanceData };
-use rust_engine_3d::renderer::ui::{ MAX_UI_INSTANCE_COUNT, UIRenderData };
+use rust_engine_3d::renderer::camera::CameraObjectData;
+use rust_engine_3d::renderer::light::LightConstants;
+use rust_engine_3d::renderer::font::FontInstanceData;
+use rust_engine_3d::renderer::ui::UIRenderData;
 use rust_engine_3d::vulkan_context::buffer::{ self, ShaderBufferData };
+
+use crate::application_constants;
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
@@ -89,18 +90,18 @@ pub struct ViewConstants {
 // render_ssao.frag - SSAOConstants
 #[derive(Clone)]
 pub struct SSAOConstants {
-    pub _ssao_kernel_samples: [Vector4<f32>; constants::SSAO_KERNEL_SIZE],
+    pub _ssao_kernel_samples: [Vector4<f32>; application_constants::SSAO_KERNEL_SIZE],
 }
 
 #[derive(Clone)]
 pub struct BoneMatrices {
-    pub _bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
+    pub _bone_matrices: [Matrix4<f32>; application_constants::MAX_BONES],
 }
 
 impl Default for BoneMatrices {
     fn default() -> BoneMatrices {
         BoneMatrices {
-            _bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
+            _bone_matrices: [Matrix4::identity() as Matrix4<f32>; application_constants::MAX_BONES],
         }
     }
 }
@@ -188,21 +189,23 @@ pub fn regist_shader_buffer_datas(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     shader_buffer_data_map: &mut ShaderBufferDataMap,
 ) {
-    let has_staging_buffer: bool = false;
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants0, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants1, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants2, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::FontInstanceDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<FontInstanceData>() * MAX_FONT_INSTANCE_COUNT as usize, has_staging_buffer);
-    regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIRenderDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIRenderData>() * MAX_UI_INSTANCE_COUNT as usize, has_staging_buffer);
+    unsafe {
+        let has_staging_buffer: bool = false;
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SceneConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SceneConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::ViewConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<LightConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::SSAOConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<SSAOConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::BoneMatrices, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<BoneMatrices>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::AtmosphereConstants, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<AtmosphereConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants0, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants1, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants2, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants3, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants4, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::FontInstanceDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<FontInstanceData>() * constants::MAX_FONT_INSTANCE_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIRenderDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIRenderData>() * constants::MAX_UI_INSTANCE_COUNT as usize, has_staging_buffer);
+    }
 }
 
 impl SceneConstants {

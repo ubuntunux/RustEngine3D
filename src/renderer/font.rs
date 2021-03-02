@@ -5,6 +5,7 @@ use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3 };
 use ash::{ vk, Device };
 
+use crate::constants;
 use crate::resource::resource::Resources;
 use crate::renderer::renderer::RendererData;
 use crate::renderer::utility;
@@ -14,9 +15,6 @@ use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-
-// MAX_FONT_INSTANCE_COUNT must match with render_font_common.glsl
-pub const MAX_FONT_INSTANCE_COUNT: u32 = 1024;
 
 pub const USE_DISTANCE_FIELD: bool = false;
 pub const FONT_SIZE: u32 = 20;
@@ -128,7 +126,7 @@ pub struct TextRenderData {
     pub _initial_row: i32,
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
-    pub _font_instance_datas: [FontInstanceData; MAX_FONT_INSTANCE_COUNT as usize],
+    pub _font_instance_datas: Vec<FontInstanceData>,
     pub _render_font_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
@@ -145,7 +143,7 @@ impl Default for TextRenderData {
             _initial_row: 0,
             _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
-            _font_instance_datas: [FontInstanceData::default(); MAX_FONT_INSTANCE_COUNT as usize],
+            _font_instance_datas: Vec::new(),
             _render_font_descriptor_sets: SwapchainArray::new(),
         }
     }
@@ -191,6 +189,7 @@ impl TextRenderData {
             _font_data: font_data.clone(),
             ..Default::default()
         };
+        text_render_data._font_instance_datas.resize(unsafe { constants::MAX_FONT_INSTANCE_COUNT }, FontInstanceData::default());
         text_render_data.create_texture_render_data_descriptor_sets(device, resources);
         text_render_data
     }

@@ -989,7 +989,7 @@ impl Resources {
     ) -> RcRefCell<DescriptorData> {
         let descriptor_name: String = format!("{}{}", render_pass_name, pipeline_data_create_info._pipeline_data_create_info_name);
         let descriptor_data_create_infos = &pipeline_data_create_info._descriptor_data_create_infos;
-        let max_descriptor_pool_count: u32 = (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32;
+        let max_descriptor_pool_count: u32 = unsafe { (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32 };
         let maybe_descriptor_data = self._descriptor_data_map.get(&descriptor_name);
         match maybe_descriptor_data {
             Some(descriptor_data) => descriptor_data.clone(),

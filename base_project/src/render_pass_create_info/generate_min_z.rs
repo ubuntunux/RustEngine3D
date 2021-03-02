@@ -1,15 +1,8 @@
 use std::path::PathBuf;
 
-use ash::{
-    vk,
-};
-
-use rust_engine_3d::utilities::system::{
-    enum_to_string
-};
-use rust_engine_3d::renderer::push_constants::{ PushConstant_RenderCopy };
+use ash::vk;
+use rust_engine_3d::utilities::system::enum_to_string;
 use rust_engine_3d::renderer::renderer::RendererData;
-use rust_engine_3d::renderer::render_target::RenderTargetType;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use rust_engine_3d::vulkan_context::render_pass::{
@@ -22,11 +15,13 @@ use rust_engine_3d::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
-use rust_engine_3d::vulkan_context::vulkan_context;
 use rust_engine_3d::vulkan_context::vulkan_context::{
+    self,
     BlendMode,
 };
 
+use crate::renderer::push_constants::PushConstant_RenderCopy;
+use crate::renderer::render_target::RenderTargetType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(

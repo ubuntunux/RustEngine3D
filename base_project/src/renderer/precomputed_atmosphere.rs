@@ -1,15 +1,16 @@
 use ash::{ vk, Device };
 use nalgebra::{ Vector2, Vector3, Matrix3 };
 
-use crate::renderer::renderer::RendererData;
+use rust_engine_3d::renderer::renderer::RendererData;
+use rust_engine_3d::renderer::utility;
+use rust_engine_3d::resource::resource::Resources;
+use rust_engine_3d::vulkan_context::geometry_buffer::{ GeometryData };
+use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
+use rust_engine_3d::vulkan_context::vulkan_context::Layers;
+
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
 use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
-use crate::renderer::utility;
-use crate::resource::Resources;
-use crate::vulkan_context::geometry_buffer::{ GeometryData };
-use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
-use crate::vulkan_context::vulkan_context::Layers;
 
 pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE

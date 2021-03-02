@@ -13,11 +13,12 @@ use rust_engine_3d::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use rust_engine_3d::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
 use rust_engine_3d::renderer::render_element::{ RenderElementData };
 use rust_engine_3d::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData, AnimationPlayArgs };
-use rust_engine_3d::renderer::shader_buffer_datas::{ LightConstants };
+use rust_engine_3d::renderer::light::LightConstants;
 use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::utilities::system::{ self, RcRefCell, newRcRefCell };
 use rust_engine_3d::utilities::bounding_box::BoundingBox;
 
+use crate::application_constants;
 use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::precomputed_atmosphere::Atmosphere;
 
@@ -27,6 +28,8 @@ type RenderObjectMap = HashMap<String, RcRefCell<RenderObjectData>>;
 
 #[derive(Clone)]
 pub struct SceneManager {
+    pub _window_width: u32,
+    pub _window_height: u32,
     pub _main_camera: RcRefCell<CameraObjectData>,
     pub _main_light: RcRefCell<DirectionalLightData>,
     pub _capture_height_map: RcRefCell<DirectionalLightData>,
@@ -45,14 +48,40 @@ pub struct SceneManager {
 
 
 impl SceneManagerBase for SceneManager {
-    fn regist_scene_graphics_data(&self, renderer_data: &RendererData, resources: &Resources) {
+    fn initialize_scene_manager_data(&mut self, renderer_data: &RendererData, resources: &Resources, window_width: u32, window_height: u32) {
+        self.resized_window(window_width, window_height);
+    }
+
+    fn regist_scene_graphics_data(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
         self._fft_ocean.borrow_mut().regist_fft_ocean_textures(renderer_data, resources);
     }
 
+    fn initialize_scene_graphics_data(&self, renderer_data: &RendererData, resources: &Resources) {
+        self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
+        self._atmosphere.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
+    }
+
+    fn destroy_scene_graphics_data(&self, device: &Device) {
+        self._fft_ocean.borrow_mut().destroy_fft_ocean(device);
+        self._atmosphere.borrow_mut().destroy_atmosphere(device);
+    }
+
+    fn get_window_size(&self) -> (u32, u32) {
+        (self._window_width, self._window_height)
+    }
+    fn set_window_size(&mut self, width: u32, height: u32) {
+        self._window_width = width;
+        self._window_height = height;
+    }
+    fn resized_window(&mut self, width: u32, height: u32) {
+        self.set_window_size(width, height);
+        self._main_camera.borrow_mut().set_aspect(width, height);
+    }
+
     fn open_scene_manager_data(&mut self, resources: &Resources) {
-        let camera_data = CameraCreateInfo {
-            window_width: width,
-            window_height: height,
+        let camera_create_info = CameraCreateInfo {
+            window_width: self._window_width,
+            window_height: self._window_height,
             position: Vector3::new(-25.28, 18.20, 24.5), // Vector3::new(-7.29, 6.345, -0.33),
             rotation: Vector3::new(-0.157, -1.0, 0.0), // Vector3::new(-0.287, -1.5625, 0.0),
             ..Default::default()
@@ -60,7 +89,7 @@ impl SceneManagerBase for SceneManager {
 
         self.initialize_light_probe_cameras();
 
-        self._main_camera = self.add_camera_object(&String::from("main_camera"), camera_create_info);
+        self._main_camera = self.add_camera_object(&String::from("main_camera"), &camera_create_info);
 
         let pitch: f32 = -std::f32::consts::PI * 0.47;
         self._main_light = self.add_light_object(&String::from("main_light"), &DirectionalLightCreateInfo {
@@ -117,21 +146,7 @@ impl SceneManagerBase for SceneManager {
         self.destroy_scene_graphics_data(device);
     }
 
-    fn initialize_scene_graphics_data(&self, renderer_data: &RendererData, resources: &Resources) {
-        self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
-        self._atmosphere.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
-    }
-
-    fn destroy_scene_graphics_data(&self, device: &Device) {
-        self._fft_ocean.borrow_mut().destroy_fft_ocean(device);
-        self._atmosphere.borrow_mut().destroy_atmosphere(device);
-    }
-
-    fn resized_window(&self, width: u32, height: u32) {
-        self._main_camera.borrow_mut().set_aspect(width, height);
-    }
-
-    pub fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
+    fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64) {
         self._fft_ocean.borrow_mut().update(delta_time);
 
         let mut main_camera = self._main_camera.borrow_mut();
@@ -152,7 +167,7 @@ impl SceneManagerBase for SceneManager {
             render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
-        SceneManagerData::gather_render_elements(
+        SceneManager::gather_render_elements(
             &main_camera,
             &main_light,
             &self._static_render_object_map,
@@ -160,7 +175,7 @@ impl SceneManagerBase for SceneManager {
             &mut self._static_shadow_render_elements
         );
 
-        SceneManagerData::gather_render_elements(
+        SceneManager::gather_render_elements(
             &main_camera,
             &main_light,
             &self._skeletal_render_object_map,
@@ -171,12 +186,12 @@ impl SceneManagerBase for SceneManager {
 }
 
 impl SceneManager {
-    fn create_scene_manager() -> SceneManager {
+    pub fn create_scene_manager() -> SceneManager {
         let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
         let light_probe_camera_create_info = CameraCreateInfo {
             fov: 90.0,
-            window_width: constants::LIGHT_PROBE_SIZE,
-            window_height: constants::LIGHT_PROBE_SIZE,
+            window_width: application_constants::LIGHT_PROBE_SIZE,
+            window_height: application_constants::LIGHT_PROBE_SIZE,
             enable_jitter: false,
             ..Default::default()
         };
@@ -194,10 +209,10 @@ impl SceneManager {
             &DirectionalLightCreateInfo {
                 _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
                 _shadow_dimensions: Vector4::new(
-                    constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                    constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                    -constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                    constants::CAPTURE_HEIGHT_MAP_DEPTH
+                    application_constants::CAPTURE_HEIGHT_MAP_DISTANCE,
+                    application_constants::CAPTURE_HEIGHT_MAP_DISTANCE,
+                    -application_constants::CAPTURE_HEIGHT_MAP_DEPTH,
+                    application_constants::CAPTURE_HEIGHT_MAP_DEPTH
                 ),
                 ..Default::default()
             }
@@ -205,6 +220,8 @@ impl SceneManager {
         let fft_ocean = system::newRcRefCell(FFTOcean::default());
         let atmosphere = system::newRcRefCell(Atmosphere::create_atmosphere(true));
         SceneManager {
+            _window_width: default_camera._window_width,
+            _window_height: default_camera._window_height,
             _main_camera: system::newRcRefCell(default_camera),
             _main_light: system::newRcRefCell(default_light),
             _capture_height_map: system::newRcRefCell(capture_height_map),
@@ -338,7 +355,7 @@ impl SceneManager {
             let geometry_bound_boxes = &render_object_data_ref._geometry_bound_boxes;
             let material_instance_datas = mode_data.get_material_instance_datas();
             for index in 0..geometry_datas.len() {
-                if false == SceneManagerData::view_frustum_culling_geometry(camera, &geometry_bound_boxes[index]) {
+                if false == SceneManager::view_frustum_culling_geometry(camera, &geometry_bound_boxes[index]) {
                     render_elements.push(RenderElementData {
                         _render_object: render_object_data.clone(),
                         _geometry_data: geometry_datas[index].clone(),
@@ -346,7 +363,7 @@ impl SceneManager {
                     })
                 }
 
-                if false == SceneManagerData::shadow_culling(light, &geometry_bound_boxes[index]) {
+                if false == SceneManager::shadow_culling(light, &geometry_bound_boxes[index]) {
                     render_shadow_elements.push(RenderElementData {
                         _render_object: render_object_data.clone(),
                         _geometry_data: geometry_datas[index].clone(),

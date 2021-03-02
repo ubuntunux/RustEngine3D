@@ -1,9 +1,6 @@
 use std::path::PathBuf;
 
-use ash::{
-    vk,
-};
-
+use ash::vk;
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::framebuffer::{ FramebufferDataCreateInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
@@ -18,19 +15,20 @@ use rust_engine_3d::vulkan_context::vulkan_context::{
     BlendMode,
 };
 
+use crate::render_pass_create_info;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, framebuffer_name: &str) -> FramebufferDataCreateInfo {
     let light_probe_depth_only: bool = true;
     match framebuffer_name {
-        "clear_gbuffer" => rust_engine_3d::resource::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
-        "clear_shadow" => rust_engine_3d::resource::render_shadow::get_framebuffer_data_create_info(renderer_data),
-        "clear_capture_height_map" => rust_engine_3d::resource::capture_height_map::get_framebuffer_data_create_info(renderer_data),
-        "clear_light_probe_depth_0" => rust_engine_3d::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0, light_probe_depth_only),
-        "clear_light_probe_depth_1" => rust_engine_3d::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 1, light_probe_depth_only),
-        "clear_light_probe_depth_2" => rust_engine_3d::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 2, light_probe_depth_only),
-        "clear_light_probe_depth_3" => rust_engine_3d::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 3, light_probe_depth_only),
-        "clear_light_probe_depth_4" => rust_engine_3d::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 4, light_probe_depth_only),
-        "clear_light_probe_depth_5" => rust_engine_3d::resource::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 5, light_probe_depth_only),
+        "clear_gbuffer" => render_pass_create_info::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
+        "clear_shadow" => render_pass_create_info::render_shadow::get_framebuffer_data_create_info(renderer_data),
+        "clear_capture_height_map" => render_pass_create_info::capture_height_map::get_framebuffer_data_create_info(renderer_data),
+        "clear_light_probe_depth_0" => render_pass_create_info::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0, light_probe_depth_only),
+        "clear_light_probe_depth_1" => render_pass_create_info::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 1, light_probe_depth_only),
+        "clear_light_probe_depth_2" => render_pass_create_info::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 2, light_probe_depth_only),
+        "clear_light_probe_depth_3" => render_pass_create_info::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 3, light_probe_depth_only),
+        "clear_light_probe_depth_4" => render_pass_create_info::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 4, light_probe_depth_only),
+        "clear_light_probe_depth_5" => render_pass_create_info::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 5, light_probe_depth_only),
         _ => panic!("Not implemented.")
     }
 }

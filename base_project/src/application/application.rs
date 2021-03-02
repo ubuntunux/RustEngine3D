@@ -1,76 +1,56 @@
-use std::cell::RefMut;
-use std::time;
-use log;
+use ash::vk;
+use winit::event::VirtualKeyCode;
+use rust_engine_3d::constants;
+use rust_engine_3d::application::application::{self, ApplicationBase, ApplicationData};
+use rust_engine_3d::application::scene_manager::{ SceneManagerData };
+use rust_engine_3d::renderer::renderer::{ RendererData };
+use rust_engine_3d::utilities::system::{ newRcRefCell };
 
-use nalgebra::{
-    Vector3,
-};
-use winit::event::{
-    ElementState,
-    Event,
-    MouseButton,
-    MouseScrollDelta,
-    Touch,
-    TouchPhase,
-    VirtualKeyCode,
-    WindowEvent
-};
-use winit::event_loop::{
-    ControlFlow,
-    EventLoop
-};
-use winit::dpi;
-use winit::window::{ WindowBuilder };
-
-use rust_engine_3d::constants::{ Constants };
-use rust_engine_3d::application::application::{ self, ApplicationData, ApplicationBase };
-use rust_engine_3d::application::scene_manager::{ self, SceneManagerData };
-use rust_engine_3d::application::input;
-use rust_engine_3d::resource::resource::{ self, Resources};
-use rust_engine_3d::renderer::renderer::{ self, RendererData, CameraCreateInfo };
-use rust_engine_3d::renderer::font::FontManager;
-use rust_engine_3d::renderer::ui::UIManager;
-use rust_engine_3d::utilities::system::{self, RcRefCell, newRcRefCell};
-use rust_engine_3d::utilities::logger;
+use crate::application::scene_manager::SceneManager;
+use crate::renderer::renderer::Renderer;
 
 pub struct Application {
 }
 
 impl ApplicationBase for Application {
-    fn update_event(&mut self, scene_manager_data: &SceneManagerData) {
+    fn update_event(&mut self, application_data: &ApplicationData, scene_manager_data: &SceneManagerData) {
         let renderer_data: *mut RendererData = scene_manager_data._renderer_data.as_ptr();
+        let time_data = &application_data._time_data;
+        let mouse_move_data = &application_data._mouse_move_data;
+        let mouse_input_data = &application_data._mouse_input_data;
+        let keyboard_input_data = &application_data._keyboard_input_data;
 
         const MOUSE_DELTA_RATIO: f32 = 500.0;
-        let delta_time = self._time_data._delta_time;
-        let _mouse_pos = &self._mouse_move_data._mouse_pos;
-        let mouse_delta_x = self._mouse_move_data._mouse_pos_delta.x as f32 / self._window_size.0 as f32 * MOUSE_DELTA_RATIO;
-        let mouse_delta_y = self._mouse_move_data._mouse_pos_delta.y as f32 / self._window_size.1 as f32 * MOUSE_DELTA_RATIO;
-        let btn_left: bool = self._mouse_input_data._btn_l_hold;
-        let btn_right: bool = self._mouse_input_data._btn_r_hold;
-        let _btn_middle: bool = self._mouse_input_data._btn_m_hold;
+        let delta_time = time_data._delta_time;
+        let _mouse_pos = &mouse_move_data._mouse_pos;
+        let mouse_delta_x = mouse_move_data._mouse_pos_delta.x as f32 / self._window_size.0 as f32 * MOUSE_DELTA_RATIO;
+        let mouse_delta_y = mouse_move_data._mouse_pos_delta.y as f32 / self._window_size.1 as f32 * MOUSE_DELTA_RATIO;
+        let btn_left: bool = mouse_input_data._btn_l_hold;
+        let btn_right: bool = mouse_input_data._btn_r_hold;
+        let _btn_middle: bool = mouse_input_data._btn_m_hold;
 
-        let pressed_key_a = self._keyboard_input_data.get_key_hold(VirtualKeyCode::A);
-        let pressed_key_d = self._keyboard_input_data.get_key_hold(VirtualKeyCode::D);
-        let pressed_key_w = self._keyboard_input_data.get_key_hold(VirtualKeyCode::W);
-        let pressed_key_s = self._keyboard_input_data.get_key_hold(VirtualKeyCode::S);
-        let pressed_key_q = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Q);
-        let pressed_key_e = self._keyboard_input_data.get_key_hold(VirtualKeyCode::E);
-        let pressed_key_z = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Z);
-        let pressed_key_c = self._keyboard_input_data.get_key_hold(VirtualKeyCode::C);
-        let pressed_key_comma = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Comma);
-        let pressed_key_period = self._keyboard_input_data.get_key_hold(VirtualKeyCode::Period);
-        let released_key_left_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::LBracket);
-        let released_key_right_bracket = self._keyboard_input_data.get_key_released(VirtualKeyCode::RBracket);
-        let released_key_subtract = self._keyboard_input_data.get_key_released(VirtualKeyCode::Minus);
-        let released_key_equals = self._keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
+        let pressed_key_a = keyboard_input_data.get_key_hold(VirtualKeyCode::A);
+        let pressed_key_d = keyboard_input_data.get_key_hold(VirtualKeyCode::D);
+        let pressed_key_w = keyboard_input_data.get_key_hold(VirtualKeyCode::W);
+        let pressed_key_s = keyboard_input_data.get_key_hold(VirtualKeyCode::S);
+        let pressed_key_q = keyboard_input_data.get_key_hold(VirtualKeyCode::Q);
+        let pressed_key_e = keyboard_input_data.get_key_hold(VirtualKeyCode::E);
+        let pressed_key_z = keyboard_input_data.get_key_hold(VirtualKeyCode::Z);
+        let pressed_key_c = keyboard_input_data.get_key_hold(VirtualKeyCode::C);
+        let pressed_key_comma = keyboard_input_data.get_key_hold(VirtualKeyCode::Comma);
+        let pressed_key_period = keyboard_input_data.get_key_hold(VirtualKeyCode::Period);
+        let released_key_left_bracket = keyboard_input_data.get_key_released(VirtualKeyCode::LBracket);
+        let released_key_right_bracket = keyboard_input_data.get_key_released(VirtualKeyCode::RBracket);
+        let released_key_subtract = keyboard_input_data.get_key_released(VirtualKeyCode::Minus);
+        let released_key_equals = keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
 
         let mut main_camera = scene_manager_data._main_camera.borrow_mut();
         let mut main_light = scene_manager_data._main_light.borrow_mut();
-        let modifier_keys_shift = self._keyboard_input_data.get_key_hold(VirtualKeyCode::LShift);
+        let modifier_keys_shift = keyboard_input_data.get_key_hold(VirtualKeyCode::LShift);
         let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 };
-        let move_speed: f32 = self._constants._camera_move_speed * camera_move_speed_multiplier * delta_time as f32;
-        let pan_speed = self._constants._camera_pan_speed * camera_move_speed_multiplier;
-        let _rotation_speed = self._constants._camera_rotation_speed;
+        let move_speed: f32 = constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
+        let pan_speed = constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
+        let _rotation_speed = constants::CAMERA_ROTATION_SPEED;
 
         unsafe {
             if released_key_left_bracket {
@@ -138,6 +118,47 @@ impl ApplicationBase for Application {
         }
     }
 
-    fn terminate_applicateion() {
+    fn terminate_applicateion(&mut self) {
     }
+}
+
+pub fn run_application() {
+    let vulkan_api_version: u32;
+    let enable_immediate_mode: bool;
+    let enable_validation_layer: bool;
+    let is_concurrent_mode: bool;
+
+    #[cfg(target_os = "android")]
+    {
+        vulkan_api_version = vk::make_version(1, 0, 0);
+        enable_immediate_mode = false;
+        enable_validation_layer = false;
+        is_concurrent_mode = false;
+    }
+    #[cfg(not(target_os = "android"))]
+    {
+        vulkan_api_version = vk::make_version(1, 2, 0);
+        enable_immediate_mode = true;
+        enable_validation_layer = true;
+        is_concurrent_mode = true;
+    }
+
+    unsafe {
+        constants::VULKAN_API_VERSION = vulkan_api_version;
+        constants::DEBUG_MESSAGE_LEVEL = vk::DebugUtilsMessageSeverityFlagsEXT::WARNING;
+        constants::VULKAN_LAYERS = vec!["VK_LAYER_LUNARG_standard_validation".to_string()];
+        constants::REQUIRE_DEVICE_EXTENSIONS = vec!["VK_KHR_swapchain".to_string()];
+        constants::ENABLE_IMMEDIATE_MODE = enable_immediate_mode;
+        constants::ENABLE_VALIDATION_LAYER = enable_validation_layer;
+        constants::IS_CONCURRENT_MODE = is_concurrent_mode;
+        constants::METER_PER_UNIT = 1.0;
+        constants::NEAR = 0.1;
+        constants::FAR = 2000.0;
+        constants::FOV = 60.0;
+    }
+
+    let application = newRcRefCell(Application {});
+    let scene_manager = newRcRefCell(SceneManager::create_scene_manager());
+    let renderer = newRcRefCell(Renderer::create_renderer_data());
+    application::run_application(application, scene_manager, renderer);
 }

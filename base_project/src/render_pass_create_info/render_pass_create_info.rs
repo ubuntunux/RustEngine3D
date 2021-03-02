@@ -1,11 +1,10 @@
-use ash::{
-    vk,
-};
-use crate::renderer::renderer::{
-    RenderObjectType,
-    RendererData,
-};
-use crate::resource::render_pass_create_info::{
+use ash::vk;
+
+use rust_engine_3d::renderer::renderer::RendererData;
+use rust_engine_3d::vulkan_context::render_pass::RenderPassDataCreateInfo;
+
+use crate::renderer::renderer::RenderObjectType;
+use crate::render_pass_create_info::{
     capture_height_map,
     clear_render_target,
     clear_framebuffer,
@@ -34,7 +33,6 @@ use crate::resource::render_pass_create_info::{
     render_taa,
     render_ui,
 };
-use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
     vec![

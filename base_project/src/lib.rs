@@ -1,15 +1,11 @@
 pub mod application;
-pub mod constants;
+pub mod application_constants;
 pub mod render_pass_create_info;
 pub mod renderer;
 
-use rust_engine_3d::application::*;
-use rust_engine_3d::constants::Constants;
+use crate::application::application::run_application;
 
 #[cfg_attr(target_os = "android", ndk_glue::main(backtrace = "on"))]
 pub fn main() {
-    let constants = Constants {
-        ..Default::default()
-    };
-    application::run_application(constants);
+    run_application();
 }

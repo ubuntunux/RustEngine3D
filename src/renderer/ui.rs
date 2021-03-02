@@ -3,6 +3,7 @@ use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
 
+use crate::constants;
 use crate::resource::resource::Resources;
 use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
@@ -14,8 +15,6 @@ use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::render_pass::{ PipelineData };
 use crate::vulkan_context::vulkan_context::{ get_color32 };
 
-// must match with render_ui_common.glsl
-pub const MAX_UI_INSTANCE_COUNT: u32 = 1024;
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
 pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
@@ -207,7 +206,7 @@ pub struct UIManager {
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
     pub _font_data: RcRefCell<FontData>,
-    pub _ui_render_datas: [UIRenderData; MAX_UI_INSTANCE_COUNT as usize],
+    pub _ui_render_datas: Vec<UIRenderData>,
     pub _render_ui_count: u32,
     pub _render_ui_group: Vec<UIRenderGroupData>,
     pub _default_render_ui_material: Option<RcRefCell<MaterialInstanceData>>,
@@ -1141,11 +1140,12 @@ impl UIManager {
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
                 _font_data: system::newRcRefCell(FontData::default()),
-                _ui_render_datas: [UIRenderData::default(); MAX_UI_INSTANCE_COUNT as usize],
+                _ui_render_datas: Vec::new(),
                 _render_ui_count: 0,
                 _render_ui_group: Vec::new(),
                 _default_render_ui_material: None,
             };
+            ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
             ui_manager._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
             ui_manager._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
             ui_manager._root.get_ui_component_mut().set_renderable(false);
