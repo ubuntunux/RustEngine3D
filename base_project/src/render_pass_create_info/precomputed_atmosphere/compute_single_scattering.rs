@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 use rust_engine_3d::utilities::system::enum_to_string;
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use rust_engine_3d::vulkan_context::render_pass::{
@@ -18,13 +17,14 @@ use rust_engine_3d::vulkan_context::vulkan_context::{ self, BlendMode };
 
 use crate::renderer::precomputed_atmosphere::{ DEFAULT_USE_COMBINED_TEXTURES, PushConstant_PrecomputedAtmosphere };
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
-    let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
-    let render_target2 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
-    let render_target3 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
+pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataCreateInfo {
+    let render_target0 = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
+    let render_target1 = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
+    let render_target2 = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
+    let render_target3 = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
     let render_target_infos: [RenderTargetInfo; 4] = [
         RenderTargetInfo { _texture_data: render_target0, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
         RenderTargetInfo { _texture_data: render_target1, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
@@ -34,9 +34,9 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer: &Renderer) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("compute_single_scattering");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(

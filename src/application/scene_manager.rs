@@ -40,6 +40,14 @@ impl SceneManagerData {
         scene_manager_data
     }
 
+    pub fn get_scene_manager<T>(&self) -> &T {
+        unsafe { &*(self._scene_manager.as_ptr() as *const T) }
+    }
+
+    pub fn get_scene_manager_mut<T>(&self) -> &mut T {
+        unsafe { &mut *(self._scene_manager.as_ptr() as *mut T) }
+    }
+
     pub fn open_scene_manager_data(&mut self) {
         self._scene_manager.borrow_mut().open_scene_manager_data(&self._resources.borrow());
     }

@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 use rust_engine_3d::utilities::system::enum_to_string;
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
@@ -13,8 +12,9 @@ use rust_engine_3d::vulkan_context::descriptor::{
 };
 
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 
-pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("downsampling");
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {

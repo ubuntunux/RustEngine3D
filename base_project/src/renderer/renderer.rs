@@ -75,6 +75,7 @@ pub enum RenderObjectType {
 }
 
 pub struct Renderer {
+    pub _renderer_data: *const RendererData,
     pub _is_first_rendering: bool,
     pub _scene_constants: shader_buffer_datas::SceneConstants,
     pub _view_constants: shader_buffer_datas::ViewConstants,
@@ -95,8 +96,18 @@ pub struct Renderer {
 }
 
 impl RendererBase for Renderer {
-    fn initialize_renderer(&mut self, device: &Device, memory_properties: &vk::PhysicalDeviceMemoryProperties) {
-        shader_buffer_datas::regist_shader_buffer_datas(device, memory_properties, &mut self._shader_buffer_data_map);
+    fn initialize_renderer(&mut self, renderer_data: &RendererData) {
+        self.set_renderer_data(renderer_data);
+        shader_buffer_datas::regist_shader_buffer_datas(renderer_data.get_device(), renderer_data.get_device_memory_properties(), &mut self._shader_buffer_data_map);
+    }
+    fn get_renderer_data(&self) -> &RendererData {
+        unsafe { &*self._renderer_data }
+    }
+    fn get_renderer_data_mut(&self) -> &mut RendererData {
+        unsafe { &mut *(self._renderer_data as *mut RendererData) }
+    }
+    fn set_renderer_data(&mut self, renderer_data: *const RendererData) {
+        self._renderer_data = renderer_data;
     }
     fn set_is_first_rendering(&mut self, is_first_rendering: bool) {
         log::info!("reset_is_first_rendering");
@@ -213,7 +224,7 @@ impl RendererBase for Renderer {
         self._renderer_data_ssr.update();
     }
     fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
-        self.get_shader_buffer_data(ShaderBufferDataType::from_str(buffer_data_name).unwrap())
+        self.get_shader_buffer_data(&ShaderBufferDataType::from_str(buffer_data_name).unwrap())
     }
     fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
         self.get_render_target(RenderTargetType::from_str(render_target_type_str).unwrap())
@@ -258,7 +269,9 @@ impl RendererBase for Renderer {
         delta_time: f64,
         elapsed_frame: u64,
     ) {
-        let resources = self._resources.borrow();
+        let renderer_data = self.get_renderer_data();
+        let resources = renderer_data._resources.borrow();
+        let scene_manager: &SceneManager = scene_manager_data.get_scene_manager();
         let main_camera =  scene_manager.get_main_camera().borrow();
         let main_light = scene_manager.get_main_light().borrow();
         let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
@@ -274,8 +287,8 @@ impl RendererBase for Renderer {
 
         // Upload Uniform Buffers
         self._scene_constants.update_scene_constants(
-            self._swapchain_data._swapchain_extent.width,
-            self._swapchain_data._swapchain_extent.height,
+            renderer_data._swapchain_data._swapchain_extent.width,
+            renderer_data._swapchain_data._swapchain_extent.height,
             elapsed_time,
             delta_time,
             fft_ocean.get_height(),
@@ -285,43 +298,44 @@ impl RendererBase for Renderer {
             self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
         }
 
-        self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SceneConstants, &self._scene_constants);
-        self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::ViewConstants, &self._view_constants);
-        self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::LightConstants, main_light.get_light_constants());
-        self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
-        self.upload_shader_buffer_data(command_buffer, swapchain_index, ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
+        self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::SceneConstants, &self._scene_constants);
+        self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::ViewConstants, &self._view_constants);
+        self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::LightConstants, main_light.get_light_constants());
+        self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::SSAOConstants, &self._renderer_data_ssao._ssao_constants);
+        self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::AtmosphereConstants, &atmosphere._atmosphere_constants);
 
         if self._is_first_rendering {
-            self.rendering_at_first(command_buffer, swapchain_index, &quad_geometry_data);
-            fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
-            atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, self);
+            self.rendering_at_first(command_buffer, swapchain_index, renderer_data, &resources, &quad_geometry_data);
+            fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, renderer_data, &resources);
+            atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, renderer_data);
         }
 
         // clear gbuffer
-        self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // shadow
-        self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-        self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_shadow_render_elements, None);
-        self.render_solid_object(command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_shadow_render_elements, None);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        self.render_solid_object(renderer_data, command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_shadow_render_elements, None);
+        self.render_solid_object(renderer_data, command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_shadow_render_elements, None);
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
-            self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-            self.render_solid_object(command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
+            renderer_data.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+            self.render_solid_object(renderer_data, command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
         }
 
         // fft-simulation
-        fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, self, &resources);
+        fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, renderer_data, &resources);
 
         // light probe
         if self._light_probe_datas._next_refresh_time <= elapsed_time || self._light_probe_datas._light_probe_capture_count < 2 {
             self.render_light_probe(
+                renderer_data,
                 command_buffer,
                 swapchain_index,
                 &quad_geometry_data,
                 &resources,
-                &scene_manager,
+                scene_manager,
                 &main_camera,
                 static_render_elements,
                 &fft_ocean
@@ -336,6 +350,7 @@ impl RendererBase for Renderer {
             self._light_probe_datas._light_probe_blend_time += delta_time;
             let blend_ratio: f64 = 1.0f64.min(self._light_probe_datas._light_probe_blend_time / light_probe_term);
             self.copy_cube_map(
+                renderer_data,
                 command_buffer,
                 swapchain_index,
                 &resources,
@@ -356,11 +371,11 @@ impl RendererBase for Renderer {
         }
 
         // render solid object
-        self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
-        self.render_solid_object(command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+        self.render_solid_object(renderer_data, command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
+        self.render_solid_object(renderer_data, command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
 
         // pre-process: min-z, ssr, ssao, gbuffer, downsampling scnee color
-        self.render_pre_process(command_buffer, swapchain_index, &quad_geometry_data);
+        self.render_pre_process(renderer_data, command_buffer, swapchain_index, &quad_geometry_data);
 
         // render ocean
         fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_data, &resources);
@@ -370,10 +385,10 @@ impl RendererBase for Renderer {
         atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, &renderer_data, render_light_probe_mode);
 
         // post-process: taa, bloom, motion blur
-        self.render_post_process(command_buffer, swapchain_index, &quad_geometry_data);
+        self.render_post_process(renderer_data, command_buffer, swapchain_index, &quad_geometry_data, &resources);
 
         // Render Final
-        self.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Render UI
         ui_manager.render_ui(command_buffer, swapchain_index, &renderer_data, &resources);
@@ -392,7 +407,7 @@ impl RendererBase for Renderer {
             let render_debug_material_instance_name = "render_debug";
             let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = resources.get_material_instance_data(&render_debug_material_instance_name).borrow_mut();
             let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
-            self.begin_render_pass_pipeline(
+            renderer_data.begin_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 &render_debug_pipeline_binding_data.get_render_pass_data().borrow(),
@@ -409,14 +424,14 @@ impl RendererBase for Renderer {
                 vk::ImageViewType::CUBE => 4,
                 _ => panic!("Not implemented."),
             };
-            self.update_descriptor_set_mut(
+            renderer_data.update_descriptor_set_mut(
                 swapchain_index,
                 &mut render_debug_pipeline_binding_data,
                 descriptor_index,
                 &DescriptorResourceInfo::DescriptorImageInfo(debug_texture_data.get_default_image_info()),
             );
 
-            self.upload_push_constant_data(
+            renderer_data.upload_push_constant_data(
                 command_buffer,
                 &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
                 &PushConstant_RenderDebug {
@@ -426,16 +441,17 @@ impl RendererBase for Renderer {
                 }
             );
 
-            self.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
-            self.draw_geometry_data(command_buffer, &quad_geometry_data);
-            self.end_render_pass(command_buffer);
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
+            renderer_data.draw_geometry_data(command_buffer, &quad_geometry_data);
+            renderer_data.end_render_pass(command_buffer);
         }
     }
 }
 
 impl Renderer {
     pub fn create_renderer_data() -> Renderer {
-        let mut renderer = Renderer {
+        Renderer {
+            _renderer_data: std::ptr::null_mut(),
             _is_first_rendering: true,
             _scene_constants: shader_buffer_datas::SceneConstants::default(),
             _view_constants: shader_buffer_datas::ViewConstants::default(),
@@ -453,13 +469,11 @@ impl Renderer {
             _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer::default(),
             _clear_render_targets: RendererData_ClearRenderTargets::default(),
             _light_probe_datas: RendererData_LightProbe::default(),
-        };
-        renderer.initialize_renderer();
-        renderer
+        }
     }
 
-    fn get_shader_buffer_data(&self, buffer_data_type: ShaderBufferDataType) -> &ShaderBufferData {
-        &self._shader_buffer_data_map.get(&buffer_data_type).unwrap()
+    fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData {
+        &self._shader_buffer_data_map.get(buffer_data_type).unwrap()
     }
 
     pub fn next_debug_render_target(&mut self) {
@@ -502,14 +516,35 @@ impl Renderer {
         &self._render_target_data_map.get(&render_target_type).unwrap()
     }
 
+    pub fn upload_shader_buffer_data<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &T) {
+        let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
+        self.get_renderer_data().upload_shader_buffer_data(command_buffer, swapchain_index, shader_buffer_data, upload_data);
+    }
+
+    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &[T]) {
+        let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
+        self.get_renderer_data().upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer_data, upload_data);
+    }
+
+    pub fn upload_shader_buffer_data_offset<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &T, offset: vk::DeviceSize) {
+        let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
+        self.get_renderer_data().upload_shader_buffer_data_offset(command_buffer, swapchain_index, shader_buffer_data, upload_data, offset);
+    }
+
+    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &[T], offset: vk::DeviceSize) {
+        let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
+        self.get_renderer_data().upload_shader_buffer_datas_offset(command_buffer, swapchain_index, shader_buffer_data, upload_data, offset);
+    }
+
     pub fn rendering_at_first(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
         _quad_geometry_data: &GeometryData,
     ) {
         // Clear render targets
-        let resources: Ref<Resources> = self._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("clear_render_target").borrow();
         for (_, framebuffers) in self._clear_render_targets._color_framebuffer_datas.iter() {
             let default_frame_buffer = &framebuffers[0][0];
@@ -524,14 +559,14 @@ impl Renderer {
             let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
             for layer in 0..framebuffers.len() {
                 for mip_level in 0.. framebuffers[layer].len() {
-                    self.begin_render_pass_pipeline(
+                    renderer_data.begin_render_pass_pipeline(
                         command_buffer,
                         swapchain_index,
                         &pipeline_binding_data.get_render_pass_data().borrow(),
                         &pipeline_binding_data.get_pipeline_data().borrow(),
                         Some(&framebuffers[layer][mip_level])
                     );
-                    self.end_render_pass(command_buffer);
+                    renderer_data.end_render_pass(command_buffer);
                 }
             }
         }
@@ -539,6 +574,7 @@ impl Renderer {
 
     pub fn copy_cube_map<T>(
         &self,
+        renderer_data: &RendererData,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         resources: &Ref<Resources>,
@@ -550,30 +586,31 @@ impl Renderer {
         let copy_cube_map_material_instance = resources.get_material_instance_data("copy_cube_map").borrow();
         let pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data(render_pass_pipeline_data_name);
         let pipeline_data = pipeline_binding_data.get_pipeline_data().borrow();
-        self.begin_compute_pipeline(command_buffer, &pipeline_data);
+        renderer_data.begin_compute_pipeline(command_buffer, &pipeline_data);
         let mip_levels = mip_level_descriptor_sets.len();
         for mip_level in 0..mip_levels {
             if let Some(push_constant_data) = push_constant_data {
-                self.upload_push_constant_data(
+                renderer_data.upload_push_constant_data(
                     command_buffer,
                     &pipeline_data,
                     push_constant_data
                 );
             }
             let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
             let dispatch_count = image_width >> mip_level;
-            self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+            renderer_data.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
         }
     }
 
     pub fn render_light_probe(
         &self,
+        renderer_data: &RendererData,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         resources: &Ref<Resources>,
-        scene_manager: &RefMut<SceneManagerData>,
+        scene_manager: &SceneManager,
         main_camera: &CameraObjectData,
         static_render_elements: &Vec<RenderElementData>,
         _fft_ocean: &FFTOcean,
@@ -600,6 +637,7 @@ impl Renderer {
 
         // copy only_sky to only_sky_prev
         self.copy_cube_map(
+            renderer_data,
             command_buffer,
             swapchain_index,
             resources,
@@ -615,10 +653,10 @@ impl Renderer {
             light_probe_camera._transform_object.set_position(main_camera_position);
             light_probe_camera.update_camera_object_data();
             light_probe_view_constants.update_view_constants(&light_probe_camera);
-            self.upload_shader_buffer_data(command_buffer, swapchain_index, light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
+            self.upload_shader_buffer_data(command_buffer, swapchain_index, &light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
 
             // render atmosphere
-            self.render_render_pass_pipeline(
+            renderer_data.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 render_atmosphere_pipeline_binding_data,
@@ -629,7 +667,7 @@ impl Renderer {
             );
 
             // composite atmosphere for only sky
-            self.render_render_pass_pipeline(
+            renderer_data.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 composite_atmosphere_pipeline_binding_data,
@@ -640,14 +678,14 @@ impl Renderer {
             );
 
             // downsampling for only sky
-            self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
+            renderer_data.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
             let mip_level_descriptor_sets = &self._light_probe_datas._only_sky_downsampling_descriptor_sets[i];
             let mip_levels = mip_level_descriptor_sets.len();
             for mip_level in 0..mip_levels {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-                self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
+                renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
                 let dispatch_count = application_constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
-                self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+                renderer_data.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
             }
         }
 
@@ -655,6 +693,7 @@ impl Renderer {
         if application_constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
             // copy light_probe_forward to light_probe_forward_prev
             self.copy_cube_map(
+                renderer_data,
                 command_buffer,
                 swapchain_index,
                 resources,
@@ -674,10 +713,10 @@ impl Renderer {
                     "clear_light_probe_depth_4/clear",
                     "clear_light_probe_depth_5/clear",
                 ];
-                self.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+                renderer_data.render_material_instance(command_buffer, swapchain_index, "clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
                 // composite atmosphere
-                self.render_render_pass_pipeline(
+                renderer_data.render_render_pass_pipeline(
                     command_buffer,
                     swapchain_index,
                     composite_atmosphere_pipeline_binding_data,
@@ -697,6 +736,7 @@ impl Renderer {
                     "render_pass_static_forward_light_probe_5/render_object",
                 ];
                 self.render_solid_object(
+                    renderer_data,
                     command_buffer,
                     swapchain_index,
                     RenderMode::Forward,
@@ -706,14 +746,14 @@ impl Renderer {
                 );
 
                 // downsampling light probe
-                self.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
+                renderer_data.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
                 let mip_level_descriptor_sets = &self._light_probe_datas._light_probe_downsampling_descriptor_sets[i];
                 let mip_levels = mip_level_descriptor_sets.len();
                 for mip_level in 0..mip_levels {
                     let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
+                    renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, downsampling_pipeline_binding_data, descriptor_sets);
                     let dispatch_count = application_constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
-                    self.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
+                    renderer_data.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
                 }
             }
         }
@@ -721,6 +761,7 @@ impl Renderer {
 
     pub fn render_solid_object(
         &self,
+        renderer_data: &RendererData,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         render_mode: RenderMode,
@@ -765,8 +806,8 @@ impl Renderer {
                         let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
 
                         // TODO : Upload at once
-                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
-                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, ShaderBufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
+                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
+                        self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
 
                         // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
                         bone_metrices_offset += bone_count * 2;
@@ -786,20 +827,20 @@ impl Renderer {
 
                 if prev_pipeline_data != pipeline_data_ptr {
                     if false == prev_pipeline_data.is_null() {
-                        self.end_render_pass(command_buffer);
+                        renderer_data.end_render_pass(command_buffer);
                     }
-                    self.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+                    renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
                     prev_pipeline_data = pipeline_data_ptr;
                 }
 
                 if prev_pipeline_binding_data != pipeline_binding_data {
                     prev_pipeline_binding_data = pipeline_binding_data;
-                    self.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
+                    renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
                 }
 
                 match render_object_type {
                     RenderObjectType::Static => {
-                        self.upload_push_constant_data(
+                        renderer_data.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,
                             &PushConstant_StaticRenderObject {
@@ -810,7 +851,7 @@ impl Renderer {
                     RenderObjectType::Skeletal => {
                         let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
                         let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
-                        self.upload_push_constant_data(
+                        renderer_data.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,
                             &PushConstant_SkeletalRenderObject {
@@ -824,39 +865,41 @@ impl Renderer {
                         bone_metrices_offset += bone_count * 2;
                     },
                 };
-                self.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
+                renderer_data.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
             }
-            self.end_render_pass(command_buffer);
+            renderer_data.end_render_pass(command_buffer);
         }
     }
 
     pub fn render_taa(
         &self,
+        renderer_data: &RendererData,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
         // render_taa
-        self.render_material_instance(command_buffer, swapchain_index, "render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // copy SceneColorCopy -> TAAResolve
         let framebuffer = Some(&self._renderer_data_taa._taa_resolve_framebuffer_data);
         let descriptor_sets = Some(&self._renderer_data_taa._taa_descriptor_sets);
         let push_constants = PushConstant_RenderCopy::default();
-        self.render_material_instance(command_buffer, swapchain_index, "render_copy", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_copy", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, Some(&push_constants));
     }
 
     pub fn render_bloom(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        quad_geometry_data: &GeometryData
+        quad_geometry_data: &GeometryData,
+        renderer_data: &RendererData,
+        resources: &Resources
     ) {
-        let resources: Ref<Resources> = self._resources.borrow();
         let render_bloom_material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("render_bloom").borrow();
         // render_bloom_highlight
         let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
-        self.render_render_pass_pipeline(
+        renderer_data.render_render_pass_pipeline(
             command_buffer,
             swapchain_index,
             pipeline_binding_data,
@@ -870,7 +913,7 @@ impl Renderer {
         let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
         let framebuffer_count = self._renderer_data_bloom._bloom_downsample_framebuffer_datas.len();
         for i in 0..framebuffer_count {
-            self.render_render_pass_pipeline(
+            renderer_data.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
@@ -886,7 +929,7 @@ impl Renderer {
         let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
         let framebuffer_count = self._renderer_data_bloom._bloom_temp_framebuffer_datas.len();
         for i in 0..framebuffer_count {
-            self.render_render_pass_pipeline(
+            renderer_data.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
@@ -905,9 +948,9 @@ impl Renderer {
         }
     }
 
-    pub fn render_ssr(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+    pub fn render_ssr(&self, renderer_data: &RendererData, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // Screen Space Reflection
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Screen Space Reflection Resolve
         let (framebuffer, descriptor_sets) = match self._renderer_data_ssr._current_ssr_resolved {
@@ -915,12 +958,12 @@ impl Renderer {
             RenderTargetType::SSRResolvedPrev => (Some(&self._renderer_data_ssr._framebuffer_data1), Some(&self._renderer_data_ssr._descriptor_sets1)),
             _ => panic!("error")
         };
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, NONE_PUSH_CONSTANT);
     }
 
-    pub fn render_ssao(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+    pub fn render_ssao(&self, renderer_data: &RendererData, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // render ssao
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // render ssao blur
         let framebuffer_h = Some(&self._renderer_data_ssao._ssao_blur_framebuffer_data0);
@@ -935,35 +978,35 @@ impl Renderer {
             _blur_scale: Vector2::new(0.0, 1.0),
             ..Default::default()
         };
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
-        self.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_h, descriptor_sets_h, Some(&push_constants_blur_h));
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_ssao_blur", DEFAULT_PIPELINE, quad_geometry_data, framebuffer_v, descriptor_sets_v, Some(&push_constants_blur_v));
     }
 
-    pub fn composite_gbuffer(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+    pub fn composite_gbuffer(&self, renderer_data: &RendererData, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         let descriptor_sets = match self._renderer_data_ssr._current_ssr_resolved {
             RenderTargetType::SSRResolved => Some(&self._renderer_data_composite_gbuffer._descriptor_sets0),
             RenderTargetType::SSRResolvedPrev => Some(&self._renderer_data_composite_gbuffer._descriptor_sets1),
             _ => panic!("error")
         };
-        self.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, NONE_PUSH_CONSTANT);
     }
 
-    pub fn generate_min_z(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let resources: Ref<Resources> = self._resources.borrow();
+    pub fn generate_min_z(&self, renderer_data: &RendererData, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+        let resources: Ref<Resources> = renderer_data._resources.borrow();
 
         // Copy Scene Depth
-        self.render_material_instance(command_buffer, swapchain_index, "generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Generate Hierachical Min Z
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("generate_min_z").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._renderer_data_hiz._descriptor_sets.len();
-        self.begin_compute_pipeline(command_buffer, pipeline_data);
+        renderer_data.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
             let descriptor_sets = Some(&self._renderer_data_hiz._descriptor_sets[mip_level as usize]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            self.dispatch_compute_pipeline(
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+            renderer_data.dispatch_compute_pipeline(
                 command_buffer,
                 self._renderer_data_hiz._dispatch_group_x >> (mip_level + 1),
                 self._renderer_data_hiz._dispatch_group_y >> (mip_level + 1),
@@ -972,17 +1015,17 @@ impl Renderer {
         }
     }
 
-    pub fn scene_color_downsampling(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
-        let resources: Ref<Resources> = self._resources.borrow();
+    pub fn scene_color_downsampling(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, renderer_data: &RendererData) {
+        let resources: Ref<Resources> = renderer_data._resources.borrow();
         let material_instance_data: Ref<MaterialInstanceData> = resources.get_material_instance_data("downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._scene_color_downsampling._descriptor_sets.len();
-        self.begin_compute_pipeline(command_buffer, pipeline_data);
+        renderer_data.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
             let descriptor_sets = Some(&self._scene_color_downsampling._descriptor_sets[mip_level as usize]);
-            self.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            self.dispatch_compute_pipeline(
+            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
+            renderer_data.dispatch_compute_pipeline(
                 command_buffer,
                 self._scene_color_downsampling._dispatch_group_x >> (mip_level + 1),
                 self._scene_color_downsampling._dispatch_group_y >> (mip_level + 1),
@@ -993,39 +1036,42 @@ impl Renderer {
 
     pub fn render_pre_process(
         &self,
+        renderer_data: &RendererData,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
         // Generate Hierachical Min Z
-        self.generate_min_z(command_buffer, swapchain_index, quad_geometry_data);
+        self.generate_min_z(renderer_data, command_buffer, swapchain_index, quad_geometry_data);
 
         // Screen Space Reflection
-        self.render_ssr(command_buffer, swapchain_index, quad_geometry_data);
+        self.render_ssr(renderer_data, command_buffer, swapchain_index, quad_geometry_data);
 
         // SSAO
-        self.render_ssao(command_buffer, swapchain_index, quad_geometry_data);
+        self.render_ssao(renderer_data, command_buffer, swapchain_index, quad_geometry_data);
 
         // Composite GBuffer
-        self.composite_gbuffer(command_buffer, swapchain_index, quad_geometry_data);
+        self.composite_gbuffer(renderer_data, command_buffer, swapchain_index, quad_geometry_data);
 
         // SceneColor Downsampling
-        self.scene_color_downsampling(command_buffer, swapchain_index);
+        self.scene_color_downsampling(command_buffer, swapchain_index, renderer_data);
     }
 
     pub fn render_post_process(
         &self,
+        renderer_data: &RendererData,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        quad_geometry_data: &GeometryData
+        quad_geometry_data: &GeometryData,
+        resources: &Resources
     ) {
         // TAA
-        self.render_taa(command_buffer, swapchain_index, quad_geometry_data);
+        self.render_taa(renderer_data, command_buffer, swapchain_index, quad_geometry_data);
 
         // Bloom
-        self.render_bloom(command_buffer, swapchain_index, quad_geometry_data);
+        self.render_bloom(command_buffer, swapchain_index, quad_geometry_data, renderer_data, resources);
 
         // Motion Blur
-        self.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_data.render_material_instance(command_buffer, swapchain_index, "render_motion_blur", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
     }
 }

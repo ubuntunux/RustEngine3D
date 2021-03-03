@@ -9,6 +9,7 @@ use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferData, Render
 use rust_engine_3d::vulkan_context::vulkan_context::Layers;
 
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
 use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
 
@@ -858,11 +859,12 @@ impl Atmosphere {
         }
 
         let device = renderer_data.get_device();
-        let delta_scattering_density = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
-        let delta_rayleigh_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
-        let delta_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
-        let scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
-        let optional_single_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
+        let renderer: &Renderer = renderer_data.get_renderer();
+        let delta_scattering_density = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
+        let delta_rayleigh_scattering = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
+        let delta_mie_scattering = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
+        let scattering = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
+        let optional_single_mie_scattering = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
         let material_instance = resources.get_material_instance_data("precomputed_atmosphere").borrow();
         let compute_multiple_scattering_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_multiple_scattering/default");
         let compute_single_scattering_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_single_scattering/default");

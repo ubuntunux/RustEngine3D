@@ -1,7 +1,6 @@
 use std::path::PathBuf;
 
 use ash::vk;
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::utilities::system::enum_to_string;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData, SkeletalVertexData };
@@ -17,16 +16,17 @@ use rust_engine_3d::vulkan_context::descriptor::{
 };
 use rust_engine_3d::vulkan_context::vulkan_context;
 
+use crate::renderer::push_constants::{ PushConstant_StaticRenderObject, PushConstant_SkeletalRenderObject };
 use crate::renderer::renderer::{ RenderMode, RenderObjectType };
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
-use crate::renderer::push_constants::{ PushConstant_StaticRenderObject, PushConstant_SkeletalRenderObject };
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[],
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::CaptureHeightMap),
+            _texture_data: renderer.get_render_target(RenderTargetType::CaptureHeightMap),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
@@ -35,15 +35,12 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     )
 }
 
-pub fn get_render_pass_data_create_info(
-    renderer_data: &RendererData,
-    render_object_type: RenderObjectType,
-) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer: &Renderer, render_object_type: RenderObjectType) -> RenderPassDataCreateInfo {
     let render_pass_name = match render_object_type {
         RenderObjectType::Static => String::from("capture_static_height_map"),
         RenderObjectType::Skeletal => String::from("capture_skeletal_height_map"),
     };
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {

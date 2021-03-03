@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 use rust_engine_3d::utilities::system::enum_to_string;
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use rust_engine_3d::vulkan_context::render_pass::{
@@ -19,9 +18,10 @@ use rust_engine_3d::vulkan_context::vulkan_context::{ self, BlendMode };
 
 use crate::renderer::fft_ocean::PushConstant_FFT_Waves;
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target = renderer_data.get_render_target(RenderTargetType::FFT_B);
+pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataCreateInfo {
+    let render_target = renderer.get_render_target(RenderTargetType::FFT_B);
     let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers).map(|index| {
         RenderTargetInfo {
             _texture_data: render_target,
@@ -34,9 +34,9 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer: &Renderer) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_fft_waves");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {

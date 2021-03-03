@@ -14,9 +14,7 @@ pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {
 }
 
 #[allow(non_snake_case)]
-pub fn intoWeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> {
-    Rc::downgrade(t)
-}
+pub fn intoWeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> { Rc::downgrade(t) }
 
 pub fn enum_to_string<T: std::fmt::Debug>(e: &T) -> String {
     format!("{:?}", e)

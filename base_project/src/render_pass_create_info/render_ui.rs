@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use ash::vk;
 use rust_engine_3d::utilities::system::enum_to_string;
 use rust_engine_3d::constants;
-use rust_engine_3d::renderer::renderer::RendererData;
+use rust_engine_3d::renderer::renderer::RendererBase;
 use rust_engine_3d::renderer::ui::{ PushConstant_RenderUI, UIVertexData };
 use rust_engine_3d::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use rust_engine_3d::vulkan_context::geometry_buffer::VertexData;
@@ -16,11 +16,11 @@ use rust_engine_3d::vulkan_context::render_pass::{
 use rust_engine_3d::vulkan_context::descriptor::{ DescriptorDataCreateInfo, DescriptorResourceType };
 use rust_engine_3d::vulkan_context::vulkan_context::{ self, BlendMode };
 
+use crate::renderer::renderer::Renderer;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 
-
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let swapchain_data = renderer_data.get_swap_chain_data();
+pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataCreateInfo {
+    let swapchain_data = renderer.get_renderer_data().get_swap_chain_data();
     let (width, height) = (swapchain_data._swapchain_extent.width, swapchain_data._swapchain_extent.height);
     let rendertarget_views = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|index| {
         vec![swapchain_data.get_swapchain_image_view(*index)]
@@ -38,9 +38,9 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 }
 
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer: &Renderer) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_ui");
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {

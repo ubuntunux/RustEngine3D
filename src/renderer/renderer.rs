@@ -98,7 +98,10 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 }
 
 pub trait RendererBase {
-    fn initialize_renderer(&mut self, device: &Device, memory_properties: &vk::PhysicalDeviceMemoryProperties);
+    fn initialize_renderer(&mut self, renderer_data: &RendererData);
+    fn get_renderer_data(&self) -> &RendererData;
+    fn get_renderer_data_mut(&self) -> &mut RendererData;
+    fn set_renderer_data(&mut self, renderer_data: *const RendererData);
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
@@ -277,6 +280,8 @@ impl RendererData {
         }
     }
 
+    pub fn get_renderer<T>(&self) -> &T { unsafe { &*(self._renderer.as_ptr() as *const T) } }
+    pub fn get_renderer_mut<T>(&self) -> &T { unsafe { &mut *(self._renderer.as_ptr() as *mut T) } }
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) {
         log::info!("set_need_recreate_swapchain: {}", value);
@@ -612,7 +617,7 @@ impl RendererData {
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
-        self._renderer.borrow_mut().initialize_renderer(&self._device, &self._device_memory_properties);
+        self._renderer.borrow_mut().initialize_renderer(self);
     }
 
     pub fn resize_window(&mut self) {
@@ -729,18 +734,6 @@ impl RendererData {
         }
     }
 
-    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T]) {
-        let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
-        if shader_buffer_data._staging_buffers.is_some() {
-            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
-            let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
-            buffer::upload_buffer_data(&self._device, staging_buffer_data, upload_data);
-            buffer::copy_buffer(&self._device, command_buffer, staging_buffer_data._buffer, buffer_data._buffer, upload_data_size);
-        } else {
-            buffer::upload_buffer_data(&self._device, buffer_data, upload_data);
-        }
-    }
-
     pub fn upload_shader_buffer_data_offset<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &T, offset: vk::DeviceSize) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
@@ -750,6 +743,18 @@ impl RendererData {
             buffer::copy_buffer_offset(&self._device, command_buffer, staging_buffer_data._buffer, offset, buffer_data._buffer, offset, upload_data_size);
         } else {
             buffer::upload_buffer_data_offset(&self._device, buffer_data, system::to_bytes(upload_data), offset);
+        }
+    }
+
+    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T]) {
+        let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
+        if shader_buffer_data._staging_buffers.is_some() {
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+            buffer::upload_buffer_data(&self._device, staging_buffer_data, upload_data);
+            buffer::copy_buffer(&self._device, command_buffer, staging_buffer_data._buffer, buffer_data._buffer, upload_data_size);
+        } else {
+            buffer::upload_buffer_data(&self._device, buffer_data, upload_data);
         }
     }
 

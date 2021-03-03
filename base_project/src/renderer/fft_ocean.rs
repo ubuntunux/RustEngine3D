@@ -1,10 +1,6 @@
 use std::cmp::max;
 
-use ash::{
-    vk,
-    Device,
-};
-
+use ash::{ vk, Device };
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::renderer::utility;
 use rust_engine_3d::resource::resource::Resources;
@@ -15,6 +11,7 @@ use rust_engine_3d::vulkan_context::vulkan_context::{ SwapchainArray, Layers, Mi
 use rust_engine_3d::utilities::system::{ RcRefCell, newRcRefCell };
 
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 
 const CM: f64 = 0.23;
 const KM: f64 = 370.0;
@@ -291,10 +288,12 @@ impl FFTOcean {
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        let renderer: &Renderer = unsafe { &(*(renderer_data._renderer.as_ptr() as *const Renderer)) };
+
         // fft Variance
         let material_instance = resources.get_material_instance_data("render_fft_ocean").borrow();
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_variance/render_fft_variance");
-        let render_target = renderer_data.get_render_target(RenderTargetType::FFT_SLOPE_VARIANCE);
+        let render_target = renderer.get_render_target(RenderTargetType::FFT_SLOPE_VARIANCE);
         let device = renderer_data.get_device();
         let mip_level = 0;
         for layer in 0..render_target._image_layers {
@@ -305,8 +304,8 @@ impl FFTOcean {
         let mip_level = 0;
         let device = renderer_data.get_device();
         let material_instance = resources.get_material_instance_data("render_fft_ocean").borrow();
-        let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
-        let texture_fft_b = renderer_data.get_render_target(RenderTargetType::FFT_B);
+        let texture_fft_a = renderer.get_render_target(RenderTargetType::FFT_A);
+        let texture_fft_b = renderer.get_render_target(RenderTargetType::FFT_B);
 
         // fft wave x
         let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");

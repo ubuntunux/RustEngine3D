@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 use rust_engine_3d::utilities::system::enum_to_string;
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use rust_engine_3d::vulkan_context::render_pass::{
@@ -22,11 +21,12 @@ use rust_engine_3d::vulkan_context::vulkan_context::{
 
 use crate::renderer::push_constants::PushConstant_GaussianBlur;
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SSAOTemp),
+            _texture_data: renderer.get_render_target(RenderTargetType::SSAOTemp),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: None,
@@ -37,8 +37,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 }
 
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
+pub fn get_render_pass_data_create_info(renderer: &Renderer) -> RenderPassDataCreateInfo {
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {

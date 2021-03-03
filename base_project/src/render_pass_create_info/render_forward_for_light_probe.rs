@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 use rust_engine_3d::utilities::system::enum_to_string;
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData, SkeletalVertexData };
 use rust_engine_3d::vulkan_context::render_pass::{
@@ -20,23 +19,24 @@ use rust_engine_3d::vulkan_context::vulkan_context::{ self, BlendMode, };
 use crate::renderer::push_constants::{ PushConstant_StaticRenderObject, PushConstant_SkeletalRenderObject };
 use crate::renderer::renderer::{ RenderMode, RenderObjectType };
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, layer: u32, light_probe_depth_only: bool) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer: &Renderer, layer: u32, light_probe_depth_only: bool) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &(if light_probe_depth_only {
             vec![]
         } else {
             vec![RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeColorForward),
+                _texture_data: renderer.get_render_target(RenderTargetType::LightProbeColorForward),
                 _target_layer: layer,
                 _target_mip_level: 0,
                 _clear_value: Some(vulkan_context::get_color_clear_zero()),
             }]
         }),
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeDepth),
+            _texture_data: renderer.get_render_target(RenderTargetType::LightProbeDepth),
             _target_layer: layer,
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
@@ -45,17 +45,13 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, layer: u32
     )
 }
 
-pub fn get_render_pass_data_create_info(
-    renderer_data: &RendererData,
-    render_object_type: RenderObjectType,
-    layer: u32,
-) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer: &Renderer, render_object_type: RenderObjectType, layer: u32) -> RenderPassDataCreateInfo {
     let render_pass_name = match render_object_type {
         RenderObjectType::Static => String::from(format!("render_pass_static_forward_light_probe_{}", layer)),
         RenderObjectType::Skeletal => String::from(format!("render_pass_skeletal_forward_light_probe_{}", layer)),
     };
     let light_probe_depth_only: bool = false;
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, layer, light_probe_depth_only);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer, layer, light_probe_depth_only);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
