@@ -25,7 +25,7 @@ use crate::resource::resource::Resources;
 use crate::renderer::renderer::{ RendererData, RendererBase };
 use crate::renderer::font::FontManager;
 use crate::renderer::ui::UIManager;
-use crate::utilities::system::{self, RcRefCell, newRcRefCell};
+use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::utilities::logger;
 
 #[derive(Debug, Clone)]
@@ -83,6 +83,7 @@ impl TimeData {
 }
 
 pub trait ApplicationBase {
+    fn initialize_application(&mut self, application_data: &ApplicationData);
     fn update_event(&self);
     fn terminate_applicateion(&mut self);
 }
@@ -201,36 +202,39 @@ pub fn run_application(
             let font_manager = newRcRefCell(FontManager::create_font_manager());
             let ui_manager = newRcRefCell(UIManager::create_ui_manager());
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
-            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager, width, height));
+            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
             let mouse_input_data = input::create_mouse_input_data();
 
             // initialize grphics
+            renderer_data.borrow().get_renderer_mut().initialize_renderer(&renderer_data.borrow());
+            scene_manager_data.borrow().get_scene_manager_mut().initialize_scene_manager_data(width, height, &scene_manager_data.borrow(), &resources.borrow());
             scene_manager_data.borrow().regist_scene_graphics_data();
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
             ui_manager.borrow_mut().initialize_ui_manager(&renderer_data.borrow(), &resources.borrow());
             renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
             scene_manager_data.borrow_mut().initialize_scene_graphics_data();
-            scene_manager_data.borrow_mut().open_scene_manager_data();
 
-            let application_data = system::newRcRefCell(
-                ApplicationData {
-                    _window_size: window_size,
-                    _time_data: create_time_data(elapsed_time),
-                    _camera_move_speed: 1.0,
-                    _keyboard_input_data: keyboard_input_data.clone(),
-                    _mouse_move_data: mouse_move_data.clone(),
-                    _mouse_input_data: mouse_input_data.clone(),
-                    _font_manager: font_manager.clone(),
-                    _ui_manager: ui_manager.clone(),
-                    _scene_manager_data: scene_manager_data.clone(),
-                    _renderer_data: renderer_data.clone(),
-                    _resources: resources.clone(),
-                    _application: application,
-                }
-            );
+            let application_data = newRcRefCell(ApplicationData {
+                _window_size: window_size,
+                _time_data: create_time_data(elapsed_time),
+                _camera_move_speed: 1.0,
+                _keyboard_input_data: keyboard_input_data,
+                _mouse_move_data: mouse_move_data,
+                _mouse_input_data: mouse_input_data,
+                _font_manager: font_manager.clone(),
+                _ui_manager: ui_manager.clone(),
+                _scene_manager_data: scene_manager_data.clone(),
+                _renderer_data: renderer_data.clone(),
+                _resources: resources.clone(),
+                _application: application,
+            });
+            application_data.borrow().get_application_mut().initialize_application(&application_data.borrow());
+
+            // open scene
+            scene_manager_data.borrow_mut().open_scene_manager_data();
 
             maybe_resources = Some(resources);
             maybe_font_manager = Some(font_manager);
@@ -355,7 +359,7 @@ pub fn run_application(
                     }
                 },
                 WindowEvent::MouseInput { button, state, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let application_data = &mut maybe_application_data.as_ref().unwrap().borrow_mut();
                     let mouse_input_data = &mut application_data._mouse_input_data;
                     let pressed = state == ElementState::Pressed;
                     match button {
@@ -388,7 +392,7 @@ pub fn run_application(
                     }
                 }
                 WindowEvent::Touch(Touch { device_id: _device_id, phase, location, force: _force, id }) => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let application_data = &mut maybe_application_data.as_ref().unwrap().borrow_mut();
 
                     if 0 == id {
                         application_data._mouse_move_data.update_mouse_move(&location.into());

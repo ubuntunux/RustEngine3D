@@ -101,9 +101,13 @@ impl RendererBase for Renderer {
         self._renderer_data = renderer_data;
         self._resources = renderer_data._resources.as_ptr();
         shader_buffer_datas::regist_shader_buffer_datas(renderer_data.get_device(), renderer_data.get_device_memory_properties(), &mut self._shader_buffer_data_map);
+        self.create_render_targets(renderer_data);
+    }
+    fn is_first_rendering(&self) -> bool {
+        self._is_first_rendering
     }
     fn set_is_first_rendering(&mut self, is_first_rendering: bool) {
-        log::info!("reset_is_first_rendering");
+        log::info!("set_is_first_rendering: {}", is_first_rendering);
         self._is_first_rendering = is_first_rendering;
     }
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources) {

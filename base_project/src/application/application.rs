@@ -17,6 +17,10 @@ pub struct Application {
 }
 
 impl ApplicationBase for Application {
+    fn initialize_application(&mut self, application_data: &ApplicationData) {
+        self._application_data = application_data;
+    }
+
     fn update_event(&self) {
         let application_data = self.get_application_data();
         let time_data = &application_data._time_data;
@@ -125,11 +129,6 @@ impl ApplicationBase for Application {
 }
 
 impl Application {
-    pub fn initialize_application(&mut self, application_data: &ApplicationData, scene_manager: &SceneManager, renderer: &Renderer) {
-        self._application_data = application_data;
-        self._renderer = renderer;
-        self._scene_manager = scene_manager;
-    }
     pub fn get_application_data(&self) -> &ApplicationData {
         unsafe { &*self._application_data }
     }

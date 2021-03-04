@@ -7,7 +7,7 @@ use nalgebra::{ Vector2 };
 
 pub type KeyMap = HashMap<VirtualKeyCode, bool>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct KeyboardInputData {
     pub _keyboard_down: bool,
     pub _keyboard_pressed: bool,
@@ -21,7 +21,7 @@ pub struct KeyboardInputData {
     pub _modifier_keys_super: bool,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MouseMoveData {
     pub _mouse_pos: Vector2<i32>,
     pub _mouse_pos_delta: Vector2<i32>,
@@ -29,7 +29,7 @@ pub struct MouseMoveData {
     pub _scroll_yoffset: f32
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct MouseInputData {
     pub _btn_l_pressed: bool,
     pub _btn_m_pressed: bool,

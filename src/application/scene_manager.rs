@@ -2,7 +2,7 @@ use ash::Device;
 
 use crate::renderer::renderer::RendererData;
 use crate::resource::resource::Resources;
-use crate::utilities::system::RcRefCell;
+use crate::utilities::system::{ RcRefCell };
 
 pub trait SceneManagerBase {
     fn initialize_scene_manager_data(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, resources: &Resources);
@@ -27,19 +27,13 @@ impl SceneManagerData {
     pub fn create_scene_manager_data(
         renderer_data: &RcRefCell<RendererData>,
         resources: &RcRefCell<Resources>,
-        scene_manager: *const dyn SceneManagerBase,
-        window_width: u32,
-        window_height: u32,
+        scene_manager: *const dyn SceneManagerBase
     ) -> SceneManagerData {
-        let scene_manager_data = SceneManagerData {
+        SceneManagerData {
             _renderer_data: renderer_data.clone(),
             _resources: resources.clone(),
             _scene_manager: scene_manager,
-        };
-
-        let scene_manager = unsafe { &mut *(scene_manager as *mut dyn SceneManagerBase) };
-        scene_manager.initialize_scene_manager_data(window_width, window_height, &scene_manager_data, &resources.borrow());
-        scene_manager_data
+        }
     }
 
     pub fn get_scene_manager(&self) -> &dyn SceneManagerBase {

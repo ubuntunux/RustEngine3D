@@ -99,6 +99,7 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 
 pub trait RendererBase {
     fn initialize_renderer(&mut self, renderer_data: &RendererData);
+    fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
@@ -614,8 +615,6 @@ impl RendererData {
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
-        self.get_renderer_mut().initialize_renderer(self);
-        self.create_render_targets();
     }
 
     pub fn resize_window(&mut self) {
@@ -827,7 +826,9 @@ impl RendererData {
                 self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
 
                 // End Render
-                self.set_is_first_rendering(false);
+                if self.is_first_rendering() {
+                    self.set_is_first_rendering(false);
+                }
                 let present_swapchain_result = self.present_swapchain(&[command_buffer], frame_fence, image_available_semaphore, render_finished_semaphore);
                 match present_swapchain_result {
                     Ok(is_swapchain_suboptimal) => if is_swapchain_suboptimal { vk::Result::SUBOPTIMAL_KHR } else { vk::Result::SUCCESS },
@@ -851,8 +852,11 @@ impl RendererData {
     }
 
     // renderer interface
+    pub fn is_first_rendering(&self) -> bool {
+        self.get_renderer_mut().is_first_rendering()
+    }
+
     pub fn set_is_first_rendering(&self, is_first_rendering: bool) {
-        log::info!("set_is_first_rendering: {}", is_first_rendering);
         self.get_renderer_mut().set_is_first_rendering(is_first_rendering);
     }
 
