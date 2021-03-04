@@ -48,7 +48,7 @@ pub struct SceneManager {
 
 
 impl SceneManagerBase for SceneManager {
-    fn initialize_scene_manager_data(&mut self, renderer_data: &RendererData, resources: &Resources, window_width: u32, window_height: u32) {
+    fn initialize_scene_manager_data(&mut self, _renderer_data: &RendererData, _resources: &Resources, window_width: u32, window_height: u32) {
         self.resized_window(window_width, window_height);
     }
 
@@ -239,7 +239,7 @@ impl SceneManager {
         }
     }
 
-    pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean> {
+    pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean>  {
         &self._fft_ocean
     }
 

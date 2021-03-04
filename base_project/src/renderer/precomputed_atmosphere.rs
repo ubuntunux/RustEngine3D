@@ -287,7 +287,7 @@ fn compute_spectral_radiance_to_luminance_factors(wavelengths: &[f32], solar_irr
     Vector3::new(k_r, k_g, k_b)
 }
 
-fn convert_spectrum_to_linear_srgb(wavelengths: &[f32], spectrum: &[f32]) -> [f32; 3] {
+fn _convert_spectrum_to_linear_srgb(wavelengths: &[f32], spectrum: &[f32]) -> [f32; 3] {
     let mut x: f32 = 0.0;
     let mut y: f32 = 0.0;
     let mut z: f32 = 0.0;

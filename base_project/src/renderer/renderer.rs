@@ -259,7 +259,7 @@ impl RendererBase for Renderer {
     fn render_scene(
         &mut self,
         command_buffer: vk::CommandBuffer,
-        frame_index: usize,
+        _frame_index: usize,
         swapchain_index: u32,
         renderer_data: &RendererData,
         scene_manager_data: RefMut<SceneManagerData>,
@@ -267,9 +267,8 @@ impl RendererBase for Renderer {
         ui_manager: &mut UIManager,
         elapsed_time: f64,
         delta_time: f64,
-        elapsed_frame: u64,
+        _elapsed_frame: u64,
     ) {
-        let renderer_data = self.get_renderer_data();
         let resources = renderer_data._resources.borrow();
         let scene_manager: &SceneManager = scene_manager_data.get_scene_manager();
         let main_camera =  scene_manager.get_main_camera().borrow();

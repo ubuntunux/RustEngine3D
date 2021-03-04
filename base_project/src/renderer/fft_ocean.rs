@@ -1,3 +1,4 @@
+
 use std::cmp::max;
 
 use ash::{ vk, Device };
@@ -18,7 +19,7 @@ const KM: f64 = 370.0;
 const WIND: f32 = 5.0;
 const OMEGA: f32 = 0.84;
 const AMPLITUDE: f32 = 0.5;
-const CHOPPY_FACTOR: [f32; 4] = [2.3, 2.1, 1.3, 0.9];
+const _CHOPPY_FACTOR: [f32; 4] = [2.3, 2.1, 1.3, 0.9];
 const PASSES: i32 = 8; // number of passes needed for the FFT 6 -> 64, 7 -> 128, 8 -> 256, etc
 pub const FFT_SIZE: i32 = 1 << PASSES; // size of the textures storing the waves in frequency and spatial domains
 pub const N_SLOPE_VARIANCE: i32 = 10;
