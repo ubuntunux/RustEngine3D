@@ -17,7 +17,6 @@ use rust_engine_3d::vulkan_context::vulkan_context::{ self, BlendMode };
 
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::renderer::renderer::Renderer;
-use rust_engine_3d::renderer::renderer::RendererBase;
 
 pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataCreateInfo {
     let swapchain_data = renderer.get_renderer_data().get_swap_chain_data();

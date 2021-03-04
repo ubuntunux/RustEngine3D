@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 use rust_engine_3d::constants;
-use rust_engine_3d::renderer::renderer::RendererBase;
 use rust_engine_3d::utilities::system::enum_to_string;
 use rust_engine_3d::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use rust_engine_3d::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };

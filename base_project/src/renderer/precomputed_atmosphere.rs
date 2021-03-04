@@ -853,13 +853,12 @@ impl Atmosphere {
         }
     }
 
-    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
+    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer: &Renderer, resources: &Resources) {
         if USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
             return;
         }
 
-        let device = renderer_data.get_device();
-        let renderer: &Renderer = renderer_data.get_renderer();
+        let device = renderer.get_renderer_data().get_device();
         let delta_scattering_density = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
         let delta_rayleigh_scattering = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
         let delta_mie_scattering = renderer.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);

@@ -83,7 +83,7 @@ impl TimeData {
 }
 
 pub trait ApplicationBase {
-    fn update_event(&mut self, application_data: &ApplicationData, scene_manager_data: &SceneManagerData);
+    fn update_event(&self);
     fn terminate_applicateion(&mut self);
 }
 
@@ -99,10 +99,18 @@ pub struct ApplicationData {
     pub _font_manager: RcRefCell<FontManager>,
     pub _ui_manager: RcRefCell<UIManager>,
     pub _resources: RcRefCell<Resources>,
-    pub _application: RcRefCell<dyn ApplicationBase>,
+    pub _application: *const dyn ApplicationBase,
 }
 
 impl ApplicationData {
+    pub fn get_application(&self) -> &dyn ApplicationBase {
+        unsafe { &(*self._application) }
+    }
+
+    pub fn get_application_mut(&self) -> &mut dyn ApplicationBase {
+        unsafe { &mut *(self._application as *mut dyn ApplicationBase) }
+    }
+
     pub fn terminate_applicateion(
         &mut self,
         font_manager: &mut FontManager,
@@ -111,7 +119,7 @@ impl ApplicationData {
         resources: &mut Resources,
         renderer_data: &mut RendererData,
     ) {
-        self._application.borrow_mut().terminate_applicateion();
+        self.get_application_mut().terminate_applicateion();
         scene_manager_data.close_scene_manager_data(renderer_data.get_device());
         ui_manager.destroy_ui_manager(renderer_data.get_device());
         font_manager.destroy_font_manager(renderer_data.get_device());
@@ -128,15 +136,14 @@ impl ApplicationData {
     }
 
     pub fn update_event(&self) {
-        let scene_manager = self._scene_manager_data.borrow();
-        self._application.borrow_mut().update_event(self, &scene_manager);
+        self.get_application().update_event();
     }
 }
 
 pub fn run_application(
-    application: RcRefCell<dyn ApplicationBase>,
-    scene_manager: RcRefCell<dyn SceneManagerBase>,
-    renderer: RcRefCell<dyn RendererBase>,
+    application: *const dyn ApplicationBase,
+    scene_manager: *const dyn SceneManagerBase,
+    renderer: *const dyn RendererBase,
 ) {
     logger::initialize_logger();
 
@@ -193,8 +200,8 @@ pub fn run_application(
             let resources = newRcRefCell(Resources::create_resources());
             let font_manager = newRcRefCell(FontManager::create_font_manager());
             let ui_manager = newRcRefCell(UIManager::create_ui_manager());
-            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, &renderer));
-            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, &scene_manager, width, height));
+            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
+            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager, width, height));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
             let mouse_input_data = input::create_mouse_input_data();
@@ -221,7 +228,7 @@ pub fn run_application(
                     _scene_manager_data: scene_manager_data.clone(),
                     _renderer_data: renderer_data.clone(),
                     _resources: resources.clone(),
-                    _application: application.clone(),
+                    _application: application,
                 }
             );
 
@@ -324,7 +331,7 @@ pub fn run_application(
                         scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
                         font_manager.update();
                         ui_manager.update(application_data._window_size, delta_time, &renderer_data._resources.borrow());
-                        renderer_data.render_scene(scene_manager_data, &mut font_manager, &mut ui_manager, elapsed_time, delta_time, elapsed_frame);
+                        renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager, elapsed_time, delta_time, elapsed_frame);
                     }
                 }
             },

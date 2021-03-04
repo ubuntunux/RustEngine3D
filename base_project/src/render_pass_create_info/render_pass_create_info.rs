@@ -1,6 +1,5 @@
 use ash::vk;
 
-use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 use crate::renderer::renderer::RenderObjectType;
@@ -35,8 +34,7 @@ use crate::render_pass_create_info::{
     render_ui,
 };
 
-pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
-    let renderer: &Renderer = unsafe { &(*(renderer_data._renderer.as_ptr() as *const Renderer)) };
+pub fn get_render_pass_data_create_infos(renderer: &Renderer) -> Vec<RenderPassDataCreateInfo> {
     vec![
         clear_render_target::get_render_pass_data_create_info(renderer, &[vk::Format::R16G16B16A16_SFLOAT], vk::Format::UNDEFINED),
         clear_render_target::get_render_pass_data_create_info(renderer, &[vk::Format::R32_SFLOAT], vk::Format::UNDEFINED),

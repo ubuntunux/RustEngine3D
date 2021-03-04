@@ -1,4 +1,4 @@
-use std::cell::{ Ref, RefMut };
+use std::cell::Ref;
 use std::borrow::Cow;
 use std::ffi::CStr;
 use std::vec::Vec;
@@ -99,16 +99,13 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 
 pub trait RendererBase {
     fn initialize_renderer(&mut self, renderer_data: &RendererData);
-    fn get_renderer_data(&self) -> &RendererData;
-    fn get_renderer_data_mut(&self) -> &mut RendererData;
-    fn set_renderer_data(&mut self, renderer_data: *const RendererData);
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
     fn update_post_process_datas(&mut self);
     fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
     fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData;
-    fn get_render_pass_data_create_infos(&self, renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo>;
+    fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo>;
     fn create_render_targets(&mut self, renderer_data: &RendererData);
     fn destroy_render_targets(&mut self, device: &Device);
     fn destroy_uniform_buffers(&mut self, device: &Device);
@@ -118,7 +115,7 @@ pub trait RendererBase {
         frame_index: usize,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        scene_manager_data: RefMut<SceneManagerData>,
+        scene_manager_data: &SceneManagerData,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -154,7 +151,7 @@ pub struct RendererData {
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
     pub _resources: RcRefCell<Resources>,
-    pub _renderer: RcRefCell<dyn RendererBase>,
+    pub _renderer: *const dyn RendererBase,
 }
 
 impl RendererData {
@@ -164,7 +161,7 @@ impl RendererData {
         (window_width, window_height): (u32, u32),
         window: &Window,
         resources: &RcRefCell<Resources>,
-        renderer: &RcRefCell<dyn RendererBase>,
+        renderer: *const dyn RendererBase,
     ) -> RendererData {
         unsafe {
             log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
@@ -272,7 +269,7 @@ impl RendererData {
                 _render_features: render_features,
                 _image_samplers: ImageSamplerData::default(),
                 _resources: resources.clone(),
-                _renderer: renderer.clone(),
+                _renderer: renderer,
             };
 
             renderer_data.initialize_renderer_data();
@@ -280,8 +277,8 @@ impl RendererData {
         }
     }
 
-    pub fn get_renderer<T>(&self) -> &T { unsafe { &*(self._renderer.as_ptr() as *const T) } }
-    pub fn get_renderer_mut<T>(&self) -> &T { unsafe { &mut *(self._renderer.as_ptr() as *mut T) } }
+    pub fn get_renderer(&self) -> &dyn RendererBase { unsafe { &*(self._renderer) } }
+    pub fn get_renderer_mut(&self) -> &mut dyn RendererBase { unsafe { &mut *(self._renderer as *mut dyn RendererBase) } }
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) {
         log::info!("set_need_recreate_swapchain: {}", value);
@@ -617,7 +614,8 @@ impl RendererData {
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
-        self._renderer.borrow_mut().initialize_renderer(self);
+        self.get_renderer_mut().initialize_renderer(self);
+        self.create_render_targets();
     }
 
     pub fn resize_window(&mut self) {
@@ -772,7 +770,7 @@ impl RendererData {
 
     pub fn render_scene(
         &mut self,
-        scene_manager_data: RefMut<SceneManagerData>,
+        scene_manager_data: &SceneManagerData,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -812,12 +810,12 @@ impl RendererData {
                 self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
                 // renderer - render_scene
-                self._renderer.borrow_mut().render_scene(
+                self.get_renderer_mut().render_scene(
                     command_buffer,
                     frame_index,
                     swapchain_index,
                     &self,
-                    scene_manager_data,
+                    &scene_manager_data,
                     font_manager,
                     ui_manager,
                     elapsed_time,
@@ -855,52 +853,46 @@ impl RendererData {
     // renderer interface
     pub fn set_is_first_rendering(&self, is_first_rendering: bool) {
         log::info!("set_is_first_rendering: {}", is_first_rendering);
-        self._renderer.borrow_mut().set_is_first_rendering(is_first_rendering);
+        self.get_renderer_mut().set_is_first_rendering(is_first_rendering);
     }
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererData::prepare_framebuffer_and_descriptors");
-        self._renderer.borrow_mut().prepare_framebuffer_and_descriptors(&self._device, &self._resources.borrow());
+        self.get_renderer_mut().prepare_framebuffer_and_descriptors(&self._device, &self._resources.borrow());
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererData::destroy_framebuffer_and_descriptors");
-        self._renderer.borrow_mut().destroy_framebuffer_and_descriptors(&self._device);
+        self.get_renderer_mut().destroy_framebuffer_and_descriptors(&self._device);
     }
 
     pub fn update_post_process_datas(&self) {
-        self._renderer.borrow_mut().update_post_process_datas();
+        self.get_renderer_mut().update_post_process_datas();
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
-        unsafe {
-            (*self._renderer.as_ptr()).get_shader_buffer_data_from_str(buffer_data_name)
-        }
+        self.get_renderer().get_shader_buffer_data_from_str(buffer_data_name)
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
-        unsafe {
-            (*self._renderer.as_ptr()).get_render_target_from_str(render_target_type_str)
-        }
+        self.get_renderer().get_render_target_from_str(render_target_type_str)
     }
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
-        unsafe {
-            (*self._renderer.as_ptr()).get_render_pass_data_create_infos(self)
-        }
+        self.get_renderer().get_render_pass_data_create_infos()
     }
 
     pub fn create_render_targets(&self) {
         log::info!("create_render_targets");
-        self._renderer.borrow_mut().create_render_targets(self);
+        self.get_renderer_mut().create_render_targets(self);
     }
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self._renderer.borrow_mut().destroy_render_targets(self.get_device());
+        self.get_renderer_mut().destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {
-        self._renderer.borrow_mut().destroy_uniform_buffers(self.get_device());
+        self.get_renderer_mut().destroy_uniform_buffers(self.get_device());
     }
 }

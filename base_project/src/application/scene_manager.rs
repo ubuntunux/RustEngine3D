@@ -7,7 +7,7 @@ use nalgebra::{
 };
 
 use rust_engine_3d::constants;
-use rust_engine_3d::application::scene_manager::SceneManagerBase;
+use rust_engine_3d::application::scene_manager::{ SceneManagerBase, SceneManagerData };
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use rust_engine_3d::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
@@ -19,6 +19,7 @@ use rust_engine_3d::utilities::system::{ self, RcRefCell, newRcRefCell };
 use rust_engine_3d::utilities::bounding_box::BoundingBox;
 
 use crate::application_constants;
+use crate::renderer::renderer::Renderer;
 use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::precomputed_atmosphere::Atmosphere;
 
@@ -28,6 +29,9 @@ type RenderObjectMap = HashMap<String, RcRefCell<RenderObjectData>>;
 
 #[derive(Clone)]
 pub struct SceneManager {
+    pub _scene_manager_data: *const SceneManagerData,
+    pub _resources: *const Resources,
+    pub _renderer: *const Renderer,
     pub _window_width: u32,
     pub _window_height: u32,
     pub _main_camera: RcRefCell<CameraObjectData>,
@@ -48,7 +52,9 @@ pub struct SceneManager {
 
 
 impl SceneManagerBase for SceneManager {
-    fn initialize_scene_manager_data(&mut self, _renderer_data: &RendererData, _resources: &Resources, window_width: u32, window_height: u32) {
+    fn initialize_scene_manager_data(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, resources: &Resources) {
+        self._scene_manager_data = scene_manager_data;
+        self._resources = resources;
         self.resized_window(window_width, window_height);
     }
 
@@ -56,9 +62,9 @@ impl SceneManagerBase for SceneManager {
         self._fft_ocean.borrow_mut().regist_fft_ocean_textures(renderer_data, resources);
     }
 
-    fn initialize_scene_graphics_data(&self, renderer_data: &RendererData, resources: &Resources) {
-        self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
-        self._atmosphere.borrow_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
+    fn initialize_scene_graphics_data(&self) {
+        self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(self.get_renderer(), self.get_resources());
+        self._atmosphere.borrow_mut().prepare_framebuffer_and_descriptors(self.get_renderer(), self.get_resources());
     }
 
     fn destroy_scene_graphics_data(&self, device: &Device) {
@@ -186,7 +192,7 @@ impl SceneManagerBase for SceneManager {
 }
 
 impl SceneManager {
-    pub fn create_scene_manager() -> SceneManager {
+    pub fn create_scene_manager(renderer: &Renderer) -> SceneManager {
         let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
         let light_probe_camera_create_info = CameraCreateInfo {
             fov: 90.0,
@@ -220,6 +226,9 @@ impl SceneManager {
         let fft_ocean = system::newRcRefCell(FFTOcean::default());
         let atmosphere = system::newRcRefCell(Atmosphere::create_atmosphere(true));
         SceneManager {
+            _scene_manager_data: std::ptr::null(),
+            _resources: std::ptr::null(),
+            _renderer: renderer,
             _window_width: default_camera._window_width,
             _window_height: default_camera._window_height,
             _main_camera: system::newRcRefCell(default_camera),
@@ -238,30 +247,22 @@ impl SceneManager {
             _atmosphere: atmosphere,
         }
     }
-
-    pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean>  {
-        &self._fft_ocean
-    }
-
-    pub fn get_atmosphere(&self) -> &RcRefCell<Atmosphere> {
-        &self._atmosphere
-    }
-
-    pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> {
-        &self._main_camera
-    }
-
-    pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
-        &self._light_probe_cameras[index]
-    }
-
+    pub fn get_scene_manager_data(&self) -> &SceneManagerData { unsafe { &*self._scene_manager_data } }
+    pub fn get_scene_manager_data_mut(&self) -> &mut SceneManagerData { unsafe { &mut *(self._scene_manager_data as *mut SceneManagerData) } }
+    pub fn get_renderer(&self) -> &Renderer { unsafe { &*self._renderer } }
+    pub fn get_renderer_mut(&self) -> &mut Renderer { unsafe { &mut *(self._renderer as *mut Renderer) } }
+    pub fn get_resources(&self) -> &Resources { unsafe { &*self._resources } }
+    pub fn get_resources_mut(&self) -> &mut Resources { unsafe { &mut *(self._resources as *mut Resources) } }
+    pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean>  { &self._fft_ocean }
+    pub fn get_atmosphere(&self) -> &RcRefCell<Atmosphere> { &self._atmosphere }
+    pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> { &self._main_camera }
+    pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> { &self._light_probe_cameras[index] }
     pub fn add_camera_object(&mut self, object_name: &str, camera_create_info: &CameraCreateInfo) -> RcRefCell<CameraObjectData> {
         let new_object_name = system::generate_unique_name(&self._camera_object_map, object_name);
         let camera_object_data = newRcRefCell(CameraObjectData::create_camera_object_data(&new_object_name, camera_create_info));
         self._camera_object_map.insert(new_object_name, camera_object_data.clone());
         camera_object_data
     }
-
     pub fn get_main_light(&self) -> &RcRefCell<DirectionalLightData> {
         &self._main_light
     }

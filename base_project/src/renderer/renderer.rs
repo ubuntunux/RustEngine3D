@@ -76,6 +76,7 @@ pub enum RenderObjectType {
 
 pub struct Renderer {
     pub _renderer_data: *const RendererData,
+    pub _resources: *const Resources,
     pub _is_first_rendering: bool,
     pub _scene_constants: shader_buffer_datas::SceneConstants,
     pub _view_constants: shader_buffer_datas::ViewConstants,
@@ -97,17 +98,9 @@ pub struct Renderer {
 
 impl RendererBase for Renderer {
     fn initialize_renderer(&mut self, renderer_data: &RendererData) {
-        self.set_renderer_data(renderer_data);
-        shader_buffer_datas::regist_shader_buffer_datas(renderer_data.get_device(), renderer_data.get_device_memory_properties(), &mut self._shader_buffer_data_map);
-    }
-    fn get_renderer_data(&self) -> &RendererData {
-        unsafe { &*self._renderer_data }
-    }
-    fn get_renderer_data_mut(&self) -> &mut RendererData {
-        unsafe { &mut *(self._renderer_data as *mut RendererData) }
-    }
-    fn set_renderer_data(&mut self, renderer_data: *const RendererData) {
         self._renderer_data = renderer_data;
+        self._resources = renderer_data._resources.as_ptr();
+        shader_buffer_datas::regist_shader_buffer_datas(renderer_data.get_device(), renderer_data.get_device_memory_properties(), &mut self._shader_buffer_data_map);
     }
     fn set_is_first_rendering(&mut self, is_first_rendering: bool) {
         log::info!("reset_is_first_rendering");
@@ -229,8 +222,8 @@ impl RendererBase for Renderer {
     fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
         self.get_render_target(RenderTargetType::from_str(render_target_type_str).unwrap())
     }
-    fn get_render_pass_data_create_infos(&self, renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
-        render_pass_create_info::get_render_pass_data_create_infos(renderer_data)
+    fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
+        render_pass_create_info::get_render_pass_data_create_infos(self)
     }
     fn create_render_targets(&mut self, renderer_data: &RendererData) {
         log::info!("create_render_targets");
@@ -262,7 +255,7 @@ impl RendererBase for Renderer {
         _frame_index: usize,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        scene_manager_data: RefMut<SceneManagerData>,
+        scene_manager_data: &SceneManagerData,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -270,7 +263,7 @@ impl RendererBase for Renderer {
         _elapsed_frame: u64,
     ) {
         let resources = renderer_data._resources.borrow();
-        let scene_manager: &SceneManager = scene_manager_data.get_scene_manager();
+        let scene_manager: &SceneManager = unsafe { &mut *(scene_manager_data._scene_manager as *mut SceneManager) };
         let main_camera =  scene_manager.get_main_camera().borrow();
         let main_light = scene_manager.get_main_light().borrow();
         let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
@@ -450,7 +443,8 @@ impl RendererBase for Renderer {
 impl Renderer {
     pub fn create_renderer_data() -> Renderer {
         Renderer {
-            _renderer_data: std::ptr::null_mut(),
+            _renderer_data: std::ptr::null(),
+            _resources: std::ptr::null(),
             _is_first_rendering: true,
             _scene_constants: shader_buffer_datas::SceneConstants::default(),
             _view_constants: shader_buffer_datas::ViewConstants::default(),
@@ -470,6 +464,11 @@ impl Renderer {
             _light_probe_datas: RendererData_LightProbe::default(),
         }
     }
+
+    pub fn get_renderer_data(&self) -> &RendererData { unsafe { &*self._renderer_data } }
+    pub fn get_renderer_data_mut(&self) -> &mut RendererData { unsafe { &mut *(self._renderer_data as *mut RendererData) } }
+    pub fn get_resources(&self) -> &Resources { unsafe { &*self._resources } }
+    pub fn get_resources_mut(&self) -> &mut Resources { unsafe { &mut *(self._resources as *mut Resources) } }
 
     fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData {
         &self._shader_buffer_data_map.get(buffer_data_type).unwrap()

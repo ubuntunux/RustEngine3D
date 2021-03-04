@@ -2,20 +2,23 @@ use ash::vk;
 use winit::event::VirtualKeyCode;
 use rust_engine_3d::constants;
 use rust_engine_3d::application::application::{self, ApplicationBase, ApplicationData};
-use rust_engine_3d::application::scene_manager::{ SceneManagerData };
-use rust_engine_3d::utilities::system::{ newRcRefCell };
+use rust_engine_3d::resource::resource::Resources;
 
 use crate::application_constants;
 use crate::application::scene_manager::SceneManager;
 use crate::renderer::renderer::Renderer;
 
+
 pub struct Application {
+    pub _application_data: *const ApplicationData,
+    pub _resources: *const Resources,
+    pub _renderer: *const Renderer,
+    pub _scene_manager: *const SceneManager,
 }
 
 impl ApplicationBase for Application {
-    fn update_event(&mut self, application_data: &ApplicationData, scene_manager_data: &SceneManagerData) {
-        let renderer: *mut Renderer = scene_manager_data._renderer_data.borrow()._renderer.as_ptr() as *mut Renderer;
-        let scene_manager: *const SceneManager = scene_manager_data._scene_manager.as_ptr() as *const SceneManager;
+    fn update_event(&self) {
+        let application_data = self.get_application_data();
         let time_data = &application_data._time_data;
         let mouse_move_data = &application_data._mouse_move_data;
         let mouse_input_data = &application_data._mouse_input_data;
@@ -45,26 +48,24 @@ impl ApplicationBase for Application {
         let released_key_subtract = keyboard_input_data.get_key_released(VirtualKeyCode::Minus);
         let released_key_equals = keyboard_input_data.get_key_released(VirtualKeyCode::Equals);
 
-        let mut main_camera = unsafe { (*scene_manager)._main_camera.borrow_mut() };
-        let mut main_light = unsafe { (*scene_manager)._main_light.borrow_mut() };
+        let mut main_camera = self.get_scene_manager()._main_camera.borrow_mut();
+        let mut main_light = self.get_scene_manager()._main_light.borrow_mut();
         let modifier_keys_shift = keyboard_input_data.get_key_hold(VirtualKeyCode::LShift);
         let camera_move_speed_multiplier = if modifier_keys_shift { 2.0 } else { 1.0 };
         let move_speed: f32 = application_constants::CAMERA_MOVE_SPEED * camera_move_speed_multiplier * delta_time as f32;
         let pan_speed = application_constants::CAMERA_PAN_SPEED * camera_move_speed_multiplier;
         let _rotation_speed = application_constants::CAMERA_ROTATION_SPEED;
 
-        unsafe {
-            if released_key_left_bracket {
-                (*renderer).prev_debug_render_target();
-            } else if released_key_right_bracket {
-                (*renderer).next_debug_render_target();
-            }
+        if released_key_left_bracket {
+            self.get_renderer_mut().prev_debug_render_target();
+        } else if released_key_right_bracket {
+            self.get_renderer_mut().next_debug_render_target();
+        }
 
-            if released_key_subtract {
-                (*renderer).prev_debug_render_target_miplevel();
-            } else if released_key_equals {
-                (*renderer).next_debug_render_target_miplevel();
-            }
+        if released_key_subtract {
+            self.get_renderer_mut().prev_debug_render_target_miplevel();
+        } else if released_key_equals {
+            self.get_renderer_mut().next_debug_render_target_miplevel();
         }
 
         #[cfg(target_os = "android")]
@@ -123,6 +124,32 @@ impl ApplicationBase for Application {
     }
 }
 
+impl Application {
+    pub fn initialize_application(&mut self, application_data: &ApplicationData, scene_manager: &SceneManager, renderer: &Renderer) {
+        self._application_data = application_data;
+        self._renderer = renderer;
+        self._scene_manager = scene_manager;
+    }
+    pub fn get_application_data(&self) -> &ApplicationData {
+        unsafe { &*self._application_data }
+    }
+    pub fn get_application_data_mut(&self) -> &mut ApplicationData {
+        unsafe { &mut *(self._application_data as *mut ApplicationData) }
+    }
+    pub fn get_scene_manager(&self) -> &SceneManager {
+        unsafe { &*self._scene_manager }
+    }
+    pub fn get_scene_manager_mut(&self) -> &mut SceneManager {
+        unsafe { &mut *(self._scene_manager as *mut SceneManager) }
+    }
+    pub fn get_renderer(&self) -> &Renderer {
+        unsafe { &*self._renderer }
+    }
+    pub fn get_renderer_mut(&self) -> &mut Renderer {
+        unsafe { &mut *(self._renderer as *mut Renderer) }
+    }
+}
+
 pub fn run_application() {
     let vulkan_api_version: u32;
     let enable_immediate_mode: bool;
@@ -158,8 +185,13 @@ pub fn run_application() {
         constants::FOV = 60.0;
     }
 
-    let application = newRcRefCell(Application {});
-    let scene_manager = newRcRefCell(SceneManager::create_scene_manager());
-    let renderer = newRcRefCell(Renderer::create_renderer_data());
-    application::run_application(application, scene_manager, renderer);
+    let renderer = Renderer::create_renderer_data();
+    let scene_manager = SceneManager::create_scene_manager(&renderer);
+    let application = Application {
+        _application_data: std::ptr::null(),
+        _resources: std::ptr::null(),
+        _renderer: &renderer,
+        _scene_manager: &scene_manager,
+    };
+    application::run_application(&application, &scene_manager, &renderer);
 }
