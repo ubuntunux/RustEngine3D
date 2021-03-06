@@ -4,6 +4,12 @@ use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
 
 use crate::constants;
+use crate::application::application::TimeData;
+use crate::application::input::{
+    KeyboardInputData,
+    MouseMoveData,
+    MouseInputData,
+};
 use crate::resource::resource::Resources;
 use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
@@ -18,6 +24,8 @@ use crate::vulkan_context::vulkan_context::{ get_color32 };
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
 pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
+pub const UI_RENDER_FLAG_TOUCHED: u32 = 1 << 2;
+
 pub const UI_INDEX_LEFT: usize = 0; // x
 pub const UI_INDEX_TOP: usize = 1; // y
 pub const UI_INDEX_RIGHT: usize = 2; // z
@@ -143,6 +151,7 @@ pub struct UIComponentData {
     pub _texcoord: Vector4<f32>,
     pub _dragable: bool,
     pub _touchable: bool,
+    pub _has_cursor: bool,
     pub _scroll_x: bool,
     pub _scroll_y: bool,
     pub _expandable_x: bool,
@@ -228,7 +237,7 @@ pub struct UIManagerData {
 impl Default for UIComponentData {
     fn default() -> UIComponentData {
         UIComponentData {
-            _layout_type: UILayoutType::BoxLayout,
+            _layout_type: UILayoutType::FloatLayout,
             _layout_orientation: Orientation::HORIZONTAL,
             _pos: Vector2::new(0.0, 0.0),
             _size: Vector2::new(100.0, 100.0),
@@ -246,6 +255,7 @@ impl Default for UIComponentData {
             _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _dragable: false,
             _touchable: false,
+            _has_cursor: false,
             _scroll_x: false,
             _scroll_y: false,
             _expandable_x: true,
@@ -298,46 +308,44 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn check_collide(&self, x: f32, y: f32) -> bool {
-        let collide_pos = &self._world_to_local_matrix * &Vector4::new(x, y, 0.0, 1.0);
-        let pos = self._transform.get_position();
-        let half_size = &self._ui_component_data._size * 0.5;
-        (pos.x - half_size.x) < collide_pos.x && collide_pos.x < (pos.x + half_size.x) && (pos.y - half_size.y) < collide_pos.y && collide_pos.y < (pos.y + half_size.y)
+    pub fn check_collide(&self, touched_pos: &Vector2<f32>) -> bool {
+        self._render_area.x <= touched_pos.x && touched_pos.x < self._render_area.z && self._render_area.y <= touched_pos.y && touched_pos.y < self._render_area.w
     }
 
-    pub fn on_touch_down(&mut self, x: f32, y: f32) {
+    pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>) {
         self._touched = true;
-        if self._ui_component_data._dragable {
-            let pos = self._transform.get_position();
-            let touched_pos = &self._world_to_local_matrix * &Vector4::new(x, y, 0.0, 1.0);
-            self._touched_offset.x = touched_pos.x - pos.x;
-            self._touched_offset.y = touched_pos.x - pos.y;
+        if self.get_dragable() {
+            self._touched_offset.x = self.get_pos_x() - touched_pos.x;
+            self._touched_offset.y = self.get_pos_y() - touched_pos.y;
             if let Some(callback_touch_down) = self._callback_touch_down.as_ref() {
                 callback_touch_down();
+            }
+            self._changed_render_data = true;
+        }
+    }
+
+    pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>) {
+        if self._touched {
+            if self.get_dragable() {
+                self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
+                if let Some(callback_touch_move) = self._callback_touch_move.as_ref() {
+                    callback_touch_move();
+                }
+                self._changed_render_data = true;
             }
         }
     }
 
-    pub fn on_touch_move(&mut self, _x: f32, _y: f32) {
-        if self._touched {
-        //     if self._dragable:
-        //         self._x = x + self._touch_offset_x
-        //         self._y = y + self._touch_offset_y
-        //
-        //         if self._callback_touch_move is not None:
-        //             self._callback_touch_move(self, x, y)
-        }
-    }
-
-    pub fn on_touch_up(&mut self, _x: f32, _y: f32) {
+    pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>) {
         if self._touched {
             self._touched = false;
-            // if self._dragable:
-            //     self._x = x + self._touch_offset_x
-            //     self._y = y + self._touch_offset_y
-            //
-            //     if self._callback_touch_up is not None:
-            //         self._callback_touch_up(self, x, y)
+            if self.get_dragable() {
+                self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
+                if let Some(callback_touch_up) = self._callback_touch_up.as_ref() {
+                    callback_touch_up();
+                }
+                self._changed_render_data = true;
+            }
         }
     }
     pub fn get_pivot(&self) -> &Vector3<f32> {
@@ -578,7 +586,11 @@ impl UIComponentInstance {
         }
     }
     pub fn get_dragable(&self) -> bool { self._ui_component_data._dragable }
+    pub fn set_dragable(&mut self, dragable: bool) { self._ui_component_data._dragable = dragable; }
     pub fn get_touchable(&self) -> bool { self._ui_component_data._touchable }
+    pub fn set_touchable(&mut self, touchable: bool) { self._ui_component_data._touchable = touchable; }
+    pub fn get_has_cursor(&self) -> bool { self._ui_component_data._has_cursor }
+    pub fn set_has_cursor(&mut self, has_cursor: bool) { self._ui_component_data._has_cursor = has_cursor; }
     pub fn get_scroll_x(&self) -> bool { self._ui_component_data._scroll_x }
     pub fn get_scroll_y(&self) -> bool { self._ui_component_data._scroll_y }
     pub fn get_expandable_x(&self) -> bool { self._ui_component_data._expandable_x }
@@ -761,10 +773,9 @@ impl UIComponentInstance {
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
-                render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
-                if self.get_material_instance().is_some() {
-                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_RENDER_TEXTURE;
-                }
+                render_ui_instance_data._ui_render_flags =
+                    if self.get_material_instance().is_some() { UI_RENDER_FLAG_RENDER_TEXTURE } else { 0 } |
+                    if self._touched { UI_RENDER_FLAG_TOUCHED } else { 0 };
                 render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
 
                 self._render_ui_index = render_ui_index;
@@ -993,31 +1004,59 @@ impl UIComponentInstance {
         }
     }
 
-    fn update(&mut self, _delta_time: f64, _touch_event: bool) {
-        //     for widget in self._widgets:
-        //         touch_event = widget.update(dt, touch_event)
-        //
-        //     if not touch_event and self._touchable:
-        //         down_left, down_middle, down_right = self._core_manager.get_mouse_down()
-        //         pressed_left, pressed_middle, pressed_right = self._core_manager.get_mouse_pressed()
-        //         mouse_x, mouse_y = self._core_manager.get_mouse_pos()
-        //
-        //         if self._touched:
-        //             if pressed_left:
-        //                 self._on_touch_move(mouse_x, mouse_y)
-        //             else:
-        //                 self._on_touch_up(mouse_x, mouse_y)
-        //                 if not self._has_cursor:
-        //                     self._viewport_manager.focused_widget = None
-        //
-        //         elif down_left:
-        //             if self._collide(mouse_x, mouse_y):
-        //                 self._viewport_manager.focused_widget = self
-        //                 self._on_touch_down(mouse_x, mouse_y)
-        //             elif self._has_cursor:
-        //                 self._viewport_manager.focused_widget = None
-        //
-        //     return self._touched or touch_event
+    fn update_ui_component(
+        &mut self,
+        delta_time: f64,
+        window_size: &(u32, u32),
+        time_data: &TimeData,
+        keyboard_input_data: &KeyboardInputData,
+        mouse_pos: &Vector2<f32>,
+        mouse_moved: bool,
+        mouse_input_data: &MouseInputData,
+        mut touch_event: &mut bool,
+    ) {
+
+        for child_ui_instance in self._children.iter() {
+            unsafe {
+                child_ui_instance.as_mut().unwrap().update_ui_component(
+                    delta_time,
+                    window_size,
+                    time_data,
+                    keyboard_input_data,
+                    mouse_pos,
+                    mouse_moved,
+                    mouse_input_data,
+                    touch_event,
+                );
+            }
+        }
+
+        if false == *touch_event && self.get_touchable() {
+            if self._touched {
+                if mouse_input_data._btn_l_hold {
+                    if mouse_moved {
+                        self.on_touch_move(mouse_pos);
+                    }
+                } else {
+                    self.on_touch_up(mouse_pos);
+                    if false == self.get_has_cursor() {
+                        //self._viewport_manager.focused_widget = None;
+                    }
+                }
+            }
+            else if mouse_input_data._btn_l_pressed {
+                if self.check_collide(mouse_pos) {
+                    //self._viewport_manager.focused_widget = self
+                    self.on_touch_down(mouse_pos)
+                } else if self.get_has_cursor() {
+                    //self._viewport_manager.focused_widget = None
+                }
+            }
+        }
+
+        if self._touched {
+            *touch_event = true;
+        }
     }
 }
 
@@ -1147,7 +1186,7 @@ impl UIManagerData {
             let mut ui_manager_data = UIManagerData {
                 _ui_manager: ui_manager,
                 _root: Box::from_raw(UIManagerData::create_widget(UIWidgetTypes::Default)),
-                _window_size: (1920, 1080),
+                _window_size: (0, 0),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
@@ -1308,7 +1347,16 @@ impl UIManagerData {
         }
     }
 
-    pub fn update(&mut self, mut window_size: (u32, u32), delta_time: f64, _resources: &Resources) {
+    pub fn update(
+        &mut self,
+        delta_time: f64,
+        window_size: &(u32, u32),
+        time_data: &TimeData,
+        keyboard_input_data: &KeyboardInputData,
+        mouse_move_data: &MouseMoveData,
+        mouse_input_data: &MouseInputData,
+        _resources: &Resources
+    ) {
         let root_ui_component = self._root.get_ui_component_mut();
 
         if self._window_size.0 != window_size.0 || self._window_size.1 != window_size.1 {
@@ -1316,7 +1364,22 @@ impl UIManagerData {
             root_ui_component.set_changed_layout(true);
         }
 
-        let touch_evemt: bool = false;
+        // update ui component
+        let mut touch_event: bool = false;
+        let mouse_pos: Vector2<f32> = Vector2::new(mouse_move_data._mouse_pos.x as f32, mouse_move_data._mouse_pos.y as f32);
+        let mouse_moved: bool = 0 != mouse_move_data._mouse_pos_delta.x || 0 != mouse_move_data._mouse_pos_delta.y;
+        root_ui_component.update_ui_component(
+            delta_time,
+            window_size,
+            time_data,
+            keyboard_input_data,
+            &mouse_pos,
+            mouse_moved,
+            mouse_input_data,
+            &mut touch_event,
+        );
+
+        // updatge ui layout
         let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
         let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
         let required_contents_size = Vector2::<f32>::zeros();
@@ -1336,7 +1399,6 @@ impl UIManagerData {
             );
         }
         root_ui_component.update_layout(&self._font_data.borrow());
-        root_ui_component.update(delta_time, touch_evemt);
 
         // collect_ui_render_data
         let font_data = self._font_data.borrow();

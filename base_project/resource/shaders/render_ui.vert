@@ -19,10 +19,17 @@ void main()
 
     vec4 color = uint_color_to_float_color(ui_render_data._ui_color);
     vec4 border_color = uint_color_to_float_color(ui_render_data._ui_border_color);
+    vec2 position = mix(ui_render_data._ui_render_area.xy, ui_render_data._ui_render_area.zw, vs_in_position.xy) * pushConstant._inv_canvas_size;
+    vec2 texcoord = mix(ui_render_data._ui_texcoord.xy, ui_render_data._ui_texcoord.zw, vs_in_position.xy);
+
+    if(check_flag_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
+    {
+        color.xyz = mix(color.xyz, vec3(0.5, 0.5, 1.0), 0.75);
+        border_color.xyz = mix(border_color.xyz, vec3(0.5, 0.5, 1.0), 0.75);
+    }
 
     vs_output._color = color;
     vs_output._border_color = border_color;
-    vs_output._texcoord = mix(ui_render_data._ui_texcoord.xy, ui_render_data._ui_texcoord.zw, vs_in_position.xy);
-    vec2 position = mix(ui_render_data._ui_render_area.xy, ui_render_data._ui_render_area.zw, vs_in_position.xy) * pushConstant._inv_canvas_size;
+    vs_output._texcoord = texcoord;
     gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
 }

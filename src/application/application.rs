@@ -337,7 +337,14 @@ pub fn run_application(
                             renderer_data.update_post_process_datas();
                             scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
                             font_manager.update();
-                            ui_manager_data.update(application_data._window_size, delta_time, &renderer_data._resources.borrow());
+                            ui_manager_data.update(
+                                delta_time,
+                                &application_data._window_size,
+                                &application_data._time_data,
+                                &application_data._keyboard_input_data,
+                                &application_data._mouse_move_data,
+                                &application_data._mouse_input_data,
+                                &renderer_data._resources.borrow());
                             renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager_data, elapsed_time, delta_time, elapsed_frame);
                         }
                     }

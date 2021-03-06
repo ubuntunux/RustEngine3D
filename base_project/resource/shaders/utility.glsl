@@ -106,6 +106,7 @@ float Filter(in float x, in int filterType, in float filterRadius, in bool resca
 }
 
 bool check_flag_any(uint a, uint b) { return 0 != (a & b); }
+bool check_flag_all(uint a, uint b) { return a == (a & b); }
 
 float saturate(float value) { return clamp(value, 0.0, 1.0); }
 vec2 saturate(vec2 value) { return clamp(value, 0.0, 1.0); }
