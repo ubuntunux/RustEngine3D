@@ -41,7 +41,7 @@ use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceD
 use crate::resource::resource::Resources;
 use crate::utilities::system::{ self, RcRefCell };
 use crate::renderer::font::FontManager;
-use crate::renderer::ui::{ UIManager };
+use crate::renderer::ui::{ UIManagerData };
 use ash::vk::CommandBuffer;
 
 
@@ -118,7 +118,7 @@ pub trait RendererBase {
         renderer_data: &RendererData,
         scene_manager_data: &SceneManagerData,
         font_manager: &mut FontManager,
-        ui_manager: &mut UIManager,
+        ui_manager_data: &mut UIManagerData,
         elapsed_time: f64,
         delta_time: f64,
         elapsed_frame: u64,
@@ -771,7 +771,7 @@ impl RendererData {
         &mut self,
         scene_manager_data: &SceneManagerData,
         font_manager: &mut FontManager,
-        ui_manager: &mut UIManager,
+        ui_manager_data: &mut UIManagerData,
         elapsed_time: f64,
         delta_time: f64,
         elapsed_frame: u64
@@ -816,7 +816,7 @@ impl RendererData {
                     &self,
                     &scene_manager_data,
                     font_manager,
-                    ui_manager,
+                    ui_manager_data,
                     elapsed_time,
                     delta_time,
                     elapsed_frame

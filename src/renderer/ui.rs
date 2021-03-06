@@ -200,7 +200,7 @@ pub struct WidgetDefault {
     pub _widgets: Vec<*mut dyn Widget>,
 }
 
-pub struct UIManager {
+pub struct UIManagerData {
     pub _root: Box<dyn Widget>,
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
@@ -1130,12 +1130,12 @@ impl UIRenderGroupData {
 }
 
 
-impl UIManager {
-    pub fn create_ui_manager() -> UIManager {
-        log::info!("create_ui_manager");
+impl UIManagerData {
+    pub fn create_ui_manager_data() -> UIManagerData {
+        log::info!("create_ui_manager_data");
         unsafe {
-            let mut ui_manager = UIManager {
-                _root: Box::from_raw(UIManager::create_widget(UIWidgetTypes::Default)),
+            let mut ui_manager_data = UIManagerData {
+                _root: Box::from_raw(UIManagerData::create_widget(UIWidgetTypes::Default)),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
@@ -1145,15 +1145,15 @@ impl UIManager {
                 _render_ui_group: Vec::new(),
                 _default_render_ui_material: None,
             };
-            ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
-            ui_manager._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
-            ui_manager._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
-            ui_manager._root.get_ui_component_mut().set_renderable(false);
-            ui_manager
+            ui_manager_data._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
+            ui_manager_data._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
+            ui_manager_data._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
+            ui_manager_data._root.get_ui_component_mut().set_renderable(false);
+            ui_manager_data
         }
     }
 
-    pub fn initialize_ui_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
+    pub fn initialize_ui_manager_data(&mut self, renderer_data: &RendererData, resources: &Resources) {
         let font_data = resources.get_default_font_data();
         self._font_data = font_data.clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
@@ -1161,7 +1161,7 @@ impl UIManager {
 
         // build ui
         unsafe {
-            let btn = UIManager::create_widget(UIWidgetTypes::Default);
+            let btn = UIManagerData::create_widget(UIWidgetTypes::Default);
             let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(25.0, 25.0);
             ui_component.set_size(200.0, 100.0);
@@ -1175,7 +1175,7 @@ impl UIManager {
             ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
             self._root.add_widget(btn);
 
-            let btn2 = UIManager::create_widget(UIWidgetTypes::Default);
+            let btn2 = UIManagerData::create_widget(UIWidgetTypes::Default);
             let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(0.0, 0.0);
             ui_component.set_size(100.0, 50.0);
@@ -1197,8 +1197,8 @@ impl UIManager {
     pub fn destroy_ui_descriptor_sets(&mut self) {
     }
 
-    pub fn destroy_ui_manager(&mut self, device: &Device) {
-        log::info!("destroy_ui_manager");
+    pub fn destroy_ui_manager_data(&mut self, device: &Device) {
+        log::info!("destroy_ui_manager_data");
         self._root.clear_widgets();
         drop(&self._root);
         buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);

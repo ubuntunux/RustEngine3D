@@ -24,7 +24,7 @@ use crate::application::input;
 use crate::resource::resource::Resources;
 use crate::renderer::renderer::{ RendererData, RendererBase };
 use crate::renderer::font::FontManager;
-use crate::renderer::ui::UIManager;
+use crate::renderer::ui::UIManagerData;
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::utilities::logger;
 
@@ -98,7 +98,7 @@ pub struct ApplicationData {
     pub _scene_manager_data: RcRefCell<SceneManagerData>,
     pub _renderer_data: RcRefCell<RendererData>,
     pub _font_manager: RcRefCell<FontManager>,
-    pub _ui_manager: RcRefCell<UIManager>,
+    pub _ui_manager_data: RcRefCell<UIManagerData>,
     pub _resources: RcRefCell<Resources>,
     pub _application: *const dyn ApplicationBase,
 }
@@ -115,14 +115,14 @@ impl ApplicationData {
     pub fn terminate_applicateion(
         &mut self,
         font_manager: &mut FontManager,
-        ui_manager: &mut UIManager,
+        ui_manager_data: &mut UIManagerData,
         scene_manager_data: &mut SceneManagerData,
         resources: &mut Resources,
         renderer_data: &mut RendererData,
     ) {
         self.get_application_mut().terminate_applicateion();
         scene_manager_data.close_scene_manager_data(renderer_data.get_device());
-        ui_manager.destroy_ui_manager(renderer_data.get_device());
+        ui_manager_data.destroy_ui_manager_data(renderer_data.get_device());
         font_manager.destroy_font_manager(renderer_data.get_device());
         renderer_data.destroy_framebuffer_and_descriptors();
         resources.destroy_resources(renderer_data);
@@ -164,7 +164,7 @@ pub fn run_application(
     let window_size: (u32, u32) = (window.inner_size().width, window.inner_size().height);
 
     let mut maybe_resources: Option<RcRefCell<Resources>> = None;
-    let mut maybe_ui_manager: Option<RcRefCell<UIManager>> = None;
+    let mut maybe_ui_manager_data: Option<RcRefCell<UIManagerData>> = None;
     let mut maybe_font_manager: Option<RcRefCell<FontManager>> = None;
     let mut maybe_renderer_data: Option<RcRefCell<RendererData>> = None;
     let mut maybe_scene_manager_data: Option<RcRefCell<SceneManagerData>> = None;
@@ -185,10 +185,10 @@ pub fn run_application(
                 let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                 let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                 let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
-                let mut ui_manager: RefMut<UIManager> = maybe_ui_manager.as_ref().unwrap().borrow_mut();
+                let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
                 application_data.terminate_applicateion(
                     &mut font_manager,
-                    &mut ui_manager,
+                    &mut ui_manager_data,
                     &mut scene_manager_data,
                     &mut maybe_resources.as_ref().unwrap().borrow_mut(),
                     &mut renderer_data,
@@ -200,7 +200,7 @@ pub fn run_application(
             let mouse_pos = (width / 2, height / 2);
             let resources = newRcRefCell(Resources::create_resources());
             let font_manager = newRcRefCell(FontManager::create_font_manager());
-            let ui_manager = newRcRefCell(UIManager::create_ui_manager());
+            let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data());
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
             let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
@@ -213,7 +213,7 @@ pub fn run_application(
             scene_manager_data.borrow().regist_scene_graphics_data();
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
-            ui_manager.borrow_mut().initialize_ui_manager(&renderer_data.borrow(), &resources.borrow());
+            ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());
             renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
             scene_manager_data.borrow_mut().initialize_scene_graphics_data();
 
@@ -225,7 +225,7 @@ pub fn run_application(
                 _mouse_move_data: mouse_move_data,
                 _mouse_input_data: mouse_input_data,
                 _font_manager: font_manager.clone(),
-                _ui_manager: ui_manager.clone(),
+                _ui_manager_data: ui_manager_data.clone(),
                 _scene_manager_data: scene_manager_data.clone(),
                 _renderer_data: renderer_data.clone(),
                 _resources: resources.clone(),
@@ -238,7 +238,7 @@ pub fn run_application(
 
             maybe_resources = Some(resources);
             maybe_font_manager = Some(font_manager);
-            maybe_ui_manager = Some(ui_manager);
+            maybe_ui_manager_data = Some(ui_manager_data);
             maybe_renderer_data = Some(renderer_data);
             maybe_scene_manager_data = Some(scene_manager_data);
             maybe_application_data = Some(application_data);
@@ -276,14 +276,14 @@ pub fn run_application(
                     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                     let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                     let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
-                    let mut ui_manager: RefMut<UIManager> = maybe_ui_manager.as_ref().unwrap().borrow_mut();
+                    let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
 
                     // exit
                     if application_data._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
                         *control_flow = ControlFlow::Exit;
                         application_data.terminate_applicateion(
                             &mut font_manager,
-                            &mut ui_manager,
+                            &mut ui_manager_data,
                             &mut scene_manager_data,
                             &mut maybe_resources.as_ref().unwrap().borrow_mut(),
                             &mut renderer_data,
@@ -316,14 +316,14 @@ pub fn run_application(
 
                             // destroy
                             scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
-                            ui_manager.destroy_ui_descriptor_sets();
+                            ui_manager_data.destroy_ui_descriptor_sets();
                             font_manager.destroy_font_descriptor_sets();
 
                             renderer_data.resize_window();
 
                             // recreate
                             font_manager.create_font_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
-                            ui_manager.create_ui_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
+                            ui_manager_data.create_ui_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
                             scene_manager_data.initialize_scene_graphics_data();
                             renderer_data.set_need_recreate_swapchain(false);
 
@@ -334,8 +334,8 @@ pub fn run_application(
                         renderer_data.update_post_process_datas();
                         scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
                         font_manager.update();
-                        ui_manager.update(application_data._window_size, delta_time, &renderer_data._resources.borrow());
-                        renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager, elapsed_time, delta_time, elapsed_frame);
+                        ui_manager_data.update(application_data._window_size, delta_time, &renderer_data._resources.borrow());
+                        renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager_data, elapsed_time, delta_time, elapsed_frame);
                     }
                 }
             },
