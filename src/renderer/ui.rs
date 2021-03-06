@@ -210,6 +210,7 @@ pub trait UIManagerBase {
 pub struct UIManagerData {
     pub _ui_manager: *const dyn UIManagerBase,
     pub _root: Box<dyn Widget>,
+    pub _window_size: (u32, u32),
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
@@ -487,6 +488,7 @@ impl UIComponentInstance {
         }
     }
     pub fn get_changed_layout(&self) -> bool { self._changed_layout }
+    pub fn set_changed_layout(&mut self, changed_layout: bool) { self._changed_layout = changed_layout; }
     pub fn get_owner_widget(&self) -> &Option<*mut dyn Widget> { &self._owner_widget }
     pub fn get_parent(&self) -> &Option<*mut UIComponentInstance> { &self._parent }
     pub fn set_parent(&mut self, parent: Option<*mut UIComponentInstance>) {
@@ -1145,6 +1147,7 @@ impl UIManagerData {
             let mut ui_manager_data = UIManagerData {
                 _ui_manager: ui_manager,
                 _root: Box::from_raw(UIManagerData::create_widget(UIWidgetTypes::Default)),
+                _window_size: (1920, 1080),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
@@ -1305,17 +1308,23 @@ impl UIManagerData {
         }
     }
 
-    pub fn update(&mut self, window_size: (u32, u32), delta_time: f64, _resources: &Resources) {
-        let ui_component = &mut self._root.get_ui_component_mut();
+    pub fn update(&mut self, mut window_size: (u32, u32), delta_time: f64, _resources: &Resources) {
+        let root_ui_component = self._root.get_ui_component_mut();
+
+        if self._window_size.0 != window_size.0 || self._window_size.1 != window_size.1 {
+            self._window_size = window_size.clone();
+            root_ui_component.set_changed_layout(true);
+        }
+
         let touch_evemt: bool = false;
         let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
         let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
         let required_contents_size = Vector2::<f32>::zeros();
         let mut child_ui_pos = Vector2::<f32>::zeros();
 
-        if ui_component.get_changed_layout() {
-            ui_component.update_layout_size(&contents_size);
-            ui_component.update_layout_area(
+        if root_ui_component.get_changed_layout() {
+            root_ui_component.update_layout_size(&contents_size);
+            root_ui_component.update_layout_area(
                 UILayoutType::FloatLayout,
                 Orientation::HORIZONTAL,
                 DEFAILT_HORIZONTAL_ALIGN,
@@ -1326,8 +1335,8 @@ impl UIManagerData {
                 &mut child_ui_pos
             );
         }
-        ui_component.update_layout(&self._font_data.borrow());
-        ui_component.update(delta_time, touch_evemt);
+        root_ui_component.update_layout(&self._font_data.borrow());
+        root_ui_component.update(delta_time, touch_evemt);
 
         // collect_ui_render_data
         let font_data = self._font_data.borrow();
@@ -1340,7 +1349,7 @@ impl UIManagerData {
             _material_instance: std::ptr::null(),
         };
 
-        self._root.get_ui_component_mut().collect_ui_render_data(
+        root_ui_component.collect_ui_render_data(
             &font_data,
             &mut render_ui_count,
             &mut render_ui_group,

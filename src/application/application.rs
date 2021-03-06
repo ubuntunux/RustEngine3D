@@ -332,12 +332,14 @@ pub fn run_application(
                             log::info!("<<end recreate_swapchain>>");
                         }
                     } else {
-                        // update && render
-                        renderer_data.update_post_process_datas();
-                        scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
-                        font_manager.update();
-                        ui_manager_data.update(application_data._window_size, delta_time, &renderer_data._resources.borrow());
-                        renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager_data, elapsed_time, delta_time, elapsed_frame);
+                        // update & render, If the resized event has not yet occurred, the window size may be 0.
+                        if 0 < application_data._window_size.0 && 0 < application_data._window_size.1 {
+                            renderer_data.update_post_process_datas();
+                            scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
+                            font_manager.update();
+                            ui_manager_data.update(application_data._window_size, delta_time, &renderer_data._resources.borrow());
+                            renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager_data, elapsed_time, delta_time, elapsed_frame);
+                        }
                     }
                 }
             },
