@@ -12,7 +12,7 @@ use rust_engine_3d::renderer::font::{ FontManager, RenderTextInfo };
 use rust_engine_3d::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use rust_engine_3d::renderer::render_element::RenderElementData;
 use rust_engine_3d::renderer::renderer::{ RendererBase, RendererData };
-use rust_engine_3d::renderer::ui::UIManager;
+use rust_engine_3d::renderer::ui::UIManagerData;
 use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::vulkan_context::buffer::{ self, ShaderBufferData };
 use rust_engine_3d::vulkan_context::descriptor::{ DescriptorResourceInfo };
@@ -261,7 +261,7 @@ impl RendererBase for Renderer {
         renderer_data: &RendererData,
         scene_manager_data: &SceneManagerData,
         font_manager: &mut FontManager,
-        ui_manager: &mut UIManager,
+        ui_manager_data: &mut UIManagerData,
         elapsed_time: f64,
         delta_time: f64,
         _elapsed_frame: u64,
@@ -387,7 +387,7 @@ impl RendererBase for Renderer {
         renderer_data.render_material_instance(command_buffer, swapchain_index, "render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
 
         // Render UI
-        ui_manager.render_ui(command_buffer, swapchain_index, &renderer_data, &resources);
+        ui_manager_data.render_ui(command_buffer, swapchain_index, &renderer_data, &resources);
 
         // Render Text
         let render_text_info = RenderTextInfo {

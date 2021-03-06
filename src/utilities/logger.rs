@@ -3,11 +3,9 @@ use std::io::Write;
 use chrono::Local;
 use log::LevelFilter;
 
-const LOG_LEVEL: LevelFilter = LevelFilter::Info;
-
 #[cfg(target_os = "android")]
-pub fn initialize_logger() {
-    let debug_level = match LOG_LEVEL {
+pub fn initialize_logger(log_level: LevelFilter) {
+    let debug_level = match log_level {
         LevelFilter::Off => "off",
         LevelFilter::Error => "error",
         LevelFilter::Warn => "warn",
@@ -19,7 +17,7 @@ pub fn initialize_logger() {
     env_logger::init();
 }
 #[cfg(not(target_os = "android"))]
-pub fn initialize_logger() {
+pub fn initialize_logger(log_level: LevelFilter) {
     env_logger::Builder::new()
         .format(|buffer, record| {
             writeln!(buffer,
@@ -31,6 +29,6 @@ pub fn initialize_logger() {
                      record.line().unwrap(),
             )
         })
-        .filter(None, LOG_LEVEL)
+        .filter(None, log_level)
         .init();
 }

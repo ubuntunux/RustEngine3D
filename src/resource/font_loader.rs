@@ -68,6 +68,7 @@ pub fn get_font_data_create_info(
         }
     }
 
+    // Todo : 80x80 Font Image -> 20x20 Large Distance Field
     if font::USE_DISTANCE_FIELD {
         let cell_width = image.width() / count_of_side;
         let cell_height = image.height() / count_of_side;
@@ -85,7 +86,7 @@ pub fn get_font_data_create_info(
                             for sx in 0..cell_width {
                                 let pixel = image.get_pixel(offset_x + sx, offset_y + sy);
                                 let opacity: f32 = pixel[3] as f32 / 255.0;
-                                if 0.1 < opacity {
+                                if 0.5 < opacity {
                                     let src_pos: Vector2<f32> = Vector2::new((offset_x + sx) as f32, (offset_y + sy) as f32);
                                     let dist = nalgebra_glm::distance(&pos, &src_pos);
                                     if dist < min_dist {

@@ -200,7 +200,15 @@ pub struct WidgetDefault {
     pub _widgets: Vec<*mut dyn Widget>,
 }
 
+pub trait UIManagerBase {
+    fn get_ui_manager_data(&self) -> &UIManagerData;
+    fn get_ui_manager_data_mut(&self) -> &mut UIManagerData;
+    fn initialize_ui_manager(&mut self, ui_manager_data: &UIManagerData);
+    fn build_ui(&mut self, renderer_data: &RendererData, resources: &Resources);
+}
+
 pub struct UIManagerData {
+    pub _ui_manager: *const dyn UIManagerBase,
     pub _root: Box<dyn Widget>,
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
@@ -1129,12 +1137,13 @@ impl UIRenderGroupData {
     }
 }
 
-
 impl UIManagerData {
-    pub fn create_ui_manager_data() -> UIManagerData {
+    pub fn get_root_ptr(&self) -> *const dyn Widget { self._root.as_ref() }
+    pub fn create_ui_manager_data(ui_manager: *const dyn UIManagerBase) -> UIManagerData {
         log::info!("create_ui_manager_data");
         unsafe {
             let mut ui_manager_data = UIManagerData {
+                _ui_manager: ui_manager,
                 _root: Box::from_raw(UIManagerData::create_widget(UIWidgetTypes::Default)),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
@@ -1146,6 +1155,7 @@ impl UIManagerData {
                 _default_render_ui_material: None,
             };
             ui_manager_data._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
+            ui_manager_data._root.get_ui_component_mut().set_layout_type(UILayoutType::FloatLayout);
             ui_manager_data._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
             ui_manager_data._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
             ui_manager_data._root.get_ui_component_mut().set_renderable(false);
@@ -1154,47 +1164,27 @@ impl UIManagerData {
     }
 
     pub fn initialize_ui_manager_data(&mut self, renderer_data: &RendererData, resources: &Resources) {
-        let font_data = resources.get_default_font_data();
-        self._font_data = font_data.clone();
+        self._font_data = resources.get_default_font_data().clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
+        self.create_ui_graphics_data(renderer_data, resources);
+        self.get_ui_manager_mut().initialize_ui_manager(&self);
+        self.get_ui_manager_mut().build_ui(renderer_data, resources);
+    }
+
+    pub fn create_ui_graphics_data(&mut self, _renderer_data: &RendererData, resources: &Resources) {
         self._default_render_ui_material = Some(resources.get_material_instance_data("render_ui").clone());
-
-        // build ui
-        unsafe {
-            let btn = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut();
-            ui_component.set_pos(25.0, 25.0);
-            ui_component.set_size(200.0, 100.0);
-            ui_component.set_color(get_color32(255, 255, 255, 255));
-            ui_component.set_font_color(get_color32(0, 0, 0, 255));
-            ui_component.set_border_color(get_color32(255, 0, 0, 255));
-            ui_component.set_margine(5.0);
-            ui_component.set_round(10.0);
-            ui_component.set_border(5.0);
-            ui_component.set_text(String::from("Child\nChild Test"));
-            ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
-            self._root.add_widget(btn);
-
-            let btn2 = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut();
-            ui_component.set_pos(0.0, 0.0);
-            ui_component.set_size(100.0, 50.0);
-            ui_component.set_color(get_color32(255, 128, 128, 255));
-            ui_component.set_font_color(get_color32(255, 255, 255, 255));
-            ui_component.set_border_color(get_color32(0, 0, 0, 255));
-            ui_component.set_margine(5.0);
-            ui_component.set_round(10.0);
-            ui_component.set_border(5.0);
-
-            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
-            self._root.add_widget(btn2);
-        }
     }
 
-    pub fn create_ui_descriptor_sets(&mut self, _renderer_data: &RendererData, _resources: &Resources) {
+    pub fn destroy_ui_graphics_data(&mut self) {
+        self._default_render_ui_material = None;
     }
 
-    pub fn destroy_ui_descriptor_sets(&mut self) {
+    pub fn get_ui_manager(&self) -> &dyn UIManagerBase {
+        unsafe { &*self._ui_manager }
+    }
+
+    pub fn get_ui_manager_mut(&self) -> &mut dyn UIManagerBase {
+        unsafe { &mut *(self._ui_manager as *mut dyn UIManagerBase) }
     }
 
     pub fn destroy_ui_manager_data(&mut self, device: &Device) {

@@ -6,7 +6,7 @@ use nalgebra::{ Vector2, Vector3 };
 use ash::{ vk, Device };
 
 use crate::constants;
-use crate::resource::resource::Resources;
+use crate::resource::resource::{ Resources, DEFAULT_FONT_NAME };
 use crate::renderer::renderer::RendererData;
 use crate::renderer::utility;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
@@ -16,8 +16,8 @@ use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
-pub const USE_DISTANCE_FIELD: bool = false;
-pub const FONT_SIZE: u32 = 20;
+pub const USE_DISTANCE_FIELD: bool = true;
+pub const FONT_SIZE: u32 = 80;
 pub const FONT_PADDING: u32 = 1;
 
 pub struct RenderTextInfo {
@@ -297,7 +297,7 @@ impl FontManager {
     }
 
     pub fn initialize_font_manager(&mut self, renderer_data: &RendererData, resources: &Resources) {
-        let ascii_font_data = resources.get_font_data("NanumGothic_Coding_Basic_Latin");
+        let ascii_font_data = resources.get_font_data(DEFAULT_FONT_NAME);
         self._ascii = ascii_font_data.clone();
         self._text_render_data = TextRenderData::create_text_render_data(renderer_data.get_device(), resources, &ascii_font_data);
         self.create_font_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());

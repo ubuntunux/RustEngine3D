@@ -249,4 +249,9 @@ vec4 safe_normalize(vec4 vector)
     return vector / (dist == 0.0 ? 1.0 : dist);
 }
 
+float distance_field_font_opacity(float opacity)
+{
+    const float threshold = 0.2;
+    return smoothstep(threshold, 1.0, exp(-saturate(1.0 - opacity) * 5.0));
+}
 #endif // _UTILITY_

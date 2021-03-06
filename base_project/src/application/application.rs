@@ -1,3 +1,5 @@
+use log::LevelFilter;
+
 use ash::vk;
 use winit::event::VirtualKeyCode;
 use rust_engine_3d::constants;
@@ -7,6 +9,7 @@ use rust_engine_3d::resource::resource::Resources;
 use crate::application_constants;
 use crate::application::scene_manager::SceneManager;
 use crate::renderer::renderer::Renderer;
+use crate::renderer::ui::UIManager;
 
 
 pub struct Application {
@@ -14,6 +17,7 @@ pub struct Application {
     pub _resources: *const Resources,
     pub _renderer: *const Renderer,
     pub _scene_manager: *const SceneManager,
+    pub _ui_manager: *const UIManager,
 }
 
 impl ApplicationBase for Application {
@@ -186,11 +190,13 @@ pub fn run_application() {
 
     let renderer = Renderer::create_renderer_data();
     let scene_manager = SceneManager::create_scene_manager(&renderer);
+    let ui_manager = UIManager::create_ui_manager();
     let application = Application {
         _application_data: std::ptr::null(),
         _resources: std::ptr::null(),
         _renderer: &renderer,
         _scene_manager: &scene_manager,
+        _ui_manager: &ui_manager,
     };
-    application::run_application(&application, &scene_manager, &renderer);
+    application::run_application(LevelFilter::Debug, &application, &scene_manager, &renderer, &ui_manager);
 }

@@ -1,6 +1,6 @@
 use std::cell::RefMut;
 use std::time;
-use log;
+use log::{ self, LevelFilter };
 
 use winit::event::{
     ElementState,
@@ -24,7 +24,7 @@ use crate::application::input;
 use crate::resource::resource::Resources;
 use crate::renderer::renderer::{ RendererData, RendererBase };
 use crate::renderer::font::FontManager;
-use crate::renderer::ui::UIManagerData;
+use crate::renderer::ui::{ UIManagerBase, UIManagerData };
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::utilities::logger;
 
@@ -142,11 +142,13 @@ impl ApplicationData {
 }
 
 pub fn run_application(
+    log_level: LevelFilter,
     application: *const dyn ApplicationBase,
     scene_manager: *const dyn SceneManagerBase,
     renderer: *const dyn RendererBase,
+    ui_manager: *const dyn UIManagerBase,
 ) {
-    logger::initialize_logger();
+    logger::initialize_logger(log_level);
 
     log::info!("run_application");
 
@@ -200,7 +202,7 @@ pub fn run_application(
             let mouse_pos = (width / 2, height / 2);
             let resources = newRcRefCell(Resources::create_resources());
             let font_manager = newRcRefCell(FontManager::create_font_manager());
-            let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data());
+            let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(ui_manager));
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
             let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
@@ -316,14 +318,14 @@ pub fn run_application(
 
                             // destroy
                             scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
-                            ui_manager_data.destroy_ui_descriptor_sets();
+                            ui_manager_data.destroy_ui_graphics_data();
                             font_manager.destroy_font_descriptor_sets();
 
                             renderer_data.resize_window();
 
                             // recreate
                             font_manager.create_font_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
-                            ui_manager_data.create_ui_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
+                            ui_manager_data.create_ui_graphics_data(&renderer_data, &renderer_data._resources.borrow());
                             scene_manager_data.initialize_scene_graphics_data();
                             renderer_data.set_need_recreate_swapchain(false);
 
