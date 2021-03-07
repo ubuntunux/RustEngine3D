@@ -56,7 +56,8 @@ pub fn create_time_data(elapsed_time: f64) -> TimeData {
 }
 
 impl TimeData {
-    pub fn update_time_data(&mut self, time_instance: &time::Instant) {
+    pub fn update_time_data(&mut self, time_instance: &time::Instant) -> bool {
+        let mut debug_text: bool = false;
         let current_time = time_instance.elapsed().as_secs_f64();
         let previous_time = self._current_time;
         let delta_time = current_time - previous_time;
@@ -72,6 +73,7 @@ impl TimeData {
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
             self._average_fps = average_fps;
+            debug_text = true;
         } else {
             self._acc_frame_time = acc_frame_time;
             self._acc_frame_count = acc_frame_count;
@@ -79,6 +81,7 @@ impl TimeData {
         self._current_time = current_time;
         self._elapsed_time = elapsed_time;
         self._delta_time = delta_time;
+        debug_text
     }
 }
 
@@ -298,12 +301,14 @@ pub fn run_application(
                     application_data.update_event();
 
                     // update timer
-                    application_data._time_data.update_time_data(&time_instance);
+                    if application_data._time_data.update_time_data(&time_instance) {
+                        let text_fps = format!("{:.2}fps / {:.3}ms", application_data._time_data._average_fps, application_data._time_data._average_frame_time);
+                        log::info!("{}", text_fps);
+                        font_manager.log(text_fps);
+                    }
                     let elapsed_time = application_data._time_data._elapsed_time;
                     let delta_time = application_data._time_data._delta_time;
                     let elapsed_frame = application_data._time_data._elapsed_frame;
-
-                    font_manager.log(format!("{:.2}fps / {:.3}ms\n\tTest", application_data._time_data._average_fps, application_data._time_data._average_frame_time));
 
                     if renderer_data.get_need_recreate_swapchain() {
                         #[cfg(target_os = "android")]

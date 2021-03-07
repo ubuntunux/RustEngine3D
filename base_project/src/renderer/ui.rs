@@ -26,13 +26,13 @@ impl UIManagerBase for UIManager {
             let root = &mut *(self.get_ui_manager_data().get_root_ptr() as *mut dyn Widget);
 
             let touch_down = Box::<fn()>::new(|| {
-                println!("touch_down");
+                // println!("touch_down");
             });
             let touch_move = Box::<fn()>::new(|| {
-                println!("touch_move");
+                // println!("touch_move");
             });
             let touch_up = Box::<fn()>::new(|| {
-                println!("touch_up");
+                // println!("touch_up");
             });
 
             let mut btn = UIManagerData::create_widget(UIWidgetTypes::Default);

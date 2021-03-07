@@ -174,6 +174,7 @@ pub struct UIComponentInstance {
     pub _parent: Option<*mut UIComponentInstance>,
     pub _children: Vec<*mut UIComponentInstance>,
     pub _changed_layout: bool,
+    pub _changed_child_layout: bool,
     pub _changed_render_data: bool,
     pub _changed_text: bool,
     pub _render_ui_index: u32,
@@ -279,6 +280,7 @@ impl UIComponentInstance {
             _parent: None,
             _children: Vec::new(),
             _changed_layout: true,
+            _changed_child_layout: true,
             _changed_render_data: true,
             _changed_text: false,
             _render_ui_index: std::u32::MAX,
@@ -371,14 +373,14 @@ impl UIComponentInstance {
         if x != self._ui_component_data._pos.x || self._ui_component_data._pos_hint_x.is_some() {
             self._ui_component_data._pos_hint_x = None;
             self._ui_component_data._pos.x = x;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn set_pos_y(&mut self, y: f32) {
         if y != self._ui_component_data._pos.y || self._ui_component_data._pos_hint_y.is_some() {
             self._ui_component_data._pos_hint_y = None;
             self._ui_component_data._pos.y = y;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_pos_hint_x(&self) -> Option<f32> {
@@ -390,13 +392,13 @@ impl UIComponentInstance {
     pub fn set_pos_hint_x(&mut self, pos_hint_x: Option<f32>) {
         if pos_hint_x != self._ui_component_data._pos_hint_x {
             self._ui_component_data._pos_hint_x = pos_hint_x;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn set_pos_hint_y(&mut self, pos_hint_y: Option<f32>) {
         if pos_hint_y != self._ui_component_data._pos_hint_y {
             self._ui_component_data._pos_hint_y = pos_hint_y;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_size(&self) -> &Vector2<f32> {
@@ -412,14 +414,14 @@ impl UIComponentInstance {
         if size_x != self._ui_component_data._size.x || self._ui_component_data._size_hint_x.is_some() {
             self._ui_component_data._size_hint_x = None;
             self._ui_component_data._size.x = size_x;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn set_size_y(&mut self, size_y: f32) {
         if size_y != self._ui_component_data._size.y || self._ui_component_data._size_hint_y.is_some() {
             self._ui_component_data._size_hint_y = None;
             self._ui_component_data._size.y = size_y;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_size_hint_x(&self) -> Option<f32> { self._ui_component_data._size_hint_x }
@@ -427,26 +429,26 @@ impl UIComponentInstance {
     pub fn set_size_hint_x(&mut self, size_hint_x: Option<f32>) {
         if size_hint_x != self._ui_component_data._size_hint_x {
             self._ui_component_data._size_hint_x = size_hint_x;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn set_size_hint_y(&mut self, size_hint_y: Option<f32>) {
         if size_hint_y != self._ui_component_data._size_hint_y {
             self._ui_component_data._size_hint_y = size_hint_y;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn set_margine(&mut self, margine: f32) { self.set_margines(Vector4::new(margine, margine, margine, margine)); }
     pub fn set_margines(&mut self, margine: Vector4<f32>) {
         if margine != self._ui_component_data._margine {
             self._ui_component_data._margine = margine;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     fn set_margine_inner(&mut self, index: usize, margine: f32) {
         if margine != self._ui_component_data._margine[index] {
             self._ui_component_data._margine[index] = margine;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_margine(&self) -> &Vector4<f32> { &self._ui_component_data._margine }
@@ -463,13 +465,13 @@ impl UIComponentInstance {
     pub fn set_paddings(&mut self, padding: Vector4<f32>) {
         if padding != self._ui_component_data._padding {
             self._ui_component_data._padding = padding;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     fn set_padding_inner(&mut self, index: usize, padding: f32) {
         if padding != self._ui_component_data._padding[index] {
             self._ui_component_data._padding[index] = padding;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_padding(&self) -> &Vector4<f32> { &self._ui_component_data._padding }
@@ -485,18 +487,20 @@ impl UIComponentInstance {
     pub fn set_halign(&mut self, halign: HorizontalAlign) {
         if halign != self._ui_component_data._halign {
             self._ui_component_data._halign = halign;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_valign(&self) -> VerticalAlign { self._ui_component_data._valign }
     pub fn set_valign(&mut self, valign: VerticalAlign) {
         if valign != self._ui_component_data._valign {
             self._ui_component_data._valign = valign;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_changed_layout(&self) -> bool { self._changed_layout }
     pub fn set_changed_layout(&mut self, changed_layout: bool) { self._changed_layout = changed_layout; }
+    pub fn get_changed_child_layout(&self) -> bool { self._changed_child_layout }
+    pub fn set_changed_child_layout(&mut self, changed_child_layout: bool) { self._changed_child_layout = changed_child_layout; }
     pub fn get_owner_widget(&self) -> &Option<*mut dyn Widget> { &self._owner_widget }
     pub fn get_parent(&self) -> &Option<*mut UIComponentInstance> { &self._parent }
     pub fn set_parent(&mut self, parent: Option<*mut UIComponentInstance>) {
@@ -514,7 +518,7 @@ impl UIComponentInstance {
             //     self._viewport_manager.focused_widget = None
         }
         self._children.clear();
-        self._changed_layout = true;
+        self.set_changed_layout(true);
     }
     pub fn get_renderable(&self) -> bool { self._renderable }
     pub fn set_renderable(&mut self, renderable: bool) {
@@ -556,7 +560,7 @@ impl UIComponentInstance {
     pub fn set_font_size(&mut self, font_size: f32) {
         if font_size != self._ui_component_data._font_size {
             self._ui_component_data._font_size = font_size;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
     pub fn get_font_color(&self) -> u32 { self._ui_component_data._font_color }
@@ -606,7 +610,7 @@ impl UIComponentInstance {
             if false == self._children.contains(&child) {
                 self._children.push(child);
                 child.as_mut().unwrap().set_parent(Some(self));
-                self._changed_layout = true;
+                self.set_changed_layout(true);
             }
         }
     }
@@ -619,7 +623,7 @@ impl UIComponentInstance {
                 // }
                 self._children.remove(index);
                 child.as_mut().unwrap().set_parent(None);
-                self._changed_layout = true;
+                self.set_changed_layout(true);
             }
         }
     }
@@ -628,7 +632,7 @@ impl UIComponentInstance {
         if text != self._text {
             self._text = text;
             self._changed_text = true;
-            self._changed_layout = true;
+            self.set_changed_layout(true);
         }
     }
 
@@ -745,7 +749,7 @@ impl UIComponentInstance {
         mut need_to_collect_render_data: bool,
         mut opacity: f32
     ) {
-        if self._visible && self._renderable{
+        if self._visible && self._renderable {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 
@@ -814,8 +818,8 @@ impl UIComponentInstance {
         }
 
         unsafe {
-            for ui_component in self._children.iter() {
-                ui_component.as_mut().unwrap().collect_ui_render_data(
+            for child_ui_component in self._children.iter() {
+                child_ui_component.as_mut().unwrap().collect_ui_render_data(
                     font_data,
                     render_ui_count,
                     render_ui_group,
@@ -828,22 +832,57 @@ impl UIComponentInstance {
         }
     }
 
-    fn update_layout_size(&mut self, parent_contents_size: &Vector2<f32>) {
-        let border = self.get_border();
-        let spaces = self.get_margine() + &Vector4::new(border, border, border, border) + self.get_padding();
-        let size_hint_x = self.get_size_hint_x();
-        let size_hint_y = self.get_size_hint_y();
-        let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
-        if size_hint_x.is_some() {
-            ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
+    fn update_layout_size(&mut self, parent_contents_size: &Vector2<f32>, font_data: &FontData) {
+        // calculate contents size
+        if self._changed_layout {
+            let border = self.get_border();
+            let spaces = self.get_margine() + &Vector4::new(border, border, border, border) + self.get_padding();
+            let size_hint_x = self.get_size_hint_x();
+            let size_hint_y = self.get_size_hint_y();
+            let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
+            if size_hint_x.is_some() {
+                ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
+            }
+            if size_hint_y.is_some() {
+                ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+            }
+
+            // update contents area
+            let mut text_contents_size = Vector2::<f32>::zeros(); // used to exandable
+            if self._changed_text {
+                self.compute_text_contents_size(font_data, &mut text_contents_size);
+                self._changed_text = false;
+            }
+
+            self._spaces.clone_from(&spaces);
+            self._ui_size.clone_from(&ui_size);
+            self._contents_size.x = 0f32.max(ui_size.x - spaces.x - spaces.x);
+            self._contents_size.y = 0f32.max(ui_size.y - spaces.y - spaces.w);
         }
-        if size_hint_y.is_some() {
-            ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+
+        // recursive update_layout_size
+        if self._changed_layout || self._changed_child_layout {
+            let mut required_contents_size = Vector2::<f32>::zeros();
+            for child in self._children.iter() {
+                let child_ui_instance = unsafe { child.as_mut().unwrap() };
+                child_ui_instance.update_layout_size(&self._contents_size, font_data);
+
+                // accumulate required_contents_size
+                if UILayoutType::BoxLayout == self.get_layout_type() {
+                    match self.get_layout_orientation() {
+                        Orientation::HORIZONTAL => {
+                            required_contents_size.x += child_ui_instance._ui_size.x;
+                            required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
+                        },
+                        Orientation::VERTICAL => {
+                            required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
+                            required_contents_size.y += child_ui_instance._ui_size.y;
+                        },
+                    }
+                }
+            }
+            self._required_contents_size = required_contents_size;
         }
-        self._spaces.clone_from(&spaces);
-        self._ui_size.clone_from(&ui_size);
-        self._contents_size.x = 0f32.max(ui_size.x - spaces.x - spaces.x);
-        self._contents_size.y = 0f32.max(ui_size.y - spaces.y - spaces.w);
     }
 
     fn update_layout_area(
@@ -921,86 +960,52 @@ impl UIComponentInstance {
         self._transform.set_position(&pivot);
     }
 
-    fn update_layout(&mut self, font_data: &FontData) {
-        unsafe {
-            let mut changed_layout: bool = self._changed_layout;
-            let mut required_contents_area = self._contents_area.clone() as Vector4<f32>;
-            let mut required_contents_size = Vector2::<f32>::zeros();
-
+    fn update_layout(&mut self) {
+        if self._changed_layout || self._changed_child_layout {
             let layout_type = self.get_layout_type();
             let layout_orientation = self.get_layout_orientation();
             let halign = self.get_halign();
             let valign = self.get_valign();
-            let contents_area = &self._contents_area;
-            let contents_size = &self._contents_size;
 
-            // preupdate layout size
+            // calculate child_ui_pos
+            let mut child_ui_pos = Vector2::<f32>::new(self._contents_area.x, self._contents_area.y); // (left, top)
+            if UILayoutType::BoxLayout == layout_type {
+                match halign {
+                    HorizontalAlign::LEFT => {},
+                    HorizontalAlign::CENTER => child_ui_pos.x += (self._contents_size.x - self._required_contents_size.x) * 0.5,
+                    HorizontalAlign::RIGHT => child_ui_pos.x += self._contents_size.x - self._required_contents_size.x,
+                }
+                match valign {
+                    VerticalAlign::TOP => {},
+                    VerticalAlign::CENTER => child_ui_pos.y += (self._contents_size.y - self._required_contents_size.y) * 0.5,
+                    VerticalAlign::BOTTOM => child_ui_pos.y += self._contents_size.y - self._required_contents_size.y,
+                }
+            }
+
             for child in self._children.iter() {
-                let child_ui_instance = child.as_mut().unwrap();
-                changed_layout |= child_ui_instance._changed_layout;
-                if changed_layout {
-                    // update_layout_size
-                    child_ui_instance.update_layout_size(&self._contents_size);
-
-                    // accumulate required_contents_size
-                    if UILayoutType::BoxLayout == layout_type {
-                        match layout_orientation {
-                            Orientation::HORIZONTAL => {
-                                required_contents_size.x += child_ui_instance._ui_size.x;
-                                required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
-                            },
-                            Orientation::VERTICAL => {
-                                required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
-                                required_contents_size.y += child_ui_instance._ui_size.y;
-                            },
-                        }
-                    }
-                }
+                let child_ui_instance = unsafe { child.as_mut().unwrap() };
+                child_ui_instance.update_layout_area(
+                    layout_type,
+                    layout_orientation,
+                    halign,
+                    valign,
+                    &self._contents_area,
+                    &self._contents_size,
+                    &self._required_contents_size,
+                    &mut child_ui_pos
+                );
+                child_ui_instance.update_layout();
+                self._required_contents_area.x = self._required_contents_area.x.min(child_ui_instance._ui_area.x);
+                self._required_contents_area.y = self._required_contents_area.y.min(child_ui_instance._ui_area.y);
+                self._required_contents_area.z = self._required_contents_area.z.min(child_ui_instance._ui_area.z);
+                self._required_contents_area.w = self._required_contents_area.w.min(child_ui_instance._ui_area.w);
             }
 
-            if changed_layout {
-                // calculate child_ui_pos
-                let mut child_ui_pos = Vector2::<f32>::new(contents_area.x, contents_area.y); // (left, top)
-                if UILayoutType::BoxLayout == layout_type {
-                    match halign {
-                        HorizontalAlign::LEFT => {},
-                        HorizontalAlign::CENTER => child_ui_pos.x += (contents_size.x - required_contents_size.x) * 0.5,
-                        HorizontalAlign::RIGHT => child_ui_pos.x += contents_size.x - required_contents_size.x,
-                    }
-                    match valign {
-                        VerticalAlign::TOP => {},
-                        VerticalAlign::CENTER => child_ui_pos.y += (contents_size.y - required_contents_size.y) * 0.5,
-                        VerticalAlign::BOTTOM => child_ui_pos.y += contents_size.y - required_contents_size.y,
-                    }
-                }
-
-                // update children layout area
-                for child in self._children.iter() {
-                    let child_ui_instance = child.as_mut().unwrap();
-                    child_ui_instance.update_layout_area(layout_type, layout_orientation, halign, valign, contents_area, contents_size, &required_contents_size, &mut child_ui_pos);
-                    child_ui_instance.update_layout(font_data);
-                    required_contents_area.x = required_contents_area.x.min(child_ui_instance._ui_area.x);
-                    required_contents_area.y = required_contents_area.y.min(child_ui_instance._ui_area.y);
-                    required_contents_area.z = required_contents_area.z.min(child_ui_instance._ui_area.z);
-                    required_contents_area.w = required_contents_area.w.min(child_ui_instance._ui_area.w);
-                }
-
-                // update contents area
-                let mut text_contents_size = Vector2::<f32>::zeros();
-                if self._changed_text {
-                    self.compute_text_contents_size(font_data, &mut text_contents_size);
-                }
-
-                required_contents_size.x = 0f32.max(required_contents_area.z - required_contents_area.x);
-                required_contents_size.y = 0f32.max(required_contents_area.w - required_contents_area.y);
-                self._required_contents_area = required_contents_area;
-                self._required_contents_size = required_contents_size;
-
-                // complete
-                self._changed_render_data = true;
-                self._changed_layout = false;
-                self._ui_layout_state = UILayoutState::Complete;
-            }
+            // complete
+            self._changed_render_data = true;
+            self.set_changed_layout(false);
+            self.set_changed_child_layout(false);
+            self._ui_layout_state = UILayoutState::Complete;
         }
     }
 
@@ -1015,20 +1020,20 @@ impl UIComponentInstance {
         mouse_input_data: &MouseInputData,
         mut touch_event: &mut bool,
     ) {
-
         for child_ui_instance in self._children.iter() {
-            unsafe {
-                child_ui_instance.as_mut().unwrap().update_ui_component(
-                    delta_time,
-                    window_size,
-                    time_data,
-                    keyboard_input_data,
-                    mouse_pos,
-                    mouse_moved,
-                    mouse_input_data,
-                    touch_event,
-                );
-            }
+            let child_ui_instance = unsafe { child_ui_instance.as_mut().unwrap() };
+            child_ui_instance.update_ui_component(
+                delta_time,
+                window_size,
+                time_data,
+                keyboard_input_data,
+                mouse_pos,
+                mouse_moved,
+                mouse_input_data,
+                touch_event,
+            );
+
+            self._changed_child_layout |= child_ui_instance.get_changed_layout() || child_ui_instance.get_changed_child_layout();
         }
 
         if false == *touch_event && self.get_touchable() {
@@ -1198,6 +1203,7 @@ impl UIManagerData {
             };
             ui_manager_data._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
             ui_manager_data._root.get_ui_component_mut().set_layout_type(UILayoutType::FloatLayout);
+
             ui_manager_data._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
             ui_manager_data._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
             ui_manager_data._root.get_ui_component_mut().set_renderable(false);
@@ -1385,8 +1391,8 @@ impl UIManagerData {
         let required_contents_size = Vector2::<f32>::zeros();
         let mut child_ui_pos = Vector2::<f32>::zeros();
 
-        if root_ui_component.get_changed_layout() {
-            root_ui_component.update_layout_size(&contents_size);
+        if root_ui_component.get_changed_layout() || root_ui_component.get_changed_child_layout() {
+            root_ui_component.update_layout_size(&contents_size, &self._font_data.borrow());
             root_ui_component.update_layout_area(
                 UILayoutType::FloatLayout,
                 Orientation::HORIZONTAL,
@@ -1397,8 +1403,8 @@ impl UIManagerData {
                 &required_contents_size,
                 &mut child_ui_pos
             );
+            root_ui_component.update_layout();
         }
-        root_ui_component.update_layout(&self._font_data.borrow());
 
         // collect_ui_render_data
         let font_data = self._font_data.borrow();
