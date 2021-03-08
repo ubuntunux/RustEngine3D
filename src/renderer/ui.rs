@@ -695,15 +695,12 @@ impl UIComponentInstance {
         let mut row: i32 = 0;
         self._render_text_count = 0;
 
-        let font_render_area = {
-            let render_ui_instance_data = &render_ui_instance_datas[self._render_ui_index as usize];
-            Vector4::new(
-                self._contents_area.x.max(self._renderable_area.x),
-                self._contents_area.y.max(self._renderable_area.y),
-                self._contents_area.z.min(self._renderable_area.z),
-                self._contents_area.w.min(self._renderable_area.w)
-            )
-        };
+        let font_render_area = Vector4::new(
+            self._contents_area.x.max(self._renderable_area.x),
+            self._contents_area.y.max(self._renderable_area.y),
+            self._contents_area.z.min(self._renderable_area.z),
+            self._contents_area.w.min(self._renderable_area.w)
+        );
 
         for c in self._text.as_bytes().iter() {
             let ch = (*c) as char;
@@ -902,7 +899,7 @@ impl UIComponentInstance {
         required_contents_size: &Vector2<f32>,
         parent_renderable_area: &Vector4<f32>,
         ui_area_pos: &mut Vector2<f32>,
-        update_depth: u32,
+        _update_depth: u32,
     ) {
         // update ui_area.xy
         match parent_layout_type {
@@ -931,7 +928,6 @@ impl UIComponentInstance {
                             },
                             VerticalAlign::BOTTOM => self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y),
                         }
-                        ui_area_pos.x += self._ui_size.x;
                     },
                     Orientation::VERTICAL => {
                         self._ui_area.y = ui_area_pos.y;
@@ -940,7 +936,6 @@ impl UIComponentInstance {
                             HorizontalAlign::CENTER => self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5,
                             HorizontalAlign::RIGHT => self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x),
                         }
-                        ui_area_pos.y += self._ui_size.y;
                     },
                 }
             }
@@ -1020,6 +1015,17 @@ impl UIComponentInstance {
                     );
                 }
 
+                if UILayoutType::BoxLayout == layout_type {
+                    match layout_orientation {
+                        Orientation::HORIZONTAL => {
+                            child_ui_pos.x += child_ui_instance._ui_size.x;
+                        },
+                        Orientation::VERTICAL => {
+                            child_ui_pos.y += child_ui_instance._ui_size.y;
+                        },
+                    }
+                }
+
                 child_ui_instance.update_layout(inherit_changed_layout || self._changed_layout, update_depth + 1);
 
                 if self._changed_child_layout {
@@ -1047,10 +1053,11 @@ impl UIComponentInstance {
         mouse_pos: &Vector2<f32>,
         mouse_moved: bool,
         mouse_input_data: &MouseInputData,
-        mut touch_event: &mut bool,
+        touch_event: &mut bool,
     ) {
-        for child_ui_instance in self._children.iter() {
-            let child_ui_instance = unsafe { child_ui_instance.as_mut().unwrap() };
+        let mut child_index: isize = self._children.len() as isize - 1;
+        while 0 <= child_index {
+            let child_ui_instance = unsafe { self._children[child_index as usize].as_mut().unwrap() };
             child_ui_instance.update_ui_component(
                 delta_time,
                 window_size,
@@ -1062,6 +1069,7 @@ impl UIComponentInstance {
                 touch_event,
             );
             self._changed_child_layout |= child_ui_instance.get_changed_layout() || child_ui_instance.get_changed_child_layout();
+            child_index -= 1;
         }
 
         if false == *touch_event && self.get_touchable() {
