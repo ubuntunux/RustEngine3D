@@ -119,7 +119,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_pos(0.0, 5.0);
             ui_component.set_size(50.0, 50.0);
             ui_component.set_color(get_color32(255, 128, 255, 255));
-            ui_component.set_font_color(get_color32(0, 0, 0, 128));
+            ui_component.set_font_color(get_color32(0, 0, 0, 255));
             ui_component.set_border_color(get_color32(0, 0, 0, 128));
             ui_component.set_margine(5.0);
             ui_component.set_round(10.0);
