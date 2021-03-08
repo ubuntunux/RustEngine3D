@@ -662,7 +662,7 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn compute_text_contents_size(&mut self, font_data: &FontData) {
+    pub fn compute_text_contents_size(&mut self, font_data: &FontData) -> Vector2<f32>{
         self._text_counts.clear();
 
         if false == self._text.is_empty() {
@@ -690,9 +690,10 @@ impl UIComponentInstance {
             self._text_counts.push(column_count);
             max_column_count = max_column_count.max(column_count);
             row_count += 1;
-            self._text_contents_size.x = max_column_count as f32 * font_size.x;
-            self._text_contents_size.y = row_count as f32 * font_size.y;
+
+            return Vector2::new(max_column_count as f32 * font_size.x, row_count as f32 * font_size.y);
         }
+        Vector2::zeros()
     }
 
     pub fn collect_ui_font_render_data(
@@ -875,13 +876,21 @@ impl UIComponentInstance {
 
             // update contents area
             if self._changed_text {
-                self.compute_text_contents_size(font_data);
+                self._text_contents_size = self.compute_text_contents_size(font_data);
                 self._changed_text = false;
+            }
+
+            // expandable
+            if self.get_expandable_x() {
+                ui_size.x = ui_size.x.max(self._text_contents_size.x + spaces.x + spaces.z);
+            }
+            if self.get_expandable_y() {
+                ui_size.y = ui_size.y.max(self._text_contents_size.y + spaces.y + spaces.w);
             }
 
             self._spaces.clone_from(&spaces);
             self._ui_size.clone_from(&ui_size);
-            self._contents_size.x = self._text_contents_size.x.max(ui_size.x - spaces.x - spaces.x);
+            self._contents_size.x = self._text_contents_size.x.max(ui_size.x - spaces.x - spaces.z);
             self._contents_size.y = self._text_contents_size.y.max(ui_size.y - spaces.y - spaces.w);
         }
 
