@@ -302,6 +302,7 @@ pub fn run_application(
 
                     // update timer
                     if application_data._time_data.update_time_data(&time_instance) {
+                        font_manager.clear_logs();
                         let text_fps = format!("{:.2}fps / {:.3}ms", application_data._time_data._average_fps, application_data._time_data._average_frame_time);
                         log::info!("{}", text_fps);
                         font_manager.log(text_fps);

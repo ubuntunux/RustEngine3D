@@ -47,7 +47,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
-            ui_component.set_expandable(true);
+            ui_component.set_expandable_x(true);
             ui_component.set_text(String::from("Child\nChild Test"));
             ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
@@ -68,7 +68,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
-            ui_component.set_expandable(true);
+            ui_component.set_expandable_x(true);
             ui_component.set_text(String::from("Btn2\nBtn2 Test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
             ui_component._callback_touch_up = Some(touch_up.clone());
@@ -101,7 +101,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_halign(HorizontalAlign::RIGHT);
             ui_component.set_valign(VerticalAlign::BOTTOM);
             ui_component.set_pos(100.0, 50.0);
-            ui_component.set_size(200.0, 100.0);
+            ui_component.set_size(100.0, 100.0);
             ui_component.set_color(get_color32(255, 128, 128, 255));
             ui_component.set_font_color(get_color32(255, 255, 255, 255));
             ui_component.set_border_color(get_color32(0, 0, 0, 255));
@@ -110,6 +110,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
+            ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn2\nBtn2 Test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
             ui_component._callback_touch_up = Some(touch_up.clone());
@@ -119,7 +120,7 @@ impl UIManagerBase for UIManager {
             let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
             let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(0.0, 5.0);
-            ui_component.set_size(50.0, 50.0);
+            ui_component.set_size(50.0, 75.0);
             ui_component.set_color(get_color32(255, 128, 255, 255));
             ui_component.set_font_color(get_color32(0, 0, 0, 255));
             ui_component.set_border_color(get_color32(0, 0, 0, 128));
@@ -129,7 +130,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
-            ui_component.set_text(String::from("Btn3\nBtn3 Test"));
+            ui_component.set_text(String::from("Basd\nTasdas"));
             ui_component._callback_touch_down = Some(touch_down.clone());
             ui_component._callback_touch_up = Some(touch_up.clone());
             ui_component._callback_touch_move = Some(touch_move.clone());
@@ -137,12 +138,16 @@ impl UIManagerBase for UIManager {
 
             let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
             let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
+            ui_component.set_halign(HorizontalAlign::RIGHT);
+            ui_component.set_valign(VerticalAlign::BOTTOM);
             ui_component.set_pos(0.0, 5.0);
-            ui_component.set_size(100.0, 50.0);
+            ui_component.set_size(150.0, 50.0);
             ui_component.set_color(get_color32(128, 128, 255, 255));
             ui_component.set_font_color(get_color32(0, 0, 0, 255));
             ui_component.set_border_color(get_color32(0, 0, 0, 128));
             ui_component.set_margine(5.0);
+            ui_component.set_margine_top(40.0);
+            ui_component.set_padding_top(40.0);
             ui_component.set_round(10.0);
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);

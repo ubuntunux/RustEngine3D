@@ -261,8 +261,8 @@ impl Default for UIComponentData {
             _has_cursor: false,
             _scroll_x: false,
             _scroll_y: false,
-            _expandable_x: true,
-            _expandable_y: true,
+            _expandable_x: false,
+            _expandable_y: false,
             _resizable_x: false,
             _resizable_y: false,
             _color: get_color32(255, 255, 255, 255),
@@ -916,6 +916,18 @@ impl UIComponentInstance {
                 }
             }
             self._required_contents_size = required_contents_size;
+        }
+
+        if self._changed_layout || self._changed_child_layout {
+            // expandable
+            if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
+                self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
+                self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
+            }
+            if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
+                self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
+                self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
+            }
         }
     }
 

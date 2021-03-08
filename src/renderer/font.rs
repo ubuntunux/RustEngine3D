@@ -375,7 +375,6 @@ impl FontManager {
     ) {
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
-            self._logs.clear();
 
             let skip_check = true;
             self._text_render_data.set_text_render_data(
