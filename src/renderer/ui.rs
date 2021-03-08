@@ -106,7 +106,7 @@ pub struct UIRenderGroupData {
 pub struct UIRenderData {
     pub _ui_texcoord: Vector4<f32>,
     pub _ui_render_area: Vector4<f32>,
-    pub _ui_parent_render_area: Vector4<f32>,
+    pub _ui_renderable_area: Vector4<f32>,
     pub _ui_color: u32,
     pub _ui_round: f32,
     pub _ui_border: f32,
@@ -122,7 +122,7 @@ impl Default for UIRenderData {
         UIRenderData {
             _ui_texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _ui_render_area: Vector4::zeros(),
-            _ui_parent_render_area: Vector4::zeros(),
+            _ui_renderable_area: Vector4::zeros(),
             _ui_color: 0xFFFFFFFF,
             _ui_round: 0.0,
             _ui_border: 0.0,
@@ -182,15 +182,16 @@ pub struct UIComponentInstance {
     pub _world_to_local_matrix: Matrix4<f32>,
     pub _local_to_world_matrix: Matrix4<f32>,
     pub _spaces: Vector4<f32>, // margine + border + padding
-    pub _contents_area: Vector4<f32>, // (x,y) ~ ((x,y) + contents_size)
-    pub _contents_size: Vector2<f32>,
-    pub _text_contents_size: Vector2<f32>,
+    pub _contents_area: Vector4<f32>,
+    pub _contents_size: Vector2<f32>, // available size of text_contents_size and sum of uisize of children
+    pub _text_contents_size: Vector2<f32>, // just text contents size
     pub _required_contents_area: Vector4<f32>,
-    pub _required_contents_size: Vector2<f32>,
+    pub _required_contents_size: Vector2<f32>, // required size of text_contents_size and sum of uisize of children
     pub _text_counts: Vec<usize>, // text column count, text row count
-    pub _render_area: Vector4<f32>, // border + size
-    pub _ui_area: Vector4<f32>, // (x,y) ~ ((x,y) + _ui_size)
-    pub _ui_size: Vector2<f32>, // margie + border + padding + size
+    pub _render_area: Vector4<f32>, // border + _ui_component_data._size
+    pub _renderable_area: Vector4<f32>, // inherit _render_area
+    pub _ui_area: Vector4<f32>,
+    pub _ui_size: Vector2<f32>, // margie + border + padding + _ui_component_data._size
     pub _ui_layout_state: UILayoutState,
     pub _opacity: f32,
     pub _renderable: bool,
@@ -295,6 +296,7 @@ impl UIComponentInstance {
             _required_contents_area: Vector4::zeros(),
             _required_contents_size: Vector2::zeros(),
             _render_area: Vector4::zeros(),
+            _renderable_area: Vector4::zeros(),
             _ui_area: Vector4::zeros(),
             _ui_size: Vector2::zeros(),
             _ui_layout_state: UILayoutState::Unknown,
@@ -313,7 +315,7 @@ impl UIComponentInstance {
     }
 
     pub fn check_collide(&self, touched_pos: &Vector2<f32>) -> bool {
-        self._render_area.x <= touched_pos.x && touched_pos.x < self._render_area.z && self._render_area.y <= touched_pos.y && touched_pos.y < self._render_area.w
+        self._renderable_area.x <= touched_pos.x && touched_pos.x < self._renderable_area.z && self._renderable_area.y <= touched_pos.y && touched_pos.y < self._renderable_area.w
     }
 
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>) {
@@ -693,6 +695,16 @@ impl UIComponentInstance {
         let mut row: i32 = 0;
         self._render_text_count = 0;
 
+        let font_render_area = {
+            let render_ui_instance_data = &render_ui_instance_datas[self._render_ui_index as usize];
+            Vector4::new(
+                self._contents_area.x.max(self._renderable_area.x),
+                self._contents_area.y.max(self._renderable_area.y),
+                self._contents_area.z.min(self._renderable_area.z),
+                self._contents_area.w.min(self._renderable_area.w)
+            )
+        };
+
         for c in self._text.as_bytes().iter() {
             let ch = (*c) as char;
             if '\n' == ch {
@@ -725,7 +737,7 @@ impl UIComponentInstance {
                     render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
                     render_ui_instance_data._ui_texcoord.w = texcoord_y + inv_count_of_side;
                     render_ui_instance_data._ui_render_area = ui_render_area.clone() as Vector4<f32>;
-                    render_ui_instance_data._ui_parent_render_area = self._contents_area.clone() as Vector4<f32>;
+                    render_ui_instance_data._ui_renderable_area.clone_from(&font_render_area);
                     render_ui_instance_data._ui_color = self.get_font_color();
                     render_ui_instance_data._ui_round = 0.0;
                     render_ui_instance_data._ui_border = 0.0;
@@ -761,29 +773,22 @@ impl UIComponentInstance {
             if need_to_collect_render_data {
                 opacity *= self.get_opacity();
 
-                let mut ui_parent_render_area: Vector4<f32> = Vector4::zeros();
-                if self._parent.is_some() {
-                    unsafe {
-                        let parent: &UIComponentInstance = &(*self._parent.unwrap());
-                        ui_parent_render_area.clone_from(&parent._contents_area);
-                    }
-                } else {
-                    ui_parent_render_area.clone_from(&self._render_area);
-                }
-
                 let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
                 render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
-                render_ui_instance_data._ui_parent_render_area = ui_parent_render_area;
+                render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
                 render_ui_instance_data._ui_opacity = opacity;
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
-                render_ui_instance_data._ui_render_flags =
-                    if self.get_material_instance().is_some() { UI_RENDER_FLAG_RENDER_TEXTURE } else { 0 } |
-                    if self._touched { UI_RENDER_FLAG_TOUCHED } else { 0 };
+                render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
                 render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
-
+                if self.get_material_instance().is_some() {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_RENDER_TEXTURE;
+                }
+                if self._touched {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                }
                 self._render_ui_index = render_ui_index;
                 self._changed_render_data = false;
             }
@@ -862,7 +867,7 @@ impl UIComponentInstance {
         }
 
         // recursive update_layout_size
-        if self._changed_layout || self._changed_child_layout {
+        if self._changed_child_layout {
             let mut required_contents_size = Vector2::<f32>::zeros();
             for child in self._children.iter() {
                 let child_ui_instance = unsafe { child.as_mut().unwrap() };
@@ -895,7 +900,9 @@ impl UIComponentInstance {
         parent_contents_area: &Vector4<f32>,
         parent_contents_size: &Vector2<f32>,
         required_contents_size: &Vector2<f32>,
-        ui_area_pos: &mut Vector2<f32>
+        parent_renderable_area: &Vector4<f32>,
+        ui_area_pos: &mut Vector2<f32>,
+        update_depth: u32,
     ) {
         // update ui_area.xy
         match parent_layout_type {
@@ -948,6 +955,11 @@ impl UIComponentInstance {
         self._render_area.z = self._ui_area.z - self.get_margine_right();
         self._render_area.w = self._ui_area.w - self.get_margine_bottom();
 
+        self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x);
+        self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y);
+        self._renderable_area.z = self._render_area.z.min(parent_renderable_area.z);
+        self._renderable_area.w = self._render_area.w.min(parent_renderable_area.w);
+
         self._contents_area.x = self._ui_area.x + self._spaces.x;
         self._contents_area.y = self._ui_area.y + self._spaces.y;
         self._contents_area.z = self._ui_area.z - self._spaces.z;
@@ -961,8 +973,9 @@ impl UIComponentInstance {
         self._transform.set_position(&pivot);
     }
 
-    fn update_layout(&mut self) {
-        if self._changed_layout || self._changed_child_layout {
+    fn update_layout(&mut self, mut inherit_changed_layout: bool, update_depth: u32) {
+        inherit_changed_layout = inherit_changed_layout || self._changed_layout;
+        if inherit_changed_layout || self._changed_child_layout {
             let layout_type = self.get_layout_type();
             let layout_orientation = self.get_layout_orientation();
             let halign = self.get_halign();
@@ -983,23 +996,38 @@ impl UIComponentInstance {
                 }
             }
 
+            let inherit_renderable_area = Vector4::new(
+                self._contents_area.x.max(self._renderable_area.x),
+                self._contents_area.y.max(self._renderable_area.y),
+                self._contents_area.z.min(self._renderable_area.z),
+                self._contents_area.w.min(self._renderable_area.w)
+            );
+
             for child in self._children.iter() {
                 let child_ui_instance = unsafe { child.as_mut().unwrap() };
-                child_ui_instance.update_layout_area(
-                    layout_type,
-                    layout_orientation,
-                    halign,
-                    valign,
-                    &self._contents_area,
-                    &self._contents_size,
-                    &self._required_contents_size,
-                    &mut child_ui_pos
-                );
-                child_ui_instance.update_layout();
-                self._required_contents_area.x = self._required_contents_area.x.min(child_ui_instance._ui_area.x);
-                self._required_contents_area.y = self._required_contents_area.y.min(child_ui_instance._ui_area.y);
-                self._required_contents_area.z = self._required_contents_area.z.min(child_ui_instance._ui_area.z);
-                self._required_contents_area.w = self._required_contents_area.w.min(child_ui_instance._ui_area.w);
+                if inherit_changed_layout || child_ui_instance.get_changed_layout() {
+                    child_ui_instance.update_layout_area(
+                        layout_type,
+                        layout_orientation,
+                        halign,
+                        valign,
+                        &self._contents_area,
+                        &self._contents_size,
+                        &self._required_contents_size,
+                        &inherit_renderable_area,
+                        &mut child_ui_pos,
+                        update_depth + 1
+                    );
+                }
+
+                child_ui_instance.update_layout(inherit_changed_layout || self._changed_layout, update_depth + 1);
+
+                if self._changed_child_layout {
+                    self._required_contents_area.x = self._required_contents_area.x.min(child_ui_instance._ui_area.x);
+                    self._required_contents_area.y = self._required_contents_area.y.min(child_ui_instance._ui_area.y);
+                    self._required_contents_area.z = self._required_contents_area.z.min(child_ui_instance._ui_area.z);
+                    self._required_contents_area.w = self._required_contents_area.w.min(child_ui_instance._ui_area.w);
+                }
             }
 
             // complete
@@ -1033,7 +1061,6 @@ impl UIComponentInstance {
                 mouse_input_data,
                 touch_event,
             );
-
             self._changed_child_layout |= child_ui_instance.get_changed_layout() || child_ui_instance.get_changed_child_layout();
         }
 
@@ -1391,20 +1418,26 @@ impl UIManagerData {
         let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
         let required_contents_size = Vector2::<f32>::zeros();
         let mut child_ui_pos = Vector2::<f32>::zeros();
+        let inherit_changed_layout: bool = false;
+        let update_depth: u32 = 0;
 
         if root_ui_component.get_changed_layout() || root_ui_component.get_changed_child_layout() {
             root_ui_component.update_layout_size(&contents_size, &self._font_data.borrow());
-            root_ui_component.update_layout_area(
-                UILayoutType::FloatLayout,
-                Orientation::HORIZONTAL,
-                DEFAILT_HORIZONTAL_ALIGN,
-                DEFAILT_VERTICAL_ALIGN,
-                &contents_area,
-                &contents_size,
-                &required_contents_size,
-                &mut child_ui_pos
-            );
-            root_ui_component.update_layout();
+            if root_ui_component.get_changed_layout() {
+                root_ui_component.update_layout_area(
+                    UILayoutType::FloatLayout,
+                    Orientation::HORIZONTAL,
+                    DEFAILT_HORIZONTAL_ALIGN,
+                    DEFAILT_VERTICAL_ALIGN,
+                    &contents_area,
+                    &contents_size,
+                    &required_contents_size,
+                    &contents_area,
+                    &mut child_ui_pos,
+                    update_depth
+                );
+            }
+            root_ui_component.update_layout(inherit_changed_layout, update_depth);
         }
 
         // collect_ui_render_data

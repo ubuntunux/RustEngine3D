@@ -71,6 +71,60 @@ impl UIManagerBase for UIManager {
             ui_component._callback_touch_up = Some(touch_up.clone());
             ui_component._callback_touch_move = Some(touch_move.clone());
             (*(btn as *mut dyn Widget)).add_widget(btn2);
+
+            let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
+            let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
+            ui_component.set_pos(0.0, 5.0);
+            ui_component.set_size(100.0, 50.0);
+            ui_component.set_color(get_color32(255, 128, 128, 255));
+            ui_component.set_font_color(get_color32(255, 255, 255, 255));
+            ui_component.set_border_color(get_color32(0, 0, 0, 255));
+            ui_component.set_margine(5.0);
+            ui_component.set_round(10.0);
+            ui_component.set_border(5.0);
+            ui_component.set_dragable(true);
+            ui_component.set_touchable(true);
+            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            ui_component._callback_touch_down = Some(touch_down.clone());
+            ui_component._callback_touch_up = Some(touch_up.clone());
+            ui_component._callback_touch_move = Some(touch_move.clone());
+            (*(btn2 as *mut dyn Widget)).add_widget(btn3);
+
+            let btn2 = UIManagerData::create_widget(UIWidgetTypes::Default);
+            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut();
+            ui_component.set_pos(0.0, 5.0);
+            ui_component.set_size(100.0, 50.0);
+            ui_component.set_color(get_color32(255, 128, 128, 255));
+            ui_component.set_font_color(get_color32(255, 255, 255, 255));
+            ui_component.set_border_color(get_color32(0, 0, 0, 255));
+            ui_component.set_margine(5.0);
+            ui_component.set_round(10.0);
+            ui_component.set_border(5.0);
+            ui_component.set_dragable(true);
+            ui_component.set_touchable(true);
+            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            ui_component._callback_touch_down = Some(touch_down.clone());
+            ui_component._callback_touch_up = Some(touch_up.clone());
+            ui_component._callback_touch_move = Some(touch_move.clone());
+            (*(btn as *mut dyn Widget)).add_widget(btn2);
+
+            let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
+            let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
+            ui_component.set_pos(0.0, 5.0);
+            ui_component.set_size(100.0, 50.0);
+            ui_component.set_color(get_color32(255, 128, 128, 255));
+            ui_component.set_font_color(get_color32(255, 255, 255, 255));
+            ui_component.set_border_color(get_color32(0, 0, 0, 255));
+            ui_component.set_margine(5.0);
+            ui_component.set_round(10.0);
+            ui_component.set_border(5.0);
+            ui_component.set_dragable(true);
+            ui_component.set_touchable(true);
+            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            ui_component._callback_touch_down = Some(touch_down.clone());
+            ui_component._callback_touch_up = Some(touch_up.clone());
+            ui_component._callback_touch_move = Some(touch_move.clone());
+            (*(btn2 as *mut dyn Widget)).add_widget(btn3);
         }
     }
 }
