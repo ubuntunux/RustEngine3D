@@ -1041,6 +1041,11 @@ impl UIComponentInstance {
                 self._contents_area.w.min(self._renderable_area.w)
             );
 
+            // recursive update layout area
+            let float_layout_expandable_test: bool = false && UILayoutType::FloatLayout == layout_type && self._changed_child_layout;
+            if float_layout_expandable_test {
+                self._required_contents_area.clone_from(&self._contents_area);
+            }
             for child in self._children.iter() {
                 let child_ui_instance = unsafe { child.as_mut().unwrap() };
                 if inherit_changed_layout || child_ui_instance.get_changed_layout() {
@@ -1071,11 +1076,51 @@ impl UIComponentInstance {
 
                 child_ui_instance.update_layout(inherit_changed_layout || self._changed_layout, update_depth + 1);
 
-                if self._changed_child_layout {
+                if float_layout_expandable_test {
                     self._required_contents_area.x = self._required_contents_area.x.min(child_ui_instance._ui_area.x);
                     self._required_contents_area.y = self._required_contents_area.y.min(child_ui_instance._ui_area.y);
-                    self._required_contents_area.z = self._required_contents_area.z.min(child_ui_instance._ui_area.z);
-                    self._required_contents_area.w = self._required_contents_area.w.min(child_ui_instance._ui_area.w);
+                    self._required_contents_area.z = self._required_contents_area.z.max(child_ui_instance._ui_area.z);
+                    self._required_contents_area.w = self._required_contents_area.w.max(child_ui_instance._ui_area.w);
+                }
+            }
+
+            if float_layout_expandable_test {
+                if self.get_expandable_x() {
+                    self._required_contents_size.x = self._required_contents_area.z - self._required_contents_area.x;
+                    self._ui_area.x = self._ui_area.x.min(self._required_contents_area.x);
+                    self._ui_area.z = self._ui_area.z.max(self._required_contents_area.z);
+                    self._ui_size.x = self._ui_area.z - self._ui_area.x;
+                    self._render_area.x = self._ui_area.x + self.get_margine_left();
+                    self._render_area.z = self._ui_area.z - self.get_margine_right();
+                    // self._renderable_area.x = self._render_area.x.max(self._renderable_area.x);
+                    // self._renderable_area.z = self._render_area.z.min(self._renderable_area.z);
+                    self._contents_area.x = self._ui_area.x + self._spaces.x;
+                    self._contents_area.z = self._ui_area.z - self._spaces.z;
+                    self._contents_area_size.x = self._contents_area.z - self._contents_area.x;
+                }
+
+                if self.get_expandable_y() {
+                    self._required_contents_size.y = self._required_contents_area.w - self._required_contents_area.y;
+                    self._ui_area.y = self._ui_area.y.min(self._required_contents_area.y);
+                    self._ui_area.w = self._ui_area.w.max(self._required_contents_area.w);
+                    self._ui_size.y = self._ui_area.w - self._ui_area.y;
+                    self._render_area.y = self._ui_area.y + self.get_margine_top();
+                    self._render_area.w = self._ui_area.w - self.get_margine_bottom();
+                    // self._renderable_area.y = self._render_area.y.max(self._renderable_area.y);
+                    // self._renderable_area.w = self._render_area.w.min(self._renderable_area.w);
+                    self._contents_area.y = self._ui_area.y + self._spaces.y;
+                    self._contents_area.w = self._ui_area.w - self._spaces.w;
+                    self._contents_area_size.y = self._contents_area.w - self._contents_area.y;
+                }
+
+                if self.get_expandable_x() || self.get_expandable_y() {
+                    let pivot = Vector3::new(
+                        (self._render_area.x + self._render_area.z) * 0.5,
+                        (self._render_area.y + self._render_area.w) * 0.5,
+                        0.0
+                    );
+                    self._transform.set_position(&pivot);
+                    self._transform.update_transform_object();
                 }
             }
 
