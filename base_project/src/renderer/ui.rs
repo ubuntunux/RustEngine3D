@@ -47,6 +47,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
+            ui_component.set_expandable(true);
             ui_component.set_text(String::from("Child\nChild Test"));
             ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
@@ -67,6 +68,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
+            ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn2\nBtn2 Test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
             ui_component._callback_touch_up = Some(touch_up.clone());
@@ -126,6 +128,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
+            ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn3\nBtn3 Test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
             ui_component._callback_touch_up = Some(touch_up.clone());
@@ -144,6 +147,7 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
+            ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn3\nBtn3 Test"));
             ui_component._callback_touch_down = Some(touch_down.clone());
             ui_component._callback_touch_up = Some(touch_up.clone());

@@ -601,10 +601,32 @@ impl UIComponentInstance {
     pub fn set_has_cursor(&mut self, has_cursor: bool) { self._ui_component_data._has_cursor = has_cursor; }
     pub fn get_scroll_x(&self) -> bool { self._ui_component_data._scroll_x }
     pub fn get_scroll_y(&self) -> bool { self._ui_component_data._scroll_y }
+    pub fn get_expandable(&self) -> (bool, bool) { (self._ui_component_data._expandable_x, self._ui_component_data._expandable_y) }
+    pub fn set_expandable(&mut self, expandable: bool) {
+        self._ui_component_data._expandable_x = expandable;
+        self._ui_component_data._expandable_y = expandable;
+        self._changed_layout = true;
+    }
     pub fn get_expandable_x(&self) -> bool { self._ui_component_data._expandable_x }
+    pub fn set_expandable_x(&mut self, expandable: bool) {
+        self._ui_component_data._expandable_x = expandable;
+        self._changed_layout = true;
+    }
     pub fn get_expandable_y(&self) -> bool { self._ui_component_data._expandable_y }
+    pub fn set_expandable_y(&mut self, expandable: bool) {
+        self._ui_component_data._expandable_y = expandable;
+        self._changed_layout = true;
+    }
+    pub fn get_resizable(&self) -> (bool, bool) { (self._ui_component_data._resizable_x, self._ui_component_data._resizable_y) }
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self._ui_component_data._resizable_x = resizable;
+        self._ui_component_data._resizable_y = resizable;
+        self._changed_layout = true;
+    }
     pub fn get_resizable_x(&self) -> bool { self._ui_component_data._resizable_x }
+    pub fn set_resizable_x(&mut self, resizable: bool) { self._ui_component_data._resizable_x = resizable; }
     pub fn get_resizable_y(&self) -> bool { self._ui_component_data._resizable_y }
+    pub fn set_resizable_y(&mut self, resizable: bool) { self._ui_component_data._resizable_y = resizable; }
     pub fn add_ui_component(&mut self, child: *mut UIComponentInstance) {
         unsafe {
             if child.as_ref().unwrap().get_parent().is_some() {
