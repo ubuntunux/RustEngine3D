@@ -183,7 +183,7 @@ pub struct UIComponentInstance {
     pub _local_to_world_matrix: Matrix4<f32>,
     pub _spaces: Vector4<f32>, // margine + border + padding
     pub _contents_area: Vector4<f32>,
-    pub _contents_size: Vector2<f32>, // available size of text_contents_size and sum of uisize of children
+    pub _contents_area_size: Vector2<f32>, // ui_size - spaces
     pub _text_contents_size: Vector2<f32>, // just text contents size
     pub _required_contents_area: Vector4<f32>,
     pub _required_contents_size: Vector2<f32>, // required size of text_contents_size and sum of uisize of children
@@ -291,7 +291,7 @@ impl UIComponentInstance {
             _local_to_world_matrix: Matrix4::identity(),
             _spaces: Vector4::zeros(),
             _contents_area: Vector4::zeros(),
-            _contents_size: Vector2::zeros(),
+            _contents_area_size: Vector2::zeros(),
             _text_contents_size: Vector2::zeros(),
             _required_contents_area: Vector4::zeros(),
             _required_contents_size: Vector2::zeros(),
@@ -890,8 +890,8 @@ impl UIComponentInstance {
 
             self._spaces.clone_from(&spaces);
             self._ui_size.clone_from(&ui_size);
-            self._contents_size.x = self._text_contents_size.x.max(ui_size.x - spaces.x - spaces.z);
-            self._contents_size.y = self._text_contents_size.y.max(ui_size.y - spaces.y - spaces.w);
+            self._contents_area_size.x = ui_size.x - spaces.x - spaces.z;
+            self._contents_area_size.y = ui_size.y - spaces.y - spaces.w;
         }
 
         // recursive update_layout_size
@@ -899,7 +899,7 @@ impl UIComponentInstance {
             let mut required_contents_size = Vector2::<f32>::zeros();
             for child in self._children.iter() {
                 let child_ui_instance = unsafe { child.as_mut().unwrap() };
-                child_ui_instance.update_layout_size(&self._contents_size, font_data);
+                child_ui_instance.update_layout_size(&self._contents_area_size, font_data);
 
                 // accumulate required_contents_size
                 if UILayoutType::BoxLayout == self.get_layout_type() {
@@ -926,7 +926,7 @@ impl UIComponentInstance {
         parent_halign: HorizontalAlign,
         parent_valign: VerticalAlign,
         parent_contents_area: &Vector4<f32>,
-        parent_contents_size: &Vector2<f32>,
+        parent_contents_area_size: &Vector2<f32>,
         required_contents_size: &Vector2<f32>,
         parent_renderable_area: &Vector4<f32>,
         ui_area_pos: &mut Vector2<f32>,
@@ -938,12 +938,12 @@ impl UIComponentInstance {
                 let pos_hint_x = self.get_pos_hint_x();
                 let pos_hint_y = self.get_pos_hint_y();
                 if pos_hint_x.is_some() {
-                    self._ui_area.x = parent_contents_area.x + parent_contents_size.x * pos_hint_x.unwrap();
+                    self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x.unwrap();
                 } else {
                     self._ui_area.x = parent_contents_area.x + self.get_pos_x();
                 }
                 if pos_hint_y.is_some() {
-                    self._ui_area.y = parent_contents_area.y + parent_contents_size.y * pos_hint_y.unwrap();
+                    self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y.unwrap();
                 } else {
                     self._ui_area.y = parent_contents_area.y + self.get_pos_y();
                 }
@@ -1012,13 +1012,13 @@ impl UIComponentInstance {
             if UILayoutType::BoxLayout == layout_type {
                 match halign {
                     HorizontalAlign::LEFT => {},
-                    HorizontalAlign::CENTER => child_ui_pos.x += (self._contents_size.x - self._required_contents_size.x) * 0.5,
-                    HorizontalAlign::RIGHT => child_ui_pos.x += self._contents_size.x - self._required_contents_size.x,
+                    HorizontalAlign::CENTER => child_ui_pos.x += (self._contents_area_size.x - self._required_contents_size.x) * 0.5,
+                    HorizontalAlign::RIGHT => child_ui_pos.x += self._contents_area_size.x - self._required_contents_size.x,
                 }
                 match valign {
                     VerticalAlign::TOP => {},
-                    VerticalAlign::CENTER => child_ui_pos.y += (self._contents_size.y - self._required_contents_size.y) * 0.5,
-                    VerticalAlign::BOTTOM => child_ui_pos.y += self._contents_size.y - self._required_contents_size.y,
+                    VerticalAlign::CENTER => child_ui_pos.y += (self._contents_area_size.y - self._required_contents_size.y) * 0.5,
+                    VerticalAlign::BOTTOM => child_ui_pos.y += self._contents_area_size.y - self._required_contents_size.y,
                 }
             }
 
@@ -1038,7 +1038,7 @@ impl UIComponentInstance {
                         halign,
                         valign,
                         &self._contents_area,
-                        &self._contents_size,
+                        &self._contents_area_size,
                         &self._required_contents_size,
                         &inherit_renderable_area,
                         &mut child_ui_pos,
@@ -1454,14 +1454,14 @@ impl UIManagerData {
 
         // updatge ui layout
         let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
-        let contents_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
+        let contents_area_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
         let required_contents_size = Vector2::<f32>::zeros();
         let mut child_ui_pos = Vector2::<f32>::zeros();
         let inherit_changed_layout: bool = false;
         let update_depth: u32 = 0;
 
         if root_ui_component.get_changed_layout() || root_ui_component.get_changed_child_layout() {
-            root_ui_component.update_layout_size(&contents_size, &self._font_data.borrow());
+            root_ui_component.update_layout_size(&contents_area_size, &self._font_data.borrow());
             if root_ui_component.get_changed_layout() {
                 root_ui_component.update_layout_area(
                     UILayoutType::FloatLayout,
@@ -1469,7 +1469,7 @@ impl UIManagerData {
                     DEFAILT_HORIZONTAL_ALIGN,
                     DEFAILT_VERTICAL_ALIGN,
                     &contents_area,
-                    &contents_size,
+                    &contents_area_size,
                     &required_contents_size,
                     &contents_area,
                     &mut child_ui_pos,
