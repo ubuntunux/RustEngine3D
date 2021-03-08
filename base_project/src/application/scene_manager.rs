@@ -52,7 +52,8 @@ pub struct SceneManager {
 
 
 impl SceneManagerBase for SceneManager {
-    fn initialize_scene_manager_data(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, resources: &Resources) {
+    fn initialize_scene_manager(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData,  renderer_data: &RendererData, resources: &Resources) {
+        self._renderer = renderer_data._renderer as *const Renderer;
         self._scene_manager_data = scene_manager_data;
         self._resources = resources;
         self.resized_window(window_width, window_height);
@@ -192,7 +193,7 @@ impl SceneManagerBase for SceneManager {
 }
 
 impl SceneManager {
-    pub fn create_scene_manager(renderer: &Renderer) -> SceneManager {
+    pub fn create_scene_manager() -> Box<SceneManager> {
         let default_camera = CameraObjectData::create_camera_object_data(&String::from("default_camera"), &CameraCreateInfo::default());
         let light_probe_camera_create_info = CameraCreateInfo {
             fov: 90.0,
@@ -225,10 +226,10 @@ impl SceneManager {
         );
         let fft_ocean = system::newRcRefCell(FFTOcean::default());
         let atmosphere = system::newRcRefCell(Atmosphere::create_atmosphere(true));
-        SceneManager {
+        Box::new(SceneManager {
             _scene_manager_data: std::ptr::null(),
             _resources: std::ptr::null(),
-            _renderer: renderer,
+            _renderer: std::ptr::null(),
             _window_width: default_camera._window_width,
             _window_height: default_camera._window_height,
             _main_camera: system::newRcRefCell(default_camera),
@@ -245,7 +246,7 @@ impl SceneManager {
             _skeletal_shadow_render_elements: Vec::new(),
             _fft_ocean: fft_ocean,
             _atmosphere: atmosphere,
-        }
+        })
     }
     pub fn get_scene_manager_data(&self) -> &SceneManagerData { unsafe { &*self._scene_manager_data } }
     pub fn get_scene_manager_data_mut(&self) -> &mut SceneManagerData { unsafe { &mut *(self._scene_manager_data as *mut SceneManagerData) } }

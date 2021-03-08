@@ -5,7 +5,7 @@ use crate::resource::resource::Resources;
 use crate::utilities::system::{ RcRefCell };
 
 pub trait SceneManagerBase {
-    fn initialize_scene_manager_data(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, resources: &Resources);
+    fn initialize_scene_manager(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, renderer_data: &RendererData, resources: &Resources);
     fn regist_scene_graphics_data(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>);
     fn initialize_scene_graphics_data(&self);
     fn destroy_scene_graphics_data(&self, device: &Device);

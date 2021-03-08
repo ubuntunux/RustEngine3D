@@ -214,7 +214,7 @@ pub fn run_application(
 
             // initialize grphics
             renderer_data.borrow().get_renderer_mut().initialize_renderer(&renderer_data.borrow());
-            scene_manager_data.borrow().get_scene_manager_mut().initialize_scene_manager_data(width, height, &scene_manager_data.borrow(), &resources.borrow());
+            scene_manager_data.borrow().get_scene_manager_mut().initialize_scene_manager(width, height, &scene_manager_data.borrow(), &renderer_data.borrow(), &resources.borrow());
             scene_manager_data.borrow().regist_scene_graphics_data();
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());

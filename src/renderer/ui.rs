@@ -183,7 +183,8 @@ pub struct UIComponentInstance {
     pub _local_to_world_matrix: Matrix4<f32>,
     pub _spaces: Vector4<f32>, // margine + border + padding
     pub _contents_area: Vector4<f32>, // (x,y) ~ ((x,y) + contents_size)
-    pub _contents_size: Vector2<f32>, // text column size, text row size
+    pub _contents_size: Vector2<f32>,
+    pub _text_contents_size: Vector2<f32>,
     pub _required_contents_area: Vector4<f32>,
     pub _required_contents_size: Vector2<f32>,
     pub _text_counts: Vec<usize>, // text column count, text row count
@@ -290,6 +291,7 @@ impl UIComponentInstance {
             _spaces: Vector4::zeros(),
             _contents_area: Vector4::zeros(),
             _contents_size: Vector2::zeros(),
+            _text_contents_size: Vector2::zeros(),
             _required_contents_area: Vector4::zeros(),
             _required_contents_size: Vector2::zeros(),
             _render_area: Vector4::zeros(),
@@ -636,7 +638,7 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn compute_text_contents_size(&mut self, font_data: &FontData, contents_size: &mut Vector2<f32>) {
+    pub fn compute_text_contents_size(&mut self, font_data: &FontData) {
         self._text_counts.clear();
 
         if false == self._text.is_empty() {
@@ -664,8 +666,8 @@ impl UIComponentInstance {
             self._text_counts.push(column_count);
             max_column_count = max_column_count.max(column_count);
             row_count += 1;
-            contents_size.x = max_column_count as f32 * font_size.x;
-            contents_size.y = row_count as f32 * font_size.y;
+            self._text_contents_size.x = max_column_count as f32 * font_size.x;
+            self._text_contents_size.y = row_count as f32 * font_size.y;
         }
     }
 
@@ -848,16 +850,15 @@ impl UIComponentInstance {
             }
 
             // update contents area
-            let mut text_contents_size = Vector2::<f32>::zeros(); // used to exandable
             if self._changed_text {
-                self.compute_text_contents_size(font_data, &mut text_contents_size);
+                self.compute_text_contents_size(font_data);
                 self._changed_text = false;
             }
 
             self._spaces.clone_from(&spaces);
             self._ui_size.clone_from(&ui_size);
-            self._contents_size.x = 0f32.max(ui_size.x - spaces.x - spaces.x);
-            self._contents_size.y = 0f32.max(ui_size.y - spaces.y - spaces.w);
+            self._contents_size.x = self._text_contents_size.x.max(ui_size.x - spaces.x - spaces.x);
+            self._contents_size.y = self._text_contents_size.y.max(ui_size.y - spaces.y - spaces.w);
         }
 
         // recursive update_layout_size

@@ -76,9 +76,9 @@ impl UIManagerBase for UIManager {
 }
 
 impl UIManager {
-    pub fn create_ui_manager() -> UIManager {
-        UIManager {
+    pub fn create_ui_manager() -> Box<UIManager> {
+        Box::new(UIManager {
             _ui_manager_data: std::ptr::null(),
-        }
+        })
     }
 }

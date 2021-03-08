@@ -445,8 +445,8 @@ impl RendererBase for Renderer {
 }
 
 impl Renderer {
-    pub fn create_renderer_data() -> Renderer {
-        Renderer {
+    pub fn create_renderer_data() -> Box<Renderer> {
+        Box::new(Renderer {
             _renderer_data: std::ptr::null(),
             _resources: std::ptr::null(),
             _is_first_rendering: true,
@@ -466,7 +466,7 @@ impl Renderer {
             _renderer_data_composite_gbuffer: RendererData_CompositeGBuffer::default(),
             _clear_render_targets: RendererData_ClearRenderTargets::default(),
             _light_probe_datas: RendererData_LightProbe::default(),
-        }
+        })
     }
 
     pub fn get_renderer_data(&self) -> &RendererData { unsafe { &*self._renderer_data } }

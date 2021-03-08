@@ -15,9 +15,9 @@ use crate::renderer::ui::UIManager;
 pub struct Application {
     pub _application_data: *const ApplicationData,
     pub _resources: *const Resources,
-    pub _renderer: *const Renderer,
-    pub _scene_manager: *const SceneManager,
-    pub _ui_manager: *const UIManager,
+    pub _renderer: Box<Renderer>,
+    pub _scene_manager: Box<SceneManager>,
+    pub _ui_manager: Box<UIManager>,
 }
 
 impl ApplicationBase for Application {
@@ -140,16 +140,22 @@ impl Application {
         unsafe { &mut *(self._application_data as *mut ApplicationData) }
     }
     pub fn get_scene_manager(&self) -> &SceneManager {
-        unsafe { &*self._scene_manager }
+        &self._scene_manager
     }
     pub fn get_scene_manager_mut(&self) -> &mut SceneManager {
-        unsafe { &mut *(self._scene_manager as *mut SceneManager) }
+        unsafe { &mut *((self._scene_manager.as_ref() as *const SceneManager) as *mut SceneManager) }
     }
     pub fn get_renderer(&self) -> &Renderer {
-        unsafe { &*self._renderer }
+        &self._renderer
     }
     pub fn get_renderer_mut(&self) -> &mut Renderer {
-        unsafe { &mut *(self._renderer as *mut Renderer) }
+        unsafe { &mut *((self._renderer.as_ref() as *const Renderer) as *mut Renderer) }
+    }
+    pub fn get_ui_manager(&self) -> &UIManager {
+        &self._ui_manager
+    }
+    pub fn get_ui_manager_mut(&self) -> &mut UIManager {
+        unsafe { &mut *((self._ui_manager.as_ref() as *const UIManager) as *mut UIManager) }
     }
 }
 
@@ -188,15 +194,12 @@ pub fn run_application() {
         constants::FOV = 60.0;
     }
 
-    let renderer = Renderer::create_renderer_data();
-    let scene_manager = SceneManager::create_scene_manager(&renderer);
-    let ui_manager = UIManager::create_ui_manager();
     let application = Application {
         _application_data: std::ptr::null(),
         _resources: std::ptr::null(),
-        _renderer: &renderer,
-        _scene_manager: &scene_manager,
-        _ui_manager: &ui_manager,
+        _renderer: Renderer::create_renderer_data(),
+        _scene_manager: SceneManager::create_scene_manager(),
+        _ui_manager: UIManager::create_ui_manager(),
     };
-    application::run_application(LevelFilter::Debug, &application, &scene_manager, &renderer, &ui_manager);
+    application::run_application(LevelFilter::Info, &application, application.get_scene_manager(), application.get_renderer(), application.get_ui_manager());
 }
