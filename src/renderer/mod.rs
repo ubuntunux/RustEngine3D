@@ -1,5 +1,6 @@
 pub mod animation;
 pub mod camera;
+pub mod effect;
 pub mod image_sampler;
 pub mod font;
 pub mod light;

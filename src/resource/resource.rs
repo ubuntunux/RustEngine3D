@@ -16,6 +16,7 @@ use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
+use crate::renderer::effect::{ EffectData, EffectDataCreateInfo, EmitterDataCreateInfo };
 use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
 use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::ModelData;
@@ -38,6 +39,7 @@ use byteorder::ReadBytesExt;
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
+pub const EFFECT_FILE_PATH: &str = "resource/effects";
 pub const FONT_SOURCE_FILE_PATH: &str = "resource/externals/fonts";
 pub const FONT_FILE_PATH: &str = "resource/fonts";
 pub const FONT_TEXTURE_FILE_PATH: &str = "resource/externals/textures/fonts";
@@ -50,6 +52,7 @@ pub const TEXTURE_SOURCE_FILE_PATH: &str = "resource/externals/textures";
 pub const TEXTURE_FILE_PATH: &str = "resource/textures";
 
 pub const FONT_SOURCE_EXTS: [&str; 1] = ["ttf"];
+pub const EXT_EFFECT: &str = "effect";
 pub const EXT_FONT: &str = "font";
 pub const EXT_OBJ: &str = "obj";
 pub const EXT_COLLADA: &str = "dae";
@@ -65,6 +68,7 @@ pub const EXT_TEXTURE_2D_ARRAY: &str = "2darray";
 pub const EXT_TEXTURE_3D: &str = "3d";
 pub const EXT_TEXTURE: [&str; 1] = ["texture"];
 
+pub const DEFAULT_EFFECT_NAME: &str = "default";
 pub const DEFAULT_FONT_NAME: &str = "NanumBarunGothic_Basic_Latin";
 pub const DEFAULT_MESH_NAME: &str = "quad";
 pub const DEFAULT_MODEL_NAME: &str = "quad";
@@ -73,6 +77,7 @@ pub const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 pub const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
+pub type EffectDataMap = ResourceDataMap<EffectData>;
 pub type FramebufferDatasMap = ResourceDataMap<FramebufferData>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
@@ -117,6 +122,7 @@ pub struct Resources {
     pub _texture_data_map: TextureDataMap,
     pub _framebuffer_datas_map: FramebufferDatasMap,
     pub _render_pass_data_map: RenderPassDataMap,
+    pub _effect_data_map: EffectDataMap,
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
     pub _descriptor_data_map: DescriptorDataMap
@@ -166,6 +172,7 @@ impl Resources {
             _model_data_map: ModelDataMap::new(),
             _texture_data_map: TextureDataMap::new(),
             _framebuffer_datas_map: FramebufferDatasMap::new(),
+            _effect_data_map: EffectDataMap::new(),
             _render_pass_data_map: RenderPassDataMap::new(),
             _material_data_map: MaterialDataMap::new(),
             _material_instance_data_map: MaterialInstanceDataMap::new(),
@@ -184,10 +191,12 @@ impl Resources {
         self.load_material_instance_datas(renderer_data);
         self.load_mesh_datas(renderer_data);
         self.load_model_datas(renderer_data);
+        self.load_effect_datas(renderer_data);
     }
 
     pub fn destroy_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("destroy_resources");
+        self.unload_effect_datas(renderer_data);
         self.unload_model_datas(renderer_data);
         self.unload_mesh_datas(renderer_data);
         self.unload_material_instance_datas(renderer_data);
@@ -263,6 +272,55 @@ impl Resources {
         return self.collect_resources_inner(dir, extensions);
         #[cfg(not(target_os = "android"))]
         return system::walk_directory(dir, extensions);
+    }
+
+    // EffectData
+    pub fn load_effect_datas(&mut self, _renderer_data: &RendererData) {
+        let effect_directory = PathBuf::from(EFFECT_FILE_PATH);
+
+        // create default effect
+        let mut default_effect_file_path: PathBuf = effect_directory.clone();
+        default_effect_file_path.push(&DEFAULT_EFFECT_NAME);
+        default_effect_file_path.set_extension(EXT_EFFECT);
+        #[cfg(not(target_os = "android"))]
+        if false == default_effect_file_path.is_file() {
+            let default_effect_data_create_info = EffectDataCreateInfo {
+                _effect_name: String::from(DEFAULT_EFFECT_NAME),
+                _emitter_data_create_infos: vec![EmitterDataCreateInfo {
+                    _enable: true,
+                    _emitter_name: String::from("emitter"),
+                    ..Default::default()
+                }],
+                ..Default::default()
+            };
+            let mut write_file = File::create(&default_effect_file_path).expect("Failed to create file");
+            let mut write_contents: String = serde_json::to_string(&default_effect_data_create_info).expect("Failed to serialize.");
+            write_contents = write_contents.replace(",\"", ",\n\"");
+            write_file.write(write_contents.as_bytes()).expect("Failed to write");
+        }
+
+        let effect_files: Vec<PathBuf> = self.collect_resources(&effect_directory, &[EXT_EFFECT]);
+        for effect_file in effect_files {
+            let effect_name = get_unique_resource_name(&self._effect_data_map, &effect_directory, &effect_file);
+            let loaded_contents = system::load(&effect_file);
+            let contents: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            // self._effect_data_map.insert(effect_name.clone(), newRcRefCell(effect_data));
+        }
+    }
+
+    pub fn unload_effect_datas(&mut self, _renderer_data: &RendererData) {
+        for effect_data in self._effect_data_map.values() {
+            effect_data.borrow_mut().destroy_effect_data();
+        }
+        self._effect_data_map.clear();
+    }
+
+    pub fn has_effect_data(&self, resource_name: &str) -> bool {
+        self._effect_data_map.contains_key(resource_name)
+    }
+
+    pub fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData> {
+        get_resource_data(&self._effect_data_map, resource_name, DEFAULT_EFFECT_NAME)
     }
 
     // FontData
@@ -970,6 +1028,10 @@ impl Resources {
             }).collect();
             model_data.borrow_mut().set_material_instance_datas(new_material_instances);
         }
+
+        log::info!("---------------------------------------------------");
+        log::info!(">> TODO : update_material_instance_datas for effect");
+        log::info!("---------------------------------------------------");
     }
 
     pub fn has_material_instance_data(&self, resource_name: &str) -> bool {
