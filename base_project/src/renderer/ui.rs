@@ -1,4 +1,14 @@
-use rust_engine_3d::renderer::ui::{UIManagerBase, UIManagerData, UIWidgetTypes, Widget, UILayoutType, Orientation, HorizontalAlign, VerticalAlign};
+use rust_engine_3d::renderer::ui::{
+    UIComponentInstance,
+    UIManagerBase,
+    UIManagerData,
+    UIWidgetTypes,
+    Widget,
+    UILayoutType,
+    Orientation,
+    HorizontalAlign,
+    VerticalAlign
+};
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::vulkan_context::vulkan_context::{ get_color32 };
@@ -25,15 +35,15 @@ impl UIManagerBase for UIManager {
         unsafe {
             let root = &mut *(self.get_ui_manager_data().get_root_ptr() as *mut dyn Widget);
 
-            let touch_down = Box::<fn()>::new(|| {
-                // println!("touch_down");
-            });
-            let touch_move = Box::<fn()>::new(|| {
-                // println!("touch_move");
-            });
-            let touch_up = Box::<fn()>::new(|| {
-                // println!("touch_up");
-            });
+            static touch_down: fn(widget: *const dyn Widget) = |widget: *const dyn Widget| {
+                println!("touch_down");
+            };
+            static touch_move: fn(widget: *const dyn Widget) = |widget: *const dyn Widget| {
+                println!("touch_move");
+            };
+            static touch_up: fn(widget: *const dyn Widget) = |widget: *const dyn Widget| {
+                println!("touch_up");
+            };
 
             let btn = UIManagerData::create_widget(UIWidgetTypes::Default);
             let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut();
@@ -47,12 +57,11 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
-            ui_component.set_expandable(true);
             ui_component.set_text(String::from("Child\nChild Test"));
             ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
-            ui_component._callback_touch_down = Some(touch_down.clone());
-            ui_component._callback_touch_up = Some(touch_up.clone());
-            ui_component._callback_touch_move = Some(touch_move.clone());
+            ui_component._callback_touch_down = Some(&touch_down);
+            ui_component._callback_touch_up = Some(&touch_up);
+            ui_component._callback_touch_move = Some(&touch_move);
             root.add_widget(btn);
 
             //
@@ -70,9 +79,9 @@ impl UIManagerBase for UIManager {
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn2\nBtn2 Test"));
-            ui_component._callback_touch_down = Some(touch_down.clone());
-            ui_component._callback_touch_up = Some(touch_up.clone());
-            ui_component._callback_touch_move = Some(touch_move.clone());
+            ui_component._callback_touch_down = Some(&touch_down);
+            ui_component._callback_touch_up = Some(&touch_up);
+            ui_component._callback_touch_move = Some(&touch_move);
             btn.as_mut().unwrap().add_widget(btn2);
 
             let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
@@ -88,9 +97,9 @@ impl UIManagerBase for UIManager {
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
             ui_component.set_text(String::from("Btn2\nBtn2 Test"));
-            ui_component._callback_touch_down = Some(touch_down.clone());
-            ui_component._callback_touch_up = Some(touch_up.clone());
-            ui_component._callback_touch_move = Some(touch_move.clone());
+            ui_component._callback_touch_down = Some(&touch_down);
+            ui_component._callback_touch_up = Some(&touch_up);
+            ui_component._callback_touch_move = Some(&touch_move);
             btn2.as_mut().unwrap().add_widget(btn3);
 
             //
@@ -112,9 +121,9 @@ impl UIManagerBase for UIManager {
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn2\nBtn2 Test"));
-            ui_component._callback_touch_down = Some(touch_down.clone());
-            ui_component._callback_touch_up = Some(touch_up.clone());
-            ui_component._callback_touch_move = Some(touch_move.clone());
+            ui_component._callback_touch_down = Some(&touch_down);
+            ui_component._callback_touch_up = Some(&touch_up);
+            ui_component._callback_touch_move = Some(&touch_move);
             btn.as_mut().unwrap().add_widget(btn2);
 
             let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
@@ -131,9 +140,9 @@ impl UIManagerBase for UIManager {
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
             ui_component.set_text(String::from("Basd\nTasdas"));
-            ui_component._callback_touch_down = Some(touch_down.clone());
-            ui_component._callback_touch_up = Some(touch_up.clone());
-            ui_component._callback_touch_move = Some(touch_move.clone());
+            ui_component._callback_touch_down = Some(&touch_down);
+            ui_component._callback_touch_up = Some(&touch_up);
+            ui_component._callback_touch_move = Some(&touch_move);
             btn2.as_mut().unwrap().add_widget(btn3);
 
             let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
@@ -154,9 +163,9 @@ impl UIManagerBase for UIManager {
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
             ui_component.set_text(String::from("Btn3\nBtn3 Test"));
-            ui_component._callback_touch_down = Some(touch_down.clone());
-            ui_component._callback_touch_up = Some(touch_up.clone());
-            ui_component._callback_touch_move = Some(touch_move.clone());
+            ui_component._callback_touch_down = Some(&touch_down);
+            ui_component._callback_touch_up = Some(&touch_up);
+            ui_component._callback_touch_move = Some(&touch_move);
             btn2.as_mut().unwrap().add_widget(btn3);
         }
     }

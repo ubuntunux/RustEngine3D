@@ -200,9 +200,9 @@ pub struct UIComponentInstance {
     pub _touched_offset: Vector2<f32>,
     pub _text: String,
     pub _render_text_count: u32,
-    pub _callback_touch_down: Option<Box<fn()>>,
-    pub _callback_touch_move: Option<Box<fn()>>,
-    pub _callback_touch_up: Option<Box<fn()>>,
+    pub _callback_touch_down: Option<*const fn(widget: *const dyn Widget)>,
+    pub _callback_touch_move: Option<*const fn(widget: *const dyn Widget)>,
+    pub _callback_touch_up: Option<*const fn(widget: *const dyn Widget)>,
 }
 
 pub struct WidgetDefault {
@@ -324,7 +324,9 @@ impl UIComponentInstance {
             self._touched_offset.x = self.get_pos_x() - touched_pos.x;
             self._touched_offset.y = self.get_pos_y() - touched_pos.y;
             if let Some(callback_touch_down) = self._callback_touch_down.as_ref() {
-                callback_touch_down();
+                unsafe {
+                    callback_touch_down.as_ref().unwrap()(self.get_owner_widget().unwrap().as_mut().unwrap());
+                }
             }
             self._changed_render_data = true;
         }
@@ -335,7 +337,9 @@ impl UIComponentInstance {
             if self.get_dragable() {
                 self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
                 if let Some(callback_touch_move) = self._callback_touch_move.as_ref() {
-                    callback_touch_move();
+                    unsafe {
+                        callback_touch_move.as_ref().unwrap()(self.get_owner_widget().unwrap().as_mut().unwrap());
+                    }
                 }
                 self._changed_render_data = true;
             }
@@ -348,7 +352,9 @@ impl UIComponentInstance {
             if self.get_dragable() {
                 self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
                 if let Some(callback_touch_up) = self._callback_touch_up.as_ref() {
-                    callback_touch_up();
+                    unsafe {
+                        callback_touch_up.as_ref().unwrap()(self.get_owner_widget().unwrap().as_mut().unwrap());
+                    }
                 }
                 self._changed_render_data = true;
             }
@@ -1234,6 +1240,8 @@ impl Widget for WidgetDefault {
             }
             self._parent = Some(widget);
             self._ui_component._parent = Some(widget.as_mut().unwrap().get_ui_component_mut());
+            self._ui_component.set_changed_child_layout(true);
+            self._ui_component.set_changed_layout(true);
         }
     }
     fn add_widget(&mut self, widget: *mut dyn Widget) {
@@ -1241,6 +1249,8 @@ impl Widget for WidgetDefault {
             widget.as_mut().unwrap().set_parent(self);
             self._widgets.push(widget);
             self._ui_component._children.push(widget.as_mut().unwrap().get_ui_component_mut());
+            self._ui_component.set_changed_child_layout(true);
+            self._ui_component.set_changed_layout(true);
         }
     }
     fn remove_widget(&mut self, widget: *mut dyn Widget) {
@@ -1253,6 +1263,8 @@ impl Widget for WidgetDefault {
                 }
                 self._widgets.remove(i);
                 self._ui_component._children.remove(i);
+                self._ui_component.set_changed_child_layout(true);
+                self._ui_component.set_changed_layout(true);
                 return;
             }
         }
@@ -1268,6 +1280,8 @@ impl Widget for WidgetDefault {
         self._widgets.clear();
         self._ui_component._parent = None;
         self._ui_component._children.clear();
+        self._ui_component.set_changed_child_layout(true);
+        self._ui_component.set_changed_layout(true);
     }
 }
 
