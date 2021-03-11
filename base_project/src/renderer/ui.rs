@@ -45,8 +45,9 @@ impl UIManagerBase for UIManager {
                 println!("touch_up");
             };
 
-            let btn = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn.as_mut().unwrap().get_ui_component_mut();
+            //
+            let btn0 = UIManagerData::create_widget("btn0", UIWidgetTypes::Default);
+            let ui_component = &mut btn0.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(25.0,255.0);
             ui_component.set_size(400.0, 200.0);
             ui_component.set_color(get_color32(255, 255, 255, 255));
@@ -57,16 +58,16 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
-            ui_component.set_text(String::from("Child\nChild Test"));
+            ui_component.set_expandable(true);
+            ui_component.set_text(String::from("btn0\nbtn0 Child Test"));
             ui_component.set_material_instance(&resources.get_material_instance_data("ui/render_ui_test"));
             ui_component._callback_touch_down = Some(&touch_down);
             ui_component._callback_touch_up = Some(&touch_up);
             ui_component._callback_touch_move = Some(&touch_move);
-            root.add_widget(btn);
+            root.add_widget(btn0);
 
-            //
-            let btn2 = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut();
+            let btn0_0 = UIManagerData::create_widget("btn0_0", UIWidgetTypes::Default);
+            let ui_component = &mut btn0_0.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(0.0, 5.0);
             ui_component.set_size(100.0, 50.0);
             ui_component.set_color(get_color32(255, 128, 128, 255));
@@ -78,14 +79,14 @@ impl UIManagerBase for UIManager {
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
-            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            ui_component.set_text(String::from("btn0_0\nbtn0_0 Test"));
             ui_component._callback_touch_down = Some(&touch_down);
             ui_component._callback_touch_up = Some(&touch_up);
             ui_component._callback_touch_move = Some(&touch_move);
-            btn.as_mut().unwrap().add_widget(btn2);
+            btn0.as_mut().unwrap().add_widget(btn0_0);
 
-            let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
+            let btn0_0_0 = UIManagerData::create_widget("btn0_0_0", UIWidgetTypes::Default);
+            let ui_component = &mut btn0_0_0.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(0.0, 5.0);
             ui_component.set_size(200.0, 100.0);
             ui_component.set_color(get_color32(128, 128, 255, 255));
@@ -96,15 +97,16 @@ impl UIManagerBase for UIManager {
             ui_component.set_border(5.0);
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
-            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            ui_component.set_expandable(true);
+            ui_component.set_text(String::from("btn0_0_0\nbtn0_0_0 Test"));
             ui_component._callback_touch_down = Some(&touch_down);
             ui_component._callback_touch_up = Some(&touch_up);
             ui_component._callback_touch_move = Some(&touch_move);
-            btn2.as_mut().unwrap().add_widget(btn3);
+            btn0_0.as_mut().unwrap().add_widget(btn0_0_0);
 
             //
-            let btn2 = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn2.as_mut().unwrap().get_ui_component_mut();
+            let btn0_1 = UIManagerData::create_widget("btn0_1", UIWidgetTypes::Default);
+            let ui_component = &mut btn0_1.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_layout_type(UILayoutType::BoxLayout);
             ui_component.set_layout_orientation(Orientation::VERTICAL);
             ui_component.set_halign(HorizontalAlign::RIGHT);
@@ -120,14 +122,14 @@ impl UIManagerBase for UIManager {
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
-            ui_component.set_text(String::from("Btn2\nBtn2 Test"));
+            ui_component.set_text(String::from("btn0_1\nbtn0_1 Test"));
             ui_component._callback_touch_down = Some(&touch_down);
             ui_component._callback_touch_up = Some(&touch_up);
             ui_component._callback_touch_move = Some(&touch_move);
-            btn.as_mut().unwrap().add_widget(btn2);
+            btn0.as_mut().unwrap().add_widget(btn0_1);
 
-            let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
+            let btn0_1_0 = UIManagerData::create_widget("btn0_1_0", UIWidgetTypes::Default);
+            let ui_component = &mut btn0_1_0.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(0.0, 5.0);
             ui_component.set_size(50.0, 75.0);
             ui_component.set_color(get_color32(255, 128, 255, 255));
@@ -139,14 +141,14 @@ impl UIManagerBase for UIManager {
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
-            ui_component.set_text(String::from("Basd\nTasdas"));
+            ui_component.set_text(String::from("btn0_1_0\nbtn0_1_0 Test"));
             ui_component._callback_touch_down = Some(&touch_down);
             ui_component._callback_touch_up = Some(&touch_up);
             ui_component._callback_touch_move = Some(&touch_move);
-            btn2.as_mut().unwrap().add_widget(btn3);
+            btn0_1.as_mut().unwrap().add_widget(btn0_1_0);
 
-            let btn3 = UIManagerData::create_widget(UIWidgetTypes::Default);
-            let ui_component = &mut btn3.as_mut().unwrap().get_ui_component_mut();
+            let btn0_1_1 = UIManagerData::create_widget("btn0_1_1", UIWidgetTypes::Default);
+            let ui_component = &mut btn0_1_1.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_halign(HorizontalAlign::RIGHT);
             ui_component.set_valign(VerticalAlign::BOTTOM);
             ui_component.set_pos(0.0, 5.0);
@@ -162,11 +164,11 @@ impl UIManagerBase for UIManager {
             ui_component.set_dragable(true);
             ui_component.set_touchable(true);
             ui_component.set_expandable(true);
-            ui_component.set_text(String::from("Btn3\nBtn3 Test"));
+            ui_component.set_text(String::from("btn0_1_1\nbtn0_1_1 Test"));
             ui_component._callback_touch_down = Some(&touch_down);
             ui_component._callback_touch_up = Some(&touch_up);
             ui_component._callback_touch_move = Some(&touch_move);
-            btn2.as_mut().unwrap().add_widget(btn3);
+            btn0_1.as_mut().unwrap().add_widget(btn0_1_1);
         }
     }
 }
