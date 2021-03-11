@@ -866,40 +866,74 @@ impl UIComponentInstance {
         }
     }
 
-    fn update_layout_size(&mut self, parent_contents_size: &Vector2<f32>, font_data: &FontData) {
-        let border = self.get_border();
-        let spaces = self.get_margine() + self.get_padding() + &Vector4::new(border, border, border, border);
-        let size_hint_x = self.get_size_hint_x();
-        let size_hint_y = self.get_size_hint_y();
-        let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
-        if size_hint_x.is_some() {
-            ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
-        }
-        if size_hint_y.is_some() {
-            ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+    fn update_layout_size(&mut self, mut inherit_changed_layout: bool, parent_contents_size: &Vector2<f32>, font_data: &FontData) {
+        if inherit_changed_layout || self._changed_layout {
+            inherit_changed_layout = true;
+
+            let border = self.get_border();
+            let spaces = self.get_margine() + self.get_padding() + &Vector4::new(border, border, border, border);
+            let size_hint_x = self.get_size_hint_x();
+            let size_hint_y = self.get_size_hint_y();
+            let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
+            if size_hint_x.is_some() {
+                ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
+            }
+            if size_hint_y.is_some() {
+                ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+            }
+
+            // update contents area
+            if self._changed_text {
+                self._text_contents_size = self.compute_text_contents_size(font_data);
+                self._changed_text = false;
+            }
+
+            // expandable
+            if self.get_expandable_x() {
+                ui_size.x = ui_size.x.max(self._text_contents_size.x + spaces.x + spaces.z);
+            }
+            if self.get_expandable_y() {
+                ui_size.y = ui_size.y.max(self._text_contents_size.y + spaces.y + spaces.w);
+            }
+
+            self._spaces.clone_from(&spaces);
+            self._ui_size.clone_from(&ui_size);
+            self._contents_area_size.x = ui_size.x - spaces.x - spaces.z;
+            self._contents_area_size.y = ui_size.y - spaces.y - spaces.w;
         }
 
-        // update contents area
-        if self._changed_text {
-            self._text_contents_size = self.compute_text_contents_size(font_data);
-            self._changed_text = false;
-        }
+        if inherit_changed_layout || self._changed_deep_child_layout {
+            // update required contents size
+            let mut required_contents_size = Vector2::<f32>::zeros();
+            for child in self._children.iter() {
+                let child_ui_instance = unsafe { child.as_mut().unwrap() };
+                child_ui_instance.update_layout_size(inherit_changed_layout, &self._contents_area_size, font_data);
 
-        // expandable
-        if self.get_expandable_x() {
-            ui_size.x = ui_size.x.max(self._text_contents_size.x + spaces.x + spaces.z);
-        }
-        if self.get_expandable_y() {
-            ui_size.y = ui_size.y.max(self._text_contents_size.y + spaces.y + spaces.w);
-        }
+                // accumulate required_contents_size
+                if UILayoutType::BoxLayout == self.get_layout_type() {
+                    match self.get_layout_orientation() {
+                        Orientation::HORIZONTAL => {
+                            required_contents_size.x += child_ui_instance._ui_size.x;
+                            required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
+                        },
+                        Orientation::VERTICAL => {
+                            required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
+                            required_contents_size.y += child_ui_instance._ui_size.y;
+                        },
+                    }
+                }
+                self._required_contents_size = required_contents_size;
+            }
 
-        self._spaces.clone_from(&spaces);
-        self._ui_size.clone_from(&ui_size);
-        self._contents_area_size.x = ui_size.x - spaces.x - spaces.z;
-        self._contents_area_size.y = ui_size.y - spaces.y - spaces.w;
-
-        unsafe {
-            println!("{:?} - update_layout_size:: ui_size: {:?}, contents_area_size: {:?}", self.get_owner_widget().unwrap().as_mut().unwrap().get_ui_widget_name(), self._ui_size, self._contents_area_size);
+            // update eexpandable size
+            if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
+                self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
+                self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
+            }
+            if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
+                self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
+                self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
+            }
         }
     }
 
@@ -916,10 +950,6 @@ impl UIComponentInstance {
         ui_area_pos: &mut Vector2<f32>,
         _update_depth: u32,
     ) {
-        unsafe {
-            println!("{:?} - update_layout_area", self.get_owner_widget().unwrap().as_ref().unwrap().get_ui_widget_name());
-        }
-
         match parent_layout_type {
             UILayoutType::FloatLayout => {
                 let pos_hint_x = self.get_pos_hint_x();
@@ -989,44 +1019,7 @@ impl UIComponentInstance {
     fn update_layout(&mut self, mut inherit_changed_layout: bool, update_depth: u32, font_data: &FontData) {
         inherit_changed_layout = inherit_changed_layout || self._changed_layout;
         if inherit_changed_layout || self._changed_deep_child_layout {
-            unsafe {
-                println!("{:?} - update_layout", self.get_owner_widget().unwrap().as_ref().unwrap().get_ui_widget_name());
-            }
-
             if inherit_changed_layout || self._changed_child_layout {
-                // update required contents size
-                let mut required_contents_size = Vector2::<f32>::zeros();
-                for child in self._children.iter() {
-                    let child_ui_instance = unsafe { child.as_mut().unwrap() };
-                    child_ui_instance.update_layout_size(&self._contents_area_size, font_data);
-
-                    // accumulate required_contents_size
-                    if UILayoutType::BoxLayout == self.get_layout_type() {
-                        match self.get_layout_orientation() {
-                            Orientation::HORIZONTAL => {
-                                required_contents_size.x += child_ui_instance._ui_size.x;
-                                required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
-                            },
-                            Orientation::VERTICAL => {
-                                required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
-                                required_contents_size.y += child_ui_instance._ui_size.y;
-                            },
-                        }
-                    }
-                    self._required_contents_size = required_contents_size;
-                }
-
-                // update eexpandable size
-                if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
-                    self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
-                    self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
-                }
-                if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
-                    self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
-                    self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
-                }
-
-                // inherit_renderable_area
                 let inherit_renderable_area = Vector4::new(
                     self._contents_area.x.max(self._renderable_area.x),
                     self._contents_area.y.max(self._renderable_area.y),
@@ -1495,21 +1488,19 @@ impl UIManagerData {
         let update_depth: u32 = 0;
 
         if root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout() {
-            if root_ui_component.get_changed_layout() {
-                root_ui_component.update_layout_size(&contents_area_size, &self._font_data.borrow());
-                root_ui_component.update_layout_area(
-                    UILayoutType::FloatLayout,
-                    Orientation::HORIZONTAL,
-                    DEFAILT_HORIZONTAL_ALIGN,
-                    DEFAILT_VERTICAL_ALIGN,
-                    &contents_area,
-                    &contents_area_size,
-                    &required_contents_size,
-                    &contents_area,
-                    &mut child_ui_pos,
-                    update_depth
-                );
-            }
+            root_ui_component.update_layout_size(inherit_changed_layout, &contents_area_size, &self._font_data.borrow());
+            root_ui_component.update_layout_area(
+                UILayoutType::FloatLayout,
+                Orientation::HORIZONTAL,
+                DEFAILT_HORIZONTAL_ALIGN,
+                DEFAILT_VERTICAL_ALIGN,
+                &contents_area,
+                &contents_area_size,
+                &required_contents_size,
+                &contents_area,
+                &mut child_ui_pos,
+                update_depth
+            );
             root_ui_component.update_layout(inherit_changed_layout, update_depth, &self._font_data.borrow());
         }
 
