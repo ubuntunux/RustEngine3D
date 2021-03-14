@@ -1,5 +1,4 @@
 use rust_engine_3d::renderer::ui::{
-    UIComponentInstance,
     UIManagerBase,
     UIManagerData,
     UIWidgetTypes,
@@ -35,13 +34,13 @@ impl UIManagerBase for UIManager {
         unsafe {
             let root = &mut *(self.get_ui_manager_data().get_root_ptr() as *mut dyn Widget);
 
-            static touch_down: fn(widget: *const dyn Widget) = |widget: *const dyn Widget| {
+            static touch_down: fn(widget: *const dyn Widget) = |_widget: *const dyn Widget| {
                 // println!("touch_down");
             };
-            static touch_move: fn(widget: *const dyn Widget) = |widget: *const dyn Widget| {
+            static touch_move: fn(widget: *const dyn Widget) = |_widget: *const dyn Widget| {
                 // println!("touch_move");
             };
-            static touch_up: fn(widget: *const dyn Widget) = |widget: *const dyn Widget| {
+            static touch_up: fn(widget: *const dyn Widget) = |_widget: *const dyn Widget| {
                 // println!("touch_up");
             };
 

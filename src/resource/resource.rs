@@ -16,7 +16,7 @@ use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
-use crate::renderer::effect::{ EffectData, EffectDataCreateInfo, EmitterDataCreateInfo };
+use crate::renderer::effect::{EffectData, EffectDataCreateInfo, EmitterDataCreateInfo, EmitterData};
 use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
 use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::ModelData;
@@ -288,6 +288,8 @@ impl Resources {
                 _emitter_data_create_infos: vec![EmitterDataCreateInfo {
                     _enable: true,
                     _emitter_data_name: String::from("emitter"),
+                    _material_instance_name: String::from(DEFAULT_MATERIAL_INSTANCE_NAME),
+                    _mesh_name: String::from(DEFAULT_MESH_NAME),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -303,8 +305,21 @@ impl Resources {
             let effect_data_name = get_unique_resource_name(&self._effect_data_map, &effect_directory, &effect_file);
             let loaded_contents = system::load(&effect_file);
             let effect_data_create_info: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            println!("effect_create_info: {:?}", effect_data_create_info);
-            // self._effect_data_map.insert(effect_name.clone(), newRcRefCell(effect_data));
+            let emitter_datas = effect_data_create_info._emitter_data_create_infos.iter().map(|emitter_data_create_info| {
+                let material_instance_data = self.get_material_instance_data(&emitter_data_create_info._material_instance_name);
+                let mesh_data = self.get_mesh_data(&emitter_data_create_info._mesh_name);
+                EmitterData::create_emitter_data(
+                    emitter_data_create_info,
+                    material_instance_data.clone(),
+                    mesh_data.clone()
+                )
+            }).collect();
+            let effect_data = EffectData::create_effect_data(
+                &effect_data_name,
+                &effect_data_create_info,
+                emitter_datas
+            );
+            self._effect_data_map.insert(effect_data_name.clone(), newRcRefCell(effect_data));
         }
     }
 

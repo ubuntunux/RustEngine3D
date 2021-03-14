@@ -136,7 +136,7 @@ pub struct EmitterData {
     pub _blend_mode: ParticleBlendMode,
     pub _geometry_type: ParticleGeometryType,
     pub _material_instance_data: RcRefCell<MaterialInstanceData>,
-    pub _mesh_data: Option<RcRefCell<MeshData>>,
+    pub _mesh_data: RcRefCell<MeshData>,
     pub _rotation_min: Vector3<f32>,
     pub _rotation_max: Vector3<f32>,
     pub _scale_min: Vector3<f32>,
@@ -160,8 +160,13 @@ pub struct EffectManagerData {
     _effects: Vec<EffectInstance>,
 }
 
+// interface
 impl EffectData {
-    pub fn create_effect_data(effect_data_name: &String, effect_data_create_info: &EffectDataCreateInfo, emitter_datas: Vec<EmitterData>) -> EffectData {
+    pub fn create_effect_data(
+        effect_data_name: &String,
+        effect_data_create_info: &EffectDataCreateInfo,
+        emitter_datas: Vec<EmitterData>
+    ) -> EffectData {
         EffectData {
             _effect_data_name: effect_data_name.clone(),
             _effect_transform: math::make_srt_transform(
@@ -181,7 +186,7 @@ impl EmitterData {
     pub fn create_emitter_data(
         emitter_data_create_info: &EmitterDataCreateInfo,
         material_instance: RcRefCell<MaterialInstanceData>,
-        mesh_data: Option<RcRefCell<MeshData>>,
+        mesh_data: RcRefCell<MeshData>,
     ) -> EmitterData {
         EmitterData {
             _enable: emitter_data_create_info._enable,
@@ -215,4 +220,8 @@ impl EmitterData {
             _scale_max: emitter_data_create_info._scale_max.clone() as Vector3<f32>,
         }
     }
+}
+
+impl EffectManagerData {
+
 }
