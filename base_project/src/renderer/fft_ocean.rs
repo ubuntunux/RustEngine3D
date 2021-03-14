@@ -187,7 +187,7 @@ impl FFTOcean {
         self._height
     }
 
-    pub fn regist_fft_ocean_textures(&mut self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
+    pub fn regist_fft_ocean_textures(&mut self, renderer_data: &RendererData, resources: &mut Resources) {
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut butterfly_data: Vec<f32> = vec![0.0; (FFT_SIZE * PASSES * 4) as usize];
@@ -195,8 +195,6 @@ impl FFTOcean {
         self._fft_seed = DEFAULT_FFT_SEED;
 
         // create fft mesh & textures
-        let renderer_data = renderer_data.borrow();
-        let mut resources = resources.borrow_mut();
         if false == resources.has_mesh_data("fft_grid") {
             let fft_grid = geometry_buffer::plane_mesh_create_info(GRID_VERTEX_COUNT, GRID_VERTEX_COUNT, false);
             resources.regist_mesh_data(&renderer_data, &String::from("fft_grid"), fft_grid);

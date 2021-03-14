@@ -1,9 +1,11 @@
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
+use crate::renderer::renderer::RendererData;
 use crate::renderer::material_instance::MaterialInstanceData;
 use crate::renderer::mesh::MeshData;
-use crate::utilities::system::{ RcRefCell };
+use crate::resource::resource::Resources;
+use crate::utilities::system::RcRefCell;
 use crate::utilities::math;
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -157,6 +159,8 @@ pub struct EmitterInstance {
 }
 
 pub struct EffectManagerData {
+    _renderer_data: RcRefCell<RendererData>,
+    _resources: RcRefCell<Resources>,
     _effects: Vec<EffectInstance>,
 }
 
@@ -223,5 +227,19 @@ impl EmitterData {
 }
 
 impl EffectManagerData {
+    pub fn create_effect_manager_data(renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) -> EffectManagerData {
+        EffectManagerData {
+            _renderer_data: renderer_data.clone(),
+            _resources: resources.clone(),
+            _effects: Vec::new(),
+        }
+    }
 
+    pub fn destroy_effect_manager_data(&mut self) {
+
+    }
+
+    pub fn create_effect(effect_data_name: &str) {
+
+   }
 }

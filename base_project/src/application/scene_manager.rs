@@ -57,10 +57,10 @@ impl SceneManagerBase for SceneManager {
         self._scene_manager_data = scene_manager_data;
         self._resources = resources;
         self.resized_window(window_width, window_height);
-    }
-
-    fn regist_scene_graphics_data(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) {
-        self._fft_ocean.borrow_mut().regist_fft_ocean_textures(renderer_data, resources);
+        self._fft_ocean.borrow_mut().regist_fft_ocean_textures(
+            renderer_data,
+            unsafe { &mut *(self._resources as *mut Resources) }
+        );
     }
 
     fn initialize_scene_graphics_data(&self) {
@@ -350,7 +350,7 @@ impl SceneManager {
         render_elements.clear();
         render_shadow_elements.clear();
         for (_key, render_object_data) in render_object_map.iter() {
-            let render_object_data_ref = render_object_data.borrow();
+            let render_object_data_ref = &render_object_data.borrow();
             let mode_data = render_object_data_ref.get_model_data().borrow();
             let mesh_data = mode_data.get_mesh_data().borrow();
             let geometry_datas = mesh_data.get_geomtry_datas();

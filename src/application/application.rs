@@ -22,6 +22,7 @@ use winit::window::{ WindowBuilder };
 use crate::application::scene_manager::{ SceneManagerData, SceneManagerBase };
 use crate::application::input;
 use crate::resource::resource::Resources;
+use crate::renderer::effect::EffectManagerData;
 use crate::renderer::renderer::{ RendererData, RendererBase };
 use crate::renderer::font::FontManager;
 use crate::renderer::ui::{ UIManagerBase, UIManagerData };
@@ -100,6 +101,7 @@ pub struct ApplicationData {
     pub _mouse_input_data: Box<input::MouseInputData>,
     pub _scene_manager_data: RcRefCell<SceneManagerData>,
     pub _renderer_data: RcRefCell<RendererData>,
+    pub _effect_manager_data: RcRefCell<EffectManagerData>,
     pub _font_manager: RcRefCell<FontManager>,
     pub _ui_manager_data: RcRefCell<UIManagerData>,
     pub _resources: RcRefCell<Resources>,
@@ -117,6 +119,7 @@ impl ApplicationData {
 
     pub fn terminate_applicateion(
         &mut self,
+        effect_manager_data: &mut EffectManagerData,
         font_manager: &mut FontManager,
         ui_manager_data: &mut UIManagerData,
         scene_manager_data: &mut SceneManagerData,
@@ -124,6 +127,7 @@ impl ApplicationData {
         renderer_data: &mut RendererData,
     ) {
         self.get_application_mut().terminate_applicateion();
+        effect_manager_data.destroy_effect_manager_data();
         scene_manager_data.close_scene_manager_data(renderer_data.get_device());
         ui_manager_data.destroy_ui_manager_data(renderer_data.get_device());
         font_manager.destroy_font_manager(renderer_data.get_device());
@@ -174,6 +178,7 @@ pub fn run_application(
     let mut maybe_renderer_data: Option<RcRefCell<RendererData>> = None;
     let mut maybe_scene_manager_data: Option<RcRefCell<SceneManagerData>> = None;
     let mut maybe_application_data: Option<RcRefCell<ApplicationData>> = None;
+    let mut maybe_effect_manager_data: Option<RcRefCell<EffectManagerData>> = None;
 
     // main loop
     #[cfg(target_os = "android")]
@@ -191,7 +196,9 @@ pub fn run_application(
                 let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                 let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
                 let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
+                let mut effect_manager_data: RefMut<EffectManagerData> = maybe_effect_manager_data.as_ref().unwrap().borrow_mut();
                 application_data.terminate_applicateion(
+                    &mut effect_manager_data,
                     &mut font_manager,
                     &mut ui_manager_data,
                     &mut scene_manager_data,
@@ -200,6 +207,7 @@ pub fn run_application(
                 );
             }
 
+            // create managers
             let elapsed_time = time_instance.elapsed().as_secs_f64();
             let (width, height) = window_size;
             let mouse_pos = (width / 2, height / 2);
@@ -208,14 +216,14 @@ pub fn run_application(
             let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(ui_manager));
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
             let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager));
+            let effect_manager_data = newRcRefCell(EffectManagerData::create_effect_manager_data(&renderer_data, &resources));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
             let mouse_input_data = input::create_mouse_input_data();
 
-            // initialize grphics
+            // initialize managers
             renderer_data.borrow().get_renderer_mut().initialize_renderer(&renderer_data.borrow());
             scene_manager_data.borrow().get_scene_manager_mut().initialize_scene_manager(width, height, &scene_manager_data.borrow(), &renderer_data.borrow(), &resources.borrow());
-            scene_manager_data.borrow().regist_scene_graphics_data();
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
             ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());
@@ -231,6 +239,7 @@ pub fn run_application(
                 _mouse_input_data: mouse_input_data,
                 _font_manager: font_manager.clone(),
                 _ui_manager_data: ui_manager_data.clone(),
+                _effect_manager_data: effect_manager_data.clone(),
                 _scene_manager_data: scene_manager_data.clone(),
                 _renderer_data: renderer_data.clone(),
                 _resources: resources.clone(),
@@ -246,6 +255,7 @@ pub fn run_application(
             maybe_ui_manager_data = Some(ui_manager_data);
             maybe_renderer_data = Some(renderer_data);
             maybe_scene_manager_data = Some(scene_manager_data);
+            maybe_effect_manager_data = Some(effect_manager_data);
             maybe_application_data = Some(application_data);
             run_application = true;
             need_initialize = false;
@@ -282,11 +292,13 @@ pub fn run_application(
                     let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                     let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
                     let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
+                    let mut effect_manager_data: RefMut<EffectManagerData> = maybe_effect_manager_data.as_ref().unwrap().borrow_mut();
 
                     // exit
                     if application_data._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
                         *control_flow = ControlFlow::Exit;
                         application_data.terminate_applicateion(
+                            &mut effect_manager_data,
                             &mut font_manager,
                             &mut ui_manager_data,
                             &mut scene_manager_data,

@@ -6,7 +6,6 @@ use crate::utilities::system::{ RcRefCell };
 
 pub trait SceneManagerBase {
     fn initialize_scene_manager(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, renderer_data: &RendererData, resources: &Resources);
-    fn regist_scene_graphics_data(&self, renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>);
     fn initialize_scene_graphics_data(&self);
     fn destroy_scene_graphics_data(&self, device: &Device);
     fn get_window_size(&self) -> (u32, u32);
@@ -50,10 +49,6 @@ impl SceneManagerData {
 
     pub fn close_scene_manager_data(&mut self, device: &Device) {
         self.get_scene_manager_mut().close_scene_manager_data(device);
-    }
-
-    pub fn regist_scene_graphics_data(&self) {
-        self.get_scene_manager_mut().regist_scene_graphics_data(&self._renderer_data, &self._resources);
     }
 
     pub fn initialize_scene_graphics_data(&self) {
