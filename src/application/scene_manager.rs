@@ -2,10 +2,19 @@ use ash::Device;
 
 use crate::renderer::renderer::RendererData;
 use crate::resource::resource::Resources;
-use crate::utilities::system::{ RcRefCell };
+use crate::utilities::system::RcRefCell;
+use crate::renderer::effect::EffectManagerData;
 
 pub trait SceneManagerBase {
-    fn initialize_scene_manager(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData, renderer_data: &RendererData, resources: &Resources);
+    fn initialize_scene_manager(
+        &mut self,
+        window_width: u32,
+        window_height: u32,
+        scene_manager_data: &SceneManagerData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+        effect_manager_data: *const EffectManagerData,
+    );
     fn initialize_scene_graphics_data(&self);
     fn destroy_scene_graphics_data(&self, device: &Device);
     fn get_window_size(&self) -> (u32, u32);
@@ -19,6 +28,7 @@ pub trait SceneManagerBase {
 pub struct SceneManagerData {
     pub _renderer_data: RcRefCell<RendererData>,
     pub _resources: RcRefCell<Resources>,
+    pub _effect_manager_data: *const EffectManagerData,
     pub _scene_manager: *const dyn SceneManagerBase,
 }
 
@@ -31,8 +41,28 @@ impl SceneManagerData {
         SceneManagerData {
             _renderer_data: renderer_data.clone(),
             _resources: resources.clone(),
+            _effect_manager_data: std::ptr::null(),
             _scene_manager: scene_manager,
         }
+    }
+
+    pub fn initialize_scene_manager_data(
+        &mut self,
+        window_width: u32,
+        window_height: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
+        effect_manager_data: *const EffectManagerData,
+    ) {
+        self._effect_manager_data = effect_manager_data;
+        self.get_scene_manager_mut().initialize_scene_manager(
+            window_width,
+            window_height,
+            self,
+            renderer_data,
+            resources,
+            effect_manager_data
+        );
     }
 
     pub fn get_scene_manager(&self) -> &dyn SceneManagerBase {
@@ -41,6 +71,14 @@ impl SceneManagerData {
 
     pub fn get_scene_manager_mut(&self) -> &mut dyn SceneManagerBase {
         unsafe { &mut *(self._scene_manager as *mut dyn SceneManagerBase) }
+    }
+
+    pub fn get_effect_manager_data(&self) -> &EffectManagerData {
+        unsafe { &*self._effect_manager_data }
+    }
+
+    pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData {
+        unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
     }
 
     pub fn open_scene_manager_data(&mut self) {

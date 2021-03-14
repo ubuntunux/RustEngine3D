@@ -43,6 +43,7 @@ use crate::utilities::system::{ self, RcRefCell };
 use crate::renderer::font::FontManager;
 use crate::renderer::ui::{ UIManagerData };
 use ash::vk::CommandBuffer;
+use crate::renderer::effect::EffectManagerData;
 
 
 pub unsafe extern "system" fn vulkan_debug_callback(
@@ -98,7 +99,7 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 }
 
 pub trait RendererBase {
-    fn initialize_renderer(&mut self, renderer_data: &RendererData);
+    fn initialize_renderer(&mut self, renderer_data: &RendererData, effect_manager_data: *const EffectManagerData);
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
@@ -152,6 +153,7 @@ pub struct RendererData {
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
     pub _resources: RcRefCell<Resources>,
+    pub _effect_manager_data: *const EffectManagerData,
     pub _renderer: *const dyn RendererBase,
 }
 
@@ -244,7 +246,7 @@ impl RendererData {
                 debug_call_back = vk::DebugUtilsMessengerEXT::null();
             }
 
-            let mut renderer_data = RendererData {
+            RendererData {
                 _frame_index: 0,
                 _swapchain_index: 0,
                 _need_recreate_swapchain: false,
@@ -270,14 +272,22 @@ impl RendererData {
                 _render_features: render_features,
                 _image_samplers: ImageSamplerData::default(),
                 _resources: resources.clone(),
+                _effect_manager_data: std::ptr::null(),
                 _renderer: renderer,
-            };
-
-            renderer_data.initialize_renderer_data();
-            renderer_data
+            }
         }
     }
 
+    pub fn initialize_renderer_data(&mut self, effect_manager_data: *const EffectManagerData) {
+        self._swapchain_index = 0;
+        self._frame_index = 0;
+        self._need_recreate_swapchain = false;
+        self._image_samplers = image_sampler::create_image_samplers(self.get_device());
+        self._effect_manager_data = effect_manager_data;
+        self.get_renderer_mut().initialize_renderer(self, effect_manager_data);
+    }
+    pub fn get_effect_manager_data(&self) -> &EffectManagerData { unsafe { &*self._effect_manager_data } }
+    pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData { unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) } }
     pub fn get_renderer(&self) -> &dyn RendererBase { unsafe { &*(self._renderer) } }
     pub fn get_renderer_mut(&self) -> &mut dyn RendererBase { unsafe { &mut *(self._renderer as *mut dyn RendererBase) } }
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
@@ -608,13 +618,6 @@ impl RendererData {
         unsafe {
             self._device.device_wait_idle().expect("vkDeviceWaitIdle failed!");
         }
-    }
-
-    pub fn initialize_renderer_data(&mut self) {
-        self._swapchain_index = 0;
-        self._frame_index = 0;
-        self._need_recreate_swapchain = false;
-        self._image_samplers = image_sampler::create_image_samplers(self.get_device());
     }
 
     pub fn resize_window(&mut self) {

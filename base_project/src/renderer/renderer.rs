@@ -52,6 +52,7 @@ use crate::renderer::shader_buffer_datas::{
     ShaderBufferDataMap,
 };
 use crate::render_pass_create_info::render_pass_create_info;
+use rust_engine_3d::renderer::effect::EffectManagerData;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -77,6 +78,7 @@ pub enum RenderObjectType {
 pub struct Renderer {
     pub _renderer_data: *const RendererData,
     pub _resources: *const Resources,
+    pub _effect_manager_data: *const EffectManagerData,
     pub _is_first_rendering: bool,
     pub _scene_constants: shader_buffer_datas::SceneConstants,
     pub _view_constants: shader_buffer_datas::ViewConstants,
@@ -97,9 +99,10 @@ pub struct Renderer {
 }
 
 impl RendererBase for Renderer {
-    fn initialize_renderer(&mut self, renderer_data: &RendererData) {
+    fn initialize_renderer(&mut self, renderer_data: &RendererData, effect_manager_data: *const EffectManagerData) {
         self._renderer_data = renderer_data;
         self._resources = renderer_data._resources.as_ptr();
+        self._effect_manager_data = effect_manager_data;
         shader_buffer_datas::regist_shader_buffer_datas(renderer_data.get_device(), renderer_data.get_device_memory_properties(), &mut self._shader_buffer_data_map);
         self.create_render_targets(renderer_data);
     }
@@ -449,6 +452,7 @@ impl Renderer {
         Box::new(Renderer {
             _renderer_data: std::ptr::null(),
             _resources: std::ptr::null(),
+            _effect_manager_data: std::ptr::null(),
             _is_first_rendering: true,
             _scene_constants: shader_buffer_datas::SceneConstants::default(),
             _view_constants: shader_buffer_datas::ViewConstants::default(),
@@ -469,11 +473,12 @@ impl Renderer {
         })
     }
 
+    pub fn get_effect_manager_data(&self) -> &EffectManagerData { unsafe { &*self._effect_manager_data } }
+    pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData { unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) } }
     pub fn get_renderer_data(&self) -> &RendererData { unsafe { &*self._renderer_data } }
     pub fn get_renderer_data_mut(&self) -> &mut RendererData { unsafe { &mut *(self._renderer_data as *mut RendererData) } }
     pub fn get_resources(&self) -> &Resources { unsafe { &*self._resources } }
     pub fn get_resources_mut(&self) -> &mut Resources { unsafe { &mut *(self._resources as *mut Resources) } }
-
     fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData {
         &self._shader_buffer_data_map.get(buffer_data_type).unwrap()
     }

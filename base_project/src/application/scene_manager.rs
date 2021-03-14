@@ -8,6 +8,7 @@ use nalgebra::{
 
 use rust_engine_3d::constants;
 use rust_engine_3d::application::scene_manager::{ SceneManagerBase, SceneManagerData };
+use rust_engine_3d::renderer::effect::EffectManagerData;
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use rust_engine_3d::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
@@ -32,6 +33,7 @@ pub struct SceneManager {
     pub _scene_manager_data: *const SceneManagerData,
     pub _resources: *const Resources,
     pub _renderer: *const Renderer,
+    pub _effect_manager_data: *const EffectManagerData,
     pub _window_width: u32,
     pub _window_height: u32,
     pub _main_camera: RcRefCell<CameraObjectData>,
@@ -52,10 +54,19 @@ pub struct SceneManager {
 
 
 impl SceneManagerBase for SceneManager {
-    fn initialize_scene_manager(&mut self, window_width: u32, window_height: u32, scene_manager_data: &SceneManagerData,  renderer_data: &RendererData, resources: &Resources) {
+    fn initialize_scene_manager(
+        &mut self,
+        window_width: u32,
+        window_height: u32,
+        scene_manager_data: &SceneManagerData,
+        renderer_data: &RendererData,
+        resources: &Resources,
+        effect_manager_data: *const EffectManagerData,
+    ) {
         self._renderer = renderer_data._renderer as *const Renderer;
         self._scene_manager_data = scene_manager_data;
         self._resources = resources;
+        self._effect_manager_data = effect_manager_data;
         self.resized_window(window_width, window_height);
         self._fft_ocean.borrow_mut().regist_fft_ocean_textures(
             renderer_data,
@@ -230,6 +241,7 @@ impl SceneManager {
             _scene_manager_data: std::ptr::null(),
             _resources: std::ptr::null(),
             _renderer: std::ptr::null(),
+            _effect_manager_data: std::ptr::null(),
             _window_width: default_camera._window_width,
             _window_height: default_camera._window_height,
             _main_camera: system::newRcRefCell(default_camera),
@@ -254,6 +266,8 @@ impl SceneManager {
     pub fn get_renderer_mut(&self) -> &mut Renderer { unsafe { &mut *(self._renderer as *mut Renderer) } }
     pub fn get_resources(&self) -> &Resources { unsafe { &*self._resources } }
     pub fn get_resources_mut(&self) -> &mut Resources { unsafe { &mut *(self._resources as *mut Resources) } }
+    pub fn get_effect_manager_data(&self) -> &EffectManagerData { unsafe { &*self._effect_manager_data } }
+    pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData { unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) } }
     pub fn get_fft_ocean(&self) -> &RcRefCell<FFTOcean>  { &self._fft_ocean }
     pub fn get_atmosphere(&self) -> &RcRefCell<Atmosphere> { &self._atmosphere }
     pub fn get_main_camera(&self) -> &RcRefCell<CameraObjectData> { &self._main_camera }

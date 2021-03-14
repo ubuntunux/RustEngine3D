@@ -222,8 +222,14 @@ pub fn run_application(
             let mouse_input_data = input::create_mouse_input_data();
 
             // initialize managers
-            renderer_data.borrow().get_renderer_mut().initialize_renderer(&renderer_data.borrow());
-            scene_manager_data.borrow().get_scene_manager_mut().initialize_scene_manager(width, height, &scene_manager_data.borrow(), &renderer_data.borrow(), &resources.borrow());
+            renderer_data.borrow_mut().initialize_renderer_data(effect_manager_data.as_ptr());
+            scene_manager_data.borrow_mut().initialize_scene_manager_data(
+                width,
+                height,
+                &renderer_data.borrow(),
+                &resources.borrow(),
+                effect_manager_data.as_ptr(),
+            );
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
             ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());

@@ -146,14 +146,14 @@ pub struct EmitterData {
 }
 
 pub struct EffectInstance {
-    pub _emitters: Vec<EmitterInstance>,
     pub _effect_data: RcRefCell<EffectData>,
     pub _elapsed_time: f32,
     pub _lifetime: f32,
+    pub _emitters: Vec<EmitterInstance>,
 }
 
 pub struct EmitterInstance {
-    pub _emitter_data: RcRefCell<EmitterData>,
+    pub _emitter_data: *const EmitterData,
     pub _elapsed_time: f32,
     pub _lifetime: f32,
 }
@@ -226,6 +226,31 @@ impl EmitterData {
     }
 }
 
+impl EffectInstance {
+    pub fn create_effect_instance(effect_data: &RcRefCell<EffectData>) -> EffectInstance {
+        let emitters = effect_data.borrow()._emitter_datas.iter().map(|emitter_data| {
+            EmitterInstance::create_emitter_instance(emitter_data)
+        }).collect();
+
+        EffectInstance {
+            _effect_data: effect_data.clone(),
+            _elapsed_time: 0.0,
+            _lifetime: 0.0,
+            _emitters: emitters,
+        }
+    }
+}
+
+impl EmitterInstance {
+    pub fn create_emitter_instance(emitter_data: &EmitterData) -> EmitterInstance {
+        EmitterInstance {
+            _emitter_data: emitter_data,
+            _elapsed_time: 0.0,
+            _lifetime: 0.0,
+        }
+    }
+}
+
 impl EffectManagerData {
     pub fn create_effect_manager_data(renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) -> EffectManagerData {
         EffectManagerData {
@@ -239,7 +264,10 @@ impl EffectManagerData {
 
     }
 
-    pub fn create_effect(effect_data_name: &str) {
-
+    pub fn create_effect(&mut self, effect_data_name: &str) {
+        let resources = &self._resources.borrow();
+        let effect_data = resources.get_effect_data(effect_data_name);
+        let effect_instance = EffectInstance::create_effect_instance(&effect_data);
+        self._effects.push(effect_instance);
    }
 }
