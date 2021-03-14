@@ -75,7 +75,17 @@ pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
     ])
 }
 
-pub fn make_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
+pub fn make_srt_transform(translation: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
+    let rotation_matrix = make_rotation_matrix(rotation.x, rotation.y, rotation.z);
+    Matrix4::from_columns(&[
+        rotation_matrix.column(0) * scale[0],
+        rotation_matrix.column(1) * scale[1],
+        rotation_matrix.column(2) * scale[2],
+        Vector4::new(translation[0], translation[1], translation[2], 1.0),
+    ])
+}
+
+pub fn combinate_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
     Matrix4::from_columns(&[
         rotation_matrix.column(0) * scale[0],
         rotation_matrix.column(1) * scale[1],

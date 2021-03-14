@@ -1,9 +1,12 @@
 use serde::{ Serialize, Deserialize };
-use nalgebra::{ Vector2, Vector3, Vector4 };
+use nalgebra::{ Vector3, Vector4, Matrix4 };
 
+use crate::renderer::material_instance::MaterialInstanceData;
+use crate::renderer::mesh::MeshData;
 use crate::utilities::system::{ RcRefCell };
+use crate::utilities::math;
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleSpawnVolumeType {
     Box = 0,
     Sphere = 1,
@@ -17,7 +20,7 @@ impl Default for ParticleSpawnVolumeType {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleGeometryType {
     Quad = 0,
     Decal = 1,
@@ -33,7 +36,7 @@ impl Default for ParticleGeometryType {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleBlendMode {
     AlphaBlend = 0,
     Additive = 1,
@@ -46,7 +49,7 @@ impl Default for ParticleBlendMode {
     }
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleAlignMode {
     None = 0,
     Billboard = 1,
@@ -60,7 +63,7 @@ impl Default for ParticleAlignMode {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleVelocityType {
     Local = 0,
     WorldY_LocalXZ = 1,
@@ -75,17 +78,16 @@ impl Default for ParticleVelocityType {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct EffectDataCreateInfo {
-    pub _effect_name: String,
-    pub _emitter_data_create_infos: Vec<EmitterDataCreateInfo>,
     pub _effect_position: Vector3<f32>,
     pub _effect_rotation: Vector3<f32>,
     pub _effect_scale: Vector3<f32>,
+    pub _emitter_data_create_infos: Vec<EmitterDataCreateInfo>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 pub struct EmitterDataCreateInfo {
     pub _enable: bool,
-    pub _emitter_name: String,
+    pub _emitter_data_name: String,
     pub _emitter_position: Vector3<f32>,
     pub _emitter_rotation: Vector3<f32>,
     pub _emitter_scale: Vector3<f32>,
@@ -95,27 +97,50 @@ pub struct EmitterDataCreateInfo {
     pub _spawn_volume_position: Vector3<f32>,
     pub _spawn_volume_rotation: Vector3<f32>,
     pub _spawn_volume_scale: Vector3<f32>,
-    pub _spawn_count: Vector2<i32>,
-    pub _spawn_term: Vector2<f32>,
-    pub _delay: Vector2<f32>,
-    pub _life_time: Vector2<f32>,
+    pub _spawn_count: i32,
+    pub _spawn_term: f32,
+    pub _delay: f32,
+    pub _life_time_min: f32,
+    pub _life_time_max: f32,
     pub _align_mode: ParticleAlignMode,
     pub _blend_mode: ParticleBlendMode,
     pub _geometry_type: ParticleGeometryType,
     pub _material_instance_name: String,
     pub _mesh_name: String,
-    pub _rotation_pitch: Vector2<f32>,
-    pub _rotation_yaw: Vector2<f32>,
-    pub _rotation_roll: Vector2<f32>,
-    pub _scale_x: Vector2<f32>,
-    pub _scale_y: Vector2<f32>,
-    pub _scale_z: Vector2<f32>,
+    pub _rotation_min: Vector3<f32>,
+    pub _rotation_max: Vector3<f32>,
+    pub _scale_min: Vector3<f32>,
+    pub _scale_max: Vector3<f32>,
 }
 
 pub struct EffectData {
+    pub _effect_data_name: String,
+    pub _emitter_datas: Vec<EmitterData>,
+    pub _effect_transform: Matrix4<f32>,
 }
 
 pub struct EmitterData {
+    pub _enable: bool,
+    pub _emitter_data_name: String,
+    pub _emitter_transform: Matrix4<f32>,
+    pub _emitter_lifetime: f32,
+    pub _spawn_volume_type: ParticleSpawnVolumeType,
+    pub _spawn_volume_info: Vector4<f32>,
+    pub _spawn_volume_transform: Matrix4<f32>,
+    pub _spawn_count: i32,
+    pub _spawn_term: f32,
+    pub _delay: f32,
+    pub _life_time_min: f32,
+    pub _life_time_max: f32,
+    pub _align_mode: ParticleAlignMode,
+    pub _blend_mode: ParticleBlendMode,
+    pub _geometry_type: ParticleGeometryType,
+    pub _material_instance_data: RcRefCell<MaterialInstanceData>,
+    pub _mesh_data: Option<RcRefCell<MeshData>>,
+    pub _rotation_min: Vector3<f32>,
+    pub _rotation_max: Vector3<f32>,
+    pub _scale_min: Vector3<f32>,
+    pub _scale_max: Vector3<f32>,
 }
 
 pub struct EffectInstance {
@@ -136,6 +161,58 @@ pub struct EffectManagerData {
 }
 
 impl EffectData {
+    pub fn create_effect_data(effect_data_name: &String, effect_data_create_info: &EffectDataCreateInfo, emitter_datas: Vec<EmitterData>) -> EffectData {
+        EffectData {
+            _effect_data_name: effect_data_name.clone(),
+            _effect_transform: math::make_srt_transform(
+                &effect_data_create_info._effect_position,
+                &effect_data_create_info._effect_rotation,
+                &effect_data_create_info._effect_scale,
+            ),
+            _emitter_datas: emitter_datas,
+        }
+    }
+
     pub fn destroy_effect_data(&mut self) {
+    }
+}
+
+impl EmitterData {
+    pub fn create_emitter_data(
+        emitter_data_create_info: &EmitterDataCreateInfo,
+        material_instance: RcRefCell<MaterialInstanceData>,
+        mesh_data: Option<RcRefCell<MeshData>>,
+    ) -> EmitterData {
+        EmitterData {
+            _enable: emitter_data_create_info._enable,
+            _emitter_data_name: emitter_data_create_info._emitter_data_name.clone(),
+            _emitter_transform: math::make_srt_transform(
+                &emitter_data_create_info._emitter_position,
+                &emitter_data_create_info._emitter_rotation,
+                &emitter_data_create_info._emitter_scale,
+            ),
+            _emitter_lifetime: emitter_data_create_info._emitter_lifetime,
+            _spawn_volume_type: emitter_data_create_info._spawn_volume_type,
+            _spawn_volume_info: emitter_data_create_info._spawn_volume_info.clone() as Vector4<f32>,
+            _spawn_volume_transform: math::make_srt_transform(
+                &emitter_data_create_info._spawn_volume_position,
+                &emitter_data_create_info._spawn_volume_rotation,
+                &emitter_data_create_info._spawn_volume_scale,
+            ),
+            _spawn_count: emitter_data_create_info._spawn_count,
+            _spawn_term: emitter_data_create_info._spawn_term,
+            _delay: emitter_data_create_info._delay,
+            _life_time_min: emitter_data_create_info._life_time_min,
+            _life_time_max: emitter_data_create_info._life_time_max,
+            _align_mode: emitter_data_create_info._align_mode,
+            _blend_mode: emitter_data_create_info._blend_mode,
+            _geometry_type: emitter_data_create_info._geometry_type,
+            _material_instance_data: material_instance,
+            _mesh_data: mesh_data,
+            _rotation_min: emitter_data_create_info._rotation_min.clone() as Vector3<f32>,
+            _rotation_max: emitter_data_create_info._rotation_max.clone() as Vector3<f32>,
+            _scale_min: emitter_data_create_info._scale_min.clone() as Vector3<f32>,
+            _scale_max: emitter_data_create_info._scale_max.clone() as Vector3<f32>,
+        }
     }
 }

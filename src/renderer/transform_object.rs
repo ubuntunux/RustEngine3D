@@ -11,7 +11,7 @@ use crate::utilities::math::{
     get_world_up,
     get_world_front,
     make_rotation_matrix,
-    make_matrix,
+    combinate_matrix,
     TWO_PI,
 };
 
@@ -203,7 +203,7 @@ impl TransformObjectData {
         }
 
         if updated {
-            self._matrix.copy_from(&make_matrix(&self._position, &self._rotation_matrix, &self._scale));
+            self._matrix.copy_from(&combinate_matrix(&self._position, &self._rotation_matrix, &self._scale));
             //self._inverse_matrix.copy_from(&inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale));
             linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
         }

@@ -285,10 +285,9 @@ impl Resources {
         #[cfg(not(target_os = "android"))]
         if false == default_effect_file_path.is_file() {
             let default_effect_data_create_info = EffectDataCreateInfo {
-                _effect_name: String::from(DEFAULT_EFFECT_NAME),
                 _emitter_data_create_infos: vec![EmitterDataCreateInfo {
                     _enable: true,
-                    _emitter_name: String::from("emitter"),
+                    _emitter_data_name: String::from("emitter"),
                     ..Default::default()
                 }],
                 ..Default::default()
@@ -301,9 +300,10 @@ impl Resources {
 
         let effect_files: Vec<PathBuf> = self.collect_resources(&effect_directory, &[EXT_EFFECT]);
         for effect_file in effect_files {
-            let effect_name = get_unique_resource_name(&self._effect_data_map, &effect_directory, &effect_file);
+            let effect_data_name = get_unique_resource_name(&self._effect_data_map, &effect_directory, &effect_file);
             let loaded_contents = system::load(&effect_file);
-            let contents: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let effect_data_create_info: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            println!("effect_create_info: {:?}", effect_data_create_info);
             // self._effect_data_map.insert(effect_name.clone(), newRcRefCell(effect_data));
         }
     }
