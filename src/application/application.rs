@@ -227,9 +227,6 @@ pub fn run_application(
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
             ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());
-            renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
-            scene_manager_data.borrow_mut().initialize_scene_graphics_data();
-
             let application_data = newRcRefCell(ApplicationData {
                 _window_size: window_size,
                 _time_data: create_time_data(elapsed_time),
@@ -247,9 +244,14 @@ pub fn run_application(
             });
             application_data.borrow().get_application_mut().initialize_application(&application_data.borrow());
 
+            // initialize graphics data
+            renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
+            scene_manager_data.borrow_mut().initialize_scene_graphics_data();
+
             // open scene
             scene_manager_data.borrow_mut().open_scene_manager_data();
 
+            // set managers
             maybe_resources = Some(resources);
             maybe_font_manager = Some(font_manager);
             maybe_ui_manager_data = Some(ui_manager_data);
