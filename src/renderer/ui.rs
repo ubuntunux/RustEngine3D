@@ -21,6 +21,8 @@ use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::render_pass::{ PipelineData };
 use crate::vulkan_context::vulkan_context::{ get_color32 };
 
+pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
+
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
 pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
@@ -698,7 +700,7 @@ impl UIComponentInstance {
             max_column_count = max_column_count.max(column_count);
             row_count += 1;
 
-            return Vector2::new(max_column_count as f32 * font_size.x, row_count as f32 * font_size.y);
+            return Vector2::new(max_column_count as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO, row_count as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO);
         }
         Vector2::zeros()
     }
@@ -748,8 +750,8 @@ impl UIComponentInstance {
 
                 render_pos.x = self._contents_area.x;
                 render_pos.y = self._contents_area.y;
-                render_pos.x += column as f32 * font_size.x;
-                render_pos.y += row as f32 * font_size.y;
+                render_pos.x += column as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO;
+                render_pos.y += row as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO;
 
                 ui_render_area.x = render_pos.x;
                 ui_render_area.y = render_pos.y;

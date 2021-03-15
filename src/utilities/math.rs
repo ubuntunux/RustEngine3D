@@ -12,6 +12,10 @@ use nalgebra_glm as glm;
 pub const HALF_PI: f32 = std::f32::consts::PI as f32 * 0.5;
 pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
 
+pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
+    a * (1.0 - t) + b * t
+}
+
 // https://github.com/TheRealMJP/SamplePattern/blob/master/SamplePattern.cpp
 // Computes a radical inverse with base 2 using crazy bit-twiddling from "Hacker's Delight"
 pub fn radical_inverse_base2(bits: u32) -> f32 {

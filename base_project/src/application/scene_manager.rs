@@ -8,7 +8,7 @@ use nalgebra::{
 
 use rust_engine_3d::constants;
 use rust_engine_3d::application::scene_manager::{ SceneManagerBase, SceneManagerData };
-use rust_engine_3d::renderer::effect::EffectManagerData;
+use rust_engine_3d::renderer::effect::{ EffectCreateInfo, EffectInstance, EffectManagerData };
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::renderer::camera::{ CameraCreateInfo, CameraObjectData};
 use rust_engine_3d::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData };
@@ -120,6 +120,11 @@ impl SceneManagerBase for SceneManager {
             ..Default::default()
         });
 
+        self.add_effect(&EffectCreateInfo {
+            _effect_data_name: String::from("default"),
+            ..Default::default()
+        });
+
         let model_data0 = resources.get_model_data("sponza/sponza").clone();
         self.add_static_render_object("sponza", RenderObjectCreateInfo {
             _model_data: Some(model_data0),
@@ -185,6 +190,9 @@ impl SceneManagerBase for SceneManager {
             render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
+        self.get_effect_manager_data_mut().update_effects(delta_time as f32);
+
+        // gather render elements
         SceneManager::gather_render_elements(
             &main_camera,
             &main_light,
@@ -329,6 +337,14 @@ impl SceneManager {
 
     pub fn get_skeletal_shadow_render_elements(&self) -> &Vec<RenderElementData> {
         &self._skeletal_shadow_render_elements
+    }
+
+    pub fn add_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64 {
+        self.get_effect_manager_data_mut().create_effect(effect_create_info)
+    }
+
+    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>> {
+        self.get_effect_manager_data().get_effect(effect_id)
     }
 
     pub fn view_frustum_culling_geometry(camera: &CameraObjectData, geometry_bound_box: &BoundingBox) -> bool {

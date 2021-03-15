@@ -9,7 +9,7 @@ use rust_engine_3d::vulkan_context::geometry_buffer::{ self, GeometryData };
 use rust_engine_3d::vulkan_context::texture::TextureCreateInfo;
 use rust_engine_3d::vulkan_context::framebuffer::{ self, FramebufferData };
 use rust_engine_3d::vulkan_context::vulkan_context::{ SwapchainArray, Layers, MipLevels };
-use rust_engine_3d::utilities::system::{ RcRefCell, newRcRefCell };
+use rust_engine_3d::utilities::system::newRcRefCell;
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer::Renderer;

@@ -24,7 +24,7 @@ struct ParticleData
     vec3 force;
     float delay;
     vec3 transform_position;
-    float life_time;
+    float lifetime;
     vec3 transform_rotation;
     float opacity;
     vec3 transform_scale;

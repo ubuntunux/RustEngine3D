@@ -151,19 +151,19 @@ void update(inout ParticleData particle_data, uint id)
     // Update
     if(PARTICLE_STATE_ALIVE == particle_data.state)
     {
-        const float max_life_time = PARTICLE_DELAY.y + PARTICLE_LIFE_TIME.y;
+        const float max_lifetime = PARTICLE_DELAY.y + PARTICLE_LIFETIME.y;
         float elapsed_time = particle_data.elapsed_time;
-        float left_elapsed_time = particle_data.life_time - elapsed_time;
+        float left_elapsed_time = particle_data.lifetime - elapsed_time;
         particle_data.elapsed_time += DELTA_TIME;
 
-        if(elapsed_time <= particle_data.life_time)
+        if(elapsed_time <= particle_data.lifetime)
         {
             float life_ratio = 0.0;
             vec3 old_position = particle_data.transform_position;
 
-            if(0.0 < particle_data.life_time)
+            if(0.0 < particle_data.lifetime)
             {
-                life_ratio = clamp(elapsed_time / particle_data.life_time, 0.0, 1.0);
+                life_ratio = clamp(elapsed_time / particle_data.lifetime, 0.0, 1.0);
             }
 
             // update sequence
@@ -254,7 +254,7 @@ void update(inout ParticleData particle_data, uint id)
                 particle_data.opacity *= left_elapsed_time / PARTICLE_FADE_OUT;
             }
         }
-        else if(max_life_time <= particle_data.elapsed_time)
+        else if(max_lifetime <= particle_data.elapsed_time)
         {
             particle_data.state = PARTICLE_STATE_DEAD;
         }

@@ -17,7 +17,7 @@ void spawn_particle(inout ParticleData particle_data, float random_seed)
 
     particle_data.state = (0.0 < particle_data.delay) ? PARTICLE_STATE_DELAY : PARTICLE_STATE_ALIVE;
     particle_data.delay = mix(PARTICLE_DELAY.x, PARTICLE_DELAY.y, random_factor.x);
-    particle_data.life_time = mix(PARTICLE_LIFE_TIME.x, PARTICLE_LIFE_TIME.y, random_factor.y);
+    particle_data.lifetime = mix(PARTICLE_LIFETIME.x, PARTICLE_LIFETIME.y, random_factor.y);
 
     vec3 spawn_position = vec3(0.0);
 

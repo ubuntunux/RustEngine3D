@@ -6,7 +6,6 @@
 #include "render_font_common.glsl"
 
 layout (location = 0) in vec3 vs_in_position;
-
 layout (location = 0) out VERTEX_OUTPUT vs_output;
 
 void main()
@@ -20,9 +19,10 @@ void main()
 
     const float column = font_instance_data._font_column;
     const float row = font_instance_data._font_row;
+    const float ui_render_font_padding_ratio = 0.9;
     vec2 position;
-    position.x = (column + texcoord.x) * ratio.x;
-    position.y = (texcoord.y - row) * ratio.y;
+    position.x = (column * ui_render_font_padding_ratio + texcoord.x) * ratio.x;
+    position.y = (texcoord.y - row * ui_render_font_padding_ratio) * ratio.y;
     position.xy += pushConstant._offset * pushConstant._inv_canvas_size.xy;
 
     gl_Position = vec4(position * 2.0 - 1.0, 0.0, 1.0);
