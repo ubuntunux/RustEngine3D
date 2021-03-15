@@ -331,6 +331,10 @@ impl EffectInstance {
     pub fn play_effect(&mut self) {
         self._is_alive = true;
         self._elapsed_time = 0.0;
+
+        for emitter in self._emitters.iter_mut() {
+            emitter.play_emitter();
+        }
     }
 
     pub fn update_effect(&mut self, delta_time: f32) {
@@ -338,6 +342,7 @@ impl EffectInstance {
 
         let mut is_alive = false;
         for emitter in self._emitters.iter_mut() {
+
             if emitter._is_alive {
                 emitter.update_emitter(delta_time);
             }
@@ -345,10 +350,6 @@ impl EffectInstance {
         }
         self._is_alive = is_alive;
         self._elapsed_time += delta_time;
-
-        if false == is_alive {
-            log::info!("update_effect({:?}): dead!", self._elapsed_time);
-        }
     }
 }
 
@@ -390,15 +391,10 @@ impl EmitterInstance {
             if self._remained_spawn_term <= 0.0 {
                 self._particle_spawn_count = self.get_emitter_data()._spawn_count;
                 self._remained_spawn_term = self.get_emitter_data()._spawn_term;
-                println!("    spawn: {:?}", self._particle_spawn_count);
             }
             self._remained_spawn_term -= delta_time;
         }
         self._elapsed_time += delta_time;
-
-        if false == self._is_alive {
-            log::info!("update_emitter({:?}): dead!", self._elapsed_time);
-        }
     }
 }
 
@@ -428,7 +424,8 @@ impl EffectManagerData {
         let effect_id = self.generate_effect_id();
         let resources = self._resources.borrow();
         let effect_data = resources.get_effect_data(&effect_create_info._effect_data_name);
-        let effect_instance = EffectInstance::create_effect_instance(effect_id, effect_create_info, effect_data);
+        let mut effect_instance = EffectInstance::create_effect_instance(effect_id, effect_create_info, effect_data);
+        effect_instance.borrow_mut().play_effect();
         self._effects.insert(effect_id, effect_instance);
         effect_id
    }
