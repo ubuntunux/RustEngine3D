@@ -5,14 +5,13 @@ use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
 use crate::renderer::renderer::RendererData;
-use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
+use crate::renderer::material_instance::MaterialInstanceData;
 use crate::renderer::mesh::MeshData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::resource::resource::Resources;
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::utilities::math;
-use crate::vulkan_context::render_pass::{ PipelineData, RenderPassData };
 
 const INVALID_EFFECT_ID: i64 = -1;
 
@@ -239,13 +238,32 @@ pub struct EmitterInstance {
     pub _emitter_data: *const EmitterData,
 }
 
+pub trait EffectManagerBase {
+    fn initialize_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
+    fn update_gpu_particles(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    );
+    fn gather_render_effects(&mut self);
+    fn render_effects(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    );
+}
+
 pub struct EffectManagerData {
-    _renderer_data: RcRefCell<RendererData>,
-    _resources: RcRefCell<Resources>,
-    _effect_id_generator: i64,
-    _effects: HashMap<i64, RcRefCell<EffectInstance>>,
-    _dead_effect_ids: Vec<i64>,
-    _render_group: Vec<*const EmitterInstance>,
+    pub _effect_manager: *const dyn EffectManagerBase,
+    pub _renderer_data: RcRefCell<RendererData>,
+    pub _resources: RcRefCell<Resources>,
+    pub _effect_id_generator: i64,
+    pub _effects: HashMap<i64, RcRefCell<EffectInstance>>,
+    pub _dead_effect_ids: Vec<i64>,
 }
 
 // interface
@@ -408,15 +426,23 @@ impl EmitterInstance {
 
 // EffectManagerData
 impl EffectManagerData {
-    pub fn create_effect_manager_data(renderer_data: &RcRefCell<RendererData>, resources: &RcRefCell<Resources>) -> EffectManagerData {
+    pub fn create_effect_manager_data(
+        renderer_data: &RcRefCell<RendererData>,
+        resources: &RcRefCell<Resources>,
+        effect_manager: *const dyn EffectManagerBase
+    ) -> EffectManagerData {
         EffectManagerData {
+            _effect_manager: effect_manager,
             _renderer_data: renderer_data.clone(),
             _resources: resources.clone(),
             _effect_id_generator: 0,
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
-            _render_group: Vec::new()
         }
+    }
+
+    pub fn initialize_effect_manager(&mut self) {
+        self.get_effect_manager_mut().initialize_effect_manager(self);
     }
 
     pub fn generate_effect_id(&mut self) -> i64 {
@@ -429,11 +455,19 @@ impl EffectManagerData {
         self._effects.clear();
     }
 
+    pub fn get_effect_manager(&self) -> &dyn EffectManagerBase {
+        unsafe { &*self._effect_manager }
+    }
+
+    pub fn get_effect_manager_mut(&self) -> &mut dyn EffectManagerBase {
+        unsafe { &mut *(self._effect_manager as *mut dyn EffectManagerBase) }
+    }
+
     pub fn create_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64 {
         let effect_id = self.generate_effect_id();
         let resources = self._resources.borrow();
         let effect_data = resources.get_effect_data(&effect_create_info._effect_data_name);
-        let mut effect_instance = EffectInstance::create_effect_instance(effect_id, effect_create_info, effect_data);
+        let effect_instance = EffectInstance::create_effect_instance(effect_id, effect_create_info, effect_data);
         effect_instance.borrow_mut().play_effect();
         self._effects.insert(effect_id, effect_instance);
         effect_id
@@ -441,6 +475,10 @@ impl EffectManagerData {
 
     pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>> {
         self._effects.get(&effect_id)
+    }
+
+    pub fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance>> {
+        &self._effects
     }
 
     pub fn update_effects(&mut self, delta_time: f32) {
@@ -463,72 +501,6 @@ impl EffectManagerData {
             self._dead_effect_ids.clear();
         }
 
-        // gather render group
-        self.gather_render_effects();
-    }
-
-    pub fn update_gpu_particles(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        renderer_data: &RendererData,
-        resources: &Resources,
-    ) {
-    }
-
-    pub fn gather_render_effects(&mut self) {
-        self._render_group.clear();
-        for (_effect_id, effect) in self._effects.iter() {
-            let mut effect = effect.borrow_mut();
-            if effect._is_alive {
-                for emitter in effect._emitters.iter_mut() {
-                    if emitter._is_alive {
-                        self._render_group.push(emitter);
-                    }
-                }
-            }
-        }
-    }
-
-    pub fn render_effects(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        renderer_data: &RendererData,
-        resources: &Resources,
-    ) {
-        // let quad_mesh = resources.get_mesh_data("quad").borrow();
-        // let quad = quad_mesh.get_default_geometry_data().borrow();
-        // let render_pass_pipeline_data_name = "render_pass_static_forward/render_object";
-        // let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
-        // let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
-        // for emitter in self._render_group.iter() {
-        //     let pipeline_binding_data: &PipelineBindingData = emitter.get_emitter_data()._material_instance_data.borrow().get_pipeline_binding_data(render_pass_pipeline_data_name);
-        //     let render_pass_data: &RenderPassData = pipeline_binding_data.get_render_pass_data().borrow();
-        //     let pipeline_data: &PipelineData = pipeline_binding_data.get_pipeline_data().borrow();
-        //
-        //     if prev_pipeline_data != pipeline_data_ptr {
-        //         if false == prev_pipeline_data.is_null() {
-        //             renderer_data.end_render_pass(command_buffer);
-        //         }
-        //         renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        //         prev_pipeline_data = pipeline_data_ptr;
-        //     }
-        //
-        //     if prev_pipeline_binding_data != pipeline_binding_data {
-        //         prev_pipeline_binding_data = pipeline_binding_data;
-        //         renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &*pipeline_binding_data, None);
-        //     }
-        //
-        //     renderer_data.upload_push_constant_data(
-        //         command_buffer,
-        //         pipeline_data,
-        //         &PushConstant_StaticRenderObject {
-        //             _local_matrix: emitter._emitter_transform.get_matrix().clone() as Matrix4<f32>
-        //         }
-        //     );
-        //     renderer_data.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
-        // }
-        // renderer_data.end_render_pass(command_buffer);
+        self.get_effect_manager_mut().gather_render_effects();
     }
 }

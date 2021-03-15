@@ -10,6 +10,7 @@ use crate::application_constants;
 use crate::application::scene_manager::SceneManager;
 use crate::renderer::renderer::Renderer;
 use crate::renderer::ui::UIManager;
+use crate::renderer::effect::EffectManager;
 
 
 pub struct Application {
@@ -17,6 +18,7 @@ pub struct Application {
     pub _resources: *const Resources,
     pub _renderer: Box<Renderer>,
     pub _scene_manager: Box<SceneManager>,
+    pub _effect_manager: Box<EffectManager>,
     pub _ui_manager: Box<UIManager>,
 }
 
@@ -139,6 +141,12 @@ impl Application {
     pub fn get_application_data_mut(&self) -> &mut ApplicationData {
         unsafe { &mut *(self._application_data as *mut ApplicationData) }
     }
+    pub fn get_effect_manager(&self) -> &EffectManager {
+        &self._effect_manager
+    }
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
+        unsafe { &mut *((self._effect_manager.as_ref() as *const EffectManager) as *mut EffectManager) }
+    }
     pub fn get_scene_manager(&self) -> &SceneManager {
         &self._scene_manager
     }
@@ -199,7 +207,15 @@ pub fn run_application() {
         _resources: std::ptr::null(),
         _renderer: Renderer::create_renderer_data(),
         _scene_manager: SceneManager::create_scene_manager(),
+        _effect_manager: EffectManager::create_effect_manager(),
         _ui_manager: UIManager::create_ui_manager(),
     };
-    application::run_application(LevelFilter::Info, &application, application.get_scene_manager(), application.get_renderer(), application.get_ui_manager());
+    application::run_application(
+        LevelFilter::Info,
+        &application,
+        application.get_scene_manager(),
+        application.get_effect_manager(),
+        application.get_renderer(),
+        application.get_ui_manager()
+    );
 }

@@ -22,7 +22,7 @@ use winit::window::{ WindowBuilder };
 use crate::application::scene_manager::{ SceneManagerData, SceneManagerBase };
 use crate::application::input;
 use crate::resource::resource::Resources;
-use crate::renderer::effect::EffectManagerData;
+use crate::renderer::effect::{ EffectManagerData, EffectManagerBase };
 use crate::renderer::renderer::{ RendererData, RendererBase };
 use crate::renderer::font::FontManager;
 use crate::renderer::ui::{ UIManagerBase, UIManagerData };
@@ -152,6 +152,7 @@ pub fn run_application(
     log_level: LevelFilter,
     application: *const dyn ApplicationBase,
     scene_manager: *const dyn SceneManagerBase,
+    effect_manager: *const dyn EffectManagerBase,
     renderer: *const dyn RendererBase,
     ui_manager: *const dyn UIManagerBase,
 ) {
@@ -216,7 +217,7 @@ pub fn run_application(
             let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(ui_manager));
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
             let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager));
-            let effect_manager_data = newRcRefCell(EffectManagerData::create_effect_manager_data(&renderer_data, &resources));
+            let effect_manager_data = newRcRefCell(EffectManagerData::create_effect_manager_data(&renderer_data, &resources, effect_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
             let mouse_input_data = input::create_mouse_input_data();
@@ -233,6 +234,7 @@ pub fn run_application(
             resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
             font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
             ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());
+            effect_manager_data.borrow_mut().initialize_effect_manager();
             let application_data = newRcRefCell(ApplicationData {
                 _window_size: window_size,
                 _time_data: create_time_data(elapsed_time),

@@ -384,8 +384,11 @@ impl RendererBase for Renderer {
         atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, &renderer_data, render_light_probe_mode);
 
         // render translucent
-        self.get_effect_manager_data().update_gpu_particles(command_buffer, swapchain_index, &renderer_data, &resources);
-        self.get_effect_manager_data().render_effects(command_buffer, swapchain_index, &renderer_data, &resources);
+        {
+            let effect_manager = self.get_effect_manager_data().get_effect_manager();
+            effect_manager.update_gpu_particles(command_buffer, swapchain_index, &renderer_data, &resources);
+            effect_manager.render_effects(command_buffer, swapchain_index, &renderer_data, &resources);
+        }
 
         // post-process: taa, bloom, motion blur
         self.render_post_process(renderer_data, command_buffer, swapchain_index, &quad_geometry_data, &resources);
