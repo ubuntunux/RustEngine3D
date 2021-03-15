@@ -1,16 +1,18 @@
 use std::collections::HashMap;
 
+use ash::vk;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
 use crate::renderer::renderer::RendererData;
-use crate::renderer::material_instance::MaterialInstanceData;
+use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::mesh::MeshData;
+use crate::renderer::transform_object::TransformObjectData;
 use crate::resource::resource::Resources;
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::utilities::math;
-use crate::renderer::transform_object::TransformObjectData;
+use crate::vulkan_context::render_pass::{ PipelineData, RenderPassData };
 
 const INVALID_EFFECT_ID: i64 = -1;
 
@@ -20,6 +22,7 @@ pub enum ParticleSpawnVolumeType {
     Sphere = 1,
     Cone = 2,
     Cylinder = 3,
+    Count = 4,
 }
 
 impl Default for ParticleSpawnVolumeType {
@@ -36,6 +39,7 @@ pub enum ParticleGeometryType {
     Ribbon = 3,
     Beam = 4,
     Capsule = 5,
+    Count = 6,
 }
 
 impl Default for ParticleGeometryType {
@@ -49,6 +53,7 @@ pub enum ParticleBlendMode {
     AlphaBlend = 0,
     Additive = 1,
     Opaque = 2,
+    Count = 3,
 }
 
 impl Default for ParticleBlendMode {
@@ -62,6 +67,7 @@ pub enum ParticleAlignMode {
     None = 0,
     Billboard = 1,
     VelocityAlign = 2,
+    Count = 3,
 }
 
 impl Default for ParticleAlignMode {
@@ -76,6 +82,7 @@ pub enum ParticleVelocityType {
     Local = 0,
     WorldY_LocalXZ = 1,
     NormalDirection = 2,
+    Count = 3,
 }
 
 impl Default for ParticleVelocityType {
@@ -238,6 +245,7 @@ pub struct EffectManagerData {
     _effect_id_generator: i64,
     _effects: HashMap<i64, RcRefCell<EffectInstance>>,
     _dead_effect_ids: Vec<i64>,
+    _render_group: Vec<*const EmitterInstance>,
 }
 
 // interface
@@ -407,6 +415,7 @@ impl EffectManagerData {
             _effect_id_generator: 0,
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
+            _render_group: Vec::new()
         }
     }
 
@@ -435,6 +444,7 @@ impl EffectManagerData {
     }
 
     pub fn update_effects(&mut self, delta_time: f32) {
+        // update effects
         for (effect_id, effect) in self._effects.iter() {
             let mut effect = effect.borrow_mut();
             if effect._is_alive {
@@ -452,5 +462,73 @@ impl EffectManagerData {
             }
             self._dead_effect_ids.clear();
         }
+
+        // gather render group
+        self.gather_render_effects();
+    }
+
+    pub fn update_gpu_particles(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    ) {
+    }
+
+    pub fn gather_render_effects(&mut self) {
+        self._render_group.clear();
+        for (_effect_id, effect) in self._effects.iter() {
+            let mut effect = effect.borrow_mut();
+            if effect._is_alive {
+                for emitter in effect._emitters.iter_mut() {
+                    if emitter._is_alive {
+                        self._render_group.push(emitter);
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn render_effects(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_data: &RendererData,
+        resources: &Resources,
+    ) {
+        // let quad_mesh = resources.get_mesh_data("quad").borrow();
+        // let quad = quad_mesh.get_default_geometry_data().borrow();
+        // let render_pass_pipeline_data_name = "render_pass_static_forward/render_object";
+        // let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
+        // let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
+        // for emitter in self._render_group.iter() {
+        //     let pipeline_binding_data: &PipelineBindingData = emitter.get_emitter_data()._material_instance_data.borrow().get_pipeline_binding_data(render_pass_pipeline_data_name);
+        //     let render_pass_data: &RenderPassData = pipeline_binding_data.get_render_pass_data().borrow();
+        //     let pipeline_data: &PipelineData = pipeline_binding_data.get_pipeline_data().borrow();
+        //
+        //     if prev_pipeline_data != pipeline_data_ptr {
+        //         if false == prev_pipeline_data.is_null() {
+        //             renderer_data.end_render_pass(command_buffer);
+        //         }
+        //         renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+        //         prev_pipeline_data = pipeline_data_ptr;
+        //     }
+        //
+        //     if prev_pipeline_binding_data != pipeline_binding_data {
+        //         prev_pipeline_binding_data = pipeline_binding_data;
+        //         renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &*pipeline_binding_data, None);
+        //     }
+        //
+        //     renderer_data.upload_push_constant_data(
+        //         command_buffer,
+        //         pipeline_data,
+        //         &PushConstant_StaticRenderObject {
+        //             _local_matrix: emitter._emitter_transform.get_matrix().clone() as Matrix4<f32>
+        //         }
+        //     );
+        //     renderer_data.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
+        // }
+        // renderer_data.end_render_pass(command_buffer);
     }
 }
