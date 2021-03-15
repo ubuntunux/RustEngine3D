@@ -288,6 +288,7 @@ impl Resources {
                 _emitter_data_create_infos: vec![EmitterDataCreateInfo {
                     _enable: true,
                     _emitter_data_name: String::from("emitter"),
+                    _emitter_lifetime: -1.0,
                     _material_instance_name: String::from(DEFAULT_MATERIAL_INSTANCE_NAME),
                     _mesh_name: String::from(DEFAULT_MESH_NAME),
                     ..Default::default()
