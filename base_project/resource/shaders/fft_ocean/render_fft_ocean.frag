@@ -140,7 +140,6 @@ void main()
     // Image based lighting
     apply_image_based_lighting(
         texture_probe,
-        ibl_brdf_lut,
         scene_reflect_color,
         sky_irradiance,
         vec3(vs_output.shadow_factor),

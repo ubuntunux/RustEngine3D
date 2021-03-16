@@ -24,11 +24,10 @@ layout(binding = 8) uniform samplerCube texture_probe;
 layout(binding = 9) uniform sampler2D texture_noise;
 layout(binding = 10) uniform sampler3D texture_caustic;
 layout(binding = 11) uniform sampler2D texture_foam;
-layout(binding = 12) uniform sampler2D ibl_brdf_lut;
-layout(binding = 13) uniform sampler2D transmittance_texture;
-layout(binding = 14) uniform sampler2D irradiance_texture;
-layout(binding = 15) uniform sampler3D scattering_texture;
-layout(binding = 16) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 12) uniform sampler2D transmittance_texture;
+layout(binding = 13) uniform sampler2D irradiance_texture;
+layout(binding = 14) uniform sampler3D scattering_texture;
+layout(binding = 15) uniform sampler3D single_mie_scattering_texture;
 
 layout( push_constant ) uniform PushConstant_FFT_Ocean
 {

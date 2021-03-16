@@ -230,7 +230,6 @@ vec2 env_BRDF_pproximate(float NdV, float roughness)
 
 void apply_image_based_lighting(
     const in samplerCube texture_probe,
-    const in sampler2D ibl_brdf_lut,
     const in vec4 scene_reflect_color,
     const in vec3 scene_sky_irradiance,
     in vec3 shadow_factor,
@@ -293,7 +292,6 @@ vec4 surface_shading(
     const in float ssao_factor,
     const in vec4 scene_reflect_color,
     const in samplerCube texture_probe,
-    const in sampler2D ibl_brdf_lut,
     const in sampler2D texture_shadow,
     const in sampler2D texture_height_map,
     const in vec2 texCoord,
@@ -357,7 +355,6 @@ vec4 surface_shading(
     // Image based lighting
     apply_image_based_lighting(
         texture_probe,
-        ibl_brdf_lut,
         scene_reflect_color,
         scene_sky_irradiance,
         shadow_factor,

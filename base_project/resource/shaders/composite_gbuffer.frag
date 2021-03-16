@@ -33,11 +33,10 @@ layout(binding = 9) uniform sampler2D textureShadow;
 layout(binding = 10) uniform sampler2D textureHeightMap;
 layout(binding = 11) uniform samplerCube texture_probe;
 layout(binding = 12) uniform sampler2D textureSceneReflect;
-layout(binding = 13) uniform sampler2D ibl_brdf_lut;
-layout(binding = 14) uniform sampler2D transmittance_texture;
-layout(binding = 15) uniform sampler2D irradiance_texture;
-layout(binding = 16) uniform sampler3D scattering_texture;
-layout(binding = 17) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 13) uniform sampler2D transmittance_texture;
+layout(binding = 14) uniform sampler2D irradiance_texture;
+layout(binding = 15) uniform sampler3D scattering_texture;
+layout(binding = 16) uniform sampler3D single_mie_scattering_texture;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -102,7 +101,6 @@ void main() {
         ssao,
         scene_reflect_color,
         texture_probe,
-        ibl_brdf_lut,
         textureShadow,
         textureHeightMap,
         vs_output.texCoord,

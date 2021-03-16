@@ -1045,9 +1045,12 @@ impl Resources {
             model_data.borrow_mut().set_material_instance_datas(new_material_instances);
         }
 
-        log::info!("---------------------------------------------------");
-        log::info!(">> TODO : update_material_instance_datas for effect");
-        log::info!("---------------------------------------------------");
+        for (_key, effect_data) in self._effect_data_map.iter() {
+            for emitter_data in effect_data.borrow_mut()._emitter_datas.iter_mut() {
+                let new_material_instance_data = self.get_material_instance_data(&emitter_data._material_instance_data.borrow()._material_instance_data_name).clone();
+                emitter_data._material_instance_data = new_material_instance_data;
+            }
+        }
     }
 
     pub fn has_material_instance_data(&self, resource_name: &str) -> bool {
