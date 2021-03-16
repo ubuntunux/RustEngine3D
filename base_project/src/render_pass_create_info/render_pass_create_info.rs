@@ -1,5 +1,6 @@
 use ash::vk;
 
+use rust_engine_3d::renderer::effect::{ ParticleBlendMode, ParticleGeometryType };
 use rust_engine_3d::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 use crate::renderer::renderer::RenderObjectType;
@@ -23,8 +24,9 @@ use crate::render_pass_create_info::{
     render_forward,
     render_forward_for_light_probe,
     render_gaussian_blur,
-    render_motion_blur,
     render_gbuffer,
+    render_motion_blur,
+    render_particle_translucent,
     render_shadow,
     render_ssao,
     render_ssao_blur,
@@ -97,6 +99,7 @@ pub fn get_render_pass_data_create_infos(renderer: &Renderer) -> Vec<RenderPassD
         render_forward_for_light_probe::get_render_pass_data_create_info(renderer, RenderObjectType::Skeletal, 3),
         render_forward_for_light_probe::get_render_pass_data_create_info(renderer, RenderObjectType::Skeletal, 4),
         render_forward_for_light_probe::get_render_pass_data_create_info(renderer, RenderObjectType::Skeletal, 5),
+        render_particle_translucent::get_render_pass_data_create_info(renderer, ParticleBlendMode::AlphaBlend, ParticleGeometryType::Quad),
         render_shadow::get_render_pass_data_create_info(renderer, RenderObjectType::Skeletal),
         render_shadow::get_render_pass_data_create_info(renderer, RenderObjectType::Static),
         capture_height_map::get_render_pass_data_create_info(renderer, RenderObjectType::Skeletal),

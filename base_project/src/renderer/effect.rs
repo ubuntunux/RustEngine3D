@@ -2,12 +2,12 @@ use ash::vk;
 use nalgebra::{ Matrix4 };
 
 use rust_engine_3d::renderer::effect::*;
-use rust_engine_3d::renderer::material_instance::{PipelineBindingData, MaterialInstanceData};
+use rust_engine_3d::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 
-use crate::renderer::push_constants::{ PushConstant_StaticRenderObject };
+use crate::renderer::push_constants::{ PushConstant_RenderParticle };
 
 
 pub struct EffectManager {
@@ -53,7 +53,7 @@ impl EffectManagerBase for EffectManager {
     ) {
         let quad_mesh = resources.get_mesh_data("quad").borrow();
         let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
-        let render_pass_pipeline_data_name = "render_pass_static_forward/render_object";
+        let render_pass_pipeline_data_name = "render_pass_particle/alpha_blend";
         let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
         let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
         for emitter in self._render_group.iter() {
@@ -80,7 +80,7 @@ impl EffectManagerBase for EffectManager {
             renderer_data.upload_push_constant_data(
                 command_buffer,
                 pipeline_data,
-                &PushConstant_StaticRenderObject {
+                &PushConstant_RenderParticle {
                     _local_matrix: emitter._emitter_transform.get_matrix().clone() as Matrix4<f32>
                 }
             );

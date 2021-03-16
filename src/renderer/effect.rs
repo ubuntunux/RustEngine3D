@@ -15,6 +15,7 @@ use crate::utilities::math;
 
 const INVALID_EFFECT_ID: i64 = -1;
 
+// must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleSpawnVolumeType {
     Box = 0,
@@ -30,6 +31,7 @@ impl Default for ParticleSpawnVolumeType {
     }
 }
 
+// must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleGeometryType {
     Quad = 0,
@@ -47,6 +49,7 @@ impl Default for ParticleGeometryType {
     }
 }
 
+// must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleBlendMode {
     AlphaBlend = 0,
@@ -61,6 +64,7 @@ impl Default for ParticleBlendMode {
     }
 }
 
+// must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleAlignMode {
     None = 0,
@@ -75,6 +79,7 @@ impl Default for ParticleAlignMode {
     }
 }
 
+// must match with effect/common.glsl
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleVelocityType {
