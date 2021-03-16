@@ -448,7 +448,7 @@ impl RendererBase for Renderer {
             );
 
             renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &render_debug_pipeline_binding_data, None);
-            renderer_data.draw_geometry_data(command_buffer, &quad_geometry_data);
+            renderer_data.draw_elements(command_buffer, &quad_geometry_data);
             renderer_data.end_render_pass(command_buffer);
         }
     }
@@ -879,7 +879,7 @@ impl Renderer {
                         bone_metrices_offset += bone_count * 2;
                     },
                 };
-                renderer_data.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
+                renderer_data.draw_elements(command_buffer, &render_element._geometry_data.borrow());
             }
             renderer_data.end_render_pass(command_buffer);
         }

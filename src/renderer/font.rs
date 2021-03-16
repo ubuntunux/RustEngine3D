@@ -413,7 +413,7 @@ impl FontManager {
             renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, none_framebuffer_data);
             renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, render_font_descriptor_sets);
             renderer_data.upload_push_constant_data(command_buffer, pipeline_data, &push_constant_data);
-            renderer_data.draw_elements(
+            renderer_data.draw_indexed(
                 command_buffer,
                 &[self._font_mesh_vertex_buffer._buffer],
                 &[],

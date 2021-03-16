@@ -1434,7 +1434,7 @@ impl UIManagerData {
                     }
 
                     renderer_data.upload_push_constant_data(command_buffer, &(*prev_pipeline_data), &push_constant_data);
-                    renderer_data.draw_elements(
+                    renderer_data.draw_indexed(
                         command_buffer,
                         &[self._ui_mesh_vertex_buffer._buffer],
                         &[],

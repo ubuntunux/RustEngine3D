@@ -456,7 +456,7 @@ impl RendererData {
                 push_constant_data
             );
         }
-        self.draw_geometry_data(command_buffer, geometry_data);
+        self.draw_elements(command_buffer, geometry_data);
         self.end_render_pass(command_buffer);
     }
 
@@ -572,8 +572,8 @@ impl RendererData {
         }
     }
 
-    pub fn draw_geometry_data(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData) {
-        self.draw_elements(
+    pub fn draw_elements(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData) {
+        self.draw_indexed(
             command_buffer,
             &[geometry_data._vertex_buffer_data._buffer],
             &[],
@@ -583,7 +583,18 @@ impl RendererData {
         );
     }
 
-    pub fn draw_elements(
+    pub fn draw_elements_instanced(&self, command_buffer: vk::CommandBuffer, geometry_data: &GeometryData, instance_buffers: &[vk::Buffer], instance_count: u32) {
+        self.draw_indexed(
+            command_buffer,
+            &[geometry_data._vertex_buffer_data._buffer],
+            instance_buffers,
+            instance_count,
+            geometry_data._index_buffer_data._buffer,
+            geometry_data._vertex_index_count,
+        );
+    }
+
+    pub fn draw_indexed(
         &self,
         command_buffer: vk::CommandBuffer,
         vertex_buffers: &[vk::Buffer],

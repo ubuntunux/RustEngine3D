@@ -1,8 +1,14 @@
 use ash::vk;
+use nalgebra::{ Matrix4 };
 
 use rust_engine_3d::renderer::effect::*;
+use rust_engine_3d::renderer::material_instance::{PipelineBindingData, MaterialInstanceData};
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::resource::resource::Resources;
+use rust_engine_3d::vulkan_context::render_pass::{ RenderPassData, PipelineData };
+
+use crate::renderer::push_constants::{ PushConstant_StaticRenderObject };
+
 
 pub struct EffectManager {
     pub _effect_manager_data: *const EffectManagerData,
@@ -16,10 +22,10 @@ impl EffectManagerBase for EffectManager {
 
     fn update_gpu_particles(
         &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        renderer_data: &RendererData,
-        resources: &Resources,
+        _command_buffer: vk::CommandBuffer,
+        _swapchain_index: u32,
+        _renderer_data: &RendererData,
+        _resources: &Resources,
     ) {
     }
 
@@ -45,39 +51,42 @@ impl EffectManagerBase for EffectManager {
         renderer_data: &RendererData,
         resources: &Resources,
     ) {
-        // let quad_mesh = resources.get_mesh_data("quad").borrow();
-        // let quad = quad_mesh.get_default_geometry_data().borrow();
-        // let render_pass_pipeline_data_name = "render_pass_static_forward/render_object";
-        // let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
-        // let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
-        // for emitter in self._render_group.iter() {
-        //     let pipeline_binding_data: &PipelineBindingData = emitter.get_emitter_data()._material_instance_data.borrow().get_pipeline_binding_data(render_pass_pipeline_data_name);
-        //     let render_pass_data: &RenderPassData = pipeline_binding_data.get_render_pass_data().borrow();
-        //     let pipeline_data: &PipelineData = pipeline_binding_data.get_pipeline_data().borrow();
-        //
-        //     if prev_pipeline_data != pipeline_data_ptr {
-        //         if false == prev_pipeline_data.is_null() {
-        //             renderer_data.end_render_pass(command_buffer);
-        //         }
-        //         renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-        //         prev_pipeline_data = pipeline_data_ptr;
-        //     }
-        //
-        //     if prev_pipeline_binding_data != pipeline_binding_data {
-        //         prev_pipeline_binding_data = pipeline_binding_data;
-        //         renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &*pipeline_binding_data, None);
-        //     }
-        //
-        //     renderer_data.upload_push_constant_data(
-        //         command_buffer,
-        //         pipeline_data,
-        //         &PushConstant_StaticRenderObject {
-        //             _local_matrix: emitter._emitter_transform.get_matrix().clone() as Matrix4<f32>
-        //         }
-        //     );
-        //     renderer_data.draw_geometry_data(command_buffer, &render_element._geometry_data.borrow());
-        // }
-        // renderer_data.end_render_pass(command_buffer);
+        let quad_mesh = resources.get_mesh_data("quad").borrow();
+        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
+        let render_pass_pipeline_data_name = "render_pass_static_forward/render_object";
+        let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
+        let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
+        for emitter in self._render_group.iter() {
+            let emitter: &EmitterInstance = unsafe { &**emitter };
+            let emitter_data: &EmitterData = emitter.get_emitter_data();
+            let material_instance_data: &MaterialInstanceData = &emitter_data._material_instance_data.borrow();
+            let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
+            let render_pass_data: &RenderPassData = &pipeline_binding_data.get_render_pass_data().borrow();
+            let pipeline_data: &PipelineData = &pipeline_binding_data.get_pipeline_data().borrow();
+
+            if prev_pipeline_data != pipeline_data {
+                if false == prev_pipeline_data.is_null() {
+                    renderer_data.end_render_pass(command_buffer);
+                }
+                renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+                prev_pipeline_data = pipeline_data;
+            }
+
+            if prev_pipeline_binding_data != pipeline_binding_data {
+                prev_pipeline_binding_data = pipeline_binding_data;
+                renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &*pipeline_binding_data, None);
+            }
+
+            renderer_data.upload_push_constant_data(
+                command_buffer,
+                pipeline_data,
+                &PushConstant_StaticRenderObject {
+                    _local_matrix: emitter._emitter_transform.get_matrix().clone() as Matrix4<f32>
+                }
+            );
+            renderer_data.draw_elements(command_buffer, &quad_geometry_data);
+        }
+        renderer_data.end_render_pass(command_buffer);
     }
 }
 
