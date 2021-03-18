@@ -16,7 +16,7 @@ void main()
     particle_index_range.instance_count = min(PARTICLE_MAX_COUNT, particle_index_range.instance_count + PARTICLE_SPAWN_COUNT);
     particle_index_range.destroy_count = 0;
 
-    dispatch_indirect.num_groups_x = (particle_index_range.instance_count + WORK_GROUP_SIZE - 1) / WORK_GROUP_SIZE;
+    dispatch_indirect.num_groups_x = (particle_index_range.instance_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
     dispatch_indirect.num_groups_y = 1;
     dispatch_indirect.num_groups_z = 1;
 }

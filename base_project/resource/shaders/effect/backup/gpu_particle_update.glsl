@@ -13,7 +13,7 @@ uniform sampler2D texture_normal;
 
 
 #ifdef COMPUTE_SHADER
-layout(local_size_x=WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
 layout(std430, binding=0) buffer particle_buffer { ParticleData particle_datas[]; };
 layout(std430, binding=1) buffer index_range_buffer { ParticleIndexRange particle_index_range; };

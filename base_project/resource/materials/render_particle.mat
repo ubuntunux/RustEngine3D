@@ -1,4 +1,4 @@
-{ "pipelines": [ {"render_pass": "render_pass_particle", "pipeline": "alpha_blend"}
+{ "pipelines": [ {"render_pass": "render_particle_translucent", "pipeline": "alpha_blend"}
                ]
 , "material_parameters": { "textureBase": "common/default"
                          , "textureMaterial": "common/default_m"

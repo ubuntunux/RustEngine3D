@@ -1,5 +1,3 @@
-#include "../precomputed_atmosphere/atmosphere_predefined.glsl"
-
 const int PARTICLE_STATE_NONE = 0;
 const int PARTICLE_STATE_DELAY = 1;
 const int PARTICLE_STATE_ALIVE = 2;
@@ -70,7 +68,6 @@ struct DispatchIndirectCommand
     uint num_groups_z;
 };
 
-
 struct DrawElementsIndirectCommand
 {
     uint vertex_count;
@@ -78,38 +75,4 @@ struct DrawElementsIndirectCommand
     uint first_index;
     uint base_vertex;
     uint base_instance;
-};
-
-
-//
-layout(binding = 0) uniform SceneConstants
-{
-    SCENE_CONSTANTS scene_constants;
-};
-layout(binding = 1) uniform ViewConstants
-{
-    VIEW_CONSTANTS view_constants;
-};
-layout(binding = 2) uniform LightConstants
-{
-    LIGHT_CONSTANTS light_constants;
-};
-layout(binding = 3) uniform AtmosphereConstants
-{
-    ATMOSPHERE_CONSTANTS atmosphere_constants;
-};
-
-layout( push_constant ) uniform PushConstant_StaticRenderObject
-{
-    mat4 _localMatrix;
-} pushConstant;
-
-struct VERTEX_OUTPUT
-{
-    mat3 tangent_to_world;
-    vec4 color;
-    vec2 texCoord;
-    vec3 relative_position;
-    vec4 projection_pos;
-    vec4 projection_pos_prev;
 };

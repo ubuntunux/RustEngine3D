@@ -41,7 +41,7 @@ pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataC
 }
 
 pub fn get_render_pass_data_create_info(renderer: &Renderer, blend_mode: ParticleBlendMode, geometry_type: ParticleGeometryType) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_pass_particle");
+    let render_pass_name = String::from("render_particle_translucent");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();

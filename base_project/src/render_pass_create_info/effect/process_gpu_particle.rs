@@ -20,6 +20,21 @@ pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataC
     let render_pass_name = String::from("process_gpu_particle");
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("compute_gpu_particle_count"),
+            _pipeline_compute_shader_file: PathBuf::from("effect/compute_gpu_particle_count.comp"),
+            _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _descriptor_data_create_infos: vec![
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 0,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        },
+        PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("update_gpu_particle"),
             _pipeline_compute_shader_file: PathBuf::from("effect/update_gpu_particle.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,

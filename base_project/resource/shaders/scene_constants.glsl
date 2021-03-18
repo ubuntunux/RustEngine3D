@@ -19,7 +19,9 @@
 #define MULTIPLY 2
 #define SUBTRACT 3
 
+// must match with constants.rs
 #define WORK_GROUP_SIZE 64
+#define PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE 64
 
 #define MAX_BONES_PER_VERTEX 4
 // MAX_BONES must match with constants.rs

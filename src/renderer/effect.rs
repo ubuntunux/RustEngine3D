@@ -256,14 +256,14 @@ pub struct EmitterInstance {
 
 pub trait EffectManagerBase {
     fn initialize_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
-    fn update_gpu_particles(
+    fn gather_render_effects(&mut self);
+    fn process_gpu_particles(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_data: &RendererData,
         resources: &Resources,
     );
-    fn gather_render_effects(&mut self);
     fn render_effects(
         &self,
         command_buffer: vk::CommandBuffer,

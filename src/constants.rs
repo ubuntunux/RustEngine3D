@@ -29,6 +29,10 @@ pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
 pub const MAX_FRAME_COUNT: usize = 2;
 pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
 
+// must match shader
+pub const WORK_GROUP_SIZE: i32 = 64;
+pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
+
 // application configs
 pub static mut VULKAN_API_VERSION: u32 = vk::make_version(1, 2, 0);
 pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::WARNING;

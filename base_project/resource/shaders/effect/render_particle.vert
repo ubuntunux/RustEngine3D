@@ -3,7 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../scene_constants.glsl"
-#include "effect_common.glsl"
+#include "render_particle_common.glsl"
 
 layout(location = 0) in vec3 inPosition;
 layout(location = 1) in vec3 inNormal;
