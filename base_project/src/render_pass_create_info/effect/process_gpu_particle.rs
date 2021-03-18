@@ -1,0 +1,65 @@
+use std::path::PathBuf;
+
+use ash::vk;
+use rust_engine_3d::utilities::system::enum_to_string;
+use rust_engine_3d::vulkan_context::render_pass::{
+    RenderPassDataCreateInfo,
+    PipelineDataCreateInfo,
+};
+use rust_engine_3d::vulkan_context::descriptor::{
+    DescriptorDataCreateInfo,
+    DescriptorResourceType,
+};
+
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer::Renderer;
+use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+
+
+pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataCreateInfo {
+    let render_pass_name = String::from("process_gpu_particle");
+    let pipeline_data_create_infos = vec![
+        PipelineDataCreateInfo {
+            _pipeline_data_create_info_name: String::from("update_gpu_particle"),
+            _pipeline_compute_shader_file: PathBuf::from("effect/update_gpu_particle.comp"),
+            _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _descriptor_data_create_infos: vec![
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 0,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
+                    _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 2,
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 3,
+                    _descriptor_name: enum_to_string(&RenderTargetType::CaptureHeightMap),
+                    _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    ..Default::default()
+                },
+            ],
+            ..Default::default()
+        }
+    ];
+
+    RenderPassDataCreateInfo {
+        _render_pass_create_info_name: render_pass_name.clone(),
+        _pipeline_data_create_infos: pipeline_data_create_infos,
+        ..Default::default()
+    }
+}

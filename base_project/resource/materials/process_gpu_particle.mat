@@ -1,0 +1,5 @@
+{ "pipelines": [ {"render_pass": "process_gpu_particle", "pipeline": "update_gpu_particle"}
+               ]
+, "material_parameters": {}
+}
+
