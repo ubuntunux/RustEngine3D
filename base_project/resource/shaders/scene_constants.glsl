@@ -47,7 +47,7 @@ struct SCENE_CONSTANTS
     float TIME;
     float DELTA_TIME;
     float SEA_HEIGHT;
-    int SCENE_CONSTANTS_DUMMY0;
+    int MAX_PARTICLE_COUNT;
 };
 
 // uniform_buffer_datas.rs - struct ViewConstants
