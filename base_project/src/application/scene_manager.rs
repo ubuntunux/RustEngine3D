@@ -100,8 +100,8 @@ impl SceneManagerBase for SceneManager {
         let camera_create_info = CameraCreateInfo {
             window_width: self._window_width,
             window_height: self._window_height,
-            position: Vector3::new(-25.28, 18.20, 24.5), // Vector3::new(-7.29, 6.345, -0.33),
-            rotation: Vector3::new(-0.157, -1.0, 0.0), // Vector3::new(-0.287, -1.5625, 0.0),
+            position: Vector3::new(2.0, 1.0, -1.0), // Vector3::new(-7.29, 6.345, -0.33),
+            rotation: Vector3::new(-0.157, 1.0, 0.0), // Vector3::new(-0.287, -1.5625, 0.0),
             ..Default::default()
         };
 

@@ -52,5 +52,9 @@ pub static mut SHADOW_DISTANCE: f32 = 50.0;
 pub static mut SHADOW_DEPTH: f32 = 50.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
 
+// effect
+pub static mut MAX_EMITTER_COUNT: i32 = 1024;
+pub static mut MAX_PARTICLE_COUNT: i32 = 262144;
+
 pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
 pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.

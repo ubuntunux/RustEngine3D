@@ -74,6 +74,7 @@ pub const DEFAULT_MESH_NAME: &str = "quad";
 pub const DEFAULT_MODEL_NAME: &str = "quad";
 pub const DEFAULT_TEXTURE_NAME: &str = "common/default";
 pub const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
+pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "effect/default";
 pub const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
@@ -289,7 +290,7 @@ impl Resources {
                     _enable: true,
                     _emitter_data_name: String::from("emitter"),
                     _emitter_lifetime: -1.0,
-                    _material_instance_name: String::from(DEFAULT_MATERIAL_INSTANCE_NAME),
+                    _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
                     _mesh_name: String::from(DEFAULT_MESH_NAME),
                     ..Default::default()
                 }],

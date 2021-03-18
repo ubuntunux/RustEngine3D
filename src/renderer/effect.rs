@@ -4,16 +4,19 @@ use ash::vk;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
+use crate::constants;
 use crate::renderer::renderer::RendererData;
 use crate::renderer::material_instance::MaterialInstanceData;
 use crate::renderer::mesh::MeshData;
 use crate::renderer::transform_object::TransformObjectData;
-use crate::resource::resource::Resources;
+use crate::resource::resource::{ DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME, Resources };
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::utilities::math;
 
 const INVALID_EFFECT_ID: i64 = -1;
+const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
+const INVALID_ALLOCATED_PARTICLE_INDEX: i32 = -1;
 
 // must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -127,6 +130,7 @@ pub struct EmitterDataCreateInfo {
     pub _spawn_volume_position: Vector3<f32>,
     pub _spawn_volume_rotation: Vector3<f32>,
     pub _spawn_volume_scale: Vector3<f32>,
+    pub _max_particle_count: i32,
     pub _spawn_count: i32,
     pub _spawn_term: f32,
     pub _delay: f32,
@@ -157,7 +161,8 @@ impl Default for EmitterDataCreateInfo {
             _spawn_volume_position: Vector3::zeros(),
             _spawn_volume_rotation: Vector3::zeros(),
             _spawn_volume_scale: Vector3::new(1.0, 1.0, 1.0),
-            _spawn_count: 10,
+            _max_particle_count: 100,
+            _spawn_count: 1,
             _spawn_term: 0.1,
             _delay: 0.0,
             _particle_lifetime_min: 1.0,
@@ -165,7 +170,7 @@ impl Default for EmitterDataCreateInfo {
             _align_mode: ParticleAlignMode::Billboard,
             _blend_mode: ParticleBlendMode::AlphaBlend,
             _geometry_type: ParticleGeometryType::Quad,
-            _material_instance_name: String::new(),
+            _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
             _mesh_name: String::new(),
             _rotation_min: Vector3::zeros(),
             _rotation_max: Vector3::zeros(),
@@ -189,6 +194,7 @@ pub struct EmitterData {
     pub _spawn_volume_type: ParticleSpawnVolumeType,
     pub _spawn_volume_info: Vector4<f32>,
     pub _spawn_volume_transform: Matrix4<f32>,
+    pub _max_particle_count: i32,
     pub _spawn_count: i32,
     pub _spawn_term: f32,
     pub _delay: f32,
@@ -224,7 +230,9 @@ impl Default for EffectCreateInfo {
 }
 
 pub struct EffectInstance {
+    pub _effect_manager_data: *const EffectManagerData,
     pub _effect_id: i64,
+    pub _update_first_time: bool,
     pub _is_alive: bool,
     pub _is_culled_from_view: bool,
     pub _elapsed_time: f32,
@@ -239,6 +247,9 @@ pub struct EmitterInstance {
     pub _elapsed_time: f32,
     pub _remained_spawn_term: f32,
     pub _particle_spawn_count: i32,
+    pub _allocated_emitter_index: i32,
+    pub _allocated_particle_index: i32,
+    pub _allocated_particle_count: i32,
     pub _emitter_transform: TransformObjectData,
     pub _emitter_data: *const EmitterData,
 }
@@ -269,6 +280,9 @@ pub struct EffectManagerData {
     pub _effect_id_generator: i64,
     pub _effects: HashMap<i64, RcRefCell<EffectInstance>>,
     pub _dead_effect_ids: Vec<i64>,
+    pub _allocated_emitters: Vec<*const EmitterInstance>,
+    pub _allocated_emitter_count: i32,
+    pub _allocated_particle_count: i32,
 }
 
 // interface
@@ -315,6 +329,7 @@ impl EmitterData {
                 &emitter_data_create_info._spawn_volume_rotation,
                 &emitter_data_create_info._spawn_volume_scale,
             ),
+            _max_particle_count: emitter_data_create_info._max_particle_count,
             _spawn_count: emitter_data_create_info._spawn_count,
             _spawn_term: emitter_data_create_info._spawn_term,
             _delay: emitter_data_create_info._delay,
@@ -334,13 +349,15 @@ impl EmitterData {
 }
 
 impl EffectInstance {
-    pub fn create_effect_instance(effect_id: i64, effec_create_info: &EffectCreateInfo, effect_data: &RcRefCell<EffectData>) -> RcRefCell<EffectInstance> {
+    pub fn create_effect_instance(effect_manager_data: *const EffectManagerData, effect_id: i64, effec_create_info: &EffectCreateInfo, effect_data: &RcRefCell<EffectData>) -> RcRefCell<EffectInstance> {
         let emitters = effect_data.borrow()._emitter_datas.iter().map(|emitter_data| {
             EmitterInstance::create_emitter_instance(emitter_data)
         }).collect();
 
         let mut effect_instance = EffectInstance {
+            _effect_manager_data: effect_manager_data,
             _effect_id: effect_id,
+            _update_first_time: true,
             _is_alive: false,
             _is_culled_from_view: false,
             _elapsed_time: 0.0,
@@ -355,6 +372,14 @@ impl EffectInstance {
         newRcRefCell(effect_instance)
     }
 
+    pub fn get_effect_manager_data(&self) -> &EffectManagerData {
+        unsafe { &*self._effect_manager_data }
+    }
+
+    pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData {
+        unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
+    }
+
     pub fn is_valid_effect(&self) -> bool {
         INVALID_EFFECT_ID != self._effect_id
     }
@@ -363,19 +388,34 @@ impl EffectInstance {
         self._is_alive = true;
         self._elapsed_time = 0.0;
 
+        let effect_manager_data = self._effect_manager_data as *mut EffectManagerData;
         for emitter in self._emitters.iter_mut() {
             emitter.play_emitter();
+            unsafe {
+                (*effect_manager_data).allocate_emitter(emitter);
+            }
         }
     }
 
     pub fn update_effect(&mut self, delta_time: f32) {
+        if self._update_first_time {
+            self.play_effect();
+            self._update_first_time = false;
+        }
+
         self._effect_transform.update_transform_object();
 
+        let effect_manager_data = self._effect_manager_data as *mut EffectManagerData;
         let mut is_alive = false;
         for emitter in self._emitters.iter_mut() {
-
             if emitter._is_alive {
                 emitter.update_emitter(delta_time);
+            }
+
+            if false == emitter._is_alive {
+                unsafe {
+                    (*effect_manager_data).deallocate_emitter(emitter);
+                }
             }
             is_alive |= emitter._is_alive;
         }
@@ -391,9 +431,16 @@ impl EmitterInstance {
             _elapsed_time: 0.0,
             _remained_spawn_term: 0.0,
             _particle_spawn_count: 0,
+            _allocated_emitter_index: INVALID_ALLOCATED_EMITTER_INDEX,
+            _allocated_particle_index: INVALID_ALLOCATED_PARTICLE_INDEX,
+            _allocated_particle_count: 0,
             _emitter_transform: TransformObjectData::new_transform_object_data(),
             _emitter_data: emitter_data,
         }
+    }
+
+    pub fn is_valid_allocated(&self) -> bool {
+        INVALID_ALLOCATED_EMITTER_INDEX != self._allocated_emitter_index && INVALID_ALLOCATED_PARTICLE_INDEX != self._allocated_particle_index
     }
 
     pub fn is_infinite_emitter(&self) -> bool {
@@ -409,6 +456,9 @@ impl EmitterInstance {
         self._elapsed_time = 0.0;
         self._remained_spawn_term = 0.0;
         self._particle_spawn_count = 0;
+        self._allocated_emitter_index = INVALID_ALLOCATED_EMITTER_INDEX;
+        self._allocated_particle_index = INVALID_ALLOCATED_PARTICLE_INDEX;
+        self._allocated_particle_count = 0;
     }
 
     pub fn update_emitter(&mut self, delta_time: f32) {
@@ -443,6 +493,9 @@ impl EffectManagerData {
             _effect_id_generator: 0,
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
+            _allocated_emitters: unsafe { vec![std::ptr::null(); constants::MAX_EMITTER_COUNT as usize] },
+            _allocated_emitter_count: 0,
+            _allocated_particle_count: 0,
         }
     }
 
@@ -472,7 +525,7 @@ impl EffectManagerData {
         let effect_id = self.generate_effect_id();
         let resources = self._resources.borrow();
         let effect_data = resources.get_effect_data(&effect_create_info._effect_data_name);
-        let effect_instance = EffectInstance::create_effect_instance(effect_id, effect_create_info, effect_data);
+        let effect_instance = EffectInstance::create_effect_instance(self, effect_id, effect_create_info, effect_data);
         effect_instance.borrow_mut().play_effect();
         self._effects.insert(effect_id, effect_instance);
         effect_id
@@ -484,6 +537,29 @@ impl EffectManagerData {
 
     pub fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance>> {
         &self._effects
+    }
+
+    pub fn allocate_emitter(&mut self, emitter: &mut EmitterInstance) {
+        if false == emitter.is_valid_allocated() {
+            let available_emitter_count = unsafe { constants::MAX_EMITTER_COUNT - self._allocated_emitter_count };
+            let available_particle_count = unsafe { constants::MAX_PARTICLE_COUNT - self._allocated_particle_count };
+            if 0 < available_emitter_count && 0 < available_particle_count {
+                emitter._allocated_particle_count = available_particle_count.min(emitter.get_emitter_data()._max_particle_count);
+                emitter._allocated_particle_index = self._allocated_particle_count;
+                emitter._allocated_emitter_index = self._allocated_emitter_count;
+                self._allocated_particle_count += emitter._allocated_particle_count;
+                self._allocated_emitters[emitter._allocated_emitter_index as usize] = emitter;
+                self._allocated_emitter_count += 1;
+            }
+        }
+    }
+
+    pub fn deallocate_emitter(&mut self, emitter: &mut EmitterInstance) {
+        if emitter.is_valid_allocated() {
+            self._allocated_particle_count -= emitter._allocated_particle_count;
+            self._allocated_emitter_count -= 1;
+            self._allocated_emitters[emitter._allocated_emitter_index as usize] = std::ptr::null();
+        }
     }
 
     pub fn update_effects(&mut self, delta_time: f32) {
@@ -499,6 +575,7 @@ impl EffectManagerData {
             }
         }
 
+        // unregist effect
         if false == self._dead_effect_ids.is_empty() {
             for dead_effect_id in self._dead_effect_ids.iter() {
                 self._effects.remove(dead_effect_id);
