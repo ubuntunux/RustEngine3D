@@ -205,13 +205,20 @@ pub fn run_application() {
         constants::MAX_PARTICLE_COUNT = 262144;
     }
 
+    // create
+    let renderer = Renderer::create_renderer_data();
+    let scene_manager = SceneManager::create_scene_manager();
+    let effect_manager = EffectManager::create_effect_manager();
+    let ui_manager = UIManager::create_ui_manager();
+
+    // initialize
     let application = Application {
         _application_data: std::ptr::null(),
         _resources: std::ptr::null(),
-        _renderer: Renderer::create_renderer_data(),
-        _scene_manager: SceneManager::create_scene_manager(),
-        _effect_manager: EffectManager::create_effect_manager(),
-        _ui_manager: UIManager::create_ui_manager(),
+        _renderer: renderer,
+        _scene_manager: scene_manager,
+        _effect_manager: effect_manager,
+        _ui_manager: ui_manager,
     };
     application::run_application(
         LevelFilter::Info,

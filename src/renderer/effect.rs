@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use ash::vk;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
@@ -16,7 +15,7 @@ use crate::utilities::math;
 
 const INVALID_EFFECT_ID: i64 = -1;
 const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
-const INVALID_ALLOCATED_PARTICLE_INDEX: i32 = -1;
+const INVALID_ALLOCATED_PARTICLE_OFFSET: i32 = -1;
 
 // must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -248,8 +247,9 @@ pub struct EmitterInstance {
     pub _remained_spawn_term: f32,
     pub _particle_spawn_count: i32,
     pub _allocated_emitter_index: i32,
-    pub _allocated_particle_index: i32,
+    pub _allocated_particle_offset: i32,
     pub _allocated_particle_count: i32,
+    pub _need_to_upload_static_constant_buffer: bool,
     pub _emitter_transform: TransformObjectData,
     pub _emitter_data: *const EmitterData,
 }
@@ -257,20 +257,6 @@ pub struct EmitterInstance {
 pub trait EffectManagerBase {
     fn initialize_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
     fn gather_render_effects(&mut self);
-    fn process_gpu_particles(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        renderer_data: &RendererData,
-        resources: &Resources,
-    );
-    fn render_effects(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-        renderer_data: &RendererData,
-        resources: &Resources,
-    );
 }
 
 pub struct EffectManagerData {
@@ -432,15 +418,16 @@ impl EmitterInstance {
             _remained_spawn_term: 0.0,
             _particle_spawn_count: 0,
             _allocated_emitter_index: INVALID_ALLOCATED_EMITTER_INDEX,
-            _allocated_particle_index: INVALID_ALLOCATED_PARTICLE_INDEX,
+            _allocated_particle_offset: INVALID_ALLOCATED_PARTICLE_OFFSET,
             _allocated_particle_count: 0,
+            _need_to_upload_static_constant_buffer: false,
             _emitter_transform: TransformObjectData::new_transform_object_data(),
             _emitter_data: emitter_data,
         }
     }
 
     pub fn is_valid_allocated(&self) -> bool {
-        INVALID_ALLOCATED_EMITTER_INDEX != self._allocated_emitter_index && INVALID_ALLOCATED_PARTICLE_INDEX != self._allocated_particle_index
+        INVALID_ALLOCATED_EMITTER_INDEX != self._allocated_emitter_index && INVALID_ALLOCATED_PARTICLE_OFFSET != self._allocated_particle_offset
     }
 
     pub fn is_infinite_emitter(&self) -> bool {
@@ -457,7 +444,7 @@ impl EmitterInstance {
         self._remained_spawn_term = 0.0;
         self._particle_spawn_count = 0;
         self._allocated_emitter_index = INVALID_ALLOCATED_EMITTER_INDEX;
-        self._allocated_particle_index = INVALID_ALLOCATED_PARTICLE_INDEX;
+        self._allocated_particle_offset = INVALID_ALLOCATED_PARTICLE_OFFSET;
         self._allocated_particle_count = 0;
     }
 
@@ -545,8 +532,9 @@ impl EffectManagerData {
             let available_particle_count = unsafe { constants::MAX_PARTICLE_COUNT - self._allocated_particle_count };
             if 0 < available_emitter_count && 0 < available_particle_count {
                 emitter._allocated_particle_count = available_particle_count.min(emitter.get_emitter_data()._max_particle_count);
-                emitter._allocated_particle_index = self._allocated_particle_count;
+                emitter._allocated_particle_offset = self._allocated_particle_count;
                 emitter._allocated_emitter_index = self._allocated_emitter_count;
+                emitter._need_to_upload_static_constant_buffer = true;
                 self._allocated_particle_count += emitter._allocated_particle_count;
                 self._allocated_emitters[emitter._allocated_emitter_index as usize] = emitter;
                 self._allocated_emitter_count += 1;
@@ -556,9 +544,10 @@ impl EffectManagerData {
 
     pub fn deallocate_emitter(&mut self, emitter: &mut EmitterInstance) {
         if emitter.is_valid_allocated() {
-            self._allocated_particle_count -= emitter._allocated_particle_count;
-            self._allocated_emitter_count -= 1;
             self._allocated_emitters[emitter._allocated_emitter_index as usize] = std::ptr::null();
+            emitter._allocated_particle_count = 0;
+            emitter._allocated_particle_offset = INVALID_ALLOCATED_PARTICLE_OFFSET;
+            emitter._allocated_emitter_index = INVALID_ALLOCATED_EMITTER_INDEX;
         }
     }
 

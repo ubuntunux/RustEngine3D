@@ -22,7 +22,13 @@ use rust_engine_3d::renderer::ui::UIRenderData;
 use rust_engine_3d::vulkan_context::buffer::{ self, ShaderBufferData };
 
 use crate::application_constants;
-use crate::renderer::effect::{ GpuParticleStaticConstants, GpuParticleDynamicConstants };
+use crate::renderer::effect::{
+    GpuParticleStaticConstants,
+    GpuParticleDynamicConstants,
+    GpuParticleCountBufferData,
+    GpuParticleEmitterIndexBufferData,
+    GpuParticleUpdateBufferData,
+};
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
@@ -44,6 +50,11 @@ pub enum ShaderBufferDataType {
     UIRenderDataBuffer,
     GpuParticleStaticConstants,
     GpuParticleDynamicConstants,
+    GpuParticleCountBuffer,
+    GpuParticleCountBufferStore,
+    GpuParticleEmitterIndexBuffer,
+    GpuParticleUpdateBuffer,
+    GpuParticleUpdateBufferStore,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -181,16 +192,6 @@ impl ViewConstants {
     }
 }
 
-impl GpuParticleStaticConstants {
-    pub fn update_gpu_particle_static_constants(&mut self) {
-    }
-}
-
-impl GpuParticleDynamicConstants {
-    pub fn update_gpu_particle_dynamic_constants(&mut self) {
-    }
-}
-
 impl std::fmt::Display for ShaderBufferDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
@@ -217,6 +218,11 @@ impl std::str::FromStr for ShaderBufferDataType {
             "UIRenderDataBuffer" => Ok(ShaderBufferDataType::UIRenderDataBuffer),
             "GpuParticleStaticConstants" => Ok(ShaderBufferDataType::GpuParticleStaticConstants),
             "GpuParticleDynamicConstants" => Ok(ShaderBufferDataType::GpuParticleDynamicConstants),
+            "GpuParticleCountBuffer" => Ok(ShaderBufferDataType::GpuParticleCountBuffer),
+            "GpuParticleCountBufferStore" => Ok(ShaderBufferDataType::GpuParticleCountBufferStore),
+            "GpuParticleEmitterIndexBuffer" => Ok(ShaderBufferDataType::GpuParticleEmitterIndexBuffer),
+            "GpuParticleUpdateBuffer" => Ok(ShaderBufferDataType::GpuParticleUpdateBuffer),
+            "GpuParticleUpdateBufferStore" => Ok(ShaderBufferDataType::GpuParticleUpdateBufferStore),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -265,5 +271,10 @@ pub fn regist_shader_buffer_datas(
         regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIRenderDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIRenderData>() * constants::MAX_UI_INSTANCE_COUNT as usize, has_staging_buffer);
         regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleStaticConstants, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleStaticConstants>() * constants::MAX_EMITTER_COUNT as usize, has_staging_buffer);
         regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleDynamicConstants, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleDynamicConstants>() * constants::MAX_EMITTER_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleCountBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleCountBufferData>() * constants::MAX_EMITTER_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleCountBufferStore, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleCountBufferData>() * constants::MAX_EMITTER_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleEmitterIndexBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleEmitterIndexBufferData>() * constants::MAX_PARTICLE_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleUpdateBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleUpdateBufferData>() * constants::MAX_PARTICLE_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleUpdateBufferStore, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleUpdateBufferData>() * constants::MAX_PARTICLE_COUNT as usize, has_staging_buffer);
     }
 }
