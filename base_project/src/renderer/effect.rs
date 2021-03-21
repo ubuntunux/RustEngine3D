@@ -140,7 +140,7 @@ impl EffectManager {
     ) {
         let mut process_emitter_count: i32 = 0;
         let mut process_gpu_particle_count: i32 = 0;
-        let effect_manager_data: &EffectManagerData = unsafe { &*self._effect_manager_data };
+        let effect_manager_data: &mut EffectManagerData = unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) };
         let allocated_emitter_count = effect_manager_data._allocated_emitter_count as isize;
         let allocated_emitters: &Vec<*const EmitterInstance> = &effect_manager_data._allocated_emitters;
         for emitter_index in 0..allocated_emitter_count {
@@ -178,8 +178,8 @@ impl EffectManager {
             process_gpu_particle_count += emitter._allocated_particle_count;
         }
 
-        self.get_effect_manager_data_mut()._allocated_emitter_count = process_emitter_count;
-        self.get_effect_manager_data_mut()._allocated_particle_count = process_gpu_particle_count;
+        effect_manager_data._allocated_emitter_count = process_emitter_count;
+        effect_manager_data._allocated_particle_count = process_gpu_particle_count;
 
         // Upload Uniform Buffers
         renderer.upload_shader_buffer_datas(
@@ -191,7 +191,7 @@ impl EffectManager {
         renderer.upload_shader_buffer_datas(
             command_buffer,
             swapchain_index,
-            &ShaderBufferDataType::GpuParticleStaticConstants,
+            &ShaderBufferDataType::GpuParticleDynamicConstants,
             &self._gpu_particle_dynamic_constants[0..process_emitter_count as usize]
         );
 
