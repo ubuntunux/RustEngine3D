@@ -17,7 +17,7 @@ use rust_engine_3d::vulkan_context::descriptor::{
 };
 use rust_engine_3d::vulkan_context::vulkan_context::{ self, BlendMode, };
 
-use crate::renderer::push_constants::PushConstant_RenderParticle;
+use crate::renderer::effect::PushConstant_RenderParticle;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer::Renderer;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;

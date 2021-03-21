@@ -45,20 +45,6 @@ impl Default for PushConstant_SkeletalRenderObject {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
-pub struct PushConstant_RenderParticle {
-    pub _local_matrix: Matrix4<f32>,
-}
-
-impl Default for PushConstant_RenderParticle {
-    fn default() -> PushConstant_RenderParticle {
-        PushConstant_RenderParticle {
-            _local_matrix: Matrix4::identity(),
-        }
-    }
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
 pub struct PushConstant_BloomHighlight {
     pub _bloom_threshold_min: f32,
     pub _bloom_threshold_max: f32,

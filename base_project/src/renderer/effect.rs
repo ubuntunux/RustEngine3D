@@ -12,9 +12,41 @@ use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 
-use crate::renderer::push_constants::{ PushConstant_RenderParticle, NONE_PUSH_CONSTANT };
+use crate::renderer::push_constants::NONE_PUSH_CONSTANT;
 
+// shader storage buffer
+pub struct GpuParticleStaticConstants {
 
+}
+
+pub struct GpuParticleDynamicConstants {
+
+}
+
+pub struct GpuParticleCountBuffer {
+
+}
+
+pub struct GpuParticleUpdateBuffer {
+
+}
+
+// push constants
+#[allow(non_camel_case_types)]
+#[derive(Debug, Clone)]
+pub struct PushConstant_RenderParticle {
+    pub _local_matrix: Matrix4<f32>,
+}
+
+impl Default for PushConstant_RenderParticle {
+    fn default() -> PushConstant_RenderParticle {
+        PushConstant_RenderParticle {
+            _local_matrix: Matrix4::identity(),
+        }
+    }
+}
+
+// EffectManager
 pub struct EffectManager {
     pub _effect_manager_data: *const EffectManagerData,
     pub _render_group: Vec<*const EmitterInstance>,

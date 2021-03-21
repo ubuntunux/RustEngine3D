@@ -22,6 +22,7 @@ use rust_engine_3d::renderer::ui::UIRenderData;
 use rust_engine_3d::vulkan_context::buffer::{ self, ShaderBufferData };
 
 use crate::application_constants;
+use crate::renderer::effect::{ GpuParticleStaticConstants, GpuParticleDynamicConstants };
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
@@ -41,6 +42,8 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants5,
     FontInstanceDataBuffer,
     UIRenderDataBuffer,
+    GpuParticleStaticConstants,
+    GpuParticleDynamicConstants,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -135,6 +138,59 @@ pub struct AtmosphereConstants {
 
 
 // Interfaces
+impl SceneConstants {
+    pub fn update_scene_constants(&mut self, screen_width: u32, screen_height: u32, elapsed_time: f64, delta_time: f64, sea_height: f32) {
+        self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
+        self._backbuffer_size = self._screen_size.into();
+        self._time = elapsed_time as f32;
+        self._delta_time = delta_time as f32;
+        self._sea_height = sea_height;
+        unsafe { self._max_particle_count = constants::MAX_PARTICLE_COUNT };
+    }
+}
+
+impl ViewConstants {
+    pub fn update_view_constants(&mut self, camera_data: &CameraObjectData) {
+        self._view = camera_data._view.into();
+        self._inv_view = camera_data._inv_view.into();
+        self._view_origin = camera_data._view_origin.into();
+        self._inv_view_origin = camera_data._inv_view_origin.into();
+        self._projection = camera_data._projection.into();
+        self._inv_projection = camera_data._inv_projection.into();
+        self._view_projection = camera_data._view_projection.into();
+        self._inv_view_projection = camera_data._inv_view_projection.into();
+        self._view_origin_projection = camera_data._view_origin_projection.into();
+        self._inv_view_origin_projection = camera_data._inv_view_origin_projection.into();
+        self._view_origin_projection_prev = camera_data._view_origin_projection_prev.into();
+        self._projection_jitter = camera_data._projection_jitter.into();
+        self._inv_projection_jitter = camera_data._inv_projection_jitter.into();
+        self._view_projection_jitter = camera_data._view_projection_jitter.into();
+        self._inv_view_projection_jitter = camera_data._inv_view_projection_jitter.into();
+        self._view_origin_projection_jitter = camera_data._view_origin_projection_jitter.into();
+        self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
+        self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
+        self._camera_position = camera_data._transform_object._position.clone() as Vector3<f32>;
+        self._jitter_frame = camera_data._jitter_frame;
+        self._camera_position_prev = camera_data._transform_object._prev_position.clone() as Vector3<f32>;
+        self._viewconstants_dummy0 = 0.0;
+        self._near_far = Vector2::new(camera_data._near, camera_data._far);
+        self._jitter_delta = camera_data._jitter_delta.into();
+        self._jitter_offset = camera_data._jitter.into();
+        self._viewconstants_dummy1 = 0.0;
+        self._viewconstants_dummy2 = 0.0;
+    }
+}
+
+impl GpuParticleStaticConstants {
+    pub fn update_gpu_particle_static_constants(&mut self) {
+    }
+}
+
+impl GpuParticleDynamicConstants {
+    pub fn update_gpu_particle_dynamic_constants(&mut self) {
+    }
+}
+
 impl std::fmt::Display for ShaderBufferDataType {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
         write!(f, "{:?}", self)
@@ -159,6 +215,8 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
             "FontInstanceDataBuffer" => Ok(ShaderBufferDataType::FontInstanceDataBuffer),
             "UIRenderDataBuffer" => Ok(ShaderBufferDataType::UIRenderDataBuffer),
+            "GpuParticleStaticConstants" => Ok(ShaderBufferDataType::GpuParticleStaticConstants),
+            "GpuParticleDynamicConstants" => Ok(ShaderBufferDataType::GpuParticleDynamicConstants),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -205,48 +263,7 @@ pub fn regist_shader_buffer_datas(
         regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::LightProbeViewConstants5, vk::BufferUsageFlags::UNIFORM_BUFFER, std::mem::size_of::<ViewConstants>(), has_staging_buffer);
         regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::FontInstanceDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<FontInstanceData>() * constants::MAX_FONT_INSTANCE_COUNT as usize, has_staging_buffer);
         regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::UIRenderDataBuffer, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<UIRenderData>() * constants::MAX_UI_INSTANCE_COUNT as usize, has_staging_buffer);
-    }
-}
-
-impl SceneConstants {
-    pub fn update_scene_constants(&mut self, screen_width: u32, screen_height: u32, elapsed_time: f64, delta_time: f64, sea_height: f32) {
-            self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
-            self._backbuffer_size = self._screen_size.into();
-            self._time = elapsed_time as f32;
-            self._delta_time = delta_time as f32;
-            self._sea_height = sea_height;
-            unsafe { self._max_particle_count = constants::MAX_PARTICLE_COUNT };
-    }
-}
-
-impl ViewConstants {
-    pub fn update_view_constants(&mut self, camera_data: &CameraObjectData) {
-        self._view = camera_data._view.into();
-        self._inv_view = camera_data._inv_view.into();
-        self._view_origin = camera_data._view_origin.into();
-        self._inv_view_origin = camera_data._inv_view_origin.into();
-        self._projection = camera_data._projection.into();
-        self._inv_projection = camera_data._inv_projection.into();
-        self._view_projection = camera_data._view_projection.into();
-        self._inv_view_projection = camera_data._inv_view_projection.into();
-        self._view_origin_projection = camera_data._view_origin_projection.into();
-        self._inv_view_origin_projection = camera_data._inv_view_origin_projection.into();
-        self._view_origin_projection_prev = camera_data._view_origin_projection_prev.into();
-        self._projection_jitter = camera_data._projection_jitter.into();
-        self._inv_projection_jitter = camera_data._inv_projection_jitter.into();
-        self._view_projection_jitter = camera_data._view_projection_jitter.into();
-        self._inv_view_projection_jitter = camera_data._inv_view_projection_jitter.into();
-        self._view_origin_projection_jitter = camera_data._view_origin_projection_jitter.into();
-        self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
-        self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
-        self._camera_position = camera_data._transform_object._position.clone() as Vector3<f32>;
-        self._jitter_frame = camera_data._jitter_frame;
-        self._camera_position_prev = camera_data._transform_object._prev_position.clone() as Vector3<f32>;
-        self._viewconstants_dummy0 = 0.0;
-        self._near_far = Vector2::new(camera_data._near, camera_data._far);
-        self._jitter_delta = camera_data._jitter_delta.into();
-        self._jitter_offset = camera_data._jitter.into();
-        self._viewconstants_dummy1 = 0.0;
-        self._viewconstants_dummy2 = 0.0;
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleStaticConstants, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleStaticConstants>() * constants::MAX_EMITTER_COUNT as usize, has_staging_buffer);
+        regist_shader_buffer_data(device, memory_properties, shader_buffer_data_map, ShaderBufferDataType::GpuParticleDynamicConstants, vk::BufferUsageFlags::STORAGE_BUFFER, std::mem::size_of::<GpuParticleDynamicConstants>() * constants::MAX_EMITTER_COUNT as usize, has_staging_buffer);
     }
 }
