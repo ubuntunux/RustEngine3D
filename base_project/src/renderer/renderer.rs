@@ -251,7 +251,7 @@ impl RendererBase for Renderer {
     }
 
     fn destroy_uniform_buffers(&mut self, device: &Device) {
-        for shader_buffer_data in self._shader_buffer_data_map.values() {
+        for shader_buffer_data in self._shader_buffer_data_map.values_mut() {
             buffer::destroy_shader_buffer_data(device, shader_buffer_data);
         }
         self._shader_buffer_data_map.clear();

@@ -27,6 +27,60 @@ const uint ParticleVelocityType_Local = 0;
 const uint ParticleVelocityType_WorldY_LocalXZ = 1;
 const uint ParticleVelocityType_NormalDirection = 2;
 
+//
+struct GpuParticleStaticConstants
+{
+    mat4 _spawn_volume_transform;
+    vec4 _spawn_volume_info;
+    vec3 _rotation_min;
+    float _particle_lifetime_min;
+    vec3 _rotation_max;
+    float _particle_lifetime_max;
+    vec3 _scale_min;
+    int _spawn_volume_type;
+    vec3 _scale_max;
+    int _max_particle_count;
+    int _align_mode;
+    int _geometry_type;
+    int _reserved0;
+    int _reserved1;
+};
+
+struct GpuParticleDynamicConstants
+{
+    mat4 _emitter_transform;
+    int _spawn_count;
+    int _reserved0;
+    int _reserved1;
+    int _reserved2;
+};
+
+struct GpuParticleCountBufferData
+{
+    int _particle_alive_count;
+    int _prev_particle_alive_count;
+    int _particle_dead_count;
+    int _reserved0;
+};
+
+struct GpuParticleEmitterIndexBufferData
+{
+    int _emitter_index;
+};
+
+struct GpuParticleUpdateBufferData
+{
+    mat4 _particle_emitter_transform;
+    vec3 _particle_relative_position;
+    float _particle_elapsed_time;
+    vec3 _particle_local_position;
+    float _particle_initial_life_time;
+    vec4 _particle_left_with_scale;
+    vec4 _particle_up_with_scale;
+    vec4 _particle_front_with_scale;
+};
+
+//
 struct ParticleData
 {
     mat4 parent_matrix;
