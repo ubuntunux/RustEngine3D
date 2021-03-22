@@ -16,6 +16,22 @@ layout(binding = 1) uniform ViewConstants
 };
 layout(binding = 2) uniform sampler2D textureSceneDepth;
 layout(binding = 3) uniform sampler2D textureHeightMap;
+layout(binding = 4) buffer GpuParticleStaticConstantsBuffer
+{
+    GpuParticleStaticConstants gpu_particle_static_constants;
+};
+layout(binding = 5) buffer GpuParticleDynamicConstantsBuffer
+{
+    GpuParticleDynamicConstants gpu_particle_dynamic_constants;
+};
+layout(binding = 6) buffer GpuParticleCountBuffer
+{
+    GpuParticleCountBufferData gpu_particle_count_buffer;
+};
+layout(binding = 7) buffer GpuParticleUpdateBuffer
+{
+    GpuParticleUpdateBufferData gpu_particle_update_buffer;
+};
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 void main()

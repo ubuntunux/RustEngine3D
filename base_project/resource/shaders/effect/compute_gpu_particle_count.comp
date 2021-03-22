@@ -10,6 +10,18 @@ layout(binding = 0) uniform SceneConstants
 {
     SCENE_CONSTANTS scene_constants;
 };
+layout(binding = 1) buffer GpuParticleStaticConstantsBuffer
+{
+    GpuParticleStaticConstants gpu_particle_static_constants;
+};
+layout(binding = 2) buffer GpuParticleDynamicConstantsBuffer
+{
+    GpuParticleDynamicConstants gpu_particle_dynamic_constants;
+};
+layout(binding = 3) buffer GpuParticleCountBuffer
+{
+    GpuParticleCountBufferData gpu_particle_count_buffer;
+};
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 void main()
