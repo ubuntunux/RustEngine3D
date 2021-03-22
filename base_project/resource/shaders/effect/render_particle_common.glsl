@@ -26,19 +26,19 @@ layout(binding = 9) uniform sampler3D scattering_texture;
 layout(binding = 10) uniform sampler3D single_mie_scattering_texture;
 layout(binding = 11) buffer GpuParticleStaticConstantsBuffer
 {
-    GpuParticleStaticConstants gpu_particle_static_constants;
+    GpuParticleStaticConstants gpu_particle_static_constants[];
 };
 layout(binding = 12) buffer GpuParticleDynamicConstantsBuffer
 {
-    GpuParticleDynamicConstants gpu_particle_dynamic_constants;
+    GpuParticleDynamicConstants gpu_particle_dynamic_constants[];
 };
 layout(binding = 13) buffer GpuParticleCountBuffer
 {
-    GpuParticleCountBufferData gpu_particle_count_buffer;
+    GpuParticleCountBufferData gpu_particle_count_buffer[];
 };
 layout(binding = 14) buffer GpuParticleUpdateBuffer
 {
-    GpuParticleUpdateBufferData gpu_particle_update_buffer;
+    GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
 layout(binding = 15) uniform sampler2D textureBase;
 layout(binding = 16) uniform sampler2D textureMaterial;
@@ -47,7 +47,10 @@ layout(binding = 17) uniform sampler2D textureNormal;
 
 layout( push_constant ) uniform PushConstant_RenderParticle
 {
-    mat4 _localMatrix;
+    int _allocated_emitter_index;
+    int _reserved0;
+    int _reserved1;
+    int _reserved2;
 } pushConstant;
 
 struct VERTEX_OUTPUT

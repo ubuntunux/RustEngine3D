@@ -48,7 +48,7 @@ impl UIManagerBase for UIManager {
             let btn0 = UIManagerData::create_widget("btn0", UIWidgetTypes::Default);
             let ui_component = &mut btn0.as_mut().unwrap().get_ui_component_mut();
             ui_component.set_pos(25.0,255.0);
-            ui_component.set_size(400.0, 200.0);
+            ui_component.set_size(200.0, 100.0);
             ui_component.set_color(get_color32(255, 255, 255, 255));
             ui_component.set_font_color(get_color32(0, 0, 0, 255));
             ui_component.set_border_color(get_color32(255, 0, 0, 255));

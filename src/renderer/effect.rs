@@ -99,18 +99,12 @@ impl Default for ParticleVelocityType {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct EffectDataCreateInfo {
-    pub _effect_position: Vector3<f32>,
-    pub _effect_rotation: Vector3<f32>,
-    pub _effect_scale: Vector3<f32>,
     pub _emitter_data_create_infos: Vec<EmitterDataCreateInfo>,
 }
 
 impl Default for EffectDataCreateInfo {
     fn default() -> EffectDataCreateInfo {
         EffectDataCreateInfo {
-            _effect_position: Vector3::zeros(),
-            _effect_rotation: Vector3::zeros(),
-            _effect_scale: Vector3::new(1.0, 1.0, 1.0),
             _emitter_data_create_infos: Vec::new(),
         }
     }
@@ -182,7 +176,6 @@ impl Default for EmitterDataCreateInfo {
 pub struct EffectData {
     pub _effect_data_name: String,
     pub _emitter_datas: Vec<EmitterData>,
-    pub _effect_transform: Matrix4<f32>,
 }
 
 pub struct EmitterData {
@@ -242,6 +235,7 @@ pub struct EffectInstance {
 }
 
 pub struct EmitterInstance {
+    pub _parent_effect: *const EffectInstance,
     pub _is_alive: bool,
     pub _elapsed_time: f32,
     pub _remained_spawn_term: f32,
@@ -250,6 +244,7 @@ pub struct EmitterInstance {
     pub _allocated_particle_offset: i32,
     pub _allocated_particle_count: i32,
     pub _need_to_upload_static_constant_buffer: bool,
+    pub _emitter_world_transform: Matrix4<f32>,
     pub _emitter_transform: TransformObjectData,
     pub _emitter_data: *const EmitterData,
 }
@@ -280,11 +275,6 @@ impl EffectData {
     ) -> EffectData {
         EffectData {
             _effect_data_name: effect_data_name.clone(),
-            _effect_transform: math::make_srt_transform(
-                &effect_data_create_info._effect_position,
-                &effect_data_create_info._effect_rotation,
-                &effect_data_create_info._effect_scale,
-            ),
             _emitter_datas: emitter_datas,
         }
     }
@@ -340,7 +330,7 @@ impl EffectInstance {
             EmitterInstance::create_emitter_instance(emitter_data)
         }).collect();
 
-        let mut effect_instance = EffectInstance {
+        let effect_instance = newRcRefCell(EffectInstance {
             _effect_manager_data: effect_manager_data,
             _effect_id: effect_id,
             _update_first_time: true,
@@ -351,11 +341,19 @@ impl EffectInstance {
             _effect_transform: TransformObjectData::new_transform_object_data(),
             _effect_data: effect_data.clone(),
             _emitters: emitters,
-        };
-        effect_instance._effect_transform.set_position(&effec_create_info._effect_position);
-        effect_instance._effect_transform.set_rotation(&effec_create_info._effect_rotation);
-        effect_instance._effect_transform.set_scale(&effec_create_info._effect_scale);
-        newRcRefCell(effect_instance)
+        });
+        effect_instance.borrow_mut().initialize_effect(effec_create_info);
+        effect_instance
+    }
+
+    pub fn initialize_effect(&mut self, effec_create_info: &EffectCreateInfo) {
+        self._effect_transform.set_position(&effec_create_info._effect_position);
+        self._effect_transform.set_rotation(&effec_create_info._effect_rotation);
+        self._effect_transform.set_scale(&effec_create_info._effect_scale);
+        let parent_effect = self as *const EffectInstance;
+        for emitter in self._emitters.iter_mut() {
+            emitter.initialize_emitter(parent_effect);
+        }
     }
 
     pub fn get_effect_manager_data(&self) -> &EffectManagerData {
@@ -364,6 +362,10 @@ impl EffectInstance {
 
     pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData {
         unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
+    }
+
+    pub fn get_effect_world_transform(&self) -> &Matrix4<f32> {
+        &self._effect_transform._matrix
     }
 
     pub fn is_valid_effect(&self) -> bool {
@@ -389,13 +391,13 @@ impl EffectInstance {
             self._update_first_time = false;
         }
 
-        self._effect_transform.update_transform_object();
+        let updated_effect_transform = self._effect_transform.update_transform_object();
 
         let effect_manager_data = self._effect_manager_data as *mut EffectManagerData;
         let mut is_alive = false;
         for emitter in self._emitters.iter_mut() {
             if emitter._is_alive {
-                emitter.update_emitter(delta_time);
+                emitter.update_emitter(delta_time, updated_effect_transform);
             }
 
             if false == emitter._is_alive {
@@ -413,6 +415,7 @@ impl EffectInstance {
 impl EmitterInstance {
     pub fn create_emitter_instance(emitter_data: &EmitterData) -> EmitterInstance {
         EmitterInstance {
+            _parent_effect: std::ptr::null(),
             _is_alive: false,
             _elapsed_time: 0.0,
             _remained_spawn_term: 0.0,
@@ -421,9 +424,22 @@ impl EmitterInstance {
             _allocated_particle_offset: INVALID_ALLOCATED_PARTICLE_OFFSET,
             _allocated_particle_count: 0,
             _need_to_upload_static_constant_buffer: false,
+            _emitter_world_transform: Matrix4::identity(),
             _emitter_transform: TransformObjectData::new_transform_object_data(),
             _emitter_data: emitter_data,
         }
+    }
+
+    pub fn initialize_emitter(&mut self, parent_effect: *const EffectInstance) {
+        self._parent_effect = parent_effect;
+    }
+
+    pub fn get_parent_effect(&self) -> &EffectInstance {
+        unsafe { &*self._parent_effect }
+    }
+
+    pub fn get_parent_effect_mut(&self) -> &mut EffectInstance {
+        unsafe { &mut *(self._parent_effect as *mut EffectInstance) }
     }
 
     pub fn is_valid_allocated(&self) -> bool {
@@ -448,12 +464,15 @@ impl EmitterInstance {
         self._allocated_particle_count = 0;
     }
 
-    pub fn update_emitter(&mut self, delta_time: f32) {
+    pub fn update_emitter(&mut self, delta_time: f32, updated_effect_transform: bool) {
         self._is_alive = if self.is_infinite_emitter() { true } else { self._elapsed_time <= self.get_emitter_data()._emitter_lifetime };
         self._particle_spawn_count = 0;
         // update
         if self._is_alive {
-            self._emitter_transform.update_transform_object();
+            let updated_emitter_transform = self._emitter_transform.update_transform_object();
+            if updated_effect_transform || updated_emitter_transform {
+                self._emitter_world_transform = self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
+            }
 
             // particle spawn
             if self._remained_spawn_term <= 0.0 {

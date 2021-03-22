@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../scene_constants.glsl"
+#include "../utility.glsl"
 #include "render_particle_common.glsl"
 
 layout(location = 0) in vec3 inPosition;
@@ -24,10 +25,12 @@ void main() {
     vertex_normal = normalize(vertex_normal);
     vertex_tangent = normalize(vertex_tangent);
 
-    mat4 localMatrix = pushConstant._localMatrix;
+    mat4 localMatrix = gpu_particle_dynamic_constants[pushConstant._allocated_emitter_index]._emitter_transform;
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
 
-    vec3 relative_pos = (localMatrix * position).xyz;
+    uint seed = gl_InstanceIndex;
+    vec3 random_pos = vec3(random(seed), random(seed), random(seed)) * 2.0 - 1.0;
+    vec3 relative_pos = (localMatrix * position).xyz + random_pos;
     vec3 relative_pos_prev = (localMatrix * prev_position).xyz + (view_constants.CAMERA_POSITION - view_constants.CAMERA_POSITION_PREV);
 
     vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);

@@ -73,13 +73,19 @@ pub struct GpuParticleUpdateBufferData {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderParticle {
-    pub _local_matrix: Matrix4<f32>,
+    pub _allocated_emitter_index: i32,
+    pub _reserved0: i32,
+    pub _reserved1: i32,
+    pub _reserved2: i32,
 }
 
 impl Default for PushConstant_RenderParticle {
     fn default() -> PushConstant_RenderParticle {
         PushConstant_RenderParticle {
-            _local_matrix: Matrix4::identity(),
+            _allocated_emitter_index: 0,
+            _reserved0: 0,
+            _reserved1: 0,
+            _reserved2: 0,
         }
     }
 }
@@ -169,6 +175,11 @@ impl EffectManager {
             }
 
             // update dynamic constants
+            {
+                let gpu_particle_dynamic_constant = &mut self._gpu_particle_dynamic_constants[process_emitter_count as usize];
+                gpu_particle_dynamic_constant._emitter_transform.clone_from(&emitter._emitter_world_transform);
+                gpu_particle_dynamic_constant._spawn_count = emitter._particle_spawn_count;
+            }
 
             emitter._allocated_emitter_index = process_emitter_count;
             emitter._allocated_particle_offset = process_gpu_particle_count;
@@ -198,36 +209,32 @@ impl EffectManager {
         let material_instance_data = &resources.get_material_instance_data("process_gpu_particle").borrow();
 
         // compute gpu particle count
-        {
-            let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
-            let thread_group_count = (process_emitter_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
-            renderer.get_renderer_data().dispatch_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                pipeline_binding_data,
-                thread_group_count as u32,
-                1,
-                1,
-                None,
-                NONE_PUSH_CONSTANT,
-            );
-        }
+        let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
+        let thread_group_count = (process_emitter_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
+        renderer.get_renderer_data().dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            thread_group_count as u32,
+            1,
+            1,
+            None,
+            NONE_PUSH_CONSTANT,
+        );
 
         // update gpu particles
-        {
-            let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
-            let thread_group_count = (process_gpu_particle_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
-            renderer.get_renderer_data().dispatch_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                pipeline_binding_data,
-                thread_group_count as u32,
-                1,
-                1,
-                None,
-                NONE_PUSH_CONSTANT,
-            );
-        }
+        let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
+        let thread_group_count = (process_gpu_particle_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
+        renderer.get_renderer_data().dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            thread_group_count as u32,
+            1,
+            1,
+            None,
+            NONE_PUSH_CONSTANT,
+        );
     }
 
     pub fn render_effects(
@@ -268,10 +275,13 @@ impl EffectManager {
                 command_buffer,
                 pipeline_data,
                 &PushConstant_RenderParticle {
-                    _local_matrix: emitter._emitter_transform.get_matrix().clone() as Matrix4<f32>
+                    _allocated_emitter_index: emitter._allocated_emitter_index,
+                    _reserved0: 0,
+                    _reserved1: 0,
+                    _reserved2: 0,
                 }
             );
-            renderer_data.draw_elements(command_buffer, &quad_geometry_data);
+            renderer_data.draw_elements_instanced(command_buffer, &quad_geometry_data, &[], emitter._allocated_particle_count as u32);
         }
         renderer_data.end_render_pass(command_buffer);
     }

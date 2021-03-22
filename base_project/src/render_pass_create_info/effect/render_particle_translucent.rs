@@ -200,28 +200,28 @@ pub fn get_render_pass_data_create_info(renderer: &Renderer, blend_mode: Particl
                     _descriptor_binding_index: 11,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleStaticConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 12,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleDynamicConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 13,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleCountBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 14,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleUpdateBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
+                    _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {

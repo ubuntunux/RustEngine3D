@@ -100,8 +100,8 @@ impl SceneManagerBase for SceneManager {
         let camera_create_info = CameraCreateInfo {
             window_width: self._window_width,
             window_height: self._window_height,
-            position: Vector3::new(2.0, 1.0, -1.0), // Vector3::new(-7.29, 6.345, -0.33),
-            rotation: Vector3::new(-0.157, 1.0, 0.0), // Vector3::new(-0.287, -1.5625, 0.0),
+            position: Vector3::new(2.0, 2.0, -1.0), // Vector3::new(-7.29, 6.345, -0.33),
+            rotation: Vector3::new(-0.157, 1.3, 0.0), // Vector3::new(-0.287, -1.5625, 0.0),
             ..Default::default()
         };
 
@@ -122,6 +122,7 @@ impl SceneManagerBase for SceneManager {
 
         self.add_effect(&EffectCreateInfo {
             _effect_data_name: String::from("default"),
+            _effect_position: Vector3::new(0.0, 4.0, 0.0),
             ..Default::default()
         });
 
