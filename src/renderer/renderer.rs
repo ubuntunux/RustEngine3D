@@ -183,6 +183,7 @@ impl RendererData {
             log::info!("    vulakn api_version: {}.{}.{}", vk::version_major(device_properties.api_version), vk::version_minor(device_properties.api_version), vk::version_patch(device_properties.api_version));
             log::info!("    driver_version: {}.{}.{}", vk::version_major(device_properties.driver_version), vk::version_minor(device_properties.driver_version), vk::version_patch(device_properties.driver_version));
             log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
+            log::info!("    limits: {:?}", device_properties.limits);
 
             let msaa_samples = device::get_max_usable_sample_count(&device_properties);
 
