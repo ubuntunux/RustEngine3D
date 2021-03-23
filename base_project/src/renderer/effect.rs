@@ -161,8 +161,10 @@ impl EffectManager {
 
             let emitter: &mut EmitterInstance = unsafe { &mut *(emitter_ptr as *mut EmitterInstance) };
             let emitter_data: &EmitterData = emitter.get_emitter_data();
+            let need_to_change_allocate_emitter_index = process_emitter_count != emitter._allocated_emitter_index;
+
             // update static constants
-            let need_to_upload_static_constant_buffer = true;//emitter._need_to_upload_static_constant_buffer;
+            let need_to_upload_static_constant_buffer = emitter._need_to_upload_static_constant_buffer || need_to_change_allocate_emitter_index;
             if need_to_upload_static_constant_buffer {
                 let gpu_particle_static_constant = &mut self._gpu_particle_static_constants[process_emitter_count as usize];
                 gpu_particle_static_constant._spawn_volume_transform.clone_from(&emitter_data._spawn_volume_transform);
@@ -182,10 +184,12 @@ impl EffectManager {
 
             // update dynamic constants
             let gpu_particle_dynamic_constant = &mut self._gpu_particle_dynamic_constants[process_emitter_count as usize];
-            gpu_particle_dynamic_constant._emitter_transform.clone_from(&emitter._emitter_world_transform);
-            gpu_particle_dynamic_constant._spawn_count = emitter._particle_spawn_count;
+            {
+                gpu_particle_dynamic_constant._emitter_transform.clone_from(&emitter._emitter_world_transform);
+                gpu_particle_dynamic_constant._spawn_count = emitter._particle_spawn_count;
+            }
 
-            if process_emitter_count != emitter._allocated_emitter_index {
+            if need_to_change_allocate_emitter_index {
                 allocated_emitters[process_emitter_count as usize] = emitter_ptr;
                 allocated_emitters[emitter_index as usize] = std::ptr::null();
                 emitter._allocated_emitter_index = process_emitter_count;
