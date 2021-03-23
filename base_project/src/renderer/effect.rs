@@ -1,3 +1,4 @@
+use std::cmp::{max, min};
 use ash::vk;
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
@@ -39,9 +40,9 @@ pub struct GpuParticleStaticConstants {
 pub struct GpuParticleDynamicConstants {
     pub _emitter_transform: Matrix4<f32>,
     pub _spawn_count: i32,
+    pub _allocated_emitter_index: i32,
+    pub _allocated_particle_offset: i32,
     pub _reserved0: i32,
-    pub _reserved1: i32,
-    pub _reserved2: i32,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -74,7 +75,7 @@ pub struct GpuParticleUpdateBufferData {
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderParticle {
     pub _allocated_emitter_index: i32,
-    pub _reserved0: i32,
+    pub _allocated_particle_offset: i32,
     pub _reserved1: i32,
     pub _reserved2: i32,
 }
@@ -83,7 +84,7 @@ impl Default for PushConstant_RenderParticle {
     fn default() -> PushConstant_RenderParticle {
         PushConstant_RenderParticle {
             _allocated_emitter_index: 0,
-            _reserved0: 0,
+            _allocated_particle_offset: 0,
             _reserved1: 0,
             _reserved2: 0,
         }
@@ -96,6 +97,7 @@ pub struct EffectManager {
     pub _effect_render_group: Vec<*const EmitterInstance>,
     pub _gpu_particle_static_constants: Vec<GpuParticleStaticConstants>,
     pub _gpu_particle_dynamic_constants: Vec<GpuParticleDynamicConstants>,
+    pub _gpu_particle_emitter_indices: Vec<i32>,
 }
 
 impl EffectManagerBase for EffectManager {
@@ -126,6 +128,7 @@ impl EffectManager {
             _effect_render_group: Vec::new(),
             _gpu_particle_static_constants: unsafe { vec![GpuParticleStaticConstants::default(); MAX_EMITTER_COUNT as usize] },
             _gpu_particle_dynamic_constants: unsafe { vec![GpuParticleDynamicConstants::default(); MAX_EMITTER_COUNT as usize] },
+            _gpu_particle_emitter_indices: unsafe { vec![INVALID_ALLOCATED_EMITTER_INDEX; MAX_PARTICLE_COUNT as usize] },
         })
     }
 
@@ -152,19 +155,24 @@ impl EffectManager {
 
         let mut process_emitter_count: i32 = 0;
         let mut process_gpu_particle_count: i32 = 0;
-        let allocated_emitters: &mut Vec<*const EmitterInstance> = &mut effect_manager_data._allocated_emitters;
         for emitter_index in 0..allocated_emitter_count {
-            let emitter_ptr: *const EmitterInstance = unsafe { *allocated_emitters.as_ptr().offset(emitter_index) };
+            let emitter_ptr: *const EmitterInstance = unsafe { *effect_manager_data._allocated_emitters.as_ptr().offset(emitter_index) };
             if emitter_ptr.is_null() {
                 continue;
             }
 
             let emitter: &mut EmitterInstance = unsafe { &mut *(emitter_ptr as *mut EmitterInstance) };
             let emitter_data: &EmitterData = emitter.get_emitter_data();
+            let available_particle_count = unsafe { max(0, min(MAX_PARTICLE_COUNT - process_gpu_particle_count, emitter_data._max_particle_count)) };
+            if 0 == available_particle_count {
+                effect_manager_data.deallocate_emitter(emitter);
+                continue;
+            }
+
             let need_to_change_allocate_emitter_index = process_emitter_count != emitter._allocated_emitter_index;
+            let need_to_upload_static_constant_buffer = emitter._need_to_upload_static_constant_buffer || need_to_change_allocate_emitter_index;
 
             // update static constants
-            let need_to_upload_static_constant_buffer = emitter._need_to_upload_static_constant_buffer || need_to_change_allocate_emitter_index;
             if need_to_upload_static_constant_buffer {
                 let gpu_particle_static_constant = &mut self._gpu_particle_static_constants[process_emitter_count as usize];
                 gpu_particle_static_constant._spawn_volume_transform.clone_from(&emitter_data._spawn_volume_transform);
@@ -187,38 +195,57 @@ impl EffectManager {
             {
                 gpu_particle_dynamic_constant._emitter_transform.clone_from(&emitter._emitter_world_transform);
                 gpu_particle_dynamic_constant._spawn_count = emitter._particle_spawn_count;
+                gpu_particle_dynamic_constant._allocated_emitter_index = process_emitter_count;
+                gpu_particle_dynamic_constant._allocated_particle_offset = process_gpu_particle_count;
             }
 
             if need_to_change_allocate_emitter_index {
-                allocated_emitters[process_emitter_count as usize] = emitter_ptr;
-                allocated_emitters[emitter_index as usize] = std::ptr::null();
+                effect_manager_data._allocated_emitters[process_emitter_count as usize] = emitter_ptr;
+                effect_manager_data._allocated_emitters[emitter_index as usize] = std::ptr::null();
                 emitter._allocated_emitter_index = process_emitter_count;
             }
-            emitter._allocated_particle_offset = process_gpu_particle_count;
+
+            // fill gpu particle allocated emitter index
+            if need_to_upload_static_constant_buffer || process_gpu_particle_count != emitter._allocated_particle_offset || available_particle_count != emitter._allocated_particle_count {
+                self._gpu_particle_emitter_indices[process_gpu_particle_count as usize..(process_gpu_particle_count + available_particle_count) as usize].fill(process_emitter_count);
+                emitter._allocated_particle_offset = process_gpu_particle_count;
+                emitter._allocated_particle_count = available_particle_count;
+            }
 
             //
+            process_gpu_particle_count += available_particle_count;
             process_emitter_count += 1;
-            process_gpu_particle_count += emitter._allocated_particle_count;
         }
 
         effect_manager_data._allocated_emitter_count = process_emitter_count;
         effect_manager_data._allocated_particle_count = process_gpu_particle_count;
 
-        // Upload Uniform Buffers
         if 0 < process_emitter_count {
-            renderer.upload_shader_buffer_datas(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::GpuParticleStaticConstants,
-                &self._gpu_particle_static_constants[0..process_emitter_count as usize]
-            );
-            renderer.upload_shader_buffer_datas(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::GpuParticleDynamicConstants,
-                &self._gpu_particle_dynamic_constants[0..process_emitter_count as usize]
-            );
+            static mut test: i32 = 3;
+            if unsafe { 0 < test } {
+                unsafe { test -= 1; }
+                // Upload Uniform Buffers
+                renderer.upload_shader_buffer_datas(
+                    command_buffer,
+                    swapchain_index,
+                    &ShaderBufferDataType::GpuParticleStaticConstants,
+                    &self._gpu_particle_static_constants[0..process_emitter_count as usize]
+                );
+                renderer.upload_shader_buffer_datas(
+                    command_buffer,
+                    swapchain_index,
+                    &ShaderBufferDataType::GpuParticleDynamicConstants,
+                    &self._gpu_particle_dynamic_constants[0..process_emitter_count as usize]
+                );
+                renderer.upload_shader_buffer_datas(
+                    command_buffer,
+                    swapchain_index,
+                    &ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
+                    &self._gpu_particle_emitter_indices[0..process_gpu_particle_count as usize]
+                );
+            }
 
+            //
             let material_instance_data = &resources.get_material_instance_data("process_gpu_particle").borrow();
 
             // compute gpu particle count
@@ -294,7 +321,7 @@ impl EffectManager {
                 pipeline_data,
                 &PushConstant_RenderParticle {
                     _allocated_emitter_index: emitter._allocated_emitter_index,
-                    _reserved0: 0,
+                    _allocated_particle_offset: emitter._allocated_particle_offset,
                     _reserved1: 0,
                     _reserved2: 0,
                 }

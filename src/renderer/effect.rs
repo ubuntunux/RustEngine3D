@@ -13,9 +13,9 @@ use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::utilities::math;
 
-const INVALID_EFFECT_ID: i64 = -1;
-const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
-const INVALID_ALLOCATED_PARTICLE_OFFSET: i32 = -1;
+pub const INVALID_EFFECT_ID: i64 = -1;
+pub const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
+pub const INVALID_ALLOCATED_PARTICLE_OFFSET: i32 = -1;
 
 // must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -270,7 +270,7 @@ pub struct EffectManagerData {
 impl EffectData {
     pub fn create_effect_data(
         effect_data_name: &String,
-        effect_data_create_info: &EffectDataCreateInfo,
+        _effect_data_create_info: &EffectDataCreateInfo,
         emitter_datas: Vec<EmitterData>
     ) -> EffectData {
         EffectData {

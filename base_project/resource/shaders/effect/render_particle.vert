@@ -16,6 +16,7 @@ layout(location = 0) out VERTEX_OUTPUT vs_output;
 void main() {
     const uint instance_id = gl_InstanceIndex;
     const int emitter_index = pushConstant._allocated_emitter_index;
+    const uint particle_offset = pushConstant._allocated_particle_offset + instance_id;
     const int particle_alive_count = max(0, gpu_particle_count_buffer[emitter_index]._particle_alive_count - gpu_particle_count_buffer[emitter_index]._particle_dead_count);
     if(gpu_particle_count_buffer[emitter_index]._particle_alive_count <= instance_id)
     {
@@ -27,7 +28,11 @@ void main() {
     vec4 prev_position = vec4(0.0);
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
-    vec3 vertex_position = inPosition * gpu_particle_static_constants[emitter_index]._scale_min;
+
+    // test
+    vec3 vertex_scale = gpu_particle_update_buffer[particle_offset]._particle_up_with_scale.www;
+
+    vec3 vertex_position = inPosition * vertex_scale;
     position = vec4(vertex_position, 1.0);
     prev_position = vec4(vertex_position, 1.0);
     vertex_normal = inNormal;

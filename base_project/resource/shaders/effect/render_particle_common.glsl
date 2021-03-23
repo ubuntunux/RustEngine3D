@@ -48,7 +48,7 @@ layout(binding = 17) uniform sampler2D textureNormal;
 layout( push_constant ) uniform PushConstant_RenderParticle
 {
     int _allocated_emitter_index;
-    int _reserved0;
+    int _allocated_particle_offset;
     int _reserved1;
     int _reserved2;
 } pushConstant;

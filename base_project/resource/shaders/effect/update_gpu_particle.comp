@@ -28,7 +28,11 @@ layout(binding = 6) buffer GpuParticleCountBuffer
 {
     GpuParticleCountBufferData gpu_particle_count_buffer[];
 };
-layout(binding = 7) buffer GpuParticleUpdateBuffer
+layout(binding = 7) buffer GpuParticleEmitterIndexBuffer
+{
+    GpuParticleEmitterIndexBufferData gpu_particle_emitter_index_buffer[];
+};
+layout(binding = 8) buffer GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
@@ -36,4 +40,41 @@ layout(binding = 7) buffer GpuParticleUpdateBuffer
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 void main()
 {
+    const uint particle_offset = gl_GlobalInvocationID.x;
+    if(particle_offset < scene_constants.MAX_PARTICLE_COUNT)
+    {
+        const int emitter_index = gpu_particle_emitter_index_buffer[particle_offset]._emitter_index;
+        const uint local_particle_offset = particle_offset - gpu_particle_dynamic_constants[emitter_index]._allocated_particle_offset;
+
+        const int max_particle_count = min(scene_constants.MAX_PARTICLE_COUNT, gpu_particle_static_constants[emitter_index]._max_particle_count);
+        const int prev_particle_alive_count = gpu_particle_count_buffer[emitter_index]._prev_particle_alive_count;
+        const int spawned_count = gpu_particle_count_buffer[emitter_index]._particle_alive_count - prev_particle_alive_count;
+
+        if(0 < spawned_count && prev_particle_alive_count <= int(local_particle_offset))
+        {
+            gpu_particle_update_buffer[particle_offset]._particle_elapsed_time = 10.0;
+        }
+
+        gpu_particle_update_buffer[particle_offset]._particle_elapsed_time -= scene_constants.DELTA_TIME;
+
+        //gpu_particle_count_buffer[emitter_index]._particle_dead_count;
+
+//        struct GpuParticleUpdateBufferData
+//        {
+//            mat4 _particle_emitter_transform;
+//            vec3 _particle_relative_position;
+//            float _particle_elapsed_time;
+//            vec3 _particle_local_position;
+//            float _particle_initial_life_time;
+//            vec4 _particle_left_with_scale;
+//            vec4 _particle_up_with_scale;
+//            vec4 _particle_front_with_scale;
+//        };
+
+        float scale = gpu_particle_static_constants[emitter_index]._scale_min.x;
+        gpu_particle_update_buffer[particle_offset]._particle_up_with_scale = vec4(0.0, 0.0, 0.0, scale);
+
+
+
+    }
 }

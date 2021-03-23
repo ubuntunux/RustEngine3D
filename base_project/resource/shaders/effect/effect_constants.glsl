@@ -50,9 +50,9 @@ struct GpuParticleDynamicConstants
 {
     mat4 _emitter_transform;
     int _spawn_count;
+    int _allocated_emitter_index;
+    int _allocated_particle_offset;
     int _reserved0;
-    int _reserved1;
-    int _reserved2;
 };
 
 struct GpuParticleCountBufferData
