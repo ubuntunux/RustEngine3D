@@ -66,6 +66,10 @@ pub struct SceneConstants {
     pub _delta_time: f32,
     pub _sea_height: f32,
     pub _max_particle_count: i32,
+    pub _max_emitter_count: i32,
+    pub _reserved0: i32,
+    pub _reserved1: i32,
+    pub _reserved2: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
@@ -157,6 +161,10 @@ impl SceneConstants {
         self._delta_time = delta_time as f32;
         self._sea_height = sea_height;
         unsafe { self._max_particle_count = constants::MAX_PARTICLE_COUNT };
+        unsafe { self._max_emitter_count = constants::MAX_EMITTER_COUNT };
+        self._reserved0 = 0;
+        self._reserved1 = 0;
+        self._reserved2 = 0;
     }
 }
 

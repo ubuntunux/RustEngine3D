@@ -50,6 +50,10 @@ struct SCENE_CONSTANTS
     float DELTA_TIME;
     float SEA_HEIGHT;
     int MAX_PARTICLE_COUNT;
+    int MAX_EMITTER_COUNT;
+    int reserved0;
+    int reserved1;
+    int reserved2;
 };
 
 // uniform_buffer_datas.rs - struct ViewConstants

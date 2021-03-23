@@ -14,18 +14,28 @@ layout(location = 4) in vec2 inTexCoord;
 layout(location = 0) out VERTEX_OUTPUT vs_output;
 
 void main() {
+    const uint instance_id = gl_InstanceIndex;
+    const int emitter_index = pushConstant._allocated_emitter_index;
+    const int particle_alive_count = max(0, gpu_particle_count_buffer[emitter_index]._particle_alive_count - gpu_particle_count_buffer[emitter_index]._particle_dead_count);
+    if(gpu_particle_count_buffer[emitter_index]._particle_alive_count <= instance_id)
+    {
+        gl_Position = vec4(0.0 / 0.0);
+        return;
+    }
+
     vec4 position = vec4(0.0);
     vec4 prev_position = vec4(0.0);
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
-    position = vec4(inPosition, 1.0);
-    prev_position = vec4(inPosition, 1.0);
+    vec3 vertex_position = inPosition * gpu_particle_static_constants[emitter_index]._scale_min;
+    position = vec4(vertex_position, 1.0);
+    prev_position = vec4(vertex_position, 1.0);
     vertex_normal = inNormal;
     vertex_tangent = inTangent;
     vertex_normal = normalize(vertex_normal);
     vertex_tangent = normalize(vertex_tangent);
 
-    mat4 localMatrix = gpu_particle_dynamic_constants[pushConstant._allocated_emitter_index]._emitter_transform;
+    mat4 localMatrix = gpu_particle_dynamic_constants[emitter_index]._emitter_transform;
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
 
     uint seed = gl_InstanceIndex;

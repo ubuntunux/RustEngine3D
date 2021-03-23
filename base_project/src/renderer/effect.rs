@@ -154,6 +154,7 @@ impl EffectManager {
             if emitter_ptr.is_null() {
                 continue;
             }
+
             let emitter: &mut EmitterInstance = unsafe { &mut *(emitter_ptr as *mut EmitterInstance) };
             let emitter_data: &EmitterData = emitter.get_emitter_data();
             // update static constants
@@ -275,7 +276,7 @@ impl EffectManager {
                 command_buffer,
                 pipeline_data,
                 &PushConstant_RenderParticle {
-                    _allocated_emitter_index: emitter._allocated_emitter_index,
+                    _allocated_emitter_index: 0,
                     _reserved0: 0,
                     _reserved1: 0,
                     _reserved2: 0,

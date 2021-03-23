@@ -26,4 +26,14 @@ layout(binding = 3) buffer GpuParticleCountBuffer
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 void main()
 {
+    const uint emitter_index = gl_GlobalInvocationID.x;
+    if(emitter_index < scene_constants.MAX_EMITTER_COUNT)
+    {
+        const int particle_alive_count = max(0, gpu_particle_count_buffer[emitter_index]._particle_alive_count - gpu_particle_count_buffer[emitter_index]._particle_dead_count);
+        const int max_particle_count = min(scene_constants.MAX_PARTICLE_COUNT, gpu_particle_static_constants[emitter_index]._max_particle_count);
+        const int available_particle_spawn_count = min(max(0, max_particle_count - particle_alive_count), gpu_particle_dynamic_constants[emitter_index]._spawn_count);
+        gpu_particle_count_buffer[emitter_index]._prev_particle_alive_count = particle_alive_count;
+        gpu_particle_count_buffer[emitter_index]._particle_alive_count = particle_alive_count + available_particle_spawn_count;
+        gpu_particle_count_buffer[emitter_index]._particle_dead_count = 0;
+    }
 }
