@@ -126,6 +126,12 @@ impl SceneManagerBase for SceneManager {
             ..Default::default()
         });
 
+        self.add_effect(&EffectCreateInfo {
+            _effect_data_name: String::from("test"),
+            _effect_position: Vector3::new(4.0, 4.0, 0.0),
+            ..Default::default()
+        });
+
         let model_data0 = resources.get_model_data("sponza/sponza").clone();
         self.add_static_render_object("sponza", RenderObjectCreateInfo {
             _model_data: Some(model_data0),

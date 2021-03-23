@@ -378,10 +378,10 @@ impl EffectInstance {
 
         let effect_manager_data = self._effect_manager_data as *mut EffectManagerData;
         for emitter in self._emitters.iter_mut() {
-            emitter.play_emitter();
             unsafe {
                 (*effect_manager_data).allocate_emitter(emitter);
             }
+            emitter.play_emitter();
         }
     }
 
@@ -459,9 +459,6 @@ impl EmitterInstance {
         self._elapsed_time = 0.0;
         self._remained_spawn_term = 0.0;
         self._particle_spawn_count = 0;
-        self._allocated_emitter_index = INVALID_ALLOCATED_EMITTER_INDEX;
-        self._allocated_particle_offset = INVALID_ALLOCATED_PARTICLE_OFFSET;
-        self._allocated_particle_count = 0;
     }
 
     pub fn update_emitter(&mut self, delta_time: f32, updated_effect_transform: bool) {
@@ -532,7 +529,6 @@ impl EffectManagerData {
         let resources = self._resources.borrow();
         let effect_data = resources.get_effect_data(&effect_create_info._effect_data_name);
         let effect_instance = EffectInstance::create_effect_instance(self, effect_id, effect_create_info, effect_data);
-        effect_instance.borrow_mut().play_effect();
         self._effects.insert(effect_id, effect_instance);
         effect_id
    }
@@ -574,7 +570,7 @@ impl EffectManagerData {
         // update effects
         for (effect_id, effect) in self._effects.iter() {
             let mut effect = effect.borrow_mut();
-            if effect._is_alive {
+            if effect._is_alive || effect._update_first_time {
                 effect.update_effect(delta_time);
             }
 
