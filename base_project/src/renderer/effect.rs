@@ -221,32 +221,70 @@ impl EffectManager {
         effect_manager_data._allocated_particle_count = process_gpu_particle_count;
 
         if 0 < process_emitter_count {
-            static mut test: i32 = 3;
-            if unsafe { 0 < test } {
-                unsafe { test -= 1; }
-                // Upload Uniform Buffers
-                renderer.upload_shader_buffer_datas(
-                    command_buffer,
-                    swapchain_index,
-                    &ShaderBufferDataType::GpuParticleStaticConstants,
-                    &self._gpu_particle_static_constants[0..process_emitter_count as usize]
-                );
-                renderer.upload_shader_buffer_datas(
-                    command_buffer,
-                    swapchain_index,
-                    &ShaderBufferDataType::GpuParticleDynamicConstants,
-                    &self._gpu_particle_dynamic_constants[0..process_emitter_count as usize]
-                );
-                renderer.upload_shader_buffer_datas(
-                    command_buffer,
-                    swapchain_index,
-                    &ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
-                    &self._gpu_particle_emitter_indices[0..process_gpu_particle_count as usize]
-                );
-            }
+            // Upload Uniform Buffers
+            let gpu_particle_static_constants_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleStaticConstants);
+            let gpu_particle_dynamic_constants_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleDynamicConstants);
+            let gpu_particle_emitter_index_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer);
+            let gpu_particle_count_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleCountBuffer);
+            let gpu_particle_count_buffer_store = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleCountBufferStore);
+            let gpu_particle_update_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleUpdateBuffer);
+            let gpu_particle_update_buffer_store = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleUpdateBufferStore);
+            renderer.get_renderer_data().upload_shader_buffer_datas(
+                command_buffer,
+                swapchain_index,
+                gpu_particle_static_constants_buffer,
+                &self._gpu_particle_static_constants[0..process_emitter_count as usize]
+            );
+            renderer.get_renderer_data().upload_shader_buffer_datas(
+                command_buffer,
+                swapchain_index,
+                gpu_particle_dynamic_constants_buffer,
+                &self._gpu_particle_dynamic_constants[0..process_emitter_count as usize]
+            );
+            renderer.get_renderer_data().upload_shader_buffer_datas(
+                command_buffer,
+                swapchain_index,
+                gpu_particle_emitter_index_buffer,
+                &self._gpu_particle_emitter_indices[0..process_gpu_particle_count as usize]
+            );
 
             //
             let material_instance_data = &resources.get_material_instance_data("process_gpu_particle").borrow();
+
+            // barrier for compute gpu particle count pipeline
+            let gpu_particle_static_constants_buffer_data = &gpu_particle_static_constants_buffer._buffers[swapchain_index as usize];
+            let gpu_particle_dynamic_constants_buffer_data = &gpu_particle_dynamic_constants_buffer._buffers[swapchain_index as usize];
+            let buffer_memory_barriers: [vk::BufferMemoryBarrier; 2] = [
+                vk::BufferMemoryBarrier {
+                    src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                    dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    buffer: gpu_particle_static_constants_buffer_data._buffer,
+                    offset: 0,
+                    size: gpu_particle_static_constants_buffer_data._buffer_memory_requirements.size,
+                    ..Default::default()
+                },
+                vk::BufferMemoryBarrier {
+                    src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+                    dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    buffer: gpu_particle_dynamic_constants_buffer_data._buffer,
+                    offset: 0,
+                    size: gpu_particle_dynamic_constants_buffer_data._buffer_memory_requirements.size,
+                    ..Default::default()
+                }
+            ];
+            renderer.get_renderer_data().pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::default(),
+                &[],
+                &buffer_memory_barriers,
+                &[],
+            );
 
             // compute gpu particle count
             let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
@@ -262,6 +300,30 @@ impl EffectManager {
                 NONE_PUSH_CONSTANT,
             );
 
+            // barrier for update gpu particles pipeline
+            let gpu_particle_count_buffer_data = &gpu_particle_count_buffer._buffers[swapchain_index as usize];
+            let buffer_memory_barriers: [vk::BufferMemoryBarrier; 1] = [
+                vk::BufferMemoryBarrier {
+                    src_access_mask: vk::AccessFlags::SHADER_WRITE,
+                    dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    buffer: gpu_particle_count_buffer_data._buffer,
+                    offset: 0,
+                    size: gpu_particle_count_buffer_data._buffer_memory_requirements.size,
+                    ..Default::default()
+                }
+            ];
+            renderer.get_renderer_data().pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::DependencyFlags::default(),
+                &[],
+                &buffer_memory_barriers,
+                &[],
+            );
+
             // update gpu particles
             let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
             let thread_group_count = (process_gpu_particle_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
@@ -274,6 +336,40 @@ impl EffectManager {
                 1,
                 None,
                 NONE_PUSH_CONSTANT,
+            );
+
+            // barrier for render gpu particles pipeline
+            let gpu_particle_update_buffer_data = &gpu_particle_update_buffer._buffers[swapchain_index as usize];
+            let buffer_memory_barriers: [vk::BufferMemoryBarrier; 2] = [
+                vk::BufferMemoryBarrier {
+                    src_access_mask: vk::AccessFlags::SHADER_WRITE,
+                    dst_access_mask: vk::AccessFlags::SHADER_READ,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    buffer: gpu_particle_count_buffer_data._buffer,
+                    offset: 0,
+                    size: gpu_particle_count_buffer_data._buffer_memory_requirements.size,
+                    ..Default::default()
+                },
+                vk::BufferMemoryBarrier {
+                    src_access_mask: vk::AccessFlags::SHADER_WRITE,
+                    dst_access_mask: vk::AccessFlags::SHADER_READ,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    buffer: gpu_particle_update_buffer_data._buffer,
+                    offset: 0,
+                    size: gpu_particle_update_buffer_data._buffer_memory_requirements.size,
+                    ..Default::default()
+                },
+            ];
+            renderer.get_renderer_data().pipeline_barrier(
+                command_buffer,
+                vk::PipelineStageFlags::COMPUTE_SHADER,
+                vk::PipelineStageFlags::VERTEX_SHADER,
+                vk::DependencyFlags::default(),
+                &[],
+                &buffer_memory_barriers,
+                &[],
             );
         }
     }

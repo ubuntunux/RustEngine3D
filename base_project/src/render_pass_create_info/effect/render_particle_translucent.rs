@@ -84,15 +84,6 @@ pub fn get_render_pass_data_create_info(renderer: &Renderer, blend_mode: Particl
             dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
-        vk::SubpassDependency {
-            src_subpass: 0,
-            dst_subpass: vk::SUBPASS_EXTERNAL,
-            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dst_access_mask: vk::AccessFlags::MEMORY_READ,
-            dependency_flags: vk::DependencyFlags::BY_REGION,
-        }
     ];
 
     let pipeline_data_create_infos = vec![

@@ -487,7 +487,7 @@ impl Renderer {
     pub fn get_renderer_data_mut(&self) -> &mut RendererData { unsafe { &mut *(self._renderer_data as *mut RendererData) } }
     pub fn get_resources(&self) -> &Resources { unsafe { &*self._resources } }
     pub fn get_resources_mut(&self) -> &mut Resources { unsafe { &mut *(self._resources as *mut Resources) } }
-    fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData {
+    pub fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData {
         &self._shader_buffer_data_map.get(buffer_data_type).unwrap()
     }
 
