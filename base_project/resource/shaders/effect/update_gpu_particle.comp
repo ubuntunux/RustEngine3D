@@ -38,6 +38,99 @@ layout(binding = 8) buffer GpuParticleUpdateBuffer
 };
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
+
+void spawn_particle_func(inout GpuParticleUpdateBufferData particle_buffer, uint particle_offset, int emitter_index)
+{
+    //    struct GpuParticleStaticConstants
+    //    {
+    //        mat4 _spawn_volume_transform;
+    //        vec4 _spawn_volume_info;
+    //        vec3 _rotation_min;
+    //        float _particle_lifetime_min;
+    //        vec3 _rotation_max;
+    //        float _particle_lifetime_max;
+    //        vec3 _scale_min;
+    //        int _spawn_volume_type;
+    //        vec3 _scale_max;
+    //        int _max_particle_count;
+    //        int _align_mode;
+    //        int _geometry_type;
+    //        int _reserved0;
+    //        int _reserved1;
+    //    };
+    //
+    //    struct GpuParticleDynamicConstants
+    //    {
+    //        mat4 _emitter_transform;
+    //        int _spawn_count;
+    //        int _allocated_emitter_index;
+    //        int _allocated_particle_offset;
+    //        int _reserved0;
+    //    };
+    //        struct GpuParticleUpdateBufferData
+    //        {
+    //    mat4 _particle_emitter_transform;
+    //    vec3 _particle_relative_position;
+    //    float _particle_elapsed_time;
+    //    vec3 _particle_local_position;
+    //    float _particle_initial_life_time;
+    //    vec3 _particle_initial_rotation;
+    //    float _reserved0;
+    //    vec3 _particle_initial_scale;
+    //    float _reserved1;
+    //        };
+
+    //        float _particle_lifetime_min;
+    //        vec3 _rotation_max;
+    //        float _particle_lifetime_max;
+    //        vec3 _scale_min;
+    //        int _spawn_volume_type;
+    //        vec3 _scale_max;
+
+    uint random_seed = uint(mod(scene_constants.TIME, 1.0) * 65535.0) ^ uint(particle_offset * emitter_index);
+    float initial_lifetime = mix(
+        gpu_particle_static_constants[emitter_index]._particle_lifetime_min,
+        gpu_particle_static_constants[emitter_index]._particle_lifetime_max,
+        random(random_seed)
+    );
+    vec3 initial_rotation = mix(
+        gpu_particle_static_constants[emitter_index]._rotation_min,
+        gpu_particle_static_constants[emitter_index]._rotation_max,
+        vec3(random(random_seed), random(random_seed), random(random_seed))
+    );
+    vec3 initial_scale = mix(
+        gpu_particle_static_constants[emitter_index]._scale_min,
+        gpu_particle_static_constants[emitter_index]._scale_max,
+        vec3(random(random_seed), random(random_seed), random(random_seed))
+    );
+    vec3 spawn_position = vec3(random(random_seed), random(random_seed), random(random_seed)) * 2.0 - 1.0;
+    spawn_position = (gpu_particle_static_constants[emitter_index]._spawn_volume_transform * vec4(spawn_position, 1.0)).xyz;
+
+    particle_buffer._particle_emitter_transform = gpu_particle_dynamic_constants[emitter_index]._emitter_transform;
+    particle_buffer._particle_relative_position;
+    particle_buffer._particle_elapsed_time = 0.0;
+    particle_buffer._particle_local_position = spawn_position;
+    particle_buffer._particle_initial_life_time = initial_lifetime;
+    particle_buffer._particle_initial_rotation = initial_rotation;
+    particle_buffer._particle_initial_scale = initial_scale;
+    particle_buffer._particle_state = PARTICLE_STATE_ALIVE;
+}
+
+void update_particle_func(inout GpuParticleUpdateBufferData particle_buffer)
+{
+    if(particle_buffer._particle_initial_life_time <= particle_buffer._particle_elapsed_time)
+    {
+        particle_buffer._particle_state &= ~PARTICLE_STATE_ALIVE;
+        particle_buffer._particle_state |= PARTICLE_STATE_DEAD;
+        return;
+    }
+
+    mat4 emitter_relative_transform = particle_buffer._particle_emitter_transform;
+    emitter_relative_transform[3].xyz -= view_constants.CAMERA_POSITION;
+
+    particle_buffer._particle_relative_position = (emitter_relative_transform * vec4(particle_buffer._particle_local_position, 1.0)).xyz;
+}
+
 void main()
 {
     const uint particle_offset = gl_GlobalInvocationID.x;
@@ -45,36 +138,34 @@ void main()
     {
         const int emitter_index = gpu_particle_emitter_index_buffer[particle_offset]._emitter_index;
         const uint local_particle_offset = particle_offset - gpu_particle_dynamic_constants[emitter_index]._allocated_particle_offset;
-
         const int max_particle_count = min(scene_constants.MAX_PARTICLE_COUNT, gpu_particle_static_constants[emitter_index]._max_particle_count);
+        const int particle_alive_count = gpu_particle_count_buffer[emitter_index]._particle_alive_count;
         const int prev_particle_alive_count = gpu_particle_count_buffer[emitter_index]._prev_particle_alive_count;
-        const int spawned_count = gpu_particle_count_buffer[emitter_index]._particle_alive_count - prev_particle_alive_count;
+        const int spawned_count = particle_alive_count - prev_particle_alive_count;
 
-        if(0 < spawned_count && prev_particle_alive_count <= int(local_particle_offset))
+        GpuParticleUpdateBufferData particle_buffer = gpu_particle_update_buffer[particle_offset];
+
+        if(local_particle_offset < particle_alive_count)
         {
-            gpu_particle_update_buffer[particle_offset]._particle_elapsed_time = 10.0;
+            // spawn
+            if(0 < spawned_count && prev_particle_alive_count <= int(local_particle_offset))
+            {
+                spawn_particle_func(particle_buffer, particle_offset, emitter_index);
+            }
+
+            // update
+            if(check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+            {
+                update_particle_func(particle_buffer);
+            }
+
+            particle_buffer._particle_elapsed_time += scene_constants.DELTA_TIME;
         }
-
-        gpu_particle_update_buffer[particle_offset]._particle_elapsed_time -= scene_constants.DELTA_TIME;
-
-        //gpu_particle_count_buffer[emitter_index]._particle_dead_count;
-
-//        struct GpuParticleUpdateBufferData
-//        {
-//            mat4 _particle_emitter_transform;
-//            vec3 _particle_relative_position;
-//            float _particle_elapsed_time;
-//            vec3 _particle_local_position;
-//            float _particle_initial_life_time;
-//            vec4 _particle_left_with_scale;
-//            vec4 _particle_up_with_scale;
-//            vec4 _particle_front_with_scale;
-//        };
-
-        float scale = gpu_particle_static_constants[emitter_index]._scale_min.x;
-        gpu_particle_update_buffer[particle_offset]._particle_up_with_scale = vec4(0.0, 0.0, 0.0, scale);
-
-
-
+        else
+        {
+            particle_buffer._particle_elapsed_time = 0.0;
+            particle_buffer._particle_state = PARTICLE_STATE_NONE;
+        }
+        gpu_particle_update_buffer[particle_offset] = particle_buffer;
     }
 }

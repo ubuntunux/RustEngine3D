@@ -65,9 +65,10 @@ pub struct GpuParticleUpdateBufferData {
     pub _particle_elapsed_time: f32,
     pub _particle_local_position: Vector3<f32>,
     pub _particle_initial_life_time: f32,
-    pub _particle_left_with_scale: Vector4<f32>,
-    pub _particle_up_with_scale: Vector4<f32>,
-    pub _particle_front_with_scale: Vector4<f32>,
+    pub _particle_initial_rotation: Vector3<f32>,
+    pub _particle_state: u32,
+    pub _particle_initial_scale: Vector3<f32>,
+    pub _reserved0: f32,
 }
 
 // push constants

@@ -1,7 +1,7 @@
 const int PARTICLE_STATE_NONE = 0;
-const int PARTICLE_STATE_DELAY = 1;
-const int PARTICLE_STATE_ALIVE = 2;
-const int PARTICLE_STATE_DEAD = 3;
+const int PARTICLE_STATE_DELAY = 1 << 0;
+const int PARTICLE_STATE_ALIVE = 1 << 1;
+const int PARTICLE_STATE_DEAD = 1 << 2;
 
 const uint ParticleBlendMode_AlphaBlend = 0;
 const uint ParticleBlendMode_Additive = 1;
@@ -75,9 +75,10 @@ struct GpuParticleUpdateBufferData
     float _particle_elapsed_time;
     vec3 _particle_local_position;
     float _particle_initial_life_time;
-    vec4 _particle_left_with_scale;
-    vec4 _particle_up_with_scale;
-    vec4 _particle_front_with_scale;
+    vec3 _particle_initial_rotation;
+    uint _particle_state;
+    vec3 _particle_initial_scale;
+    float _reserved0;
 };
 
 //

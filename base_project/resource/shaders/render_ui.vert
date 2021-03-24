@@ -22,7 +22,7 @@ void main()
     vec2 position = mix(ui_render_data._ui_render_area.xy, ui_render_data._ui_render_area.zw, vs_in_position.xy) * pushConstant._inv_canvas_size;
     vec2 texcoord = mix(ui_render_data._ui_texcoord.xy, ui_render_data._ui_texcoord.zw, vs_in_position.xy);
 
-    if(check_flag_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
+    if(check_flags_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
     {
         color.xyz = mix(color.xyz, vec3(0.5, 0.5, 1.0), 0.75);
         border_color.xyz = mix(border_color.xyz, vec3(0.5, 0.5, 1.0), 0.75);
