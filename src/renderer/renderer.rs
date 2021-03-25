@@ -103,7 +103,7 @@ pub trait RendererBase {
     fn initialize_renderer(&mut self, renderer_data: &RendererData, effect_manager: *const dyn EffectManagerBase);
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
-    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
+    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, scene_manager_data: &SceneManagerData, resources: &Resources);
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
     fn update_post_process_datas(&mut self);
     fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
@@ -656,7 +656,7 @@ impl RendererData {
         }
     }
 
-    pub fn resize_window(&mut self) {
+    pub fn resize_window(&mut self, scene_manager_data: &SceneManagerData) {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
 
@@ -671,7 +671,7 @@ impl RendererData {
         self.recreate_swapchain();
         self.create_render_targets();
         resources.borrow_mut().load_graphics_datas(self);
-        self.prepare_framebuffer_and_descriptors();
+        self.prepare_framebuffer_and_descriptors(scene_manager_data);
         self.set_is_first_rendering(true);
     }
 
@@ -899,9 +899,9 @@ impl RendererData {
         self.get_renderer_mut().set_is_first_rendering(is_first_rendering);
     }
 
-    pub fn prepare_framebuffer_and_descriptors(&self) {
+    pub fn prepare_framebuffer_and_descriptors(&self, scene_manager_data: &SceneManagerData) {
         log::info!("RendererData::prepare_framebuffer_and_descriptors");
-        self.get_renderer_mut().prepare_framebuffer_and_descriptors(&self._device, &self._resources.borrow());
+        self.get_renderer_mut().prepare_framebuffer_and_descriptors(&self._device, scene_manager_data, &self._resources.borrow());
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {

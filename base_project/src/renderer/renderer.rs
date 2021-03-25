@@ -114,8 +114,9 @@ impl RendererBase for Renderer {
         log::info!("set_is_first_rendering: {}", is_first_rendering);
         self._is_first_rendering = is_first_rendering;
     }
-    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources) {
+    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, scene_manager_data: &SceneManagerData, resources: &Resources) {
         log::info!("RendererData::prepare_framebuffer_and_descriptors");
+
         // Bloom
         self._renderer_data_bloom.initialize(
             device,
@@ -208,9 +209,13 @@ impl RendererBase for Renderer {
                 &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants5).as_ref().unwrap(),
             ]
         );
+
+        //
+        let scene_manager: &SceneManager = unsafe { &*(scene_manager_data._scene_manager as *const SceneManager) };
+        scene_manager.get_fft_ocean().borrow_mut().prepare_framebuffer_and_descriptors(self, resources);
+        scene_manager.get_atmosphere().borrow_mut().prepare_framebuffer_and_descriptors(self, resources);
     }
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
-        log::info!("RendererData::destroy_framebuffer_and_descriptors");
         self._renderer_data_bloom.destroy(device);
         self._renderer_data_taa.destroy(device);
         self._renderer_data_ssao.destroy(device);
@@ -243,7 +248,6 @@ impl RendererBase for Renderer {
         }
     }
     fn destroy_render_targets(&mut self, device: &Device) {
-        log::info!("destroy_render_targets");
         for render_target_data in self._render_target_data_map.values() {
             texture::destroy_texture_data(device, render_target_data);
         }
