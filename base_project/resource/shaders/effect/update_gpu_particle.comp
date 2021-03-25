@@ -36,6 +36,10 @@ layout(binding = 8) buffer GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
+layout(binding = 9) buffer GpuParticleUpdateBufferStore
+{
+    GpuParticleUpdateBufferData gpu_particle_update_buffer_store[];
+};
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
@@ -157,6 +161,11 @@ void main()
             if(check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
             {
                 update_particle_func(particle_buffer);
+            }
+
+            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+            {
+                atomicAdd(gpu_particle_count_buffer[emitter_index]._particle_dead_count, 1);
             }
 
             particle_buffer._particle_elapsed_time += scene_constants.DELTA_TIME;

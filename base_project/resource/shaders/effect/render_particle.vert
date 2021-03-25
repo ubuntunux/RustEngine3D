@@ -18,14 +18,8 @@ void main() {
     const int emitter_index = pushConstant._allocated_emitter_index;
     const uint particle_offset = pushConstant._allocated_particle_offset + instance_id;
     const int particle_alive_count = max(0, gpu_particle_count_buffer[emitter_index]._particle_alive_count - gpu_particle_count_buffer[emitter_index]._particle_dead_count);
-    if(gpu_particle_count_buffer[emitter_index]._particle_alive_count <= instance_id)
-    {
-        gl_Position = vec4(0.0 / 0.0);
-        return;
-    }
-
-    GpuParticleUpdateBufferData particle_buffer = gpu_particle_update_buffer[instance_id];
-    if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+    const uint particle_state = gpu_particle_update_buffer[particle_offset]._particle_state;
+    if(particle_alive_count <= instance_id || false == check_flags_all(PARTICLE_STATE_ALIVE, particle_state))
     {
         gl_Position = vec4(0.0 / 0.0);
         return;
@@ -37,10 +31,11 @@ void main() {
     vec3 vertex_tangent = normalize(inTangent);
 
     mat4 localMatrix = mat4(1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0);
-    localMatrix[0] *= particle_buffer._particle_initial_scale.x;
-    localMatrix[1] *= particle_buffer._particle_initial_scale.y;
-    localMatrix[2] *= particle_buffer._particle_initial_scale.z;
-    localMatrix[3].xyz = particle_buffer._particle_relative_position;
+    vec3 particle_scale = gpu_particle_update_buffer[instance_id]._particle_initial_scale;
+    localMatrix[0].xyz *= particle_scale.x;
+    localMatrix[1].xyz *= particle_scale.y;
+    localMatrix[2].xyz *= particle_scale.z;
+    localMatrix[3].xyz = gpu_particle_update_buffer[instance_id]._particle_relative_position;
     vec3 relative_pos = (localMatrix * position).xyz;
     vec3 relative_pos_prev = (localMatrix * prev_position).xyz + (view_constants.CAMERA_POSITION - view_constants.CAMERA_POSITION_PREV);
 

@@ -300,6 +300,7 @@ impl EffectManager {
                 None,
                 NONE_PUSH_CONSTANT,
             );
+            log::info!("compute_gpu_particle_count: dispatch: {}, thread_group_count: {}", process_emitter_count, thread_group_count);
 
             // barrier for update gpu particles pipeline
             let gpu_particle_count_buffer_data = &gpu_particle_count_buffer._buffers[swapchain_index as usize];
@@ -338,6 +339,7 @@ impl EffectManager {
                 None,
                 NONE_PUSH_CONSTANT,
             );
+            log::info!("update_gpu_particle: dispatch: {}, thread_group_count: {}", process_gpu_particle_count, thread_group_count);
 
             // barrier for render gpu particles pipeline
             let gpu_particle_update_buffer_data = &gpu_particle_update_buffer._buffers[swapchain_index as usize];
@@ -382,6 +384,8 @@ impl EffectManager {
         renderer: &Renderer,
         resources: &Resources,
     ) {
+        log::info!("render_effects >>");
+
         if self._effect_render_group.is_empty() {
             return;
         }
@@ -412,6 +416,8 @@ impl EffectManager {
                 prev_pipeline_binding_data = pipeline_binding_data;
                 renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &*pipeline_binding_data, None);
             }
+
+            log::info!("\t{:?}: allocated_emitter_index: {}, allocated_particle_offset: {}", emitter_data._emitter_data_name, emitter._allocated_emitter_index, emitter._allocated_particle_offset);
 
             renderer_data.upload_push_constant_data(
                 command_buffer,

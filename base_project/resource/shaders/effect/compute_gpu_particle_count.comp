@@ -22,6 +22,10 @@ layout(binding = 3) buffer GpuParticleCountBuffer
 {
     GpuParticleCountBufferData gpu_particle_count_buffer[];
 };
+layout(binding = 3) buffer GpuParticleCountBufferStore
+{
+    GpuParticleCountBufferData gpu_particle_count_buffer_store[];
+};
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 void main()

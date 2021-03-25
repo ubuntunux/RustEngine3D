@@ -9,7 +9,7 @@
 "_spawn_volume_position":[0.0,0.0,0.0],
 "_spawn_volume_rotation":[0.0,0.0,0.0],
 "_spawn_volume_scale":[1.0,1.0,1.0],
-"_max_particle_count":10000,
+"_max_particle_count":1000,
 "_spawn_count":1,
 "_spawn_term":0.1,
 "_delay":0.0,

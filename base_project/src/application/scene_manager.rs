@@ -126,19 +126,25 @@ impl SceneManagerBase for SceneManager {
             ..Default::default()
         });
 
-        self.add_effect(&EffectCreateInfo {
-            _effect_data_name: String::from("test"),
-            _effect_position: Vector3::new(4.0, 4.0, 0.0),
-            ..Default::default()
-        });
+        // self.add_effect(&EffectCreateInfo {
+        //     _effect_data_name: String::from("test"),
+        //     _effect_position: Vector3::new(2.0, 4.0, 0.0),
+        //     ..Default::default()
+        // });
+        //
+        // self.add_effect(&EffectCreateInfo {
+        //     _effect_data_name: String::from("test2"),
+        //     _effect_position: Vector3::new(4.0, 4.0, 0.0),
+        //     ..Default::default()
+        // });
 
-        let model_data0 = resources.get_model_data("sponza/sponza").clone();
-        self.add_static_render_object("sponza", RenderObjectCreateInfo {
-            _model_data: Some(model_data0),
-            _position: Vector3::new(0.0, 0.0, 0.0),
-            _scale: Vector3::new(0.1, 0.1, 0.1),
-            ..Default::default()
-        });
+        // let model_data0 = resources.get_model_data("sponza/sponza").clone();
+        // self.add_static_render_object("sponza", RenderObjectCreateInfo {
+        //     _model_data: Some(model_data0),
+        //     _position: Vector3::new(0.0, 0.0, 0.0),
+        //     _scale: Vector3::new(0.1, 0.1, 0.1),
+        //     ..Default::default()
+        // });
 
         let sphere = resources.get_model_data("sphere").clone();
         self.add_static_render_object("sphere", RenderObjectCreateInfo {
@@ -148,19 +154,19 @@ impl SceneManagerBase for SceneManager {
             ..Default::default()
         });
 
-        for i in 0..3 {
-            let model_data = resources.get_model_data("skeletal").clone();
-            let skeletal_actor = self.add_skeletal_render_object("skeletal", RenderObjectCreateInfo {
-                _model_data: Some(model_data),
-                _position: Vector3::new(i as f32, 1.0, 0.0),
-                _scale: Vector3::new(0.01, 0.01, 0.01),
-                ..Default::default()
-            });
-            skeletal_actor.borrow_mut()._animation_play_info.as_mut().unwrap().set_animation_play_info(&AnimationPlayArgs {
-                _speed: (1.0 + i as f32 * 0.1),
-                ..Default::default()
-            });
-        }
+        // for i in 0..3 {
+        //     let model_data = resources.get_model_data("skeletal").clone();
+        //     let skeletal_actor = self.add_skeletal_render_object("skeletal", RenderObjectCreateInfo {
+        //         _model_data: Some(model_data),
+        //         _position: Vector3::new(i as f32, 1.0, 0.0),
+        //         _scale: Vector3::new(0.01, 0.01, 0.01),
+        //         ..Default::default()
+        //     });
+        //     skeletal_actor.borrow_mut()._animation_play_info.as_mut().unwrap().set_animation_play_info(&AnimationPlayArgs {
+        //         _speed: (1.0 + i as f32 * 0.1),
+        //         ..Default::default()
+        //     });
+        // }
     }
 
     fn close_scene_manager_data(&mut self, device: &Device) {
