@@ -1,5 +1,8 @@
 use std::cmp::{max, min};
-use ash::vk;
+use ash::{
+    vk,
+    Device
+};
 use nalgebra::{ Vector3, Vector4, Matrix4 };
 
 use rust_engine_3d::constants::{
@@ -139,6 +142,28 @@ impl EffectManager {
 
     pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData {
         unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
+    }
+
+    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer: &Renderer, resources: &Resources) {
+        let device = renderer.get_renderer_data().get_device();
+        // let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
+        // self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(device, &pipeline_binding_data.get_render_pass_data().borrow(), texture_fft_a, mip_level, None);
+        // self._fft_wave_x_fft_b_framebuffer = utility::create_framebuffer_2d_array(device, &pipeline_binding_data.get_render_pass_data().borrow(), texture_fft_b, mip_level, None);
+        // let fft_waves_descriptor_binding_index = 1;
+        // self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
+        //     device,
+        //     pipeline_binding_data,
+        //     &[(fft_waves_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_default_image_info()))]
+        // );
+        // self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
+        //     device,
+        //     pipeline_binding_data,
+        //     &[(fft_waves_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_fft_b.get_default_image_info()))]
+        // );
+    }
+
+    pub fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
+
     }
 
     pub fn process_gpu_particles(

@@ -114,7 +114,7 @@ impl RendererBase for Renderer {
         log::info!("set_is_first_rendering: {}", is_first_rendering);
         self._is_first_rendering = is_first_rendering;
     }
-    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, scene_manager_data: &SceneManagerData, resources: &Resources) {
+    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources) {
         log::info!("RendererData::prepare_framebuffer_and_descriptors");
 
         // Bloom
@@ -210,12 +210,12 @@ impl RendererBase for Renderer {
             ]
         );
 
-        //
-        let scene_manager: &SceneManager = unsafe { &*(scene_manager_data._scene_manager as *const SceneManager) };
-        scene_manager.get_fft_ocean().borrow_mut().prepare_framebuffer_and_descriptors(self, resources);
-        scene_manager.get_atmosphere().borrow_mut().prepare_framebuffer_and_descriptors(self, resources);
+        // prepare_framebuffer_and_descriptors for SceneManager
+        self.get_effect_manager_mut().prepare_framebuffer_and_descriptors(self, resources);
     }
+
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
+        self.get_effect_manager_mut().destroy_framebuffer_and_descriptors(device);
         self._renderer_data_bloom.destroy(device);
         self._renderer_data_taa.destroy(device);
         self._renderer_data_ssao.destroy(device);

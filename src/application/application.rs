@@ -253,7 +253,8 @@ pub fn run_application(
             application_data.borrow().get_application_mut().initialize_application(&application_data.borrow());
 
             // initialize graphics data
-            renderer_data.borrow_mut().prepare_framebuffer_and_descriptors(&scene_manager_data.borrow());
+            renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
+            scene_manager_data.borrow_mut().initialize_scene_graphics_data();
 
             // open scene
             scene_manager_data.borrow_mut().open_scene_manager_data();
@@ -298,7 +299,7 @@ pub fn run_application(
                 if run_application {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                    let scene_manager_data: &mut SceneManagerData = &mut maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+                    let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                     let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
                     let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
                     let mut effect_manager_data: RefMut<EffectManagerData> = maybe_effect_manager_data.as_ref().unwrap().borrow_mut();
@@ -310,7 +311,7 @@ pub fn run_application(
                             &mut effect_manager_data,
                             &mut font_manager,
                             &mut ui_manager_data,
-                            scene_manager_data,
+                            &mut scene_manager_data,
                             &mut maybe_resources.as_ref().unwrap().borrow_mut(),
                             &mut renderer_data,
                         );
@@ -348,7 +349,7 @@ pub fn run_application(
                             ui_manager_data.destroy_ui_graphics_data();
                             font_manager.destroy_font_descriptor_sets();
 
-                            renderer_data.resize_window(scene_manager_data);
+                            renderer_data.resize_window();
 
                             // recreate
                             font_manager.create_font_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());

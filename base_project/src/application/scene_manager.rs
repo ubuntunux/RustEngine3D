@@ -75,6 +75,8 @@ impl SceneManagerBase for SceneManager {
     }
 
     fn initialize_scene_graphics_data(&self) {
+        self._fft_ocean.borrow_mut().prepare_framebuffer_and_descriptors(self.get_renderer(), self.get_resources());
+        self._atmosphere.borrow_mut().prepare_framebuffer_and_descriptors(self.get_renderer(), self.get_resources());
     }
 
     fn destroy_scene_graphics_data(&self, device: &Device) {
