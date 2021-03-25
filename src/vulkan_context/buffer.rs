@@ -242,50 +242,45 @@ pub fn create_shader_buffer_data(
     buffer_size: vk::DeviceSize,
     is_single_index_buffer: bool,
     has_staging_buffer: bool,
+    is_device_local: bool,
 ) -> ShaderBufferData {
     log::debug!("create_shader_buffer_data: {}", buffer_name);
 
+    // create buffer
+    let buffer_usage_flags = if has_staging_buffer {
+        buffer_usage | vk::BufferUsageFlags::TRANSFER_DST
+    } else {
+        if is_device_local {
+            buffer_usage
+        } else {
+            buffer_usage | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST
+        }
+    };
+    let memory_property_flags = if has_staging_buffer || is_device_local {
+        vk::MemoryPropertyFlags::DEVICE_LOCAL
+    } else {
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT
+    };
     let buffers: SwapchainArray<BufferData> = if is_single_index_buffer {
-        let buffer = create_buffer_data(
-            device,
-            memory_properties,
-            buffer_size,
-            buffer_usage,
-            if has_staging_buffer { vk::MemoryPropertyFlags::DEVICE_LOCAL } else { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT },
-        );
+        let buffer = create_buffer_data(device, memory_properties, buffer_size, buffer_usage_flags, memory_property_flags);
         vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
     } else {
         (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-            create_buffer_data(
-                device,
-                memory_properties,
-                buffer_size,
-                buffer_usage,
-                if has_staging_buffer { vk::MemoryPropertyFlags::DEVICE_LOCAL } else { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT },
-            )
+            create_buffer_data(device, memory_properties, buffer_size, buffer_usage_flags, memory_property_flags)
         }).collect()
     };
 
+    // staging buffer
     let staging_buffers: Option<SwapchainArray<BufferData>> = if has_staging_buffer {
+        let staging_buffer_usage_flags = buffer_usage | vk::BufferUsageFlags::TRANSFER_SRC;
+        let staging_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
         Some(
             if is_single_index_buffer {
-                let buffer = create_buffer_data(
-                    device,
-                    memory_properties,
-                    buffer_size,
-                    buffer_usage,
-                    if has_staging_buffer { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT } else { vk::MemoryPropertyFlags::DEVICE_LOCAL },
-                );
+                let buffer = create_buffer_data(device, memory_properties, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags);
                 vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
             } else {
                 (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-                    create_buffer_data(
-                        device,
-                        memory_properties,
-                        buffer_size,
-                        buffer_usage,
-                        if has_staging_buffer { vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT } else { vk::MemoryPropertyFlags::DEVICE_LOCAL },
-                    )
+                    create_buffer_data(device, memory_properties, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags)
                 }).collect()
             }
         )
