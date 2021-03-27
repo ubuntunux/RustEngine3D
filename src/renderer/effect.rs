@@ -251,6 +251,12 @@ pub struct EmitterInstance {
 
 pub trait EffectManagerBase {
     fn initialize_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
+    fn get_effect_manager_data(&self) -> &EffectManagerData;
+    fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData;
+    fn create_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64;
+    fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>>;
+    fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance>>;
+    fn update_effects(&mut self, delta_time: f32);
     fn gather_render_effects(&mut self);
 }
 
@@ -506,12 +512,6 @@ impl EffectManagerData {
         self.get_effect_manager_mut().initialize_effect_manager(self);
     }
 
-    pub fn generate_effect_id(&mut self) -> i64 {
-        let effect_id_generator = self._effect_id_generator;
-        self._effect_id_generator += 1;
-        effect_id_generator
-    }
-
     pub fn destroy_effect_manager_data(&mut self) {
         self._effects.clear();
     }
@@ -522,6 +522,12 @@ impl EffectManagerData {
 
     pub fn get_effect_manager_mut(&self) -> &mut dyn EffectManagerBase {
         unsafe { &mut *(self._effect_manager as *mut dyn EffectManagerBase) }
+    }
+
+    pub fn generate_effect_id(&mut self) -> i64 {
+        let effect_id_generator = self._effect_id_generator;
+        self._effect_id_generator += 1;
+        effect_id_generator
     }
 
     pub fn create_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64 {

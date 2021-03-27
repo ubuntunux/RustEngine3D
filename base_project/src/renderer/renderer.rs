@@ -209,13 +209,9 @@ impl RendererBase for Renderer {
                 &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants5).as_ref().unwrap(),
             ]
         );
-
-        // prepare_framebuffer_and_descriptors for SceneManager
-        self.get_effect_manager_mut().prepare_framebuffer_and_descriptors(self, resources);
     }
 
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
-        self.get_effect_manager_mut().destroy_framebuffer_and_descriptors(device);
         self._renderer_data_bloom.destroy(device);
         self._renderer_data_taa.destroy(device);
         self._renderer_data_ssao.destroy(device);

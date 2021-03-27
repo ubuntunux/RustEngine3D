@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::cmp::{max, min};
 use ash::{
     vk,
@@ -15,6 +16,7 @@ use rust_engine_3d::renderer::material_instance::{ PipelineBindingData, Material
 use rust_engine_3d::renderer::renderer::RendererData;
 use rust_engine_3d::resource::resource::Resources;
 use rust_engine_3d::vulkan_context::render_pass::{ RenderPassData, PipelineData };
+use rust_engine_3d::utilities::system::RcRefCell;
 
 use crate::renderer::push_constants::NONE_PUSH_CONSTANT;
 use crate::renderer::renderer::Renderer;
@@ -107,6 +109,30 @@ pub struct EffectManager {
 impl EffectManagerBase for EffectManager {
     fn initialize_effect_manager(&mut self, effect_manager_data: *const EffectManagerData) {
         self._effect_manager_data = effect_manager_data;
+    }
+
+    fn get_effect_manager_data(&self) -> &EffectManagerData {
+        unsafe { &*self._effect_manager_data }
+    }
+
+    fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData {
+        unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
+    }
+
+    fn create_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64 {
+        self.get_effect_manager_data_mut().create_effect(effect_create_info)
+    }
+
+    fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>> {
+        self.get_effect_manager_data().get_effect(effect_id)
+    }
+
+    fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance>> {
+        self.get_effect_manager_data().get_effects()
+    }
+
+    fn update_effects(&mut self, delta_time: f32) {
+        self.get_effect_manager_data_mut().update_effects(delta_time);
     }
 
     fn gather_render_effects(&mut self) {
