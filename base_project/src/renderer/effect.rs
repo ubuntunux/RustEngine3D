@@ -259,7 +259,9 @@ impl EffectManager {
 
             // fill gpu particle allocated emitter index
             if need_to_upload_static_constant_buffer || process_gpu_particle_count != emitter._allocated_particle_offset || available_particle_count != emitter._allocated_particle_count {
-                self._gpu_particle_emitter_indices[process_gpu_particle_count as usize..(process_gpu_particle_count + available_particle_count) as usize].fill(process_emitter_count);
+                for gpu_particle_offset in process_gpu_particle_count..(process_gpu_particle_count + available_particle_count) {
+                    self._gpu_particle_emitter_indices[gpu_particle_offset as usize] = process_emitter_count;
+                }
                 emitter._allocated_particle_offset = process_gpu_particle_count;
                 emitter._allocated_particle_count = available_particle_count;
             }
