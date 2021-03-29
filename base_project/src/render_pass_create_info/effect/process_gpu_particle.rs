@@ -11,6 +11,7 @@ use rust_engine_3d::vulkan_context::descriptor::{
     DescriptorResourceType,
 };
 
+use crate::renderer::effect::{ PushConstant_ComputeGpuParticleCount, PushConstant_UpdateGpuParticle };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer::Renderer;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
@@ -23,6 +24,11 @@ pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataC
             _pipeline_data_create_info_name: String::from("compute_gpu_particle_count"),
             _pipeline_compute_shader_file: PathBuf::from("effect/compute_gpu_particle_count.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _push_constant_ranges: vec![vk::PushConstantRange {
+                stage_flags: vk::ShaderStageFlags::ALL,
+                offset: 0,
+                size: std::mem::size_of::<PushConstant_ComputeGpuParticleCount>() as u32
+            }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
@@ -52,13 +58,6 @@ pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataC
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 4,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleCountBufferStore),
-                    _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
-                    ..Default::default()
-                },
             ],
             ..Default::default()
         },
@@ -66,6 +65,11 @@ pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataC
             _pipeline_data_create_info_name: String::from("update_gpu_particle"),
             _pipeline_compute_shader_file: PathBuf::from("effect/update_gpu_particle.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
+            _push_constant_ranges: vec![vk::PushConstantRange {
+                stage_flags: vk::ShaderStageFlags::ALL,
+                offset: 0,
+                size: std::mem::size_of::<PushConstant_UpdateGpuParticle>() as u32
+            }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
@@ -126,13 +130,6 @@ pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataC
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 8,
                     _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleUpdateBuffer),
-                    _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
-                    ..Default::default()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 9,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleUpdateBufferStore),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()

@@ -292,6 +292,8 @@ impl RendererBase for Renderer {
             elapsed_time,
             delta_time,
             fft_ocean.get_height(),
+            self.get_effect_manager().get_gpu_particle_count_buffer_offset(),
+            self.get_effect_manager().get_gpu_particle_update_buffer_offset(),
         );
         self._view_constants.update_view_constants(&main_camera);
         if render_capture_height_map {

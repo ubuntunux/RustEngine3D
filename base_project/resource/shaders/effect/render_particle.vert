@@ -15,10 +15,10 @@ layout(location = 0) out VERTEX_OUTPUT vs_output;
 
 void main() {
     const uint instance_id = gl_InstanceIndex;
-    const int emitter_index = pushConstant._allocated_emitter_index;
-    const uint particle_offset = pushConstant._allocated_particle_offset + instance_id;
-    const int particle_alive_count = max(0, gpu_particle_count_buffer[emitter_index]._particle_alive_count - gpu_particle_count_buffer[emitter_index]._particle_dead_count);
-    const uint particle_state = gpu_particle_update_buffer[particle_offset]._particle_state;
+    const uint count_buffer_index = scene_constants.GPU_PARTICLE_COUNT_BUFFER_OFFSET + pushConstant._allocated_emitter_index;
+    const uint update_buffer_index = scene_constants.GPU_PARTICLE_UPDATE_BUFFER_OFFSET + pushConstant._allocated_particle_offset + instance_id;
+    const int particle_alive_count = max(0, gpu_particle_count_buffer[count_buffer_index]._particle_alive_count - gpu_particle_count_buffer[count_buffer_index]._particle_dead_count);
+    const uint particle_state = gpu_particle_update_buffer[update_buffer_index]._particle_state;
     if(particle_alive_count <= instance_id || false == check_flags_all(PARTICLE_STATE_ALIVE, particle_state))
     {
         gl_Position = vec4(0.0 / 0.0);

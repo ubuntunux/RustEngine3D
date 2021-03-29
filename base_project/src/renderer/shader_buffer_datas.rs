@@ -51,11 +51,9 @@ pub enum ShaderBufferDataType {
     UIRenderDataBuffer,
     GpuParticleStaticConstants,
     GpuParticleDynamicConstants,
-    GpuParticleCountBuffer,
-    GpuParticleCountBufferStore,
     GpuParticleEmitterIndexBuffer,
+    GpuParticleCountBuffer,
     GpuParticleUpdateBuffer,
-    GpuParticleUpdateBufferStore,
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
@@ -68,9 +66,9 @@ pub struct SceneConstants {
     pub _sea_height: f32,
     pub _max_particle_count: i32,
     pub _max_emitter_count: i32,
+    pub _gpu_particle_count_buffer_offset: i32,
+    pub _gpu_particle_update_buffer_offset: i32,
     pub _reserved0: i32,
-    pub _reserved1: i32,
-    pub _reserved2: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
@@ -169,7 +167,16 @@ pub struct RegistShaderBufferCreateInfo {
 
 // Interfaces
 impl SceneConstants {
-    pub fn update_scene_constants(&mut self, screen_width: u32, screen_height: u32, elapsed_time: f64, delta_time: f64, sea_height: f32) {
+    pub fn update_scene_constants(
+        &mut self,
+        screen_width: u32,
+        screen_height: u32,
+        elapsed_time: f64,
+        delta_time: f64,
+        sea_height: f32,
+        gpu_particle_count_buffer_offset: i32,
+        gpu_particle_update_buffer_offset: i32
+    ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._backbuffer_size = self._screen_size.into();
         self._time = elapsed_time as f32;
@@ -177,9 +184,9 @@ impl SceneConstants {
         self._sea_height = sea_height;
         unsafe { self._max_particle_count = constants::MAX_PARTICLE_COUNT };
         unsafe { self._max_emitter_count = constants::MAX_EMITTER_COUNT };
+        self._gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset;
+        self._gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset;
         self._reserved0 = 0;
-        self._reserved1 = 0;
-        self._reserved2 = 0;
     }
 }
 
@@ -242,11 +249,9 @@ impl std::str::FromStr for ShaderBufferDataType {
             "UIRenderDataBuffer" => Ok(ShaderBufferDataType::UIRenderDataBuffer),
             "GpuParticleStaticConstants" => Ok(ShaderBufferDataType::GpuParticleStaticConstants),
             "GpuParticleDynamicConstants" => Ok(ShaderBufferDataType::GpuParticleDynamicConstants),
-            "GpuParticleCountBuffer" => Ok(ShaderBufferDataType::GpuParticleCountBuffer),
-            "GpuParticleCountBufferStore" => Ok(ShaderBufferDataType::GpuParticleCountBufferStore),
             "GpuParticleEmitterIndexBuffer" => Ok(ShaderBufferDataType::GpuParticleEmitterIndexBuffer),
+            "GpuParticleCountBuffer" => Ok(ShaderBufferDataType::GpuParticleCountBuffer),
             "GpuParticleUpdateBuffer" => Ok(ShaderBufferDataType::GpuParticleUpdateBuffer),
-            "GpuParticleUpdateBufferStore" => Ok(ShaderBufferDataType::GpuParticleUpdateBufferStore),
             _ => Err(format!("'{}' is not a valid value for ShaderBufferDataType", s)),
         }
     }
@@ -386,35 +391,15 @@ pub fn regist_shader_buffer_datas(
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
-        _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBuffer,
-        _shader_buffer_data_stride: std::mem::size_of::<GpuParticleCountBufferData>(),
-        _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize },
-        _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
-        _is_single_index_buffer: true,
-        _has_staging_buffer: false,
-        _is_device_local: true,
-        ..storage_buffer_create_info
-    });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
-        _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBufferStore,
-        _shader_buffer_data_stride: std::mem::size_of::<GpuParticleCountBufferData>(),
-        _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize },
-        _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
-        _is_single_index_buffer: true,
-        _has_staging_buffer: false,
-        _is_device_local: true,
-        ..storage_buffer_create_info
-    });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<GpuParticleEmitterIndexBufferData>(),
         _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize },
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
-        _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,
-        _shader_buffer_data_stride: std::mem::size_of::<GpuParticleUpdateBufferData>(),
-        _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize },
+        _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBuffer,
+        _shader_buffer_data_stride: std::mem::size_of::<GpuParticleCountBufferData>(),
+        _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize * 2 },
         _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
         _is_single_index_buffer: true,
         _has_staging_buffer: false,
@@ -422,9 +407,9 @@ pub fn regist_shader_buffer_datas(
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
-        _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBufferStore,
+        _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<GpuParticleUpdateBufferData>(),
-        _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize },
+        _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize * 2 },
         _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
         _is_single_index_buffer: true,
         _has_staging_buffer: false,

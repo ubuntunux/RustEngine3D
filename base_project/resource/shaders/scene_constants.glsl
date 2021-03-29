@@ -51,9 +51,9 @@ struct SCENE_CONSTANTS
     float SEA_HEIGHT;
     int MAX_PARTICLE_COUNT;
     int MAX_EMITTER_COUNT;
+    int GPU_PARTICLE_COUNT_BUFFER_OFFSET;
+    int GPU_PARTICLE_UPDATE_BUFFER_OFFSET;
     int reserved0;
-    int reserved1;
-    int reserved2;
 };
 
 // uniform_buffer_datas.rs - struct ViewConstants

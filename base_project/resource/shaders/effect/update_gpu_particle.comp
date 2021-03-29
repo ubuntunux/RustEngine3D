@@ -36,14 +36,18 @@ layout(binding = 8) buffer GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
-layout(binding = 9) buffer GpuParticleUpdateBufferStore
+
+layout( push_constant ) uniform PushConstant_UpdateGpuParticle
 {
-    GpuParticleUpdateBufferData gpu_particle_update_buffer_store[];
-};
+    int _gpu_particle_count_buffer_offset;
+    int _prev_gpu_particle_update_buffer_offset;
+    int _gpu_particle_update_buffer_offset;
+    int _reserved0;
+} pushConstant;
 
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
-void spawn_particle_func(inout GpuParticleUpdateBufferData particle_buffer, uint particle_offset, int emitter_index)
+void spawn_particle_func(inout GpuParticleUpdateBufferData particle_buffer, uint update_buffer_index, int emitter_index)
 {
     //    struct GpuParticleStaticConstants
     //    {
@@ -91,7 +95,7 @@ void spawn_particle_func(inout GpuParticleUpdateBufferData particle_buffer, uint
     //        int _spawn_volume_type;
     //        vec3 _scale_max;
 
-    uint random_seed = uint(mod(scene_constants.TIME, 1.0) * 65535.0) ^ uint(particle_offset * emitter_index);
+    uint random_seed = uint(mod(scene_constants.TIME, 1.0) * 65535.0) ^ uint(update_buffer_index * emitter_index);
     float initial_lifetime = mix(
         gpu_particle_static_constants[emitter_index]._particle_lifetime_min,
         gpu_particle_static_constants[emitter_index]._particle_lifetime_max,
@@ -141,21 +145,25 @@ void main()
     if(particle_offset < scene_constants.MAX_PARTICLE_COUNT)
     {
         const int emitter_index = gpu_particle_emitter_index_buffer[particle_offset]._emitter_index;
-        const uint local_particle_offset = particle_offset - gpu_particle_dynamic_constants[emitter_index]._allocated_particle_offset;
-        const uint prev_particle_offset = gpu_particle_dynamic_constants[emitter_index]._prev_allocated_particle_offset + local_particle_offset;
+        const uint local_particle_index = particle_offset - gpu_particle_dynamic_constants[emitter_index]._allocated_particle_offset;
+        const uint prev_update_buffer_index =
+            pushConstant._prev_gpu_particle_update_buffer_offset +
+            gpu_particle_dynamic_constants[emitter_index]._prev_allocated_particle_offset +
+            local_particle_index;
+        const uint update_buffer_index = pushConstant._gpu_particle_update_buffer_offset + particle_offset;
         const int max_particle_count = min(scene_constants.MAX_PARTICLE_COUNT, gpu_particle_static_constants[emitter_index]._max_particle_count);
         const int particle_alive_count = gpu_particle_count_buffer[emitter_index]._particle_alive_count;
         const int prev_particle_alive_count = gpu_particle_count_buffer[emitter_index]._prev_particle_alive_count;
         const int spawned_count = particle_alive_count - prev_particle_alive_count;
 
-        GpuParticleUpdateBufferData particle_buffer = gpu_particle_update_buffer[prev_particle_offset];
+        GpuParticleUpdateBufferData particle_buffer = gpu_particle_update_buffer[prev_update_buffer_index];
 
-        if(local_particle_offset < particle_alive_count)
+        if(local_particle_index < particle_alive_count)
         {
             // spawn
-            if(0 < spawned_count && prev_particle_alive_count <= int(local_particle_offset))
+            if(0 < spawned_count && prev_particle_alive_count <= int(local_particle_index))
             {
-                spawn_particle_func(particle_buffer, particle_offset, emitter_index);
+                spawn_particle_func(particle_buffer, update_buffer_index, emitter_index);
             }
 
             // update
@@ -176,6 +184,6 @@ void main()
             particle_buffer._particle_elapsed_time = 0.0;
             particle_buffer._particle_state = PARTICLE_STATE_NONE;
         }
-        gpu_particle_update_buffer[particle_offset] = particle_buffer;
+        gpu_particle_update_buffer[update_buffer_index] = particle_buffer;
     }
 }
