@@ -115,14 +115,14 @@ pub fn get_render_pass_data_create_info(_renderer: &Renderer) -> RenderPassDataC
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 6,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleCountBuffer),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 7,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleCountBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()

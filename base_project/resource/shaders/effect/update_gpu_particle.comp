@@ -145,6 +145,7 @@ void main()
     if(particle_offset < scene_constants.MAX_PARTICLE_COUNT)
     {
         const int emitter_index = gpu_particle_emitter_index_buffer[particle_offset]._emitter_index;
+        const uint count_buffer_index = pushConstant._gpu_particle_count_buffer_offset + emitter_index;
         const uint local_particle_index = particle_offset - gpu_particle_dynamic_constants[emitter_index]._allocated_particle_offset;
         const uint prev_update_buffer_index =
             pushConstant._prev_gpu_particle_update_buffer_offset +
@@ -152,8 +153,8 @@ void main()
             local_particle_index;
         const uint update_buffer_index = pushConstant._gpu_particle_update_buffer_offset + particle_offset;
         const int max_particle_count = min(scene_constants.MAX_PARTICLE_COUNT, gpu_particle_static_constants[emitter_index]._max_particle_count);
-        const int particle_alive_count = gpu_particle_count_buffer[emitter_index]._particle_alive_count;
-        const int prev_particle_alive_count = gpu_particle_count_buffer[emitter_index]._prev_particle_alive_count;
+        const int particle_alive_count = gpu_particle_count_buffer[count_buffer_index]._particle_alive_count;
+        const int prev_particle_alive_count = gpu_particle_count_buffer[count_buffer_index]._prev_particle_alive_count;
         const int spawned_count = particle_alive_count - prev_particle_alive_count;
 
         GpuParticleUpdateBufferData particle_buffer = gpu_particle_update_buffer[prev_update_buffer_index];
@@ -172,10 +173,10 @@ void main()
                 update_particle_func(particle_buffer);
             }
 
-            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
-            {
-                atomicAdd(gpu_particle_count_buffer[emitter_index]._particle_dead_count, 1);
-            }
+//            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+//            {
+//                atomicAdd(gpu_particle_count_buffer[count_buffer_index]._particle_dead_count, 1);
+//            }
 
             particle_buffer._particle_elapsed_time += scene_constants.DELTA_TIME;
         }

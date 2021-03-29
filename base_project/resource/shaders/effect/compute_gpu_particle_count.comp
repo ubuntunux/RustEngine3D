@@ -42,11 +42,10 @@ void main()
         const uint prev_count_buffer_index = pushConstant._prev_gpu_particle_count_buffer_offset + gpu_particle_dynamic_constants[emitter_index]._prev_allocated_emitter_index;
         if(false == check_flags_all(GPU_PARTICLE_CONSTANT_FLAG_FIRST_UPDATE, gpu_particle_dynamic_constants[emitter_index]._gpu_particle_constant_flags))
         {
-            particle_alive_count = gpu_particle_count_buffer[prev_count_buffer_index]._particle_alive_count;
             particle_dead_count = gpu_particle_count_buffer[prev_count_buffer_index]._particle_dead_count;
+            particle_alive_count = max(0, max(particle_dead_count, gpu_particle_count_buffer[prev_count_buffer_index]._particle_alive_count));
         }
 
-        particle_alive_count = max(0, max(particle_alive_count, particle_dead_count));
         const int max_particle_count = min(scene_constants.MAX_PARTICLE_COUNT, gpu_particle_static_constants[emitter_index]._max_particle_count);
         const int available_particle_spawn_count = min(max(0, max_particle_count - particle_alive_count), gpu_particle_dynamic_constants[emitter_index]._spawn_count);
         const uint count_buffer_index = pushConstant._gpu_particle_count_buffer_offset + emitter_index;
