@@ -38,9 +38,13 @@ pub struct GpuParticleStaticConstants {
     pub _spawn_volume_type: i32,
     pub _scale_max: Vector3<f32>,
     pub _max_particle_count: i32,
+    pub _velocity_min: Vector3<f32>,
     pub _align_mode: i32,
+    pub _velocity_max: Vector3<f32>,
     pub _geometry_type: i32,
+    pub _force_min: Vector3<f32>,
     pub _reserved0: i32,
+    pub _force_max: Vector3<f32>,
     pub _reserved1: i32,
 }
 
@@ -75,7 +79,11 @@ pub struct GpuParticleUpdateBufferData {
     pub _particle_initial_rotation: Vector3<f32>,
     pub _particle_state: u32,
     pub _particle_initial_scale: Vector3<f32>,
-    pub _reserved0: f32,
+    pub _reserved0: i32,
+    pub _particle_velocity: Vector3<f32>,
+    pub _reserved1: i32,
+    pub _particle_initial_force: Vector3<f32>,
+    pub _reserved2: i32,
 }
 
 // push constants
@@ -254,6 +262,10 @@ impl EffectManager {
                 gpu_particle_static_constant._max_particle_count = emitter_data._max_particle_count;
                 gpu_particle_static_constant._align_mode = emitter_data._align_mode as i32;
                 gpu_particle_static_constant._geometry_type = emitter_data._geometry_type as i32;
+                gpu_particle_static_constant._velocity_min.clone_from(&emitter_data._velocity_min);
+                gpu_particle_static_constant._velocity_max.clone_from(&emitter_data._velocity_max);
+                gpu_particle_static_constant._force_min.clone_from(&emitter_data._force_min);
+                gpu_particle_static_constant._force_max.clone_from(&emitter_data._force_max);
                 emitter._need_to_upload_static_constant_buffer = false;
             }
 

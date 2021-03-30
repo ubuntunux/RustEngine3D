@@ -96,20 +96,30 @@ void spawn_particle_func(inout GpuParticleUpdateBufferData particle_buffer, uint
     //        vec3 _scale_max;
 
     uint random_seed = uint(mod(scene_constants.TIME, 1.0) * 65535.0) ^ uint(update_buffer_index * emitter_index);
-    float initial_lifetime = mix(
+    const float initial_lifetime = mix(
         gpu_particle_static_constants[emitter_index]._particle_lifetime_min,
         gpu_particle_static_constants[emitter_index]._particle_lifetime_max,
         random(random_seed)
     );
-    vec3 initial_rotation = mix(
+    const vec3 initial_rotation = mix(
         gpu_particle_static_constants[emitter_index]._rotation_min,
         gpu_particle_static_constants[emitter_index]._rotation_max,
-        vec3(random(random_seed), random(random_seed), random(random_seed))
+        generate_random3(random_seed)
     );
-    vec3 initial_scale = mix(
+    const vec3 initial_scale = mix(
         gpu_particle_static_constants[emitter_index]._scale_min,
         gpu_particle_static_constants[emitter_index]._scale_max,
-        vec3(random(random_seed), random(random_seed), random(random_seed))
+        generate_random3(random_seed)
+    );
+    const vec3 initial_velocity = mix(
+        gpu_particle_static_constants[emitter_index]._velocity_min,
+        gpu_particle_static_constants[emitter_index]._velocity_max,
+        generate_random3(random_seed)
+    );
+    const vec3 initial_force = mix(
+        gpu_particle_static_constants[emitter_index]._force_min,
+        gpu_particle_static_constants[emitter_index]._force_max,
+        generate_random3(random_seed)
     );
     vec3 spawn_position = vec3(random(random_seed), random(random_seed), random(random_seed)) * 2.0 - 1.0;
     spawn_position = (gpu_particle_static_constants[emitter_index]._spawn_volume_transform * vec4(spawn_position, 1.0)).xyz;
@@ -121,6 +131,8 @@ void spawn_particle_func(inout GpuParticleUpdateBufferData particle_buffer, uint
     particle_buffer._particle_initial_life_time = initial_lifetime;
     particle_buffer._particle_initial_rotation = initial_rotation;
     particle_buffer._particle_initial_scale = initial_scale;
+    particle_buffer._particle_velocity = initial_velocity;
+    particle_buffer._particle_initial_force = initial_force;
     particle_buffer._particle_state = PARTICLE_STATE_ALIVE;
 }
 
@@ -132,6 +144,11 @@ void update_particle_func(inout GpuParticleUpdateBufferData particle_buffer)
         particle_buffer._particle_state |= PARTICLE_STATE_DEAD;
         return;
     }
+
+    const float delta_time = scene_constants.DELTA_TIME;
+
+    particle_buffer._particle_velocity += particle_buffer._particle_initial_force * delta_time;
+    particle_buffer._particle_local_position += particle_buffer._particle_velocity * delta_time;
 
     mat4 emitter_relative_transform = particle_buffer._particle_emitter_transform;
     emitter_relative_transform[3].xyz -= view_constants.CAMERA_POSITION;
@@ -173,10 +190,10 @@ void main()
                 update_particle_func(particle_buffer);
             }
 
-//            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
-//            {
-//                atomicAdd(gpu_particle_count_buffer[count_buffer_index]._particle_dead_count, 1);
-//            }
+            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+            {
+                atomicAdd(gpu_particle_count_buffer[count_buffer_index]._particle_dead_count, 1);
+            }
 
             particle_buffer._particle_elapsed_time += scene_constants.DELTA_TIME;
         }

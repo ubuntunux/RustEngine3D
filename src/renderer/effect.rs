@@ -138,6 +138,10 @@ pub struct EmitterDataCreateInfo {
     pub _rotation_max: Vector3<f32>,
     pub _scale_min: Vector3<f32>,
     pub _scale_max: Vector3<f32>,
+    pub _velocity_min: Vector3<f32>,
+    pub _velocity_max: Vector3<f32>,
+    pub _force_min: Vector3<f32>,
+    pub _force_max: Vector3<f32>,
 }
 
 impl Default for EmitterDataCreateInfo {
@@ -167,8 +171,12 @@ impl Default for EmitterDataCreateInfo {
             _mesh_name: String::new(),
             _rotation_min: Vector3::zeros(),
             _rotation_max: Vector3::zeros(),
-            _scale_min: Vector3::new(1.0, 1.0, 1.0),
-            _scale_max: Vector3::new(1.0, 1.0, 1.0),
+            _scale_min: Vector3::zeros(),
+            _scale_max: Vector3::zeros(),
+            _velocity_min: Vector3::zeros(),
+            _velocity_max: Vector3::zeros(),
+            _force_min: Vector3::zeros(),
+            _force_max: Vector3::zeros(),
         }
     }
 }
@@ -201,6 +209,10 @@ pub struct EmitterData {
     pub _rotation_max: Vector3<f32>,
     pub _scale_min: Vector3<f32>,
     pub _scale_max: Vector3<f32>,
+    pub _velocity_min: Vector3<f32>,
+    pub _velocity_max: Vector3<f32>,
+    pub _force_min: Vector3<f32>,
+    pub _force_max: Vector3<f32>,
 }
 
 pub struct EffectCreateInfo {
@@ -326,6 +338,10 @@ impl EmitterData {
             _rotation_max: emitter_data_create_info._rotation_max.clone() as Vector3<f32>,
             _scale_min: emitter_data_create_info._scale_min.clone() as Vector3<f32>,
             _scale_max: emitter_data_create_info._scale_max.clone() as Vector3<f32>,
+            _velocity_min: emitter_data_create_info._velocity_min.clone() as Vector3<f32>,
+            _velocity_max: emitter_data_create_info._velocity_max.clone() as Vector3<f32>,
+            _force_min: emitter_data_create_info._force_min.clone() as Vector3<f32>,
+            _force_max: emitter_data_create_info._force_max.clone() as Vector3<f32>,
         }
     }
 }

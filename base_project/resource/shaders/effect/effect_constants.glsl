@@ -43,9 +43,13 @@ struct GpuParticleStaticConstants
     int _spawn_volume_type;
     vec3 _scale_max;
     int _max_particle_count;
+    vec3 _velocity_min;
     int _align_mode;
+    vec3 _velocity_max;
     int _geometry_type;
+    vec3 _force_min;
     int _reserved0;
+    vec3 _force_max;
     int _reserved1;
 };
 
@@ -80,5 +84,9 @@ struct GpuParticleUpdateBufferData
     vec3 _particle_initial_rotation;
     uint _particle_state;
     vec3 _particle_initial_scale;
-    float _reserved0;
+    int _reserved0;
+    vec3 _particle_velocity;
+    int _reserved1;
+    vec3 _particle_initial_force;
+    int _reserved2;
 };
