@@ -172,6 +172,19 @@ pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, u
     }
 }
 
+pub fn read_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, read_offset: u32, read_data: &mut [T]) {
+    unsafe {
+        let read_data_count = read_data.len();
+        let read_data_size = std::mem::size_of::<T>() as u64 * read_data_count as u64;
+        let offset = std::mem::size_of::<T>() as u64 * read_offset as u64;
+        assert!(read_data_size <= buffer_data._buffer_memory_requirements.size);
+        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, read_data_size, vk::MemoryMapFlags::empty()).unwrap();
+        let raw_data = std::ptr::slice_from_raw_parts(buffer_ptr, read_data_count) as *const [T];
+        read_data.clone_from_slice(&*raw_data);
+        device.unmap_memory(buffer_data._buffer_memory);
+    }
+}
+
 pub fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], offset: vk::DeviceSize) {
     unsafe {
         let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;

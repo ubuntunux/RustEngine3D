@@ -794,6 +794,11 @@ impl RendererData {
         }
     }
 
+    pub fn read_shader_buffer_datas<T: Copy>(&self, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, read_offset: u32, read_data: &mut [T]) {
+        let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
+        buffer::read_buffer_data(&self._device, buffer_data, read_offset, read_data);
+    }
+
     pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T], offset: vk::DeviceSize) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
