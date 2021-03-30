@@ -26,7 +26,6 @@ use crate::renderer::effect::{
     GpuParticleStaticConstants,
     GpuParticleDynamicConstants,
     GpuParticleCountBufferData,
-    GpuParticleEmitterIndexBufferData,
     GpuParticleUpdateBufferData,
 };
 
@@ -392,7 +391,7 @@ pub fn regist_shader_buffer_datas(
     });
     regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
-        _shader_buffer_data_stride: std::mem::size_of::<GpuParticleEmitterIndexBufferData>(),
+        _shader_buffer_data_stride: std::mem::size_of::<i32>(),
         _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize },
         ..storage_buffer_create_info
     });

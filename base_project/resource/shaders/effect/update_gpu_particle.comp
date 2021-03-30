@@ -26,7 +26,7 @@ layout(binding = 5) buffer GpuParticleDynamicConstantsBuffer
 };
 layout(binding = 6) buffer GpuParticleEmitterIndexBuffer
 {
-    GpuParticleEmitterIndexBufferData gpu_particle_emitter_index_buffer[];
+    int gpu_particle_emitter_index_buffer[];
 };
 layout(binding = 7) buffer GpuParticleCountBuffer
 {
@@ -144,7 +144,7 @@ void main()
     const uint particle_offset = gl_GlobalInvocationID.x;
     if(particle_offset < scene_constants.MAX_PARTICLE_COUNT)
     {
-        const int emitter_index = gpu_particle_emitter_index_buffer[particle_offset]._emitter_index;
+        const int emitter_index = gpu_particle_emitter_index_buffer[particle_offset];
         const uint count_buffer_index = pushConstant._gpu_particle_count_buffer_offset + emitter_index;
         const uint local_particle_index = particle_offset - gpu_particle_dynamic_constants[emitter_index]._allocated_particle_offset;
         const uint prev_update_buffer_index =

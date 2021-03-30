@@ -70,14 +70,6 @@ struct GpuParticleCountBufferData
     int _reserved0;
 };
 
-struct GpuParticleEmitterIndexBufferData
-{
-    int _emitter_index;
-    int _reserved0;
-    int _reserved1;
-    int _reserved2;
-};
-
 struct GpuParticleUpdateBufferData
 {
     mat4 _particle_emitter_transform;
