@@ -190,10 +190,10 @@ void main()
                 update_particle_func(particle_buffer);
             }
 
-            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
-            {
-                atomicAdd(gpu_particle_count_buffer[count_buffer_index]._particle_dead_count, 1);
-            }
+//            if(false == check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+//            {
+//                atomicAdd(gpu_particle_count_buffer[count_buffer_index]._particle_dead_count, 1);
+//            }
 
             particle_buffer._particle_elapsed_time += scene_constants.DELTA_TIME;
         }
