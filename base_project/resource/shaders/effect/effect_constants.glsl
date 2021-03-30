@@ -73,6 +73,9 @@ struct GpuParticleCountBufferData
 struct GpuParticleEmitterIndexBufferData
 {
     int _emitter_index;
+    int _reserved0;
+    int _reserved1;
+    int _reserved2;
 };
 
 struct GpuParticleUpdateBufferData

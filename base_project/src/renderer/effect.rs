@@ -68,6 +68,9 @@ pub struct GpuParticleCountBufferData {
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuParticleEmitterIndexBufferData {
     pub _emitter_index: i32,
+    pub _reserved0: i32,
+    pub _reserved1: i32,
+    pub _reserved2: i32,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
