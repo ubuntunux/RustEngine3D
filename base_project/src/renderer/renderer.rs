@@ -389,6 +389,10 @@ impl RendererBase for Renderer {
         // render translucent
         {
             let effect_manager = self.get_effect_manager_mut();
+            if effect_manager.get_need_to_clear_gpu_particle_buffer() {
+                effect_manager.clear_gpu_particles(command_buffer, swapchain_index, self, &resources);
+                effect_manager.set_need_to_clear_gpu_particle_buffer(false);
+            }
             effect_manager.process_gpu_particles(command_buffer, swapchain_index, self, &resources);
             effect_manager.render_effects(command_buffer, swapchain_index, self, &resources);
         }

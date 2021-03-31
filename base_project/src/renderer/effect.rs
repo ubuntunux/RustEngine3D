@@ -63,10 +63,10 @@ pub struct GpuParticleDynamicConstants {
 
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuParticleCountBufferData {
+    pub _particle_buffer_offset: i32,
     pub _particle_alive_count: i32,
     pub _prev_particle_alive_count: i32,
     pub _particle_dead_count: i32,
-    pub _reserved0: i32,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -92,8 +92,8 @@ pub struct GpuParticleUpdateBufferData {
 pub struct PushConstant_ComputeGpuParticleCount {
     pub _prev_gpu_particle_count_buffer_offset: i32,
     pub _gpu_particle_count_buffer_offset: i32,
+    pub _process_emitter_count: i32,
     pub _reserved0: i32,
-    pub _reserved1: i32,
 }
 
 #[allow(non_camel_case_types)]
@@ -102,7 +102,7 @@ pub struct PushConstant_UpdateGpuParticle {
     pub _gpu_particle_count_buffer_offset: i32,
     pub _prev_gpu_particle_update_buffer_offset: i32,
     pub _gpu_particle_update_buffer_offset: i32,
-    pub _reserved0: i32,
+    pub _process_particle_count: i32,
 }
 
 #[allow(non_camel_case_types)]
@@ -134,6 +134,7 @@ pub struct EffectManager {
     pub _gpu_particle_emitter_indices: Vec<i32>,
     pub _gpu_particle_count_buffer_offset: i32,
     pub _gpu_particle_update_buffer_offset: i32,
+    pub _need_to_clear_gpu_particle_buffer: bool,
 }
 
 impl EffectManagerBase for EffectManager {
@@ -191,6 +192,7 @@ impl EffectManager {
             _gpu_particle_emitter_indices: unsafe { vec![INVALID_ALLOCATED_EMITTER_INDEX; MAX_PARTICLE_COUNT as usize] },
             _gpu_particle_count_buffer_offset: 0,
             _gpu_particle_update_buffer_offset: 0,
+            _need_to_clear_gpu_particle_buffer: true,
         })
     }
 
@@ -213,6 +215,62 @@ impl EffectManager {
     }
 
     pub fn destroy_framebuffer_and_descriptors(&mut self, _device: &Device) {
+    }
+
+    pub fn get_need_to_clear_gpu_particle_buffer(&self) -> bool {
+        self._need_to_clear_gpu_particle_buffer
+    }
+
+    pub fn set_need_to_clear_gpu_particle_buffer(&mut self, need_to_clear_gpu_particle_buffer: bool) {
+        self._need_to_clear_gpu_particle_buffer = need_to_clear_gpu_particle_buffer;
+    }
+
+    pub fn clear_gpu_particles(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer: &Renderer,
+        resources: &Resources
+    ) {
+        let material_instance_data = &resources.get_material_instance_data("process_gpu_particle").borrow();
+
+        let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
+        let dispatch_count = unsafe { MAX_PARTICLE_COUNT * 2 };
+        let thread_group_count = unsafe { (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE };
+        renderer.get_renderer_data().dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            thread_group_count as u32,
+            1,
+            1,
+            None,
+            Some(&PushConstant_ComputeGpuParticleCount {
+                _prev_gpu_particle_count_buffer_offset: 0,
+                _gpu_particle_count_buffer_offset: 0,
+                _process_emitter_count: 0,
+                _reserved0: 0,
+            }),
+        );
+
+        let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
+        let dispatch_count = unsafe { MAX_PARTICLE_COUNT * 2 };
+        let thread_group_count = unsafe { (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE };
+        renderer.get_renderer_data().dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            thread_group_count as u32,
+            1,
+            1,
+            None,
+            Some(&PushConstant_UpdateGpuParticle {
+                _gpu_particle_count_buffer_offset: 0,
+                _prev_gpu_particle_update_buffer_offset: 0,
+                _gpu_particle_update_buffer_offset: 0,
+                _process_particle_count: 0,
+            }),
+        );
     }
 
     pub fn process_gpu_particles(
@@ -318,6 +376,7 @@ impl EffectManager {
             let gpu_particle_emitter_index_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer);
             let gpu_particle_count_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleCountBuffer);
             let gpu_particle_update_buffer = renderer.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleUpdateBuffer);
+
             renderer.get_renderer_data().upload_shader_buffer_datas(
                 command_buffer,
                 swapchain_index,
@@ -377,7 +436,7 @@ impl EffectManager {
 
             // compute gpu particle count
             let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
-            let thread_group_count = (process_emitter_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
+            let thread_group_count = unsafe { (process_emitter_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE };
             renderer.get_renderer_data().dispatch_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -389,8 +448,8 @@ impl EffectManager {
                 Some(&PushConstant_ComputeGpuParticleCount {
                     _prev_gpu_particle_count_buffer_offset: prev_gpu_particle_count_buffer_offset,
                     _gpu_particle_count_buffer_offset: self._gpu_particle_count_buffer_offset,
+                    _process_emitter_count: process_emitter_count,
                     _reserved0: 0,
-                    _reserved1: 0,
                 }),
             );
 
@@ -420,7 +479,7 @@ impl EffectManager {
 
             // update gpu particles
             let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
-            let thread_group_count = (process_gpu_particle_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
+            let thread_group_count = unsafe { (process_gpu_particle_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE };
             renderer.get_renderer_data().dispatch_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -433,7 +492,7 @@ impl EffectManager {
                     _gpu_particle_count_buffer_offset: self._gpu_particle_count_buffer_offset,
                     _prev_gpu_particle_update_buffer_offset: prev_gpu_particle_update_buffer_offset,
                     _gpu_particle_update_buffer_offset: self._gpu_particle_update_buffer_offset,
-                    _reserved0: 0,
+                    _process_particle_count: process_gpu_particle_count,
                 }),
             );
 
@@ -470,6 +529,18 @@ impl EffectManager {
                 &buffer_memory_barriers,
                 &[],
             );
+
+            // Read Back
+            // println!("================================");
+            // println!("prev_gpu_particle_count_buffer_offset: {}, gpu_particle_count_buffer_offset: {}", prev_gpu_particle_count_buffer_offset, self._gpu_particle_count_buffer_offset);
+            // let mut prev_gpu_particle_count_buffer_data: Vec<GpuParticleCountBufferData> = unsafe { vec![GpuParticleCountBufferData::default(); process_emitter_count as usize] };
+            // let mut gpu_particle_count_buffer_data: Vec<GpuParticleCountBufferData> = unsafe { vec![GpuParticleCountBufferData::default(); process_emitter_count as usize] };
+            // renderer.get_renderer_data().read_shader_buffer_datas(swapchain_index, gpu_particle_count_buffer, prev_gpu_particle_count_buffer_offset as u32, &mut prev_gpu_particle_count_buffer_data);
+            // renderer.get_renderer_data().read_shader_buffer_datas(swapchain_index, gpu_particle_count_buffer, self._gpu_particle_count_buffer_offset as u32, &mut gpu_particle_count_buffer_data);
+            // for i in 0..process_emitter_count {
+            //     println!("buffer[{}]: {:?}", i + prev_gpu_particle_count_buffer_offset, prev_gpu_particle_count_buffer_data[i as usize]);
+            //     println!("buffer[{}]: {:?}", i + self._gpu_particle_count_buffer_offset, prev_gpu_particle_count_buffer_data[i as usize]);
+            // }
         }
     }
 

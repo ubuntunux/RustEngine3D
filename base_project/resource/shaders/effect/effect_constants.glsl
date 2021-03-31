@@ -68,10 +68,10 @@ struct GpuParticleDynamicConstants
 
 struct GpuParticleCountBufferData
 {
+    int _particle_buffer_offset;
     int _particle_alive_count;
     int _prev_particle_alive_count;
     int _particle_dead_count;
-    int _reserved0;
 };
 
 struct GpuParticleUpdateBufferData
