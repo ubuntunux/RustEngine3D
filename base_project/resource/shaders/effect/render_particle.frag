@@ -15,10 +15,13 @@ void main() {
     vec4 base_color = texture(textureBase, vs_output.texCoord);
     base_color.xyz = pow(base_color.xyz, vec3(2.2));
     base_color *= vs_output.color;
+
+    #if (ParticleBlendMode_Opaque == BlendMode)
     if(base_color.w < 0.333)
     {
         discard;
     }
+    #endif
 
     vec4 material = texture(textureMaterial, vs_output.texCoord);
     vec3 normal = normalize(vs_output.tangent_to_world * (texture(textureNormal, vs_output.texCoord).xyz * 2.0 - 1.0));
@@ -58,7 +61,6 @@ void main() {
         //point_lights,
         base_color.xyz,
         opacity,
-        emissive_color,
         metalicness,
         roughness,
         reflectance,
@@ -76,5 +78,8 @@ void main() {
         L,
         depth
     );
-    outColor.w = 1.0;
+
+    #if (ParticleBlendMode_AlphaBlend == BlendMode) || (ParticleBlendMode_Additive == BlendMode)
+    outColor.xyz = outColor.xyz * outColor.w + emissive_color;
+    #endif
 }

@@ -94,7 +94,6 @@ void main() {
         //point_lights,
         base_color.xyz,
         opacity,
-        emissive_color,
         metalicness,
         roughness,
         reflectance,
@@ -112,5 +111,6 @@ void main() {
         L,
         depth
     );
+    outColor.xyz += emissive_color;
     outColor.w = 1.0;
 }

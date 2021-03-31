@@ -20,7 +20,7 @@ void main() {
     const int particle_alive_count = max(0, gpu_particle_count_buffer[count_buffer_index]._particle_alive_count - particle_dead_count);
     const int update_buffer_index = scene_constants.GPU_PARTICLE_UPDATE_BUFFER_OFFSET + pushConstant._allocated_particle_offset + particle_dead_count + instance_id;
     const uint particle_state = gpu_particle_update_buffer[update_buffer_index]._particle_state;
-    if(particle_alive_count <= instance_id || false == check_flags_all(PARTICLE_STATE_ALIVE, particle_state))
+    if(particle_alive_count <= instance_id || false == check_flags_any(PARTICLE_STATE_ALIVE, particle_state))
     {
         gl_Position = vec4(0.0 / 0.0);
         return;
@@ -42,10 +42,11 @@ void main() {
 
     vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
     vs_output.projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
+    vs_output.relative_position = relative_pos;
     gl_Position = vs_output.projection_pos;
 
-    vs_output.relative_position = relative_pos;
-    vs_output.color = inColor;
+    const float play_time_ratio = saturate(gpu_particle_update_buffer[instance_id]._particle_elapsed_time / gpu_particle_update_buffer[instance_id]._particle_initial_life_time);
+    vs_output.color = inColor * vec4(1.0, 1.0, 1.0, 1.0);
     // Note : Normalization is very important because tangent_to_world may have been scaled..
     vec3 bitangent = cross(vertex_tangent, vertex_normal);
     vs_output.tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);

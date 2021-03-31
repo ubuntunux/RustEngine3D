@@ -40,7 +40,7 @@ pub fn get_framebuffer_data_create_info(renderer: &Renderer) -> FramebufferDataC
     )
 }
 
-pub fn get_render_pass_data_create_info(renderer: &Renderer, blend_mode: ParticleBlendMode, geometry_type: ParticleGeometryType) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(renderer: &Renderer, particle_blend_mode: ParticleBlendMode, geometry_type: ParticleGeometryType) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_particle_translucent");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
@@ -86,21 +86,28 @@ pub fn get_render_pass_data_create_info(renderer: &Renderer, blend_mode: Particl
         },
     ];
 
+    let (pipeline_data_name, blend_mode) = match particle_blend_mode {
+        ParticleBlendMode::AlphaBlend => (String::from("alpha_blend"), BlendMode::PreMultipliedAlpha),
+        ParticleBlendMode::Additive => (String::from("additive"), BlendMode::Additive),
+        ParticleBlendMode::Opaque => (String::from("opaque"), BlendMode::None),
+        _ => (String::from("none"), BlendMode::None),
+    };
+
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("alpha_blend"),
+            _pipeline_data_create_info_name: pipeline_data_name,
             _pipeline_vertex_shader_file: PathBuf::from("effect/render_particle.vert"),
             _pipeline_fragment_shader_file: PathBuf::from("effect/render_particle.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_shader_defines: vec![
-                format!("BlendMode={:?}", blend_mode as i32),
+                format!("BlendMode={:?}", particle_blend_mode as i32),
                 format!("GeometryType={:?}", geometry_type as i32),
             ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(blend_mode); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),

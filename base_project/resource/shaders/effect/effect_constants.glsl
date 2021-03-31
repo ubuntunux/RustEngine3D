@@ -6,29 +6,29 @@ const uint PARTICLE_STATE_DELAY = 1 << 0;
 const uint PARTICLE_STATE_ALIVE = 1 << 1;
 const uint PARTICLE_STATE_DEAD = 1 << 2;
 
-const uint ParticleBlendMode_AlphaBlend = 0;
-const uint ParticleBlendMode_Additive = 1;
-const uint ParticleBlendMode_Opaque = 2;
+#define ParticleBlendMode_AlphaBlend 0
+#define ParticleBlendMode_Additive 1
+#define ParticleBlendMode_Opaque 2
 
-const uint ParticleSpawnVolumeType_Box = 0;
-const uint ParticleSpawnVolumeType_Sphere = 1;
-const uint ParticleSpawnVolumeType_Cone = 2;
-const uint ParticleSpawnVolumeType_Cylinder = 3;
+#define ParticleSpawnVolumeType_Box 0
+#define ParticleSpawnVolumeType_Sphere 1
+#define ParticleSpawnVolumeType_Cone 2
+#define ParticleSpawnVolumeType_Cylinder 3
 
-const uint ParticleGeometryType_Quad = 0;
-const uint ParticleGeometryType_Decal = 1;
-const uint ParticleGeometryType_Mesh = 2;
-const uint ParticleGeometryType_Ribbon = 3;
-const uint ParticleGeometryType_Beam = 4;
-const uint ParticleGeometryType_Capsule = 5;
+#define ParticleGeometryType_Quad 0
+#define ParticleGeometryType_Decal 1
+#define ParticleGeometryType_Mesh 2
+#define ParticleGeometryType_Ribbon 3
+#define ParticleGeometryType_Beam 4
+#define ParticleGeometryType_Capsule 5
 
-const uint ParticleAlignMode_None = 0;
-const uint ParticleAlignMode_Billboard = 1;
-const uint ParticleAlignMode_VelocityAlign = 2;
+#define ParticleAlignMode_None 0
+#define ParticleAlignMode_Billboard 1
+#define ParticleAlignMode_VelocityAlign 2
 
-const uint ParticleVelocityType_Local = 0;
-const uint ParticleVelocityType_WorldY_LocalXZ = 1;
-const uint ParticleVelocityType_NormalDirection = 2;
+#define ParticleVelocityType_Local 0
+#define ParticleVelocityType_WorldY_LocalXZ 1
+#define ParticleVelocityType_NormalDirection 2
 
 //
 struct GpuParticleStaticConstants

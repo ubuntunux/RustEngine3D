@@ -180,25 +180,20 @@ void main()
 
             if (local_particle_index < particle_alive_count)
             {
-                if (false == check_flags_all(PARTICLE_STATE_DEAD, particle_buffer._particle_state))
+                if (0 < spawned_count && prev_particle_alive_count <= local_particle_index)
                 {
-                    if (0 < spawned_count && prev_particle_alive_count <= local_particle_index)
-                    {
-                        spawn_particle_func(particle_buffer, update_buffer_index, emitter_index);
-                    }
+                    spawn_particle_func(particle_buffer, update_buffer_index, emitter_index);
+                }
 
-                    if (check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
-                    {
-                        update_particle_func(particle_buffer);
-                    }
+                if (check_flags_all(PARTICLE_STATE_ALIVE, particle_buffer._particle_state))
+                {
+                    update_particle_func(particle_buffer);
                 }
 
                 if (check_flags_all(PARTICLE_STATE_DEAD, particle_buffer._particle_state))
                 {
                     if (max_particle_lifetime <= particle_buffer._particle_elapsed_time)
                     {
-                        particle_buffer._particle_elapsed_time = 0.0;
-                        particle_buffer._particle_state = PARTICLE_STATE_NONE;
                         atomicAdd(gpu_particle_count_buffer[count_buffer_index]._particle_dead_count, 1);
                     }
                 }

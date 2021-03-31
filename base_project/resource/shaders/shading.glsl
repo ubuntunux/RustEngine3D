@@ -285,7 +285,6 @@ vec4 surface_shading(
     //const in POINT_LIGHTS point_lights,
     const in vec3 base_color,
     float opacity,
-    const in vec3 emissive_color,
     const in float metallic,
     float roughness,
     const in float reflectance,
@@ -441,9 +440,6 @@ vec4 surface_shading(
     {
         result *= ssao_factor;
     }
-
-    // Emissive
-    result += emissive_color;
 
     return vec4(max(vec3(0.0), result), opacity);
 }
