@@ -24,19 +24,19 @@ layout(binding = 7) uniform sampler2D transmittance_texture;
 layout(binding = 8) uniform sampler2D irradiance_texture;
 layout(binding = 9) uniform sampler3D scattering_texture;
 layout(binding = 10) uniform sampler3D single_mie_scattering_texture;
-layout(binding = 11) buffer GpuParticleStaticConstantsBuffer
+layout(binding = 11) buffer readonly GpuParticleStaticConstantsBuffer
 {
     GpuParticleStaticConstants gpu_particle_static_constants[];
 };
-layout(binding = 12) buffer GpuParticleDynamicConstantsBuffer
+layout(binding = 12) buffer readonly GpuParticleDynamicConstantsBuffer
 {
     GpuParticleDynamicConstants gpu_particle_dynamic_constants[];
 };
-layout(binding = 13) buffer GpuParticleCountBuffer
+layout(binding = 13) buffer readonly GpuParticleCountBuffer
 {
     GpuParticleCountBufferData gpu_particle_count_buffer[];
 };
-layout(binding = 14) buffer GpuParticleUpdateBuffer
+layout(binding = 14) buffer readonly GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };

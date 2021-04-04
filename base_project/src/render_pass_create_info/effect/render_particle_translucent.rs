@@ -78,11 +78,11 @@ pub fn get_render_pass_data_create_info(renderer: &Renderer, particle_blend_mode
         vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
             dst_subpass: 0,
-            src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-            dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            src_access_mask: vk::AccessFlags::MEMORY_READ,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dependency_flags: vk::DependencyFlags::BY_REGION,
+            src_stage_mask: vk::PipelineStageFlags::ALL_COMMANDS,
+            dst_stage_mask: vk::PipelineStageFlags::ALL_COMMANDS,
+            src_access_mask: vk::AccessFlags::MEMORY_WRITE | vk::AccessFlags::SHADER_WRITE,
+            dst_access_mask: vk::AccessFlags::MEMORY_READ | vk::AccessFlags::SHADER_READ,
+            dependency_flags: vk::DependencyFlags::DEVICE_GROUP,
         },
     ];
 

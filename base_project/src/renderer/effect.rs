@@ -343,8 +343,8 @@ impl EffectManager {
             }
 
             if need_to_change_allocate_emitter_index {
+                effect_manager_data._allocated_emitters[emitter._allocated_emitter_index as usize] = std::ptr::null();
                 effect_manager_data._allocated_emitters[process_emitter_count as usize] = emitter_ptr;
-                effect_manager_data._allocated_emitters[emitter_index as usize] = std::ptr::null();
                 emitter._allocated_emitter_index = process_emitter_count;
             }
 
@@ -538,8 +538,20 @@ impl EffectManager {
             // renderer.get_renderer_data().read_shader_buffer_datas(swapchain_index, gpu_particle_count_buffer, prev_gpu_particle_count_buffer_offset as u32, &mut prev_gpu_particle_count_buffer_data);
             // renderer.get_renderer_data().read_shader_buffer_datas(swapchain_index, gpu_particle_count_buffer, self._gpu_particle_count_buffer_offset as u32, &mut gpu_particle_count_buffer_data);
             // for i in 0..process_emitter_count {
-            //     println!("buffer[{}]: {:?}", i + prev_gpu_particle_count_buffer_offset, prev_gpu_particle_count_buffer_data[i as usize]);
-            //     println!("buffer[{}]: {:?}", i + self._gpu_particle_count_buffer_offset, prev_gpu_particle_count_buffer_data[i as usize]);
+            //     println!("prev_buffer[{}]: {:?}", i + prev_gpu_particle_count_buffer_offset, prev_gpu_particle_count_buffer_data[i as usize]);
+            //     println!("curr_buffer[{}]: {:?}", i + self._gpu_particle_count_buffer_offset, gpu_particle_count_buffer_data[i as usize]);
+            // }
+            //
+            // println!("prev_gpu_particle_update_buffer_offset: {}, gpu_particle_update_buffer_offset: {}", prev_gpu_particle_update_buffer_offset, self._gpu_particle_update_buffer_offset);
+            // let mut prev_gpu_particle_update_buffer_data: Vec<GpuParticleUpdateBufferData> = unsafe { vec![GpuParticleUpdateBufferData::default(); process_gpu_particle_count as usize] };
+            // let mut gpu_particle_update_buffer_data: Vec<GpuParticleUpdateBufferData> = unsafe { vec![GpuParticleUpdateBufferData::default(); process_gpu_particle_count as usize] };
+            // renderer.get_renderer_data().read_shader_buffer_datas(swapchain_index, gpu_particle_update_buffer, prev_gpu_particle_update_buffer_offset as u32, &mut prev_gpu_particle_update_buffer_data);
+            // renderer.get_renderer_data().read_shader_buffer_datas(swapchain_index, gpu_particle_update_buffer, self._gpu_particle_update_buffer_offset as u32, &mut gpu_particle_update_buffer_data);
+            // for i in 0..process_gpu_particle_count {
+            //     let prev_update_data = &prev_gpu_particle_update_buffer_data[i as usize];
+            //     let update_data = &gpu_particle_update_buffer_data[i as usize];
+            //     println!("prev_buffer[{}]: state {:?}, elapsed_time: {:?} {:?} -> {:?}, {}", i + prev_gpu_particle_update_buffer_offset, prev_update_data._particle_state, prev_update_data._particle_elapsed_time, prev_update_data._reserved0, prev_update_data._reserved1, prev_update_data._reserved2);
+            //     println!("curr_buffer[{}]: state {:?}, elapsed_time: {:?} {:?} -> {:?}, {}", i + self._gpu_particle_update_buffer_offset, update_data._particle_state, update_data._particle_elapsed_time, update_data._reserved0, update_data._reserved1, update_data._reserved2);
             // }
         }
     }
