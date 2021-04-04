@@ -133,13 +133,13 @@ impl SceneManagerBase for SceneManager {
 
         self.add_effect(&EffectCreateInfo {
             _effect_data_name: String::from("test"),
-            _effect_position: Vector3::new(2.0, 4.0, 0.0),
+            _effect_position: Vector3::new(4.0, 4.0, 0.0),
             ..Default::default()
         });
 
         self.add_effect(&EffectCreateInfo {
             _effect_data_name: String::from("test2"),
-            _effect_position: Vector3::new(4.0, 4.0, 0.0),
+            _effect_position: Vector3::new(8.0, 4.0, 0.0),
             ..Default::default()
         });
 
