@@ -37,7 +37,9 @@ raw-window-handle = ""
 crate-type = ["lib", "cdylib"]
 
 [target.'cfg(target_os = "android")'.dependencies]
-ndk-glue = "0.2"
+ndk = "0.3"
+ndk-glue = "0.3"
+jni = "0.18"
 
 [package.metadata.android]
 apk_label = "RustEngine3D"
