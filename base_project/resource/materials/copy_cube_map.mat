@@ -1,5 +1,0 @@
-{"pipelines":
-    [ {"render_pass": "copy_cube_map", "pipeline": "copy"}
-    , {"render_pass": "copy_cube_map", "pipeline": "blend"}
-    ]
-}

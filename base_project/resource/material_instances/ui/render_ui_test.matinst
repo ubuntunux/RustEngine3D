@@ -1,6 +1,0 @@
-{
-    "material_name": "render_ui",
-    "material_parameters": {
-        "texture_normal": "common/bricks_d"
-    }
-}

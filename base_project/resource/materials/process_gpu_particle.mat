@@ -1,6 +1,0 @@
-{ "pipelines": [ {"render_pass": "process_gpu_particle", "pipeline": "compute_gpu_particle_count"}
-               , {"render_pass": "process_gpu_particle", "pipeline": "update_gpu_particle"}
-               ]
-, "material_parameters": {}
-}
-
