@@ -854,11 +854,13 @@ impl Collada {
             _animations: Vec::new(),
         };
 
-        for xml_node in xml_root.get_elements("library_visual_scenes/visual_scene/node").unwrap().iter() {
-            collada._nodes.push(ColladaNode::create_collada_node(xml_node, std::ptr::null(), 0));
+        let nodes = xml_root.get_elements("library_visual_scenes/visual_scene/node");
+        if nodes.is_some() {
+            for xml_node in nodes.unwrap().iter() {
+                collada._nodes.push(ColladaNode::create_collada_node(xml_node, std::ptr::null(), 0));
+            }
+            Collada::gather_node_name_map(&collada._nodes, &mut collada._node_name_map);
         }
-
-        Collada::gather_node_name_map(&collada._nodes, &mut collada._node_name_map);
 
         let xml_controllers = xml_root.get_elements("library_controllers/controller");
         if xml_controllers.is_some() {
