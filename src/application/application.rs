@@ -89,7 +89,7 @@ impl TimeData {
 pub trait ApplicationBase {
     fn initialize_application(&mut self, application_data: &ApplicationData);
     fn update_event(&self);
-    fn terminate_applicateion(&mut self);
+    fn terminate_application(&mut self);
 }
 
 pub struct ApplicationData {
@@ -117,7 +117,7 @@ impl ApplicationData {
         unsafe { &mut *(self._application as *mut dyn ApplicationBase) }
     }
 
-    pub fn terminate_applicateion(
+    pub fn terminate_application(
         &mut self,
         effect_manager_data: &mut EffectManagerData,
         font_manager: &mut FontManager,
@@ -126,9 +126,12 @@ impl ApplicationData {
         resources: &mut Resources,
         renderer_data: &mut RendererData,
     ) {
-        self.get_application_mut().terminate_applicateion();
+        scene_manager_data.close_scene_data(renderer_data.get_device());
+
+        // destroy managers
+        self.get_application_mut().terminate_application();
         effect_manager_data.destroy_effect_manager_data();
-        scene_manager_data.close_scene_manager_data(renderer_data.get_device());
+        scene_manager_data.destroy_scene_manager_data(renderer_data.get_device());
         ui_manager_data.destroy_ui_manager_data(renderer_data.get_device());
         font_manager.destroy_font_manager(renderer_data.get_device());
         renderer_data.destroy_framebuffer_and_descriptors();
@@ -198,7 +201,7 @@ pub fn run_application(
                 let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
                 let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
                 let mut effect_manager_data: RefMut<EffectManagerData> = maybe_effect_manager_data.as_ref().unwrap().borrow_mut();
-                application_data.terminate_applicateion(
+                application_data.terminate_application(
                     &mut effect_manager_data,
                     &mut font_manager,
                     &mut ui_manager_data,
@@ -257,7 +260,7 @@ pub fn run_application(
             scene_manager_data.borrow_mut().initialize_scene_graphics_data();
 
             // open scene
-            scene_manager_data.borrow_mut().open_scene_manager_data();
+            scene_manager_data.borrow_mut().open_scene_data();
 
             // set managers
             maybe_resources = Some(resources);
@@ -307,7 +310,7 @@ pub fn run_application(
                     // exit
                     if application_data._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
                         *control_flow = ControlFlow::Exit;
-                        application_data.terminate_applicateion(
+                        application_data.terminate_application(
                             &mut effect_manager_data,
                             &mut font_manager,
                             &mut ui_manager_data,
@@ -324,11 +327,10 @@ pub fn run_application(
 
                     // update timer
                     if application_data._time_data.update_time_data(&time_instance) {
-                        font_manager.clear_logs();
                         let text_fps = format!("{:.2}fps / {:.3}ms", application_data._time_data._average_fps, application_data._time_data._average_frame_time);
                         log::info!("{}", text_fps);
-                        font_manager.log(text_fps);
                     }
+
                     let elapsed_time = application_data._time_data._elapsed_time;
                     let delta_time = application_data._time_data._delta_time;
                     let elapsed_frame = application_data._time_data._elapsed_frame;
@@ -363,7 +365,7 @@ pub fn run_application(
                         // update & render, If the resized event has not yet occurred, the window size may be 0.
                         if 0 < application_data._window_size.0 && 0 < application_data._window_size.1 {
                             renderer_data.update_post_process_datas();
-                            scene_manager_data.update_scene_manager_data(elapsed_time, delta_time);
+                            scene_manager_data.update_scene_manager_data(&application_data._time_data, &mut font_manager);
                             font_manager.update();
                             ui_manager_data.update(
                                 delta_time,

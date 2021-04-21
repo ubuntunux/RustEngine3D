@@ -1,5 +1,7 @@
 use ash::Device;
 
+use crate::application::application::TimeData;
+use crate::renderer::font::FontManager;
 use crate::renderer::renderer::RendererData;
 use crate::resource::resource::Resources;
 use crate::utilities::system::RcRefCell;
@@ -20,9 +22,10 @@ pub trait SceneManagerBase {
     fn get_window_size(&self) -> (u32, u32);
     fn set_window_size(&mut self, width: u32, height: u32);
     fn resized_window(&mut self, width: u32, height: u32);
-    fn open_scene_manager_data(&mut self, resources: &Resources);
-    fn close_scene_manager_data(&mut self, device: &Device);
-    fn update_scene_manager_data(&mut self, _elapsed_time: f64, delta_time: f64);
+    fn open_scene_data(&mut self, resources: &Resources);
+    fn close_scene_data(&mut self, device: &Device);
+    fn destroy_scene_manager_data(&mut self, device: &Device);
+    fn update_scene_manager_data(&mut self, time_data: &TimeData, font_manager: &mut FontManager);
 }
 
 pub struct SceneManagerData {
@@ -81,12 +84,16 @@ impl SceneManagerData {
         unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
     }
 
-    pub fn open_scene_manager_data(&mut self) {
-        self.get_scene_manager_mut().open_scene_manager_data(&self._resources.borrow());
+    pub fn open_scene_data(&mut self) {
+        self.get_scene_manager_mut().open_scene_data(&self._resources.borrow());
     }
 
-    pub fn close_scene_manager_data(&mut self, device: &Device) {
-        self.get_scene_manager_mut().close_scene_manager_data(device);
+    pub fn close_scene_data(&mut self, device: &Device) {
+        self.get_scene_manager_mut().close_scene_data(device);
+    }
+
+    pub fn destroy_scene_manager_data(&mut self, device: &Device) {
+        self.get_scene_manager_mut().destroy_scene_manager_data(device);
     }
 
     pub fn initialize_scene_graphics_data(&self) {
@@ -100,7 +107,7 @@ impl SceneManagerData {
         self.get_scene_manager_mut().resized_window(width, height);
     }
 
-    pub fn update_scene_manager_data(&self, _elapsed_time: f64, delta_time: f64) {
-        self.get_scene_manager_mut().update_scene_manager_data(_elapsed_time, delta_time);
+    pub fn update_scene_manager_data(&self, time_data: &TimeData, font_manager: &mut FontManager) {
+        self.get_scene_manager_mut().update_scene_manager_data(time_data, font_manager);
     }
 }
