@@ -216,7 +216,7 @@ pub struct WidgetDefault {
     pub _widgets: Vec<*mut dyn Widget>,
 }
 
-pub trait UIManagerBase {
+pub trait ProjectUIManagerBase {
     fn get_ui_manager_data(&self) -> &UIManagerData;
     fn get_ui_manager_data_mut(&self) -> &mut UIManagerData;
     fn initialize_ui_manager(&mut self, ui_manager_data: &UIManagerData);
@@ -224,7 +224,7 @@ pub trait UIManagerBase {
 }
 
 pub struct UIManagerData {
-    pub _ui_manager: *const dyn UIManagerBase,
+    pub _project_ui_manager: *const dyn ProjectUIManagerBase,
     pub _root: Box<dyn Widget>,
     pub _window_size: (u32, u32),
     pub _ui_mesh_vertex_buffer: BufferData,
@@ -1282,11 +1282,11 @@ impl UIRenderGroupData {
 
 impl UIManagerData {
     pub fn get_root_ptr(&self) -> *const dyn Widget { self._root.as_ref() }
-    pub fn create_ui_manager_data(ui_manager: *const dyn UIManagerBase) -> UIManagerData {
+    pub fn create_ui_manager_data(project_ui_manager: *const dyn ProjectUIManagerBase) -> UIManagerData {
         log::info!("create_ui_manager_data");
         unsafe {
             let mut ui_manager_data = UIManagerData {
-                _ui_manager: ui_manager,
+                _project_ui_manager: project_ui_manager,
                 _root: Box::from_raw(UIManagerData::create_widget("root", UIWidgetTypes::Default)),
                 _window_size: (0, 0),
                 _ui_mesh_vertex_buffer: BufferData::default(),
@@ -1311,8 +1311,8 @@ impl UIManagerData {
         self._font_data = resources.get_default_font_data().clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
         self.create_ui_graphics_data(renderer_data, resources);
-        self.get_ui_manager_mut().initialize_ui_manager(&self);
-        self.get_ui_manager_mut().build_ui(renderer_data, resources);
+        self.get_project_ui_manager_mut().initialize_ui_manager(&self);
+        self.get_project_ui_manager_mut().build_ui(renderer_data, resources);
     }
 
     pub fn create_ui_graphics_data(&mut self, _renderer_data: &RendererData, resources: &Resources) {
@@ -1323,12 +1323,12 @@ impl UIManagerData {
         self._default_render_ui_material = None;
     }
 
-    pub fn get_ui_manager(&self) -> &dyn UIManagerBase {
-        unsafe { &*self._ui_manager }
+    pub fn get_project_ui_manager(&self) -> &dyn ProjectUIManagerBase {
+        unsafe { &*self._project_ui_manager }
     }
 
-    pub fn get_ui_manager_mut(&self) -> &mut dyn UIManagerBase {
-        unsafe { &mut *(self._ui_manager as *mut dyn UIManagerBase) }
+    pub fn get_project_ui_manager_mut(&self) -> &mut dyn ProjectUIManagerBase {
+        unsafe { &mut *(self._project_ui_manager as *mut dyn ProjectUIManagerBase) }
     }
 
     pub fn destroy_ui_manager_data(&mut self, device: &Device) {

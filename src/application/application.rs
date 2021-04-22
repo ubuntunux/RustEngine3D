@@ -25,7 +25,7 @@ use crate::resource::resource::{Resources, ProjectResourcesBase};
 use crate::renderer::effect::{ EffectManagerData, EffectManagerBase };
 use crate::renderer::renderer::{ RendererData, ProjectRendererBase };
 use crate::renderer::font::FontManager;
-use crate::renderer::ui::{ UIManagerBase, UIManagerData };
+use crate::renderer::ui::{ ProjectUIManagerBase, UIManagerData };
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::utilities::logger;
 
@@ -157,8 +157,8 @@ pub fn run_application(
     project_resources: *const dyn ProjectResourcesBase,
     project_scene_manager: *const dyn ProjectSceneManagerBase,
     effect_manager: *const dyn EffectManagerBase,
-    renderer: *const dyn ProjectRendererBase,
-    ui_manager: *const dyn UIManagerBase,
+    project_renderer: *const dyn ProjectRendererBase,
+    project_ui_manager: *const dyn ProjectUIManagerBase,
 ) {
     logger::initialize_logger(log_level);
 
@@ -218,8 +218,8 @@ pub fn run_application(
             let mouse_pos = (width / 2, height / 2);
             let resources = newRcRefCell(Resources::create_resources(project_resources));
             let font_manager = newRcRefCell(FontManager::create_font_manager());
-            let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(ui_manager));
-            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
+            let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(project_ui_manager));
+            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, project_renderer));
             let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, project_scene_manager));
             let effect_manager_data = newRcRefCell(EffectManagerData::create_effect_manager_data(&renderer_data, &resources, effect_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
