@@ -23,7 +23,7 @@ use crate::application::scene_manager::{ SceneManagerData, ProjectSceneManagerBa
 use crate::application::input;
 use crate::resource::resource::{Resources, ProjectResourcesBase};
 use crate::renderer::effect::{ EffectManagerData, EffectManagerBase };
-use crate::renderer::renderer::{ RendererData, RendererBase };
+use crate::renderer::renderer::{ RendererData, ProjectRendererBase };
 use crate::renderer::font::FontManager;
 use crate::renderer::ui::{ UIManagerBase, UIManagerData };
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
@@ -157,7 +157,7 @@ pub fn run_application(
     project_resources: *const dyn ProjectResourcesBase,
     project_scene_manager: *const dyn ProjectSceneManagerBase,
     effect_manager: *const dyn EffectManagerBase,
-    renderer: *const dyn RendererBase,
+    renderer: *const dyn ProjectRendererBase,
     ui_manager: *const dyn UIManagerBase,
 ) {
     logger::initialize_logger(log_level);

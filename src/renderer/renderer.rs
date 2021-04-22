@@ -99,8 +99,8 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
     }
 }
 
-pub trait RendererBase {
-    fn initialize_renderer(&mut self, renderer_data: &RendererData, effect_manager: *const dyn EffectManagerBase);
+pub trait ProjectRendererBase {
+    fn initialize_project_renderer(&mut self, renderer_data: &RendererData, effect_manager: *const dyn EffectManagerBase);
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
@@ -155,7 +155,7 @@ pub struct RendererData {
     pub _image_samplers: ImageSamplerData,
     pub _resources: RcRefCell<Resources>,
     pub _effect_manager_data: *const EffectManagerData,
-    pub _renderer: *const dyn RendererBase,
+    pub _project_renderer: *const dyn ProjectRendererBase,
 }
 
 impl RendererData {
@@ -165,7 +165,7 @@ impl RendererData {
         (window_width, window_height): (u32, u32),
         window: &Window,
         resources: &RcRefCell<Resources>,
-        renderer: *const dyn RendererBase,
+        project_renderer: *const dyn ProjectRendererBase,
     ) -> RendererData {
         unsafe {
             log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
@@ -275,7 +275,7 @@ impl RendererData {
                 _image_samplers: ImageSamplerData::default(),
                 _resources: resources.clone(),
                 _effect_manager_data: std::ptr::null(),
-                _renderer: renderer,
+                _project_renderer: project_renderer,
             }
         }
     }
@@ -287,12 +287,12 @@ impl RendererData {
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
         self._effect_manager_data = effect_manager_data;
         let effect_manager: *const dyn EffectManagerBase = unsafe { (*effect_manager_data).get_effect_manager() };
-        self.get_renderer_mut().initialize_renderer(self, effect_manager);
+        self.get_project_renderer_mut().initialize_project_renderer(self, effect_manager);
     }
     pub fn get_effect_manager_data(&self) -> &EffectManagerData { unsafe { &*self._effect_manager_data } }
     pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData { unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) } }
-    pub fn get_renderer(&self) -> &dyn RendererBase { unsafe { &*(self._renderer) } }
-    pub fn get_renderer_mut(&self) -> &mut dyn RendererBase { unsafe { &mut *(self._renderer as *mut dyn RendererBase) } }
+    pub fn get_project_renderer(&self) -> &dyn ProjectRendererBase { unsafe { &*(self._project_renderer) } }
+    pub fn get_project_renderer_mut(&self) -> &mut dyn ProjectRendererBase { unsafe { &mut *(self._project_renderer as *mut dyn ProjectRendererBase) } }
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) {
         log::info!("set_need_recreate_swapchain: {}", value);
@@ -853,7 +853,7 @@ impl RendererData {
                 self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
                 // renderer - render_scene
-                self.get_renderer_mut().render_scene(
+                self.get_project_renderer_mut().render_scene(
                     command_buffer,
                     frame_index,
                     swapchain_index,
@@ -897,50 +897,50 @@ impl RendererData {
 
     // renderer interface
     pub fn is_first_rendering(&self) -> bool {
-        self.get_renderer_mut().is_first_rendering()
+        self.get_project_renderer_mut().is_first_rendering()
     }
 
     pub fn set_is_first_rendering(&self, is_first_rendering: bool) {
-        self.get_renderer_mut().set_is_first_rendering(is_first_rendering);
+        self.get_project_renderer_mut().set_is_first_rendering(is_first_rendering);
     }
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererData::prepare_framebuffer_and_descriptors");
-        self.get_renderer_mut().prepare_framebuffer_and_descriptors(&self._device, &self._resources.borrow());
+        self.get_project_renderer_mut().prepare_framebuffer_and_descriptors(&self._device, &self._resources.borrow());
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererData::destroy_framebuffer_and_descriptors");
-        self.get_renderer_mut().destroy_framebuffer_and_descriptors(&self._device);
+        self.get_project_renderer_mut().destroy_framebuffer_and_descriptors(&self._device);
     }
 
     pub fn update_post_process_datas(&self) {
-        self.get_renderer_mut().update_post_process_datas();
+        self.get_project_renderer_mut().update_post_process_datas();
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
-        self.get_renderer().get_shader_buffer_data_from_str(buffer_data_name)
+        self.get_project_renderer().get_shader_buffer_data_from_str(buffer_data_name)
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
-        self.get_renderer().get_render_target_from_str(render_target_type_str)
+        self.get_project_renderer().get_render_target_from_str(render_target_type_str)
     }
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
-        self.get_renderer().get_render_pass_data_create_infos()
+        self.get_project_renderer().get_render_pass_data_create_infos()
     }
 
     pub fn create_render_targets(&self) {
         log::info!("create_render_targets");
-        self.get_renderer_mut().create_render_targets(self);
+        self.get_project_renderer_mut().create_render_targets(self);
     }
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self.get_renderer_mut().destroy_render_targets(self.get_device());
+        self.get_project_renderer_mut().destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {
-        self.get_renderer_mut().destroy_uniform_buffers(self.get_device());
+        self.get_project_renderer_mut().destroy_uniform_buffers(self.get_device());
     }
 }
