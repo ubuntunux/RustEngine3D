@@ -19,7 +19,7 @@ use winit::event_loop::{
 use winit::dpi;
 use winit::window::{ WindowBuilder };
 
-use crate::application::scene_manager::{ SceneManagerData, SceneManagerBase };
+use crate::application::scene_manager::{ SceneManagerData, ProjectSceneManagerBase };
 use crate::application::input;
 use crate::resource::resource::{Resources, ProjectResourcesBase};
 use crate::renderer::effect::{ EffectManagerData, EffectManagerBase };
@@ -155,7 +155,7 @@ pub fn run_application(
     log_level: LevelFilter,
     application: *const dyn ApplicationBase,
     project_resources: *const dyn ProjectResourcesBase,
-    scene_manager: *const dyn SceneManagerBase,
+    project_scene_manager: *const dyn ProjectSceneManagerBase,
     effect_manager: *const dyn EffectManagerBase,
     renderer: *const dyn RendererBase,
     ui_manager: *const dyn UIManagerBase,
@@ -220,7 +220,7 @@ pub fn run_application(
             let font_manager = newRcRefCell(FontManager::create_font_manager());
             let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(ui_manager));
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));
-            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, scene_manager));
+            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, project_scene_manager));
             let effect_manager_data = newRcRefCell(EffectManagerData::create_effect_manager_data(&renderer_data, &resources, effect_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(mouse_pos);
