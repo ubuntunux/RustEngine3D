@@ -21,7 +21,7 @@ use winit::window::{ WindowBuilder };
 
 use crate::application::scene_manager::{ SceneManagerData, SceneManagerBase };
 use crate::application::input;
-use crate::resource::resource::Resources;
+use crate::resource::resource::{Resources, ProjectResourcesBase};
 use crate::renderer::effect::{ EffectManagerData, EffectManagerBase };
 use crate::renderer::renderer::{ RendererData, RendererBase };
 use crate::renderer::font::FontManager;
@@ -154,6 +154,7 @@ impl ApplicationData {
 pub fn run_application(
     log_level: LevelFilter,
     application: *const dyn ApplicationBase,
+    project_resources: *const dyn ProjectResourcesBase,
     scene_manager: *const dyn SceneManagerBase,
     effect_manager: *const dyn EffectManagerBase,
     renderer: *const dyn RendererBase,
@@ -215,7 +216,7 @@ pub fn run_application(
             let elapsed_time = time_instance.elapsed().as_secs_f64();
             let (width, height) = window_size;
             let mouse_pos = (width / 2, height / 2);
-            let resources = newRcRefCell(Resources::create_resources());
+            let resources = newRcRefCell(Resources::create_resources(project_resources));
             let font_manager = newRcRefCell(FontManager::create_font_manager());
             let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(ui_manager));
             let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, renderer));

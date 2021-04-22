@@ -2,6 +2,7 @@ use nalgebra::{
     Vector3,
     Matrix4,
 };
+use serde::{ Serialize, Deserialize };
 
 use crate::renderer::mesh::MeshData;
 use crate::renderer::model::ModelData;
@@ -10,12 +11,24 @@ use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::RcRefCell;
 use crate::utilities::bounding_box::BoundingBox;
 
-#[derive(Clone, Debug)]
+//#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Debug, Clone)]
 pub struct RenderObjectCreateInfo {
     pub _model_data: Option<RcRefCell<ModelData>>,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
+}
+
+impl Default for RenderObjectCreateInfo {
+    fn default() -> RenderObjectCreateInfo {
+        RenderObjectCreateInfo {
+            _model_data: None,
+            _position: Vector3::zeros(),
+            _rotation: Vector3::zeros(),
+            _scale: Vector3::new(1.0, 1.0, 1.0),
+        }
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -47,6 +60,27 @@ pub struct AnimationPlayInfo {
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
 }
 
+impl Default for AnimationPlayInfo {
+    fn default() -> AnimationPlayInfo {
+        AnimationPlayInfo {
+            _last_animation_frame: 0.0,
+            _animation_loop: true,
+            _animation_blend_time: 0.5,
+            _animation_elapsed_time: 0.0,
+            _animation_speed: 1.0,
+            _animation_frame: 0.0,
+            _animation_play_time: 0.0,
+            _animation_end_time: None,
+            _is_animation_end: false,
+            _animation_buffers: Vec::new(),
+            _prev_animation_buffers: Vec::new(),
+            _blend_animation_buffers: Vec::new(),
+            _animation_count: 0,
+            _animation_mesh: None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct AnimationPlayArgs {
     pub _speed: f32,
@@ -70,38 +104,6 @@ impl Default for AnimationPlayArgs {
             _reset: true,
         }
     }
-}
-
-impl Default for RenderObjectCreateInfo {
-    fn default() -> RenderObjectCreateInfo {
-        RenderObjectCreateInfo {
-            _model_data: None,
-            _position: Vector3::zeros(),
-            _rotation: Vector3::zeros(),
-            _scale: Vector3::new(1.0, 1.0, 1.0),
-        }
-    } 
-}
-
-impl Default for AnimationPlayInfo {
-    fn default() -> AnimationPlayInfo {
-        AnimationPlayInfo {
-            _last_animation_frame: 0.0,
-            _animation_loop: true,
-            _animation_blend_time: 0.5,
-            _animation_elapsed_time: 0.0,
-            _animation_speed: 1.0,
-            _animation_frame: 0.0,
-            _animation_play_time: 0.0,
-            _animation_end_time: None,
-            _is_animation_end: false,
-            _animation_buffers: Vec::new(),
-            _prev_animation_buffers: Vec::new(),
-            _blend_animation_buffers: Vec::new(),
-            _animation_count: 0,
-            _animation_mesh: None,
-        }
-    } 
 }
 
 impl AnimationPlayInfo {

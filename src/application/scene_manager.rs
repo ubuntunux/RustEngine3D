@@ -22,7 +22,7 @@ pub trait SceneManagerBase {
     fn get_window_size(&self) -> (u32, u32);
     fn set_window_size(&mut self, width: u32, height: u32);
     fn resized_window(&mut self, width: u32, height: u32);
-    fn open_scene_data(&mut self, resources: &Resources);
+    fn open_scene_data(&mut self, resources: &Resources, scene_data_name: &String);
     fn close_scene_data(&mut self, device: &Device);
     fn destroy_scene_manager_data(&mut self, device: &Device);
     fn update_scene_manager_data(&mut self, time_data: &TimeData, font_manager: &mut FontManager);
@@ -85,7 +85,7 @@ impl SceneManagerData {
     }
 
     pub fn open_scene_data(&mut self) {
-        self.get_scene_manager_mut().open_scene_data(&self._resources.borrow());
+        self.get_scene_manager_mut().open_scene_data(&self._resources.borrow(), &String::from("default"));
     }
 
     pub fn close_scene_data(&mut self, device: &Device) {

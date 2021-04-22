@@ -2,7 +2,7 @@ use std::fs::{ self, File };
 use std::io::prelude::*;
 use std::path::{ Path, PathBuf };
 use std::collections::HashMap;
-use byteorder::{ LittleEndian };
+use byteorder::{ LittleEndian, ReadBytesExt };
 
 use serde_json::{ self, Value, json };
 use bincode;
@@ -34,7 +34,6 @@ use crate::vulkan_context::render_pass::{
 };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
-use byteorder::ReadBytesExt;
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -113,8 +112,18 @@ pub enum ResourceData {
     ResourceDataMesh,
 }
 
+pub trait ProjectResourcesBase {
+    fn initialize_project_resources(&mut self, engine_resources: &Resources, engine_renderer: &mut RendererData);
+    fn destroy_project_resources(&mut self, engine_renderer: &mut RendererData);
+    fn load_graphics_datas(&mut self, engine_renderer: &mut RendererData);
+    fn unload_graphics_datas(&mut self, engine_renderer: &mut RendererData);
+    fn regist_resource(&mut self);
+    fn unregist_resource(&mut self);
+}
+
 #[derive(Clone)]
 pub struct Resources {
+    pub _project_resources: *const dyn ProjectResourcesBase,
     pub _resource_filenames: Vec<PathBuf>,
     pub _meta_data_map: MetaDataMap,
     pub _font_data_map: FontDataMap,
@@ -164,8 +173,9 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 }
 
 impl Resources {
-    pub fn create_resources() -> Resources {
+    pub fn create_resources(project_resources: *const dyn ProjectResourcesBase) -> Resources {
         Resources {
+            _project_resources: project_resources,
             _resource_filenames: Vec::new(),
             _meta_data_map: MetaDataMap::new(),
             _font_data_map: FontDataMap::new(),
@@ -181,6 +191,14 @@ impl Resources {
         }
     }
 
+    pub fn get_project_resources(&self) -> &dyn ProjectResourcesBase {
+        unsafe { &*self._project_resources }
+    }
+
+    pub fn get_project_resources_mut(&self) -> &mut dyn ProjectResourcesBase {
+        unsafe { &mut *(self._project_resources as *mut dyn ProjectResourcesBase) }
+    }
+
     pub fn initialize_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("initialize_resources");
         self.load_resource_filenames();
@@ -193,10 +211,12 @@ impl Resources {
         self.load_mesh_datas(renderer_data);
         self.load_model_datas(renderer_data);
         self.load_effect_datas(renderer_data);
+        self.get_project_resources_mut().initialize_project_resources(self, renderer_data);
     }
 
     pub fn destroy_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("destroy_resources");
+        self.get_project_resources_mut().destroy_project_resources(renderer_data);
         self.unload_effect_datas(renderer_data);
         self.unload_model_datas(renderer_data);
         self.unload_mesh_datas(renderer_data);
@@ -237,15 +257,6 @@ impl Resources {
     }
 
     pub fn unregist_resource(&mut self) {
-        // nothing..
-    }
-
-    // SceneManagerData
-    pub fn load_scene_manager_datas(&mut self, _renderer_data: &RendererData) {
-        // nothing..
-    }
-
-    pub fn unload_scene_manager_datas(&mut self, _renderer_data: &RendererData) {
         // nothing..
     }
 
