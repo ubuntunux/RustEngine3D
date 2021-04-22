@@ -37,7 +37,7 @@ use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, RenderPassDa
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainArray, FrameArray };
-use crate::renderer::effect::EffectManagerBase;
+use crate::renderer::effect::ProjectEffectManagerBase;
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::resource::resource::Resources;
@@ -100,7 +100,7 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 }
 
 pub trait ProjectRendererBase {
-    fn initialize_project_renderer(&mut self, renderer_data: &RendererData, effect_manager: *const dyn EffectManagerBase);
+    fn initialize_project_renderer(&mut self, renderer_data: &RendererData, effect_manager: *const dyn ProjectEffectManagerBase);
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
@@ -286,7 +286,7 @@ impl RendererData {
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
         self._effect_manager_data = effect_manager_data;
-        let effect_manager: *const dyn EffectManagerBase = unsafe { (*effect_manager_data).get_effect_manager() };
+        let effect_manager: *const dyn ProjectEffectManagerBase = unsafe { (*effect_manager_data).get_project_effect_manager() };
         self.get_project_renderer_mut().initialize_project_renderer(self, effect_manager);
     }
     pub fn get_effect_manager_data(&self) -> &EffectManagerData { unsafe { &*self._effect_manager_data } }

@@ -261,8 +261,8 @@ pub struct EmitterInstance {
     pub _emitter_data: *const EmitterData,
 }
 
-pub trait EffectManagerBase {
-    fn initialize_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
+pub trait ProjectEffectManagerBase {
+    fn initialize_project_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
     fn get_effect_manager_data(&self) -> &EffectManagerData;
     fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData;
     fn create_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64;
@@ -273,7 +273,7 @@ pub trait EffectManagerBase {
 }
 
 pub struct EffectManagerData {
-    pub _effect_manager: *const dyn EffectManagerBase,
+    pub _project_effect_manager: *const dyn ProjectEffectManagerBase,
     pub _renderer_data: RcRefCell<RendererData>,
     pub _resources: RcRefCell<Resources>,
     pub _effect_id_generator: i64,
@@ -509,10 +509,10 @@ impl EffectManagerData {
     pub fn create_effect_manager_data(
         renderer_data: &RcRefCell<RendererData>,
         resources: &RcRefCell<Resources>,
-        effect_manager: *const dyn EffectManagerBase
+        project_effect_manager: *const dyn ProjectEffectManagerBase
     ) -> EffectManagerData {
         EffectManagerData {
-            _effect_manager: effect_manager,
+            _project_effect_manager: project_effect_manager,
             _renderer_data: renderer_data.clone(),
             _resources: resources.clone(),
             _effect_id_generator: 0,
@@ -524,20 +524,20 @@ impl EffectManagerData {
         }
     }
 
-    pub fn initialize_effect_manager(&mut self) {
-        self.get_effect_manager_mut().initialize_effect_manager(self);
+    pub fn initialize_project_effect_manager(&mut self) {
+        self.get_project_effect_manager_mut().initialize_project_effect_manager(self);
     }
 
     pub fn destroy_effect_manager_data(&mut self) {
         self._effects.clear();
     }
 
-    pub fn get_effect_manager(&self) -> &dyn EffectManagerBase {
-        unsafe { &*self._effect_manager }
+    pub fn get_project_effect_manager(&self) -> &dyn ProjectEffectManagerBase {
+        unsafe { &*self._project_effect_manager }
     }
 
-    pub fn get_effect_manager_mut(&self) -> &mut dyn EffectManagerBase {
-        unsafe { &mut *(self._effect_manager as *mut dyn EffectManagerBase) }
+    pub fn get_project_effect_manager_mut(&self) -> &mut dyn ProjectEffectManagerBase {
+        unsafe { &mut *(self._project_effect_manager as *mut dyn ProjectEffectManagerBase) }
     }
 
     pub fn generate_effect_id(&mut self) -> i64 {
@@ -609,6 +609,6 @@ impl EffectManagerData {
             self._dead_effect_ids.clear();
         }
 
-        self.get_effect_manager_mut().gather_render_effects();
+        self.get_project_effect_manager_mut().gather_render_effects();
     }
 }
