@@ -103,6 +103,7 @@ impl SceneManagerData {
     pub fn destroy_scene_graphics_data(&self, device: &Device) {
         self.get_project_scene_manager_mut().destroy_scene_graphics_data(device);
     }
+
     pub fn resized_window(&self, width: u32, height: u32) {
         self.get_project_scene_manager_mut().resized_window(width, height);
     }

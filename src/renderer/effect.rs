@@ -263,6 +263,8 @@ pub struct EmitterInstance {
 
 pub trait ProjectEffectManagerBase {
     fn initialize_project_effect_manager(&mut self, effect_manager_data: *const EffectManagerData);
+    fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources);
+    fn destroy_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData);
     fn get_effect_manager_data(&self) -> &EffectManagerData;
     fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData;
     fn create_effect(&mut self, effect_create_info: &EffectCreateInfo) -> i64;
@@ -526,6 +528,14 @@ impl EffectManagerData {
 
     pub fn initialize_project_effect_manager(&mut self) {
         self.get_project_effect_manager_mut().initialize_project_effect_manager(self);
+    }
+
+    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, resources: &Resources) {
+        self.get_project_effect_manager_mut().prepare_framebuffer_and_descriptors(renderer_data, resources);
+    }
+
+    pub fn destroy_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData) {
+        self.get_project_effect_manager_mut().destroy_framebuffer_and_descriptors(renderer_data);
     }
 
     pub fn destroy_effect_manager_data(&mut self) {
