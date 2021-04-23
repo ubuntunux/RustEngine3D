@@ -2,7 +2,7 @@ use nalgebra::{
     Vector3,
     Matrix4,
 };
-//use serde::{ Serialize, Deserialize };
+use serde::{ Serialize, Deserialize };
 
 use crate::renderer::mesh::MeshData;
 use crate::renderer::model::ModelData;
@@ -11,10 +11,9 @@ use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::RcRefCell;
 use crate::utilities::bounding_box::BoundingBox;
 
-//#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct RenderObjectCreateInfo {
-    pub _model_data: Option<RcRefCell<ModelData>>,
+    pub _model_data_name: String,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
@@ -23,7 +22,7 @@ pub struct RenderObjectCreateInfo {
 impl Default for RenderObjectCreateInfo {
     fn default() -> RenderObjectCreateInfo {
         RenderObjectCreateInfo {
-            _model_data: None,
+            _model_data_name: String::new(),
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
             _scale: Vector3::new(1.0, 1.0, 1.0),
@@ -124,7 +123,8 @@ impl AnimationPlayInfo {
 impl RenderObjectData {
     pub fn create_render_object_data(
         render_object_name: &String,
-        render_object_create_data: RenderObjectCreateInfo
+        model_data: &RcRefCell<ModelData>,
+        render_object_create_data: &RenderObjectCreateInfo
     ) -> RenderObjectData {
         log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::new_transform_object_data();
@@ -132,14 +132,13 @@ impl RenderObjectData {
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
 
-        let model_data = render_object_create_data._model_data.unwrap();
         let mesh_data = model_data.borrow()._mesh_data.clone();
         let bound_box = mesh_data.borrow()._bound_box.clone();
         let has_animation_data = mesh_data.borrow().has_animation_data();
         let geometry_bound_boxes = mesh_data.borrow()._geometry_datas.iter().map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone()).collect();
         let mut render_object_data = RenderObjectData {
             _render_object_name: render_object_name.clone(),
-            _model_data: model_data,
+            _model_data: model_data.clone(),
             _mesh_data: mesh_data,
             _bound_box: bound_box,
             _geometry_bound_boxes: geometry_bound_boxes,
