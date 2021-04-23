@@ -73,7 +73,7 @@ pub const DEFAULT_MESH_NAME: &str = "quad";
 pub const DEFAULT_MODEL_NAME: &str = "quad";
 pub const DEFAULT_TEXTURE_NAME: &str = "common/default";
 pub const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
-pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "render_particle";
+pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "system/render_particle";
 pub const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
