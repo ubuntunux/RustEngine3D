@@ -134,7 +134,6 @@ impl ApplicationData {
         scene_manager_data.destroy_scene_manager_data(renderer_data.get_device());
         ui_manager_data.destroy_ui_manager_data(renderer_data.get_device());
         font_manager.destroy_font_manager(renderer_data.get_device());
-        renderer_data.destroy_framebuffer_and_descriptors();
         resources.destroy_resources(renderer_data);
         renderer_data.destroy_renderer_data();
     }
@@ -258,7 +257,6 @@ pub fn run_application(
 
             // initialize graphics data
             renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
-            renderer_data.borrow_mut().initialize_scene_graphics_data();
             effect_manager_data.borrow_mut().prepare_framebuffer_and_descriptors(&renderer_data.borrow(), &resources.borrow());
             scene_manager_data.borrow_mut().initialize_scene_graphics_data();
 
@@ -354,11 +352,9 @@ pub fn run_application(
                             effect_manager_data.destroy_framebuffer_and_descriptors(&renderer_data);
                             ui_manager_data.destroy_ui_graphics_data();
                             font_manager.destroy_font_descriptor_sets();
-                            renderer_data.destroy_framebuffer_and_descriptors();
                             renderer_data.resize_window();
 
                             // recreate
-                            renderer_data.initialize_scene_graphics_data();
                             font_manager.create_font_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
                             ui_manager_data.create_ui_graphics_data(&renderer_data, &renderer_data._resources.borrow());
                             effect_manager_data.prepare_framebuffer_and_descriptors(&renderer_data, &renderer_data._resources.borrow());

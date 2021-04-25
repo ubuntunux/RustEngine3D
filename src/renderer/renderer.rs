@@ -101,8 +101,6 @@ pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverit
 
 pub trait ProjectRendererBase {
     fn initialize_project_renderer(&mut self, renderer_data: &RendererData, effect_manager: *const dyn ProjectEffectManagerBase);
-    fn initialize_scene_graphics_data(&mut self);
-    fn destroy_scene_graphics_data(&mut self);
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
     fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, resources: &Resources);
@@ -291,12 +289,6 @@ impl RendererData {
         let effect_manager: *const dyn ProjectEffectManagerBase = unsafe { (*effect_manager_data).get_project_effect_manager() };
         self.get_project_renderer_mut().initialize_project_renderer(self, effect_manager);
     }
-    pub fn initialize_scene_graphics_data(&mut self) {
-        self.get_project_renderer_mut().initialize_scene_graphics_data();
-    }
-    pub fn destroy_scene_graphics_data(&mut self) {
-        self.get_project_renderer_mut().destroy_scene_graphics_data();
-    }
     pub fn get_effect_manager_data(&self) -> &EffectManagerData { unsafe { &*self._effect_manager_data } }
     pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData { unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) } }
     pub fn get_project_renderer(&self) -> &dyn ProjectRendererBase { unsafe { &*(self._project_renderer) } }
@@ -361,6 +353,7 @@ impl RendererData {
     }
     pub fn destroy_renderer_data(&mut self) {
         unsafe {
+            self.destroy_framebuffer_and_descriptors();
             self.destroy_uniform_buffers();
             image_sampler::destroy_image_samplers(self.get_device(), &self._image_samplers);
             self.destroy_render_targets();
