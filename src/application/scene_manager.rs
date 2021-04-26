@@ -24,6 +24,7 @@ pub trait ProjectSceneManagerBase {
     fn resized_window(&mut self, width: u32, height: u32);
     fn open_scene_data(&mut self, resources: &Resources, scene_data_name: &String);
     fn close_scene_data(&mut self, device: &Device);
+    fn save_scene_data(&mut self);
     fn destroy_project_scene_manager(&mut self, device: &Device);
     fn update_project_scene_manager(&mut self, time_data: &TimeData, font_manager: &mut FontManager);
 }
@@ -90,6 +91,10 @@ impl SceneManagerData {
 
     pub fn close_scene_data(&mut self, device: &Device) {
         self.get_project_scene_manager_mut().close_scene_data(device);
+    }
+
+    pub fn save_scene_data(&mut self) {
+        self.get_project_scene_manager_mut().save_scene_data();
     }
 
     pub fn destroy_scene_manager_data(&mut self, device: &Device) {

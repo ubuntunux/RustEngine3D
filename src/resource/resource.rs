@@ -160,7 +160,7 @@ fn get_resource_name_from_file_path(resource_root_path: &PathBuf, resource_file_
     resource_name.replace("\\", "/")
 }
 
-fn get_unique_resource_name<T>(resource_map: &ResourceDataMap<T>, resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
+pub fn get_unique_resource_name<T>(resource_map: &ResourceDataMap<T>, resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
     let resource_name = get_resource_name_from_file_path(resource_root_path, resource_file_path);
     system::generate_unique_name(resource_map, &resource_name)
 }
