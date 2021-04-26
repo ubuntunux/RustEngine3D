@@ -215,6 +215,7 @@ pub struct EmitterData {
     pub _force_max: Vector3<f32>,
 }
 
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct EffectCreateInfo {
     pub _effect_position: Vector3<f32>,
     pub _effect_rotation: Vector3<f32>,

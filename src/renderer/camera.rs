@@ -5,12 +5,13 @@ use nalgebra::{
     Vector4,
     Matrix4,
 };
+use serde::{ Serialize, Deserialize };
 
 use crate::constants;
 use crate::utilities::math;
 use crate::renderer::transform_object::TransformObjectData;
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct CameraCreateInfo {
     pub meter_per_unit: f32,
     pub near: f32,

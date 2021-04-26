@@ -1,4 +1,5 @@
 use nalgebra::{Vector3, Vector4, Matrix4};
+use serde::{ Serialize, Deserialize };
 
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::math::{
@@ -8,7 +9,7 @@ use crate::utilities::math::{
 use crate::constants;
 
 // scene_constants.glsl - struct LIGHT_CONSTANTS
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct LightConstants {
     pub _shadow_view_projection: Matrix4<f32>,
     pub _light_position: Vector3<f32>,
@@ -35,7 +36,7 @@ impl Default for LightConstants {
     }
 }
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct DirectionalLightCreateInfo {
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
