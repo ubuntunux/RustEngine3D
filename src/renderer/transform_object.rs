@@ -123,7 +123,7 @@ impl TransformObjectData {
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
         self._rotation.z = (self._rotation.z + rotation_speed) % TWO_PI;
     }
-    pub fn get_scale(&mut self) -> &Vector3<f32> {
+    pub fn get_scale(&self) -> &Vector3<f32> {
         &self._scale
     }
     pub fn set_scale(&mut self, scale: &Vector3<f32>) {
