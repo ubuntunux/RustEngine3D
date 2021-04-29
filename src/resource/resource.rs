@@ -268,22 +268,25 @@ impl Resources {
         }
     }
 
-    pub fn collect_resources_inner(&self, _dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+    pub fn collect_resources_inner(&self, dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
         let mut out_resources: Vec<PathBuf> = Vec::new();
         for resource_filename in self._resource_filenames.iter() {
-            let ext = resource_filename.extension();
-            if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
-                out_resources.push(PathBuf::from(resource_filename));
+            if resource_filename.starts_with(dir) {
+                let ext = resource_filename.extension();
+                if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
+                    out_resources.push(PathBuf::from(resource_filename));
+                }
             }
         }
         out_resources
     }
 
     pub fn collect_resources(&self, dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
-        #[cfg(target_os = "android")]
         return self.collect_resources_inner(dir, extensions);
-        #[cfg(not(target_os = "android"))]
-        return system::walk_directory(dir, extensions);
+        // #[cfg(target_os = "android")]
+        // return self.collect_resources_inner(dir, extensions);
+        // #[cfg(not(target_os = "android"))]
+        // return system::walk_directory(dir, extensions);
     }
 
     // EffectData
