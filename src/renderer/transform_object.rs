@@ -96,6 +96,9 @@ impl TransformObjectData {
     pub fn get_prev_position(&self) -> &Vector3<f32> {
         &self._prev_position
     }
+    pub fn move_pos(&mut self, move_speed: &Vector3<f32>) {
+        self._position += move_speed;
+    }
     pub fn move_left(&mut self, move_speed: f32) {
         self._position += (&self._left * move_speed) as Vector3<f32>;
     }
@@ -122,6 +125,24 @@ impl TransformObjectData {
     }
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
         self._rotation.z = (self._rotation.z + rotation_speed) % TWO_PI;
+    }
+    pub fn get_pitch(&self) -> f32 {
+        self._rotation.x
+    }
+    pub fn get_yaw(&self) -> f32 {
+        self._rotation.y
+    }
+    pub fn get_roll(&self) -> f32 {
+        self._rotation.z
+    }
+    pub fn set_pitch(&mut self, rotation: f32) {
+        self._rotation.x = rotation % TWO_PI;
+    }
+    pub fn set_yaw(&mut self, rotation: f32) {
+        self._rotation.y = rotation % TWO_PI;
+    }
+    pub fn set_roll(&mut self, rotation: f32) {
+        self._rotation.z = rotation % TWO_PI;
     }
     pub fn get_scale(&self) -> &Vector3<f32> {
         &self._scale

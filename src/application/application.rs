@@ -17,7 +17,8 @@ use winit::event_loop::{
     EventLoop
 };
 use winit::dpi;
-use winit::window::{ WindowBuilder };
+use winit::window::{ Fullscreen, WindowBuilder };
+use winit::monitor::{MonitorHandle, VideoMode};
 
 use crate::application::scene_manager::{ SceneManagerData, ProjectSceneManagerBase };
 use crate::application::input;
@@ -28,6 +29,7 @@ use crate::renderer::font::FontManager;
 use crate::renderer::ui::{ ProjectUIManagerBase, UIManagerData };
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::utilities::logger;
+use std::io::Write;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -40,6 +42,49 @@ pub struct TimeData {
     pub _elapsed_time_prev: f64,
     pub _elapsed_time: f64,
     pub _delta_time: f64
+}
+
+// Enumerate monitors and prompt user to choose one
+fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
+    for (num, monitor) in event_loop.available_monitors().enumerate() {
+        println!("Monitor #{}: {:?}", num, monitor.name());
+    }
+
+    print!("Please write the number of the monitor to use: ");
+    std::io::stdout().flush().unwrap();
+
+    let mut num = String::new();
+    std::io::stdin().read_line(&mut num).unwrap();
+    let num = num.trim().parse().ok().expect("Please enter a number");
+    let monitor = event_loop
+        .available_monitors()
+        .nth(num)
+        .expect("Please enter a valid ID");
+
+    println!("Using {:?}", monitor.name());
+
+    monitor
+}
+
+fn prompt_for_video_mode(monitor: &MonitorHandle) -> VideoMode {
+    for (i, video_mode) in monitor.video_modes().enumerate() {
+        println!("Video mode #{}: {}", i, video_mode);
+    }
+
+    print!("Please write the number of the video mode to use: ");
+    std::io::stdout().flush().unwrap();
+
+    let mut num = String::new();
+    std::io::stdin().read_line(&mut num).unwrap();
+    let num = num.trim().parse().ok().expect("Please enter a number");
+    let video_mode = monitor
+        .video_modes()
+        .nth(num)
+        .expect("Please enter a valid ID");
+
+    println!("Using {}", video_mode);
+
+    video_mode
 }
 
 pub fn create_time_data(elapsed_time: f64) -> TimeData {
@@ -172,6 +217,8 @@ pub fn run_application(
     let window = WindowBuilder::new()
         .with_title(app_name)
         .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: initial_window_size.0, height: initial_window_size.1 }))
+        //.with_fullscreen(Some(Fullscreen::Exclusive(prompt_for_video_mode(&prompt_for_monitor(&event_loop)))))
+        //.with_fullscreen(Some(Fullscreen::Borderless(Some(prompt_for_monitor(&event_loop)))))
         .build(&event_loop)
         .unwrap();
     let window_size: (u32, u32) = (window.inner_size().width, window.inner_size().height);
@@ -415,6 +462,7 @@ pub fn run_application(
                 WindowEvent::CursorMoved { position, .. } => {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     application_data._mouse_move_data.update_mouse_move(&position.into());
+                    //window.set_cursor_position(dpi::PhysicalPosition { x: 500, y: 500 });
                 }
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, _v_lines), .. } => {
                     // wheel_delta = Some(v_lines);
