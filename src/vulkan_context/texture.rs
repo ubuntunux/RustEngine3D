@@ -202,7 +202,7 @@ pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) 
             _src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             _dst_access_mask: vk::AccessFlags::SHADER_READ,
             _src_stage_mask: vk::PipelineStageFlags::TRANSFER,
-            _dst_stage_mask: vk::PipelineStageFlags::FRAGMENT_SHADER,
+            _dst_stage_mask: vk::PipelineStageFlags::ALL_GRAPHICS,
         },
         ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
@@ -1147,12 +1147,13 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
     }
 }
 
-pub fn read_texture_data(
+pub fn read_texture_data<T: Copy>(
     device: &Device,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
-    texture_data: &TextureData,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    texture_data: &TextureData,
+    read_data: &mut [T],
 ) {
     let buffer_size = unsafe { device.get_image_memory_requirements(texture_data._image).size };
 
@@ -1185,9 +1186,7 @@ pub fn read_texture_data(
         staging_buffer_data._buffer,
     );
 
-    let mut image_data: Vec<f32> = vec![0.0; (buffer_size / 4) as usize];
-
-    buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut image_data);
+    buffer::read_buffer_data(device, &staging_buffer_data, 0, read_data);
 
     // destroy staging buffer
     buffer::destroy_buffer_data(device, &staging_buffer_data);
