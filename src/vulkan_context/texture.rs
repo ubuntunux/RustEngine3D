@@ -819,12 +819,47 @@ pub fn copy_buffer_to_image(
         }
     ];
     run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
-            unsafe {
-                device.cmd_copy_buffer_to_image(command_buffer, buffer, image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, &regions);
-            }
+        unsafe {
+            device.cmd_copy_buffer_to_image(command_buffer, buffer, image, vk::ImageLayout::TRANSFER_DST_OPTIMAL, &regions);
         }
-    );
+    });
 }
+
+pub fn copy_image_to_buffer(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    image: vk::Image,
+    image_aspect: vk::ImageAspectFlags,
+    width: u32,
+    height: u32,
+    depth: u32,
+    layer_count: u32,
+    buffer: vk::Buffer,
+) {
+    let regions: [vk::BufferImageCopy; 1] = [
+        vk::BufferImageCopy {
+            buffer_offset: 0,
+            buffer_row_length: 0,
+            buffer_image_height: 0,
+            image_subresource: vk::ImageSubresourceLayers {
+                aspect_mask: image_aspect,
+                mip_level: 0,
+                base_array_layer: 0,
+                layer_count,
+            },
+            image_offset: vk::Offset3D { x: 0, y: 0 , z: 0 },
+            image_extent:  vk::Extent3D { width, height, depth },
+            ..Default::default()
+        }
+    ];
+    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+        unsafe {
+            device.cmd_copy_image_to_buffer(command_buffer, image, vk::ImageLayout::TRANSFER_SRC_OPTIMAL, buffer, &regions);
+        }
+    });
+}
+
 
 pub fn create_render_target<T: Copy>(
     instance: &Instance,
@@ -847,6 +882,7 @@ pub fn create_render_target<T: Copy>(
         is_render_target,
     )
 }
+
 pub fn create_texture_data<T: Copy>(
     instance: &Instance,
     device: &Device,
@@ -1109,4 +1145,50 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
 
         destroy_image(device, texture_data._image, texture_data._image_memory);
     }
+}
+
+pub fn read_texture_data(
+    device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    texture_data: &TextureData,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+) {
+    let buffer_size = unsafe { device.get_image_memory_requirements(texture_data._image).size };
+
+    // create temporary staging buffer
+    let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_DST;
+    let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
+        device,
+        memory_properties,
+        buffer_size,
+        staging_buffer_usage_flags,
+        staging_buffer_memory_property_flags
+    );
+
+    let (layer_count, image_depth) = match texture_data._image_view_type {
+        vk::ImageViewType::TYPE_3D => (1, texture_data._image_layers),
+        _ => (texture_data._image_layers, 1)
+    };
+
+    copy_image_to_buffer(
+        device,
+        command_pool,
+        command_queue,
+        texture_data._image,
+        get_image_aspect_by_format(texture_data._image_format),
+        texture_data._image_width,
+        texture_data._image_height,
+        image_depth,
+        layer_count,
+        staging_buffer_data._buffer,
+    );
+
+    let mut image_data: Vec<f32> = vec![0.0; (buffer_size / 4) as usize];
+
+    buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut image_data);
+
+    // destroy staging buffer
+    buffer::destroy_buffer_data(device, &staging_buffer_data);
 }
