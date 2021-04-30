@@ -91,6 +91,7 @@ pub struct ImageDatas {
 pub enum ImageLayoutTransition {
     TransferUndefToTransferDst,
     TransferDstToShaderReadOnly,
+    TransferDstToTransferSrc,
     TransferUndefToDepthStencilAttachemnt,
     TransferUndefToColorAttachemnt,
 }
@@ -203,6 +204,14 @@ pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) 
             _dst_access_mask: vk::AccessFlags::SHADER_READ,
             _src_stage_mask: vk::PipelineStageFlags::TRANSFER,
             _dst_stage_mask: vk::PipelineStageFlags::ALL_GRAPHICS,
+        },
+        ImageLayoutTransition::TransferDstToTransferSrc => TransitionDependent {
+            _old_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            _new_layout: vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+            _src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+            _dst_access_mask: vk::AccessFlags::TRANSFER_READ,
+            _src_stage_mask: vk::PipelineStageFlags::TRANSFER,
+            _dst_stage_mask: vk::PipelineStageFlags::TRANSFER,
         },
         ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
