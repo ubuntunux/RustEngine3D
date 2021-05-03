@@ -90,9 +90,10 @@ impl TransformObjectData {
     pub fn get_position(&self) -> &Vector3<f32> {
         &self._position
     }
-    pub fn set_position(&mut self, position: &Vector3<f32>) {
-        self._position.copy_from(position);
-    }
+    pub fn set_position(&mut self, position: &Vector3<f32>) { self._position.copy_from(position); }
+    pub fn set_position_x(&mut self, pos_x: f32) { self._position.x = pos_x; }
+    pub fn set_position_y(&mut self, pos_y: f32) { self._position.y = pos_y; }
+    pub fn set_position_z(&mut self, pos_z: f32) { self._position.z = pos_z; }
     pub fn get_prev_position(&self) -> &Vector3<f32> {
         &self._prev_position
     }
