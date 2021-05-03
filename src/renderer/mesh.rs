@@ -57,8 +57,9 @@ impl MeshDataCreateInfo {
         mesh_data_create_info._bound_box = BoundingBox {
             _min: bound_min,
             _max: bound_max,
-            _center: (&bound_max + &bound_min) * 0.5,
-            _radius: (&bound_max - &bound_min).norm() * 0.5,
+            _center: &bound_max * 0.5 + &bound_min * 0.5,
+            _size: &bound_max - &bound_min,
+            _radius: (&bound_max * 0.5 - &bound_min * 0.5).norm(),
         };
         mesh_data_create_info
     }

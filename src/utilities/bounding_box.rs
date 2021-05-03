@@ -7,6 +7,7 @@ pub struct BoundingBox {
     pub _min: Vector3<f32>,
     pub _max: Vector3<f32>,
     pub _center: Vector3<f32>,
+    pub _size: Vector3<f32>,
     pub _radius: f32
 }
 
@@ -17,12 +18,12 @@ impl Default for BoundingBox {
         BoundingBox {
             _min: min.clone(),
             _max: max.clone(),
-            _center: (max * 0.5 + min * 0.5),
+            _center: max * 0.5 + min * 0.5,
+            _size: max - min,
             _radius: (max * 0.5 - min * 0.5).norm()
         }
     }
 }
-
 
 pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
     if 0 == positions.len() {
@@ -47,6 +48,7 @@ pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
         _min: bound_min,
         _max: bound_max,
         _center: center,
+        _size: (bound_max - bound_min),
         _radius: radius,
     }
 }
@@ -58,6 +60,7 @@ impl BoundingBox {
         self._min = Vector3::new(bound_min.x.min(bound_max.x), bound_min.y.min(bound_max.y), bound_min.z.min(bound_max.z));
         self._max = Vector3::new(bound_min.x.max(bound_max.x), bound_min.y.max(bound_max.y), bound_min.z.max(bound_max.z));
         self._center = &self._min * 0.5 + &self._max * 0.5;
+        self._size = &self._max - &self._min;
         self._radius = (&self._max * 0.5 - &self._min * 0.5).norm();
     }
 }

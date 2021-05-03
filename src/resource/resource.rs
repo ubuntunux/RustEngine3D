@@ -153,7 +153,7 @@ fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_
     }
 }
 
-fn get_resource_name_from_file_path(resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
+pub fn get_resource_name_from_file_path(resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
     let mut resource_name = PathBuf::from(resource_file_path.parent().unwrap());
     resource_name.push(resource_file_path.file_stem().unwrap());
     let resource_name = String::from(system::get_relative_path(resource_root_path, &resource_name).to_str().unwrap());
