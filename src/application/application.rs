@@ -133,7 +133,7 @@ impl TimeData {
 
 pub trait ApplicationBase {
     fn initialize_application(&mut self, application_data: &ApplicationData);
-    fn update_event(&self);
+    fn update_event(&mut self);
     fn terminate_application(&mut self);
 }
 
@@ -191,7 +191,7 @@ impl ApplicationData {
     }
 
     pub fn update_event(&self) {
-        self.get_application().update_event();
+        self.get_application_mut().update_event();
     }
 }
 
@@ -300,12 +300,14 @@ pub fn run_application(
                 _resources: resources.clone(),
                 _application: application,
             });
-            application_data.borrow().get_application_mut().initialize_application(&application_data.borrow());
 
             // initialize graphics data
             renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
             effect_manager_data.borrow_mut().prepare_framebuffer_and_descriptors(&renderer_data.borrow(), &resources.borrow());
             scene_manager_data.borrow_mut().initialize_scene_graphics_data();
+
+            // initialize application
+            application_data.borrow().get_application_mut().initialize_application(&application_data.borrow());
 
             // open scene
             scene_manager_data.borrow_mut().open_scene_data();
