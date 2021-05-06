@@ -97,7 +97,7 @@ impl TransformObjectData {
     pub fn get_prev_position(&self) -> &Vector3<f32> {
         &self._prev_position
     }
-    pub fn move_pos(&mut self, move_speed: &Vector3<f32>) {
+    pub fn move_position(&mut self, move_speed: &Vector3<f32>) {
         self._position += move_speed;
     }
     pub fn move_left(&mut self, move_speed: f32) {
