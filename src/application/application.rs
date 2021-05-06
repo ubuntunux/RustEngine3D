@@ -134,6 +134,7 @@ impl TimeData {
 pub trait ApplicationBase {
     fn initialize_application(&mut self, application_data: &ApplicationData);
     fn update_event(&mut self);
+    fn update_application(&mut self);
     fn terminate_application(&mut self);
 }
 
@@ -192,6 +193,10 @@ impl ApplicationData {
 
     pub fn update_event(&self) {
         self.get_application_mut().update_event();
+    }
+
+    pub fn update_application(&self) {
+        self.get_application_mut().update_application();
     }
 }
 
@@ -309,9 +314,6 @@ pub fn run_application(
             // initialize application
             application_data.borrow().get_application_mut().initialize_application(&application_data.borrow());
 
-            // open scene
-            scene_manager_data.borrow_mut().open_scene_data();
-
             // set managers
             maybe_resources = Some(resources);
             maybe_font_manager = Some(font_manager);
@@ -415,6 +417,7 @@ pub fn run_application(
                     } else {
                         // update & render, If the resized event has not yet occurred, the window size may be 0.
                         if 0 < application_data._window_size.0 && 0 < application_data._window_size.1 {
+                            application_data.update_application();
                             renderer_data.update_post_process_datas();
                             scene_manager_data.update_scene_manager_data(&application_data._time_data, &mut font_manager);
                             font_manager.update();
