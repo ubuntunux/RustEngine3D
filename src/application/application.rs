@@ -10,7 +10,8 @@ use winit::event::{
     Touch,
     TouchPhase,
     VirtualKeyCode,
-    WindowEvent
+    WindowEvent,
+    DeviceEvent,
 };
 use winit::event_loop::{
     ControlFlow,
@@ -139,6 +140,7 @@ pub trait ApplicationBase {
 }
 
 pub struct ApplicationData {
+    pub _is_grab_mode: bool,
     pub _window_size: (u32, u32),
     pub _time_data: TimeData,
     pub _camera_move_speed: f32,
@@ -292,6 +294,7 @@ pub fn run_application(
             );
             let application_data = newRcRefCell(ApplicationData {
                 _window_size: window_size,
+                _is_grab_mode: true,
                 _time_data: create_time_data(elapsed_time),
                 _camera_move_speed: 1.0,
                 _keyboard_input_data: keyboard_input_data,
@@ -434,6 +437,17 @@ pub fn run_application(
                     }
                 }
             },
+            Event::DeviceEvent { device_id, event } => match event {
+                DeviceEvent::MouseMotion { delta } => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let window_size = application_data._window_size.clone();
+                    application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
+                    if application_data._is_grab_mode {
+                        window.set_cursor_position(dpi::PhysicalPosition { x: window_size.0 / 2, y: window_size.1 / 2 });
+                    }
+                },
+                _ => {}
+            },
             Event::WindowEvent { event, .. } => match event {
                 WindowEvent::CloseRequested => {
                 },
@@ -465,12 +479,25 @@ pub fn run_application(
                     }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    application_data._mouse_move_data.update_mouse_move(&position.into());
+                    // use DeviceEvent::MouseMotion instead of this
+                    // let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    // application_data._mouse_move_data.update_mouse_move(&position.into());
                     //window.set_cursor_position(dpi::PhysicalPosition { x: 500, y: 500 });
                 }
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, _v_lines), .. } => {
                     // wheel_delta = Some(v_lines);
+                }
+                WindowEvent::CursorEntered { device_id, .. } => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    application_data._is_grab_mode = true;
+                    //window.set_cursor_grab(true);
+                    window.set_cursor_visible(false);
+                }
+                WindowEvent::CursorLeft { device_id, .. } => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    application_data._is_grab_mode = false;
+                    //window.set_cursor_grab(false);
+                    window.set_cursor_visible(true);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
@@ -491,7 +518,8 @@ pub fn run_application(
                     let application_data = &mut maybe_application_data.as_ref().unwrap().borrow_mut();
 
                     if 0 == id {
-                        application_data._mouse_move_data.update_mouse_move(&location.into());
+                        let window_size = application_data._window_size.clone();
+                        application_data._mouse_move_data.update_mouse_pos(&location.into(), &window_size);
 
                         if phase == TouchPhase::Started {
                             application_data._mouse_input_data.btn_r_pressed(true);

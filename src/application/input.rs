@@ -93,11 +93,42 @@ impl MouseMoveData {
         self._mouse_pos_delta.y = 0;
     }
 
-    pub fn update_mouse_move(&mut self, position: &(i32, i32)) {
+    pub fn update_mouse_pos(&mut self, position: &(i32, i32), window_size: &(u32, u32)) {
         self._mouse_pos_delta.x += position.0 - self._mouse_pos.x;
         self._mouse_pos_delta.y += position.1 - self._mouse_pos.y;
         self._mouse_pos.x = position.0;
         self._mouse_pos.y = position.1;
+
+        if self._mouse_pos.x < 0 {
+            self._mouse_pos.x = window_size.0 as i32 - 1;
+        } else if window_size.0 as i32 <= self._mouse_pos.x {
+            self._mouse_pos.x %= window_size.0 as i32;
+        }
+
+        if self._mouse_pos.y < 0 {
+            self._mouse_pos.y = window_size.1 as i32 - 1;
+        } else if window_size.1 as i32 <= self._mouse_pos.y {
+            self._mouse_pos.y %= window_size.1 as i32;
+        }
+    }
+
+    pub fn update_mouse_move(&mut self, delta: &(i32, i32), window_size: &(u32, u32)) {
+        self._mouse_pos_delta.x += delta.0;
+        self._mouse_pos_delta.y += delta.1;
+        self._mouse_pos.x += delta.0;
+        self._mouse_pos.y += delta.0;
+
+        if self._mouse_pos.x < 0 {
+            self._mouse_pos.x = window_size.0 as i32 - 1;
+        } else if window_size.0 as i32 <= self._mouse_pos.x {
+            self._mouse_pos.x %= window_size.0 as i32;
+        }
+
+        if self._mouse_pos.y < 0 {
+            self._mouse_pos.y = window_size.1 as i32 - 1;
+        } else if window_size.1 as i32 <= self._mouse_pos.y {
+            self._mouse_pos.y %= window_size.1 as i32;
+        }
     }
 }
 
