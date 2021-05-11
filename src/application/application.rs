@@ -443,7 +443,7 @@ pub fn run_application(
                     let window_size = application_data._window_size.clone();
                     application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
                     if application_data._is_grab_mode {
-                        window.set_cursor_position(dpi::PhysicalPosition { x: window_size.0 / 2, y: window_size.1 / 2 });
+                        window.set_cursor_position(dpi::PhysicalPosition { x: window_size.0 / 2, y: window_size.1 / 2 }).expect("failed to set_cursor_position");
                     }
                 },
                 _ => {}
