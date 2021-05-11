@@ -10,7 +10,7 @@ use nalgebra::{
 use nalgebra_glm as glm;
 
 pub const HALF_PI: f32 = std::f32::consts::PI as f32 * 0.5;
-pub const TWO_PI: f32 = std::f32::consts::PI as f32 * 2.0;
+pub const TWO_PI: f64 = std::f64::consts::PI * 2.0;
 
 pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t

@@ -219,7 +219,9 @@ pub struct WidgetDefault {
 pub trait ProjectUIManagerBase {
     fn get_ui_manager_data(&self) -> &UIManagerData;
     fn get_ui_manager_data_mut(&self) -> &mut UIManagerData;
-    fn initialize_ui_manager(&mut self, ui_manager_data: &UIManagerData);
+    fn get_root_widget(&self) -> &dyn Widget;
+    fn get_root_widget_mut(&self) -> &mut dyn Widget;
+    fn initialize_project_ui_manager(&mut self, ui_manager_data: &UIManagerData);
     fn build_ui(&mut self, renderer_data: &RendererData, resources: &Resources);
 }
 
@@ -1311,7 +1313,7 @@ impl UIManagerData {
         self._font_data = resources.get_default_font_data().clone();
         self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
         self.create_ui_graphics_data(renderer_data, resources);
-        self.get_project_ui_manager_mut().initialize_ui_manager(&self);
+        self.get_project_ui_manager_mut().initialize_project_ui_manager(&self);
         self.get_project_ui_manager_mut().build_ui(renderer_data, resources);
     }
 
