@@ -452,9 +452,9 @@ pub fn run_application(
             Event::DeviceEvent { device_id, event } => match event {
                 DeviceEvent::MouseMotion { delta } => {
                     let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    let window_size = application_data._window_size.clone();
-                    application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
                     if application_data._is_grab_mode {
+                        let window_size = application_data._window_size.clone();
+                        application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
                         window.set_cursor_position(dpi::PhysicalPosition { x: window_size.0 / 2, y: window_size.1 / 2 }).expect("failed to set_cursor_position");
                     }
                 },
@@ -491,10 +491,10 @@ pub fn run_application(
                     }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    // use DeviceEvent::MouseMotion instead of this
-                    // let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    // application_data._mouse_move_data.update_mouse_move(&position.into());
-                    //window.set_cursor_position(dpi::PhysicalPosition { x: 500, y: 500 });
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    if false == application_data._is_grab_mode {
+                        application_data._mouse_move_data.update_mouse_pos(&position.into(), &window_size);
+                    }
                 }
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, _v_lines), .. } => {
                     // wheel_delta = Some(v_lines);
