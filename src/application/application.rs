@@ -18,7 +18,7 @@ use winit::event_loop::{
     EventLoop
 };
 use winit::dpi;
-use winit::window::{ Fullscreen, WindowBuilder };
+use winit::window::{Fullscreen, WindowBuilder, Window};
 use winit::monitor::{MonitorHandle, VideoMode};
 
 use crate::application::scene_manager::{ SceneManagerData, ProjectSceneManagerBase };
@@ -140,6 +140,7 @@ pub trait ApplicationBase {
 }
 
 pub struct ApplicationData {
+    pub _window: *const Window,
     pub _is_grab_mode: bool,
     pub _window_size: (u32, u32),
     pub _time_data: TimeData,
@@ -163,6 +164,10 @@ impl ApplicationData {
 
     pub fn get_application_mut(&self) -> &mut dyn ApplicationBase {
         unsafe { &mut *(self._application as *mut dyn ApplicationBase) }
+    }
+
+    pub fn get_window(&self) -> &Window {
+        unsafe { &*self._window }
     }
 
     pub fn terminate_application(
@@ -193,6 +198,12 @@ impl ApplicationData {
         self._keyboard_input_data.clear_key_released();
     }
 
+    pub fn set_grab_mode(&mut self, is_grab_mode: bool) {
+        self._is_grab_mode = is_grab_mode;
+        //self.get_window().set_cursor_grab(is_grab_mode);
+        self.get_window().set_cursor_visible(!is_grab_mode);
+    }
+
     pub fn update_event(&self) {
         self.get_application_mut().update_event();
     }
@@ -221,7 +232,7 @@ pub fn run_application(
 
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
+    let window: Window = WindowBuilder::new()
         .with_title(app_name)
         .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: initial_window_size.0, height: initial_window_size.1 }))
         //.with_fullscreen(Some(Fullscreen::Exclusive(prompt_for_video_mode(&prompt_for_monitor(&event_loop)))))
@@ -293,8 +304,9 @@ pub fn run_application(
                 effect_manager_data.as_ptr(),
             );
             let application_data = newRcRefCell(ApplicationData {
+                _window: &window,
                 _window_size: window_size,
-                _is_grab_mode: true,
+                _is_grab_mode: false,
                 _time_data: create_time_data(elapsed_time),
                 _camera_move_speed: 1.0,
                 _keyboard_input_data: keyboard_input_data,
@@ -488,16 +500,8 @@ pub fn run_application(
                     // wheel_delta = Some(v_lines);
                 }
                 WindowEvent::CursorEntered { device_id, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    application_data._is_grab_mode = true;
-                    //window.set_cursor_grab(true);
-                    window.set_cursor_visible(false);
                 }
                 WindowEvent::CursorLeft { device_id, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
-                    application_data._is_grab_mode = false;
-                    //window.set_cursor_grab(false);
-                    window.set_cursor_visible(true);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
