@@ -104,7 +104,7 @@ impl MouseMoveData {
         self._mouse_pos_delta.x += delta.0;
         self._mouse_pos_delta.y += delta.1;
         self._mouse_pos.x += delta.0;
-        self._mouse_pos.y += delta.0;
+        self._mouse_pos.y += delta.1;
     }
 }
 
