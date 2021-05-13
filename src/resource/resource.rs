@@ -215,13 +215,14 @@ impl Resources {
 
     pub fn initialize_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("initialize_resources");
+        let is_reload: bool = false;
         self.load_resource_filenames();
         self.load_texture_datas(renderer_data);
         self.load_font_datas(renderer_data);
         self.load_render_pass_datas(renderer_data);
         self.load_framebuffer_datas(renderer_data);
         self.load_material_datas(renderer_data);
-        self.load_material_instance_datas(renderer_data);
+        self.load_material_instance_datas(renderer_data, is_reload);
         self.load_mesh_datas(renderer_data);
         self.load_model_datas(renderer_data);
         self.load_effect_datas(renderer_data);
@@ -230,11 +231,12 @@ impl Resources {
 
     pub fn destroy_resources(&mut self, renderer_data: &mut RendererData) {
         log::info!("destroy_resources");
+        let is_reload: bool = false;
         self.get_project_resources_mut().destroy_project_resources(renderer_data);
         self.unload_effect_datas(renderer_data);
         self.unload_model_datas(renderer_data);
         self.unload_mesh_datas(renderer_data);
-        self.unload_material_instance_datas(renderer_data);
+        self.unload_material_instance_datas(renderer_data, is_reload);
         self.unload_material_datas(renderer_data);
         self.unload_framebuffer_datas(renderer_data);
         self.unload_render_pass_datas(renderer_data);
@@ -246,16 +248,17 @@ impl Resources {
     // GraphicsDatas
     pub fn load_graphics_datas(&mut self, renderer_data: &mut RendererData) {
         log::info!("load_graphics_datas");
+        let is_reload: bool = true;
         self.load_render_pass_datas(renderer_data);
         self.load_framebuffer_datas(renderer_data);
         self.load_material_datas(renderer_data);
-        self.load_material_instance_datas(renderer_data);
-        self.update_material_instance_datas();
+        self.load_material_instance_datas(renderer_data, is_reload);
     }
 
     pub fn unload_graphics_datas(&mut self, renderer_data: &mut RendererData) {
         log::info!("unload_graphics_datas");
-        self.unload_material_instance_datas(renderer_data);
+        let is_reload: bool = true;
+        self.unload_material_instance_datas(renderer_data, is_reload);
         self.unload_material_datas(renderer_data);
         self.unload_framebuffer_datas(renderer_data);
         self.unload_render_pass_datas(renderer_data);
@@ -977,11 +980,15 @@ impl Resources {
     }
 
     // MaterialInstance_datas
-    pub fn load_material_instance_datas(&mut self, renderer_data: &RendererData) {
+    pub fn load_material_instance_datas(&mut self, renderer_data: &RendererData, is_reload: bool) {
         let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_FILE_PATH);
         let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
-            let material_instance_name = get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file);
+            let material_instance_name = if is_reload {
+                get_resource_name_from_file_path(&material_instance_directory, &material_instance_file)
+            } else {
+                get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file)
+            };
             let loaded_contents = system::load(material_instance_file);
             let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let material_instance_create_info = match contents {
@@ -1055,30 +1062,24 @@ impl Resources {
                 material_data.clone(),
                 pipeline_bind_create_infos
             );
-            self._material_instance_data_map.insert(material_instance_name.clone(), newRcRefCell(material_instance_data));
+
+            if is_reload && self.has_material_instance_data(&material_instance_name) {
+                // replace material_instance_data
+                let exists_material_instance_data: &mut MaterialInstanceData = &mut self.get_material_instance_data(&material_instance_name).borrow_mut();
+                *exists_material_instance_data = material_instance_data;
+            } else {
+                self._material_instance_data_map.insert(material_instance_name.clone(), newRcRefCell(material_instance_data));
+            }
         }
     }
 
-    pub fn unload_material_instance_datas(&mut self, _renderer_data: &RendererData) {
+    pub fn unload_material_instance_datas(&mut self, _renderer_data: &RendererData, is_reload: bool) {
         for material_instance_data in self._material_instance_data_map.values() {
             (*material_instance_data).borrow().destroy_material_instance();
         }
-        self._material_instance_data_map.clear();
-    }
 
-    pub fn update_material_instance_datas(&mut self) {
-        for (_key, model_data) in self._model_data_map.iter() {
-            let new_material_instances = model_data.borrow().get_material_instance_datas().iter().map(|material_instance| {
-                self.get_material_instance_data(&material_instance.borrow()._material_instance_data_name.as_str()).clone()
-            }).collect();
-            model_data.borrow_mut().set_material_instance_datas(new_material_instances);
-        }
-
-        for (_key, effect_data) in self._effect_data_map.iter() {
-            for emitter_data in effect_data.borrow_mut()._emitter_datas.iter_mut() {
-                let new_material_instance_data = self.get_material_instance_data(&emitter_data._material_instance_data.borrow()._material_instance_data_name).clone();
-                emitter_data._material_instance_data = new_material_instance_data;
-            }
+        if false == is_reload {
+            self._material_instance_data_map.clear();
         }
     }
 
