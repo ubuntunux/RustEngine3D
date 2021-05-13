@@ -415,6 +415,27 @@ impl UIComponentInstance {
             self.set_changed_layout(true);
         }
     }
+    pub fn get_center_x(&self) -> f32 { self._ui_component_data._pos.x + self._ui_component_data._size.x * 0.5 }
+    pub fn get_center_y(&self) -> f32 { self._ui_component_data._pos.y + self._ui_component_data._size.y + 0.5 }
+    pub fn get_center(&self) -> Vector2<f32> { &self._ui_component_data._pos + &self._ui_component_data._size * 0.5 }
+    pub fn set_center(&mut self, x: f32, y: f32) {
+        self.set_center_x(x);
+        self.set_center_y(y);
+    }
+    pub fn set_center_x(&mut self, x: f32) {
+        if x != self._ui_component_data._pos.x || self._ui_component_data._pos_hint_x.is_some() {
+            self._ui_component_data._pos_hint_x = None;
+            self._ui_component_data._pos.x = x - self._ui_component_data._size.x * 0.5;
+            self.set_changed_layout(true);
+        }
+    }
+    pub fn set_center_y(&mut self, y: f32) {
+        if y != self._ui_component_data._pos.y || self._ui_component_data._pos_hint_y.is_some() {
+            self._ui_component_data._pos_hint_y = None;
+            self._ui_component_data._pos.y = y - self._ui_component_data._size.y * 0.5;
+            self.set_changed_layout(true);
+        }
+    }
     pub fn get_pos_hint_x(&self) -> Option<f32> {
         self._ui_component_data._pos_hint_x
     }
