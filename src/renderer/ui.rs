@@ -665,9 +665,9 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn set_text(&mut self, text: String) {
+    pub fn set_text(&mut self, text: &str) {
         if text != self._text {
-            self._text = text;
+            self._text = String::from(text);
             self._changed_text = true;
             self.set_changed_layout(true);
         }
@@ -855,17 +855,19 @@ impl UIComponentInstance {
             *render_ui_count += self._render_text_count;
         }
 
-        unsafe {
-            for child_ui_component in self._children.iter() {
-                child_ui_component.as_mut().unwrap().collect_ui_render_data(
-                    font_data,
-                    render_ui_count,
-                    render_ui_group,
-                    prev_render_group_data,
-                    render_ui_instance_datas,
-                    need_to_collect_render_data,
-                    opacity
-                );
+        if self._visible {
+            unsafe {
+                for child_ui_component in self._children.iter() {
+                    child_ui_component.as_mut().unwrap().collect_ui_render_data(
+                        font_data,
+                        render_ui_count,
+                        render_ui_group,
+                        prev_render_group_data,
+                        render_ui_instance_datas,
+                        need_to_collect_render_data,
+                        opacity
+                    );
+                }
             }
         }
     }

@@ -143,6 +143,7 @@ pub trait ApplicationBase {
 pub struct ApplicationData {
     pub _window: *const Window,
     pub _is_grab_mode: bool,
+    pub _is_grab_mode_backup: bool,
     pub _window_size: Vector2<i32>,
     pub _time_data: TimeData,
     pub _camera_move_speed: f32,
@@ -305,6 +306,7 @@ pub fn run_application(
                 _window: &window,
                 _window_size: window_size.into(),
                 _is_grab_mode: false,
+                _is_grab_mode_backup: false,
                 _time_data: create_time_data(elapsed_time),
                 _camera_move_speed: 1.0,
                 _keyboard_input_data: keyboard_input_data,
@@ -499,8 +501,14 @@ pub fn run_application(
                     // wheel_delta = Some(v_lines);
                 }
                 WindowEvent::CursorEntered { device_id, .. } => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let is_grab_mode_backup = application_data._is_grab_mode_backup;
+                    application_data.set_grab_mode(is_grab_mode_backup);
                 }
                 WindowEvent::CursorLeft { device_id, .. } => {
+                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    application_data._is_grab_mode_backup = application_data._is_grab_mode;
+                    application_data.set_grab_mode(false);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
