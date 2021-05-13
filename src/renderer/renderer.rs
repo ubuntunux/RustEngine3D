@@ -16,6 +16,7 @@ use ash::extensions::khr::{
 };
 use ash::version::{InstanceV1_0, DeviceV1_0};
 use ash::vk::CommandBuffer;
+use nalgebra::Vector2;
 use winit;
 use winit::window::{ Window };
 
@@ -162,13 +163,13 @@ impl RendererData {
     pub fn create_renderer_data(
         app_name: &str,
         app_version: u32,
-        (window_width, window_height): (u32, u32),
+        window_size: &Vector2<i32>,
         window: &Window,
         resources: &RcRefCell<Resources>,
         project_renderer: *const dyn ProjectRendererBase,
     ) -> RendererData {
         unsafe {
-            log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_width, window_height);
+            log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
             let entry = Entry::new().unwrap();
             let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
             let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);

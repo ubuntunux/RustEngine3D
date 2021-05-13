@@ -73,8 +73,8 @@ pub fn create_keyboard_input_data() -> Box<KeyboardInputData> {
     })
 }
 
-pub fn create_mouse_move_data((width, height): (u32, u32)) -> Box<MouseMoveData> {
-    let mouse_pos = Vector2::new(width as i32, height as i32);
+pub fn create_mouse_move_data(width: i32, height: i32) -> Box<MouseMoveData> {
+    let mouse_pos = Vector2::new(width, height);
     Box::new(MouseMoveData {
         _mouse_pos: mouse_pos.clone(),
         _mouse_pos_delta: Vector2::new(0, 0),
@@ -97,18 +97,18 @@ impl MouseMoveData {
         if pos < 0 { 0 } else if limit_pos <= pos { limit_pos - 1 } else { pos }
     }
 
-    pub fn update_mouse_pos(&mut self, position: &(i32, i32), window_size: &(u32, u32)) {
+    pub fn update_mouse_pos(&mut self, position: &(i32, i32), window_size: &Vector2<i32>) {
         self._mouse_pos_delta.x += position.0 - self._mouse_pos.x;
         self._mouse_pos_delta.y += position.1 - self._mouse_pos.y;
-        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(position.0, window_size.0 as i32);
-        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(position.1, window_size.1 as i32);
+        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(position.0, window_size.x);
+        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(position.1, window_size.y);
     }
 
-    pub fn update_mouse_move(&mut self, delta: &(i32, i32), window_size: &(u32, u32)) {
+    pub fn update_mouse_move(&mut self, delta: &(i32, i32), window_size: &Vector2<i32>) {
         self._mouse_pos_delta.x += delta.0;
         self._mouse_pos_delta.y += delta.1;
-        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.0 as i32);
-        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.1 as i32);
+        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.x);
+        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.y);
     }
 }
 

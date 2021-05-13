@@ -17,8 +17,7 @@ pub struct CameraCreateInfo {
     pub near: f32,
     pub far: f32,
     pub fov: f32,
-    pub window_width: u32,
-    pub window_height: u32,
+    pub window_size: Vector2<i32>,
     pub enable_jitter: bool,
     pub position: Vector3<f32>,
     pub rotation: Vector3<f32>,
@@ -32,8 +31,7 @@ impl Default for CameraCreateInfo {
                 near: constants::NEAR,
                 far: constants::FAR,
                 fov: constants::FOV,
-                window_width: 1024,
-                window_height: 768,
+                window_size: Vector2::new(1024, 768),
                 enable_jitter: true,
                 position: Vector3::zeros(),
                 rotation: Vector3::zeros(),
@@ -69,8 +67,7 @@ pub struct CameraObjectData {
     pub _view_origin_projection_prev_jitter: Matrix4<f32>,
     pub _view_frustum_planes: [Vector3<f32>; 4],
     pub _transform_object: TransformObjectData,
-    pub _window_width: u32,
-    pub _window_height: u32,
+    pub _window_size: Vector2<i32>,
     pub _jitter_mode_uniform2x: [Vector2<f32>; 2],
     pub _jitter_mode_hammersley4x: [Vector2<f32>; 4],
     pub _jitter_mode_hammersley8x: [Vector2<f32>; 8],
@@ -93,8 +90,7 @@ impl CameraObjectData {
             _far: camera_create_info.far,
             _fov: camera_create_info.fov,
             _aspect: 1.0,
-            _window_width: camera_create_info.window_width,
-            _window_height: camera_create_info.window_height,
+            _window_size: camera_create_info.window_size.into(),
             _view: Matrix4::identity(),
             _inv_view: Matrix4::identity(),
             _view_origin: Matrix4::identity(),
@@ -128,7 +124,7 @@ impl CameraObjectData {
         };
 
         // initialize
-        camera_object_data.set_aspect(camera_create_info.window_width, camera_create_info.window_height);
+        camera_object_data.set_aspect(camera_create_info.window_size.x, camera_create_info.window_size.y);
         camera_object_data._transform_object.set_position(&camera_create_info.position);
         camera_object_data._transform_object.set_rotation(&camera_create_info.rotation);
         camera_object_data._transform_object.update_transform_object();
@@ -148,10 +144,10 @@ impl CameraObjectData {
         &self._transform_object.get_position()
     }
     pub fn get_camera_position_prev(&self) -> &Vector3<f32> { &self._transform_object.get_prev_position() }
-    pub fn set_aspect(&mut self, window_width: u32, window_height: u32) {
+    pub fn set_aspect(&mut self, window_width: i32, window_height: i32) {
         let aspect: f32 = if 0 != window_height { window_width as f32 / window_height as f32 } else { 1.0 };
-        self._window_width = window_width;
-        self._window_height = window_height;
+        self._window_size.x = window_width;
+        self._window_size.y = window_height;
         self._aspect = aspect;
         self.update_projection();
     }
@@ -196,8 +192,8 @@ impl CameraObjectData {
             // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
             self._jitter_prev = self._jitter.into();
             self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
-            self._jitter[0] /= self._window_width as f32;
-            self._jitter[1] /= self._window_height as f32;
+            self._jitter[0] /= self._window_size.x as f32;
+            self._jitter[1] /= self._window_size.y as f32;
             // Multiplies by 0.5 because it is in screen coordinate system. 0.0 ~ 1.0
             self._jitter_delta = (&self._jitter - &self._jitter_prev) * 0.5;
         }

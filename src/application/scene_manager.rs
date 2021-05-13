@@ -1,4 +1,5 @@
 use ash::Device;
+use nalgebra::Vector2;
 
 use crate::application::application::TimeData;
 use crate::renderer::font::FontManager;
@@ -10,18 +11,17 @@ use crate::renderer::effect::EffectManagerData;
 pub trait ProjectSceneManagerBase {
     fn initialize_project_scene_manager(
         &mut self,
-        window_width: u32,
-        window_height: u32,
         scene_manager_data: &SceneManagerData,
         renderer_data: &RendererData,
         resources: &Resources,
         effect_manager_data: *const EffectManagerData,
+        window_size: &Vector2<i32>,
     );
     fn initialize_scene_graphics_data(&self);
     fn destroy_scene_graphics_data(&self, device: &Device);
-    fn get_window_size(&self) -> (u32, u32);
-    fn set_window_size(&mut self, width: u32, height: u32);
-    fn resized_window(&mut self, width: u32, height: u32);
+    fn get_window_size(&self) -> &Vector2<i32>;
+    fn set_window_size(&mut self, width: i32, height: i32);
+    fn resized_window(&mut self, width: i32, height: i32);
     fn create_default_scene_data(&self, scene_data_name: &str);
     fn open_scene_data(&mut self, scene_data_name: &str);
     fn close_scene_data(&mut self, device: &Device);
@@ -53,20 +53,18 @@ impl SceneManagerData {
 
     pub fn initialize_scene_manager_data(
         &mut self,
-        window_width: u32,
-        window_height: u32,
+        window_size: &Vector2<i32>,
         renderer_data: &RendererData,
         resources: &Resources,
         effect_manager_data: *const EffectManagerData,
     ) {
         self._effect_manager_data = effect_manager_data;
         self.get_project_scene_manager_mut().initialize_project_scene_manager(
-            window_width,
-            window_height,
             self,
             renderer_data,
             resources,
-            effect_manager_data
+            effect_manager_data,
+            window_size
         );
     }
 
@@ -110,7 +108,7 @@ impl SceneManagerData {
         self.get_project_scene_manager_mut().destroy_scene_graphics_data(device);
     }
 
-    pub fn resized_window(&self, width: u32, height: u32) {
+    pub fn resized_window(&self, width: i32, height: i32) {
         self.get_project_scene_manager_mut().resized_window(width, height);
     }
 

@@ -228,7 +228,7 @@ pub trait ProjectUIManagerBase {
 pub struct UIManagerData {
     pub _project_ui_manager: *const dyn ProjectUIManagerBase,
     pub _root: Box<dyn Widget>,
-    pub _window_size: (u32, u32),
+    pub _window_size: Vector2<i32>,
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
@@ -1094,7 +1094,7 @@ impl UIComponentInstance {
     fn update_ui_component(
         &mut self,
         delta_time: f64,
-        window_size: &(u32, u32),
+        window_size: &Vector2<i32>,
         time_data: &TimeData,
         keyboard_input_data: &KeyboardInputData,
         mouse_pos: &Vector2<f32>,
@@ -1290,7 +1290,7 @@ impl UIManagerData {
             let mut ui_manager_data = UIManagerData {
                 _project_ui_manager: project_ui_manager,
                 _root: Box::from_raw(UIManagerData::create_widget("root", UIWidgetTypes::Default)),
-                _window_size: (0, 0),
+                _window_size: Vector2::zeros(),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
@@ -1454,7 +1454,7 @@ impl UIManagerData {
     pub fn update(
         &mut self,
         delta_time: f64,
-        window_size: &(u32, u32),
+        window_size: &Vector2<i32>,
         time_data: &TimeData,
         keyboard_input_data: &KeyboardInputData,
         mouse_move_data: &MouseMoveData,
@@ -1463,8 +1463,8 @@ impl UIManagerData {
     ) {
         let root_ui_component = self._root.get_ui_component_mut();
 
-        if self._window_size.0 != window_size.0 || self._window_size.1 != window_size.1 {
-            self._window_size = window_size.clone();
+        if *window_size != self._window_size {
+            self._window_size = window_size.clone() as Vector2<i32>;
             root_ui_component.set_changed_layout(true);
         }
 
@@ -1484,8 +1484,8 @@ impl UIManagerData {
         );
 
         // updatge ui layout
-        let contents_area = Vector4::new(0.0, 0.0, window_size.0 as f32, window_size.1 as f32);
-        let contents_area_size = Vector2::new(window_size.0 as f32, window_size.1 as f32);
+        let contents_area = Vector4::new(0.0, 0.0, window_size.x as f32, window_size.y as f32);
+        let contents_area_size = Vector2::new(window_size.x as f32, window_size.y as f32);
         let required_contents_size = Vector2::<f32>::zeros();
         let mut child_ui_pos = Vector2::<f32>::zeros();
         let inherit_changed_layout: bool = false;

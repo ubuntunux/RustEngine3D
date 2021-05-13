@@ -2,6 +2,7 @@ use std::cell::RefMut;
 use std::time;
 use log::{ self, LevelFilter };
 
+use nalgebra::Vector2;
 use winit::event::{
     ElementState,
     Event,
@@ -142,7 +143,7 @@ pub trait ApplicationBase {
 pub struct ApplicationData {
     pub _window: *const Window,
     pub _is_grab_mode: bool,
-    pub _window_size: (u32, u32),
+    pub _window_size: Vector2<i32>,
     pub _time_data: TimeData,
     pub _camera_move_speed: f32,
     pub _keyboard_input_data: Box<input::KeyboardInputData>,
@@ -228,18 +229,18 @@ pub fn run_application(
 
     let app_name: &str = "RustEngine3D";
     let app_version: u32 = 1;
-    let initial_window_size: (u32, u32) = (1024, 768);
+    let initial_window_size: Vector2<i32> = Vector2::new(1024, 768);
 
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
     let window: Window = WindowBuilder::new()
         .with_title(app_name)
-        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: initial_window_size.0, height: initial_window_size.1 }))
+        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: initial_window_size.x as u32, height: initial_window_size.y as u32 }))
         //.with_fullscreen(Some(Fullscreen::Exclusive(prompt_for_video_mode(&prompt_for_monitor(&event_loop)))))
         //.with_fullscreen(Some(Fullscreen::Borderless(Some(prompt_for_monitor(&event_loop)))))
         .build(&event_loop)
         .unwrap();
-    let window_size: (u32, u32) = (window.inner_size().width, window.inner_size().height);
+    let window_size: Vector2<i32> = Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
 
     let mut maybe_resources: Option<RcRefCell<Resources>> = None;
     let mut maybe_ui_manager_data: Option<RcRefCell<UIManagerData>> = None;
@@ -278,16 +279,14 @@ pub fn run_application(
 
             // create managers
             let elapsed_time = time_instance.elapsed().as_secs_f64();
-            let (width, height) = window_size;
-            let mouse_pos = (width / 2, height / 2);
             let resources = newRcRefCell(Resources::create_resources(project_resources));
             let font_manager = newRcRefCell(FontManager::create_font_manager());
             let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(project_ui_manager));
-            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, window_size, &window, &resources, project_renderer));
+            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, &window_size, &window, &resources, project_renderer));
             let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, project_scene_manager));
             let effect_manager_data = newRcRefCell(EffectManagerData::create_effect_manager_data(&renderer_data, &resources, project_effect_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
-            let mouse_move_data = input::create_mouse_move_data(mouse_pos);
+            let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
             let mouse_input_data = input::create_mouse_input_data();
 
             // initialize managers
@@ -297,15 +296,14 @@ pub fn run_application(
             ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());
             effect_manager_data.borrow_mut().initialize_project_effect_manager();
             scene_manager_data.borrow_mut().initialize_scene_manager_data(
-                width,
-                height,
+                &window_size,
                 &renderer_data.borrow(),
                 &resources.borrow(),
                 effect_manager_data.as_ptr(),
             );
             let application_data = newRcRefCell(ApplicationData {
                 _window: &window,
-                _window_size: window_size,
+                _window_size: window_size.into(),
                 _is_grab_mode: false,
                 _time_data: create_time_data(elapsed_time),
                 _camera_move_speed: 1.0,
@@ -431,7 +429,7 @@ pub fn run_application(
                         }
                     } else {
                         // update & render, If the resized event has not yet occurred, the window size may be 0.
-                        if 0 < application_data._window_size.0 && 0 < application_data._window_size.1 {
+                        if 0 < application_data._window_size.x && 0 < application_data._window_size.y {
                             application_data.update_application();
                             renderer_data.update_post_process_datas();
                             scene_manager_data.update_scene_manager_data(&application_data._time_data, &mut font_manager);
@@ -455,7 +453,7 @@ pub fn run_application(
                     if application_data._is_grab_mode {
                         let window_size = application_data._window_size.clone();
                         application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
-                        window.set_cursor_position(dpi::PhysicalPosition { x: window_size.0 / 2, y: window_size.1 / 2 }).expect("failed to set_cursor_position");
+                        window.set_cursor_position(dpi::PhysicalPosition { x: window_size.x / 2, y: window_size.y / 2 }).expect("failed to set_cursor_position");
                     }
                 },
                 _ => {}
@@ -469,8 +467,9 @@ pub fn run_application(
                         let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
                         let scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                         let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                        application_data._window_size = (size.width, size.height);
-                        scene_manager_data.resized_window(size.width, size.height);
+                        application_data._window_size.x = size.width as i32;
+                        application_data._window_size.y = size.height as i32;
+                        scene_manager_data.resized_window(size.width as i32, size.height as i32);
                         let swapchain_extent = renderer_data._swapchain_data._swapchain_extent;
                         let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
                         log::info!("need_recreate_swapchain: {}, swapchain_extent: {:?}", need_recreate_swapchain, swapchain_extent);
