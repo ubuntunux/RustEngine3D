@@ -152,6 +152,13 @@ impl CameraObjectData {
         self.update_projection();
     }
 
+    pub fn convert_to_screen_pos(&self, world_pos: &Vector3<f32>) -> Vector2<f32> {
+        let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos);
+        screen_pos.x *= self._window_size.x as f32;
+        screen_pos.y *= self._window_size.y as f32;
+        screen_pos
+    }
+
     pub fn update_projection(&mut self) {
         self._projection = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
         self._projection_jitter.copy_from(&self._projection);
