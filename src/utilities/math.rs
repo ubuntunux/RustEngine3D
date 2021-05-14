@@ -565,7 +565,24 @@ pub fn convert_to_ndc(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>) 
     view_projection * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0)
 }
 
-pub fn convert_to_screen_texcoord(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>) -> Vector2<f32> {
+pub fn convert_to_screen_texcoord(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
     let ndc = convert_to_ndc(view_projection, world_pos);
-    Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, ndc.y / ndc.w * 0.5 + 0.5)
+    let mut texcoord = Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, ndc.y / ndc.w * 0.5 + 0.5);
+    if clamp {
+        if ndc.w < 0.0 {
+            texcoord.x = 1.0 - texcoord.x;
+            texcoord.y = 1.0 - texcoord.y;
+
+            if ndc.x.abs() < ndc.y.abs() {
+                texcoord.y = ndc.y.signum() * 0.5 + 0.5;
+            } else {
+                texcoord.x = ndc.x.signum() * 0.5 + 0.5;
+            }
+        }
+
+        texcoord.x = texcoord.x.max(0.0).min(1.0);
+        texcoord.y = texcoord.y.max(0.0).min(1.0);
+    }
+
+    texcoord
 }

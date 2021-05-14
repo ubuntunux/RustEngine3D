@@ -152,8 +152,8 @@ impl CameraObjectData {
         self.update_projection();
     }
 
-    pub fn convert_to_screen_pos(&self, world_pos: &Vector3<f32>) -> Vector2<f32> {
-        let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos);
+    pub fn convert_to_screen_pos(&self, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
+        let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
         screen_pos.x *= self._window_size.x as f32;
         screen_pos.y *= self._window_size.y as f32;
         screen_pos
