@@ -300,7 +300,7 @@ pub fn compute_tangent(
 }
 
 pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
-    let positions: Vec<Vector3<f32>> = vec![(-1.0, -1.0, 0.0), (1.0, -1.0, 0.0), (1.0, 1.0, 0.0), (-1.0, 1.0, 0.0)]
+    let positions: Vec<Vector3<f32>> = vec![(-1.0, 1.0, 0.0), (1.0, 1.0, 0.0), (1.0, -1.0, 0.0), (-1.0, -1.0, 0.0)]
         .iter()
         .map(|(x, y, z)| {
             Vector3::new(*x, *y, *z)
