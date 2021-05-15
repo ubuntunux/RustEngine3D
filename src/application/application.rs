@@ -202,7 +202,7 @@ impl ApplicationData {
 
     pub fn set_grab_mode(&mut self, is_grab_mode: bool) {
         self._is_grab_mode = is_grab_mode;
-        //self.get_window().set_cursor_grab(is_grab_mode);
+        self.get_window().set_cursor_grab(is_grab_mode);
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
@@ -455,7 +455,7 @@ pub fn run_application(
                     if application_data._is_grab_mode {
                         let window_size = application_data._window_size.clone();
                         application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
-                        window.set_cursor_position(dpi::PhysicalPosition { x: window_size.x / 2, y: window_size.y / 2 }).expect("failed to set_cursor_position");
+                        // window.set_cursor_position(dpi::PhysicalPosition { x: window_size.x / 2, y: window_size.y / 2 }).expect("failed to set_cursor_position");
                     }
                 },
                 _ => {}
