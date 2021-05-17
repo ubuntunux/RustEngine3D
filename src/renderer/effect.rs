@@ -350,7 +350,12 @@ impl EmitterData {
 }
 
 impl EffectInstance {
-    pub fn create_effect_instance(effect_manager_data: *const EffectManagerData, effect_id: i64, effec_create_info: &EffectCreateInfo, effect_data: &RcRefCell<EffectData>) -> RcRefCell<EffectInstance> {
+    pub fn create_effect_instance(
+        effect_manager_data: *const EffectManagerData,
+        effect_id: i64,
+        effec_create_info: &EffectCreateInfo,
+        effect_data: &RcRefCell<EffectData>
+    ) -> RcRefCell<EffectInstance> {
         let emitters = effect_data.borrow()._emitter_datas.iter().map(|emitter_data| {
             EmitterInstance::create_emitter_instance(emitter_data)
         }).collect();

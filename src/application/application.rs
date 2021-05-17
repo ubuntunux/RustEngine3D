@@ -134,13 +134,13 @@ impl TimeData {
 }
 
 pub trait ApplicationBase {
-    fn initialize_application(&mut self, application_data: &ApplicationData);
+    fn initialize_application(&mut self, application_data: &EngineApplication);
     fn update_event(&mut self);
     fn update_application(&mut self);
     fn terminate_application(&mut self);
 }
 
-pub struct ApplicationData {
+pub struct EngineApplication {
     pub _window: *const Window,
     pub _is_grab_mode: bool,
     pub _is_grab_mode_backup: bool,
@@ -159,7 +159,7 @@ pub struct ApplicationData {
     pub _application: *const dyn ApplicationBase,
 }
 
-impl ApplicationData {
+impl EngineApplication {
     pub fn get_application(&self) -> &dyn ApplicationBase {
         unsafe { &(*self._application) }
     }
@@ -202,7 +202,7 @@ impl ApplicationData {
 
     pub fn set_grab_mode(&mut self, is_grab_mode: bool) {
         self._is_grab_mode = is_grab_mode;
-        self.get_window().set_cursor_grab(is_grab_mode);
+        self.get_window().set_cursor_grab(is_grab_mode).expect("failed to set_cursor_grab");
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
@@ -248,7 +248,7 @@ pub fn run_application(
     let mut maybe_font_manager: Option<RcRefCell<FontManager>> = None;
     let mut maybe_renderer_data: Option<RcRefCell<RendererData>> = None;
     let mut maybe_scene_manager_data: Option<RcRefCell<SceneManagerData>> = None;
-    let mut maybe_application_data: Option<RcRefCell<ApplicationData>> = None;
+    let mut maybe_application_data: Option<RcRefCell<EngineApplication>> = None;
     let mut maybe_effect_manager_data: Option<RcRefCell<EffectManagerData>> = None;
 
     // main loop
@@ -262,7 +262,7 @@ pub fn run_application(
         if need_initialize {
             if maybe_application_data.is_some() {
                 // clear up
-                let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                 let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                 let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                 let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
@@ -302,7 +302,7 @@ pub fn run_application(
                 &resources.borrow(),
                 effect_manager_data.as_ptr(),
             );
-            let application_data = newRcRefCell(ApplicationData {
+            let application_data = newRcRefCell(EngineApplication {
                 _window: &window,
                 _window_size: window_size.into(),
                 _is_grab_mode: false,
@@ -361,13 +361,13 @@ pub fn run_application(
             Event::NewEvents(_) => {
                 // reset input states on new frame
                 if run_application {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     application_data.clear_input_events();
                 }
             },
             Event::MainEventsCleared => {
                 if run_application {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                     let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                     let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
@@ -451,7 +451,7 @@ pub fn run_application(
             },
             Event::DeviceEvent { device_id, event } => match event {
                 DeviceEvent::MouseMotion { delta } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     if application_data._is_grab_mode {
                         let window_size = application_data._window_size.clone();
                         application_data._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
@@ -466,7 +466,7 @@ pub fn run_application(
                 WindowEvent::Resized(size) => {
                     log::info!("WindowEvent::Resized: {:?}, initialize_done: {}", size, initialize_done);
                     if initialize_done {
-                        let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                        let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                         let scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
                         let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
                         application_data._window_size.x = size.width as i32;
@@ -492,7 +492,7 @@ pub fn run_application(
                     }
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     if false == application_data._is_grab_mode {
                         application_data._mouse_move_data.update_mouse_pos(&position.into(), &window_size);
                     }
@@ -501,18 +501,18 @@ pub fn run_application(
                     // wheel_delta = Some(v_lines);
                 }
                 WindowEvent::CursorEntered { device_id, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     let is_grab_mode_backup = application_data._is_grab_mode_backup;
                     application_data.set_grab_mode(is_grab_mode_backup);
                 }
                 WindowEvent::CursorLeft { device_id, .. } => {
-                    let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                    let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                     application_data._is_grab_mode_backup = application_data._is_grab_mode;
                     application_data.set_grab_mode(false);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
-                        let mut application_data: RefMut<ApplicationData> = maybe_application_data.as_ref().unwrap().borrow_mut();
+                        let mut application_data: RefMut<EngineApplication> = maybe_application_data.as_ref().unwrap().borrow_mut();
                         match input.virtual_keycode {
                             Some(key) => {
                                 if ElementState::Pressed == input.state {
