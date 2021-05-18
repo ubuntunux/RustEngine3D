@@ -31,9 +31,6 @@ which = "4.0.2"
 xml-rs = "0.8"
 raw-window-handle = ""
 
-# not support andoir
-# rodio = "0.13.1"
-
 # android
 #anyhow = "1.0.12"
 #cpal = "0.13.3"
