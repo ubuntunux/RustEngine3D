@@ -135,9 +135,9 @@ impl TimeData {
 
 pub trait ApplicationBase {
     fn initialize_application(&mut self, application_data: &EngineApplication);
+    fn terminate_application(&mut self);
     fn update_event(&mut self);
     fn update_application(&mut self);
-    fn terminate_application(&mut self);
 }
 
 pub struct EngineApplication {
