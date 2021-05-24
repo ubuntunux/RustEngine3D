@@ -739,9 +739,6 @@ impl UIComponentInstance {
     ) {
         let mut render_ui_index = render_ui_count;
 
-        let mut ui_render_area: Vector4<f32> = Vector4::zeros();
-        let mut render_pos: Vector2<f32> = Vector2::zeros();
-
         let count_of_side: u32 = font_data._count_of_side;
         let inv_count_of_side: f32 = 1.0 / font_data._count_of_side as f32;
         let font_size_ratio: f32 = self.get_font_size() / font_data._font_size.y;
@@ -750,18 +747,40 @@ impl UIComponentInstance {
         let mut row: i32 = 0;
         self._render_text_count = 0;
 
-        let font_render_area = Vector4::new(
+        let text_renderable_area = Vector4::new(
             self._contents_area.x.max(self._renderable_area.x),
             self._contents_area.y.max(self._renderable_area.y),
             self._contents_area.z.min(self._renderable_area.z),
             self._contents_area.w.min(self._renderable_area.w)
         );
 
+        // text_render_size_x
+        let get_text_render_area_x = | halign: HorizontalAlign, contents_area_size_x: f32, contents_area_x: f32, column_count: usize | -> f32 {
+            let text_render_size_x = column_count as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO;
+            match halign {
+                HorizontalAlign::LEFT => contents_area_x,
+                HorizontalAlign::CENTER => contents_area_x + (contents_area_size_x - text_render_size_x) * 0.5,
+                HorizontalAlign::RIGHT => contents_area_x + contents_area_size_x - text_render_size_x,
+            }
+        };
+        let mut text_render_area_x: f32 = get_text_render_area_x(self.get_halign(), self._contents_area_size.x, self._contents_area.x, self._text_counts[0]);
+
+        // text_render_area_y
+        let row_count = self._text_counts.len();
+        let text_render_size_y = row_count as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO;
+        let text_render_area_y: f32 = match self.get_valign() {
+            VerticalAlign::TOP => self._contents_area.y,
+            VerticalAlign::CENTER => self._contents_area.x + (self._contents_area_size.x - text_render_size_y) * 0.5,
+            VerticalAlign::BOTTOM => self._contents_area.x + self._contents_area_size.x - text_render_size_y,
+        };
+
+        let mut ui_render_area: Vector4<f32> = Vector4::zeros();
         for c in self._text.as_bytes().iter() {
             let ch = (*c) as char;
             if '\n' == ch {
                 column = 0;
                 row += 1;
+                text_render_area_x = get_text_render_area_x(self.get_halign(), self._contents_area_size.x, self._contents_area.x, self._text_counts[row as usize]);
             } else if '\t' == ch {
                 column += 4;
             } else if ' ' == ch {
@@ -771,15 +790,10 @@ impl UIComponentInstance {
                 let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
                 let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
 
-                render_pos.x = self._contents_area.x;
-                render_pos.y = self._contents_area.y;
-                render_pos.x += column as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO;
-                render_pos.y += row as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO;
-
-                ui_render_area.x = render_pos.x;
-                ui_render_area.y = render_pos.y;
-                ui_render_area.z = render_pos.x + font_size.x;
-                ui_render_area.w = render_pos.y + font_size.y;
+                ui_render_area.x = text_render_area_x + column as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO;
+                ui_render_area.y = text_render_area_y + row as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO;
+                ui_render_area.z = ui_render_area.x + font_size.x;
+                ui_render_area.w = ui_render_area.y + font_size.y;
 
                 if self._contents_area.x < ui_render_area.z && self._contents_area.y < ui_render_area.w &&
                     ui_render_area.x < self._contents_area.z && ui_render_area.y < self._contents_area.w {
@@ -789,7 +803,7 @@ impl UIComponentInstance {
                     render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
                     render_ui_instance_data._ui_texcoord.w = texcoord_y + inv_count_of_side;
                     render_ui_instance_data._ui_render_area = ui_render_area.clone() as Vector4<f32>;
-                    render_ui_instance_data._ui_renderable_area.clone_from(&font_render_area);
+                    render_ui_instance_data._ui_renderable_area.clone_from(&text_renderable_area);
                     render_ui_instance_data._ui_color = self.get_font_color();
                     render_ui_instance_data._ui_round = 0.0;
                     render_ui_instance_data._ui_border = 0.0;
