@@ -47,7 +47,7 @@ pub struct TimeData {
 }
 
 // Enumerate monitors and prompt user to choose one
-fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
+fn _prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
     for (num, monitor) in event_loop.available_monitors().enumerate() {
         println!("Monitor #{}: {:?}", num, monitor.name());
     }
@@ -68,7 +68,7 @@ fn prompt_for_monitor(event_loop: &EventLoop<()>) -> MonitorHandle {
     monitor
 }
 
-fn prompt_for_video_mode(monitor: &MonitorHandle) -> VideoMode {
+fn _prompt_for_video_mode(monitor: &MonitorHandle) -> VideoMode {
     for (i, video_mode) in monitor.video_modes().enumerate() {
         println!("Video mode #{}: {}", i, video_mode);
     }
@@ -449,7 +449,7 @@ pub fn run_application(
                     }
                 }
             },
-            Event::DeviceEvent { device_id, event } => match event {
+            Event::DeviceEvent { device_id: _device_id, event } => match event {
                 DeviceEvent::MouseMotion { delta } => {
                     let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
                     if engine_application._is_grab_mode {
@@ -500,12 +500,12 @@ pub fn run_application(
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, _v_lines), .. } => {
                     // wheel_delta = Some(v_lines);
                 }
-                WindowEvent::CursorEntered { device_id, .. } => {
+                WindowEvent::CursorEntered { device_id: _device_id, .. } => {
                     let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
                     let is_grab_mode_backup = engine_application._is_grab_mode_backup;
                     engine_application.set_grab_mode(is_grab_mode_backup);
                 }
-                WindowEvent::CursorLeft { device_id, .. } => {
+                WindowEvent::CursorLeft { device_id: _device_id, .. } => {
                     let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
                     engine_application._is_grab_mode_backup = engine_application._is_grab_mode;
                     engine_application.set_grab_mode(false);
