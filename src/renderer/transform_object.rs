@@ -72,9 +72,8 @@ impl TransformObjectData {
             _prev_inverse_matrix: Matrix4::identity(),
         }
     }
-    pub fn get_matrix(&self) -> &Matrix4<f32> {
-        &self._matrix
-    }
+    pub fn get_matrix(&self) -> &Matrix4<f32> { &self._matrix }
+    pub fn get_prev_matrix(&self) -> &Matrix4<f32> { &self._prev_matrix }
     pub fn get_inverse_matrix(&self) -> &Matrix4<f32> {
         &self._inverse_matrix
     }

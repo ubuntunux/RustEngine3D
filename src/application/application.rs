@@ -202,7 +202,7 @@ impl EngineApplication {
 
     pub fn set_grab_mode(&mut self, is_grab_mode: bool) {
         self._is_grab_mode = is_grab_mode;
-        self.get_window().set_cursor_grab(is_grab_mode).expect("failed to set_cursor_grab");
+        let _result = self.get_window().set_cursor_grab(is_grab_mode);
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
@@ -497,8 +497,8 @@ pub fn run_application(
                         engine_application._mouse_move_data.update_mouse_pos(&position.into(), &window_size);
                     }
                 }
-                WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, _v_lines), .. } => {
-                    // wheel_delta = Some(v_lines);
+                WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y), .. } => {let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
+                    engine_application._mouse_move_data.update_scroll_move(&(scroll_x as i32, scroll_y as i32));
                 }
                 WindowEvent::CursorEntered { device_id: _device_id, .. } => {
                     let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();

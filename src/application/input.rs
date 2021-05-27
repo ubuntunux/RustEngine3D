@@ -25,8 +25,7 @@ pub struct KeyboardInputData {
 pub struct MouseMoveData {
     pub _mouse_pos: Vector2<i32>,
     pub _mouse_pos_delta: Vector2<i32>,
-    pub _scroll_xoffset: f32,
-    pub _scroll_yoffset: f32
+    pub _scroll_delta: Vector2<i32>,
 }
 
 #[derive(Clone, Debug)]
@@ -78,8 +77,7 @@ pub fn create_mouse_move_data(width: i32, height: i32) -> Box<MouseMoveData> {
     Box::new(MouseMoveData {
         _mouse_pos: mouse_pos.clone(),
         _mouse_pos_delta: Vector2::new(0, 0),
-        _scroll_xoffset: 0.0,
-        _scroll_yoffset: 0.0,
+        _scroll_delta: Vector2::new(0, 0),
     })
 }
 
@@ -91,6 +89,8 @@ impl MouseMoveData {
     pub fn clear_mouse_move_delta(&mut self) {
         self._mouse_pos_delta.x = 0;
         self._mouse_pos_delta.y = 0;
+        self._scroll_delta.x = 0;
+        self._scroll_delta.y = 0;
     }
 
     pub fn clamp_mouse_pos(pos: i32, limit_pos: i32) -> i32 {
@@ -109,6 +109,11 @@ impl MouseMoveData {
         self._mouse_pos_delta.y += delta.1;
         self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.x);
         self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.y);
+    }
+
+    pub fn update_scroll_move(&mut self, delta: &(i32, i32)) {
+        self._scroll_delta.x += delta.0;
+        self._scroll_delta.y += delta.1;
     }
 }
 
