@@ -265,32 +265,19 @@ pub fn vector_multiply_quaternion(vector, quaternion):
 //
 // Code is based on Mike Tunnicliffe's answer to this question:
 //   https://stackoverflow.com/questions/1996957/conversion-euler-to-matrix-and-matrix-to-euler
-pub fn MatrixDecomposeYawPitchRoll(const DirectX::SimpleMath::Matrix&  mat, DirectX::SimpleMath::Vector3&       euler)
-{
-    euler.x = asinf(-mat._32);                  // Pitch
-    if (cosf(euler.x) > 0.0001)                 // Not at poles
-    {
-        euler.y = atan2f(mat._31, mat._33);     // Yaw
-        euler.z = atan2f(mat._12, mat._22);     // Roll
+pub fn matrix_decompose_pitch_yaw_roll(matrix: Matrix4<f32>) -> Vector3<f32> {
+    let mut euler: Vector3<f32> = Vector3::zeros();
+    euler.x = (-matrix.m23).asin(); // Pitch
+    // Not at poles
+    if 0.0001 < euler.x.cos() {
+        euler.y = matrix.m13.atan2(matrix.m33); // Yaw
+        euler.z = matrix.m21.atan2(matrix.m22); // Roll
+    } else {
+        euler.y = 0.0; // Yaw
+        euler.z = (-matrix.m12).atan2(matrix.m11); // Roll
     }
-    else
-    {
-        euler.y = 0.0f;                         // Yaw
-        euler.z = atan2f(-mat._21, mat._11);    // Roll
-    }
+    euler
 }
-
-pub fn getYawPitchRoll(m):
-    pitch = arcsin(-m[2][1])
-    threshold = 1e-8
-    test = cos(pitch)
-    if test < threshold:
-        roll = math.arctan2(-m[1][0], m[0][0])
-        yaw = 0.0
-    else:
-        roll = math.arctan2(m[0][1], m[1][1])
-        yaw = math.arctan2(m[2][0], m[2][2])
-    return yaw, pitch, roll
 
 pub fn quaternion_to_euler(quat: &Quaternion<f32>) -> Vector3<f32> {
     // convert to (pitch, yaw, roll)
