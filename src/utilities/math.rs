@@ -265,7 +265,7 @@ pub fn vector_multiply_quaternion(vector, quaternion):
 //
 // Code is based on Mike Tunnicliffe's answer to this question:
 //   https://stackoverflow.com/questions/1996957/conversion-euler-to-matrix-and-matrix-to-euler
-pub fn matrix_decompose_pitch_yaw_roll(matrix: Matrix4<f32>) -> Vector3<f32> {
+pub fn matrix_decompose_pitch_yaw_roll(matrix: &Matrix4<f32>) -> Vector3<f32> {
     let mut euler: Vector3<f32> = Vector3::zeros();
     euler.x = (-matrix.m23).asin(); // Pitch
     // Not at poles
