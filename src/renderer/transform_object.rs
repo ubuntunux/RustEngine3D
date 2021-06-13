@@ -6,19 +6,7 @@ use nalgebra::{
     Quaternion,
 };
 
-use crate::utilities::math::{
-    get_world_left,
-    get_world_up,
-    get_world_front,
-    make_rotation_matrix,
-    combinate_matrix,
-    extract_location,
-    matrix_to_quaternion,
-    quaternion_to_euler,
-    extract_rotation,
-    extract_scale,
-    TWO_PI,
-};
+use crate::utilities::math::{get_world_left, get_world_up, get_world_front, make_rotation_matrix, combinate_matrix, extract_location, matrix_to_quaternion, quaternion_to_euler, extract_rotation, extract_scale, TWO_PI, matrix_decompose_pitch_yaw_roll};
 
 #[derive(Debug, Clone)]
 pub struct TransformObjectData {
@@ -249,5 +237,15 @@ impl TransformObjectData {
             self._updated = updated;
         }
         updated
+    }
+
+    pub fn update_transform_by_matrix(&mut self, matrix: &Matrix4<f32>) {
+        self.set_position(&extract_location(matrix));
+        self.set_rotation(&matrix_decompose_pitch_yaw_roll(matrix));
+        self.set_scale(&extract_scale(matrix));
+        self._rotation_matrix = make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
+        self._matrix.copy_from(&combinate_matrix(&self._position, &self._rotation_matrix, &self._scale));
+        linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
+        self._updated = true;
     }
 }
