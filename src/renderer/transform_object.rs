@@ -229,13 +229,13 @@ impl TransformObjectData {
             self._prev_scale.copy_from(&self._scale);
         }
 
-        let updated = force_update || updated_position || updated_rotation || updated_scale;
+        self._updated = force_update || updated_position || updated_rotation || updated_scale;
         if updated {
             self._matrix.copy_from(&combinate_matrix(&self._position, &self._rotation_matrix, &self._scale));
             //self._inverse_matrix.copy_from(&inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale));
             linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
-            self._updated = updated;
         }
+        self._updated = updated;
         updated
     }
 
