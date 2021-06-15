@@ -495,26 +495,25 @@ impl EmitterInstance {
         if self._is_alive {
             self._particle_spawn_count = 0;
 
-            let is_alive = if self.is_infinite_emitter() {
-                true
-            } else {
-                let emitter_lifetime = self.get_emitter_data()._particle_lifetime_max + self.get_emitter_data()._emitter_lifetime;
-                self._elapsed_time <= emitter_lifetime
-            };
+            let emitter_data = unsafe { &*self._emitter_data };
 
-            let updated_emitter_transform = self._emitter_transform.update_transform_object();
-            if updated_effect_transform || updated_emitter_transform {
-                self._emitter_world_transform = self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
+            self._is_alive = self.is_infinite_emitter() || self._elapsed_time <= (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime);
+
+            if self._is_alive {
+                let updated_emitter_transform = self._emitter_transform.update_transform_object();
+                if updated_effect_transform || updated_emitter_transform {
+                    self._emitter_world_transform = self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
+                }
+
+                if self._elapsed_time <= emitter_data._emitter_lifetime {
+                    if self._remained_spawn_term <= 0.0 {
+                        // particle spawn
+                        self._particle_spawn_count = self.get_emitter_data()._spawn_count;
+                        self._remained_spawn_term = self.get_emitter_data()._spawn_term;
+                    }
+                }
+                self._remained_spawn_term -= delta_time;
             }
-
-            // particle spawn
-            if self._remained_spawn_term <= 0.0 {
-                self._particle_spawn_count = self.get_emitter_data()._spawn_count;
-                self._remained_spawn_term = self.get_emitter_data()._spawn_term;
-            }
-            self._remained_spawn_term -= delta_time;
-
-            self._is_alive = is_alive;
         }
         self._elapsed_time += delta_time;
     }
