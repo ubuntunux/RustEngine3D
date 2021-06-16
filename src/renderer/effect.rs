@@ -588,8 +588,8 @@ impl EffectManagerData {
 
     pub fn allocate_emitter(&mut self, emitter: &mut EmitterInstance) {
         if false == emitter.is_valid_allocated() {
-            let available_emitter_count = unsafe { constants::MAX_EMITTER_COUNT - self._allocated_emitter_count };
-            let available_particle_count = unsafe { constants::MAX_PARTICLE_COUNT - self._allocated_particle_count };
+            let available_emitter_count: i32 = unsafe { constants::MAX_EMITTER_COUNT - self._allocated_emitter_count };
+            let available_particle_count: i32 = unsafe { constants::MAX_PARTICLE_COUNT - self._allocated_particle_count };
             if 0 < available_emitter_count && 0 < available_particle_count {
                 emitter._allocated_particle_count = available_particle_count.min(emitter.get_emitter_data()._max_particle_count);
                 emitter._allocated_particle_offset = self._allocated_particle_count;
