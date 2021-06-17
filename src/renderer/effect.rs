@@ -473,7 +473,7 @@ impl EmitterInstance {
     }
 
     pub fn is_valid_allocated(&self) -> bool {
-        INVALID_ALLOCATED_EMITTER_INDEX != self._allocated_emitter_index && INVALID_ALLOCATED_PARTICLE_OFFSET != self._allocated_particle_offset
+        INVALID_ALLOCATED_EMITTER_INDEX != self._allocated_emitter_index
     }
 
     pub fn is_infinite_emitter(&self) -> bool {
@@ -497,9 +497,8 @@ impl EmitterInstance {
 
             let emitter_data = unsafe { &*self._emitter_data };
 
-            self._is_alive = self.is_infinite_emitter() || self._elapsed_time <= (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime);
-
-            if self._is_alive {
+            let is_alive = self.is_infinite_emitter() || self._elapsed_time <= (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime);
+            if is_alive {
                 let updated_emitter_transform = self._emitter_transform.update_transform_object();
                 if updated_effect_transform || updated_emitter_transform {
                     self._emitter_world_transform = self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
@@ -510,10 +509,18 @@ impl EmitterInstance {
                         // particle spawn
                         self._particle_spawn_count = self.get_emitter_data()._spawn_count;
                         self._remained_spawn_term = self.get_emitter_data()._spawn_term;
+                        println!("elapsed_time: {}, life_time: {}, remain: {}, term: {}, spawn_count {}",
+                             self._elapsed_time,
+                             emitter_data._emitter_lifetime,
+                             self._remained_spawn_term,
+                             self.get_emitter_data()._spawn_term,
+                             self._particle_spawn_count
+                        );
                     }
                 }
                 self._remained_spawn_term -= delta_time;
             }
+            self._is_alive = is_alive;
         }
         self._elapsed_time += delta_time;
     }
