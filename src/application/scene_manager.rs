@@ -6,7 +6,6 @@ use crate::renderer::font::FontManager;
 use crate::renderer::renderer::RendererData;
 use crate::resource::resource::Resources;
 use crate::utilities::system::RcRefCell;
-use crate::renderer::effect::EffectManagerData;
 
 pub trait ProjectSceneManagerBase {
     fn initialize_project_scene_manager(
@@ -14,7 +13,6 @@ pub trait ProjectSceneManagerBase {
         scene_manager_data: &SceneManagerData,
         renderer_data: &RendererData,
         resources: &Resources,
-        effect_manager_data: *const EffectManagerData,
         window_size: &Vector2<i32>,
     );
     fn initialize_scene_graphics_data(&self);
@@ -33,7 +31,6 @@ pub trait ProjectSceneManagerBase {
 pub struct SceneManagerData {
     pub _renderer_data: RcRefCell<RendererData>,
     pub _resources: RcRefCell<Resources>,
-    pub _effect_manager_data: *const EffectManagerData,
     pub _project_scene_manager: *const dyn ProjectSceneManagerBase,
 }
 
@@ -46,7 +43,6 @@ impl SceneManagerData {
         SceneManagerData {
             _renderer_data: renderer_data.clone(),
             _resources: resources.clone(),
-            _effect_manager_data: std::ptr::null(),
             _project_scene_manager: project_scene_manager,
         }
     }
@@ -55,15 +51,12 @@ impl SceneManagerData {
         &mut self,
         window_size: &Vector2<i32>,
         renderer_data: &RendererData,
-        resources: &Resources,
-        effect_manager_data: *const EffectManagerData,
+        resources: &Resources
     ) {
-        self._effect_manager_data = effect_manager_data;
         self.get_project_scene_manager_mut().initialize_project_scene_manager(
             self,
             renderer_data,
             resources,
-            effect_manager_data,
             window_size
         );
     }
@@ -74,14 +67,6 @@ impl SceneManagerData {
 
     pub fn get_project_scene_manager_mut(&self) -> &mut dyn ProjectSceneManagerBase {
         unsafe { &mut *(self._project_scene_manager as *mut dyn ProjectSceneManagerBase) }
-    }
-
-    pub fn get_effect_manager_data(&self) -> &EffectManagerData {
-        unsafe { &*self._effect_manager_data }
-    }
-
-    pub fn get_effect_manager_data_mut(&self) -> &mut EffectManagerData {
-        unsafe { &mut *(self._effect_manager_data as *mut EffectManagerData) }
     }
 
     pub fn open_scene_data(&mut self) {
