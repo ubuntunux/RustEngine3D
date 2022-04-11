@@ -29,7 +29,7 @@ winit = "0.24"
 winit_input_helper = "0.9.0"
 which = "4.0.2"
 xml-rs = "0.8"
-raw-window-handle = ""
+raw-window-handle = "0.4.3"
 
 # android
 #anyhow = "1.0.12"
