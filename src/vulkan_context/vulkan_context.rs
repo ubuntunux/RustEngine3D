@@ -5,9 +5,7 @@ use std::vec::Vec;
 use ash;
 use ash::{
     vk,
-};
-use ash::version::{
-    DeviceV1_0,
+    Device,
 };
 
 pub type CubeMapArray<T> = Vec<T>; // equivalent to [T; constants::CUBE_LAYER_COUNT as usize]
@@ -147,8 +145,8 @@ pub fn get_depth_stencil_clear_value(depth_clear_value: f32, stencil_clear_value
     }
 }
 
-pub fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
-    device: &D,
+pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
+    device: &Device,
     command_buffer: vk::CommandBuffer,
     submit_queue: vk::Queue,
     wait_mask: &[vk::PipelineStageFlags],
@@ -183,8 +181,8 @@ pub fn record_submit_commandbuffer<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffe
     }
 }
 
-pub fn run_commands_once<D: DeviceV1_0, F: FnOnce(&D, vk::CommandBuffer)>(
-    device: &D,
+pub fn run_commands_once<F: FnOnce(&Device, vk::CommandBuffer)>(
+    device: &Device,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     func: F,

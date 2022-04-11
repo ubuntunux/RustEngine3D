@@ -19,7 +19,11 @@ use winit::event_loop::{
     EventLoop
 };
 use winit::dpi;
-use winit::window::{Fullscreen, WindowBuilder, Window};
+use winit::window::{
+    //Fullscreen,
+    WindowBuilder,
+    Window
+};
 use winit::monitor::{MonitorHandle, VideoMode};
 
 use crate::application::scene_manager::{ SceneManagerData, ProjectSceneManagerBase };

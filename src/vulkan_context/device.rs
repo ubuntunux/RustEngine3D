@@ -16,11 +16,7 @@ use ash::extensions::ext::DebugUtils;
 use ash::extensions::khr::{
     Surface,
 };
-use ash::version::{
-    DeviceV1_0,
-    EntryV1_0,
-    InstanceV1_0,
-};
+
 use winit::window::{
     Window
 };
@@ -43,7 +39,7 @@ pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::
 }
 
 pub fn get_instance_extension_supports(entry: &Entry) -> Vec<CString> {
-    let available_instance_extensions: Vec<vk::ExtensionProperties> = entry.enumerate_instance_extension_properties()
+    let available_instance_extensions: Vec<vk::ExtensionProperties> = entry.enumerate_instance_extension_properties(None)
         .expect("vkEnumerateInstanceExtensionProperties error");
     get_extension_names(&"Instance", &available_instance_extensions)
 }
@@ -99,7 +95,7 @@ pub fn create_vk_instance(
     entry: &Entry,
     app_name: &str,
     app_version: u32,
-    surface_extensions: &Vec<&'static CStr>
+    surface_extensions: &[*const c_char]
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
     let layer_names: Vec<CString> = if unsafe { constants::ENABLE_VALIDATION_LAYER } {
@@ -111,18 +107,16 @@ pub fn create_vk_instance(
         .iter()
         .map(|raw_name| raw_name.as_ptr())
         .collect();
-    let mut extension_names_raw = surface_extensions
-        .iter()
-        .map(|ext| ext.as_ptr())
-        .collect::<Vec<_>>();
+    let mut extension_names_raw = surface_extensions.to_vec();
     if unsafe { constants::ENABLE_VALIDATION_LAYER } {
         extension_names_raw.push(DebugUtils::name().as_ptr());
     }
 
-    let require_extension_names = surface_extensions
+    let require_extension_names = unsafe { surface_extensions
         .iter()
-        .map(|ext| CString::from(*ext))
-        .collect();
+        .map(|ext| CString::from(CStr::from_ptr(*ext)))
+        .collect()
+    };
     let available_instance_extensions: Vec<CString> = get_instance_extension_supports(entry);
     check_extension_support(&"Instance", &available_instance_extensions, &require_extension_names);
 

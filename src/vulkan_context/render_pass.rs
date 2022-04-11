@@ -7,9 +7,6 @@ use ash::{
     vk,
     Device,
 };
-use ash::version::{
-    DeviceV1_0
-};
 
 use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use crate::vulkan_context::descriptor::{

@@ -2,13 +2,12 @@ use std::collections::HashMap;
 
 use ash::{
     vk,
-    Instance,
     Device,
+    Instance,
 };
 use ash::extensions::khr::{
     Surface,
 };
-use ash::version::{InstanceV1_0, DeviceV1_0};
 
 use crate::constants;
 

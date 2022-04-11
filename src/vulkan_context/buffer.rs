@@ -4,9 +4,6 @@ use ash::{
     vk,
     Device,
 };
-use ash::version::{
-    DeviceV1_0
-};
 use ash::util::Align;
 
 use crate::constants;

@@ -1,3 +1,5 @@
+extern crate ash;
+
 pub mod constants;
 pub mod application;
 pub mod renderer;

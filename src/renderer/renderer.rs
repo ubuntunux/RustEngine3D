@@ -14,7 +14,6 @@ use ash::extensions::khr::{
     Surface,
     Swapchain,
 };
-use ash::version::{InstanceV1_0, DeviceV1_0};
 use ash::vk::CommandBuffer;
 use nalgebra::Vector2;
 use winit;
@@ -167,7 +166,7 @@ impl RendererData {
     ) -> RendererData {
         unsafe {
             log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
-            let entry = Entry::new().unwrap();
+            let entry = Entry::linked();
             let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
             let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
             let surface = device::create_vk_surface(&entry, &instance, window);
@@ -235,7 +234,9 @@ impl RendererData {
                 let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
                 let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
                     message_severity: debug_message_level,
-                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::all(),
+                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
                     pfn_user_callback: Some(vulkan_debug_callback),
                     ..Default::default()
                 };

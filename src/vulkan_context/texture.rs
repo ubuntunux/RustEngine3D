@@ -8,10 +8,6 @@ use ash::{
     Instance,
 };
 use ash::util::Align;
-use ash::version::{
-    DeviceV1_0,
-    InstanceV1_0
-};
 
 use crate::constants;
 use crate::vulkan_context::buffer;

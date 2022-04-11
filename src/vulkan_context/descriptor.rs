@@ -2,7 +2,6 @@ use ash::{
     vk,
     Device,
 };
-use ash::version::DeviceV1_0;
 
 use crate::constants;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
