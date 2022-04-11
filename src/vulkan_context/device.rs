@@ -95,20 +95,13 @@ pub fn create_vk_instance(
     entry: &Entry,
     app_name: &str,
     app_version: u32,
-    surface_extensions: &[*const c_char]
+    surface_extensions: &[*const c_char],
+    layer_names_raw: &Vec<*const c_char>,
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
-    let layer_names: Vec<CString> = if unsafe { constants::ENABLE_VALIDATION_LAYER } {
-        unsafe { constants::VULKAN_LAYERS.iter() }.map(|layer_name| CString::new(layer_name.as_str()).unwrap()).collect()
-    } else {
-        Vec::new()
-    };
-    let layers_names_raw: Vec<_> = layer_names
-        .iter()
-        .map(|raw_name| raw_name.as_ptr())
-        .collect();
+
     let mut extension_names_raw = surface_extensions.to_vec();
-    if unsafe { constants::ENABLE_VALIDATION_LAYER } {
+    if unsafe { vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL } {
         extension_names_raw.push(DebugUtils::name().as_ptr());
     }
 
@@ -131,8 +124,8 @@ pub fn create_vk_instance(
 
     let create_info = vk::InstanceCreateInfo {
         p_application_info: &appinfo,
-        enabled_layer_count: layers_names_raw.len() as u32,
-        pp_enabled_layer_names: layers_names_raw.as_ptr(),
+        enabled_layer_count: layer_names_raw.len() as u32,
+        pp_enabled_layer_names: layer_names_raw.as_ptr(),
         enabled_extension_count: extension_names_raw.len() as u32,
         pp_enabled_extension_names: extension_names_raw.as_ptr(),
         ..Default::default()
@@ -140,11 +133,11 @@ pub fn create_vk_instance(
 
     log::info!("create_instance");
     log::info!("    app name: {:?}", app_name);
-    log::info!("    engine version: {}.{}.{}", vk::version_major(constants::ENGINE_VERSION), vk::version_minor(constants::ENGINE_VERSION), vk::version_patch(constants::ENGINE_VERSION));
+    log::info!("    engine version: {}.{}.{}", vk::api_version_major(constants::ENGINE_VERSION), vk::api_version_minor(constants::ENGINE_VERSION), vk::api_version_patch(constants::ENGINE_VERSION));
     unsafe {
-        log::info!("    require vulkan api version: {}.{}.{}", vk::version_major(constants::VULKAN_API_VERSION), vk::version_minor(constants::VULKAN_API_VERSION), vk::version_patch(constants::VULKAN_API_VERSION));
+        log::info!("    require vulkan api version: {}.{}.{}", vk::api_version_major(constants::VULKAN_API_VERSION), vk::api_version_minor(constants::VULKAN_API_VERSION), vk::api_version_patch(constants::VULKAN_API_VERSION));
     }
-    log::info!("    layer_names: {:?}", layer_names);
+    log::info!("    layer_names: {:?}", layer_names_raw);
     log::info!("    surface_extensions: {:?}", surface_extensions);
     unsafe {
         entry.create_instance(&create_info, None).expect("Instance creation error")
@@ -211,7 +204,8 @@ pub fn create_device(
     instance: &Instance,
     physical_device: vk::PhysicalDevice,
     render_features: &vulkan_context::RenderFeatures,
-    queue_family_index_set: &Vec<u32>
+    queue_family_index_set: &Vec<u32>,
+    layer_names_raw: &Vec<*const c_char>
 ) -> Device {
     let queue_priorities = [1.0];
     let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = queue_family_index_set
@@ -225,12 +219,6 @@ pub fn create_device(
             }
         })
         .collect();
-    let layer_names: Vec<CString> = if unsafe { constants::ENABLE_VALIDATION_LAYER } {
-        unsafe { constants::VULKAN_LAYERS.iter() }.map(|layer_name| { CString::new(layer_name.as_str()).unwrap() }).collect()
-    } else {
-        Vec::new()
-    };
-    let layer_names_raw: Vec<*const c_char> = layer_names.iter().map(|layer_name| { layer_name.as_ptr() }).collect();
     let device_extension_names: Vec<CString> = unsafe { constants::REQUIRE_DEVICE_EXTENSIONS.iter() }.map(|extension| { CString::new(extension.as_str()).unwrap() }).collect();
     let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
     #[cfg(target_os = "android")]
@@ -255,7 +243,7 @@ pub fn create_device(
 
     unsafe {
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
-        log::info!("create_device: {:?}, {:?}", layer_names, device_extension_names);
+        log::info!("create_device: {:?}, {:?}", layer_names_raw, device_extension_names);
         device
     }
 }

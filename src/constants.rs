@@ -2,7 +2,7 @@ use std;
 use ash::vk;
 
 pub const ENGINE_NAME: &str = "RustEngine3D";
-pub const ENGINE_VERSION: u32 = vk::make_version(1, 0, 0);
+pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub const DEPTH_FOMATS: [vk::Format; 5] = [
     vk::Format::D32_SFLOAT,
     vk::Format::D32_SFLOAT_S8_UINT,
@@ -34,13 +34,12 @@ pub const WORK_GROUP_SIZE: i32 = 64;
 pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
 
 // application configs
-pub static mut VULKAN_API_VERSION: u32 = vk::make_version(1, 2, 0);
-pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::WARNING;
-pub static mut VULKAN_LAYERS: Vec<String> = Vec::new(); // vec!["VK_LAYER_LUNARG_standard_validation".to_string()];
-pub static mut REQUIRE_DEVICE_EXTENSIONS: Vec<String> = Vec::new(); // vec!["VK_KHR_swapchain".to_string()];
+pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
+pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::empty();
+pub static mut REQUIRED_VALIDATION_LAYERS: Vec<String> = Vec::new(); // ex) vec!["VK_LAYER_LUNARG_standard_validation".to_string()];
+pub static mut REQUIRE_DEVICE_EXTENSIONS: Vec<String> = Vec::new(); // ex) vec!["VK_KHR_swapchain".to_string()];
 pub static mut MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 512;
 pub static mut ENABLE_IMMEDIATE_MODE: bool = true;
-pub static mut ENABLE_VALIDATION_LAYER: bool = true;
 pub static mut IS_CONCURRENT_MODE: bool = true;
 pub static mut METER_PER_UNIT: f32 = 1.0;
 pub static mut NEAR: f32 = 0.1;

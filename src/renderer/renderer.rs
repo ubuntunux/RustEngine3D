@@ -1,6 +1,10 @@
 use std::cell::Ref;
 use std::borrow::Cow;
-use std::ffi::CStr;
+use std::os::raw::c_char;
+use std::ffi::{
+    CStr,
+    CString,
+};
 use std::vec::Vec;
 use ash::{
     vk,
@@ -168,17 +172,45 @@ impl RendererData {
             log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
             let entry = Entry::linked();
             let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
-            let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions);
+
+            let available_layers: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
+            let mut available_layer_names: Vec<CString> = Vec::new();
+            log::info!("available layers:");
+            for layer in available_layers.iter() {
+                log::info!("    {:?}", layer);
+                available_layer_names.push(CString::from(CStr::from_ptr(layer.layer_name.as_ptr())));
+            }
+
+            let required_layer_names: Vec<CString> = constants::REQUIRED_VALIDATION_LAYERS.iter().map(|layer_name| { CString::new(layer_name.as_str()).unwrap() }).collect();
+            let mut required_validation_layers: Vec<*const c_char> = Vec::new();
+            log::info!("required layers:");
+            for required_layer in required_layer_names.iter() {
+                let mut found: bool = false;
+                for available_layer in available_layer_names.iter() {
+                    if *available_layer == *required_layer {
+                        required_validation_layers.push(required_layer.as_ptr());
+                        found = true;
+                        break;
+                    }
+                }
+
+                if found {
+                    log::info!("    layer: {:?} (OK)", required_layer);
+                } else {
+                    log::error!("    layer: {:?} (not found)", required_layer);
+                }
+            }
+            let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions, &required_validation_layers);
             let surface = device::create_vk_surface(&entry, &instance, window);
             let surface_interface = Surface::new(&entry, &instance);
             let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
             let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
             let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
-            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const std::os::raw::c_char);
+            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
 
             log::info!("PhysicalDeviceProperties");
-            log::info!("    vulakn api_version: {}.{}.{}", vk::version_major(device_properties.api_version), vk::version_minor(device_properties.api_version), vk::version_patch(device_properties.api_version));
-            log::info!("    driver_version: {}.{}.{}", vk::version_major(device_properties.driver_version), vk::version_minor(device_properties.driver_version), vk::version_patch(device_properties.driver_version));
+            log::info!("    vulakn api_version: {}.{}.{}", vk::api_version_major(device_properties.api_version), vk::api_version_minor(device_properties.api_version), vk::api_version_patch(device_properties.api_version));
+            log::info!("    driver_version: {}.{}.{}", vk::api_version_major(device_properties.driver_version), vk::api_version_minor(device_properties.driver_version), vk::api_version_patch(device_properties.driver_version));
             log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
             log::info!("    limits: {:?}", device_properties.limits);
 
@@ -202,7 +234,7 @@ impl RendererData {
             } else {
                 vec![graphics_queue_index, present_queue_index]
             };
-            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set);
+            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set, &required_validation_layers);
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
             let queue_family_datas = queue::QueueFamilyDatas {
@@ -230,7 +262,7 @@ impl RendererData {
             // debug utils
             let debug_call_back: vk::DebugUtilsMessengerEXT;
             let debug_util_interface: Option<DebugUtils>;
-            if constants::ENABLE_VALIDATION_LAYER {
+            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
                 let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
                 let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
                     message_severity: debug_message_level,

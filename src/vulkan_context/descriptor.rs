@@ -203,7 +203,7 @@ pub fn create_descriptor_sets(
             ..Default::default()
         };
         unsafe {
-            let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("");
+            let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("failed to allocate_descriptor_sets");
             log::trace!("    CreateDescriptorSet: {:?}", descriptor_sets);
             return descriptor_sets;
         }
@@ -219,7 +219,7 @@ pub fn destroy_descriptor_sets(
     log::trace!("    destroyDescriptorSet: {:?}", descriptor_sets);
     // need VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT flag for vkFreeDescriptorSets
     unsafe {
-        device.free_descriptor_sets(descriptor_pool, &descriptor_sets);
+        device.free_descriptor_sets(descriptor_pool, &descriptor_sets).expect("failed to free_descriptor_sets");
     }
 }
 
