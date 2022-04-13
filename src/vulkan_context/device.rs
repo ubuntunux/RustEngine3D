@@ -243,7 +243,7 @@ pub fn create_device(
 
     unsafe {
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
-        log::info!("create_device: {:?}, {:?}", layer_names_raw, device_extension_names);
+        log::info!("create device: {:?}", device.handle());
         device
     }
 }
