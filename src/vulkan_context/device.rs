@@ -76,6 +76,37 @@ pub fn check_extension_support(
     result
 }
 
+pub unsafe fn get_instance_layers(entry: &Entry, required_instance_layers: &Vec<String>) -> Vec<CString> {
+    let available_layers: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
+    let mut available_layer_names: Vec<CString> = Vec::new();
+    log::info!("available layers:");
+    for layer in available_layers.iter() {
+        log::info!("    {:?}", layer);
+        available_layer_names.push(CString::from(CStr::from_ptr(layer.layer_name.as_ptr())));
+    }
+
+    log::info!("required layers:");
+    let required_layer_names: Vec<CString> = required_instance_layers.iter().map(|layer_name| CString::new(layer_name.as_str()).unwrap()).collect();
+    let mut required_instance_layers: Vec<CString> = Vec::new();
+    for required_layer in required_layer_names.iter() {
+        let mut found: bool = false;
+        for available_layer in available_layer_names.iter() {
+            if *available_layer == *required_layer {
+                required_instance_layers.push(required_layer.clone());
+                found = true;
+                break;
+            }
+        }
+
+        if found {
+            log::info!("    layer: {:?} (OK)", required_layer);
+        } else {
+            log::error!("    layer: {:?} (not found)", required_layer);
+        }
+    }
+    required_instance_layers
+}
+
 pub fn get_max_usable_sample_count(device_properties: &vk::PhysicalDeviceProperties) -> vk::SampleCountFlags {
     let sample_count_limit = min(device_properties.limits.framebuffer_color_sample_counts, device_properties.limits.framebuffer_depth_sample_counts);
     let sample_count = *[
@@ -96,7 +127,7 @@ pub fn create_vk_instance(
     app_name: &str,
     app_version: u32,
     surface_extensions: &[*const c_char],
-    layer_names_raw: &Vec<*const c_char>,
+    instance_layer_names_raw: &Vec<*const c_char>,
 ) -> Instance {
     let app_name = CString::new(app_name).unwrap();
 
@@ -124,8 +155,8 @@ pub fn create_vk_instance(
 
     let create_info = vk::InstanceCreateInfo {
         p_application_info: &appinfo,
-        enabled_layer_count: layer_names_raw.len() as u32,
-        pp_enabled_layer_names: layer_names_raw.as_ptr(),
+        enabled_layer_count: instance_layer_names_raw.len() as u32,
+        pp_enabled_layer_names: instance_layer_names_raw.as_ptr(),
         enabled_extension_count: extension_names_raw.len() as u32,
         pp_enabled_extension_names: extension_names_raw.as_ptr(),
         ..Default::default()
@@ -137,7 +168,7 @@ pub fn create_vk_instance(
     unsafe {
         log::info!("    require vulkan api version: {}.{}.{}", vk::api_version_major(constants::VULKAN_API_VERSION), vk::api_version_minor(constants::VULKAN_API_VERSION), vk::api_version_patch(constants::VULKAN_API_VERSION));
     }
-    log::info!("    layer_names: {:?}", layer_names_raw);
+    log::info!("    instance_layer_names: {:?}", instance_layer_names_raw);
     log::info!("    surface_extensions: {:?}", surface_extensions);
     unsafe {
         entry.create_instance(&create_info, None).expect("Instance creation error")
@@ -169,32 +200,46 @@ pub fn is_device_suitable(
     instance: &Instance,
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
-    physical_device: vk::PhysicalDevice
-) -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures) {
+    physical_device: vk::PhysicalDevice,
+    device_extension_names: &Vec<CString>,
+    ray_tracing_extension_names: &Vec<CString>,
+) -> (bool, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures, bool) {
     unsafe {
         let available_device_extensions = get_device_extension_supports(instance, physical_device);
-        let device_extension_names: Vec<CString> = constants::REQUIRE_DEVICE_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
-        let has_extension: bool = check_extension_support(&"Device", &available_device_extensions, &device_extension_names);
+        let has_extension: bool = check_extension_support(&"Device", &available_device_extensions, device_extension_names);
+        let enable_raytracing: bool = false == ray_tracing_extension_names.is_empty() && check_extension_support(&"Ray Tracing", &available_device_extensions, ray_tracing_extension_names);
         let physical_device_features = instance.get_physical_device_features(physical_device);
         let swapchain_support_details = swapchain::query_swapchain_support(surface_interface, physical_device, surface);
         let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
-        (has_extension && result, swapchain_support_details, physical_device_features)
+        (has_extension && result, swapchain_support_details, physical_device_features, enable_raytracing)
     }
 }
 
 pub fn select_physical_device(
     instance: &Instance,
     surface_interface: &Surface,
-    surface: vk::SurfaceKHR
-) -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures)> {
+    surface: vk::SurfaceKHR,
+    device_extension_names: &Vec<CString>,
+    ray_tracing_extension_names: &Vec<CString>,
+) -> Option<(vk::PhysicalDevice, swapchain::SwapchainSupportDetails, vk::PhysicalDeviceFeatures, bool)> {
     unsafe {
         let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
-        log::info!("Found {} devices", physical_devices.len());
+        log::info!("Found {} physical devices.", physical_devices.len());
+
         for physical_device in physical_devices {
-            let (_result, swapchain_support_details, mut physical_device_features) = is_device_suitable(instance, surface_interface, surface, physical_device);
-            // set enable clip distance
-            physical_device_features.shader_clip_distance = 1;
-            return Some((physical_device, swapchain_support_details, physical_device_features));
+            let (result, swapchain_support_details, physical_device_features, enable_ray_tracing) = is_device_suitable(
+                instance,
+                surface_interface,
+                surface,
+                physical_device,
+                device_extension_names,
+                ray_tracing_extension_names
+            );
+
+            if result {
+                log::info!("Select physical devices: [{:?}]", physical_device);
+                return Some((physical_device, swapchain_support_details, physical_device_features, enable_ray_tracing));
+            }
         }
     }
     None
@@ -205,7 +250,8 @@ pub fn create_device(
     physical_device: vk::PhysicalDevice,
     render_features: &vulkan_context::RenderFeatures,
     queue_family_index_set: &Vec<u32>,
-    layer_names_raw: &Vec<*const c_char>
+    device_extension_names_raw: &Vec<*const c_char>,
+    instance_layer_names_raw: &Vec<*const c_char>
 ) -> Device {
     let queue_priorities = [1.0];
     let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = queue_family_index_set
@@ -219,8 +265,7 @@ pub fn create_device(
             }
         })
         .collect();
-    let device_extension_names: Vec<CString> = unsafe { constants::REQUIRE_DEVICE_EXTENSIONS.iter() }.map(|extension| { CString::new(extension.as_str()).unwrap() }).collect();
-    let device_extension_names_raw: Vec<*const c_char> = device_extension_names.iter().map(|extension| { extension.as_ptr() }).collect();
+
     #[cfg(target_os = "android")]
     let device_features = vk::PhysicalDeviceFeatures {
         sampler_anisotropy: 0,
@@ -233,8 +278,8 @@ pub fn create_device(
     let device_create_info = vk::DeviceCreateInfo {
         queue_create_info_count: queue_create_infos.len() as u32,
         p_queue_create_infos: queue_create_infos.as_ptr(),
-        enabled_layer_count: layer_names_raw.len() as u32,
-        pp_enabled_layer_names: layer_names_raw.as_ptr(),
+        enabled_layer_count: instance_layer_names_raw.len() as u32,
+        pp_enabled_layer_names: instance_layer_names_raw.as_ptr(),
         enabled_extension_count: device_extension_names_raw.len() as u32,
         pp_enabled_extension_names: device_extension_names_raw.as_ptr(),
         p_enabled_features: &device_features,

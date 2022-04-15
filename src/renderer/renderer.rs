@@ -6,6 +6,7 @@ use std::ffi::{
     CString,
 };
 use std::vec::Vec;
+use std::rc::Rc;
 use ash::{
     vk,
     Device,
@@ -18,6 +19,7 @@ use ash::extensions::khr::{
     Surface,
     Swapchain,
 };
+use ash::extensions::nv::RayTracing;
 use ash::vk::CommandBuffer;
 use nalgebra::Vector2;
 use winit;
@@ -155,6 +157,9 @@ pub struct RendererData {
     pub _command_buffers: SwapchainArray<vk::CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
+    pub _use_ray_tracing: bool,
+    pub _ray_tracing: Rc<RayTracing>,
+    pub _ray_traing_properties: vk::PhysicalDeviceRayTracingPropertiesNV,
     pub _resources: RcRefCell<Resources>,
     pub _project_renderer: *const dyn ProjectRendererBase,
 }
@@ -172,38 +177,17 @@ impl RendererData {
             log::info!("create_renderer_data: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
             let entry = Entry::linked();
             let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
+            let required_layer_names = device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS);
+            let required_instance_layers: Vec<*const c_char> = required_layer_names.iter().map(|layer| layer.as_ptr()).collect();
+            let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
+            let mut device_extension_names_raw: Vec<*const c_char> = device_extensions.iter().map(|extension| extension.as_ptr()).collect();
+            let ray_tracing_extensions: Vec<CString> = constants::REQUIRED_RAY_TRACING_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
 
-            let available_layers: Vec<vk::LayerProperties> = entry.enumerate_instance_layer_properties().unwrap();
-            let mut available_layer_names: Vec<CString> = Vec::new();
-            log::info!("available layers:");
-            for layer in available_layers.iter() {
-                log::info!("    {:?}", layer);
-                available_layer_names.push(CString::from(CStr::from_ptr(layer.layer_name.as_ptr())));
-            }
-
-            let required_layer_names: Vec<CString> = constants::REQUIRED_VALIDATION_LAYERS.iter().map(|layer_name| { CString::new(layer_name.as_str()).unwrap() }).collect();
-            let mut required_validation_layers: Vec<*const c_char> = Vec::new();
-            log::info!("required layers:");
-            for required_layer in required_layer_names.iter() {
-                let mut found: bool = false;
-                for available_layer in available_layer_names.iter() {
-                    if *available_layer == *required_layer {
-                        required_validation_layers.push(required_layer.as_ptr());
-                        found = true;
-                        break;
-                    }
-                }
-
-                if found {
-                    log::info!("    layer: {:?} (OK)", required_layer);
-                } else {
-                    log::error!("    layer: {:?} (not found)", required_layer);
-                }
-            }
-            let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions, &required_validation_layers);
+            let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions, &required_instance_layers);
             let surface = device::create_vk_surface(&entry, &instance, window);
             let surface_interface = Surface::new(&entry, &instance);
-            let (physical_device, swapchain_support_details, physical_device_features) = device::select_physical_device(&instance, &surface_interface, surface).unwrap();
+            let (physical_device, swapchain_support_details, physical_device_features, has_ray_tracing_extensions) =
+                device::select_physical_device(&instance, &surface_interface, surface, &device_extensions, &ray_tracing_extensions).unwrap();
             let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
             let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
             let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
@@ -214,8 +198,25 @@ impl RendererData {
             log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
             log::info!("    limits: {:?}", device_properties.limits);
 
-            let msaa_samples = device::get_max_usable_sample_count(&device_properties);
+            // Ray Tracing
+            let ray_tracing = Rc::new(RayTracing::new(&instance, &device));
+            let ray_tracing_properties = RayTracing::get_properties(&instance, physical_device);
+            log::info!("NV Ray Tracing Properties:");
+            log::info!("    shader_group_handle_size: {}", ray_tracing_properties.shader_group_handle_size);
+            log::info!("    max_recursion_depth: {}", ray_tracing_properties.max_recursion_depth);
+            log::info!("    max_shader_group_stride: {}", ray_tracing_properties.max_shader_group_stride);
+            log::info!("    shader_group_base_alignment: {}", ray_tracing_properties.shader_group_base_alignment);
+            log::info!("    max_geometry_count: {}", ray_tracing_properties.max_geometry_count);
+            log::info!("    max_instance_count: {}", ray_tracing_properties.max_instance_count);
+            log::info!("    max_triangle_count: {}", ray_tracing_properties.max_triangle_count);
+            log::info!("    max_descriptor_set_acceleration_structures: {}", ray_tracing_properties.max_descriptor_set_acceleration_structures);
+            if has_ray_tracing_extensions {
+                for extension in ray_tracing_extensions.iter() {
+                    device_extension_names_raw.push(extension.as_ptr());
+                }
+            }
 
+            let msaa_samples = device::get_max_usable_sample_count(&device_properties);
             let queue_family_indices = queue::get_queue_family_indices(
                 &instance,
                 &surface_interface,
@@ -224,7 +225,10 @@ impl RendererData {
                 constants::IS_CONCURRENT_MODE
             );
             let render_features = RenderFeatures {
-                _physical_device_features: physical_device_features.clone(),
+                _physical_device_features: vk::PhysicalDeviceFeatures {
+                    shader_clip_distance: if constants::SHADER_CLIP_DISTANCE { 1 } else { 0 },
+                    ..physical_device_features.clone()
+                },
                 _msaa_samples: msaa_samples,
             };
             let graphics_queue_index = queue_family_indices._graphics_queue_index;
@@ -234,7 +238,7 @@ impl RendererData {
             } else {
                 vec![graphics_queue_index, present_queue_index]
             };
-            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set, &required_validation_layers);
+            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set, &device_extension_names_raw, &required_instance_layers);
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
             let queue_family_datas = queue::QueueFamilyDatas {
@@ -304,6 +308,9 @@ impl RendererData {
                 _command_buffers: command_buffers,
                 _render_features: render_features,
                 _image_samplers: ImageSamplerData::default(),
+                _use_ray_tracing: has_ray_tracing_extensions,
+                _ray_tracing: ray_tracing,
+                _ray_traing_properties: ray_tracing_properties,
                 _resources: resources.clone(),
                 _project_renderer: project_renderer,
             }
@@ -326,6 +333,8 @@ impl RendererData {
     }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
+    pub fn get_use_ray_tracing(&self) -> bool { self._use_ray_tracing }
+    pub fn get_ray_tracing(&self) -> &RayTracing { &self._ray_tracing }
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties { &self._device_properties }
     pub fn get_device_memory_properties(&self) -> &vk::PhysicalDeviceMemoryProperties { &self._device_memory_properties }
     pub fn get_physical_device(&self) -> vk::PhysicalDevice { self._physical_device }

@@ -33,14 +33,16 @@ pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
 pub const WORK_GROUP_SIZE: i32 = 64;
 pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
 
-// application configs
+// application configs - default values
 pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::empty();
-pub static mut REQUIRED_VALIDATION_LAYERS: Vec<String> = Vec::new(); // ex) vec!["VK_LAYER_LUNARG_standard_validation".to_string()];
-pub static mut REQUIRE_DEVICE_EXTENSIONS: Vec<String> = Vec::new(); // ex) vec!["VK_KHR_swapchain".to_string()];
+pub static mut REQUIRED_INSTANCE_LAYERS: Vec<String> = Vec::new();
+pub static mut REQUIRED_DEVICE_EXTENSIONS: Vec<String> = Vec::new();
+pub static mut REQUIRED_RAY_TRACING_EXTENSIONS: Vec<String> = Vec::new();
 pub static mut MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 512;
 pub static mut ENABLE_IMMEDIATE_MODE: bool = true;
 pub static mut IS_CONCURRENT_MODE: bool = true;
+pub static mut SHADER_CLIP_DISTANCE: bool = true;
 pub static mut METER_PER_UNIT: f32 = 1.0;
 pub static mut NEAR: f32 = 0.1;
 pub static mut FAR: f32 = 2000.0;

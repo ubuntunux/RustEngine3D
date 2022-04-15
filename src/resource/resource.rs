@@ -819,7 +819,12 @@ impl Resources {
                 .map(|pipeline_data_create_info| {
                     self.get_descriptor_data(renderer_data, &render_pass_data_create_info._render_pass_create_info_name, pipeline_data_create_info)
                 }).collect();
-            let default_render_pass_data = render_pass::create_render_pass_data(renderer_data.get_device(), render_pass_data_create_info, &descriptor_datas);
+            let default_render_pass_data = render_pass::create_render_pass_data(
+                renderer_data.get_device(),
+                renderer_data.get_ray_tracing(),
+                render_pass_data_create_info,
+                &descriptor_datas
+            );
             self._render_pass_data_map.insert(default_render_pass_data.get_render_pass_data_name().clone(), newRcRefCell(default_render_pass_data));
         }
     }
