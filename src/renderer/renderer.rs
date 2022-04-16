@@ -198,8 +198,7 @@ impl RendererData {
             log::info!("    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}", device_name, device_properties.device_type, device_properties.vendor_id, device_properties.device_id);
             log::info!("    limits: {:?}", device_properties.limits);
 
-            // Ray Tracing
-            let ray_tracing = Rc::new(RayTracing::new(&instance, &device));
+            // ray tracing properties
             let ray_tracing_properties = RayTracing::get_properties(&instance, physical_device);
             log::info!("NV Ray Tracing Properties:");
             log::info!("    shader_group_handle_size: {}", ray_tracing_properties.shader_group_handle_size);
@@ -239,6 +238,7 @@ impl RendererData {
                 vec![graphics_queue_index, present_queue_index]
             };
             let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set, &device_extension_names_raw, &required_instance_layers);
+            let ray_tracing = Rc::new(RayTracing::new(&instance, &device));
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
             let queue_family_datas = queue::QueueFamilyDatas {

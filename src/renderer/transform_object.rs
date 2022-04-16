@@ -1,5 +1,5 @@
-use nalgebra::linalg;
 use nalgebra::{
+    linalg,
     Vector3,
     Matrix4,
     Quaternion,
@@ -85,9 +85,7 @@ impl TransformObjectData {
     pub fn get_front(&self) -> &Vector3<f32> {
         unsafe { &*(self._rotation_matrix.column(2).as_ptr() as *const Vector3<f32>) }
     }
-    pub fn get_position(&self) -> &Vector3<f32> {
-        &self._position
-    }
+    pub fn get_position(&self) -> &Vector3<f32> { &self._position }
     pub fn set_position(&mut self, position: &Vector3<f32>) { self._position.copy_from(position); }
     pub fn set_position_x(&mut self, pos_x: f32) { self._position.x = pos_x; }
     pub fn set_position_y(&mut self, pos_y: f32) { self._position.y = pos_y; }

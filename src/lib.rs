@@ -1,4 +1,5 @@
 extern crate ash;
+extern crate nalgebra;
 
 pub mod constants;
 pub mod application;
