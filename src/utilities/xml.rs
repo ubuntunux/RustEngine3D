@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 use std::path::PathBuf;
 use std::io::BufReader;
-use xml::reader::{ EventReader, XmlEvent };
+use xml::EventReader;
+use xml::reader::XmlEvent;
 use crate::utilities::system;
 
 type XmlTreeMap = HashMap<String, Vec<XmlTree>>;

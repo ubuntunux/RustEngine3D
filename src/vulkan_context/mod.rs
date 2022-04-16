@@ -6,6 +6,7 @@ pub mod framebuffer;
 pub mod geometry_buffer;
 pub mod queue;
 pub mod render_pass;
+pub mod ray_tracing;
 pub mod shader;
 pub mod swapchain;
 pub mod sync;
