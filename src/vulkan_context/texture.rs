@@ -11,6 +11,7 @@ use ash::util::Align;
 
 use crate::constants;
 use crate::vulkan_context::buffer;
+use crate::renderer::utility::find_memory_type_index;
 use crate::vulkan_context::vulkan_context::{ run_commands_once, Layers, MipLevels };
 
 #[derive(Debug, Clone)]
@@ -776,7 +777,7 @@ pub fn create_image(
 
         let image = device.create_image(&image_create_info, None).expect("vkCreateImage failed!");
         let memory_requirements = device.get_image_memory_requirements(image);
-        let memory_type_index = buffer::find_memory_type_index(&memory_requirements, memory_properties, memory_property_flags).unwrap();
+        let memory_type_index = find_memory_type_index(&memory_requirements, memory_properties, memory_property_flags).unwrap();
         let image_allocate_info = vk::MemoryAllocateInfo {
             allocation_size: memory_requirements.size,
             memory_type_index,

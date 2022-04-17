@@ -7,6 +7,7 @@ use ash::{
 use ash::util::Align;
 
 use crate::constants;
+use crate::renderer::utility::find_memory_type_index;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::vulkan_context::{run_commands_once, SwapchainArray};
 
@@ -35,29 +36,6 @@ impl Default for BufferData {
             _buffer_memory_requirements: vk::MemoryRequirements::default(),
         }
     }
-}
-
-pub fn find_memory_type_index(
-    memory_requirements: &vk::MemoryRequirements,
-    memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    flags: vk::MemoryPropertyFlags
-) -> Option<u32> {
-    let memory_type_bits = memory_requirements.memory_type_bits;
-    // Try to find an exactly matching memory flag
-    // for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
-    //     let property_flags = memory_types[index].property_flags;
-    //     if (0 != (memory_type_bits & (1 << index as u32))) && (flags == property_flags) {
-    //         return Some(index as u32);
-    //     }
-    // }
-    // Otherwise find a memory flag that works
-    for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
-        let property_flags = memory_type.property_flags;
-        if (0 != (memory_type_bits & (1 << index as u32))) && (flags == (flags & property_flags)) {
-            return Some(index as u32);
-        }
-    }
-    None
 }
 
 pub fn create_buffer_data_with_uploads<T: Copy>(

@@ -167,3 +167,37 @@ pub fn create_framebuffers_and_descriptor_sets(
     );
     (framebuffer_data, descriptor_sets)
 }
+
+pub fn find_exactly_matching_memory_type_index(
+    memory_requirements: &vk::MemoryRequirements,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    flags: vk::MemoryPropertyFlags
+) -> Option<u32> {
+    let memory_type_bits = memory_requirements.memory_type_bits;
+
+    // Try to find an exactly matching memory flag
+    for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
+        let property_flags = memory_type.property_flags;
+        if (0 != (memory_type_bits & (1 << index as u32))) && (flags == property_flags) {
+            return Some(index as u32);
+        }
+    }
+
+    // Otherwise find a memory flag that works
+    return find_memory_type_index(memory_requirements, memory_properties, flags);
+}
+
+pub fn find_memory_type_index(
+    memory_requirements: &vk::MemoryRequirements,
+    memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    flags: vk::MemoryPropertyFlags
+) -> Option<u32> {
+    let memory_type_bits = memory_requirements.memory_type_bits;
+    for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {
+        let property_flags = memory_type.property_flags;
+        if (0 != (memory_type_bits & (1 << index as u32))) && (flags == (flags & property_flags)) {
+            return Some(index as u32);
+        }
+    }
+    None
+}

@@ -3,6 +3,29 @@ use ash::extensions:: {
     nv,
 };
 use ash::extensions::nv::RayTracing;
+use ash::{
+    vk,
+    Device,
+    Instance,
+};
+use ash::util::Align;
+
+use nalgebra::Vector3;
+
+use crate::constants;
+use crate::renderer::utility::find_exactly_matching_memory_type_index;
+use crate::vulkan_context::buffer;
+use crate::vulkan_context::buffer::BufferData;
+use crate::vulkan_context::vulkan_context::run_commands_once;
+
+#[repr(C)]
+#[derive(Clone, Debug, Copy)]
+pub struct GeometryInstance {
+    transform: [f32; 12],
+    instance_id_and_mask: u32,
+    instance_offset_and_flags: u32,
+    acceleration_handle: u64,
+}
 
 #[derive(Debug, Clone)]
 pub struct RayTracingCreateInfo {
@@ -10,380 +33,335 @@ pub struct RayTracingCreateInfo {
 
 #[derive(Debug, Clone)]
 pub struct RayTracingData {
+    _vertex_buffer_data: BufferData,
+    _index_buffer_data: BufferData,
+    _geometry_buffer_datas: Vec<vk::GeometryNV>,
+    _instance_buffer_data: BufferData,
+    _bottom_accel_data: vk::AccelerationStructureNV,
+    _bottom_accel_data_memory: vk::DeviceMemory,
+    _top_accel_data: vk::AccelerationStructureNV,
+    _top_accel_data_memory: vk::DeviceMemory,
+    _scratch_buffer_data: BufferData,
 }
 
-impl Default for RayTracingData {
-    fn default() -> RayTracingData {
-        RayTracingData {
-        }
+
+impl GeometryInstance {
+    fn new(
+        transform: [f32; 12],
+        id: u32,
+        mask: u8,
+        offset: u32,
+        flags: vk::GeometryInstanceFlagsNV,
+        acceleration_handle: u64,
+    ) -> Self {
+        let mut instance = GeometryInstance {
+            transform,
+            instance_id_and_mask: 0,
+            instance_offset_and_flags: 0,
+            acceleration_handle,
+        };
+        instance.set_id(id);
+        instance.set_mask(mask);
+        instance.set_offset(offset);
+        instance.set_flags(flags);
+        instance
+    }
+
+    fn set_id(&mut self, id: u32) {
+        let id = id & 0x00ffffff;
+        self.instance_id_and_mask |= id;
+    }
+
+    fn set_mask(&mut self, mask: u8) {
+        let mask = mask as u32;
+        self.instance_id_and_mask |= mask << 24;
+    }
+
+    fn set_offset(&mut self, offset: u32) {
+        let offset = offset & 0x00ffffff;
+        self.instance_offset_and_flags |= offset;
+    }
+
+    fn set_flags(&mut self, flags: vk::GeometryInstanceFlagsNV) {
+        let flags = flags.as_raw() as u32;
+        self.instance_offset_and_flags |= flags << 24;
     }
 }
 
-// pub fn create_acceleration_structures() {
-//     unsafe {
-//         // Create geometry
-//         let vertices = [
-//             Vertex {
-//                 pos: [-0.5, -0.5, 0.0],
-//             },
-//             Vertex {
-//                 pos: [0.0, 0.5, 0.0],
-//             },
-//             Vertex {
-//                 pos: [0.5, -0.5, 0.0],
-//             },
-//         ];
-//
-//         let vertex_count = vertices.len();
-//         let vertex_stride = std::mem::size_of::<Vertex>();
-//
-//         let vertex_buffer_size = vertex_stride * vertex_count;
-//         let mut vertex_buffer = BufferResource::new(
-//             vertex_buffer_size as u64,
-//             vk::BufferUsageFlags::VERTEX_BUFFER,
-//             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-//             self.base.clone(),
-//         );
-//         vertex_buffer.store(&vertices);
-//
-//         let indices = [0u16, 1, 2];
-//         let index_count = indices.len();
-//         let index_buffer_size = std::mem::size_of::<u16>() * index_count;
-//         let mut index_buffer = BufferResource::new(
-//             index_buffer_size as u64,
-//             vk::BufferUsageFlags::INDEX_BUFFER,
-//             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-//             self.base.clone(),
-//         );
-//         index_buffer.store(&indices);
-//
-//         let geometry = vec![vk::GeometryNV::builder()
-//             .geometry_type(vk::GeometryTypeNV::TRIANGLES)
-//             .geometry(
-//                 vk::GeometryDataNV::builder()
-//                     .triangles(
-//                         vk::GeometryTrianglesNV::builder()
-//                             .vertex_data(vertex_buffer.buffer)
-//                             .vertex_offset(0)
-//                             .vertex_count(vertex_count as u32)
-//                             .vertex_stride(vertex_stride as u64)
-//                             .vertex_format(vk::Format::R32G32B32_SFLOAT)
-//                             .index_data(index_buffer.buffer)
-//                             .index_offset(0)
-//                             .index_count(index_count as u32)
-//                             .index_type(vk::IndexType::UINT16)
-//                             .build(),
-//                     )
-//                     .build(),
-//             )
-//             .flags(vk::GeometryFlagsNV::OPAQUE)
-//             .build()];
-//
-//         // Create bottom-level acceleration structure
-//
-//         let accel_info = vk::AccelerationStructureCreateInfoNV::builder()
-//             .compacted_size(0)
-//             .info(
-//                 vk::AccelerationStructureInfoNV::builder()
-//                     .ty(vk::AccelerationStructureTypeNV::BOTTOM_LEVEL)
-//                     .geometries(&geometry)
-//                     .flags(vk::BuildAccelerationStructureFlagsNV::PREFER_FAST_TRACE)
-//                     .build(),
-//             )
-//             .build();
-//
-//         self.bottom_as = self
-//             .ray_tracing
-//             .create_acceleration_structure(&accel_info, None)
-//             .unwrap();
-//
-//         let memory_requirements = self
-//             .ray_tracing
-//             .get_acceleration_structure_memory_requirements(
-//                 &vk::AccelerationStructureMemoryRequirementsInfoNV::builder()
-//                     .acceleration_structure(self.bottom_as)
-//                     .ty(vk::AccelerationStructureMemoryRequirementsTypeNV::OBJECT)
-//                     .build(),
-//             );
-//
-//         self.bottom_as_memory = self
-//             .base
-//             .device
-//             .allocate_memory(
-//                 &vk::MemoryAllocateInfo::builder()
-//                     .allocation_size(memory_requirements.memory_requirements.size)
-//                     .memory_type_index(
-//                         find_memorytype_index(
-//                             &memory_requirements.memory_requirements,
-//                             &self.base.device_memory_properties,
-//                             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-//                         )
-//                             .unwrap(),
-//                     )
-//                     .build(),
-//                 None,
-//             )
-//             .unwrap();
-//
-//         self.ray_tracing
-//             .bind_acceleration_structure_memory(&[
-//                 vk::BindAccelerationStructureMemoryInfoNV::builder()
-//                     .acceleration_structure(self.bottom_as)
-//                     .memory(self.bottom_as_memory)
-//                     .build(),
-//             ])
-//             .unwrap();
-//
-//         // Create instance buffer
-//
-//         let accel_handle = self
-//             .ray_tracing
-//             .get_acceleration_structure_handle(self.bottom_as)
-//             .unwrap();
-//
-//         let transform_0: [f32; 12] =
-//             [1.0, 0.0, 0.0, -1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
-//
-//         let transform_1: [f32; 12] =
-//             [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.1, 0.0, 0.0, 1.0, 0.0];
-//
-//         let transform_2: [f32; 12] =
-//             [1.0, 0.0, 0.0, 1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
-//
-//         let instances = vec![
-//             GeometryInstance::new(
-//                 transform_0,
-//                 0, /* instance id */
-//                 0xff,
-//                 0,
-//                 vk::GeometryInstanceFlagsNV::TRIANGLE_CULL_DISABLE,
-//                 accel_handle,
-//             ),
-//             GeometryInstance::new(
-//                 transform_1,
-//                 1, /* instance id */
-//                 0xff,
-//                 0,
-//                 vk::GeometryInstanceFlagsNV::TRIANGLE_CULL_DISABLE,
-//                 accel_handle,
-//             ),
-//             GeometryInstance::new(
-//                 transform_2,
-//                 2, /* instance id */
-//                 0xff,
-//                 0,
-//                 vk::GeometryInstanceFlagsNV::TRIANGLE_CULL_DISABLE,
-//                 accel_handle,
-//             ),
-//         ];
-//
-//         let instance_buffer_size = std::mem::size_of::<GeometryInstance>() * instances.len();
-//         let mut instance_buffer = BufferResource::new(
-//             instance_buffer_size as u64,
-//             vk::BufferUsageFlags::RAY_TRACING_NV,
-//             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
-//             self.base.clone(),
-//         );
-//         instance_buffer.store(&instances);
-//
-//         // Create top-level acceleration structure
-//
-//         let accel_info = vk::AccelerationStructureCreateInfoNV::builder()
-//             .compacted_size(0)
-//             .info(
-//                 vk::AccelerationStructureInfoNV::builder()
-//                     .ty(vk::AccelerationStructureTypeNV::TOP_LEVEL)
-//                     .instance_count(instances.len() as u32)
-//                     .build(),
-//             )
-//             .build();
-//
-//         self.top_as = self
-//             .ray_tracing
-//             .create_acceleration_structure(&accel_info, None)
-//             .unwrap();
-//
-//         let memory_requirements = self
-//             .ray_tracing
-//             .get_acceleration_structure_memory_requirements(
-//                 &vk::AccelerationStructureMemoryRequirementsInfoNV::builder()
-//                     .acceleration_structure(self.top_as)
-//                     .ty(vk::AccelerationStructureMemoryRequirementsTypeNV::OBJECT)
-//                     .build(),
-//             );
-//
-//         self.top_as_memory = self
-//             .base
-//             .device
-//             .allocate_memory(
-//                 &vk::MemoryAllocateInfo::builder()
-//                     .allocation_size(memory_requirements.memory_requirements.size)
-//                     .memory_type_index(
-//                         find_memorytype_index(
-//                             &memory_requirements.memory_requirements,
-//                             &self.base.device_memory_properties,
-//                             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-//                         )
-//                             .unwrap(),
-//                     )
-//                     .build(),
-//                 None,
-//             )
-//             .unwrap();
-//
-//         self.ray_tracing
-//             .bind_acceleration_structure_memory(&[
-//                 vk::BindAccelerationStructureMemoryInfoNV::builder()
-//                     .acceleration_structure(self.top_as)
-//                     .memory(self.top_as_memory)
-//                     .build(),
-//             ])
-//             .unwrap();
-//
-//         // Build acceleration structures
-//
-//         let bottom_as_size = {
-//             let requirements = self
-//                 .ray_tracing
-//                 .get_acceleration_structure_memory_requirements(
-//                     &vk::AccelerationStructureMemoryRequirementsInfoNV::builder()
-//                         .acceleration_structure(self.bottom_as)
-//                         .ty(vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH)
-//                         .build(),
-//                 );
-//             requirements.memory_requirements.size
-//         };
-//
-//         let top_as_size = {
-//             let requirements = self
-//                 .ray_tracing
-//                 .get_acceleration_structure_memory_requirements(
-//                     &vk::AccelerationStructureMemoryRequirementsInfoNV::builder()
-//                         .acceleration_structure(self.top_as)
-//                         .ty(vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH)
-//                         .build(),
-//                 );
-//             requirements.memory_requirements.size
-//         };
-//
-//         let scratch_buffer_size = std::cmp::max(bottom_as_size, top_as_size);
-//         let scratch_buffer = BufferResource::new(
-//             scratch_buffer_size,
-//             vk::BufferUsageFlags::RAY_TRACING_NV,
-//             vk::MemoryPropertyFlags::DEVICE_LOCAL,
-//             self.base.clone(),
-//         );
-//
-//         let allocate_info = vk::CommandBufferAllocateInfo::builder()
-//             .command_buffer_count(1)
-//             .command_pool(self.base.pool)
-//             .level(vk::CommandBufferLevel::PRIMARY)
-//             .build();
-//
-//         let command_buffers = self
-//             .base
-//             .device
-//             .allocate_command_buffers(&allocate_info)
-//             .unwrap();
-//         let build_command_buffer = command_buffers[0];
-//
-//         self.base
-//             .device
-//             .begin_command_buffer(
-//                 build_command_buffer,
-//                 &vk::CommandBufferBeginInfo::builder()
-//                     .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT)
-//                     .build(),
-//             )
-//             .unwrap();
-//
-//         let memory_barrier = vk::MemoryBarrier::builder()
-//             .src_access_mask(
-//                 vk::AccessFlags::ACCELERATION_STRUCTURE_WRITE_NV
-//                     | vk::AccessFlags::ACCELERATION_STRUCTURE_READ_NV,
-//             )
-//             .dst_access_mask(
-//                 vk::AccessFlags::ACCELERATION_STRUCTURE_WRITE_NV
-//                     | vk::AccessFlags::ACCELERATION_STRUCTURE_READ_NV,
-//             )
-//             .build();
-//
-//         self.ray_tracing.cmd_build_acceleration_structure(
-//             build_command_buffer,
-//             &vk::AccelerationStructureInfoNV::builder()
-//                 .ty(vk::AccelerationStructureTypeNV::BOTTOM_LEVEL)
-//                 .geometries(&geometry)
-//                 .build(),
-//             vk::Buffer::null(),
-//             0,
-//             false,
-//             self.bottom_as,
-//             vk::AccelerationStructureNV::null(),
-//             scratch_buffer.buffer,
-//             0,
-//         );
-//
-//         self.base.device.cmd_pipeline_barrier(
-//             build_command_buffer,
-//             vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
-//             vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
-//             vk::DependencyFlags::empty(),
-//             &[memory_barrier],
-//             &[],
-//             &[],
-//         );
-//
-//         self.ray_tracing.cmd_build_acceleration_structure(
-//             build_command_buffer,
-//             &vk::AccelerationStructureInfoNV::builder()
-//                 .ty(vk::AccelerationStructureTypeNV::TOP_LEVEL)
-//                 .instance_count(instances.len() as u32)
-//                 .build(),
-//             instance_buffer.buffer,
-//             0,
-//             false,
-//             self.top_as,
-//             vk::AccelerationStructureNV::null(),
-//             scratch_buffer.buffer,
-//             0,
-//         );
-//
-//         self.base.device.cmd_pipeline_barrier(
-//             build_command_buffer,
-//             vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
-//             vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
-//             vk::DependencyFlags::empty(),
-//             &[memory_barrier],
-//             &[],
-//             &[],
-//         );
-//
-//         self.base
-//             .device
-//             .end_command_buffer(build_command_buffer)
-//             .unwrap();
-//
-//         self.base
-//             .device
-//             .queue_submit(
-//                 self.base.present_queue,
-//                 &[vk::SubmitInfo::builder()
-//                     .command_buffers(&[build_command_buffer])
-//                     .build()],
-//                 vk::Fence::null(),
-//             )
-//             .expect("queue submit failed.");
-//
-//         match self.base.device.queue_wait_idle(self.base.present_queue) {
-//             Ok(_) => println!("Successfully built acceleration structures"),
-//             Err(err) => {
-//                 println!("Failed to build acceleration structures: {:?}", err);
-//                 panic!("GPU ERROR");
-//             }
-//         }
-//
-//         self.base
-//             .device
-//             .free_command_buffers(self.base.pool, &[build_command_buffer]);
-//     }
-// }
+pub fn create_acceleration_structure(
+    device: &Device,
+    device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    ray_tracing: &RayTracing,
+    accel_create_info: &vk::AccelerationStructureCreateInfoNV
+) -> (vk::AccelerationStructureNV, vk::DeviceMemory) {
+    unsafe {
+        let accel_data = ray_tracing.create_acceleration_structure(accel_create_info, None).unwrap();
+        let memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
+            &vk::AccelerationStructureMemoryRequirementsInfoNV {
+                ty: vk::AccelerationStructureMemoryRequirementsTypeNV::OBJECT,
+                acceleration_structure: accel_data,
+                ..Default::default()
+            }
+        );
+
+        let memory_type_index = find_exactly_matching_memory_type_index(
+            &memory_requirements.memory_requirements,
+            device_memory_properties,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        ).unwrap();
+
+        let memory_allocate_create_info = vk::MemoryAllocateInfo {
+            allocation_size: memory_requirements.memory_requirements.size,
+            memory_type_index,
+            ..Default::default()
+        };
+
+        let accel_data_memory = device.allocate_memory(&memory_allocate_create_info, None).unwrap();
+        let memory_info = vk::BindAccelerationStructureMemoryInfoNV {
+            acceleration_structure: accel_data,
+            memory: accel_data_memory,
+            ..Default::default()
+        };
+        ray_tracing.bind_acceleration_structure_memory(&[memory_info]).unwrap();
+
+        return (accel_data, accel_data_memory);
+    }
+}
+
+impl RayTracingData {
+    pub fn create_ray_tracing_data() -> RayTracingData {
+        RayTracingData {
+            _vertex_buffer_data: BufferData::default(),
+            _index_buffer_data: BufferData::default(),
+            _geometry_buffer_datas: Vec::new(),
+            _instance_buffer_data: BufferData::default(),
+            _bottom_accel_data: vk::AccelerationStructureNV::null(),
+            _bottom_accel_data_memory: vk::DeviceMemory::null(),
+            _top_accel_data: vk::AccelerationStructureNV::null(),
+            _top_accel_data_memory: vk::DeviceMemory::null(),
+            _scratch_buffer_data: BufferData::default(),
+        }
+    }
+
+    pub fn initialize_ray_tracing_data(
+        &mut self,
+        device: &Device,
+        device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+        ray_tracing: &RayTracing,
+        command_pool: vk::CommandPool,
+        command_queue: vk::Queue,
+    ) {
+        unsafe {
+            log::info!("create_acceleration_structures.");
+            log::info!("////////////////////////////////////////////////");
+            log::info!("");
+            log::info!("TODO :: Clean up RayTracingData");
+            log::info!("CEHCK :: do i need _geometry_buffer_datas as a member?");
+            log::info!("CEHCK :: do i need _scratch_buffer_data as a member?");
+            log::info!("CEHCK :: do i need present_queue ??");
+            log::info!("");
+            log::info!("////////////////////////////////////////////////");
+
+            // Create vertex buffer
+            let vertex_datas: Vec<Vector3<f32>> = vec![
+                Vector3::new(-0.5, -0.5, 0.0),
+                Vector3::new(0.0, 0.5, 0.0),
+                Vector3::new(0.5, -0.5, 0.0)
+            ];
+            let vertex_stride = std::mem::size_of::<Vector3<f32>>();
+            self._vertex_buffer_data = buffer::create_buffer_data_with_uploads(
+                device,
+                command_pool,
+                command_queue,
+                device_memory_properties,
+                vk::BufferUsageFlags::VERTEX_BUFFER,
+                &vertex_datas,
+            );
+
+            // Create index buffer
+            let indices: Vec<u32> = vec![0, 1, 2];
+            self._index_buffer_data = buffer::create_buffer_data_with_uploads(
+                device,
+                command_pool,
+                command_queue,
+                device_memory_properties,
+                vk::BufferUsageFlags::INDEX_BUFFER,
+                &indices
+            );
+
+            // Create geometry buffer
+            self._geometry_buffer_datas = vec![
+                vk::GeometryNV {
+                    geometry_type: vk::GeometryTypeNV::TRIANGLES,
+                    geometry: vk::GeometryDataNV {
+                        triangles: vk::GeometryTrianglesNV {
+                            vertex_data: self._vertex_buffer_data._buffer,
+                            vertex_offset: 0,
+                            vertex_count: vertex_datas.len() as u32,
+                            vertex_stride: vertex_stride as u64,
+                            vertex_format: vk::Format::R32G32B32_SFLOAT,
+                            index_data: self._index_buffer_data._buffer,
+                            index_offset: 0,
+                            index_count: indices.len() as u32,
+                            index_type: vk::IndexType::UINT16,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                    flags: vk::GeometryFlagsNV::OPAQUE,
+                    ..Default::default()
+                }
+            ];
+
+            // Create bottom-level acceleration structure
+            let bottom_structure_create_info = vk::AccelerationStructureCreateInfoNV {
+                compacted_size: 0,
+                info: vk::AccelerationStructureInfoNV {
+                    ty: vk::AccelerationStructureTypeNV::BOTTOM_LEVEL,
+                    geometry_count: self._geometry_buffer_datas.len() as u32,
+                    p_geometries: self._geometry_buffer_datas.as_ptr(),
+                    flags: vk::BuildAccelerationStructureFlagsNV::PREFER_FAST_TRACE,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            (self._bottom_accel_data, self._bottom_accel_data_memory) = create_acceleration_structure(
+                device,
+                device_memory_properties,
+                ray_tracing,
+                &bottom_structure_create_info
+            );
+
+            // Create instance buffer
+            let accel_handle = ray_tracing.get_acceleration_structure_handle(self._bottom_accel_data).unwrap();
+            let transform_0: [f32; 12] = [1.0, 0.0, 0.0, -1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
+            let transform_1: [f32; 12] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.1, 0.0, 0.0, 1.0, 0.0];
+            let transform_2: [f32; 12] = [1.0, 0.0, 0.0, 1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
+            let instance_datas = vec![
+                GeometryInstance::new(transform_0, 0, 0xff, 0, vk::GeometryInstanceFlagsNV::TRIANGLE_FACING_CULL_DISABLE, accel_handle),
+                GeometryInstance::new(transform_1, 1, 0xff, 0, vk::GeometryInstanceFlagsNV::TRIANGLE_FACING_CULL_DISABLE, accel_handle),
+                GeometryInstance::new(transform_2, 2, 0xff, 0, vk::GeometryInstanceFlagsNV::TRIANGLE_FACING_CULL_DISABLE, accel_handle),
+            ];
+            self._instance_buffer_data = buffer::create_buffer_data_with_uploads(
+                device,
+                command_pool,
+                command_queue,
+                device_memory_properties,
+                vk::BufferUsageFlags::RAY_TRACING_NV,
+                &instance_datas
+            );
+
+            // Create top-level acceleration structure
+            let top_structure_info = vk::AccelerationStructureCreateInfoNV {
+                compacted_size: 0,
+                info: vk::AccelerationStructureInfoNV {
+                    ty: vk::AccelerationStructureTypeNV::TOP_LEVEL,
+                    instance_count: instance_datas.len() as u32,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            (self._top_accel_data, self._top_accel_data_memory) = create_acceleration_structure(
+                device,
+                device_memory_properties,
+                ray_tracing,
+                &top_structure_info
+            );
+
+            // Build acceleration structures
+            let bottom_memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
+                &vk::AccelerationStructureMemoryRequirementsInfoNV {
+                    ty: vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH,
+                    acceleration_structure: self._bottom_accel_data,
+                    ..Default::default()
+                }
+            );
+            let top_memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
+                &vk::AccelerationStructureMemoryRequirementsInfoNV {
+                    ty: vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH,
+                    acceleration_structure: self._top_accel_data,
+                    ..Default::default()
+                }
+            );
+
+            let scratch_buffer_size = std::cmp::max(bottom_memory_requirements.memory_requirements.size, top_memory_requirements.memory_requirements.size);
+            self._scratch_buffer_data = buffer::create_buffer_data(
+                device,
+                device_memory_properties,
+                scratch_buffer_size,
+                vk::BufferUsageFlags::RAY_TRACING_NV,
+                vk::MemoryPropertyFlags::DEVICE_LOCAL
+            );
+
+            // Begin - Run commands
+            run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
+                let memory_barrier = vk::MemoryBarrier {
+                    src_access_mask: vk::AccessFlags::ACCELERATION_STRUCTURE_WRITE_NV | vk::AccessFlags::ACCELERATION_STRUCTURE_READ_NV,
+                    dst_access_mask: vk::AccessFlags::ACCELERATION_STRUCTURE_WRITE_NV | vk::AccessFlags::ACCELERATION_STRUCTURE_READ_NV,
+                    ..Default::default()
+                };
+
+                ray_tracing.cmd_build_acceleration_structure(
+                    command_buffer,
+                    &vk::AccelerationStructureInfoNV {
+                        ty: vk::AccelerationStructureTypeNV::BOTTOM_LEVEL,
+                        geometry_count: self._geometry_buffer_datas.len() as u32,
+                        p_geometries: self._geometry_buffer_datas.as_ptr(),
+                        ..Default::default()
+                    },
+                    vk::Buffer::null(),
+                    0,
+                    false,
+                    self._bottom_accel_data,
+                    vk::AccelerationStructureNV::null(),
+                    self._scratch_buffer_data._buffer,
+                    0,
+                );
+
+                device.cmd_pipeline_barrier(
+                    command_buffer,
+                    vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
+                    vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
+                    vk::DependencyFlags::empty(),
+                    &[memory_barrier],
+                    &[],
+                    &[],
+                );
+
+                ray_tracing.cmd_build_acceleration_structure(
+                    command_buffer,
+                    &vk::AccelerationStructureInfoNV {
+                        ty: vk::AccelerationStructureTypeNV::TOP_LEVEL,
+                        instance_count: instance_datas.len() as u32,
+                        ..Default::default()
+                    },
+                    self._index_buffer_data._buffer,
+                    0,
+                    false,
+                    self._top_accel_data,
+                    vk::AccelerationStructureNV::null(),
+                    self._scratch_buffer_data._buffer,
+                    0,
+                );
+
+                device.cmd_pipeline_barrier(
+                    command_buffer,
+                    vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
+                    vk::PipelineStageFlags::ACCELERATION_STRUCTURE_BUILD_NV,
+                    vk::DependencyFlags::empty(),
+                    &[memory_barrier],
+                    &[],
+                    &[],
+                );
+            }); // End - run_commands_once
+        } // End - create_acceleration_structure_datas
+    }
+
+    pub fn destroy_ray_tracing_data(&mut self, device: &Device) {
+        log::info!("destroy_ray_tracing_data");
+        buffer::destroy_buffer_data(device, &self._vertex_buffer_data);
+        buffer::destroy_buffer_data(device, &self._index_buffer_data);
+        buffer::destroy_buffer_data(device, &self._instance_buffer_data);
+        buffer::destroy_buffer_data(device, &self._scratch_buffer_data);
+    }
+}

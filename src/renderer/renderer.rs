@@ -201,6 +201,7 @@ impl RendererData {
             // ray tracing properties
             let ray_tracing_properties = RayTracing::get_properties(&instance, physical_device);
             log::info!("NV Ray Tracing Properties:");
+            log::info!("    has_ray_tracing_extensions: {}", has_ray_tracing_extensions);
             log::info!("    shader_group_handle_size: {}", ray_tracing_properties.shader_group_handle_size);
             log::info!("    max_recursion_depth: {}", ray_tracing_properties.max_recursion_depth);
             log::info!("    max_shader_group_stride: {}", ray_tracing_properties.max_shader_group_stride);
