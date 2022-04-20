@@ -268,7 +268,6 @@ pub fn create_write_descriptor_sets_with_update(
                         write_descriptor_set.descriptor_count = 1;
                     },
                     DescriptorResourceInfo::InvalidDescriptorInfo => {
-                        write_descriptor_set = vk::WriteDescriptorSet::default();
                     }
                 }
                 write_descriptor_sets.push(write_descriptor_set);

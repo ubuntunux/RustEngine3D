@@ -7,13 +7,21 @@ use ash::{
     vk,
     Device,
 };
+use ash::vk::Handle;
 use ash::extensions::nv;
 use ash::extensions::nv::RayTracing;
 
-use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
+use crate::vulkan_context::buffer::{
+    self,
+    BufferData
+};
 use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorData,
+};
+use crate::vulkan_context::geometry_buffer::{
+    VertexData,
+    StaticVertexData
 };
 use crate::vulkan_context::framebuffer::{
     FramebufferDataCreateInfo,
@@ -22,8 +30,12 @@ use crate::vulkan_context::shader::{
     create_shader_stage_create_info,
     destroy_shader_stage_create_info
 };
-use crate::utilities::system::{ RcRefCell, newRcRefCell };
-use ash::vk::Handle;
+use crate::utilities::system::{
+    RcRefCell,
+    newRcRefCell
+};
+use crate::renderer::renderer::RendererData;
+
 
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
@@ -61,7 +73,9 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_data_create_info_name: String,
     pub _pipeline_bind_point: vk::PipelineBindPoint,
     pub _pipeline_create_flags: vk::PipelineCreateFlags,
-    pub _pipeline_ray_tracing_shader_file: PathBuf,
+    pub _pipeline_ray_generation_shader_file: PathBuf,
+    pub _pipeline_ray_closet_hit_shader_file: PathBuf,
+    pub _pipeline_ray_miss_shader_file: PathBuf,
     pub _pipeline_compute_shader_file: PathBuf,
     pub _pipeline_vertex_shader_file: PathBuf,
     pub _pipeline_fragment_shader_file: PathBuf,
@@ -90,7 +104,9 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_compute_shader_file: PathBuf::new(),
             _pipeline_vertex_shader_file: PathBuf::new(),
             _pipeline_fragment_shader_file: PathBuf::new(),
-            _pipeline_ray_tracing_shader_file: PathBuf::new(),
+            _pipeline_ray_generation_shader_file: PathBuf::new(),
+            _pipeline_ray_closet_hit_shader_file: PathBuf::new(),
+            _pipeline_ray_miss_shader_file: PathBuf::new(),
             _pipeline_shader_defines: Vec::new(),
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: vk::SampleCountFlags::TYPE_1,
@@ -197,6 +213,7 @@ pub struct PipelineData {
     pub _pipeline_layout: vk::PipelineLayout,
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
+    pub _shader_binding_table: Option<BufferData>,
 }
 
 impl Default for PipelineData {
@@ -212,6 +229,7 @@ impl Default for PipelineData {
             _pipeline_layout: vk::PipelineLayout::null(),
             _pipeline_dynamic_states: Vec::new(),
             _descriptor_data: DescriptorData::default(),
+            _shader_binding_table: None,
         }
     }
 }
@@ -250,11 +268,11 @@ impl RenderPassData {
 }
 
 pub fn create_render_pass_data(
-    device: &Device,
-    ray_tracing: &RayTracing,
+    renderer_data: &RendererData,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
     descriptor_datas: &Vec<RcRefCell<DescriptorData>>
 ) -> RenderPassData {
+    let device = renderer_data.get_device();
     let render_pass = create_render_pass(device, &render_pass_data_create_info);
     let count = render_pass_data_create_info._pipeline_data_create_infos.len();
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
@@ -279,7 +297,11 @@ pub fn create_render_pass_data(
             } else if vk::PipelineBindPoint::RAY_TRACING_KHR == bind_point || vk::PipelineBindPoint::RAY_TRACING_NV == bind_point {
                 create_ray_tracing_pipeline_data(
                     device,
-                    ray_tracing,
+                    renderer_data.get_command_pool(),
+                    renderer_data.get_graphics_queue(),
+                    renderer_data.get_device_memory_properties(),
+                    renderer_data.get_ray_tracing(),
+                    renderer_data.get_ray_tracing_properties(),
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
                     &descriptor_datas[i].borrow()
                 )
@@ -304,7 +326,7 @@ pub fn create_render_pass_data(
 pub fn destroy_render_pass_data(device: &Device, render_pass_data: &RenderPassData) {
     destroy_render_pass(device, render_pass_data._render_pass, &render_pass_data._render_pass_data_name);
     for pipeline_data in render_pass_data._pipeline_data_map.values() {
-        destroy_pipeline_data(device, &pipeline_data.borrow());
+        destroy_pipeline_data(device, &mut pipeline_data.borrow_mut());
     }
 }
 
@@ -634,12 +656,16 @@ pub fn create_compute_pipeline_data(
 
 pub fn create_ray_tracing_pipeline_data(
     device: &Device,
+    command_pool: vk::CommandPool,
+    command_queue: vk::Queue,
+    device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
     ray_tracing: &RayTracing,
+    ray_tracing_properties: &vk::PhysicalDeviceRayTracingPropertiesNV,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     descriptor_data: &DescriptorData
 ) -> PipelineData {
     let shader_groups = vec![
-        // ray gen
+        // ray generation
         vk::RayTracingShaderGroupCreateInfoNV {
             ty: vk::RayTracingShaderGroupTypeNV::GENERAL,
             general_shader: 0,
@@ -648,7 +674,7 @@ pub fn create_ray_tracing_pipeline_data(
             intersection_shader: vk::SHADER_UNUSED_NV,
             ..Default::default()
         },
-        // hit
+        // ray closet-hit
         vk::RayTracingShaderGroupCreateInfoNV {
             ty: vk::RayTracingShaderGroupTypeNV::TRIANGLES_HIT_GROUP,
             general_shader: vk::SHADER_UNUSED_NV,
@@ -657,7 +683,7 @@ pub fn create_ray_tracing_pipeline_data(
             intersection_shader: vk::SHADER_UNUSED_NV,
             ..Default::default()
         },
-        // miss
+        // ray miss
         vk::RayTracingShaderGroupCreateInfoNV {
             ty: vk::RayTracingShaderGroupTypeNV::GENERAL,
             general_shader: 2,
@@ -667,23 +693,24 @@ pub fn create_ray_tracing_pipeline_data(
             ..Default::default()
         }
     ];
+    let shader_group_count: u32 = shader_groups.len() as u32;
 
     let shader_create_infos = [
         create_shader_stage_create_info(
             device,
-            &pipeline_data_create_info._pipeline_ray_tracing_shader_file,
+            &pipeline_data_create_info._pipeline_ray_generation_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
             vk::ShaderStageFlags::RAYGEN_KHR
         ),
         create_shader_stage_create_info(
             device,
-            &pipeline_data_create_info._pipeline_ray_tracing_shader_file,
+            &pipeline_data_create_info._pipeline_ray_closet_hit_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
             vk::ShaderStageFlags::CLOSEST_HIT_KHR
         ),
         create_shader_stage_create_info(
             device,
-            &pipeline_data_create_info._pipeline_ray_tracing_shader_file,
+            &pipeline_data_create_info._pipeline_ray_miss_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
             vk::ShaderStageFlags::MISS_KHR
         )
@@ -698,7 +725,7 @@ pub fn create_ray_tracing_pipeline_data(
         vk::RayTracingPipelineCreateInfoNV {
             stage_count: shader_create_infos.len() as u32,
             p_stages: shader_create_infos.as_ptr(),
-            group_count: shader_groups.len() as u32,
+            group_count: shader_group_count,
             p_groups: shader_groups.as_ptr(),
             max_recursion_depth: 1,
             layout: pipeline_layout,
@@ -707,28 +734,52 @@ pub fn create_ray_tracing_pipeline_data(
     ];
 
     unsafe {
-        let pipelines = ray_tracing.create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None,).expect("vkCreateComputePipelines failed!");
+        let pipeline = ray_tracing.create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None,).expect("create_ray_tracing_pipelines failed!")[0];
 
-        log::trace!("    create_ray_tracing_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipelines);
+        log::trace!("    create_ray_tracing_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipeline);
         log::trace!("    shader defines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
         for shader_create_info in shader_create_infos {
-            log::trace!("    ray tracing shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_tracing_shader_file);
+            log::trace!("    ray generation shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_generation_shader_file);
+            log::trace!("    ray closet-hit shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_closet_hit_shader_file);
+            log::trace!("    ray miss shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_miss_shader_file);
         }
+
+        // create shader binding table
+        let table_size = (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
+        let mut table_data: Vec<u8> = vec![0u8; table_size as usize];
+        ray_tracing.get_ray_tracing_shader_group_handles(pipeline, 0, shader_group_count, &mut table_data).expect("get_ray_tracing_shader_group_handles failed!");
+
+        let shader_binding_table = buffer::create_buffer_data_with_uploads(
+            device,
+            command_pool,
+            command_queue,
+            device_memory_properties,
+            vk::BufferUsageFlags::TRANSFER_SRC,
+            &table_data
+        );
+
+        log::info!("////////////////////////////////////////////////");
+        log::info!("");
+        log::info!("create_ray_tracing_pipeline_data.");
+        log::info!("CEHCK :: do i need present_queue or graphics queue ??");
+        log::info!("");
+        log::info!("////////////////////////////////////////////////");
 
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,
-            _pipeline: pipelines[0],
+            _pipeline: pipeline,
             _pipeline_layout: pipeline_layout,
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
+            _shader_binding_table: Some(shader_binding_table),
             ..Default::default()
         }
     }
 }
 
-pub fn destroy_pipeline_data(device: &Device, pipeline_data: &PipelineData) {
+pub fn destroy_pipeline_data(device: &Device, pipeline_data: &mut PipelineData) {
     log::debug!("    destroy_pipeline_data: {}, pipeline: {:?}, pipeline_layout: {:?}", pipeline_data._pipeline_data_name,pipeline_data._pipeline, pipeline_data._pipeline_layout);
     unsafe {
         device.destroy_pipeline(pipeline_data._pipeline, None);
@@ -739,5 +790,9 @@ pub fn destroy_pipeline_data(device: &Device, pipeline_data: &PipelineData) {
     destroy_shader_stage_create_info(device, &pipeline_data._fragment_shader_create_info);
     for shader_create_info in pipeline_data._ray_tracing_shader_create_infos {
         destroy_shader_stage_create_info(device, &shader_create_info);
+    }
+    if pipeline_data._shader_binding_table.is_some() {
+        buffer::destroy_buffer_data(device, &pipeline_data._shader_binding_table.unwrap());
+        pipeline_data._shader_binding_table = None;
     }
 }

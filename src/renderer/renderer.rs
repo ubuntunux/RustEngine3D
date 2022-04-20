@@ -45,6 +45,7 @@ use crate::vulkan_context::buffer::{ ShaderBufferData };
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
+use crate::vulkan_context::ray_tracing::RayTracingData;
 use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, RenderPassData, PipelineData };
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
@@ -159,7 +160,8 @@ pub struct RendererData {
     pub _image_samplers: ImageSamplerData,
     pub _use_ray_tracing: bool,
     pub _ray_tracing: Rc<RayTracing>,
-    pub _ray_traing_properties: vk::PhysicalDeviceRayTracingPropertiesNV,
+    pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV,
+    pub _ray_tracing_test_data: RayTracingData,
     pub _resources: RcRefCell<Resources>,
     pub _project_renderer: *const dyn ProjectRendererBase,
 }
@@ -311,7 +313,8 @@ impl RendererData {
                 _image_samplers: ImageSamplerData::default(),
                 _use_ray_tracing: has_ray_tracing_extensions,
                 _ray_tracing: ray_tracing,
-                _ray_traing_properties: ray_tracing_properties,
+                _ray_tracing_properties: ray_tracing_properties,
+                _ray_tracing_test_data: RayTracingData::create_ray_tracing_data(),
                 _resources: resources.clone(),
                 _project_renderer: project_renderer,
             }
@@ -324,6 +327,9 @@ impl RendererData {
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device());
         self.get_project_renderer_mut().initialize_project_renderer(self);
+
+        // TEST CODE
+        self.create_ray_tracing_test_data();
     }
     pub fn get_project_renderer(&self) -> &dyn ProjectRendererBase { unsafe { &*(self._project_renderer) } }
     pub fn get_project_renderer_mut(&self) -> &mut dyn ProjectRendererBase { unsafe { &mut *(self._project_renderer as *mut dyn ProjectRendererBase) } }
@@ -336,6 +342,26 @@ impl RendererData {
     pub fn get_device(&self) -> &Device { &self._device }
     pub fn get_use_ray_tracing(&self) -> bool { self._use_ray_tracing }
     pub fn get_ray_tracing(&self) -> &RayTracing { &self._ray_tracing }
+    pub fn get_ray_tracing_properties(&self) -> &vk::PhysicalDeviceRayTracingPropertiesNV { &self._ray_tracing_properties }
+
+    // TEST CODE
+    pub fn get_ray_tracing_test_data(&self) -> &RayTracingData { &self._ray_tracing_test_data }
+    pub fn create_ray_tracing_test_data(&mut self) {
+        log::info!("///////////////////////////////////////////////");
+        log::info!("TEST CODE: create_ray_tracing_test_data");
+        log::info!("///////////////////////////////////////////////");
+        let mut t = RayTracingData::create_ray_tracing_data();
+        t.initialize_ray_tracing_data(
+            self.get_device(),
+            self.get_device_memory_properties(),
+            self.get_ray_tracing(),
+            self.get_command_pool(),
+            self.get_graphics_queue(),
+        );
+        self._ray_tracing_test_data = t;
+    }
+    //
+
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties { &self._device_properties }
     pub fn get_device_memory_properties(&self) -> &vk::PhysicalDeviceMemoryProperties { &self._device_memory_properties }
     pub fn get_physical_device(&self) -> vk::PhysicalDevice { self._physical_device }

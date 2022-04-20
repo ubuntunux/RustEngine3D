@@ -821,8 +821,7 @@ impl Resources {
                     self.get_descriptor_data(renderer_data, &render_pass_data_create_info._render_pass_create_info_name, pipeline_data_create_info)
                 }).collect();
             let default_render_pass_data = render_pass::create_render_pass_data(
-                renderer_data.get_device(),
-                renderer_data.get_ray_tracing(),
+                renderer_data,
                 render_pass_data_create_info,
                 &descriptor_datas
             );
@@ -978,14 +977,7 @@ impl Resources {
                                 log::info!("///////////////////////////////////////////////");
                                 log::info!("TEST CODE: RAY TRACING");
                                 log::info!("///////////////////////////////////////////////");
-                                let mut ray_tracing_data = RayTracingData::create_ray_tracing_data();
-                                ray_tracing_data.initialize_ray_tracing_data(
-                                    renderer_data.get_device(),
-                                    renderer_data.get_device_memory_properties(),
-                                    renderer_data.get_ray_tracing(),
-                                    renderer_data.get_command_pool(),
-                                    renderer_data.get_graphics_queue(),
-                                );
+                                let ray_tracing_data = renderer_data.get_ray_tracing_test_data();
                                 DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&ray_tracing_data._top_write_descriptor_set_accel_struct)
                             },
                         };
