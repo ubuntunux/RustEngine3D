@@ -310,7 +310,7 @@ pub fn destroy_render_pass_data(device: &Device, render_pass_data: &RenderPassDa
 
 
 pub fn create_render_pass(
-    deivce: &Device,
+    device: &Device,
     render_pass_data_create_info: &RenderPassDataCreateInfo
 ) -> vk::RenderPass {
     let create_image_attachment = | attachment_description: &ImageAttachmentDescription | -> vk::AttachmentDescription {
@@ -382,7 +382,7 @@ pub fn create_render_pass(
         ..Default::default()
     };
     unsafe {
-        let render_pass = deivce.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
+        let render_pass = device.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
         log::debug!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
         render_pass
     }

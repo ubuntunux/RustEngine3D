@@ -25,6 +25,7 @@ use crate::renderer::renderer::RendererData;
 use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
+use crate::vulkan_context::ray_tracing::{ RayTracingData };
 use crate::vulkan_context::render_pass::{
     self,
     PipelineDataCreateInfo,
@@ -972,6 +973,20 @@ impl Resources {
                                 } else {
                                     DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_default_image_info())
                                 }
+                            },
+                            DescriptorResourceType::AccelerationStructure => {
+                                log::info!("///////////////////////////////////////////////");
+                                log::info!("TEST CODE: RAY TRACING");
+                                log::info!("///////////////////////////////////////////////");
+                                let mut ray_tracing_data = RayTracingData::create_ray_tracing_data();
+                                ray_tracing_data.initialize_ray_tracing_data(
+                                    renderer_data.get_device(),
+                                    renderer_data.get_device_memory_properties(),
+                                    renderer_data.get_ray_tracing(),
+                                    renderer_data.get_command_pool(),
+                                    renderer_data.get_graphics_queue(),
+                                );
+                                DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&ray_tracing_data._top_write_descriptor_set_accel_struct)
                             },
                         };
                         return descriptor_resource_info;

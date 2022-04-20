@@ -1,3 +1,5 @@
+use std::ffi::c_void;
+
 use ash::{
     vk,
     Device,
@@ -10,6 +12,7 @@ use crate::vulkan_context::vulkan_context::SwapchainArray;
 pub enum DescriptorResourceInfo {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
     DescriptorImageInfo(vk::DescriptorImageInfo),
+    WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV),
     InvalidDescriptorInfo
 }
 
@@ -21,6 +24,7 @@ pub enum DescriptorResourceType {
     RenderTarget,
     StorageTexture,
     StorageRenderTarget,
+    AccelerationStructure,
 }
 
 #[derive(Debug, Clone)]
@@ -75,6 +79,7 @@ impl Default for DescriptorData {
     }
 }
 
+
 impl DescriptorDataCreateInfo {
     pub fn get_descriptor_type(&self) -> vk::DescriptorType {
         match self._descriptor_resource_type {
@@ -84,6 +89,7 @@ impl DescriptorDataCreateInfo {
             DescriptorResourceType::RenderTarget => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
             DescriptorResourceType::StorageTexture => vk::DescriptorType::STORAGE_IMAGE,
             DescriptorResourceType::StorageRenderTarget => vk::DescriptorType::STORAGE_IMAGE,
+            DescriptorResourceType::AccelerationStructure => vk::DescriptorType::ACCELERATION_STRUCTURE_NV,
         }
     }
 }
@@ -146,7 +152,7 @@ pub fn create_descriptor_data(
     descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
     max_descriptor_sets_count: u32
 ) -> DescriptorData {
-    log::trace!("createDescriptorData");
+    log::trace!("create_descriptor_data");
     let descriptor_layout_bindings = descriptor_data_create_infos
         .iter()
         .map(|descriptor_data_create_info| {
@@ -242,30 +248,29 @@ pub fn create_write_descriptor_sets_with_update(
             let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::new();
             let count = descriptor_bind_indices.len();
             for index in 0..count {
-                let mut write_descriptor_set = vk::WriteDescriptorSet {
-                    dst_set: descriptor_set,
-                    dst_binding: descriptor_bind_indices[index],
-                    dst_array_element: 0,
-                    descriptor_type: descriptor_set_layout_bindings[index].descriptor_type,
-                    descriptor_count: 1,
-                    ..Default::default()
-                };
+                let mut write_descriptor_set = vk::WriteDescriptorSet::default();
+                write_descriptor_set.dst_set = descriptor_set;
+                write_descriptor_set.dst_binding = descriptor_bind_indices[index];
+                write_descriptor_set.dst_array_element = 0;
+                write_descriptor_set.descriptor_type = descriptor_set_layout_bindings[index].descriptor_type;
 
                 match &descriptor_resource_infos[index] {
                     DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
                         write_descriptor_set.p_buffer_info = buffer_info;
-                        write_descriptor_set.p_image_info = std::ptr::null();
+                        write_descriptor_set.descriptor_count = 1;
                     },
                     DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
-                        write_descriptor_set.p_buffer_info = std::ptr::null();
                         write_descriptor_set.p_image_info = image_info;
+                        write_descriptor_set.descriptor_count = 1;
                     },
-                    _ => {
-                        write_descriptor_set.p_buffer_info = std::ptr::null();
-                        write_descriptor_set.p_image_info = std::ptr::null();
+                    DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(write_acceleration_structure) => {
+                        write_descriptor_set.p_next = (*write_acceleration_structure) as *const c_void;
+                        write_descriptor_set.descriptor_count = 1;
+                    },
+                    DescriptorResourceInfo::InvalidDescriptorInfo => {
+                        write_descriptor_set = vk::WriteDescriptorSet::default();
                     }
                 }
-
                 write_descriptor_sets.push(write_descriptor_set);
             }
 
@@ -288,12 +293,20 @@ pub fn create_write_descriptor_set(
         DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
             write_descriptor_set.p_buffer_info = buffer_info;
             write_descriptor_set.p_image_info = std::ptr::null();
+            write_descriptor_set.descriptor_count = 1;
         },
         DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
             write_descriptor_set.p_buffer_info = std::ptr::null();
             write_descriptor_set.p_image_info = image_info;
+            write_descriptor_set.descriptor_count = 1;
         },
-        _ => {
+        DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(write_acceleration_structure) => {
+            write_descriptor_set.p_buffer_info = std::ptr::null();
+            write_descriptor_set.p_image_info = std::ptr::null();
+            write_descriptor_set.p_next = (*write_acceleration_structure) as *const c_void;
+            write_descriptor_set.descriptor_count = 1;
+        },
+        DescriptorResourceInfo::InvalidDescriptorInfo => {
             write_descriptor_set.p_buffer_info = std::ptr::null();
             write_descriptor_set.p_image_info = std::ptr::null();
         }
