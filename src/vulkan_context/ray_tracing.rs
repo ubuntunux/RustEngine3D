@@ -97,6 +97,9 @@ pub fn create_acceleration_structure(
     accel_create_info: &vk::AccelerationStructureCreateInfoNV
 ) -> (vk::AccelerationStructureNV, vk::DeviceMemory, vk::WriteDescriptorSetAccelerationStructureNV) {
     unsafe {
+        log::info!("-----------------------------------------");
+        log::info!("TEST CODE: create_acceleration_structure: {:?}", accel_create_info);
+        log::info!("-----------------------------------------");
         let accel_struct = ray_tracing.create_acceleration_structure(accel_create_info, None).unwrap();
         let memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
             &vk::AccelerationStructureMemoryRequirementsInfoNV {
@@ -162,15 +165,13 @@ impl RayTracingData {
         command_queue: vk::Queue,
     ) {
         unsafe {
-            log::info!("create_acceleration_structures.");
-            log::info!("////////////////////////////////////////////////");
-            log::info!("");
+            log::info!("--------------------------------------------------");
+            log::info!("TEST CODE: initialize_ray_tracing_data.");
             log::info!("TODO :: Clean up RayTracingData");
             log::info!("CEHCK :: do i need _geometry_buffer_datas as a member?");
             log::info!("CEHCK :: do i need _scratch_buffer_data as a member?");
             log::info!("CEHCK :: do i need present_queue ??");
-            log::info!("");
-            log::info!("////////////////////////////////////////////////");
+            log::info!("--------------------------------------------------");
 
             // Create vertex buffer
             let vertex_datas: Vec<Vector3<f32>> = vec![
@@ -236,6 +237,7 @@ impl RayTracingData {
                 ..Default::default()
             };
 
+            log::info!("TEST CODE: bottom create_acceleration_structure");
             (self._bottom_accel_struct, self._bottom_accel_struct_memory, self._bottom_write_descriptor_set_accel_struct) =
                 create_acceleration_structure(
                     device,
@@ -274,6 +276,7 @@ impl RayTracingData {
                 ..Default::default()
             };
 
+            log::info!("TEST CODE: top create_acceleration_structure");
             (self._top_accel_struct, self._top_accel_struct_memory, self._top_write_descriptor_set_accel_struct) =
                 create_acceleration_structure(
                     device,

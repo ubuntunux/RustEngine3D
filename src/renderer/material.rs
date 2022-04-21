@@ -15,20 +15,23 @@ pub struct MaterialData {
 impl MaterialData {
     pub fn create_material(
         material_data_name: &String,
-        render_pass_pipeline_datas: &Vec<RenderPassPipelineData>,
+        render_pass_pipeline_datas: &Vec<Option<RenderPassPipelineData>>,
         material_parameter_map: &serde_json::Value
     ) -> MaterialData {
         log::debug!("create_material: {}", material_data_name);
 
         let mut render_pass_pipeline_data_map = RenderPassPipelineDataMap::new();
-        for render_pass_pipeline_data in render_pass_pipeline_datas {
-            let render_pass_pipeline_data_name = format!(
-                "{}/{}",
-                render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
-                render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name
-            );
-            log::trace!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
-            render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, render_pass_pipeline_data.clone());
+        for maybe_render_pass_pipeline_data in render_pass_pipeline_datas.iter() {
+            if maybe_render_pass_pipeline_data.is_some() {
+                let render_pass_pipeline_data = maybe_render_pass_pipeline_data.as_ref().unwrap();
+                let render_pass_pipeline_data_name = format!(
+                    "{}/{}",
+                    render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
+                    render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name
+                );
+                log::trace!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
+                render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, render_pass_pipeline_data.clone());
+            }
         }
         MaterialData {
             _material_data_name: material_data_name.clone(),

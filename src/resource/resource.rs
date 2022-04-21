@@ -876,7 +876,7 @@ impl Resources {
                 Some(material_parameters) => material_parameters,
                 _ => &empty_object,
             };
-            let render_pass_pipeline_datas: Vec<RenderPassPipelineData> = pipeline_create_infos.iter().map(|pipeline_create_info| {
+            let render_pass_pipeline_datas: Vec<Option<RenderPassPipelineData>> = pipeline_create_infos.iter().map(|pipeline_create_info| {
                 let render_pass_data_name = match pipeline_create_info.get("render_pass").unwrap() {
                     Value::String(render_pass_data_name) => render_pass_data_name,
                     _ => panic!("failed to parsing render_pass"),
@@ -885,7 +885,12 @@ impl Resources {
                     Value::String(pipeline_data_name) => pipeline_data_name,
                     _ => panic!("failed to parsing pipeline"),
                 };
-                self.get_render_pass_pipeline_data(render_pass_data_name.as_str(), pipeline_data_name.as_str())
+
+                if self.has_render_pass_data(render_pass_data_name.as_str()) {
+                    Some(self.get_render_pass_pipeline_data(render_pass_data_name.as_str(), pipeline_data_name.as_str()))
+                } else {
+                    None
+                }
             }).collect();
             let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
@@ -974,9 +979,10 @@ impl Resources {
                                 }
                             },
                             DescriptorResourceType::AccelerationStructure => {
-                                log::info!("///////////////////////////////////////////////");
-                                log::info!("TEST CODE: RAY TRACING");
-                                log::info!("///////////////////////////////////////////////");
+                                log::info!("--------------------------------------------------");
+                                log::info!("TEST CODE: load_material_instance_datas");
+                                log::info!("    WriteDescriptorSetAccelerationStructure");
+                                log::info!("--------------------------------------------------");
                                 let ray_tracing_data = renderer_data.get_ray_tracing_test_data();
                                 DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&ray_tracing_data._top_write_descriptor_set_accel_struct)
                             },

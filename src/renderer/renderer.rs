@@ -329,7 +329,9 @@ impl RendererData {
         self.get_project_renderer_mut().initialize_project_renderer(self);
 
         // TEST CODE
-        self.create_ray_tracing_test_data();
+        if self.get_use_ray_tracing() {
+            self.create_ray_tracing_test_data();
+        }
     }
     pub fn get_project_renderer(&self) -> &dyn ProjectRendererBase { unsafe { &*(self._project_renderer) } }
     pub fn get_project_renderer_mut(&self) -> &mut dyn ProjectRendererBase { unsafe { &mut *(self._project_renderer as *mut dyn ProjectRendererBase) } }
@@ -347,9 +349,9 @@ impl RendererData {
     // TEST CODE
     pub fn get_ray_tracing_test_data(&self) -> &RayTracingData { &self._ray_tracing_test_data }
     pub fn create_ray_tracing_test_data(&mut self) {
-        log::info!("///////////////////////////////////////////////");
+        log::info!("--------------------------------------------------");
         log::info!("TEST CODE: create_ray_tracing_test_data");
-        log::info!("///////////////////////////////////////////////");
+        log::info!("--------------------------------------------------");
         let mut t = RayTracingData::create_ray_tracing_data();
         t.initialize_ray_tracing_data(
             self.get_device(),
