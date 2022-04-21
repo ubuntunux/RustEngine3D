@@ -984,7 +984,8 @@ impl Resources {
                                 log::info!("    WriteDescriptorSetAccelerationStructure");
                                 log::info!("--------------------------------------------------");
                                 let ray_tracing_data = renderer_data.get_ray_tracing_test_data();
-                                DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&ray_tracing_data._top_write_descriptor_set_accel_struct)
+                                //DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&ray_tracing_data._top_write_descriptor_set_accel_struct)
+                                DescriptorResourceInfo::AccelerationStructureNV(ray_tracing_data._top_accel_struct)
                             },
                         };
                         return descriptor_resource_info;
