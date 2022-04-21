@@ -275,7 +275,7 @@ pub fn create_write_descriptor_sets_with_update(
                             .dst_binding(descriptor_bind_indices[index])
                             .dst_array_element(0)
                             .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_NV)
-                            .push_next(&mut write_descriptor_set_accel_struct.clone())
+                            .push_next(&mut write_descriptor_set_accel_struct)
                             .build();
                         write_descriptor_set.descriptor_count = 1;
                     },
