@@ -243,9 +243,6 @@ pub fn create_write_descriptor_sets_with_update(
     constants::SWAPCHAIN_IMAGE_INDICES
         .iter()
         .map(|index| {
-            let mut temp0: Vec<vk::AccelerationStructureNV> = Vec::new();
-            let mut temp1: Vec<vk::WriteDescriptorSetAccelerationStructureNV> = Vec::new();
-
             let descriptor_set = descriptor_sets[*index as usize];
             let descriptor_resource_infos = &descriptor_resource_infos_list[*index as usize];
             let mut write_descriptor_sets = Vec::<vk::WriteDescriptorSet>::new();
@@ -267,23 +264,18 @@ pub fn create_write_descriptor_sets_with_update(
                         write_descriptor_set.descriptor_count = 1;
                     },
                     DescriptorResourceInfo::AccelerationStructureNV(accel_struct) => {
-
-                        temp0.push(*accel_struct);
-
-                        let write_descriptor_set_accel_struct = vk::WriteDescriptorSetAccelerationStructureNV {
-                            p_acceleration_structures: temp0.last().unwrap(),
+                        let mut write_descriptor_set_accel_struct = vk::WriteDescriptorSetAccelerationStructureNV {
+                            p_acceleration_structures: accel_struct,
                             acceleration_structure_count: 1,
                             ..Default::default()
                         };
-
-                        temp1.push(write_descriptor_set_accel_struct);
 
                         write_descriptor_set = vk::WriteDescriptorSet::builder()
                             .dst_set(descriptor_set)
                             .dst_binding(descriptor_bind_indices[index])
                             .dst_array_element(0)
                             .descriptor_type(vk::DescriptorType::ACCELERATION_STRUCTURE_NV)
-                            .push_next(temp1.last_mut().unwrap())
+                            .push_next(&mut write_descriptor_set_accel_struct.clone())
                             .build();
                         write_descriptor_set.descriptor_count = 1;
                     },
