@@ -16,6 +16,7 @@ use crate::constants;
 use crate::renderer::utility::find_exactly_matching_memory_type_index;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::buffer::BufferData;
+use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::vulkan_context::run_commands_once;
 
 #[repr(C)]
@@ -95,7 +96,7 @@ pub fn create_acceleration_structure(
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
     ray_tracing: &RayTracing,
     accel_create_info: &vk::AccelerationStructureCreateInfoNV
-) -> (vk::AccelerationStructureNV, vk::DeviceMemory, vk::WriteDescriptorSetAccelerationStructureNV) {
+) -> (vk::AccelerationStructureNV, vk::DeviceMemory) {
     unsafe {
         log::info!("-----------------------------------------");
         log::info!("TEST CODE: create_acceleration_structure: {:?}", accel_create_info);
@@ -129,13 +130,7 @@ pub fn create_acceleration_structure(
         };
         ray_tracing.bind_acceleration_structure_memory(&[memory_info]).unwrap();
 
-        let write_descriptor_set_accel_struct = vk::WriteDescriptorSetAccelerationStructureNV {
-            p_acceleration_structures: &accel_struct,
-            acceleration_structure_count: 1,
-            ..Default::default()
-        };
-
-        return (accel_struct, accel_struct_memory, write_descriptor_set_accel_struct);
+        return (accel_struct, accel_struct_memory);
     }
 }
 
@@ -165,13 +160,11 @@ impl RayTracingData {
         command_queue: vk::Queue,
     ) {
         unsafe {
-            log::info!("--------------------------------------------------");
-            log::info!("TEST CODE: initialize_ray_tracing_data.");
-            log::info!("TODO :: Clean up RayTracingData");
-            log::info!("CEHCK :: do i need _geometry_buffer_datas as a member?");
-            log::info!("CEHCK :: do i need _scratch_buffer_data as a member?");
-            log::info!("CEHCK :: do i need present_queue ??");
-            log::info!("--------------------------------------------------");
+            log::info!(">>> TEST CODE: initialize_ray_tracing_data.");
+            log::info!("    TODO :: Clean up RayTracingData");
+            log::info!("    CEHCK :: do i need _geometry_buffer_datas as a member?");
+            log::info!("    CEHCK :: do i need _scratch_buffer_data as a member?");
+            log::info!("    CEHCK :: do i need present_queue ??");
 
             // Create vertex buffer
             let vertex_datas: Vec<Vector3<f32>> = vec![
@@ -237,14 +230,18 @@ impl RayTracingData {
                 ..Default::default()
             };
 
-            log::info!("TEST CODE: bottom create_acceleration_structure");
-            (self._bottom_accel_struct, self._bottom_accel_struct_memory, self._bottom_write_descriptor_set_accel_struct) =
+            (self._bottom_accel_struct, self._bottom_accel_struct_memory) =
                 create_acceleration_structure(
                     device,
                     device_memory_properties,
                     ray_tracing,
                     &bottom_structure_create_info
                 );
+            self._bottom_write_descriptor_set_accel_struct = vk::WriteDescriptorSetAccelerationStructureNV {
+                p_acceleration_structures: &self._bottom_accel_struct,
+                acceleration_structure_count: 1,
+                ..Default::default()
+            };
 
             // Create instance buffer
             let accel_handle = ray_tracing.get_acceleration_structure_handle(self._bottom_accel_struct).unwrap();
@@ -276,14 +273,18 @@ impl RayTracingData {
                 ..Default::default()
             };
 
-            log::info!("TEST CODE: top create_acceleration_structure");
-            (self._top_accel_struct, self._top_accel_struct_memory, self._top_write_descriptor_set_accel_struct) =
+            (self._top_accel_struct, self._top_accel_struct_memory) =
                 create_acceleration_structure(
                     device,
                     device_memory_properties,
                     ray_tracing,
                     &top_structure_info
                 );
+            self._top_write_descriptor_set_accel_struct = vk::WriteDescriptorSetAccelerationStructureNV {
+                p_acceleration_structures: &self._top_accel_struct,
+                acceleration_structure_count: 1,
+                ..Default::default()
+            };
 
             // Build acceleration structures
             let bottom_memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
@@ -387,5 +388,9 @@ impl RayTracingData {
             ray_tracing.destroy_acceleration_structure(self._bottom_accel_struct, None);
             device.free_memory(self._bottom_accel_struct_memory, None);
         }
+    }
+
+    pub fn get_top_level_descriptor_resource_info(&self) -> DescriptorResourceInfo {
+        DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&self._top_write_descriptor_set_accel_struct)
     }
 }

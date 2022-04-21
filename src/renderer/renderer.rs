@@ -349,9 +349,7 @@ impl RendererData {
     // TEST CODE
     pub fn get_ray_tracing_test_data(&self) -> &RayTracingData { &self._ray_tracing_test_data }
     pub fn create_ray_tracing_test_data(&mut self) {
-        log::info!("--------------------------------------------------");
-        log::info!("TEST CODE: create_ray_tracing_test_data");
-        log::info!("--------------------------------------------------");
+        log::info!(">>> TEST CODE: create_ray_tracing_test_data");
         let mut t = RayTracingData::create_ray_tracing_data();
         t.initialize_ray_tracing_data(
             self.get_device(),

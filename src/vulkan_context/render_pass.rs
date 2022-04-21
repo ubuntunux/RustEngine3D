@@ -758,12 +758,9 @@ pub fn create_ray_tracing_pipeline_data(
             &table_data
         );
 
-        log::info!("--------------------------------------------------");
-        log::info!("TEST CODE: create_ray_tracing_pipeline_data");
-        log::info!("create_ray_tracing_pipeline_data.");
-        log::info!("CEHCK :: do i need present_queue or graphics queue ??");
-        log::info!("--------------------------------------------------");
-
+        log::info!(">>> TEST CODE: create_ray_tracing_pipeline_data");
+        log::info!("    create_ray_tracing_pipeline_data.");
+        log::info!("    CEHCK :: do i need present_queue or graphics queue ??");
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,

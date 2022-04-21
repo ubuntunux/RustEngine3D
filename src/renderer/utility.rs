@@ -1,4 +1,5 @@
 use ash::{ vk, Device };
+use ash::vk::BaseOutStructure;
 
 use crate::constants;
 use crate::renderer::material_instance::{ PipelineBindingData };
@@ -200,4 +201,17 @@ pub fn find_memory_type_index(
         }
     }
     None
+}
+
+pub unsafe fn ptr_chain_iter<T>(ptr: &mut T) -> impl Iterator<Item = *mut BaseOutStructure> {
+    let ptr = <*mut T>::cast::<BaseOutStructure>(ptr);
+    (0..).scan(ptr, |p_ptr, _| {
+        if p_ptr.is_null() {
+            return None;
+        }
+        let n_ptr = (**p_ptr).p_next;
+        let old = *p_ptr;
+        *p_ptr = n_ptr;
+        Some(old)
+    })
 }
