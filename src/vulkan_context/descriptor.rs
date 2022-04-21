@@ -287,9 +287,7 @@ pub fn create_write_descriptor_sets_with_update(
 
             // Upload
             unsafe {
-                log::info!("2");
                 device.update_descriptor_sets(&write_descriptor_sets, &[]);
-                log::info!("3");
             }
 
             write_descriptor_sets
