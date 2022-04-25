@@ -326,11 +326,25 @@ impl RayTracingData {
         buffer::destroy_buffer_data(device, &self._instance_buffer_data);
         buffer::destroy_buffer_data(device, &self._scratch_buffer_data);
         unsafe {
-            ray_tracing.destroy_acceleration_structure(self._top_accel_structs[0], None);
-            device.free_memory(self._top_accel_struct_memorys[0], None);
+            for accel_struct in self._bottom_accel_structs.iter() {
+                ray_tracing.destroy_acceleration_structure(*accel_struct, None);
+            }
+            self._bottom_accel_structs.clear();
 
-            ray_tracing.destroy_acceleration_structure(self._bottom_accel_structs[0], None);
-            device.free_memory(self._bottom_accel_struct_memorys[0], None);
+            for memory in self._bottom_accel_struct_memorys.iter() {
+                device.free_memory(*memory, None);
+            }
+            self._bottom_accel_struct_memorys.clear();
+
+            for accel_struct in self._top_accel_structs.iter() {
+                ray_tracing.destroy_acceleration_structure(*accel_struct, None);
+            }
+            self._top_accel_structs.clear();
+
+            for memory in self._top_accel_struct_memorys.iter() {
+                device.free_memory(*memory, None);
+            }
+            self._top_accel_struct_memorys.clear();
         }
     }
 
