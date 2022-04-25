@@ -346,6 +346,8 @@ impl RayTracingData {
             }
             self._top_accel_struct_memorys.clear();
         }
+        self._bottom_write_descriptor_set_accel_structs.clear();
+        self._top_write_descriptor_set_accel_structs.clear();
     }
 
     pub fn get_top_level_descriptor_resource_info(&self) -> DescriptorResourceInfo {
