@@ -273,20 +273,25 @@ pub fn create_write_descriptor_sets_with_update(
                         write_descriptor_set.descriptor_count = 1;
                     },
                     DescriptorResourceInfo::InvalidDescriptorInfo => {
+                        write_descriptor_set.descriptor_count = 0;
                     }
                 }
 
-                write_descriptor_set.dst_set = descriptor_set;
-                write_descriptor_set.dst_binding = descriptor_bind_indices[index];
-                write_descriptor_set.dst_array_element = 0;
-                write_descriptor_set.descriptor_type = descriptor_set_layout_bindings[index].descriptor_type;
+                if 0 < write_descriptor_set.descriptor_count {
+                    write_descriptor_set.dst_set = descriptor_set;
+                    write_descriptor_set.dst_binding = descriptor_bind_indices[index];
+                    write_descriptor_set.dst_array_element = 0;
+                    write_descriptor_set.descriptor_type = descriptor_set_layout_bindings[index].descriptor_type;
 
-                write_descriptor_sets.push(write_descriptor_set);
+                    write_descriptor_sets.push(write_descriptor_set);
+                }
             }
 
             // Upload
-            unsafe {
-                device.update_descriptor_sets(&write_descriptor_sets, &[]);
+            if false == write_descriptor_sets.is_empty() {
+                unsafe {
+                    device.update_descriptor_sets(&write_descriptor_sets, &[]);
+                }
             }
 
             write_descriptor_sets
