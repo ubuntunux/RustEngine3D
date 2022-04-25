@@ -158,7 +158,6 @@ pub struct RendererData {
     pub _command_buffers: SwapchainArray<vk::CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
-    pub _use_ray_tracing: bool,
     pub _ray_tracing: Rc<RayTracing>,
     pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV,
     pub _ray_tracing_test_data: RayTracingData,
@@ -183,16 +182,26 @@ impl RendererData {
             let required_instance_layers: Vec<*const c_char> = required_layer_names.iter().map(|layer| layer.as_ptr()).collect();
             let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
             let mut device_extension_names_raw: Vec<*const c_char> = device_extensions.iter().map(|extension| extension.as_ptr()).collect();
-            let ray_tracing_extensions: Vec<CString> = constants::REQUIRED_RAY_TRACING_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
-
+            let device_extensions_for_ray_tracing: Vec<CString> = if constants::USE_RAY_TRACING {
+                vec![
+                    "VK_NV_ray_tracing".to_string(),
+                    "VK_KHR_ray_tracing_pipeline".to_string(),
+                    "VK_KHR_acceleration_structure".to_string(),
+                    "VK_KHR_deferred_host_operations".to_string(),
+                    "VK_KHR_buffer_device_address".to_string()
+                ].iter().map(|str| CString::new(str.as_str()).unwrap() ).collect()
+            } else {
+                Vec::new()
+            };
             let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions, &required_instance_layers);
             let surface = device::create_vk_surface(&entry, &instance, window);
             let surface_interface = Surface::new(&entry, &instance);
             let (physical_device, swapchain_support_details, physical_device_features, has_ray_tracing_extensions) =
-                device::select_physical_device(&instance, &surface_interface, surface, &device_extensions, &ray_tracing_extensions).unwrap();
+                device::select_physical_device(&instance, &surface_interface, surface, &device_extensions, &device_extensions_for_ray_tracing).unwrap();
             let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
             let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
             let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
+            let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
 
             log::info!("PhysicalDeviceProperties");
             log::info!("    vulakn api_version: {}.{}.{}", vk::api_version_major(device_properties.api_version), vk::api_version_minor(device_properties.api_version), vk::api_version_patch(device_properties.api_version));
@@ -212,8 +221,8 @@ impl RendererData {
             log::info!("    max_instance_count: {}", ray_tracing_properties.max_instance_count);
             log::info!("    max_triangle_count: {}", ray_tracing_properties.max_triangle_count);
             log::info!("    max_descriptor_set_acceleration_structures: {}", ray_tracing_properties.max_descriptor_set_acceleration_structures);
-            if has_ray_tracing_extensions {
-                for extension in ray_tracing_extensions.iter() {
+            if enable_ray_tracing {
+                for extension in device_extensions_for_ray_tracing.iter() {
                     device_extension_names_raw.push(extension.as_ptr());
                 }
             }
@@ -232,6 +241,7 @@ impl RendererData {
                     ..physical_device_features.clone()
                 },
                 _msaa_samples: msaa_samples,
+                _use_ray_tracing: enable_ray_tracing,
             };
             let graphics_queue_index = queue_family_indices._graphics_queue_index;
             let present_queue_index = queue_family_indices._present_queue_index;
@@ -311,7 +321,6 @@ impl RendererData {
                 _command_buffers: command_buffers,
                 _render_features: render_features,
                 _image_samplers: ImageSamplerData::default(),
-                _use_ray_tracing: has_ray_tracing_extensions,
                 _ray_tracing: ray_tracing,
                 _ray_tracing_properties: ray_tracing_properties,
                 _ray_tracing_test_data: RayTracingData::create_ray_tracing_data(),
@@ -342,7 +351,7 @@ impl RendererData {
     }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
-    pub fn get_use_ray_tracing(&self) -> bool { self._use_ray_tracing }
+    pub fn get_use_ray_tracing(&self) -> bool { self._render_features._use_ray_tracing }
     pub fn get_ray_tracing(&self) -> &RayTracing { &self._ray_tracing }
     pub fn get_ray_tracing_properties(&self) -> &vk::PhysicalDeviceRayTracingPropertiesNV { &self._ray_tracing_properties }
 

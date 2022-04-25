@@ -26,7 +26,8 @@ pub enum BlendMode {
 #[derive(Debug, Clone)]
 pub struct RenderFeatures {
     pub _physical_device_features: vk::PhysicalDeviceFeatures,
-    pub _msaa_samples: vk::SampleCountFlags
+    pub _msaa_samples: vk::SampleCountFlags,
+    pub _use_ray_tracing: bool,
 }
 
 pub fn get_format_size(format: vk::Format) -> u32 {

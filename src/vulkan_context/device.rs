@@ -1,9 +1,6 @@
 use std::cmp::{ min };
 use std::os::raw::c_char;
-use std::ffi::{
-    CStr,
-    CString,
-};
+use std::ffi::{ CStr, CString, c_void };
 use std::vec::Vec;
 
 use ash::{
@@ -24,7 +21,17 @@ use winit::window::{
 use crate::constants;
 use crate::vulkan_context::swapchain;
 use crate::vulkan_context::vulkan_context;
+use crate::renderer::utility::ptr_chain_iter;
 
+
+pub fn device_create_info_set_push_next<T: vk::ExtendsDeviceCreateInfo>(create_info: &mut vk::DeviceCreateInfo, next_ptr: *const T) {
+    unsafe {
+        let next_mut = &mut (*(next_ptr as *mut T));
+        let last_next = ptr_chain_iter(next_mut).last().unwrap();
+        (*last_next).p_next = create_info.p_next as _;
+        create_info.p_next = next_ptr as *const c_void;
+    }
+}
 
 pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::ExtensionProperties>) -> Vec<CString> {
     log::info!("Available {} extentions: {}", extension_type, available_extensions.len());
@@ -275,7 +282,7 @@ pub fn create_device(
     #[cfg(not(target_os = "android"))]
     let device_features = render_features._physical_device_features.clone();
 
-    let device_create_info = vk::DeviceCreateInfo {
+    let mut device_create_info = vk::DeviceCreateInfo {
         queue_create_info_count: queue_create_infos.len() as u32,
         p_queue_create_infos: queue_create_infos.as_ptr(),
         enabled_layer_count: instance_layer_names_raw.len() as u32,
@@ -285,6 +292,26 @@ pub fn create_device(
         p_enabled_features: &device_features,
         ..Default::default()
     };
+
+    // physical device features - must keep lifetime until create_device completes
+    let accel_feature = vk::PhysicalDeviceAccelerationStructureFeaturesKHR {
+        s_type: vk::StructureType::PHYSICAL_DEVICE_ACCELERATION_STRUCTURE_FEATURES_KHR,
+        ..Default::default()
+    };
+    let ray_tracing_pipeline_feature = vk::PhysicalDeviceRayTracingPipelineFeaturesKHR {
+        s_type: vk::StructureType::PHYSICAL_DEVICE_RAY_TRACING_PIPELINE_FEATURES_KHR,
+        ..Default::default()
+    };
+    let clock_feature = vk::PhysicalDeviceShaderClockFeaturesKHR {
+        s_type: vk::StructureType::PHYSICAL_DEVICE_SHADER_CLOCK_FEATURES_KHR,
+        ..Default::default()
+    };
+
+    if render_features._use_ray_tracing {
+        device_create_info_set_push_next(&mut device_create_info, &accel_feature);
+        device_create_info_set_push_next(&mut device_create_info, &ray_tracing_pipeline_feature);
+        device_create_info_set_push_next(&mut device_create_info, &clock_feature);
+    }
 
     unsafe {
         let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
