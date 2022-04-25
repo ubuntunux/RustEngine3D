@@ -183,13 +183,7 @@ impl RendererData {
             let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
             let mut device_extension_names_raw: Vec<*const c_char> = device_extensions.iter().map(|extension| extension.as_ptr()).collect();
             let device_extensions_for_ray_tracing: Vec<CString> = if constants::USE_RAY_TRACING {
-                vec![
-                    "VK_NV_ray_tracing".to_string(),
-                    "VK_KHR_ray_tracing_pipeline".to_string(),
-                    "VK_KHR_acceleration_structure".to_string(),
-                    "VK_KHR_deferred_host_operations".to_string(),
-                    "VK_KHR_buffer_device_address".to_string()
-                ].iter().map(|str| CString::new(str.as_str()).unwrap() ).collect()
+                constants::REQUIRED_RAY_TRACING_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect()
             } else {
                 Vec::new()
             };

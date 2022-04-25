@@ -39,6 +39,7 @@ pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::
 pub static mut REQUIRED_INSTANCE_LAYERS: Vec<String> = Vec::new();
 pub static mut REQUIRED_DEVICE_EXTENSIONS: Vec<String> = Vec::new();
 pub static mut USE_RAY_TRACING: bool = false;
+pub static mut REQUIRED_RAY_TRACING_EXTENSIONS: Vec<String> = Vec::new();
 pub static mut MAX_DESCRIPTOR_POOL_ALLOC_COUNT: usize = 512;
 pub static mut ENABLE_IMMEDIATE_MODE: bool = true;
 pub static mut IS_CONCURRENT_MODE: bool = true;
