@@ -982,7 +982,7 @@ impl Resources {
                                 log::info!(">>> TEST CODE: load_material_instance_datas: {:?}", material_instance_name);
                                 log::info!("    WriteDescriptorSetAccelerationStructure");
                                 let ray_tracing_data = renderer_data.get_ray_tracing_test_data();
-                                DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(&ray_tracing_data._top_write_descriptor_set_accel_struct)
+                                ray_tracing_data.get_top_level_descriptor_resource_info()
                             },
                         };
                         return descriptor_resource_info;

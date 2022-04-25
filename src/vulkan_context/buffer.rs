@@ -38,6 +38,27 @@ impl Default for BufferData {
     }
 }
 
+pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
+    device: &Device,
+    device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    dst_buffer_type: vk::BufferUsageFlags,
+    upload_datas: &Vec<T>,
+) -> BufferData {
+    let buffer_size = (mem::size_of::<T>() * upload_datas.len()) as vk::DeviceSize;
+    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
+    let dst_buffer_data = create_buffer_data(
+        device,
+        device_memory_properties,
+        buffer_size,
+        buffer_usage_flags,
+        buffer_memory_property_flags
+    );
+    upload_buffer_data(device, &dst_buffer_data, &upload_datas);
+    dst_buffer_data
+}
+
 pub fn create_buffer_data_with_uploads<T: Copy>(
     device: &Device,
     command_pool: vk::CommandPool,
