@@ -12,16 +12,14 @@ use ash::{
 };
 use ash::vk::Handle;
 use crate::utilities::system;
-
-pub const SHADER_CACHE_DIRECTORY: &str = "resource/shader_caches";
-pub const SHADER_DIRECTORY: &str = "resource/shaders";
+use crate::resource::resource;
 
 pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
     let ext = shader_filename.extension().unwrap();
     let mut just_filename = PathBuf::new();
     just_filename.push(shader_filename.parent().unwrap());
     just_filename.push(shader_filename.file_stem().unwrap());
-    let mut spirv_file_path = PathBuf::from(SHADER_CACHE_DIRECTORY);
+    let mut spirv_file_path = PathBuf::from(resource::SHADER_CACHE_DIRECTORY);
     spirv_file_path.push(just_filename);
     let mut spirv_file_path_str: String = String::from(spirv_file_path.to_str().unwrap());
     if false == shader_defines.is_empty() {
@@ -38,7 +36,7 @@ pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &
 
 
 pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
-    let mut shader_file_path: PathBuf = PathBuf::from(SHADER_DIRECTORY);
+    let mut shader_file_path: PathBuf = PathBuf::from(resource::SHADER_DIRECTORY);
     shader_file_path.push(shader_filename);
 
     let spirv_file_path: PathBuf = spirv_file_path_with_defines(&shader_filename, &shader_defines);

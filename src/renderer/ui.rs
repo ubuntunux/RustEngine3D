@@ -1355,7 +1355,7 @@ impl UIManagerData {
     }
 
     pub fn create_ui_graphics_data(&mut self, _renderer_data: &RendererData, resources: &Resources) {
-        self._default_render_ui_material = Some(resources.get_material_instance_data("system/render_ui").clone());
+        self._default_render_ui_material = Some(resources.get_material_instance_data("common/render_ui").clone());
     }
 
     pub fn destroy_ui_graphics_data(&mut self) {

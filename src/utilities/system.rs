@@ -100,7 +100,7 @@ pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
 
     let asset_manager = ndk_glue::native_activity().asset_manager();
 
-    let path = path.as_ref().strip_prefix("resource/").unwrap().to_str().unwrap();
+    let path = path.as_ref().strip_prefix("resources/").unwrap().to_str().unwrap();
     let mut asset = asset_manager
         .open(&std::ffi::CString::new(path).unwrap())
         .unwrap();

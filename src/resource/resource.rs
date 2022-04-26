@@ -38,16 +38,21 @@ use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
-pub const FONT_SOURCE_FILE_PATH: &str = "resource/externals/fonts";
-pub const FONT_FILE_PATH: &str = "resource/fonts";
-pub const FONT_TEXTURE_FILE_PATH: &str = "resource/externals/textures/fonts";
-pub const MATERIAL_FILE_PATH: &str = "resource/materials";
-pub const MATERIAL_INSTANCE_FILE_PATH: &str = "resource/material_instances";
-pub const MESH_SOURCE_FILE_PATH: &str = "resource/externals/meshes";
-pub const MESH_FILE_PATH: &str = "resource/meshes";
-pub const MODEL_FILE_PATH: &str = "resource/models";
-pub const TEXTURE_SOURCE_FILE_PATH: &str = "resource/externals/textures";
-pub const TEXTURE_FILE_PATH: &str = "resource/textures";
+pub const RESOURCE_PATH: &str = "resources";
+pub const ENGINE_RESOURCE_PATH: &str = "RustEngine3D/resources";
+
+pub const FONT_SOURCE_FILE_PATH: &str = "resources/externals/fonts";
+pub const FONT_FILE_PATH: &str = "resources/fonts";
+pub const FONT_TEXTURE_FILE_PATH: &str = "resources/externals/textures/fonts";
+pub const MATERIAL_FILE_PATH: &str = "resources/materials";
+pub const MATERIAL_INSTANCE_FILE_PATH: &str = "resources/material_instances";
+pub const MESH_SOURCE_FILE_PATH: &str = "resources/externals/meshes";
+pub const MESH_FILE_PATH: &str = "resources/meshes";
+pub const MODEL_FILE_PATH: &str = "resources/models";
+pub const TEXTURE_SOURCE_FILE_PATH: &str = "resources/externals/textures";
+pub const TEXTURE_FILE_PATH: &str = "resources/textures";
+pub const SHADER_CACHE_DIRECTORY: &str = "resources/shader_caches";
+pub const SHADER_DIRECTORY: &str = "resources/shaders";
 
 pub const FONT_SOURCE_EXTS: [&str; 1] = ["ttf"];
 pub const EXT_FONT: &str = "font";
@@ -267,7 +272,7 @@ impl Resources {
     }
 
     pub fn load_resource_filenames(&mut self) {
-        let loaded_contents = system::load(&Path::new("resource/resources.txt"));
+        let loaded_contents = system::load(&Path::new("resources/resources.txt"));
         let contents: String = String::from_utf8(loaded_contents.into_inner()).unwrap();
         for content in contents.split("\n") {
             self._resource_filenames.push(PathBuf::from(content));

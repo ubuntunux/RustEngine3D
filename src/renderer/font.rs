@@ -195,7 +195,7 @@ impl TextRenderData {
     }
 
     pub fn create_texture_render_data_descriptor_sets(&mut self, device: &Device, resources: &Resources) {
-        let material_instance = resources.get_material_instance_data("system/render_font").borrow();
+        let material_instance = resources.get_material_instance_data("common/render_font").borrow();
         let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
         let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(self._font_data.borrow()._texture.borrow().get_default_image_info().clone());
         self._render_font_descriptor_sets = utility::create_descriptor_sets(
@@ -387,7 +387,7 @@ impl FontManager {
             );
             let font_data = self._ascii.borrow();
             let framebuffer_data = resources.get_framebuffer_data("render_font").borrow();
-            let material_instance_data = resources.get_material_instance_data("system/render_font").borrow();
+            let material_instance_data = resources.get_material_instance_data("common/render_font").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
             let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
             let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
