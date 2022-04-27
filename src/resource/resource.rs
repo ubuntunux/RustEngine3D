@@ -136,10 +136,10 @@ pub enum ResourceData {
 }
 
 pub trait ProjectResourcesBase {
-    fn initialize_project_resources(&mut self, engine_resources: &EngineResources, renderer_context: &mut RendererContext);
-    fn destroy_project_resources(&mut self, renderer_context: &mut RendererContext);
-    fn load_graphics_datas(&mut self, renderer_context: &mut RendererContext);
-    fn unload_graphics_datas(&mut self, renderer_context: &mut RendererContext);
+    fn initialize_project_resources(&mut self, engine_resources: &EngineResources, renderer_context: &RendererContext);
+    fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
+    fn load_graphics_datas(&mut self, renderer_context: &RendererContext);
+    fn unload_graphics_datas(&mut self, renderer_context: &RendererContext);
     fn regist_resource(&mut self);
     fn unregist_resource(&mut self);
     fn has_audio_data(&self, resource_name: &str) -> bool;
@@ -244,7 +244,7 @@ impl EngineResources {
         unsafe { &mut *(self._project_resources as *mut dyn ProjectResourcesBase) }
     }
 
-    pub fn initialize_engine_resources(&mut self, renderer_context: &mut RendererContext) {
+    pub fn initialize_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("initialize_engine_resources");
         let is_reload: bool = false;
 
@@ -265,7 +265,7 @@ impl EngineResources {
         self.get_project_resources_mut().initialize_project_resources(self, renderer_context);
     }
 
-    pub fn destroy_engine_resources(&mut self, renderer_context: &mut RendererContext) {
+    pub fn destroy_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("destroy_engine_resources");
         let is_reload: bool = false;
 
@@ -287,7 +287,7 @@ impl EngineResources {
     }
 
     // GraphicsDatas
-    pub fn load_graphics_datas(&mut self, renderer_context: &mut RendererContext) {
+    pub fn load_graphics_datas(&mut self, renderer_context: &RendererContext) {
         log::info!("load_graphics_datas");
         let is_reload: bool = true;
         self.load_render_pass_datas(renderer_context);
@@ -296,7 +296,7 @@ impl EngineResources {
         self.load_material_instance_datas(renderer_context, is_reload);
     }
 
-    pub fn unload_graphics_datas(&mut self, renderer_context: &mut RendererContext) {
+    pub fn unload_graphics_datas(&mut self, renderer_context: &RendererContext) {
         log::info!("unload_graphics_datas");
         let is_reload: bool = true;
         self.unload_material_instance_datas(is_reload);
