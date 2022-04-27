@@ -1,4 +1,5 @@
 use std::cell::RefMut;
+use std::io::Write;
 use std::time;
 use log::{ self, LevelFilter };
 
@@ -26,15 +27,16 @@ use winit::window::{
 };
 use winit::monitor::{MonitorHandle, VideoMode};
 
-use crate::application::scene_manager::{ SceneManagerData, ProjectSceneManagerBase };
+use crate::application::audio_manager::AudioManager;
+use crate::application::scene_manager::{ SceneManager, ProjectSceneManagerBase };
 use crate::application::input;
-use crate::resource::resource::{Resources, ProjectResourcesBase};
-use crate::renderer::renderer::{ RendererData, ProjectRendererBase };
+use crate::effect::effect_manager::EffectManager;
 use crate::renderer::font::FontManager;
-use crate::renderer::ui::{ ProjectUIManagerBase, UIManagerData };
+use crate::renderer::renderer_context::RendererContext;
+use crate::renderer::ui::{ ProjectUIManagerBase, UIManager };
+use crate::resource::resource::{EngineResources, ProjectResourcesBase};
 use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::utilities::logger;
-use std::io::Write;
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
@@ -153,11 +155,13 @@ pub struct EngineApplication {
     pub _keyboard_input_data: Box<input::KeyboardInputData>,
     pub _mouse_move_data: Box<input::MouseMoveData>,
     pub _mouse_input_data: Box<input::MouseInputData>,
-    pub _scene_manager_data: RcRefCell<SceneManagerData>,
-    pub _renderer_data: RcRefCell<RendererData>,
+    pub _audio_manager: RcRefCell<AudioManager>,
+    pub _effect_manager: RcRefCell<EffectManager>,
+    pub _engine_resources: RcRefCell<EngineResources>,
     pub _font_manager: RcRefCell<FontManager>,
-    pub _ui_manager_data: RcRefCell<UIManagerData>,
-    pub _resources: RcRefCell<Resources>,
+    pub _renderer_context: RcRefCell<RendererContext>,
+    pub _scene_manager: RcRefCell<SceneManager>,
+    pub _ui_manager: RcRefCell<UIManager>,
     pub _application: *const dyn ApplicationBase,
 }
 
@@ -174,23 +178,39 @@ impl EngineApplication {
         unsafe { &*self._window }
     }
 
+    pub fn get_audio_manager(&self) -> &AudioManager {
+        unsafe { &*self._audio_manager.as_ptr() }
+    }
+
+    pub fn get_effect_manager(&self) -> &EffectManager {
+        unsafe { &*self._effect_manager.as_ptr() }
+    }
+
+    pub fn get_renderer_context(&self) -> &RendererContext {
+        unsafe { &*self._renderer_context.as_ptr() }
+    }
+
     pub fn terminate_application(
         &mut self,
+        audio_manager: &mut AudioManager,
+        effect_manager: &mut EffectManager,
         font_manager: &mut FontManager,
-        ui_manager_data: &mut UIManagerData,
-        scene_manager_data: &mut SceneManagerData,
-        resources: &mut Resources,
-        renderer_data: &mut RendererData,
+        ui_manager: &mut UIManager,
+        scene_manager: &mut SceneManager,
+        engine_resources: &mut EngineResources,
+        renderer_context: &mut RendererContext,
     ) {
-        scene_manager_data.close_scene_data(renderer_data.get_device());
+        scene_manager.close_scene_data(renderer_context.get_device());
 
         // destroy managers
         self.get_application_mut().terminate_application();
-        scene_manager_data.destroy_scene_manager_data(renderer_data.get_device());
-        ui_manager_data.destroy_ui_manager_data(renderer_data.get_device());
-        font_manager.destroy_font_manager(renderer_data.get_device());
-        resources.destroy_resources(renderer_data);
-        renderer_data.destroy_renderer_data();
+        scene_manager.destroy_scene_manager(renderer_context.get_device());
+        audio_manager.destroy_audio_manager();
+        effect_manager.destroy_effect_manager();
+        ui_manager.destroy_ui_manager(renderer_context.get_device());
+        font_manager.destroy_font_manager(renderer_context.get_device());
+        engine_resources.destroy_engine_resources(renderer_context);
+        renderer_context.destroy_renderer_context();
     }
 
     pub fn clear_input_events(&mut self) {
@@ -220,7 +240,6 @@ pub fn run_application(
     application: *const dyn ApplicationBase,
     project_resources: *const dyn ProjectResourcesBase,
     project_scene_manager: *const dyn ProjectSceneManagerBase,
-    project_renderer: *const dyn ProjectRendererBase,
     project_ui_manager: *const dyn ProjectUIManagerBase,
 ) {
     logger::initialize_logger(log_level);
@@ -231,6 +250,7 @@ pub fn run_application(
     let app_version: u32 = 1;
     let initial_window_size: Vector2<i32> = Vector2::new(1024, 768);
 
+    let sdl = sdl2::init().expect("failed to sdl2::init");
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
     let window: Window = WindowBuilder::new()
@@ -242,11 +262,13 @@ pub fn run_application(
         .unwrap();
     let window_size: Vector2<i32> = Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
 
-    let mut maybe_resources: Option<RcRefCell<Resources>> = None;
-    let mut maybe_ui_manager_data: Option<RcRefCell<UIManagerData>> = None;
+    let mut maybe_engine_resources: Option<RcRefCell<EngineResources>> = None;
+    let mut maybe_ui_manager: Option<RcRefCell<UIManager>> = None;
     let mut maybe_font_manager: Option<RcRefCell<FontManager>> = None;
-    let mut maybe_renderer_data: Option<RcRefCell<RendererData>> = None;
-    let mut maybe_scene_manager_data: Option<RcRefCell<SceneManagerData>> = None;
+    let mut maybe_renderer_context: Option<RcRefCell<RendererContext>> = None;
+    let mut maybe_audio_manager: Option<RcRefCell<AudioManager>> = None;
+    let mut maybe_effect_manager: Option<RcRefCell<EffectManager>> = None;
+    let mut maybe_scene_manager: Option<RcRefCell<SceneManager>> = None;
     let mut maybe_engine_application: Option<RcRefCell<EngineApplication>> = None;
 
     // main loop
@@ -261,39 +283,49 @@ pub fn run_application(
             if maybe_engine_application.is_some() {
                 // clear up
                 let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
-                let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+                let mut renderer_context: RefMut<RendererContext> = maybe_renderer_context.as_ref().unwrap().borrow_mut();
+                let mut scene_manager: RefMut<SceneManager> = maybe_scene_manager.as_ref().unwrap().borrow_mut();
                 let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
-                let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
+                let mut ui_manager: RefMut<UIManager> = maybe_ui_manager.as_ref().unwrap().borrow_mut();
+                let mut effect_manager: RefMut<EffectManager> = maybe_effect_manager.as_ref().unwrap().borrow_mut();
+                let mut audio_manager: RefMut<AudioManager> = maybe_audio_manager.as_ref().unwrap().borrow_mut();
+
                 engine_application.terminate_application(
+                    &mut audio_manager,
+                    &mut effect_manager,
                     &mut font_manager,
-                    &mut ui_manager_data,
-                    &mut scene_manager_data,
-                    &mut maybe_resources.as_ref().unwrap().borrow_mut(),
-                    &mut renderer_data,
+                    &mut ui_manager,
+                    &mut scene_manager,
+                    &mut maybe_engine_resources.as_ref().unwrap().borrow_mut(),
+                    &mut renderer_context,
                 );
             }
 
             // create managers
             let elapsed_time = time_instance.elapsed().as_secs_f64();
-            let resources = newRcRefCell(Resources::create_resources(project_resources));
+            let engine_resources = newRcRefCell(EngineResources::create_engine_resources(project_resources));
             let font_manager = newRcRefCell(FontManager::create_font_manager());
-            let ui_manager_data = newRcRefCell(UIManagerData::create_ui_manager_data(project_ui_manager));
-            let renderer_data = newRcRefCell(RendererData::create_renderer_data(app_name, app_version, &window_size, &window, &resources, project_renderer));
-            let scene_manager_data = newRcRefCell(SceneManagerData::create_scene_manager_data(&renderer_data, &resources, project_scene_manager));
+            let ui_manager = newRcRefCell(UIManager::create_ui_manager(project_ui_manager));
+            let renderer_context = newRcRefCell(RendererContext::create_renderer_context(app_name, app_version, &window_size, &window, &engine_resources));
+            let effect_manager = newRcRefCell(EffectManager::create_effect_manager());
+            let audio_manager = newRcRefCell(AudioManager::create_audio_manager(&sdl, &engine_resources));
+            let scene_manager = newRcRefCell(SceneManager::create_scene_manager(&renderer_context, &engine_resources, project_scene_manager));
             let keyboard_input_data = input::create_keyboard_input_data();
             let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
             let mouse_input_data = input::create_mouse_input_data();
 
             // initialize managers
-            renderer_data.borrow_mut().initialize_renderer_data();
-            resources.borrow_mut().initialize_resources(&mut renderer_data.borrow_mut());
-            font_manager.borrow_mut().initialize_font_manager(&renderer_data.borrow(), &resources.borrow());
-            ui_manager_data.borrow_mut().initialize_ui_manager_data(&renderer_data.borrow(), &resources.borrow());
-            scene_manager_data.borrow_mut().initialize_scene_manager_data(
+            renderer_context.borrow_mut().initialize_renderer_context(engine_resources.as_ptr(), effect_manager.as_ptr());
+            engine_resources.borrow_mut().initialize_engine_resources(&mut renderer_context.borrow_mut());
+            font_manager.borrow_mut().initialize_font_manager(&renderer_context.borrow(), &engine_resources.borrow());
+            ui_manager.borrow_mut().initialize_ui_manager(&renderer_context.borrow(), &engine_resources.borrow());
+            audio_manager.borrow_mut().initialize_audio_manager();
+            effect_manager.borrow_mut().initialize_effect_manager();
+            scene_manager.borrow_mut().initialize_scene_manager(
                 &window_size,
-                &renderer_data.borrow(),
-                &resources.borrow()
+                &renderer_context.borrow(),
+                &effect_manager.borrow(),
+                &engine_resources.borrow()
             );
             let engine_application = newRcRefCell(EngineApplication {
                 _window: &window,
@@ -305,27 +337,31 @@ pub fn run_application(
                 _keyboard_input_data: keyboard_input_data,
                 _mouse_move_data: mouse_move_data,
                 _mouse_input_data: mouse_input_data,
+                _audio_manager: audio_manager.clone(),
                 _font_manager: font_manager.clone(),
-                _ui_manager_data: ui_manager_data.clone(),
-                _scene_manager_data: scene_manager_data.clone(),
-                _renderer_data: renderer_data.clone(),
-                _resources: resources.clone(),
+                _ui_manager: ui_manager.clone(),
+                _scene_manager: scene_manager.clone(),
+                _renderer_context: renderer_context.clone(),
+                _engine_resources: engine_resources.clone(),
                 _application: application,
+                _effect_manager: effect_manager.clone(),
             });
 
             // initialize graphics data
-            renderer_data.borrow_mut().prepare_framebuffer_and_descriptors();
-            scene_manager_data.borrow_mut().initialize_scene_graphics_data();
+            renderer_context.borrow_mut().prepare_framebuffer_and_descriptors();
+            scene_manager.borrow_mut().initialize_scene_graphics_data();
 
             // initialize application
             engine_application.borrow().get_application_mut().initialize_application(&engine_application.borrow());
 
             // set managers
-            maybe_resources = Some(resources);
+            maybe_engine_resources = Some(engine_resources);
+            maybe_audio_manager = Some(audio_manager);
+            maybe_effect_manager = Some(effect_manager);
             maybe_font_manager = Some(font_manager);
-            maybe_ui_manager_data = Some(ui_manager_data);
-            maybe_renderer_data = Some(renderer_data);
-            maybe_scene_manager_data = Some(scene_manager_data);
+            maybe_ui_manager = Some(ui_manager);
+            maybe_renderer_context = Some(renderer_context);
+            maybe_scene_manager = Some(scene_manager);
             maybe_engine_application = Some(engine_application);
             run_application = true;
             need_initialize = false;
@@ -358,20 +394,24 @@ pub fn run_application(
             Event::MainEventsCleared => {
                 if run_application {
                     let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
-                    let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
-                    let mut scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
+                    let mut renderer_context: RefMut<RendererContext> = maybe_renderer_context.as_ref().unwrap().borrow_mut();
+                    let mut scene_manager: RefMut<SceneManager> = maybe_scene_manager.as_ref().unwrap().borrow_mut();
                     let mut font_manager: RefMut<FontManager> = maybe_font_manager.as_ref().unwrap().borrow_mut();
-                    let mut ui_manager_data: RefMut<UIManagerData> = maybe_ui_manager_data.as_ref().unwrap().borrow_mut();
+                    let mut ui_manager: RefMut<UIManager> = maybe_ui_manager.as_ref().unwrap().borrow_mut();
+                    let mut audio_manager: RefMut<AudioManager> = maybe_audio_manager.as_ref().unwrap().borrow_mut();
+                    let mut effect_manager: RefMut<EffectManager> = maybe_effect_manager.as_ref().unwrap().borrow_mut();
 
                     // exit
                     if engine_application._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
                         *control_flow = ControlFlow::Exit;
                         engine_application.terminate_application(
+                            &mut audio_manager,
+                            &mut effect_manager,
                             &mut font_manager,
-                            &mut ui_manager_data,
-                            &mut scene_manager_data,
-                            &mut maybe_resources.as_ref().unwrap().borrow_mut(),
-                            &mut renderer_data,
+                            &mut ui_manager,
+                            &mut scene_manager,
+                            &mut maybe_engine_resources.as_ref().unwrap().borrow_mut(),
+                            &mut renderer_context,
                         );
                         run_application = false;
                         return;
@@ -390,7 +430,7 @@ pub fn run_application(
                     let delta_time = engine_application._time_data._delta_time;
                     let elapsed_frame = engine_application._time_data._elapsed_frame;
 
-                    if renderer_data.get_need_recreate_swapchain() {
+                    if renderer_context.get_need_recreate_swapchain() {
                         #[cfg(target_os = "android")]
                         {
                             // Destroy app on suspend for android target.
@@ -402,16 +442,16 @@ pub fn run_application(
                             log::info!("<<begin recreate_swapchain>>");
 
                             // destroy
-                            scene_manager_data.destroy_scene_graphics_data(renderer_data.get_device());
-                            ui_manager_data.destroy_ui_graphics_data();
+                            scene_manager.destroy_scene_graphics_data(renderer_context.get_device());
+                            ui_manager.destroy_ui_graphics_data();
                             font_manager.destroy_font_descriptor_sets();
-                            renderer_data.resize_window();
+                            renderer_context.resize_window();
 
                             // recreate
-                            font_manager.create_font_descriptor_sets(&renderer_data, &renderer_data._resources.borrow());
-                            ui_manager_data.create_ui_graphics_data(&renderer_data, &renderer_data._resources.borrow());
-                            scene_manager_data.initialize_scene_graphics_data();
-                            renderer_data.set_need_recreate_swapchain(false);
+                            font_manager.create_font_descriptor_sets(&renderer_context, &renderer_context.get_engine_resources());
+                            ui_manager.create_ui_graphics_data(&renderer_context.get_engine_resources());
+                            scene_manager.initialize_scene_graphics_data();
+                            renderer_context.set_need_recreate_swapchain(false);
 
                             log::info!("<<end recreate_swapchain>>");
                         }
@@ -419,18 +459,19 @@ pub fn run_application(
                         // update & render, If the resized event has not yet occurred, the window size may be 0.
                         if 0 < engine_application._window_size.x && 0 < engine_application._window_size.y {
                             engine_application.update_application();
-                            renderer_data.update_post_process_datas();
-                            scene_manager_data.update_scene_manager_data(&engine_application._time_data, &mut font_manager);
+                            scene_manager.update_scene_manager(&engine_application._time_data, &mut font_manager);
+                            audio_manager.update_audio_manager();
+                            effect_manager.update_effects(delta_time);
                             font_manager.update();
-                            ui_manager_data.update(
+                            ui_manager.update(
                                 delta_time,
                                 &engine_application._window_size,
                                 &engine_application._time_data,
                                 &engine_application._keyboard_input_data,
                                 &engine_application._mouse_move_data,
                                 &engine_application._mouse_input_data,
-                                &renderer_data._resources.borrow());
-                            renderer_data.render_scene(&scene_manager_data, &mut font_manager, &mut ui_manager_data, elapsed_time, delta_time, elapsed_frame);
+                                &renderer_context.get_engine_resources());
+                            renderer_context.render_scene(&scene_manager, &mut font_manager, &mut ui_manager, elapsed_time, delta_time, elapsed_frame);
                         }
                     }
                 }
@@ -453,16 +494,16 @@ pub fn run_application(
                     log::info!("WindowEvent::Resized: {:?}, initialize_done: {}", size, initialize_done);
                     if initialize_done {
                         let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
-                        let scene_manager_data: RefMut<SceneManagerData> = maybe_scene_manager_data.as_ref().unwrap().borrow_mut();
-                        let mut renderer_data: RefMut<RendererData> = maybe_renderer_data.as_ref().unwrap().borrow_mut();
+                        let scene_manager: RefMut<SceneManager> = maybe_scene_manager.as_ref().unwrap().borrow_mut();
+                        let mut renderer_context: RefMut<RendererContext> = maybe_renderer_context.as_ref().unwrap().borrow_mut();
                         engine_application._window_size.x = size.width as i32;
                         engine_application._window_size.y = size.height as i32;
-                        scene_manager_data.resized_window(size.width as i32, size.height as i32);
-                        let swapchain_extent = renderer_data._swapchain_data._swapchain_extent;
+                        scene_manager.resized_window(size.width as i32, size.height as i32);
+                        let swapchain_extent = renderer_context._swapchain_data._swapchain_extent;
                         let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
                         log::info!("need_recreate_swapchain: {}, swapchain_extent: {:?}", need_recreate_swapchain, swapchain_extent);
                         if need_recreate_swapchain {
-                            renderer_data.set_need_recreate_swapchain(true);
+                            renderer_context.set_need_recreate_swapchain(true);
                         }
                     }
                 },

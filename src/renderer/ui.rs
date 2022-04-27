@@ -10,10 +10,10 @@ use crate::application::input::{
     MouseMoveData,
     MouseInputData,
 };
-use crate::resource::resource::Resources;
+use crate::resource::resource::EngineResources;
 use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
-use crate::renderer::renderer::{ RendererData };
+use crate::renderer::renderer_context::{ RendererContext };
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
@@ -217,15 +217,15 @@ pub struct WidgetDefault {
 }
 
 pub trait ProjectUIManagerBase {
-    fn get_ui_manager_data(&self) -> &UIManagerData;
-    fn get_ui_manager_data_mut(&self) -> &mut UIManagerData;
+    fn get_ui_manager(&self) -> &UIManager;
+    fn get_ui_manager_mut(&self) -> &mut UIManager;
     fn get_root_widget(&self) -> &dyn Widget;
     fn get_root_widget_mut(&self) -> &mut dyn Widget;
-    fn initialize_project_ui_manager(&mut self, ui_manager_data: &UIManagerData);
-    fn build_ui(&mut self, renderer_data: &RendererData, resources: &Resources);
+    fn initialize_project_ui_manager(&mut self, ui_manager: &UIManager);
+    fn build_ui(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources);
 }
 
-pub struct UIManagerData {
+pub struct UIManager {
     pub _project_ui_manager: *const dyn ProjectUIManagerBase,
     pub _root: Box<dyn Widget>,
     pub _window_size: Vector2<i32>,
@@ -1319,14 +1319,14 @@ impl UIRenderGroupData {
     }
 }
 
-impl UIManagerData {
+impl UIManager {
     pub fn get_root_ptr(&self) -> *const dyn Widget { self._root.as_ref() }
-    pub fn create_ui_manager_data(project_ui_manager: *const dyn ProjectUIManagerBase) -> UIManagerData {
-        log::info!("create_ui_manager_data");
+    pub fn create_ui_manager(project_ui_manager: *const dyn ProjectUIManagerBase) -> UIManager {
+        log::info!("create_ui_manager");
         unsafe {
-            let mut ui_manager_data = UIManagerData {
+            let mut ui_manager = UIManager {
                 _project_ui_manager: project_ui_manager,
-                _root: Box::from_raw(UIManagerData::create_widget("root", UIWidgetTypes::Default)),
+                _root: Box::from_raw(UIManager::create_widget("root", UIWidgetTypes::Default)),
                 _window_size: Vector2::zeros(),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
@@ -1337,25 +1337,25 @@ impl UIManagerData {
                 _render_ui_group: Vec::new(),
                 _default_render_ui_material: None,
             };
-            ui_manager_data._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
-            ui_manager_data._root.get_ui_component_mut().set_layout_type(UILayoutType::FloatLayout);
-            ui_manager_data._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
-            ui_manager_data._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
-            ui_manager_data._root.get_ui_component_mut().set_renderable(false);
-            ui_manager_data
+            ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
+            ui_manager._root.get_ui_component_mut().set_layout_type(UILayoutType::FloatLayout);
+            ui_manager._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
+            ui_manager._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
+            ui_manager._root.get_ui_component_mut().set_renderable(false);
+            ui_manager
         }
     }
 
-    pub fn initialize_ui_manager_data(&mut self, renderer_data: &RendererData, resources: &Resources) {
-        self._font_data = resources.get_default_font_data().clone();
-        self.create_ui_vertex_data(renderer_data.get_device(), renderer_data.get_command_pool(), renderer_data.get_graphics_queue(), renderer_data.get_device_memory_properties());
-        self.create_ui_graphics_data(renderer_data, resources);
+    pub fn initialize_ui_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
+        self._font_data = engine_resources.get_default_font_data().clone();
+        self.create_ui_vertex_data(renderer_context.get_device(), renderer_context.get_command_pool(), renderer_context.get_graphics_queue(), renderer_context.get_device_memory_properties());
+        self.create_ui_graphics_data(engine_resources);
         self.get_project_ui_manager_mut().initialize_project_ui_manager(&self);
-        self.get_project_ui_manager_mut().build_ui(renderer_data, resources);
+        self.get_project_ui_manager_mut().build_ui(renderer_context, engine_resources);
     }
 
-    pub fn create_ui_graphics_data(&mut self, _renderer_data: &RendererData, resources: &Resources) {
-        self._default_render_ui_material = Some(resources.get_material_instance_data("ui/render_ui").clone());
+    pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources) {
+        self._default_render_ui_material = Some(engine_resources.get_material_instance_data("ui/render_ui").clone());
     }
 
     pub fn destroy_ui_graphics_data(&mut self) {
@@ -1370,8 +1370,8 @@ impl UIManagerData {
         unsafe { &mut *(self._project_ui_manager as *mut dyn ProjectUIManagerBase) }
     }
 
-    pub fn destroy_ui_manager_data(&mut self, device: &Device) {
-        log::info!("destroy_ui_manager_data");
+    pub fn destroy_ui_manager(&mut self, device: &Device) {
+        log::info!("destroy_ui_manager");
         self._root.clear_widgets();
         drop(&self._root);
         buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);
@@ -1420,11 +1420,11 @@ impl UIManagerData {
         &mut self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_data: &RendererData,
-        resources: &Resources
+        renderer_context: &RendererContext,
+        engine_resources: &EngineResources
     ) {
         if 0 < self._render_ui_count {
-            let framebuffer_data = resources.get_framebuffer_data("render_ui").borrow();
+            let framebuffer_data = engine_resources.get_framebuffer_data("render_ui").borrow();
             let mut push_constant_data = PushConstant_RenderUI {
                 _inv_canvas_size: Vector2::new(1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32, 1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32),
                 _instance_id_offset: 0,
@@ -1433,8 +1433,8 @@ impl UIManagerData {
 
             // upload storage buffer
             let upload_data = &self._ui_render_datas[0..self._render_ui_count as usize];
-            let shader_buffer_data = renderer_data.get_shader_buffer_data_from_str("UIRenderDataBuffer");
-            renderer_data.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer_data, upload_data);
+            let shader_buffer_data = renderer_context.get_shader_buffer_data_from_str("UIRenderDataBuffer");
+            renderer_context.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer_data, upload_data);
 
             // render ui
             let mut prev_material_instance_data: *const MaterialInstanceData = std::ptr::null();
@@ -1458,22 +1458,22 @@ impl UIManagerData {
 
                         if prev_pipeline_data != pipeline_data_ptr {
                             if false == prev_pipeline_data.is_null() {
-                                renderer_data.end_render_pass(command_buffer);
+                                renderer_context.end_render_pass(command_buffer);
                             }
-                            renderer_data.begin_render_pass_pipeline(command_buffer, swapchain_index, &render_pass_data, pipeline_data, None);
+                            renderer_context.begin_render_pass_pipeline(command_buffer, swapchain_index, &render_pass_data, pipeline_data, None);
                             prev_pipeline_data = pipeline_data_ptr;
                         }
 
                         if prev_pipeline_binding_data != pipeline_binding_data {
                             prev_pipeline_binding_data = pipeline_binding_data;
                             let render_ui_descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
-                            renderer_data.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), render_ui_descriptor_sets);
+                            renderer_context.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), render_ui_descriptor_sets);
                         }
                         prev_material_instance_data = material_instance_data;
                     }
 
-                    renderer_data.upload_push_constant_data(command_buffer, &(*prev_pipeline_data), &push_constant_data);
-                    renderer_data.draw_indexed(
+                    renderer_context.upload_push_constant_data(command_buffer, &(*prev_pipeline_data), &push_constant_data);
+                    renderer_context.draw_indexed(
                         command_buffer,
                         &[self._ui_mesh_vertex_buffer._buffer],
                         &[],
@@ -1484,7 +1484,7 @@ impl UIManagerData {
                     push_constant_data._instance_id_offset = render_group_data._accumulated_render_count;
                 }
             }
-            renderer_data.end_render_pass(command_buffer);
+            renderer_context.end_render_pass(command_buffer);
         }
     }
 
@@ -1496,7 +1496,7 @@ impl UIManagerData {
         keyboard_input_data: &KeyboardInputData,
         mouse_move_data: &MouseMoveData,
         mouse_input_data: &MouseInputData,
-        _resources: &Resources
+        _engine_resources: &EngineResources
     ) {
         let root_ui_component = self._root.get_ui_component_mut();
 

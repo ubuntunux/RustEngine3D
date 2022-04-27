@@ -8,7 +8,6 @@ use ash::{
     Device,
 };
 use ash::vk::Handle;
-use ash::extensions::nv;
 use ash::extensions::nv::RayTracing;
 
 use crate::vulkan_context::buffer::{
@@ -34,7 +33,7 @@ use crate::utilities::system::{
     RcRefCell,
     newRcRefCell
 };
-use crate::renderer::renderer::RendererData;
+use crate::renderer::renderer_context::RendererContext;
 
 
 #[derive(Clone, Debug)]
@@ -268,11 +267,11 @@ impl RenderPassData {
 }
 
 pub fn create_render_pass_data(
-    renderer_data: &RendererData,
+    renderer_context: &RendererContext,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
     descriptor_datas: &Vec<RcRefCell<DescriptorData>>
 ) -> RenderPassData {
-    let device = renderer_data.get_device();
+    let device = renderer_context.get_device();
     let render_pass = create_render_pass(device, &render_pass_data_create_info);
     let count = render_pass_data_create_info._pipeline_data_create_infos.len();
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
@@ -297,11 +296,11 @@ pub fn create_render_pass_data(
             } else if vk::PipelineBindPoint::RAY_TRACING_KHR == bind_point || vk::PipelineBindPoint::RAY_TRACING_NV == bind_point {
                 create_ray_tracing_pipeline_data(
                     device,
-                    renderer_data.get_command_pool(),
-                    renderer_data.get_graphics_queue(),
-                    renderer_data.get_device_memory_properties(),
-                    renderer_data.get_ray_tracing(),
-                    renderer_data.get_ray_tracing_properties(),
+                    renderer_context.get_command_pool(),
+                    renderer_context.get_graphics_queue(),
+                    renderer_context.get_device_memory_properties(),
+                    renderer_context.get_ray_tracing(),
+                    renderer_context.get_ray_tracing_properties(),
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
                     &descriptor_datas[i].borrow()
                 )

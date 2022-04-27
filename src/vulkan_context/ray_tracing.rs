@@ -1,18 +1,7 @@
-use ash::extensions:: {
-    khr,
-    nv,
-};
 use ash::extensions::nv::RayTracing;
-use ash::{
-    vk,
-    Device,
-    Instance,
-};
-use ash::util::Align;
-
+use ash::{ vk, Device };
 use nalgebra::Vector3;
 
-use crate::constants;
 use crate::renderer::utility::find_exactly_matching_memory_type_index;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::buffer::BufferData;

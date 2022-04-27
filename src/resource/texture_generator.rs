@@ -11,7 +11,7 @@ use nalgebra::{
 use rand;
 
 use crate::constants;
-use crate::renderer::renderer::RendererData;
+use crate::renderer::renderer_context::RendererContext;
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::vulkan_context::vulkan_context;
 
@@ -95,7 +95,7 @@ pub fn generate_images(texture_source_directory: &PathBuf) {
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal_no_alpha.png", 2, 2, [128, 128, 255, 0]);
 }
 
-pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
+pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData> {
     let white = vulkan_context::get_color32(255, 255, 255, 255);
     let black = vulkan_context::get_color32(0, 0, 0, 255);
     let red = vulkan_context::get_color32(255, 0, 0, 255);
@@ -104,7 +104,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
     let yellow = vulkan_context::get_color32(255, 255, 0, 255);
 
     let default_3d_data = generate_3d_data(64);
-    let texture_default_3d = renderer_data.create_texture(&TextureCreateInfo {
+    let texture_default_3d = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/default_3d"),
         _texture_width: 64,
         _texture_height: 64,
@@ -119,7 +119,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
     });
 
     let default_2d_array_data = generate_3d_data(64);
-    let texture_default_2d_array = renderer_data.create_texture(&TextureCreateInfo {
+    let texture_default_2d_array = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/default_2d_array"),
         _texture_width: 64,
         _texture_height: 64,
@@ -134,7 +134,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
     });
 
     let random_data = generate_random_data(512, 512);
-    let texture_random = renderer_data.create_texture(&TextureCreateInfo {
+    let texture_random = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/random"),
         _texture_width: 512,
         _texture_height: 512,
@@ -145,7 +145,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
     });
 
     let random_normals = generate_random_normals(unsafe { constants::SSAO_NOISE_DIM as u32 }, unsafe { constants::SSAO_NOISE_DIM as u32 });
-    let texture_random_normal = renderer_data.create_texture(&TextureCreateInfo {
+    let texture_random_normal = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/random_normal"),
         _texture_width: unsafe { constants::SSAO_NOISE_DIM as u32 },
         _texture_height: unsafe { constants::SSAO_NOISE_DIM as u32 },
@@ -153,7 +153,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
         _texture_initial_datas: random_normals,
         ..Default::default()
     });
-    let texture_check = renderer_data.create_texture(&TextureCreateInfo {
+    let texture_check = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/checker"),
         _texture_width: 2,
         _texture_height: 2,
@@ -162,7 +162,7 @@ pub fn generate_textures(renderer_data: &RendererData) -> Vec<TextureData> {
         _texture_initial_datas: vec![white, black, black, white],
         ..Default::default()
     });
-    let texture_color_cube = renderer_data.create_texture(&TextureCreateInfo {
+    let texture_color_cube = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/color_cube"),
         _texture_width: 1,
         _texture_height: 1,

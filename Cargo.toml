@@ -31,6 +31,10 @@ which = "4.0.2"
 xml-rs = "0.8"
 raw-window-handle = "0.4.3"
 
+[dependencies.sdl2]
+version = "0.34.5"
+features = ["mixer"]
+
 # android
 #anyhow = "1.0.12"
 #cpal = "0.13.3"
