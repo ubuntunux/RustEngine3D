@@ -170,8 +170,10 @@ impl KeyboardInputData {
     }
 
     pub fn set_key_pressed(&mut self, key: VirtualKeyCode) {
-        self._key_pressed_map.insert(key, true);
-        self.set_key_hold(key, true);
+        if false == self.get_key_hold(key) {
+            self._key_pressed_map.insert(key, true);
+            self.set_key_hold(key, true);
+        }
     }
 
     pub fn clear_key_pressed(&mut self) {
