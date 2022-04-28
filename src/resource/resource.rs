@@ -554,20 +554,20 @@ impl EngineResources {
         resource_root_path: &PathBuf,
         font_directory: &PathBuf,
         font_texture_directory: &PathBuf,
-        font_name: &String,
+        font_data_name: &String,
         font_source_file: &PathBuf,
         range_min: u32,
         range_max: u32
     ) -> FontDataCreateInfo {
         let mut font_file_path: PathBuf = resource_root_path.clone();
         font_file_path.push(font_directory);
-        font_file_path.push(font_name);
+        font_file_path.push(font_data_name);
         font_file_path.set_extension(EXT_FONT);
         fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
 
         let mut font_texture_file_path: PathBuf = resource_root_path.clone();
         font_texture_file_path.push(font_texture_directory);
-        font_texture_file_path.push(&font_name);
+        font_texture_file_path.push(&font_data_name);
         font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
         fs::create_dir_all(font_texture_file_path.parent().unwrap()).expect("Failed to create directories.");
 
@@ -576,7 +576,7 @@ impl EngineResources {
             &font_source_file,
             font::FONT_SIZE as f32,
             font::FONT_PADDING as f32,
-            &font_name,
+            &font_data_name,
             &font_texture_file_path,
             range_min,
             range_max
@@ -658,7 +658,7 @@ impl EngineResources {
                         font_texture_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
                     }
                     font_texture_file_path.push(&font_texture_directory);
-                    font_texture_file_path.push(&font_name);
+                    font_texture_file_path.push(&font_data_name);
                     font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
 
                     let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType =
