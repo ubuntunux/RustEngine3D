@@ -3,6 +3,9 @@ extern crate nalgebra;
 extern crate sdl2;
 extern crate winit;
 extern crate log;
+extern crate byteorder;
+extern crate rusttype;
+extern crate image;
 
 pub mod constants;
 pub mod application;

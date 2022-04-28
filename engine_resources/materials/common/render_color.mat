@@ -1,0 +1,6 @@
+{"pipelines": [
+        {"render_pass": "render_color_R16G16B16A16_SFLOAT", "pipeline": "render_color"},
+        {"render_pass": "render_color_R32_SFLOAT", "pipeline": "render_color"},
+        {"render_pass": "render_color_R32G32B32A32_SFLOAT", "pipeline": "render_color"}
+    ]
+}

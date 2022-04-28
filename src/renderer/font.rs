@@ -1,5 +1,4 @@
 use std::cmp::max;
-use std::path::{ PathBuf };
 
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3 };
@@ -57,7 +56,6 @@ pub struct FontDataCreateInfo {
     pub _text_count: u32,
     pub _count_of_side: u32,
     pub _font_size: f32,
-    pub _texture_file_path: PathBuf,
 }
 
 pub struct FontData {

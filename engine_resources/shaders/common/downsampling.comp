@@ -1,0 +1,20 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+#extension GL_GOOGLE_include_directive : enable
+
+layout(local_size_x = 1, local_size_y = 1) in;
+layout(rgba32f, binding = 0) uniform readonly image2D img_input;
+layout(rgba32f, binding = 1) uniform image2D img_output;
+
+void main()
+{
+    ivec2 input_image_bound = imageSize(img_input) - 1;
+    ivec2 pixel_coords = ivec2(gl_GlobalInvocationID.xy);
+    ivec2 input_pixel_coords0 = pixel_coords * 2;
+    ivec2 input_pixel_coords1 = input_pixel_coords0 + 1;
+    vec4 color = imageLoad(img_input, input_pixel_coords0);
+    color += imageLoad(img_input, ivec2(input_pixel_coords1.x, input_pixel_coords0.y));
+    color += imageLoad(img_input, ivec2(input_pixel_coords0.x, input_pixel_coords1.y));
+    color += imageLoad(img_input, input_pixel_coords1);
+    imageStore(img_output, pixel_coords, color * 0.25);
+}

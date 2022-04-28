@@ -48,30 +48,32 @@ use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
-pub const RESOURCE_PATH: &str = "resources";
-pub const ENGINE_RESOURCE_PATH: &str = "RustEngine3D/engine_resources";
+pub const PROJECT_RESOURCE_PATH: &str = "resources";
+pub const ENGINE_RESOURCE_PATH: &str = "resources/engine_resources";
+pub const ENGINE_RESOURCE_SOURCE_PATH: &str = "RustEngine3D/engine_resources";
 
-pub const AUDIO_FILE_PATH: &str = "resources/sounds";
-pub const AUDIO_BANK_FILE_PATH: &str = "resources/sound_banks";
-pub const EFFECT_FILE_PATH: &str = "resources/effects";
-pub const FONT_SOURCE_FILE_PATH: &str = "resources/externals/fonts";
-pub const FONT_FILE_PATH: &str = "resources/fonts";
-pub const FONT_TEXTURE_FILE_PATH: &str = "resources/externals/textures/fonts";
-pub const MATERIAL_FILE_PATH: &str = "resources/materials";
-pub const MATERIAL_INSTANCE_FILE_PATH: &str = "resources/material_instances";
-pub const MESH_SOURCE_FILE_PATH: &str = "resources/externals/meshes";
-pub const MESH_FILE_PATH: &str = "resources/meshes";
-pub const MODEL_FILE_PATH: &str = "resources/models";
-pub const TEXTURE_SOURCE_FILE_PATH: &str = "resources/externals/textures";
-pub const TEXTURE_FILE_PATH: &str = "resources/textures";
-pub const SHADER_CACHE_DIRECTORY: &str = "resources/shader_caches";
-pub const SHADER_DIRECTORY: &str = "resources/shaders";
+pub const AUDIO_DIRECTORY: &str = "sounds";
+pub const AUDIO_BANK_DIRECTORY: &str = "sound_banks";
+pub const EFFECT_DIRECTORY: &str = "effects";
+pub const FONT_SOURCE_DIRECTORY: &str = "externals/fonts";
+pub const FONT_DIRECTORY: &str = "fonts";
+pub const FONT_TEXTURE_DIRECTORY: &str = "externals/textures/fonts";
+pub const MATERIAL_DIRECTORY: &str = "materials";
+pub const MATERIAL_INSTANCE_DIRECTORY: &str = "material_instances";
+pub const MESH_SOURCE_DIRECTORY: &str = "externals/meshes";
+pub const MESH_DIRECTORY: &str = "meshes";
+pub const MODEL_DIRECTORY: &str = "models";
+pub const TEXTURE_SOURCE_DIRECTORY: &str = "externals/textures";
+pub const TEXTURE_DIRECTORY: &str = "textures";
+pub const SHADER_CACHE_DIRECTORY: &str = "shader_caches";
+pub const SHADER_DIRECTORY: &str = "shaders";
 
 pub const EXT_AUDIO_SOURCE: [&str; 2] = ["wav", "mp3"];
 pub const EXT_AUDIO_BANK: &str = "bank";
 pub const EXT_EFFECT: &str = "effect";
 pub const EXT_FONT_SOURCE: [&str; 1] = ["ttf"];
 pub const EXT_FONT: &str = "font";
+pub const EXT_FONT_TEXTURE: &str = "png";
 pub const EXT_OBJ: &str = "obj";
 pub const EXT_COLLADA: &str = "dae";
 pub const EXT_MESH_SOURCE: [&str; 2] = [EXT_OBJ, EXT_COLLADA];
@@ -165,7 +167,7 @@ pub trait ProjectResourcesBase {
 #[derive(Clone)]
 pub struct EngineResources {
     pub _project_resources: *const dyn ProjectResourcesBase,
-    pub _resource_filenames: Vec<PathBuf>,
+    pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _meta_data_map: MetaDataMap,
     pub _audio_data_map: AudioDataMap,
     pub _audio_bank_data_map: AudioBankDataMap,
@@ -179,6 +181,28 @@ pub struct EngineResources {
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
     pub _descriptor_data_map: DescriptorDataMap
+}
+
+
+fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
+    let contents = fs::read_dir(dir).unwrap();
+    for content in contents {
+        let content = content.unwrap().path();
+        if content.is_dir() {
+            walk_directory_recursive(&content, extensions, out_contents);
+        } else {
+            let ext = content.extension();
+            if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
+                out_contents.push(PathBuf::from(content));
+            }
+        }
+    }
+}
+
+pub fn walk_directory(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+    let mut out_contents: Vec<PathBuf> = Vec::new();
+    walk_directory_recursive(dir, extensions, &mut out_contents);
+    out_contents
 }
 
 pub fn get_resource_data_must<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str) -> &'a RcRefCell<T> {
@@ -196,20 +220,30 @@ pub fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resou
     }
 }
 
-pub fn get_resource_name_from_file_path(resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
+pub fn get_resource_name_from_file_path(resource_dircetory: &PathBuf, resource_file_path: &PathBuf) -> String {
     let mut resource_name = PathBuf::from(resource_file_path.parent().unwrap());
     resource_name.push(resource_file_path.file_stem().unwrap());
-    let resource_name = String::from(system::get_relative_path(resource_root_path, &resource_name).to_str().unwrap());
+
+    let mut resource_root_path: PathBuf;
+    if resource_file_path.starts_with(ENGINE_RESOURCE_PATH) {
+        resource_root_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+    } else {
+        resource_root_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+    }
+    resource_root_path.push(resource_dircetory);
+
+    let resource_name = String::from(system::get_relative_path(&resource_root_path, &resource_name).to_str().unwrap());
     resource_name.replace("\\", "/")
 }
 
-pub fn get_unique_resource_name<T>(resource_map: &ResourceDataMap<T>, resource_root_path: &PathBuf, resource_file_path: &PathBuf) -> String {
-    let resource_name = get_resource_name_from_file_path(resource_root_path, resource_file_path);
+pub fn get_unique_resource_name<T>(resource_map: &ResourceDataMap<T>, resource_dircetory: &PathBuf, resource_file_path: &PathBuf) -> String {
+    let resource_name = get_resource_name_from_file_path(resource_dircetory, resource_file_path);
     system::generate_unique_name(resource_map, &resource_name)
 }
 
-pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &String, resource_ext: &str) -> PathBuf {
+pub fn get_resource_file_path(resource_root_path: &str, resource_dircetory: &str, resource_name: &String, resource_ext: &str) -> PathBuf {
     let mut resource_file_path: PathBuf = PathBuf::from(resource_root_path);
+    resource_file_path.push(resource_dircetory);
     resource_file_path.push(resource_name);
     resource_file_path.set_extension(resource_ext);
     resource_file_path
@@ -217,9 +251,9 @@ pub fn get_resource_file_path(resource_root_path: &PathBuf, resource_name: &Stri
 
 impl EngineResources {
     pub fn create_engine_resources(project_resources: *const dyn ProjectResourcesBase) -> EngineResources {
-        EngineResources {
+        let mut engine_resource = EngineResources {
             _project_resources: project_resources,
-            _resource_filenames: Vec::new(),
+            _relative_resource_file_path_map: HashMap::new(),
             _audio_data_map: AudioDataMap::new(),
             _audio_bank_data_map: AudioBankDataMap::new(),
             _effect_data_map: EffectDataMap::new(),
@@ -232,8 +266,11 @@ impl EngineResources {
             _render_pass_data_map: RenderPassDataMap::new(),
             _material_data_map: MaterialDataMap::new(),
             _material_instance_data_map: MaterialInstanceDataMap::new(),
-            _descriptor_data_map: DescriptorDataMap::new()
-        }
+            _descriptor_data_map: DescriptorDataMap::new(),
+        };
+
+        engine_resource.preinitialize_engine_resources();
+        engine_resource
     }
 
     pub fn get_project_resources(&self) -> &dyn ProjectResourcesBase {
@@ -244,12 +281,53 @@ impl EngineResources {
         unsafe { &mut *(self._project_resources as *mut dyn ProjectResourcesBase) }
     }
 
+    pub fn preinitialize_engine_resources(&mut self) {
+        let resource_list_file_path: PathBuf = PathBuf::from(PROJECT_RESOURCE_PATH).join("resources.txt");
+
+        #[cfg(not(target_os = "android"))]
+        {
+            let files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
+            let mut write_file = fs::File::create(&resource_list_file_path).expect("Failed to create file");
+            for file_path in files {
+                if let Some(filename) = file_path.file_name() {
+                    if "empty" == filename {
+                        continue;
+                    }
+                }
+
+                if resource_list_file_path != file_path {
+                    write_file.write(format!("{}\n", file_path.to_str().unwrap()).as_bytes()).expect("Failed to write");
+                }
+            }
+        }
+
+        let loaded_resources = system::load(&resource_list_file_path);
+        let resources: String = String::from_utf8(loaded_resources.into_inner()).unwrap();
+        for resource in resources.split("\n") {
+            let resource_file_path = PathBuf::from(resource);
+            if resource.is_empty() || resource_list_file_path == resource_file_path {
+                continue;
+            }
+
+            let mut relative_resource_file_path = resource_file_path.clone();
+            let is_engine_resource = relative_resource_file_path.starts_with(ENGINE_RESOURCE_PATH);
+            if is_engine_resource {
+                relative_resource_file_path = relative_resource_file_path.strip_prefix(ENGINE_RESOURCE_PATH).unwrap().to_path_buf();
+            } else {
+                relative_resource_file_path = relative_resource_file_path.strip_prefix(PROJECT_RESOURCE_PATH).unwrap().to_path_buf();
+            }
+
+            if self._relative_resource_file_path_map.get(&relative_resource_file_path).is_none() || false == is_engine_resource {
+                self._relative_resource_file_path_map.insert(relative_resource_file_path.clone(), resource_file_path);
+            }
+        }
+    }
+
     pub fn initialize_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("initialize_engine_resources");
         let is_reload: bool = false;
 
         // load engine resources
-        self.load_resource_filenames();
         self.load_texture_datas(renderer_context);
         self.load_font_datas(renderer_context);
         self.load_render_pass_datas(renderer_context);
@@ -318,18 +396,10 @@ impl EngineResources {
         // nothing..
     }
 
-    pub fn load_resource_filenames(&mut self) {
-        let loaded_contents = system::load(&Path::new("resources/resources.txt"));
-        let contents: String = String::from_utf8(loaded_contents.into_inner()).unwrap();
-        for content in contents.split("\n") {
-            self._resource_filenames.push(PathBuf::from(content));
-        }
-    }
-
-    pub fn collect_engine_resources_inner(&self, dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+    pub fn collect_resources(&self, directory: &Path, extensions: &[&str]) -> Vec<PathBuf> {
         let mut out_engine_resources: Vec<PathBuf> = Vec::new();
-        for resource_filename in self._resource_filenames.iter() {
-            if resource_filename.starts_with(dir) {
+        for (relative_filepath, resource_filename) in self._relative_resource_file_path_map.iter() {
+            if relative_filepath.starts_with(directory) {
                 let ext = resource_filename.extension();
                 if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
                     out_engine_resources.push(PathBuf::from(resource_filename));
@@ -339,21 +409,13 @@ impl EngineResources {
         out_engine_resources
     }
 
-    pub fn collect_engine_resources(&self, dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
-        return self.collect_engine_resources_inner(dir, extensions);
-        // #[cfg(target_os = "android")]
-        // return self.collect_engine_resources_inner(dir, extensions);
-        // #[cfg(not(target_os = "android"))]
-        // return system::walk_directory(dir, extensions);
-    }
-
     // Audio Data
     pub fn load_audio_datas(&mut self) {
-        let audio_directory = PathBuf::from(AUDIO_FILE_PATH);
-        let audio_bank_directory = PathBuf::from(AUDIO_BANK_FILE_PATH);
+        let audio_directory = PathBuf::from(AUDIO_DIRECTORY);
+        let audio_bank_directory = PathBuf::from(AUDIO_BANK_DIRECTORY);
 
         // load audio datas
-        let audio_data_files: Vec<PathBuf> = self.collect_engine_resources(&audio_directory, &EXT_AUDIO_SOURCE);
+        let audio_data_files: Vec<PathBuf> = self.collect_resources(&audio_directory, &EXT_AUDIO_SOURCE);
         for audio_data_file in audio_data_files {
             let audio_data_name = get_unique_resource_name(&self._audio_data_map, &audio_directory, &audio_data_file);
             // let loaded_contents = system::load(&audio_data_file);
@@ -365,21 +427,26 @@ impl EngineResources {
             self._audio_data_map.insert(audio_data_name.clone(), newRcRefCell(audio_data_create_info));
         }
 
-        // default audio bank data
-        let mut default_audio_bank_file_path: PathBuf = audio_bank_directory.clone();
-        default_audio_bank_file_path.push(&DEFAULT_AUDIO_BANK_NAME);
-        default_audio_bank_file_path.set_extension(EXT_AUDIO_BANK);
-        #[cfg(not(target_os = "android"))]
-        if false == default_audio_bank_file_path.is_file() {
-            let default_audio_bank_data_create_info = AudioBankCreateInfo::default();
-            let mut write_file = File::create(&default_audio_bank_file_path).expect("Failed to create file");
-            let mut write_contents: String = serde_json::to_string(&default_audio_bank_data_create_info).expect("Failed to serialize.");
-            write_contents = write_contents.replace(",\"", ",\n\"");
-            write_file.write(write_contents.as_bytes()).expect("Failed to write");
+        // create default audio bank data
+        {
+            let mut default_audio_bank_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+            default_audio_bank_file_path.push(&audio_bank_directory);
+            default_audio_bank_file_path.push(&DEFAULT_AUDIO_BANK_NAME);
+            default_audio_bank_file_path.set_extension(EXT_AUDIO_BANK);
+            #[cfg(not(target_os = "android"))]
+            if false == default_audio_bank_file_path.is_file() {
+                let mut default_audio_bank_data_create_info = AudioBankCreateInfo::default();
+                default_audio_bank_data_create_info._audio_names.push(DEFAULT_AUDIO_NAME.to_string());
+                log::info!("default_audio_bank_file_path: {:?}", default_audio_bank_file_path);
+                let mut write_file = File::create(&default_audio_bank_file_path).expect("Failed to create file");
+                let mut write_contents: String = serde_json::to_string(&default_audio_bank_data_create_info).expect("Failed to serialize.");
+                write_contents = write_contents.replace(",\"", ",\n\"");
+                write_file.write(write_contents.as_bytes()).expect("Failed to write");
+            }
         }
 
         // load audio bank datas
-        let audio_bank_data_files: Vec<PathBuf> = self.collect_engine_resources(&audio_bank_directory, &[EXT_AUDIO_BANK]);
+        let audio_bank_data_files: Vec<PathBuf> = self.collect_resources(&audio_bank_directory, &[EXT_AUDIO_BANK]);
         for audio_bank_data_file in audio_bank_data_files {
             let audio_bank_data_name = get_unique_resource_name(&self._audio_bank_data_map, &audio_bank_directory, &audio_bank_data_file);
             let loaded_contents = system::load(&audio_bank_data_file);
@@ -419,11 +486,10 @@ impl EngineResources {
 
     // EffectData
     pub fn load_effect_datas(&mut self) {
-        let effect_directory = PathBuf::from(EFFECT_FILE_PATH);
-
         // create default effect
-        let mut default_effect_file_path: PathBuf = effect_directory.clone();
-        default_effect_file_path.push(&DEFAULT_EFFECT_NAME);
+        let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+        default_effect_file_path.push(EFFECT_DIRECTORY);
+        default_effect_file_path.push(DEFAULT_EFFECT_NAME);
         default_effect_file_path.set_extension(EXT_EFFECT);
         #[cfg(not(target_os = "android"))]
         if false == default_effect_file_path.is_file() {
@@ -444,9 +510,9 @@ impl EngineResources {
             write_file.write(write_contents.as_bytes()).expect("Failed to write");
         }
 
-        let effect_files: Vec<PathBuf> = self.collect_engine_resources(&effect_directory, &[EXT_EFFECT]);
+        let effect_files: Vec<PathBuf> = self.collect_resources(&Path::new(EFFECT_DIRECTORY), &[EXT_EFFECT]);
         for effect_file in effect_files {
-            let effect_data_name = get_unique_resource_name(&self._effect_data_map, &effect_directory, &effect_file);
+            let effect_data_name = get_unique_resource_name(&self._effect_data_map, &PathBuf::from(EFFECT_DIRECTORY), &effect_file);
             let loaded_contents = system::load(&effect_file);
             let effect_data_create_info: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let emitter_datas = effect_data_create_info._emitter_data_create_infos.iter().map(|emitter_data_create_info| {
@@ -485,6 +551,7 @@ impl EngineResources {
     // FontData
     pub fn get_font_data_create_info(
         &self,
+        resource_root_path: &PathBuf,
         font_directory: &PathBuf,
         font_texture_directory: &PathBuf,
         font_name: &String,
@@ -492,14 +559,16 @@ impl EngineResources {
         range_min: u32,
         range_max: u32
     ) -> FontDataCreateInfo {
-        let mut font_file_path: PathBuf = font_directory.clone();
+        let mut font_file_path: PathBuf = resource_root_path.clone();
+        font_file_path.push(font_directory);
         font_file_path.push(font_name);
         font_file_path.set_extension(EXT_FONT);
         fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
 
-        let mut font_texture_file_path: PathBuf = font_texture_directory.clone();
+        let mut font_texture_file_path: PathBuf = resource_root_path.clone();
+        font_texture_file_path.push(font_texture_directory);
         font_texture_file_path.push(&font_name);
-        font_texture_file_path.set_extension("png");
+        font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
         fs::create_dir_all(font_texture_file_path.parent().unwrap()).expect("Failed to create directories.");
 
         let mut write_file = File::create(&font_file_path).expect("Failed to create file");
@@ -522,18 +591,25 @@ impl EngineResources {
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
         //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
 
-        let font_directory = PathBuf::from(FONT_FILE_PATH);
-        let font_texture_directory = PathBuf::from(FONT_TEXTURE_FILE_PATH);
-        let font_files = self.collect_engine_resources(font_directory.as_path(), &[EXT_FONT]);
+        let font_directory = PathBuf::from(FONT_DIRECTORY);
+        let font_texture_directory = PathBuf::from(FONT_TEXTURE_DIRECTORY);
+        let font_files = self.collect_resources(font_directory.as_path(), &[EXT_FONT]);
         let mut font_file_map: HashMap<String, PathBuf> = HashMap::new();
         for font_file in font_files.iter() {
             let font_name = get_resource_name_from_file_path(&font_directory, &font_file);
             font_file_map.insert(font_name, font_file.clone());
         }
 
-        let font_source_directory = PathBuf::from(FONT_SOURCE_FILE_PATH);
-        let font_source_files: Vec<PathBuf> = self.collect_engine_resources(&font_source_directory, &EXT_FONT_SOURCE);
+        let font_source_directory = PathBuf::from(FONT_SOURCE_DIRECTORY);
+        let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
         for font_source_file in font_source_files {
+            let is_engine_resource = font_source_file.starts_with(ENGINE_RESOURCE_PATH);
+            let resource_root_path: PathBuf;
+            if is_engine_resource {
+                resource_root_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+            } else {
+                resource_root_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+            }
             for (unicode_block_key, (range_min, range_max))  in unicode_blocks.iter() {
                 let font_name = get_unique_resource_name(&self._font_data_map, &font_source_directory, &font_source_file);
                 let font_data_name = format!("{}_{}", font_name, unicode_block_key);
@@ -546,20 +622,48 @@ impl EngineResources {
                         let check_font_texture_file_exists = false;
                         #[cfg(not(target_os = "android"))]
                         let check_font_texture_file_exists = true;
-                        if check_font_texture_file_exists && false == font_data_create_info._texture_file_path.is_file() {
-                            self.get_font_data_create_info(&font_directory, &font_texture_directory, &font_data_name, &font_source_file, *range_min, *range_max)
+                        if check_font_texture_file_exists && false == self.has_texture_data(&font_texture_name) {
+                            self.get_font_data_create_info(
+                                &resource_root_path,
+                                &font_directory,
+                                &font_texture_directory,
+                                &font_data_name,
+                                &font_source_file,
+                                *range_min,
+                                *range_max
+                            )
                         } else {
                             font_data_create_info
                         }
                     },
                     _ => {
-                        self.get_font_data_create_info(&font_directory, &font_texture_directory, &font_data_name, &font_source_file, *range_min, *range_max)
+                        self.get_font_data_create_info(
+                            &resource_root_path,
+                            &font_directory,
+                            &font_texture_directory,
+                            &font_data_name,
+                            &font_source_file,
+                            *range_min,
+                            *range_max
+                        )
                     },
                 };
 
                 if false == self.has_texture_data(&font_texture_name) {
                     // regist font texture
-                    let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType = EngineResources::load_image_data(&font_data_create_info._texture_file_path);
+                    let mut font_texture_file_path: PathBuf;
+                    if is_engine_resource {
+                        font_texture_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+                    } else {
+                        font_texture_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+                    }
+                    font_texture_file_path.push(&font_texture_directory);
+                    font_texture_file_path.push(&font_name);
+                    font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
+
+                    let (image_width, image_height, image_layers, image_data, image_format): LoadImageInfoType =
+                        EngineResources::load_image_data(&font_texture_file_path);
+
                     assert_ne!(vk::Format::UNDEFINED, image_format);
                     let texture_create_info = TextureCreateInfo {
                         _texture_name: font_texture_name.clone(),
@@ -614,8 +718,8 @@ impl EngineResources {
 
     // ModelData
     pub fn load_model_datas(&mut self) {
-        let model_directory = PathBuf::from(MODEL_FILE_PATH);
-        let model_files: Vec<PathBuf> = self.collect_engine_resources(&model_directory, &[EXT_MODEL]);
+        let model_directory = PathBuf::from(MODEL_DIRECTORY);
+        let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
             let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
             let loaded_contents = system::load(&model_file);
@@ -688,16 +792,16 @@ impl EngineResources {
     pub fn load_mesh_datas(&mut self, renderer_context: &RendererContext) {
         self.regist_mesh_data(renderer_context, &String::from("quad"), geometry_buffer::quad_mesh_create_info());
         self.regist_mesh_data(renderer_context, &String::from("cube"), geometry_buffer::cube_mesh_create_info());
-        let mesh_directory = PathBuf::from(MESH_FILE_PATH);
-        let mesh_source_directory = PathBuf::from(MESH_SOURCE_FILE_PATH);
+        let mesh_directory = PathBuf::from(MESH_DIRECTORY);
+        let mesh_source_directory = PathBuf::from(MESH_SOURCE_DIRECTORY);
         let resource_ext = if USE_JSON_FOR_MESH { EXT_JSON } else { EXT_MESH };
-        let mesh_files = self.collect_engine_resources(mesh_directory.as_path(), &[resource_ext]);
+        let mesh_files = self.collect_resources(mesh_directory.as_path(), &[resource_ext]);
         let mut mesh_file_map: HashMap<String, PathBuf> = HashMap::new();
         for mesh_file in mesh_files.iter() {
             let mesh_name = get_resource_name_from_file_path(&mesh_directory, &mesh_file);
             mesh_file_map.insert(mesh_name, mesh_file.clone());
         }
-        let mesh_source_files = self.collect_engine_resources(mesh_source_directory.as_path(), &EXT_MESH_SOURCE);
+        let mesh_source_files = self.collect_resources(mesh_source_directory.as_path(), &EXT_MESH_SOURCE);
         for mesh_source_file in mesh_source_files {
             let mesh_name = get_unique_resource_name(&self._mesh_data_map, &mesh_source_directory, &mesh_source_file);
             let src_file_ext: String = String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
@@ -721,7 +825,13 @@ impl EngineResources {
 
                     // Save mesh
                     if false == LOAD_FROM_EXTERNAL_FOR_MESH {
-                        let mut mesh_file_path: PathBuf = mesh_directory.clone();
+                        let mut mesh_file_path: PathBuf;
+                        if mesh_source_file.starts_with(ENGINE_RESOURCE_PATH) {
+                            mesh_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+                        } else {
+                            mesh_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+                        }
+                        mesh_file_path.push(&mesh_directory);
                         mesh_file_path.push(&mesh_name);
                         mesh_file_path.set_extension(resource_ext);
                         fs::create_dir_all(mesh_file_path.parent().unwrap()).expect("Failed to create directories.");
@@ -805,23 +915,27 @@ impl EngineResources {
     }
 
     pub fn load_texture_datas(&mut self, renderer_context: &RendererContext) {
-        let texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
-        for texture_data in texture_datas {
+        let default_texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
+        for texture_data in default_texture_datas {
             self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
         }
 
-        let texture_directory = PathBuf::from(TEXTURE_FILE_PATH);
-        let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_FILE_PATH);
+        let texture_directory = PathBuf::from(TEXTURE_DIRECTORY);
+        let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_DIRECTORY);
         let mut combined_textures_name_map: HashMap<PathBuf, String> = HashMap::new();
         let mut combined_texture_files_map: HashMap<String, Vec::<PathBuf>> = HashMap::new();
         let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
 
         // generate necessary texture datas
         #[cfg(not(target_os = "android"))]
-        texture_generator::generate_images(&texture_source_directory);
+        {
+            let mut engine_texture_source_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+            engine_texture_source_path.push(TEXTURE_SOURCE_DIRECTORY);
+            texture_generator::generate_images(&engine_texture_source_path);
+        }
 
         // combined texture list
-        let combined_texture_files = self.collect_engine_resources(texture_source_directory.as_path(), &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE]);
+        let combined_texture_files = self.collect_resources(texture_source_directory.as_path(), &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE]);
         for texture_src_file in combined_texture_files.iter() {
             let directory = texture_src_file.parent().unwrap();
             let texture_data_name = get_resource_name_from_file_path(&texture_source_directory, &texture_src_file);
@@ -870,7 +984,7 @@ impl EngineResources {
         }
 
         // load texture from external files
-        let texture_src_files = self.collect_engine_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
+        let texture_src_files = self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
         for texture_src_file in texture_src_files.iter() {
             let combined_texture_name = combined_textures_name_map.get(texture_src_file);
             let texture_data_name: String = match combined_texture_name {
@@ -908,7 +1022,7 @@ impl EngineResources {
         }
 
         // read binary texture data
-        let texture_files = self.collect_engine_resources(texture_directory.as_path(), &EXT_TEXTURE);
+        let texture_files = self.collect_resources(texture_directory.as_path(), &EXT_TEXTURE);
         for texture_file in texture_files.iter() {
             let texture_data_name = get_resource_name_from_file_path(&texture_directory, texture_file);
             let mut loaded_contents = system::load(&texture_file);
@@ -1047,8 +1161,8 @@ impl EngineResources {
 
     // Material_datas
     pub fn load_material_datas(&mut self) {
-        let material_directory = PathBuf::from(MATERIAL_FILE_PATH);
-        let material_files = self.collect_engine_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
+        let material_directory = PathBuf::from(MATERIAL_DIRECTORY);
+        let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
         for material_file in material_files {
             let material_name = get_unique_resource_name(&self._material_data_map, &material_directory, &material_file);
             let loaded_contents = system::load(material_file);
@@ -1101,8 +1215,8 @@ impl EngineResources {
 
     // MaterialInstance_datas
     pub fn load_material_instance_datas(&mut self, renderer_context: &RendererContext, is_reload: bool) {
-        let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_FILE_PATH);
-        let material_instance_files = self.collect_engine_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
+        let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_DIRECTORY);
+        let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
             let material_instance_name = if is_reload {
                 get_resource_name_from_file_path(&material_instance_directory, &material_instance_file)

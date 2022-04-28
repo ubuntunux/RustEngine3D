@@ -14,13 +14,21 @@ use ash::vk::Handle;
 use crate::utilities::system;
 use crate::resource::resource;
 
-pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
+pub fn spirv_file_path_with_defines(is_engine_resource: bool, shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
     let ext = shader_filename.extension().unwrap();
     let mut just_filename = PathBuf::new();
     just_filename.push(shader_filename.parent().unwrap());
     just_filename.push(shader_filename.file_stem().unwrap());
-    let mut spirv_file_path = PathBuf::from(resource::SHADER_CACHE_DIRECTORY);
+
+    let mut spirv_file_path = PathBuf::new();
+    if is_engine_resource {
+        spirv_file_path.push(resource::ENGINE_RESOURCE_PATH);
+    } else {
+        spirv_file_path.push(resource::PROJECT_RESOURCE_PATH)
+    }
+    spirv_file_path.push(resource::SHADER_CACHE_DIRECTORY);
     spirv_file_path.push(just_filename);
+
     let mut spirv_file_path_str: String = String::from(spirv_file_path.to_str().unwrap());
     if false == shader_defines.is_empty() {
         let mut combined_shader_define: String = shader_defines.join("_");
@@ -36,10 +44,19 @@ pub fn spirv_file_path_with_defines(shader_filename: &PathBuf, shader_defines: &
 
 
 pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
-    let mut shader_file_path: PathBuf = PathBuf::from(resource::SHADER_DIRECTORY);
-    shader_file_path.push(shader_filename);
-
-    let spirv_file_path: PathBuf = spirv_file_path_with_defines(&shader_filename, &shader_defines);
+    let engine_shader_file_path: PathBuf = PathBuf::from(resource::ENGINE_RESOURCE_PATH)
+        .join(resource::SHADER_DIRECTORY)
+        .join(shader_filename);
+    let project_shader_file_path: PathBuf = PathBuf::from(resource::PROJECT_RESOURCE_PATH)
+        .join(resource::SHADER_DIRECTORY)
+        .join(shader_filename);
+    let is_engine_resource: bool = engine_shader_file_path.is_file() && false == project_shader_file_path.is_file();
+    let shader_file_path = if is_engine_resource {
+        engine_shader_file_path
+    } else {
+        project_shader_file_path
+    };
+    let spirv_file_path: PathBuf = spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
 
     let force_convert: bool = true;
     #[cfg(not(target_os = "android"))]

@@ -1,0 +1,13 @@
+{"material_name": "fft_ocean/render_fft_ocean",
+ "material_parameters": {
+    "texture_spectrum_1_2": "fft_ocean/spectrum_1_2",
+    "texture_spectrum_3_4": "fft_ocean/spectrum_3_4",
+    "texture_butterfly": "fft_ocean/butterfly",
+    "texture_noise": "common/noise",
+    "texture_caustic": "common/water_caustic",
+    "texture_foam": "common/water_foam",
+    "transmittance_texture": "precomputed_atmosphere/transmittance",
+    "irradiance_texture": "precomputed_atmosphere/irradiance",
+    "scattering_texture": "precomputed_atmosphere/scattering"
+ }
+}

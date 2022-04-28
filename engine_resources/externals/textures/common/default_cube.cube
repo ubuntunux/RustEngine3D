@@ -1,0 +1,7 @@
+{"right": "default_cube_right.jpg",
+ "left": "default_cube_left.jpg",
+ "top": "default_cube_top.jpg",
+ "bottom": "default_cube_bottom.jpg",
+ "front": "default_cube_front.jpg",
+ "back": "default_cube_back.jpg"
+}

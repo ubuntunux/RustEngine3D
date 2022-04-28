@@ -1,0 +1,2 @@
+{ "pipelines": [{ "render_pass": "composite_gbuffer", "pipeline": "composite_gbuffer" }]}
+

@@ -1,0 +1,5 @@
+{"pipelines": [
+    {"render_pass": "render_bloom", "pipeline": "render_bloom_highlight"},
+    {"render_pass": "render_bloom", "pipeline": "render_bloom_downsampling"}
+ ]
+}

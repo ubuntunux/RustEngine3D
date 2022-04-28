@@ -1,0 +1,14 @@
+{"pipelines": [
+    {"render_pass": "composite_atmosphere", "pipeline": "default"},
+    {"render_pass": "compute_transmittance", "pipeline": "default"},
+    {"render_pass": "compute_transmittance", "pipeline": "recompute_transmittance"},
+    {"render_pass": "compute_direct_irradiance", "pipeline": "default"},
+    {"render_pass": "compute_direct_irradiance", "pipeline": "additive"},
+    {"render_pass": "compute_indirect_irradiance", "pipeline": "default"},
+    {"render_pass": "compute_multiple_scattering", "pipeline": "default"},
+    {"render_pass": "compute_single_scattering", "pipeline": "default"},
+    {"render_pass": "compute_single_scattering", "pipeline": "additive"},
+    {"render_pass": "compute_scattering_density", "pipeline": "default"},
+    {"render_pass": "render_atmosphere", "pipeline": "default"}
+ ]
+}

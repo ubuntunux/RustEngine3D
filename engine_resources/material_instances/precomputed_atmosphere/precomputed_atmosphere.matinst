@@ -1,0 +1,9 @@
+{"material_name": "precomputed_atmosphere/precomputed_atmosphere",
+ "material_parameters": {
+    "texture_cloud": "precomputed_atmosphere/cloud_3d",
+    "texture_noise": "precomputed_atmosphere/noise_3d",
+    "transmittance_texture": "precomputed_atmosphere/transmittance",
+    "irradiance_texture": "precomputed_atmosphere/irradiance",
+    "scattering_texture": "precomputed_atmosphere/scattering"
+ }
+}

@@ -1,0 +1,8 @@
+{"pipelines": [
+    {"render_pass": "render_fft_init", "pipeline": "render_fft_init"},
+    {"render_pass": "render_fft_waves", "pipeline": "render_fft_x"},
+    {"render_pass": "render_fft_waves", "pipeline": "render_fft_y"},
+    {"render_pass": "render_fft_variance", "pipeline": "render_fft_variance"},
+    {"render_pass": "render_fft_ocean", "pipeline": "render_fft_ocean"}
+ ]
+}

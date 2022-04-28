@@ -1,0 +1,5 @@
+{"pipelines":
+    [ {"render_pass": "generate_min_z", "pipeline": "render_copy"},
+      {"render_pass": "generate_min_z", "pipeline": "generate_min_z"}
+    ]
+}

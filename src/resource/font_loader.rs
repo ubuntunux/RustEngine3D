@@ -113,7 +113,6 @@ pub fn get_font_data_create_info(
         _range_max: range_max,
         _text_count: range_max - range_min + 1,
         _count_of_side: count_of_side,
-        _font_size: font_size,
-        _texture_file_path: font_texture_file_path.clone(),
+        _font_size: font_size
     }
 }
