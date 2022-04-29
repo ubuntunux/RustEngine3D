@@ -1,14 +1,15 @@
+use std::collections::HashMap;
 use std::fs::{ self, File };
 use std::io::prelude::*;
 use std::path::{ Path, PathBuf };
-use std::collections::HashMap;
-use byteorder::{ LittleEndian, ReadBytesExt };
+use std::time::SystemTime;
 
-use serde_json::{ self, Value, json };
-use bincode;
-use image::{ self, GenericImageView, };
 use ash::{ vk };
+use bincode;
+use byteorder::{ LittleEndian, ReadBytesExt };
+use image::{ self, GenericImageView, };
 use nalgebra::Vector2;
+use serde_json::{ self, Value, json };
 
 use crate::application::audio_manager::{
     AudioData,
@@ -286,9 +287,13 @@ impl EngineResources {
 
         #[cfg(not(target_os = "android"))]
         {
-            let files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
+            // update engine resources
+            self.update_engine_resources();
+
+            // create resources.txt file
+            let project_resource_files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
             let mut write_file = fs::File::create(&resource_list_file_path).expect("Failed to create file");
-            for file_path in files {
+            for file_path in project_resource_files {
                 if let Some(filename) = file_path.file_name() {
                     if "empty" == filename {
                         continue;
@@ -319,6 +324,73 @@ impl EngineResources {
 
             if self._relative_resource_file_path_map.get(&relative_resource_file_path).is_none() || false == is_engine_resource {
                 self._relative_resource_file_path_map.insert(relative_resource_file_path.clone(), resource_file_path);
+            }
+        }
+    }
+
+    pub fn update_engine_resources(&mut self) {
+        log::info!("EngineResources::update_engine_resources");
+        let engine_resource_path = Path::new(ENGINE_RESOURCE_PATH);
+        let engine_resource_source_path = Path::new(ENGINE_RESOURCE_SOURCE_PATH);
+
+        // build engine_resource_file_map
+        let mut engine_resource_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
+        if engine_resource_path.is_dir() {
+            let engine_font_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_DIRECTORY);
+            let engine_font_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_resource_files = walk_directory(&engine_resource_path, &[]);
+            for file_path in engine_resource_files.iter() {
+                if false == file_path.starts_with(&engine_font_path) &&
+                    false == file_path.starts_with(&engine_font_texture_path) &&
+                    false == file_path.starts_with(&engine_shader_cache_path) {
+                    engine_resource_file_map.insert(file_path.clone(), file_path.clone());
+                }
+            }
+        }
+
+        // build engine_resource_source_file_map
+        let mut engine_resource_source_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
+        if engine_resource_source_path.is_dir() {
+            let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
+            let engine_font_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_resource_source_files = walk_directory(&engine_resource_source_path, &[]);
+            for file_path in engine_resource_source_files.iter() {
+                if false == file_path.starts_with(&engine_font_source_path) &&
+                    false == file_path.starts_with(&engine_font_texture_source_path) &&
+                    false == file_path.starts_with(&engine_shader_cache_source_path) {
+                    engine_resource_source_file_map.insert(file_path.clone(), file_path.clone());
+                }
+            }
+        }
+
+        // remove unnecessary engine resource files
+        for (_, file_path) in engine_resource_file_map.iter() {
+            let relative_file_path: PathBuf = file_path.strip_prefix(ENGINE_RESOURCE_PATH).unwrap().to_path_buf();
+            let engine_source_file_path: PathBuf = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(relative_file_path);
+            if false == engine_source_file_path.is_file() {
+                fs::remove_file(&file_path).expect("failed to remove file");
+            } else {
+                let modified_time: SystemTime = fs::metadata(file_path).unwrap().modified().unwrap();
+                let source_modified_time: SystemTime = fs::metadata(engine_source_file_path).unwrap().modified().unwrap();
+                if modified_time < source_modified_time {
+                    fs::remove_file(&file_path).expect("failed to remove file");
+                }
+            }
+        }
+
+        // copy engine resource source file -> engine resource file
+        for (_, source_file_path) in engine_resource_source_file_map.iter() {
+            let relative_source_file_path: PathBuf = source_file_path.strip_prefix(ENGINE_RESOURCE_SOURCE_PATH).unwrap().to_path_buf();
+            let engine_file_path: PathBuf = PathBuf::from(ENGINE_RESOURCE_PATH).join(relative_source_file_path);
+            if false == engine_file_path.is_file() {
+                let dir = engine_file_path.parent().unwrap();
+                log::info!("dir: {:?}, source_file_path: {:?}, engine_file_path: {:?}", dir, source_file_path, engine_file_path);
+                if false == dir.is_dir() {
+                    fs::create_dir_all(dir).expect("Failed to create directories.");
+                }
+                fs::copy(source_file_path, engine_file_path).expect("failed to file copy");
             }
         }
     }
@@ -614,29 +686,15 @@ impl EngineResources {
                 let font_name = get_unique_resource_name(&self._font_data_map, &font_source_directory, &font_source_file);
                 let font_data_name = format!("{}_{}", font_name, unicode_block_key);
                 let font_texture_name = format!("fonts/{}_{}", font_name, unicode_block_key);
-                let font_data_create_info = match font_file_map.get(&font_data_name) {
-                    Some(font_file) => {
-                        let loaded_contents = system::load(font_file);
-                        let font_data_create_info: FontDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-                        #[cfg(target_os = "android")]
-                        let check_font_texture_file_exists = false;
-                        #[cfg(not(target_os = "android"))]
-                        let check_font_texture_file_exists = true;
-                        if check_font_texture_file_exists && false == self.has_texture_data(&font_texture_name) {
-                            self.get_font_data_create_info(
-                                &resource_root_path,
-                                &font_directory,
-                                &font_texture_directory,
-                                &font_data_name,
-                                &font_source_file,
-                                *range_min,
-                                *range_max
-                            )
-                        } else {
-                            font_data_create_info
-                        }
-                    },
-                    _ => {
+
+                // Gets FontDataCreateInfo and also creates font texture files if needed.
+                #[cfg(target_os = "android")]
+                    let check_font_texture_file_exists = false;
+                #[cfg(not(target_os = "android"))]
+                    let check_font_texture_file_exists = true;
+                let maybe_font_file = font_file_map.get(&font_data_name);
+                let font_data_create_info: FontDataCreateInfo =
+                    if check_font_texture_file_exists && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name)) {
                         self.get_font_data_create_info(
                             &resource_root_path,
                             &font_directory,
@@ -646,11 +704,13 @@ impl EngineResources {
                             *range_min,
                             *range_max
                         )
-                    },
-                };
+                    } else {
+                        let loaded_contents = system::load(maybe_font_file.unwrap());
+                        serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
+                    };
 
+                // regist font texture
                 if false == self.has_texture_data(&font_texture_name) {
-                    // regist font texture
                     let mut font_texture_file_path: PathBuf;
                     if is_engine_resource {
                         font_texture_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
