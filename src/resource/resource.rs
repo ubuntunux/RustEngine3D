@@ -502,14 +502,9 @@ impl EngineResources {
             write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
             write_meta_file.write(write_meta_contents.as_bytes()).expect("Failed to write");
 
-            let sound_chunk = sdl2::mixer::Chunk::from_file(audio_data_file).unwrap();
-            let audio_data = AudioData {
-                _audio_name: audio_data_name.clone(),
-                _sound_chunk: sound_chunk,
-            };
             let audio_resource_info = ResourceInfo {
                 _resource_name: audio_data_name.clone(),
-                _resource_data: ResourceData::Audio(newRcRefCell(audio_data)),
+                _resource_data: ResourceData::None,
                 _meta_data: meta_data,
             };
             self._audio_data_map.insert(audio_data_name, audio_resource_info);
@@ -562,8 +557,22 @@ impl EngineResources {
         self._audio_data_map.get(resource_name).is_some()
     }
 
-    pub fn get_audio_data(&self, resource_name: &str) -> &ResourceData {
-        if let Some(resource_info) = self._audio_data_map.get(resource_name) {
+    pub fn get_audio_data(&mut self, resource_name: &str) -> &ResourceData {
+        if let Some(resource_info) = self._audio_data_map.get_mut(resource_name) {
+            match resource_info._resource_data {
+                ResourceData::None => {
+                    if resource_info._meta_data._resource_file_path.is_file() {
+                        // load audio data
+                        let audio_data = AudioData {
+                            _audio_name: resource_info._resource_name.clone(),
+                            _sound_chunk: sdl2::mixer::Chunk::from_file(&resource_info._meta_data._resource_file_path).unwrap(),
+                        };
+                        log::info!(">>> Load Audio Data: {:?}", resource_info._meta_data._resource_file_path);
+                        resource_info._resource_data = ResourceData::Audio(newRcRefCell(audio_data));
+                    }
+                },
+                _ => ()
+            }
             return &resource_info._resource_data;
         }
         &ResourceData::None

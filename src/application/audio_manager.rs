@@ -158,7 +158,7 @@ impl AudioManager {
     }
 
     pub fn create_audio(&mut self, audio_name: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
-        let engine_resources = unsafe { &*self._engine_resources.as_ptr() };
+        let engine_resources = unsafe { &mut *self._engine_resources.as_ptr() };
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
             return Some(self.create_audio_instance(&audio_data, audio_loop));
         }
