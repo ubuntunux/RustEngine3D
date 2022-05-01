@@ -1,3 +1,4 @@
+use std::fmt;
 use std::collections::HashMap;
 
 use sdl2::{ self, Sdl, AudioSubsystem };
@@ -6,6 +7,7 @@ use serde::{ Serialize, Deserialize };
 
 use crate::constants::DEFAULT_AUDIO_VOLUME;
 use crate::resource::resource::EngineResources;
+use crate::resource::resource::ResourceData;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 
 
@@ -45,6 +47,24 @@ pub struct AudioManager {
     pub _volume: i32,
 }
 
+
+impl fmt::Debug for AudioData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}: {:?}", self._audio_name, self._sound_chunk.raw)
+    }
+}
+
+impl Clone for AudioData {
+    fn clone(&self) -> Self {
+        AudioData {
+            _audio_name: self._audio_name.clone(),
+            _sound_chunk: Chunk {
+                raw: self._sound_chunk.raw.clone(),
+                owned: self._sound_chunk.owned
+            }
+        }
+    }
+}
 
 impl AudioInstance {
     pub fn create_audio(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
@@ -125,7 +145,7 @@ impl AudioManager {
     }
 
     pub fn create_audio_instance(&mut self, audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
-        let audio = AudioInstance::create_audio(&audio_data, audio_loop);
+        let audio = AudioInstance::create_audio(audio_data, audio_loop);
         match audio.borrow()._channel {
             Ok(channel) => {
                 channel.set_volume(self._volume);
@@ -139,8 +159,8 @@ impl AudioManager {
 
     pub fn create_audio(&mut self, audio_name: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = unsafe { &*self._engine_resources.as_ptr() };
-        if let Some(audio_data) = engine_resources.get_audio_data(audio_name) {
-            return Some(self.create_audio_instance(audio_data, audio_loop));
+        if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
+            return Some(self.create_audio_instance(&audio_data, audio_loop));
         }
         None
     }

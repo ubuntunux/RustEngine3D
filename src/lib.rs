@@ -6,6 +6,8 @@ extern crate log;
 extern crate byteorder;
 extern crate rusttype;
 extern crate image;
+extern crate serde;
+extern crate serde_json;
 
 pub mod constants;
 pub mod application;
