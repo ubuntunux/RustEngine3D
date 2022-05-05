@@ -6,6 +6,8 @@ use std::path::{
 use std::os::raw::c_char;
 use std::process;
 
+use regex::Regex;
+
 use ash::{
     vk,
     Device,
@@ -42,34 +44,59 @@ pub fn spirv_file_path_with_defines(is_engine_resource: bool, shader_filename: &
     PathBuf::from(spirv_file_path_str)
 }
 
-
-pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
+pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
     let engine_shader_file_path: PathBuf = PathBuf::from(resource::ENGINE_RESOURCE_PATH)
         .join(resource::SHADER_DIRECTORY)
         .join(shader_filename);
     let project_shader_file_path: PathBuf = PathBuf::from(resource::PROJECT_RESOURCE_PATH)
         .join(resource::SHADER_DIRECTORY)
         .join(shader_filename);
-    let is_engine_resource: bool = engine_shader_file_path.is_file() && false == project_shader_file_path.is_file();
-    let shader_file_path = if is_engine_resource {
-        engine_shader_file_path
+    return if engine_shader_file_path.is_file() && false == project_shader_file_path.is_file() {
+        (true, engine_shader_file_path)
     } else {
-        project_shader_file_path
+        (false, project_shader_file_path)
     };
+}
+
+pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
+    let (is_engine_resource, shader_file_path) = get_shader_file_path(shader_filename);
     let spirv_file_path: PathBuf = spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
 
-    let force_convert: bool = true;
+    // collect include files
+    let re_include = Regex::new("\\#include\\s+[\"|<](.+?)[\"|>]").unwrap();
+    let shader_file_contents: String = fs::read_to_string(&shader_file_path).expect("Something went wrong reading the file");
+    let mut included_files: Vec<PathBuf> = Vec::new();
+    let shader_file_lines = shader_file_contents.split("\n");
+    let shader_file_dir = shader_filename.parent().unwrap().to_path_buf();
+    for line in shader_file_lines {
+        if let Some(captures) = re_include.captures(line) {
+            let included_file = shader_file_dir.join(&captures[1]);
+            let (_, included_file_path) = get_shader_file_path(&PathBuf::from(included_file));
+            included_files.push(included_file_path);
+        }
+    }
+
+    // check need to compile
     #[cfg(not(target_os = "android"))]
-    let need_to_compile: bool = force_convert || false == spirv_file_path.is_file() || {
-        // TODO : need recursive include file time diff implementation
-        let shader_file_metadata = fs::metadata(&shader_file_path).unwrap();
-        let spirv_file_metadata = fs::metadata(&spirv_file_path).unwrap();
-        spirv_file_metadata.modified().unwrap() < shader_file_metadata.modified().unwrap()
+    let need_to_compile: bool = if spirv_file_path.is_file() {
+        let spirv_file_modified_time = fs::metadata(&spirv_file_path).unwrap().modified().unwrap();
+        let mut recent_modified_time = fs::metadata(&shader_file_path).unwrap().modified().unwrap();
+        for included_file_path in included_files.iter() {
+            let included_file_modified_time = fs::metadata(included_file_path).unwrap().modified().unwrap();
+            if recent_modified_time < included_file_modified_time {
+                recent_modified_time = included_file_modified_time;
+            }
+        }
+        spirv_file_modified_time < recent_modified_time
+    } else {
+        true
     };
 
     // compile glsl -> spirv
     #[cfg(not(target_os = "android"))]
     if need_to_compile {
+        log::info!("        compile shader: {:?} -> {:?}", shader_file_path, spirv_file_path);
+
         fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
 
         if false == shader_file_path.is_file() {

@@ -8,6 +8,7 @@ extern crate rusttype;
 extern crate image;
 extern crate serde;
 extern crate serde_json;
+extern crate regex;
 
 pub mod constants;
 pub mod application;

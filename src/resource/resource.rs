@@ -246,6 +246,14 @@ pub fn get_resource_file_path(resource_root_path: &str, resource_dircetory: &str
     resource_file_path
 }
 
+pub fn make_engine_resource_file_path(file_name: &str) -> PathBuf {
+    PathBuf::from(ENGINE_RESOURCE_PATH).join(file_name)
+}
+
+pub fn make_project_resource_file_path(file_name: &str) -> PathBuf {
+    PathBuf::from(PROJECT_RESOURCE_PATH).join(file_name)
+}
+
 impl EngineResources {
     pub fn create_engine_resources(project_resources: *const dyn ProjectResourcesBase) -> EngineResources {
         let mut engine_resource = EngineResources {
@@ -302,8 +310,9 @@ impl EngineResources {
         }
 
         let loaded_resources = system::load(&resource_list_file_path);
-        let resources: String = String::from_utf8(loaded_resources.into_inner()).unwrap();
-        for resource in resources.split("\n") {
+        let contents: String = String::from_utf8(loaded_resources.into_inner()).unwrap();
+        let resources = contents.split("\n");
+        for resource in resources {
             let resource_file_path = PathBuf::from(resource);
             if resource.is_empty() || resource_list_file_path == resource_file_path {
                 continue;
@@ -408,6 +417,7 @@ impl EngineResources {
 
         // load project resources
         self.get_project_resources_mut().initialize_project_resources(self, renderer_context);
+        log::info!("Done - initialize_engine_resources");
     }
 
     pub fn destroy_engine_resources(&mut self, renderer_context: &RendererContext) {
@@ -478,6 +488,7 @@ impl EngineResources {
 
     // Audio Data
     pub fn load_audio_datas(&mut self) {
+        log::info!("    load_audio_datas");
         let audio_directory = PathBuf::from(AUDIO_DIRECTORY);
         let audio_bank_directory = PathBuf::from(AUDIO_BANK_DIRECTORY);
 
@@ -567,7 +578,6 @@ impl EngineResources {
                             _audio_name: resource_info._resource_name.clone(),
                             _sound_chunk: sdl2::mixer::Chunk::from_file(&resource_info._meta_data._resource_file_path).unwrap(),
                         };
-                        log::info!(">>> Load Audio Data: {:?}", resource_info._meta_data._resource_file_path);
                         resource_info._resource_data = ResourceData::Audio(newRcRefCell(audio_data));
                     }
                 },
@@ -588,6 +598,7 @@ impl EngineResources {
 
     // EffectData
     pub fn load_effect_datas(&mut self) {
+        log::info!("    load_effect_datas");
         // create default effect
         let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
         default_effect_file_path.push(EFFECT_DIRECTORY);
@@ -689,6 +700,7 @@ impl EngineResources {
     }
 
     pub fn load_font_datas(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_font_datas");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
         //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
@@ -808,6 +820,7 @@ impl EngineResources {
 
     // ModelData
     pub fn load_model_datas(&mut self) {
+        log::info!("    load_model_datas");
         let model_directory = PathBuf::from(MODEL_DIRECTORY);
         let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
@@ -880,6 +893,7 @@ impl EngineResources {
     }
 
     pub fn load_mesh_datas(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_mesh_datas");
         self.regist_mesh_data(renderer_context, &String::from("quad"), geometry_buffer::quad_mesh_create_info());
         self.regist_mesh_data(renderer_context, &String::from("cube"), geometry_buffer::cube_mesh_create_info());
         let mesh_directory = PathBuf::from(MESH_DIRECTORY);
@@ -1005,6 +1019,7 @@ impl EngineResources {
     }
 
     pub fn load_texture_datas(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_texture_datas");
         let default_texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
         for texture_data in default_texture_datas {
             self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
@@ -1167,6 +1182,7 @@ impl EngineResources {
 
     // Framebuffer
     pub fn load_framebuffer_datas(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_framebuffer_datas");
         let render_pass_data_create_infos = renderer_context.get_render_pass_data_create_infos();
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
@@ -1204,6 +1220,7 @@ impl EngineResources {
 
     // RenderPassLoader
     pub fn load_render_pass_datas(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_render_pass_datas");
         let render_pass_data_create_infos = renderer_context.get_render_pass_data_create_infos();
         for render_pass_data_create_info in render_pass_data_create_infos.iter() {
             let descriptor_datas = render_pass_data_create_info._pipeline_data_create_infos
@@ -1251,6 +1268,7 @@ impl EngineResources {
 
     // Material_datas
     pub fn load_material_datas(&mut self) {
+        log::info!("    load_material_datas");
         let material_directory = PathBuf::from(MATERIAL_DIRECTORY);
         let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
         for material_file in material_files {
@@ -1305,6 +1323,7 @@ impl EngineResources {
 
     // MaterialInstance_datas
     pub fn load_material_instance_datas(&mut self, renderer_context: &RendererContext, is_reload: bool) {
+        log::info!("    load_material_instance_datas");
         let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_DIRECTORY);
         let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
