@@ -108,6 +108,7 @@ pub struct MetaData {
 pub enum ResourceData {
     None,
     Audio(RcRefCell<AudioData>),
+    AudioBank(RcRefCell<AudioBankData>),
 }
 
 #[derive(Debug, Clone)]
@@ -146,7 +147,7 @@ pub trait ProjectResourcesBase {
     fn has_audio_data(&self, resource_name: &str) -> bool;
     fn get_audio_data(&self, resource_name: &str) -> &ResourceData;
     fn has_audio_bank_data(&self, resource_name: &str) -> bool;
-    fn get_audio_bank_data(&self, resource_name: &str) -> Option<&RcRefCell<AudioBankData>>;
+    fn get_audio_bank_data(&self, resource_name: &str) -> &ResourceData;
     fn has_effect_data(&self, resource_name: &str) -> bool;
     fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData>;
     fn get_default_font_data(&self) -> &RcRefCell<FontData>;
@@ -168,7 +169,7 @@ pub struct EngineResources {
     pub _project_resources: *const dyn ProjectResourcesBase,
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _audio_data_map: ResourceInfoMap,
-    pub _audio_bank_data_map: AudioBankDataMap,
+    pub _audio_bank_data_map: ResourceInfoMap,
     pub _effect_data_map: EffectDataMap,
     pub _font_data_map: FontDataMap,
     pub _mesh_data_map: MeshDataMap,
@@ -295,7 +296,7 @@ impl EngineResources {
             _project_resources: project_resources,
             _relative_resource_file_path_map: HashMap::new(),
             _audio_data_map: ResourceInfoMap::new(),
-            _audio_bank_data_map: AudioBankDataMap::new(),
+            _audio_bank_data_map: ResourceInfoMap::new(),
             _effect_data_map: EffectDataMap::new(),
             _font_data_map: FontDataMap::new(),
             _mesh_data_map: MeshDataMap::new(),
@@ -562,19 +563,13 @@ impl EngineResources {
         let audio_bank_data_files: Vec<PathBuf> = self.collect_resources(&audio_bank_directory, &[EXT_AUDIO_BANK]);
         for audio_bank_data_file in audio_bank_data_files {
             let audio_bank_data_name = get_unique_resource_name(&self._audio_bank_data_map, &audio_bank_directory, &audio_bank_data_file);
-            let loaded_contents = system::load(&audio_bank_data_file);
-            let audio_bank_create_info: AudioBankCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let mut audio_datas: Vec<RcRefCell<AudioData>> = Vec::new();
-            for audio_name in audio_bank_create_info._audio_names.iter() {
-                if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
-                    audio_datas.push(audio_data.clone());
-                }
-            }
-            let audio_bank_data = AudioBankData {
-                _audio_bank_name: audio_bank_data_name.clone(),
-                _audios_datas: audio_datas,
+            let meta_data = MetaData::new(&audio_bank_data_file, &audio_bank_data_file);
+            let audio_resource_info = ResourceInfo {
+                _resource_name: audio_bank_data_name.clone(),
+                _resource_data: ResourceData::None,
+                _meta_data: meta_data,
             };
-            self._audio_bank_data_map.insert(audio_bank_data_name.clone(), newRcRefCell(audio_bank_data));
+            self._audio_bank_data_map.insert(audio_bank_data_name.clone(), audio_resource_info);
         }
     }
 
@@ -611,8 +606,33 @@ impl EngineResources {
         self._audio_bank_data_map.get(resource_name).is_some()
     }
 
-    pub fn get_audio_bank_data(&self, resource_name: &str) -> Option<&RcRefCell<AudioBankData>> {
-        self._audio_bank_data_map.get(resource_name)
+    pub fn get_audio_bank_data(&mut self, resource_name: &str) -> &ResourceData {
+        let engine_resources = unsafe { &mut *(self as *mut EngineResources) };
+        if let Some(resource_info) = self._audio_bank_data_map.get_mut(resource_name) {
+            match resource_info._resource_data {
+                ResourceData::None => {
+                    if resource_info._meta_data._resource_file_path.is_file() {
+                        // load audio bank data
+                        let loaded_contents = system::load(&resource_info._meta_data._resource_file_path);
+                        let audio_bank_create_info: AudioBankCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+                        let mut audio_datas: Vec<RcRefCell<AudioData>> = Vec::new();
+                        for audio_name in audio_bank_create_info._audio_names.iter() {
+                            if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
+                                audio_datas.push(audio_data.clone());
+                            }
+                        }
+                        let audio_bank_data = AudioBankData {
+                            _audio_bank_name: resource_info._resource_name.clone(),
+                            _audios_datas: audio_datas,
+                        };
+                        resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
+                    }
+                },
+                _ => ()
+            }
+            return &resource_info._resource_data;
+        }
+        &ResourceData::None
     }
 
     // EffectData

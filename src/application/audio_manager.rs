@@ -66,6 +66,12 @@ impl Clone for AudioData {
     }
 }
 
+impl fmt::Debug for AudioBankData {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?}: {:?}", self._audio_bank_name, self._audios_datas.len())
+    }
+}
+
 impl AudioInstance {
     pub fn create_audio(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
         let audio_loop = match audio_loop {
@@ -166,7 +172,7 @@ impl AudioManager {
     }
 
     pub fn create_audio_bank(&mut self, audio_name_bank: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
-        if let Some(audio_bank_data) = self.get_engine_resources().get_audio_bank_data(audio_name_bank) {
+        if let ResourceData::AudioBank(audio_bank_data) = self.get_engine_resources_mut().get_audio_bank_data(audio_name_bank) {
             let audio_data_count = audio_bank_data.borrow()._audios_datas.len();
             if 0 < audio_data_count {
                 let audio_data_index: usize = if 1 < audio_data_count { rand::random::<usize>() % audio_data_count } else { 0 };
