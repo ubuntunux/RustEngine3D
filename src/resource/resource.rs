@@ -119,6 +119,7 @@ pub struct ResourceInfo {
 
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
 pub type ResourceInfoMap = HashMap<String, ResourceInfo>;
+
 pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
 pub type EffectDataMap = ResourceDataMap<EffectData>;
 pub type FramebufferDatasMap = ResourceDataMap<FramebufferData>;
@@ -252,6 +253,40 @@ pub fn make_engine_resource_file_path(file_name: &str) -> PathBuf {
 
 pub fn make_project_resource_file_path(file_name: &str) -> PathBuf {
     PathBuf::from(PROJECT_RESOURCE_PATH).join(file_name)
+}
+
+impl MetaData {
+    pub fn new(resource_file_path: &PathBuf, source_file_path: &PathBuf) -> MetaData {
+        let mut meta_file_path: PathBuf = resource_file_path.clone();
+        meta_file_path.set_extension(EXT_META_FILE);
+
+        let write_to_file: bool;
+        let meta_data = if meta_file_path.is_file() {
+            write_to_file = false;
+            let loaded_contents = system::load(&meta_file_path);
+            serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
+        } else {
+            write_to_file = true;
+            MetaData {
+                _is_engine_resource: resource_file_path.starts_with(ENGINE_RESOURCE_PATH),
+                _meta_file_path: meta_file_path.clone(),
+                _resource_version: 0,
+                _resource_file_path:  resource_file_path.clone(),
+                _resource_modify_time: fs::metadata(&resource_file_path).unwrap().modified().unwrap(),
+                _source_file_path: source_file_path.clone(),
+                _source_modify_time: fs::metadata(&source_file_path).unwrap().modified().unwrap(),
+                _source_changed: false
+            }
+        };
+
+        if write_to_file {
+            let mut write_meta_file = File::create(&meta_file_path).expect("Failed to create file");
+            let mut write_meta_contents: String = serde_json::to_string(&meta_data).expect("Failed to serialize.");
+            write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
+            write_meta_file.write(write_meta_contents.as_bytes()).expect("Failed to write");
+        }
+        meta_data
+    }
 }
 
 impl EngineResources {
@@ -496,23 +531,7 @@ impl EngineResources {
         let audio_data_files: Vec<PathBuf> = self.collect_resources(&audio_directory, &EXT_AUDIO_SOURCE);
         for audio_data_file in audio_data_files.iter() {
             let audio_data_name = get_unique_resource_name(&self._audio_data_map, &audio_directory, &audio_data_file);
-            let mut audio_meta_file_path: PathBuf = PathBuf::from(audio_data_file.file_stem().unwrap());
-            audio_meta_file_path.set_extension(EXT_META_FILE);
-            let meta_data = MetaData {
-                _is_engine_resource: audio_data_file.starts_with(ENGINE_RESOURCE_PATH),
-                _meta_file_path: audio_meta_file_path.clone(),
-                _resource_version: 0,
-                _resource_file_path: audio_data_file.clone(),
-                _resource_modify_time: fs::metadata(&audio_data_file).unwrap().modified().unwrap(),
-                _source_file_path: audio_data_file.clone(),
-                _source_modify_time: fs::metadata(&audio_data_file).unwrap().modified().unwrap(),
-                _source_changed: false
-            };
-            let mut write_meta_file = File::create(&audio_meta_file_path).expect("Failed to create file");
-            let mut write_meta_contents: String = serde_json::to_string(&meta_data).expect("Failed to serialize.");
-            write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
-            write_meta_file.write(write_meta_contents.as_bytes()).expect("Failed to write");
-
+            let meta_data = MetaData::new(&audio_data_file, &audio_data_file);
             let audio_resource_info = ResourceInfo {
                 _resource_name: audio_data_name.clone(),
                 _resource_data: ResourceData::None,
