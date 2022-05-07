@@ -607,8 +607,8 @@ impl EngineResources {
     }
 
     pub fn get_audio_bank_data(&mut self, resource_name: &str) -> &ResourceData {
-        let engine_resources = unsafe { &mut *(self as *mut EngineResources) };
-        if let Some(resource_info) = self._audio_bank_data_map.get_mut(resource_name) {
+        let audio_bank_data_map_mut = unsafe { &mut *(&self._audio_bank_data_map as *const ResourceInfoMap as *mut ResourceInfoMap) };
+        if let Some(resource_info) = audio_bank_data_map_mut.get_mut(resource_name) {
             match resource_info._resource_data {
                 ResourceData::None => {
                     if resource_info._meta_data._resource_file_path.is_file() {
@@ -617,7 +617,7 @@ impl EngineResources {
                         let audio_bank_create_info: AudioBankCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
                         let mut audio_datas: Vec<RcRefCell<AudioData>> = Vec::new();
                         for audio_name in audio_bank_create_info._audio_names.iter() {
-                            if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
+                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
                                 audio_datas.push(audio_data.clone());
                             }
                         }
