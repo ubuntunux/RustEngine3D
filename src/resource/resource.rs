@@ -607,8 +607,8 @@ impl EngineResources {
     }
 
     pub fn get_audio_bank_data(&mut self, resource_name: &str) -> &ResourceData {
-        let audio_bank_data_map_mut = unsafe { &mut *(&self._audio_bank_data_map as *const ResourceInfoMap as *mut ResourceInfoMap) };
-        if let Some(resource_info) = audio_bank_data_map_mut.get_mut(resource_name) {
+        if let Some(resource_info) = self._audio_bank_data_map.get(resource_name) {
+            let resource_info = unsafe { &mut *(resource_info as *const ResourceInfo as *mut ResourceInfo) };
             match resource_info._resource_data {
                 ResourceData::None => {
                     if resource_info._meta_data._resource_file_path.is_file() {
