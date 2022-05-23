@@ -29,7 +29,7 @@ pub struct AudioBankCreateInfo {
 
 pub struct AudioBankData {
     pub _audio_bank_name: String,
-    pub _audios_datas: Vec<RcRefCell<AudioData>>,
+    pub _audio_datas: Vec<RcRefCell<AudioData>>,
 }
 
 #[derive(Clone)]
@@ -40,7 +40,7 @@ pub struct AudioInstance {
 
 pub struct AudioManager {
     pub _engine_resources: RcRefCell<EngineResources>,
-    pub _audios: HashMap<i32, RcRefCell<AudioInstance>>,
+    pub _audio_instances: HashMap<i32, RcRefCell<AudioInstance>>,
     pub _bgm: Option<RcRefCell<AudioInstance>>,
     pub _audio: AudioSubsystem,
     pub _mixer_context: Sdl2MixerContext,
@@ -68,12 +68,12 @@ impl Clone for AudioData {
 
 impl fmt::Debug for AudioBankData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}: {:?}", self._audio_bank_name, self._audios_datas.len())
+        write!(f, "{:?}: {:?}", self._audio_bank_name, self._audio_datas.len())
     }
 }
 
 impl AudioInstance {
-    pub fn create_audio(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
+    pub fn play_audio_instance(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
         let audio_loop = match audio_loop {
             AudioLoop::ONCE => 0,
             AudioLoop::SOME(x) => 0.max(x - 1),
@@ -120,7 +120,7 @@ impl AudioManager {
 
         AudioManager {
             _engine_resources: engine_resources.clone(),
-            _audios: HashMap::new(),
+            _audio_instances: HashMap::new(),
             _bgm: None,
             _audio: audio,
             _mixer_context: mixer_context,
@@ -129,18 +129,18 @@ impl AudioManager {
     }
 
     pub fn initialize_audio_manager(&mut self) {
-        self._bgm = self.create_audio("music-for-a-game-by-kris-klavenes", AudioLoop::LOOP);
+        self._bgm = self.create_audio_instance("music-for-a-game-by-kris-klavenes", AudioLoop::LOOP);
     }
 
     pub fn destroy_audio_manager(&mut self) {
         sdl2::mixer::Music::halt();
-        for (_key, audio) in self._audios.iter() {
+        for (_key, audio) in self._audio_instances.iter() {
             let channel = &audio.borrow()._channel;
             if channel.is_ok() {
                 channel.as_ref().unwrap().halt();
             }
         }
-        self._audios.clear();
+        self._audio_instances.clear();
     }
 
     pub fn get_engine_resources(&self) -> &EngineResources {
@@ -150,52 +150,56 @@ impl AudioManager {
         unsafe { &mut *self._engine_resources.as_ptr() }
     }
 
-    pub fn create_audio_instance(&mut self, audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
-        let audio = AudioInstance::create_audio(audio_data, audio_loop);
-        match audio.borrow()._channel {
+    fn regist_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>) {
+        match audio_instance.borrow()._channel {
             Ok(channel) => {
                 channel.set_volume(self._volume);
                 let Channel(channel_num) = channel;
-                self._audios.insert(channel_num, audio.clone())
+                self._audio_instances.insert(channel_num, audio_instance.clone())
             },
             _ => None
         };
-        audio
     }
 
-    pub fn create_audio(&mut self, audio_name: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
+    fn create_audio_instance_inner(&mut self, audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
+        let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop);
+        self.regist_audio_instance(&audio_instance);
+        audio_instance
+    }
+
+    pub fn create_audio_instance(&mut self, audio_name: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = unsafe { &mut *self._engine_resources.as_ptr() };
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
-            return Some(self.create_audio_instance(&audio_data, audio_loop));
+            return Some(self.create_audio_instance_inner(&audio_data, audio_loop));
         }
         None
     }
 
-    pub fn create_audio_bank(&mut self, audio_name_bank: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
+    pub fn create_audio_instance_from_bank(&mut self, audio_name_bank: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
         if let ResourceData::AudioBank(audio_bank_data) = self.get_engine_resources_mut().get_audio_bank_data(audio_name_bank) {
-            let audio_data_count = audio_bank_data.borrow()._audios_datas.len();
+            let audio_data_count = audio_bank_data.borrow()._audio_datas.len();
             if 0 < audio_data_count {
                 let audio_data_index: usize = if 1 < audio_data_count { rand::random::<usize>() % audio_data_count } else { 0 };
-                let audio_data = audio_bank_data.borrow()._audios_datas[audio_data_index].clone();
-                return Some(self.create_audio_instance(&audio_data, audio_loop))
+                let audio_data = audio_bank_data.borrow()._audio_datas[audio_data_index].clone();
+                return Some(self.create_audio_instance_inner(&audio_data, audio_loop))
             }
         }
         None
     }
 
     pub fn update_audio_manager(&mut self) {
-        let mut remove_audios: Vec<i32> = Vec::new();
-        for (key, audio) in self._audios.iter() {
+        let mut remove_audio_instances: Vec<i32> = Vec::new();
+        for (key, audio) in self._audio_instances.iter() {
             let channel = &audio.borrow()._channel;
             if channel.is_ok() {
                 if false == channel.as_ref().unwrap().is_playing() {
-                    remove_audios.push(*key);
+                    remove_audio_instances.push(*key);
                 }
             }
         }
 
-        for key in remove_audios.iter() {
-            self._audios.remove(key);
+        for key in remove_audio_instances.iter() {
+            self._audio_instances.remove(key);
         }
     }
 }

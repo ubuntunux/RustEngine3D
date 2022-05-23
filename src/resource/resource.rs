@@ -623,7 +623,7 @@ impl EngineResources {
                         }
                         let audio_bank_data = AudioBankData {
                             _audio_bank_name: resource_info._resource_name.clone(),
-                            _audios_datas: audio_datas,
+                            _audio_datas: audio_datas,
                         };
                         resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
                     }
