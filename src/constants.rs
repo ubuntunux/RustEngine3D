@@ -29,10 +29,6 @@ pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
 pub const MAX_FRAME_COUNT: usize = 2;
 pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
 
-// must match shader
-pub const WORK_GROUP_SIZE: i32 = 64;
-pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
-
 // application configs - default values
 pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::empty();
@@ -66,11 +62,14 @@ pub const SSAO_RADIUS: f32 = 2.0;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
 pub const MAX_BONES: usize = 128 * 128; // must match with scene_constants.glsl
-pub const DEFAULT_AUDIO_VOLUME: i32 = 10;
+pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
+pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.
 
 // effect
 pub static mut MAX_EMITTER_COUNT: i32 = 1024;
 pub static mut MAX_PARTICLE_COUNT: i32 = 262144;
+pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
 
-pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
-pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.
+// audio
+pub const DEFAULT_AUDIO_VOLUME: i32 = 10;
+pub const MAX_AUDIO_CHANNEL_COUNT: i32 = 128;

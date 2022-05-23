@@ -5,7 +5,7 @@ use sdl2::{ self, Sdl, AudioSubsystem };
 use sdl2::mixer::{InitFlag, AUDIO_S16LSB, DEFAULT_CHANNELS, Sdl2MixerContext, Chunk, Channel};
 use serde::{ Serialize, Deserialize };
 
-use crate::constants::DEFAULT_AUDIO_VOLUME;
+use crate::constants::{ DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT };
 use crate::resource::resource::EngineResources;
 use crate::resource::resource::ResourceData;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
@@ -42,7 +42,7 @@ pub struct AudioManager {
     pub _engine_resources: RcRefCell<EngineResources>,
     pub _audio_instances: HashMap<i32, RcRefCell<AudioInstance>>,
     pub _bgm: Option<RcRefCell<AudioInstance>>,
-    pub _audio: AudioSubsystem,
+    pub _audio_subsystem: AudioSubsystem,
     pub _mixer_context: Sdl2MixerContext,
     pub _volume: i32,
 }
@@ -89,40 +89,40 @@ impl AudioInstance {
 }
 
 impl AudioManager {
-    const MAX_CHANNEL_COUNT: i32 = 128;
-
     pub fn create_audio_manager(sdl: &Sdl, engine_resources: &RcRefCell<EngineResources>) -> AudioManager {
         log::info!("create_audio_manager");
-        let audio = sdl.audio().expect("failed to sdl.audio");
+        let audio_subsystem = sdl.audio().expect("failed to sdl.audio");
         let frequency = 44_100;
         let format = AUDIO_S16LSB; // signed 16 bit samples, in little-endian byte order
         let channels = DEFAULT_CHANNELS; // Stereo
         let chunk_size = 1_024;
-        let _result = sdl2::mixer::open_audio(frequency, format, channels, chunk_size);
+        let result = sdl2::mixer::open_audio(frequency, format, channels, chunk_size);
         let mixer_context = sdl2::mixer::init(InitFlag::MP3 | InitFlag::FLAC | InitFlag::MOD | InitFlag::OGG).expect("sdl2::mixer::init");
-        let _channel_count = sdl2::mixer::allocate_channels(AudioManager::MAX_CHANNEL_COUNT);
+        let channel_count = sdl2::mixer::allocate_channels(MAX_AUDIO_CHANNEL_COUNT);
         
         // audio debug info
         {
-            log::debug!("\tsdl2::mixer::linked version: {}", sdl2::mixer::get_linked_version());
+            log::info!("\tsdl2::mixer::open_audio: {:?}", result.unwrap());
+            log::info!("\tsdl2::mixer::allocate_channels: {}", channel_count);
+            log::info!("\tsdl2::mixer::linked version: {}", sdl2::mixer::get_linked_version());
             let n = sdl2::mixer::get_chunk_decoders_number();
-            log::debug!("\tavailable chunk(sample) decoders: {}", n);
+            log::info!("\tavailable chunk(sample) decoders: {}", n);
             for i in 0..n {
-                log::debug!("\t\tdecoder {} => {}", i, sdl2::mixer::get_chunk_decoder(i));
+                log::info!("\t\tdecoder {} => {}", i, sdl2::mixer::get_chunk_decoder(i));
             }
             let n = sdl2::mixer::get_music_decoders_number();
-            log::debug!("\tavailable music decoders: {}", n);
+            log::info!("\tavailable music decoders: {}", n);
             for i in 0..n {
-                log::debug!("\t\tdecoder {} => {}", i, sdl2::mixer::get_music_decoder(i));
+                log::info!("\t\tdecoder {} => {}", i, sdl2::mixer::get_music_decoder(i));
             }
-            log::debug!("\tquery spec => {:?}", sdl2::mixer::query_spec());
+            log::info!("\tquery spec => {:?}", sdl2::mixer::query_spec());
         }
 
         AudioManager {
             _engine_resources: engine_resources.clone(),
             _audio_instances: HashMap::new(),
             _bgm: None,
-            _audio: audio,
+            _audio_subsystem: audio_subsystem,
             _mixer_context: mixer_context,
             _volume: DEFAULT_AUDIO_VOLUME,
         }
