@@ -92,7 +92,7 @@ void main()
                 scene_constants.TIME,
                 ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
                 world_pos,
-                dot(L, vertex_normal.xyz),
+                vertex_normal.xyz,
                 texture_shadow)
             );
             under_water_shadow = max(sky_irradiance, under_water_shadow);

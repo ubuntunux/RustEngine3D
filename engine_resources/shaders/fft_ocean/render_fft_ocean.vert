@@ -90,10 +90,9 @@ void main()
         scene_constants.TIME,
         ivec2(screen_coord * scene_constants.SCREEN_SIZE),
         world_pos,
-        dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz),
+        vertex_normal.xyz,
         texture_shadow
     );
-    //float shadow_factor = get_shadow_factor(light_constants, world_pos, dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz), texture_shadow);
 
     // Atmosphere
     vec3 in_scatter = vec3(0.0);

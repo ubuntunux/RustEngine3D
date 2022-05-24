@@ -10,7 +10,7 @@ float get_shadow_factor_func(
     const float time,
     const in ivec2 screen_pos,
     const in vec3 world_position,
-    const in float NdotL,
+    const in vec3 normal,
     sampler2D texture_shadow,
     const bool isSimpleShadow
 )
@@ -31,37 +31,24 @@ float get_shadow_factor_func(
         return 1.0;
     }
 
-    const vec2 uv_offsets[4] = {
-        vec2(0.0, 0.0),
-        vec2(shadow_texel_size.x, 0.0),
-        vec2(0.0, shadow_texel_size.y),
-        vec2(shadow_texel_size.x, shadow_texel_size.y),
-    };
-
-    const float shadow_bias = light_constants.SHADOW_BIAS * tan(1.0 - acos(saturate(NdotL)));
-
+    const float NdotL = dot(normal, light_constants.LIGHT_DIRECTION);
+    const float shadow_bias = -light_constants.SHADOW_BIAS * saturate(0.5 - NdotL * 0.5) + light_constants.SHADOW_BIAS * 0.1;
+    vec2 noise = vec2(interleaved_gradient_noise(screen_pos + int(mod(time, 1.0) * 1000.0))) * shadow_noise_radius;
     float total_shadow_factor = 0.0;
-    float noise = interleaved_gradient_noise(screen_pos + int(mod(time, 1.0) * 1000.0));
-    vec2 uv = shadow_proj.xy + noise * shadow_noise_radius;
     for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {
-        vec4 shadow_factors = vec4(1.0);
-        for(int component_index = 0; component_index < 4; ++component_index)
+        vec2 shadow_uv = shadow_proj.xy + PoissonSamples[sample_index % PoissonSampleCount] * shadow_noise_radius + noise;
+        shadow_uv = clamp(shadow_uv, shadow_uv_min, shadow_uv_max);
+        const float shadow_depth = textureLod(texture_shadow, shadow_uv, 0.0).x + shadow_bias;
+        //const float linear_shadow_depth = device_depth_to_linear_depth(const float zNear, const float zFar, const float depth);
+        float shadow_factor = 1.0;
+        if(shadow_depth <= shadow_proj.z)
         {
-            const vec2 shadow_uv = clamp(uv + uv_offsets[component_index], shadow_uv_min, shadow_uv_max);
-            const float shadow_depth = textureLod(texture_shadow, shadow_uv, 0.0).x + shadow_bias;
-            if(shadow_depth <= shadow_proj.z)
-            {
-                shadow_factors[component_index] = saturate(exp(-light_constants.SHADOW_EXP * (shadow_proj.z - shadow_depth)) + shadow_dist);
-            }
+            shadow_factor = saturate(shadow_dist);
         }
-
-        const vec2 pixel_ratio = fract(uv * shadow_size);
-        total_shadow_factor += mix(
-            mix(shadow_factors[0], shadow_factors[1], pixel_ratio.x),
-            mix(shadow_factors[2], shadow_factors[3], pixel_ratio.x), pixel_ratio.y);
+        total_shadow_factor += shadow_factor;
     }
-    return clamp(total_shadow_factor / float(sample_count), 0.0, 1.0);
+    return saturate(total_shadow_factor / float(sample_count));
 }
 
 float get_shadow_factor_simple(
@@ -69,11 +56,11 @@ float get_shadow_factor_simple(
     const float time,
     const in ivec2 screen_pos,
     const in vec3 world_position,
-    const in float NdotL,
+    const in vec3 normal,
     sampler2D texture_shadow)
 {
     const bool isSimpleShadow = true;
-    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, NdotL, texture_shadow, isSimpleShadow);
+    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, normal, texture_shadow, isSimpleShadow);
 }
 
 float get_shadow_factor(
@@ -81,11 +68,11 @@ float get_shadow_factor(
     const float time,
     const in ivec2 screen_pos,
     const in vec3 world_position,
-    const in float NdotL,
+    const in vec3 normal,
     sampler2D texture_shadow)
 {
     const bool isSimpleShadow = false;
-    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, NdotL, texture_shadow, isSimpleShadow);
+    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, normal, texture_shadow, isSimpleShadow);
 }
 
 float get_sky_visibility(
@@ -367,7 +354,7 @@ vec4 surface_shading(
         scene_constants.TIME,
         ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
         world_position,
-        NdL,
+        N,
         texture_shadow)
     );
     float sky_visibility = get_sky_visibility(view_constants, light_constants, world_position, texture_height_map);
