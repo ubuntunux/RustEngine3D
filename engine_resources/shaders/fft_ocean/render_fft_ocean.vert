@@ -85,7 +85,14 @@ void main()
     vec2 screen_coord = (proj_pos.xy / proj_pos.w) * 0.5 + 0.5;
 
     float vertex_noise = textureLod(texture_noise, world_pos.xz * 0.005, 0.0).x;
-    float shadow_factor = get_shadow_factor_simple(light_constants, world_pos, dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz), texture_shadow);
+    float shadow_factor = get_shadow_factor_simple(
+        light_constants,
+        scene_constants.TIME,
+        ivec2(screen_coord * scene_constants.SCREEN_SIZE),
+        world_pos,
+        dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz),
+        texture_shadow
+    );
     //float shadow_factor = get_shadow_factor(light_constants, world_pos, dot(light_constants.LIGHT_DIRECTION.xyz, vertex_normal.xyz), texture_shadow);
 
     // Atmosphere

@@ -87,7 +87,14 @@ void main()
         // Under Water Caustic
         if(false == isUnderWater)
         {
-            vec3 under_water_shadow = vec3(get_shadow_factor_simple(light_constants, world_pos, dot(L, vertex_normal.xyz), texture_shadow));
+            vec3 under_water_shadow = vec3(get_shadow_factor_simple(
+                light_constants,
+                scene_constants.TIME,
+                ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
+                world_pos,
+                dot(L, vertex_normal.xyz),
+                texture_shadow)
+            );
             under_water_shadow = max(sky_irradiance, under_water_shadow);
 
             const float chromaSeperation = sin(pushConstant._t * 3.5f) * 0.0025;

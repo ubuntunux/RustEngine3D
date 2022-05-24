@@ -7,6 +7,8 @@
 
 float get_shadow_factor_func(
     const in LIGHT_CONSTANTS light_constants,
+    const float time,
+    const in ivec2 screen_pos,
     const in vec3 world_position,
     const in float NdotL,
     sampler2D texture_shadow,
@@ -15,8 +17,8 @@ float get_shadow_factor_func(
 {
     const vec2 shadow_size = textureSize(texture_shadow, 0);
     const vec2 shadow_texel_size = 1.0 / shadow_size;
-    const int samnple_count = isSimpleShadow ? 1 : light_constants.SHADOW_SAMPLES;
-    const vec2 shadow_noise_radius = shadow_texel_size * max(1.0, log2(samnple_count));
+    const int sample_count = isSimpleShadow ? 1 : light_constants.SHADOW_SAMPLES;
+    const vec2 shadow_noise_radius = shadow_texel_size * max(1.0, log2(sample_count));
     const vec2 shadow_uv_min = shadow_texel_size * 0.5;
     const vec2 shadow_uv_max = vec2(1.0) - shadow_texel_size * 0.5;
     vec4 shadow_proj = light_constants.SHADOW_VIEW_PROJECTION * vec4(world_position, 1.0);
@@ -39,10 +41,10 @@ float get_shadow_factor_func(
     const float shadow_bias = light_constants.SHADOW_BIAS * tan(1.0 - acos(saturate(NdotL)));
 
     float total_shadow_factor = 0.0;
-    for(int sample_index = 0; sample_index < samnple_count; ++sample_index)
+    float noise = interleaved_gradient_noise(screen_pos + int(mod(time, 1.0) * 1000.0));
+    vec2 uv = shadow_proj.xy + noise * shadow_noise_radius;
+    for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {
-        vec2 uv = shadow_proj.xy + PoissonSamples[sample_index % PoissonSampleCount] * shadow_noise_radius;
-
         vec4 shadow_factors = vec4(1.0);
         for(int component_index = 0; component_index < 4; ++component_index)
         {
@@ -59,27 +61,31 @@ float get_shadow_factor_func(
             mix(shadow_factors[0], shadow_factors[1], pixel_ratio.x),
             mix(shadow_factors[2], shadow_factors[3], pixel_ratio.x), pixel_ratio.y);
     }
-    return clamp(total_shadow_factor / float(samnple_count), 0.0, 1.0);
+    return clamp(total_shadow_factor / float(sample_count), 0.0, 1.0);
 }
 
 float get_shadow_factor_simple(
     const in LIGHT_CONSTANTS light_constants,
+    const float time,
+    const in ivec2 screen_pos,
     const in vec3 world_position,
     const in float NdotL,
     sampler2D texture_shadow)
 {
     const bool isSimpleShadow = true;
-    return get_shadow_factor_func(light_constants, world_position, NdotL, texture_shadow, isSimpleShadow);
+    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, NdotL, texture_shadow, isSimpleShadow);
 }
 
 float get_shadow_factor(
     const in LIGHT_CONSTANTS light_constants,
+    const float time,
+    const in ivec2 screen_pos,
     const in vec3 world_position,
     const in float NdotL,
     sampler2D texture_shadow)
 {
     const bool isSimpleShadow = false;
-    return get_shadow_factor_func(light_constants, world_position, NdotL, texture_shadow, isSimpleShadow);
+    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, NdotL, texture_shadow, isSimpleShadow);
 }
 
 float get_sky_visibility(
@@ -294,7 +300,7 @@ vec4 surface_shading(
     const in samplerCube texture_probe,
     const in sampler2D texture_shadow,
     const in sampler2D texture_height_map,
-    const in vec2 texCoord,
+    const in vec2 screen_texcoord,
     const in vec3 world_position,
     const in vec3 vertexNormal,
     const in vec3 N,
@@ -356,7 +362,14 @@ vec4 surface_shading(
     vec3 fresnel = fresnelSchlick(NdV, F0);
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
-    vec3 shadow_factor = vec3(get_shadow_factor(light_constants, world_position, NdL, texture_shadow));
+    vec3 shadow_factor = vec3(get_shadow_factor(
+        light_constants,
+        scene_constants.TIME,
+        ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
+        world_position,
+        NdL,
+        texture_shadow)
+    );
     float sky_visibility = get_sky_visibility(view_constants, light_constants, world_position, texture_height_map);
 
     light_color *= scene_sun_irradiance * shadow_factor;
