@@ -86,11 +86,11 @@ void main()
 
     float vertex_noise = textureLod(texture_noise, world_pos.xz * 0.005, 0.0).x;
     float shadow_factor = get_shadow_factor_simple(
-        light_constants,
         scene_constants.TIME,
         ivec2(screen_coord * scene_constants.SCREEN_SIZE),
         world_pos,
-        vertex_normal.xyz,
+        light_constants.SHADOW_VIEW_PROJECTION,
+        0.0,
         texture_shadow
     );
 

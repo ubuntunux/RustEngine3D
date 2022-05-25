@@ -353,8 +353,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::CaptureHeightMap.to_string(),
-            _texture_width: constants::CAPTURE_HEIGHT_MAP_SIZE,
-            _texture_height: constants::CAPTURE_HEIGHT_MAP_SIZE,
+            _texture_width: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
+            _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::D32_SFLOAT,
             _texture_min_filter: vk::Filter::NEAREST,
             _texture_mag_filter: vk::Filter::NEAREST,

@@ -13,11 +13,11 @@ use crate::constants;
 pub struct LightConstants {
     pub _shadow_view_projection: Matrix4<f32>,
     pub _light_position: Vector3<f32>,
-    pub _shadow_exp: f32,
-    pub _light_direction: Vector3<f32>,
-    pub _shadow_bias: f32,
-    pub _light_color: Vector3<f32>,
     pub _shadow_samples: i32,
+    pub _light_direction: Vector3<f32>,
+    pub _dummy0: i32,
+    pub _light_color: Vector3<f32>,
+    pub _dummy1: i32,
 }
 
 impl Default for LightConstants {
@@ -26,11 +26,11 @@ impl Default for LightConstants {
             LightConstants {
                 _shadow_view_projection: Matrix4::identity(),
                 _light_position: Vector3::zeros(),
-                _shadow_exp: constants::SHADOW_EXP,
-                _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
-                _shadow_bias: constants::SHADOW_BIAS,
-                _light_color: Vector3::new(1.0, 1.0, 1.0),
                 _shadow_samples: constants::SHADOW_SAMPLES,
+                _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
+                _dummy0: 0,
+                _light_color: Vector3::new(1.0, 1.0, 1.0),
+                _dummy1: 0,
             }
         }
     }
@@ -42,18 +42,18 @@ pub struct DirectionalLightCreateInfo {
     pub _rotation: Vector3<f32>,
     pub _light_constants: LightConstants,
     pub _shadow_dimensions: Vector4<f32>,
-    pub _redraw_shadow_distance: f32,
+    pub _shadow_update_distance: f32,
 }
 
 impl Default for DirectionalLightCreateInfo {
     fn default() -> DirectionalLightCreateInfo {
-        DirectionalLightCreateInfo {
-            _position: Vector3::zeros(),
-            _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
-            _light_constants: LightConstants::default(),
-            _redraw_shadow_distance: 5.0,
-            _shadow_dimensions: unsafe {
-                Vector4::new(
+        unsafe {
+            DirectionalLightCreateInfo {
+                _position: Vector3::zeros(),
+                _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
+                _light_constants: LightConstants::default(),
+                _shadow_update_distance: constants::SHADOW_UPDATE_DISTANCE,
+                _shadow_dimensions: Vector4::new(
                     constants::SHADOW_DISTANCE,
                     constants::SHADOW_DISTANCE,
                     -constants::SHADOW_DEPTH,
@@ -72,7 +72,7 @@ pub struct DirectionalLightData {
     pub _transform_object: TransformObjectData,
     pub _updated_light_data: bool,
     pub _need_to_redraw_shadow: bool,
-    pub _redraw_shadow_distance: f32,
+    pub _shadow_update_distance: f32,
 }
 
 impl DirectionalLightData {
@@ -85,7 +85,7 @@ impl DirectionalLightData {
             _transform_object: TransformObjectData::new_transform_object_data(),
             _updated_light_data: true,
             _need_to_redraw_shadow: true,
-            _redraw_shadow_distance: light_create_info._redraw_shadow_distance,
+            _shadow_update_distance: light_create_info._shadow_update_distance,
         };
         light_data._transform_object.set_position(&light_create_info._position);
         light_data._transform_object.set_rotation(&light_create_info._rotation);
@@ -99,8 +99,6 @@ impl DirectionalLightData {
     pub fn get_light_direction(&self) -> &Vector3<f32> { self._transform_object.get_front() }
     pub fn get_light_color(&self) -> &Vector3<f32> { &self._light_constants._light_color }
     pub fn get_light_shadow_samples(&self) -> i32 { self._light_constants._shadow_samples }
-    pub fn get_light_shadow_exp(&self) -> f32 { self._light_constants._shadow_exp }
-    pub fn get_light_shadow_bias(&self) -> f32 { self._light_constants._shadow_bias }
     pub fn get_shadow_view_projection(&self) -> &Matrix4<f32> { &self._light_constants._shadow_view_projection }
     pub fn get_need_to_redraw_shadow_and_reset(&mut self) -> bool {
         let need_to_redraw_shadow = self._need_to_redraw_shadow;
@@ -119,7 +117,7 @@ impl DirectionalLightData {
 
     pub fn update_light_data(&mut self, view_position: &Vector3<f32>) {
         let delta: Vector3<f32> = (self._transform_object.get_position() - view_position).abs();
-        if self._redraw_shadow_distance < delta.max() {
+        if self._shadow_update_distance < delta.max() {
             self._transform_object.set_position(&view_position);
         }
 

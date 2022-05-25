@@ -6,22 +6,21 @@
 #include "utility.glsl"
 
 float get_shadow_factor_func(
-    const in LIGHT_CONSTANTS light_constants,
     const float time,
     const in ivec2 screen_pos,
     const in vec3 world_position,
-    const in vec3 normal,
-    sampler2D texture_shadow,
-    const bool isSimpleShadow
+    const in mat4 shadow_view_projection,
+    const int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
 )
 {
     const vec2 shadow_size = textureSize(texture_shadow, 0);
     const vec2 shadow_texel_size = 1.0 / shadow_size;
-    const int sample_count = isSimpleShadow ? 1 : light_constants.SHADOW_SAMPLES;
     const vec2 shadow_noise_radius = shadow_texel_size * max(1.0, log2(sample_count));
     const vec2 shadow_uv_min = shadow_texel_size * 0.5;
     const vec2 shadow_uv_max = vec2(1.0) - shadow_texel_size * 0.5;
-    vec4 shadow_proj = light_constants.SHADOW_VIEW_PROJECTION * vec4(world_position, 1.0);
+    vec4 shadow_proj = shadow_view_projection * vec4(world_position, 1.0);
     const float shadow_dist = saturate((length(shadow_proj.xy) - 0.9) * 10.0);
     shadow_proj.xyz /= shadow_proj.w;
     shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
@@ -31,10 +30,9 @@ float get_shadow_factor_func(
         return 1.0;
     }
 
-    const float NdotL = dot(normal, light_constants.LIGHT_DIRECTION);
     //const float center_depth = textureLod(texture_shadow, shadow_proj.xy, 0.0).x;
     const int timeIndex = int(mod(time, 1.0) * 1000.0);
-    const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * 0.25;
+    const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * 0.5;
     float total_shadow_factor = 0.0;
     for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {
@@ -53,7 +51,7 @@ float get_shadow_factor_func(
         );
 
         float shadow_factor = 1.0;
-        if(shadow_depth <= shadow_proj.z)
+        if((shadow_depth - depth_bias) <= shadow_proj.z)
         {
             shadow_factor = saturate(shadow_dist);
         }
@@ -63,72 +61,28 @@ float get_shadow_factor_func(
 }
 
 float get_shadow_factor_simple(
-    const in LIGHT_CONSTANTS light_constants,
     const float time,
     const in ivec2 screen_pos,
     const in vec3 world_position,
-    const in vec3 normal,
-    sampler2D texture_shadow)
+    const in mat4 shadow_view_projection,
+    const float depth_bias,
+    sampler2D texture_shadow
+)
 {
-    const bool isSimpleShadow = true;
-    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, normal, texture_shadow, isSimpleShadow);
+    return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, 1, depth_bias, texture_shadow);
 }
 
 float get_shadow_factor(
-    const in LIGHT_CONSTANTS light_constants,
     const float time,
     const in ivec2 screen_pos,
     const in vec3 world_position,
-    const in vec3 normal,
-    sampler2D texture_shadow)
-{
-    const bool isSimpleShadow = false;
-    return get_shadow_factor_func(light_constants, time, screen_pos, world_position, normal, texture_shadow, isSimpleShadow);
-}
-
-float get_sky_visibility(
-    const in VIEW_CONSTANTS view_constants,
-    const in LIGHT_CONSTANTS light_constants,
-    const in vec3 world_position,
-    sampler2D texture_height_map
+    const in mat4 shadow_view_projection,
+    const in int sample_count,
+    const float depth_bias,
+    sampler2D texture_shadow
 )
 {
-    const vec2 height_map_size = textureSize(texture_height_map, 0);
-    const vec2 height_map_texel_size = 1.0 / height_map_size;
-    const vec2 height_map_uv_min = height_map_texel_size * 0.5;
-    const vec2 height_map_uv_max = vec2(1.0) - height_map_texel_size * 0.5;
-    vec4 height_map_proj = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(world_position, 1.0);
-    height_map_proj.xyz /= height_map_proj.w;
-    height_map_proj.xy = height_map_proj.xy * 0.5 + 0.5;
-
-    if(1.0 < height_map_proj.x || height_map_proj.x < 0.0 || 1.0 < height_map_proj.y || height_map_proj.y < 0.0 || 1.0 < height_map_proj.z || height_map_proj.z < 0.0)
-    {
-        return 1.0;
-    }
-
-    const vec2 uv_offsets[5] = {
-        vec2(0.0, 0.0),
-        vec2(height_map_texel_size.x, 0.0),
-        vec2(0.0, height_map_texel_size.y),
-        vec2(-height_map_texel_size.x, 0.0),
-        vec2(0.0, -height_map_texel_size.y),
-    };
-
-    vec2 uv = height_map_proj.xy;
-    float height_map_factors = 0.0;
-    for(int component_index = 0; component_index < 5; ++component_index)
-    {
-        const vec2 height_map_uv = clamp(uv + uv_offsets[component_index], height_map_uv_min, height_map_uv_max);
-        const float height_map_depth = textureLod(texture_height_map, height_map_uv, 0.0).x + light_constants.SHADOW_BIAS;
-        if(height_map_depth <= height_map_proj.z)
-        {
-            height_map_factors += 1.0;
-        }
-    }
-
-    height_map_factors = saturate(1.0 - height_map_factors * 0.2);
-
-    return height_map_factors * height_map_factors;
+    return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, sample_count, depth_bias, texture_shadow);
 }
 
 // https://en.wikipedia.org/wiki/Oren%E2%80%93Nayar_reflectance_model
@@ -361,14 +315,24 @@ vec4 surface_shading(
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
     vec3 shadow_factor = vec3(get_shadow_factor(
-        light_constants,
         scene_constants.TIME,
         ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
         world_position,
-        N,
-        texture_shadow)
+        light_constants.SHADOW_VIEW_PROJECTION,
+        light_constants.SHADOW_SAMPLES,
+        0.0,
+        texture_shadow
+    ));
+
+    float sky_visibility = get_shadow_factor(
+        scene_constants.TIME,
+        ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
+        world_position,
+        view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
+        4,
+        -0.0005,
+        texture_height_map
     );
-    float sky_visibility = get_sky_visibility(view_constants, light_constants, world_position, texture_height_map);
 
     light_color *= scene_sun_irradiance * shadow_factor;
 
