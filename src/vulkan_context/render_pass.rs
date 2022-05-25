@@ -84,6 +84,10 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_polygon_mode: vk::PolygonMode,
     pub _pipeline_cull_mode: vk::CullModeFlags,
     pub _pipeline_front_face: vk::FrontFace,
+    pub _pipeline_depth_bias_constant_factor: f32,
+    pub _pipeline_depth_bias_clamp: f32,
+    pub _pipeline_depth_bias_slope_factor: f32,
+    pub _pipeline_line_width: f32,
     pub _pipeline_viewport: vk::Viewport,
     pub _pipeline_scissor_rect: vk::Rect2D,
     pub _pipeline_color_blend_modes: Vec<vk::PipelineColorBlendAttachmentState>,
@@ -112,6 +116,10 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _pipeline_depth_bias_constant_factor: 0.0,
+            _pipeline_depth_bias_clamp: 0.0,
+            _pipeline_depth_bias_slope_factor: 0.0,
+            _pipeline_line_width: 1.0,
             _pipeline_viewport: vk::Viewport::default(),
             _pipeline_scissor_rect: vk::Rect2D::default(),
             _pipeline_color_blend_modes: Vec::new(),
@@ -495,17 +503,21 @@ pub fn create_graphics_pipeline_data(
         p_scissors: scissors.as_ptr(),
         ..Default::default()
     };
+    let depth_bias_enable: bool =
+            0.0 != pipeline_data_create_info._pipeline_depth_bias_constant_factor ||
+            0.0 != pipeline_data_create_info._pipeline_depth_bias_clamp ||
+            0.0 != pipeline_data_create_info._pipeline_depth_bias_slope_factor;
     let rasterizer = vk::PipelineRasterizationStateCreateInfo {
         depth_clamp_enable: 0,
         rasterizer_discard_enable: 0,
         polygon_mode: pipeline_data_create_info._pipeline_polygon_mode,
         cull_mode: pipeline_data_create_info._pipeline_cull_mode,
         front_face: pipeline_data_create_info._pipeline_front_face,
-        depth_bias_enable: 0,
-        depth_bias_constant_factor: 0.0,
-        depth_bias_clamp: 0.0,
-        depth_bias_slope_factor: 0.0,
-        line_width: 1.0,
+        depth_bias_enable: if depth_bias_enable { 1 } else { 0 },
+        depth_bias_constant_factor: pipeline_data_create_info._pipeline_depth_bias_constant_factor,
+        depth_bias_clamp: pipeline_data_create_info._pipeline_depth_bias_clamp,
+        depth_bias_slope_factor: pipeline_data_create_info._pipeline_depth_bias_slope_factor,
+        line_width: pipeline_data_create_info._pipeline_line_width,
         ..Default::default()
     };
     let multi_sampling = vk::PipelineMultisampleStateCreateInfo {

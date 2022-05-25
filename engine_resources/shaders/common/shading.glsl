@@ -22,7 +22,7 @@ float get_shadow_factor_func(
     const vec2 shadow_uv_min = shadow_texel_size * 0.5;
     const vec2 shadow_uv_max = vec2(1.0) - shadow_texel_size * 0.5;
     vec4 shadow_proj = light_constants.SHADOW_VIEW_PROJECTION * vec4(world_position, 1.0);
-    float shadow_dist = saturate((length(shadow_proj.xy) - 0.9) * 10.0);
+    const float shadow_dist = saturate((length(shadow_proj.xy) - 0.9) * 10.0);
     shadow_proj.xyz /= shadow_proj.w;
     shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
 
@@ -32,15 +32,26 @@ float get_shadow_factor_func(
     }
 
     const float NdotL = dot(normal, light_constants.LIGHT_DIRECTION);
-    const float shadow_bias = -light_constants.SHADOW_BIAS * saturate(0.5 - NdotL * 0.5) + light_constants.SHADOW_BIAS * 0.1;
-    vec2 noise = vec2(interleaved_gradient_noise(screen_pos + int(mod(time, 1.0) * 1000.0))) * shadow_noise_radius;
+    //const float center_depth = textureLod(texture_shadow, shadow_proj.xy, 0.0).x;
+    const int timeIndex = int(mod(time, 1.0) * 1000.0);
+    const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * 0.25;
     float total_shadow_factor = 0.0;
     for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {
-        vec2 shadow_uv = shadow_proj.xy + PoissonSamples[sample_index % PoissonSampleCount] * shadow_noise_radius + noise;
-        shadow_uv = clamp(shadow_uv, shadow_uv_min, shadow_uv_max);
-        const float shadow_depth = textureLod(texture_shadow, shadow_uv, 0.0).x + shadow_bias;
-        //const float linear_shadow_depth = device_depth_to_linear_depth(const float zNear, const float zFar, const float depth);
+        const vec2 shadow_uv = shadow_proj.xy + (PoissonSamples[sample_index % PoissonSampleCount] + noise) * shadow_noise_radius;
+        const vec2 pixel_ratio = fract(shadow_uv * shadow_size);
+        vec4 shadow_depths = vec4(
+            textureLod(texture_shadow, shadow_uv, 0.0).x,
+            textureLod(texture_shadow, shadow_uv + vec2(shadow_texel_size.x, 0.0), 0.0).x,
+            textureLod(texture_shadow, shadow_uv + vec2(0.0, shadow_texel_size.y), 0.0).x,
+            textureLod(texture_shadow, shadow_uv + vec2(shadow_texel_size.x, shadow_texel_size.y), 0.0).x
+        );
+
+        float shadow_depth = mix(
+            mix(shadow_depths[0], shadow_depths[1], pixel_ratio.x),
+            mix(shadow_depths[2], shadow_depths[3], pixel_ratio.x), pixel_ratio.y
+        );
+
         float shadow_factor = 1.0;
         if(shadow_depth <= shadow_proj.z)
         {
