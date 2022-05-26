@@ -158,7 +158,7 @@ vec4 relative_world_from_device_depth(const in mat4x4 inv_view_origin_projection
 {
     vec4 clip_coord = vec4(tex_coord * 2.0 - 1.0, depth, 1.0);
     vec4 relative_pos = inv_view_origin_projection * clip_coord;
-    relative_pos /= relative_pos.w;
+    relative_pos.xyz /= relative_pos.w;
     return relative_pos;
 }
 
