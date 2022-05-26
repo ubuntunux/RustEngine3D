@@ -245,9 +245,9 @@ void main()
                 }
 
                 float light_intensity = 1.0;
-                for(int j = 1; j <= light_march_count; ++j)
+                for(int j = 0; j <= light_march_count; ++j)
                 {
-                    vec3 light_pos = ray_pos + sun_direction * float(light_march_count - j) * march_step;
+                    vec3 light_pos = ray_pos + sun_direction * float(j + 1.0) * march_step;
                     relative_altitude = length(light_pos.xyz - earth_center_pos.xyz) - cloud_bottom_dist;
                     if(atmosphere_constants.cloud_height < relative_altitude || relative_altitude < 0.0)
                     {
