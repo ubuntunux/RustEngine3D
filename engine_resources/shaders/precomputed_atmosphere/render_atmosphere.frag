@@ -210,7 +210,8 @@ void main()
             float increase_march_step = march_step * 0.05;
             float ray_start_dist = length(ray_start_pos.xyz);
             uint seed = uint(mod(scene_constants.TIME, 1.0) * 1000.0);
-            float step_noise = (interleaved_gradient_noise(ivec2(vs_output.uv * 512) + ivec2(seed)) * 2.0 - 1.0) * march_step * 2.0;
+
+            float step_noise = (interleaved_gradient_noise(ivec2(vs_output.uv * 1024) + ivec2(seed)) * 2.0 - 1.0) * march_step * 2.0;
             for(int i = 0; i < march_count; ++i)
             {
                 float ray_dist = float(i) * cloud_march_step;

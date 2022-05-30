@@ -140,6 +140,15 @@ impl CameraObjectData {
         }
         camera_object_data
     }
+    pub fn get_camera_front(&self) -> &Vector3<f32> {
+        &self._transform_object.get_front()
+    }
+    pub fn get_camera_up(&self) -> &Vector3<f32> {
+        &self._transform_object.get_up()
+    }
+    pub fn get_camera_left(&self) -> &Vector3<f32> {
+        &self._transform_object.get_left()
+    }
     pub fn get_camera_position(&self) -> &Vector3<f32> {
         &self._transform_object.get_position()
     }
