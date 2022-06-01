@@ -161,11 +161,26 @@ impl CameraObjectData {
         self.update_projection();
     }
 
-    pub fn convert_to_screen_pos(&self, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
+    pub fn convert_world_to_screen(&self, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
         let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
         screen_pos.x *= self._window_size.x as f32;
         screen_pos.y *= self._window_size.y as f32;
         screen_pos
+    }
+
+    pub fn convert_screen_to_world(&self, screen_pos: &Vector2<f32>) -> Vector3<f32> {
+        const DEPTH: f32 = 0.0;
+        let ndc: Vector4<f32> = Vector4::new(
+            (screen_pos.x / self._window_size.x as f32) * 2.0 - 1.0,
+            (screen_pos.y / self._window_size.y as f32) * 2.0 - 1.0,
+            DEPTH,
+            1.0
+        );
+        let mut world_pos: Vector4<f32> = &self._inv_view_projection * ndc;
+        world_pos.x /= world_pos.w;
+        world_pos.y /= world_pos.w;
+        world_pos.z /= world_pos.w;
+        Vector3::new(world_pos.x, world_pos.y, world_pos.z)
     }
 
     pub fn update_projection(&mut self) {

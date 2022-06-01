@@ -24,7 +24,7 @@ use crate::renderer::font::FontManager;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::ui::{ ProjectUIManagerBase, UIManager };
 use crate::resource::resource::{EngineResources, ProjectResourcesBase};
-use crate::utilities::system::{ RcRefCell, newRcRefCell };
+use crate::utilities::system::{ RcRefCell, new_RcRefCell };
 use crate::utilities::logger;
 
 
@@ -202,17 +202,17 @@ impl EngineApplication {
     ) -> RcRefCell<EngineApplication> {
         // create managers
         let window_size: Vector2<i32> = Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
-        let engine_resources = newRcRefCell(EngineResources::create_engine_resources(project_resources));
-        let font_manager = newRcRefCell(FontManager::create_font_manager());
-        let ui_manager = newRcRefCell(UIManager::create_ui_manager(project_ui_manager));
-        let renderer_context = newRcRefCell(RendererContext::create_renderer_context(app_name, app_version, &window_size, &window, &engine_resources));
-        let effect_manager = newRcRefCell(EffectManager::create_effect_manager());
-        let audio_manager = newRcRefCell(AudioManager::create_audio_manager(&sdl, &engine_resources));
-        let scene_manager = newRcRefCell(SceneManager::create_scene_manager(&renderer_context, &engine_resources, project_scene_manager));
+        let engine_resources = new_RcRefCell(EngineResources::create_engine_resources(project_resources));
+        let font_manager = new_RcRefCell(FontManager::create_font_manager());
+        let ui_manager = new_RcRefCell(UIManager::create_ui_manager(project_ui_manager));
+        let renderer_context = new_RcRefCell(RendererContext::create_renderer_context(app_name, app_version, &window_size, &window, &engine_resources));
+        let effect_manager = new_RcRefCell(EffectManager::create_effect_manager());
+        let audio_manager = new_RcRefCell(AudioManager::create_audio_manager(&sdl, &engine_resources));
+        let scene_manager = new_RcRefCell(SceneManager::create_scene_manager(&renderer_context, &engine_resources, project_scene_manager));
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
-        let engine_application = newRcRefCell(EngineApplication {
+        let engine_application = new_RcRefCell(EngineApplication {
             _window: window,
             _window_size: window_size.into(),
             _is_grab_mode: false,

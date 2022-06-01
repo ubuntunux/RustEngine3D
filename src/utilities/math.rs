@@ -575,12 +575,8 @@ pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {
     triangulated_list
 }
 
-pub fn convert_to_ndc(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>) -> Vector4<f32> {
-    view_projection * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0)
-}
-
 pub fn convert_to_screen_texcoord(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
-    let ndc = convert_to_ndc(view_projection, world_pos);
+    let ndc = view_projection * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
     let mut texcoord = Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, ndc.y / ndc.w * 0.5 + 0.5);
     if clamp {
         if ndc.w < 0.0 {

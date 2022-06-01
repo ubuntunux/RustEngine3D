@@ -138,9 +138,7 @@ impl TransformObjectData {
     pub fn set_yaw(&mut self, rotation: f32) {
         self._rotation.y = rotation % TWO_PI;
     }
-    pub fn set_roll(&mut self, rotation: f32) {
-        self._rotation.z = rotation % TWO_PI;
-    }
+    pub fn set_roll(&mut self, rotation: f32) { self._rotation.z = rotation % TWO_PI; }
     pub fn get_scale(&self) -> &Vector3<f32> {
         &self._scale
     }

@@ -52,7 +52,7 @@ use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, RenderPassDa
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainArray, FrameArray };
-use crate::utilities::system::newRcRefCell;
+use crate::utilities::system::new_RcRefCell;
 
 
 pub unsafe extern "system" fn vulkan_debug_callback(
@@ -298,7 +298,7 @@ impl RendererContext {
             }
 
             // renderer data
-            let renderer_data = newRcRefCell(RendererData::create_renderer_data());
+            let renderer_data = new_RcRefCell(RendererData::create_renderer_data());
 
             RendererContext {
                 _frame_index: 0,

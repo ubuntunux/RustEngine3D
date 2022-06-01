@@ -1331,7 +1331,7 @@ impl UIManager {
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
                 _ui_mesh_index_count: 0,
-                _font_data: system::newRcRefCell(FontData::default()),
+                _font_data: system::new_RcRefCell(FontData::default()),
                 _ui_render_datas: Vec::new(),
                 _render_ui_count: 0,
                 _render_ui_group: Vec::new(),

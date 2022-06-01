@@ -9,12 +9,15 @@ pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 
 #[allow(non_snake_case)]
-pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {
+pub fn new_RcRefCell<T>(t: T) -> RcRefCell<T> {
     Rc::new(RefCell::new(t))
 }
 
 #[allow(non_snake_case)]
-pub fn intoWeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> { Rc::downgrade(t) }
+pub fn into_WeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> { Rc::downgrade(t) }
+
+#[allow(non_snake_case)]
+pub fn into_RcRefCell<T>(t: &WeakRefCell<T>) -> Option<RcRefCell<T>> { Weak::upgrade(t) }
 
 pub fn enum_to_string<T: std::fmt::Debug>(e: &T) -> String {
     format!("{:?}", e)
@@ -80,8 +83,6 @@ pub fn convert_vec<S, D>(src: Vec<S>) -> Vec<D> {
         Vec::from_raw_parts(ptr, length, capacity) // Construct new Vec
     }
 }
-
-
 
 #[cfg(not(target_os = "android"))]
 pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
