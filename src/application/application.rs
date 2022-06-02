@@ -17,7 +17,7 @@ use winit::window::{
 };
 
 use crate::application::audio_manager::AudioManager;
-use crate::application::scene_manager::{ SceneManager, ProjectSceneManagerBase };
+use crate::application::scene_manager::ProjectSceneManagerBase;
 use crate::application::input;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::font::FontManager;
@@ -94,8 +94,9 @@ impl TimeData {
 }
 
 pub trait ProjectApplicationBase {
-    fn initialize_project_application(&mut self, engine_application: &EngineApplication);
+    fn initialize_project_application(&mut self, engine_application: &EngineApplication, window_size: &Vector2<i32>);
     fn terminate_project_application(&mut self);
+    fn resized_window(&self, width: i32, height: i32);
     fn update_event(&mut self);
     fn update_project_application(&mut self);
 }
@@ -115,80 +116,29 @@ pub struct EngineApplication {
     pub _engine_resources: RcRefCell<EngineResources>,
     pub _font_manager: RcRefCell<FontManager>,
     pub _renderer_context: RcRefCell<RendererContext>,
-    pub _scene_manager: RcRefCell<SceneManager>,
     pub _ui_manager: RcRefCell<UIManager>,
     pub _project_application: *const dyn ProjectApplicationBase,
+    pub _project_scene_manager: *const dyn ProjectSceneManagerBase,
 }
 
 impl EngineApplication {
-    pub fn get_project_application(&self) -> &dyn ProjectApplicationBase {
-        unsafe { &(*self._project_application) }
-    }
-
-    pub fn get_project_application_mut(&self) -> &mut dyn ProjectApplicationBase {
-        unsafe { &mut *(self._project_application as *mut dyn ProjectApplicationBase) }
-    }
-
-    pub fn get_window(&self) -> &Window {
-        unsafe { &*self._window }
-    }
-
-    pub fn get_audio_manager(&self) -> &AudioManager {
-        unsafe { &*self._audio_manager.as_ptr() }
-    }
-
-    pub fn get_audio_manager_mut(&self) -> &mut AudioManager {
-        unsafe { &mut *self._audio_manager.as_ptr() }
-    }
-
-    pub fn get_effect_manager(&self) -> &EffectManager {
-        unsafe { &*self._effect_manager.as_ptr() }
-    }
-
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
-        unsafe { &mut *self._effect_manager.as_ptr() }
-    }
-
-    pub fn get_engine_resources(&self) -> &EngineResources {
-        unsafe { &*self._engine_resources.as_ptr() }
-    }
-
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
-        unsafe { &mut *self._engine_resources.as_ptr() }
-    }
-
-    pub fn get_font_manager(&self) -> &FontManager {
-        unsafe { &*self._font_manager.as_ptr() }
-    }
-
-    pub fn get_font_manager_mut(&self) -> &mut FontManager {
-        unsafe { &mut *self._font_manager.as_ptr() }
-    }
-
-    pub fn get_renderer_context(&self) -> &RendererContext {
-        unsafe { &*self._renderer_context.as_ptr() }
-    }
-
-    pub fn get_renderer_context_mut(&self) -> &mut RendererContext {
-        unsafe { &mut *self._renderer_context.as_ptr() }
-    }
-
-    pub fn get_scene_manager(&self) -> &SceneManager {
-        unsafe { &*self._scene_manager.as_ptr() }
-    }
-
-    pub fn get_scene_manager_mut(&self) -> &mut SceneManager {
-        unsafe { &mut *self._scene_manager.as_ptr() }
-    }
-
-    pub fn get_ui_manager(&self) -> &UIManager {
-        unsafe { &*self._ui_manager.as_ptr() }
-    }
-
-    pub fn get_ui_manager_mut(&self) -> &mut UIManager {
-        unsafe { &mut *self._ui_manager.as_ptr() }
-    }
-
+    pub fn get_project_application(&self) -> &dyn ProjectApplicationBase { unsafe { &(*self._project_application) } }
+    pub fn get_project_application_mut(&self) -> &mut dyn ProjectApplicationBase { unsafe { &mut *(self._project_application as *mut dyn ProjectApplicationBase) } }
+    pub fn get_project_scene_manager(&self) -> &dyn ProjectSceneManagerBase { unsafe { &(*self._project_scene_manager) } }
+    pub fn get_project_scene_manager_mut(&self) -> &mut dyn ProjectSceneManagerBase { unsafe { &mut *(self._project_scene_manager as *mut dyn ProjectSceneManagerBase) } }
+    pub fn get_window(&self) -> &Window { unsafe { &*self._window } }
+    pub fn get_audio_manager(&self) -> &AudioManager { unsafe { &*self._audio_manager.as_ptr() } }
+    pub fn get_audio_manager_mut(&self) -> &mut AudioManager { unsafe { &mut *self._audio_manager.as_ptr() } }
+    pub fn get_effect_manager(&self) -> &EffectManager { unsafe { &*self._effect_manager.as_ptr() } }
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager { unsafe { &mut *self._effect_manager.as_ptr() } }
+    pub fn get_engine_resources(&self) -> &EngineResources { unsafe { &*self._engine_resources.as_ptr() } }
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources { unsafe { &mut *self._engine_resources.as_ptr() } }
+    pub fn get_font_manager(&self) -> &FontManager { unsafe { &*self._font_manager.as_ptr() } }
+    pub fn get_font_manager_mut(&self) -> &mut FontManager { unsafe { &mut *self._font_manager.as_ptr() } }
+    pub fn get_renderer_context(&self) -> &RendererContext { unsafe { &*self._renderer_context.as_ptr() } }
+    pub fn get_renderer_context_mut(&self) -> &mut RendererContext { unsafe { &mut *self._renderer_context.as_ptr() } }
+    pub fn get_ui_manager(&self) -> &UIManager { unsafe { &*self._ui_manager.as_ptr() } }
+    pub fn get_ui_manager_mut(&self) -> &mut UIManager { unsafe { &mut *self._ui_manager.as_ptr() } }
     pub fn create_project_application(
         app_name: &str,
         app_version: u32,
@@ -208,7 +158,6 @@ impl EngineApplication {
         let renderer_context = new_RcRefCell(RendererContext::create_renderer_context(app_name, app_version, &window_size, &window, &engine_resources));
         let effect_manager = new_RcRefCell(EffectManager::create_effect_manager());
         let audio_manager = new_RcRefCell(AudioManager::create_audio_manager(&sdl, &engine_resources));
-        let scene_manager = new_RcRefCell(SceneManager::create_scene_manager(&renderer_context, &engine_resources, project_scene_manager));
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
@@ -225,10 +174,10 @@ impl EngineApplication {
             _audio_manager: audio_manager.clone(),
             _font_manager: font_manager.clone(),
             _ui_manager: ui_manager.clone(),
-            _scene_manager: scene_manager.clone(),
             _renderer_context: renderer_context.clone(),
             _engine_resources: engine_resources.clone(),
             _project_application: project_application,
+            _project_scene_manager: project_scene_manager,
             _effect_manager: effect_manager.clone(),
         });
 
@@ -239,29 +188,20 @@ impl EngineApplication {
         ui_manager.borrow_mut().initialize_ui_manager(&renderer_context.borrow(), &engine_resources.borrow());
         audio_manager.borrow_mut().initialize_audio_manager();
         effect_manager.borrow_mut().initialize_effect_manager();
-        scene_manager.borrow_mut().initialize_scene_manager(
-            &window_size,
-            &renderer_context.borrow(),
-            &effect_manager.borrow(),
-            &engine_resources.borrow()
-        );
 
         // initialize graphics data
         renderer_context.borrow_mut().prepare_framebuffer_and_descriptors();
-        scene_manager.borrow_mut().initialize_scene_graphics_data();
 
         // initialize application
-        engine_application.borrow().get_project_application_mut().initialize_project_application(&engine_application.borrow());
+        engine_application.borrow().get_project_application_mut().initialize_project_application(&engine_application.borrow(), &window_size);
         engine_application
     }
 
-    pub fn terminate_project_application(&mut self) {
+    pub fn terminate_application(&mut self) {
         let renderer_context = self.get_renderer_context();
-        self.get_scene_manager_mut().close_scene_data(renderer_context.get_device());
 
         // destroy managers
         self.get_project_application_mut().terminate_project_application();
-        self.get_scene_manager_mut().destroy_scene_manager(renderer_context.get_device());
         self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
         self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
@@ -271,11 +211,10 @@ impl EngineApplication {
     }
 
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
-        let scene_manager = self._scene_manager.borrow();
         let mut renderer_context = self._renderer_context.borrow_mut();
         self._window_size.x = size.width as i32;
         self._window_size.y = size.height as i32;
-        scene_manager.resized_window(size.width as i32, size.height as i32);
+        self.get_project_application().resized_window(size.width as i32, size.height as i32);
         let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
         let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
         log::info!("need_recreate_swapchain: {}, swapchain_extent: {:?}", need_recreate_swapchain, swapchain_extent);
@@ -371,7 +310,6 @@ impl EngineApplication {
 
     pub fn update_event(&mut self, current_time: f64) -> bool {
         let renderer_context = unsafe { &mut *self._renderer_context.as_ptr() };
-        let scene_manager = unsafe { &mut *self._scene_manager.as_ptr() };
         let ui_manager = unsafe { &mut *self._ui_manager.as_ptr() };
         let font_manager = unsafe { &mut *self._font_manager.as_ptr() };
         let audio_manager = unsafe { &mut *self._audio_manager.as_ptr() };
@@ -379,7 +317,7 @@ impl EngineApplication {
 
         // exit
         if self._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
-            self.terminate_project_application();
+            self.terminate_application();
             return false;
         }
 
@@ -405,7 +343,6 @@ impl EngineApplication {
                     log::info!("<<begin recreate_swapchain>>");
 
                     // destroy
-                    scene_manager.destroy_scene_graphics_data(renderer_context.get_device());
                     ui_manager.destroy_ui_graphics_data();
                     font_manager.destroy_font_descriptor_sets();
                     renderer_context.resize_window();
@@ -413,7 +350,6 @@ impl EngineApplication {
                     // recreate
                     font_manager.create_font_descriptor_sets(&renderer_context, &renderer_context.get_engine_resources());
                     ui_manager.create_ui_graphics_data(&renderer_context.get_engine_resources());
-                    scene_manager.initialize_scene_graphics_data();
                     renderer_context.set_need_recreate_swapchain(false);
 
                     log::info!("<<end recreate_swapchain>>");
@@ -422,7 +358,6 @@ impl EngineApplication {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
                 self.update_project_application();
-                scene_manager.update_scene_manager(&self._time_data, font_manager);
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
                 font_manager.update();
@@ -434,7 +369,8 @@ impl EngineApplication {
                     &self._mouse_move_data,
                     &self._mouse_input_data,
                     &renderer_context.get_engine_resources());
-                renderer_context.render_scene(&scene_manager, font_manager, ui_manager, elapsed_time, delta_time, elapsed_frame);
+                let project_scene_manager = self.get_project_scene_manager();
+                renderer_context.render_scene(project_scene_manager, font_manager, ui_manager, elapsed_time, delta_time, elapsed_frame);
             }
         }
 
@@ -506,7 +442,7 @@ pub fn run_application(
             if maybe_engine_application.is_some() {
                 // clear up
                 let mut engine_application: RefMut<EngineApplication> = maybe_engine_application.as_ref().unwrap().borrow_mut();
-                engine_application.terminate_project_application();
+                engine_application.terminate_application();
             }
 
             let engine_application = EngineApplication::create_project_application(

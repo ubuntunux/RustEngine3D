@@ -17,7 +17,6 @@ use crate::application::audio_manager::{
     AudioBankData,
     AudioBankCreateInfo
 };
-use crate::application::scene_manager::SceneManager;
 use crate::constants;
 use crate::effect::effect_data::{ EffectData, EffectDataCreateInfo, EmitterDataCreateInfo, EmitterData };
 use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
@@ -126,7 +125,6 @@ pub type EffectDataMap = ResourceDataMap<EffectData>;
 pub type FramebufferDatasMap = ResourceDataMap<FramebufferData>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
-pub type SceneManagerMap = ResourceDataMap<SceneManager>;
 pub type FontDataMap = ResourceDataMap<FontData>;
 pub type MeshDataMap = ResourceDataMap<MeshData>;
 pub type ModelDataMap = ResourceDataMap<ModelData>;

@@ -7,7 +7,7 @@ use ash::{ vk, Device };
 use nalgebra::{ Vector2, Matrix4 };
 
 use crate::constants;
-use crate::application::scene_manager::{ SceneManager, ProjectSceneManagerBase };
+use crate::application::scene_manager::ProjectSceneManagerBase;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::camera::CameraObjectData;
 use crate::renderer::font::{ FontManager, RenderTextInfo };
@@ -294,7 +294,7 @@ impl RendererDataBase for RendererData {
         frame_index: usize,
         swapchain_index: u32,
         renderer_context: &RendererContext,
-        scene_manager: &SceneManager,
+        project_scene_manager: &dyn ProjectSceneManagerBase,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -302,7 +302,6 @@ impl RendererDataBase for RendererData {
         _elapsed_frame: u64,
     ) {
         let engine_resources = renderer_context.get_engine_resources();
-        let project_scene_manager: &dyn ProjectSceneManagerBase = scene_manager.get_project_scene_manager();
         let main_camera = project_scene_manager.get_main_camera().borrow();
         let main_light = project_scene_manager.get_main_light().borrow();
         let mut capture_height_map = project_scene_manager.get_capture_height_map().borrow_mut();
