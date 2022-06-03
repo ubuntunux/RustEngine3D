@@ -1,6 +1,12 @@
 use std::path::PathBuf;
 
 use ash::vk;
+
+use crate::constants::SHADOW_DEPTH_SLOPE_BIAS;
+use crate::renderer::push_constants::{ PushConstant_StaticRenderObject, PushConstant_SkeletalRenderObject };
+use crate::renderer::renderer_data::{RendererData, RenderMode, RenderObjectType };
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
 use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData, SkeletalVertexData };
@@ -16,10 +22,6 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::vulkan_context::vulkan_context;
 
-use crate::renderer::push_constants::{ PushConstant_StaticRenderObject, PushConstant_SkeletalRenderObject };
-use crate::renderer::renderer_data::{RendererData, RenderMode, RenderObjectType };
-use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
@@ -92,7 +94,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             _pipeline_depth_bias_constant_factor: 0.0,
             _pipeline_depth_bias_clamp: 0.0,
-            _pipeline_depth_bias_slope_factor: 10.0,
+            _pipeline_depth_bias_slope_factor: unsafe { SHADOW_DEPTH_SLOPE_BIAS },
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: match render_object_type {
                 RenderObjectType::Static => StaticVertexData::get_vertex_input_binding_descriptions(),
