@@ -31,7 +31,7 @@ use crate::vulkan_context::shader::{
 };
 use crate::utilities::system::{
     RcRefCell,
-    new_RcRefCell
+    newRcRefCell
 };
 use crate::renderer::renderer_context::RendererContext;
 
@@ -318,7 +318,7 @@ pub fn create_render_pass_data(
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }
-        pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), new_RcRefCell(pipeline_data));
+        pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
     log::trace!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();

@@ -9,7 +9,7 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::vulkan_context::{ SwapchainArray, Layers, MipLevels };
-use crate::utilities::system::new_RcRefCell;
+use crate::utilities::system::newRcRefCell;
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
@@ -218,7 +218,7 @@ impl FFTOcean {
                 _texture_initial_datas: spectrum12_data.clone(),
                 ..Default::default()
             });
-            engine_resources.regist_texture_data(texture_spectrum_1_2._texture_data_name.clone(), new_RcRefCell(texture_spectrum_1_2));
+            engine_resources.regist_texture_data(texture_spectrum_1_2._texture_data_name.clone(), newRcRefCell(texture_spectrum_1_2));
         }
 
         if false == engine_resources.has_texture_data("fft_ocean/spectrum_3_4") {
@@ -232,7 +232,7 @@ impl FFTOcean {
                 _texture_initial_datas: spectrum34_data.clone(),
                 ..Default::default()
             });
-            engine_resources.regist_texture_data(texture_spectrum_3_4._texture_data_name.clone(), new_RcRefCell(texture_spectrum_3_4));
+            engine_resources.regist_texture_data(texture_spectrum_3_4._texture_data_name.clone(), newRcRefCell(texture_spectrum_3_4));
         }
 
         if false == engine_resources.has_texture_data("fft_ocean/butterfly") {
@@ -247,7 +247,7 @@ impl FFTOcean {
                 _texture_initial_datas: butterfly_data.clone(),
                 ..Default::default()
             });
-            engine_resources.regist_texture_data(texture_butterfly._texture_data_name.clone(), new_RcRefCell(texture_butterfly));
+            engine_resources.regist_texture_data(texture_butterfly._texture_data_name.clone(), newRcRefCell(texture_butterfly));
         }
 
         self._theoretic_slope_variance = 0.0;

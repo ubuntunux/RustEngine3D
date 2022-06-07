@@ -8,7 +8,7 @@ use crate::constants;
 use crate::resource::resource::{ EngineResources, DEFAULT_FONT_NAME };
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
-use crate::utilities::system::{ new_RcRefCell, RcRefCell };
+use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
@@ -77,7 +77,7 @@ impl Default for FontData {
             _text_count: 0,
             _count_of_side: 0,
             _font_size: Vector2::zeros(),
-            _texture: new_RcRefCell(TextureData::default()),
+            _texture: newRcRefCell(TextureData::default()),
         }
     }
 }
@@ -139,7 +139,7 @@ impl Default for TextRenderData {
             _height: 0.0,
             _initial_column: 0,
             _initial_row: 0,
-            _font_data: new_RcRefCell(FontData::default()),
+            _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
             _font_instance_datas: Vec::new(),
             _render_font_descriptor_sets: SwapchainArray::new(),
@@ -284,7 +284,7 @@ impl FontManager {
     pub fn create_font_manager() -> FontManager {
         log::info!("create_font_manager");
         FontManager {
-            _ascii: new_RcRefCell(FontData::default()),
+            _ascii: newRcRefCell(FontData::default()),
             _show: true,
             _logs: Vec::new(),
             _text_render_data: TextRenderData::default(),

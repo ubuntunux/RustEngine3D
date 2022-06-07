@@ -7,7 +7,7 @@ use crate::renderer::mesh::MeshData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::system::{ new_RcRefCell, RcRefCell };
+use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::utilities::math;
 
 pub const INVALID_EFFECT_ID: i64 = -1;
@@ -333,7 +333,7 @@ impl EffectInstance {
             EmitterInstance::create_emitter_instance(emitter_data)
         }).collect();
 
-        let effect_instance = new_RcRefCell(EffectInstance {
+        let effect_instance = newRcRefCell(EffectInstance {
             _effect_manager: effect_manager,
             _effect_id: effect_id,
             _update_first_time: true,

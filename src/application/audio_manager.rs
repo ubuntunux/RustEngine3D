@@ -8,7 +8,7 @@ use serde::{ Serialize, Deserialize };
 use crate::constants::{ DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT };
 use crate::resource::resource::EngineResources;
 use crate::resource::resource::ResourceData;
-use crate::utilities::system::{ new_RcRefCell, RcRefCell };
+use crate::utilities::system::{ newRcRefCell, RcRefCell };
 
 
 pub enum AudioLoop {
@@ -81,7 +81,7 @@ impl AudioInstance {
         };
         let chunk = &audio_data.borrow()._sound_chunk;
 
-        new_RcRefCell(AudioInstance {
+        newRcRefCell(AudioInstance {
             _audio_data: audio_data.clone(),
             _channel: sdl2::mixer::Channel::all().play(chunk, audio_loop),
         })

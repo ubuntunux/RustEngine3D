@@ -34,7 +34,7 @@ use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ self, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
-use crate::utilities::system::{ self, RcRefCell, new_RcRefCell };
+use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -590,7 +590,7 @@ impl EngineResources {
                             _audio_name: resource_info._resource_name.clone(),
                             _sound_chunk: sdl2::mixer::Chunk::from_file(&resource_info._meta_data._resource_file_path).unwrap(),
                         };
-                        resource_info._resource_data = ResourceData::Audio(new_RcRefCell(audio_data));
+                        resource_info._resource_data = ResourceData::Audio(newRcRefCell(audio_data));
                     }
                 },
                 _ => ()
@@ -623,7 +623,7 @@ impl EngineResources {
                             _audio_bank_name: resource_info._resource_name.clone(),
                             _audio_datas: audio_datas,
                         };
-                        resource_info._resource_data = ResourceData::AudioBank(new_RcRefCell(audio_bank_data));
+                        resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
                     }
                 },
                 _ => ()
@@ -679,7 +679,7 @@ impl EngineResources {
                 &effect_data_create_info,
                 emitter_datas
             );
-            self._effect_data_map.insert(effect_data_name.clone(), new_RcRefCell(effect_data));
+            self._effect_data_map.insert(effect_data_name.clone(), newRcRefCell(effect_data));
         }
     }
 
@@ -816,13 +816,13 @@ impl EngineResources {
                         _enable_anisotropy: false,
                         ..Default::default()
                     };
-                    let texture_data = new_RcRefCell(renderer_context.create_texture(&texture_create_info));
+                    let texture_data = newRcRefCell(renderer_context.create_texture(&texture_create_info));
                     self.regist_texture_data(font_texture_name.clone(), texture_data);
                 };
                 let texture_data = self.get_texture_data(&font_texture_name);
 
                 // regist font data
-                let font_data = new_RcRefCell(FontData {
+                let font_data = newRcRefCell(FontData {
                     _font_data_name: font_data_create_info._font_data_name.clone(),
                     _range_min: font_data_create_info._range_min,
                     _range_max: font_data_create_info._range_max,
@@ -892,7 +892,7 @@ impl EngineResources {
                 }
             }).collect();
             let model_data = ModelData::new_model_data(&model_name, mesh_data.clone(), material_instance_datas);
-            self._model_data_map.insert(model_name.clone(), new_RcRefCell(model_data));
+            self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
         }
     }
 
@@ -922,10 +922,10 @@ impl EngineResources {
         for (i, geometry_create_info) in mesh_data_create_info._geometry_create_infos.iter().enumerate() {
             let geomtery_name: String = format!("{}_{}", mesh_name, i);
             let geometry_data = renderer_context.create_geometry_buffer(&geomtery_name, geometry_create_info);
-            geometry_datas.push(new_RcRefCell(geometry_data));
+            geometry_datas.push(newRcRefCell(geometry_data));
         }
 
-        let mesh_data = new_RcRefCell(MeshData::create_mesh_data(&mesh_name, mesh_data_create_info, geometry_datas));
+        let mesh_data = newRcRefCell(MeshData::create_mesh_data(&mesh_name, mesh_data_create_info, geometry_datas));
         self._mesh_data_map.insert(mesh_name.clone(), mesh_data.clone());
     }
 
@@ -1059,7 +1059,7 @@ impl EngineResources {
         log::info!("    load_texture_datas");
         let default_texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
         for texture_data in default_texture_datas {
-            self.regist_texture_data(texture_data._texture_data_name.clone(), new_RcRefCell(texture_data));
+            self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
         }
 
         let texture_directory = PathBuf::from(TEXTURE_DIRECTORY);
@@ -1158,7 +1158,7 @@ impl EngineResources {
                         ..Default::default()
                     };
                     let texture_data = renderer_context.create_texture(&texture_create_info);
-                    self._texture_data_map.insert(texture_data_name, new_RcRefCell(texture_data));
+                    self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
                 }
             }
         }
@@ -1198,7 +1198,7 @@ impl EngineResources {
                 ..Default::default()
             };
             let texture_data = renderer_context.create_texture(&texture_create_info);
-            self._texture_data_map.insert(texture_data_name, new_RcRefCell(texture_data));
+            self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
         }
     }
 
@@ -1232,7 +1232,7 @@ impl EngineResources {
                             render_pass_data._render_pass_data_name.as_str(),
                             render_pass_data_create_info._render_pass_framebuffer_create_info.clone(),
                         );
-                        self._framebuffer_datas_map.insert(render_pass_data._render_pass_data_name.clone(), new_RcRefCell(framebuffer_data));
+                        self._framebuffer_datas_map.insert(render_pass_data._render_pass_data_name.clone(), newRcRefCell(framebuffer_data));
                         break;
                     }
                 }
@@ -1270,7 +1270,7 @@ impl EngineResources {
                 render_pass_data_create_info,
                 &descriptor_datas
             );
-            self._render_pass_data_map.insert(default_render_pass_data.get_render_pass_data_name().clone(), new_RcRefCell(default_render_pass_data));
+            self._render_pass_data_map.insert(default_render_pass_data.get_render_pass_data_name().clone(), newRcRefCell(default_render_pass_data));
         }
     }
 
@@ -1339,7 +1339,7 @@ impl EngineResources {
                 }
             }).collect();
             let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
-            self._material_data_map.insert(material_name.clone(), new_RcRefCell(material_data));
+            self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
 
@@ -1451,7 +1451,7 @@ impl EngineResources {
                 let exists_material_instance_data: &mut MaterialInstanceData = &mut self.get_material_instance_data(&material_instance_name).borrow_mut();
                 *exists_material_instance_data = material_instance_data;
             } else {
-                self._material_instance_data_map.insert(material_instance_name.clone(), new_RcRefCell(material_instance_data));
+                self._material_instance_data_map.insert(material_instance_name.clone(), newRcRefCell(material_instance_data));
             }
         }
     }
@@ -1488,7 +1488,7 @@ impl EngineResources {
         match maybe_descriptor_data {
             Some(descriptor_data) => descriptor_data.clone(),
             None => {
-                let descriptor_data = new_RcRefCell(
+                let descriptor_data = newRcRefCell(
                     descriptor::create_descriptor_data(renderer_context.get_device(), descriptor_data_create_infos, max_descriptor_pool_count)
                 );
                 self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
