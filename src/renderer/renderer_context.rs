@@ -34,7 +34,8 @@ use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceD
 use crate::renderer::ui::{ UIManager };
 use crate::renderer::renderer_data::RendererData;
 use crate::resource::resource::EngineResources;
-use crate::utilities::system::{ self, RcRefCell };
+use crate::utilities::system;
+use crate::utilities::system::{ptr_as_ref, ptr_as_mut};
 use crate::vulkan_context::{
     buffer,
     command_buffer,
@@ -52,7 +53,6 @@ use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, RenderPassDa
 use crate::vulkan_context::swapchain::{ self, SwapchainData };
 use crate::vulkan_context::texture::{ TextureCreateInfo, TextureData };
 use crate::vulkan_context::vulkan_context::{ RenderFeatures, SwapchainArray, FrameArray };
-use crate::utilities::system::newRcRefCell;
 
 
 pub unsafe extern "system" fn vulkan_debug_callback(
@@ -169,8 +169,8 @@ pub struct RendererContext {
     pub _ray_tracing: Rc<RayTracing>,
     pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV,
     pub _ray_tracing_test_data: RayTracingData,
-    pub _engine_resources: RcRefCell<EngineResources>,
-    pub _renderer_data: RcRefCell<RendererData>,
+    pub _engine_resources: *const EngineResources,
+    pub _renderer_data: Box<RendererData>,
 }
 
 impl RendererContext {
@@ -179,7 +179,7 @@ impl RendererContext {
         app_version: u32,
         window_size: &Vector2<i32>,
         window: &Window,
-        engine_resources: &RcRefCell<EngineResources>,
+        engine_resources: *const EngineResources,
     ) -> RendererContext {
         unsafe {
             log::info!("createrenderer_context: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
@@ -298,7 +298,7 @@ impl RendererContext {
             }
 
             // renderer data
-            let renderer_data = newRcRefCell(RendererData::create_renderer_data());
+            let renderer_data = Box::new(RendererData::create_renderer_data());
 
             RendererContext {
                 _frame_index: 0,
@@ -347,16 +347,16 @@ impl RendererContext {
         }
     }
     pub fn get_engine_resources(&self) -> &EngineResources {
-        unsafe { &*self._engine_resources.as_ptr() }
+        ptr_as_ref(self._engine_resources)
     }
     pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
-        unsafe { &mut *self._engine_resources.as_ptr() }
+        ptr_as_mut(self._engine_resources)
     }
     pub fn get_renderer_data(&self) -> &RendererData {
-        unsafe { &*self._renderer_data.as_ptr() }
+        self._renderer_data.as_ref()
     }
     pub fn get_renderer_data_mut(&self) -> &mut RendererData {
-        unsafe { &mut *self._renderer_data.as_ptr() }
+        ptr_as_mut(self._renderer_data.as_ref())
     }
     pub fn get_need_recreate_swapchain(&self) -> bool { self._need_recreate_swapchain }
     pub fn set_need_recreate_swapchain(&mut self, value: bool) {
@@ -745,7 +745,7 @@ impl RendererContext {
     pub fn resize_window(&mut self) {
         log::info!("<< res        self.device_wait_idle();izeWindow >>");
 
-        let engine_resources = unsafe { &mut *self._engine_resources.as_ptr() };
+        let engine_resources = ptr_as_mut(self._engine_resources);
 
         // destroy swapchain & graphics engine_resources
         self.destroy_framebuffer_and_descriptors();

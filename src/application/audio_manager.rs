@@ -8,7 +8,7 @@ use serde::{ Serialize, Deserialize };
 use crate::constants::{ DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT };
 use crate::resource::resource::EngineResources;
 use crate::resource::resource::ResourceData;
-use crate::utilities::system::{ newRcRefCell, RcRefCell };
+use crate::utilities::system::{ RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref };
 
 
 pub enum AudioLoop {
@@ -39,7 +39,7 @@ pub struct AudioInstance {
 }
 
 pub struct AudioManager {
-    pub _engine_resources: RcRefCell<EngineResources>,
+    pub _engine_resources: *const EngineResources,
     pub _audio_instances: HashMap<i32, RcRefCell<AudioInstance>>,
     pub _bgm: Option<RcRefCell<AudioInstance>>,
     pub _audio_subsystem: AudioSubsystem,
@@ -89,7 +89,7 @@ impl AudioInstance {
 }
 
 impl AudioManager {
-    pub fn create_audio_manager(sdl: &Sdl, engine_resources: &RcRefCell<EngineResources>) -> AudioManager {
+    pub fn create_audio_manager(sdl: &Sdl, engine_resources: *const EngineResources) -> AudioManager {
         log::info!("create_audio_manager");
         let audio_subsystem = sdl.audio().expect("failed to sdl.audio");
         let frequency = 44_100;
@@ -119,7 +119,7 @@ impl AudioManager {
         }
 
         AudioManager {
-            _engine_resources: engine_resources.clone(),
+            _engine_resources: engine_resources,
             _audio_instances: HashMap::new(),
             _bgm: None,
             _audio_subsystem: audio_subsystem,
@@ -144,10 +144,10 @@ impl AudioManager {
     }
 
     pub fn get_engine_resources(&self) -> &EngineResources {
-        unsafe { &*self._engine_resources.as_ptr() }
+        ptr_as_ref(self._engine_resources)
     }
     pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
-        unsafe { &mut *self._engine_resources.as_ptr() }
+        ptr_as_mut(self._engine_resources)
     }
 
     fn regist_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>) {
@@ -168,7 +168,7 @@ impl AudioManager {
     }
 
     pub fn create_audio_instance(&mut self, audio_name: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
-        let engine_resources = unsafe { &mut *self._engine_resources.as_ptr() };
+        let engine_resources = ptr_as_mut(self._engine_resources);
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
             return Some(self.create_audio_instance_inner(&audio_data, audio_loop));
         }
