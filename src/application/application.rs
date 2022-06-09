@@ -23,7 +23,7 @@ use crate::renderer::font::FontManager;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::ui::{ ProjectUIManagerBase, UIManager };
 use crate::resource::resource::{EngineResources, ProjectResourcesBase};
-use crate::utilities::system::{ RcRefCell, newRcRefCell, ptr_as_ref, ptr_as_mut };
+use crate::utilities::system::{ ptr_as_ref, ptr_as_mut };
 use crate::utilities::logger;
 
 
@@ -148,7 +148,7 @@ impl EngineApplication {
         project_scene_manager: *const dyn ProjectSceneManagerBase,
         project_ui_manager: *const dyn ProjectUIManagerBase,
         elapsed_time: f64
-    ) -> RcRefCell<EngineApplication> {
+    ) -> Box<EngineApplication> {
         // create managers
         let window_size: Vector2<i32> = Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
         let engine_resources = Box::new(EngineResources::create_engine_resources(project_resources));
@@ -160,7 +160,7 @@ impl EngineApplication {
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
-        let engine_application_rcrefcell = newRcRefCell(EngineApplication {
+        let engine_application_box = Box::new(EngineApplication {
             _window: window,
             _window_size: window_size.into(),
             _is_grab_mode: false,
@@ -181,7 +181,7 @@ impl EngineApplication {
         });
 
         // initialize managers
-        let engine_application = &engine_application_rcrefcell.borrow();
+        let engine_application = engine_application_box.as_ref();
         engine_application.get_renderer_context_mut().initialize_renderer_context(
             engine_application.get_engine_resources(),
             engine_application.get_effect_manager()
@@ -205,7 +205,7 @@ impl EngineApplication {
 
         // initialize application
         engine_application.get_project_application_mut().initialize_project_application(&engine_application, &window_size);
-        engine_application_rcrefcell.clone()
+        engine_application_box
     }
 
     pub fn terminate_application(&mut self) {
@@ -439,7 +439,7 @@ pub fn run_application(
         }
     }
 
-    let mut maybe_engine_application: Option<RcRefCell<EngineApplication>> = None;
+    let mut maybe_engine_application: Option<Box<EngineApplication>> = None;
 
     // main loop
     #[cfg(target_os = "android")]
@@ -453,7 +453,7 @@ pub fn run_application(
         if need_initialize {
             if maybe_engine_application.is_some() {
                 // clear up
-                let mut engine_application = maybe_engine_application.as_ref().unwrap().borrow_mut();
+                let engine_application = maybe_engine_application.as_mut().unwrap().as_mut();
                 engine_application.terminate_application();
             }
 
@@ -476,7 +476,7 @@ pub fn run_application(
             initialize_done = true;
         }
 
-        let engine_application = &mut maybe_engine_application.as_ref().unwrap().borrow_mut();
+        let engine_application = maybe_engine_application.as_mut().unwrap().as_mut();
 
         match event {
             Event::Resumed => {
