@@ -4,7 +4,8 @@ use crate::renderer::render_element::RenderElementData;
 use crate::utilities::system::RcRefCell;
 
 pub trait ProjectSceneManagerBase {
-    fn get_main_camera(&self) -> &RcRefCell<CameraObjectData>;
+    fn get_main_camera(&self) -> &CameraObjectData;
+    fn get_main_camera_mut(&self) -> &mut CameraObjectData;
     fn get_main_light(&self) -> &RcRefCell<DirectionalLightData>;
     fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData>;
     fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLightData>;

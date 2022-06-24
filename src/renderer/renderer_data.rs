@@ -302,7 +302,7 @@ impl RendererDataBase for RendererData {
         _elapsed_frame: u64,
     ) {
         let engine_resources = renderer_context.get_engine_resources();
-        let main_camera = project_scene_manager.get_main_camera().borrow();
+        let main_camera = project_scene_manager.get_main_camera();
         let main_light = project_scene_manager.get_main_light().borrow();
         let mut capture_height_map = project_scene_manager.get_capture_height_map().borrow_mut();
         let render_capture_height_map: bool = capture_height_map.get_need_to_redraw_shadow_and_reset();
