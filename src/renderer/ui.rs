@@ -15,7 +15,7 @@ use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::renderer_context::{ RendererContext };
 use crate::renderer::transform_object::TransformObjectData;
-use crate::utilities::system::{ self, RcRefCell };
+use crate::utilities::system::{ self, RcRefCell, ptr_as_ref };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::render_pass::{ PipelineData };
@@ -203,9 +203,9 @@ pub struct UIComponentInstance {
     pub _touched_offset: Vector2<f32>,
     pub _text: String,
     pub _render_text_count: u32,
-    pub _callback_touch_down: Option<*const fn(widget: *const dyn Widget)>,
-    pub _callback_touch_move: Option<*const fn(widget: *const dyn Widget)>,
-    pub _callback_touch_up: Option<*const fn(widget: *const dyn Widget)>,
+    pub _callback_touch_down: *const fn(widget: *const dyn Widget),
+    pub _callback_touch_move: *const fn(widget: *const dyn Widget),
+    pub _callback_touch_up: *const fn(widget: *const dyn Widget),
 }
 
 pub struct WidgetDefault {
@@ -315,9 +315,9 @@ impl UIComponentInstance {
             _text: String::new(),
             _text_counts: Vec::new(),
             _render_text_count: 0,
-            _callback_touch_down: None,
-            _callback_touch_move: None,
-            _callback_touch_up: None,
+            _callback_touch_down: std::ptr::null(),
+            _callback_touch_move: std::ptr::null(),
+            _callback_touch_up: std::ptr::null(),
         }
     }
 
@@ -342,13 +342,11 @@ impl UIComponentInstance {
 
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>) {
         self._touched = true;
-        if self.get_dragable() {
+        if self.get_touchable() || self.get_dragable() {
             self._touched_offset.x = self.get_pos_x() - touched_pos.x;
             self._touched_offset.y = self.get_pos_y() - touched_pos.y;
-            if let Some(callback_touch_down) = self._callback_touch_down.as_ref() {
-                unsafe {
-                    callback_touch_down.as_ref().unwrap()(self.get_owner_widget().unwrap());
-                }
+            if false == self._callback_touch_down.is_null() {
+                ptr_as_ref(self._callback_touch_down)(self.get_owner_widget().unwrap());
             }
             self._changed_render_data = true;
         }
@@ -356,12 +354,13 @@ impl UIComponentInstance {
 
     pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>) {
         if self._touched {
-            if self.get_dragable() {
-                self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
-                if let Some(callback_touch_move) = self._callback_touch_move.as_ref() {
-                    unsafe {
-                        callback_touch_move.as_ref().unwrap()(self.get_owner_widget().unwrap());
-                    }
+            if self.get_touchable() || self.get_dragable() {
+                if self.get_dragable() {
+                    self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
+                }
+
+                if false == self._callback_touch_move.is_null() {
+                    ptr_as_ref(self._callback_touch_move)(self.get_owner_widget().unwrap());
                 }
                 self._changed_render_data = true;
             }
@@ -371,12 +370,13 @@ impl UIComponentInstance {
     pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>) {
         if self._touched {
             self._touched = false;
-            if self.get_dragable() {
-                self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
-                if let Some(callback_touch_up) = self._callback_touch_up.as_ref() {
-                    unsafe {
-                        callback_touch_up.as_ref().unwrap()(self.get_owner_widget().unwrap());
-                    }
+            if self.get_touchable() || self.get_dragable() {
+                if self.get_dragable() {
+                    self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
+                }
+
+                if false == self._callback_touch_up.is_null() {
+                    ptr_as_ref(self._callback_touch_up)(self.get_owner_widget().unwrap());
                 }
                 self._changed_render_data = true;
             }
@@ -624,6 +624,15 @@ impl UIComponentInstance {
             self._ui_component_data._border = border;
             self._changed_render_data = true;
         }
+    }
+    pub fn set_callback_touch_down(&mut self, callback_touch_down: *const fn(widget: *const dyn Widget)) {
+        self._callback_touch_down = callback_touch_down;
+    }
+    pub fn set_callback_touch_move(&mut self, callback_touch_move: *const fn(widget: *const dyn Widget)) {
+        self._callback_touch_move = callback_touch_move;
+    }
+    pub fn set_callback_touch_up(&mut self, callback_touch_up: *const fn(widget: *const dyn Widget)) {
+        self._callback_touch_up = callback_touch_up;
     }
     pub fn get_dragable(&self) -> bool { self._ui_component_data._dragable }
     pub fn set_dragable(&mut self, dragable: bool) { self._ui_component_data._dragable = dragable; }
