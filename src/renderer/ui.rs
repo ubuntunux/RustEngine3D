@@ -1,4 +1,6 @@
 use std::boxed::Box;
+
+use bitflags::bitflags;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
@@ -83,6 +85,22 @@ pub enum UILayoutType {
 pub enum UILayoutState {
     Unknown,
     Complete,
+}
+
+bitflags! {
+    pub struct UICornerFlags: i32 {
+        const NONE = 0;
+        const LEFT = 1 << 0;
+        const RIGHT = 1 << 1;
+        const BOTTOM = 1 << 2;
+        const TOP = 1 << 3;
+    }
+}
+
+impl Default for UICornerFlags {
+    fn default() -> UICornerFlags {
+        UICornerFlags::NONE
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -200,7 +218,9 @@ pub struct UIComponentInstance {
     pub _renderable: bool,
     pub _visible: bool, // hierachycal visible flag
     pub _touched: bool,
+    pub _touched_pos: Vector2<f32>,
     pub _touched_offset: Vector2<f32>,
+    pub _touched_corner_flags: UICornerFlags,
     pub _text: String,
     pub _render_text_count: u32,
     pub _callback_touch_down: *const fn(widget: *const dyn Widget),
@@ -311,7 +331,9 @@ impl UIComponentInstance {
             _renderable: true,
             _visible: true,
             _touched: false,
+            _touched_pos: Vector2::zeros(),
             _touched_offset: Vector2::zeros(),
+            _touched_corner_flags: UICornerFlags::default(),
             _text: String::new(),
             _text_counts: Vec::new(),
             _render_text_count: 0,
@@ -343,8 +365,11 @@ impl UIComponentInstance {
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>) {
         self._touched = true;
         if self.get_touchable() || self.get_dragable() {
+            self._touched_pos.x = touched_pos.x;
+            self._touched_pos.y = touched_pos.y;
             self._touched_offset.x = self.get_pos_x() - touched_pos.x;
             self._touched_offset.y = self.get_pos_y() - touched_pos.y;
+
             if false == self._callback_touch_down.is_null() {
                 ptr_as_ref(self._callback_touch_down)(self.get_owner_widget().unwrap());
             }
