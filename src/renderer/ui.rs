@@ -219,7 +219,6 @@ pub struct UIComponentInstance {
     pub _visible: bool, // hierachycal visible flag
     pub _touched: bool,
     pub _touched_pos: Vector2<f32>,
-    pub _touched_offset: Vector2<f32>,
     pub _touched_corner_flags: UICornerFlags,
     pub _text: String,
     pub _render_text_count: u32,
@@ -332,8 +331,7 @@ impl UIComponentInstance {
             _visible: true,
             _touched: false,
             _touched_pos: Vector2::zeros(),
-            _touched_offset: Vector2::zeros(),
-            _touched_corner_flags: UICornerFlags::default(),
+            _touched_corner_flags: UICornerFlags::NONE,
             _text: String::new(),
             _text_counts: Vec::new(),
             _render_text_count: 0,
@@ -362,13 +360,27 @@ impl UIComponentInstance {
         self._renderable_area.x <= touched_pos.x && touched_pos.x < self._renderable_area.z && self._renderable_area.y <= touched_pos.y && touched_pos.y < self._renderable_area.w
     }
 
-    pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>) {
+    pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, _touched_pos_delta: &Vector2<f32>) {
         self._touched = true;
         if self.get_touchable() || self.get_dragable() {
             self._touched_pos.x = touched_pos.x;
             self._touched_pos.y = touched_pos.y;
-            self._touched_offset.x = self.get_pos_x() - touched_pos.x;
-            self._touched_offset.y = self.get_pos_y() - touched_pos.y;
+            let touched_offset_x = self.get_pos_x() - touched_pos.x;
+            let touched_offset_y = self.get_pos_y() - touched_pos.y;
+
+            let check_thickness: f32 = 10.0;
+            self._touched_corner_flags = UICornerFlags::NONE;
+            if touched_offset_x.abs() <= check_thickness {
+                self._touched_corner_flags.insert(UICornerFlags::LEFT);
+            } else if (touched_offset_x + self.get_size_x()).abs() <= check_thickness {
+                self._touched_corner_flags.insert(UICornerFlags::RIGHT);
+            }
+
+            if touched_offset_y.abs() <= check_thickness {
+                self._touched_corner_flags.insert(UICornerFlags::TOP);
+            } else if (touched_offset_y + self.get_size_y()).abs() <= check_thickness {
+                self._touched_corner_flags.insert(UICornerFlags::BOTTOM);
+            }
 
             if false == self._callback_touch_down.is_null() {
                 ptr_as_ref(self._callback_touch_down)(self.get_owner_widget().unwrap());
@@ -377,11 +389,37 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>) {
+    pub fn on_touch_move(&mut self, _touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             if self.get_touchable() || self.get_dragable() {
                 if self.get_dragable() {
-                    self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
+                    if self._touched_corner_flags == UICornerFlags::NONE {
+                        self.set_pos(self.get_pos().x + touched_pos_delta.x, self.get_pos().y + touched_pos_delta.y);
+                    }
+                }
+
+                if self.get_resizable_x() {
+                    if self._touched_corner_flags.contains(UICornerFlags::LEFT) {
+                        let size_x = 0f32.max(self.get_size_x() - touched_pos_delta.x);
+                        self.set_size_x(size_x);
+                        if 0.0 < size_x {
+                            self.set_pos_x(self.get_pos_x() + touched_pos_delta.x);
+                        }
+                    } else if self._touched_corner_flags.contains(UICornerFlags::RIGHT) {
+                        self.set_size_x(0f32.max(self.get_size_x() + touched_pos_delta.x));
+                    }
+                }
+
+                if self.get_resizable_y() {
+                    if self._touched_corner_flags.contains(UICornerFlags::TOP) {
+                        let size_y = 0f32.max(self.get_size_y() - touched_pos_delta.y);
+                        self.set_size_y(size_y);
+                        if 0.0 < size_y {
+                            self.set_pos_y(self.get_pos_y() + touched_pos_delta.y);
+                        }
+                    } else if self._touched_corner_flags.contains(UICornerFlags::BOTTOM) {
+                        self.set_size_y(0f32.max(self.get_size_y() + touched_pos_delta.y));
+                    }
                 }
 
                 if false == self._callback_touch_move.is_null() {
@@ -392,12 +430,16 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>) {
+    pub fn on_touch_up(&mut self, _touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             self._touched = false;
             if self.get_touchable() || self.get_dragable() {
+                self._touched_corner_flags = UICornerFlags::NONE;
+
                 if self.get_dragable() {
-                    self.set_pos(touched_pos.x + self._touched_offset.x, touched_pos.y + self._touched_offset.y);
+                    if self._touched_corner_flags == UICornerFlags::NONE {
+                        self.set_pos(self.get_pos().x + touched_pos_delta.x, self.get_pos().y + touched_pos_delta.y);
+                    }
                 }
 
                 if false == self._callback_touch_up.is_null() {
@@ -1169,6 +1211,7 @@ impl UIComponentInstance {
         time_data: &TimeData,
         keyboard_input_data: &KeyboardInputData,
         mouse_pos: &Vector2<f32>,
+        mouse_pos_delta: &Vector2<f32>,
         mouse_moved: bool,
         mouse_input_data: &MouseInputData,
         touch_event: &mut bool,
@@ -1182,6 +1225,7 @@ impl UIComponentInstance {
                 time_data,
                 keyboard_input_data,
                 mouse_pos,
+                mouse_pos_delta,
                 mouse_moved,
                 mouse_input_data,
                 touch_event,
@@ -1199,10 +1243,10 @@ impl UIComponentInstance {
             if self._touched {
                 if mouse_input_data._btn_l_hold {
                     if mouse_moved {
-                        self.on_touch_move(mouse_pos);
+                        self.on_touch_move(mouse_pos, mouse_pos_delta);
                     }
                 } else {
-                    self.on_touch_up(mouse_pos);
+                    self.on_touch_up(mouse_pos, mouse_pos_delta);
                     if false == self.get_has_cursor() {
                         //self._viewport_manager.focused_widget = None;
                     }
@@ -1211,7 +1255,7 @@ impl UIComponentInstance {
             else if mouse_input_data._btn_l_pressed {
                 if self.check_collide(mouse_pos) {
                     //self._viewport_manager.focused_widget = self
-                    self.on_touch_down(mouse_pos)
+                    self.on_touch_down(mouse_pos, mouse_pos_delta);
                 } else if self.get_has_cursor() {
                     //self._viewport_manager.focused_widget = None
                 }
@@ -1542,6 +1586,7 @@ impl UIManager {
         // update ui component
         let mut touch_event: bool = false;
         let mouse_pos: Vector2<f32> = Vector2::new(mouse_move_data._mouse_pos.x as f32, mouse_move_data._mouse_pos.y as f32);
+        let mouse_pos_delta: Vector2<f32> = Vector2::new(mouse_move_data._mouse_pos_delta.x as f32, mouse_move_data._mouse_pos_delta.y as f32);
         let mouse_moved: bool = 0 != mouse_move_data._mouse_pos_delta.x || 0 != mouse_move_data._mouse_pos_delta.y;
         root_ui_component.update_ui_component(
             delta_time,
@@ -1549,6 +1594,7 @@ impl UIManager {
             time_data,
             keyboard_input_data,
             &mouse_pos,
+            &mouse_pos_delta,
             mouse_moved,
             mouse_input_data,
             &mut touch_event,
