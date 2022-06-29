@@ -23,6 +23,8 @@ use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::render_pass::{ PipelineData };
 use crate::vulkan_context::vulkan_context::{ get_color32 };
 
+pub type CallbackTouchEvent = fn(ui_component: &mut UIComponentInstance, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>);
+
 pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
 
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
@@ -218,13 +220,13 @@ pub struct UIComponentInstance {
     pub _renderable: bool,
     pub _visible: bool, // hierachycal visible flag
     pub _touched: bool,
-    pub _touched_pos: Vector2<f32>,
-    pub _touched_corner_flags: UICornerFlags,
+    pub _touch_start_pos: Vector2<f32>,
+    pub _touch_corner_flags: UICornerFlags,
     pub _text: String,
     pub _render_text_count: u32,
-    pub _callback_touch_down: *const fn(widget: *const dyn Widget),
-    pub _callback_touch_move: *const fn(widget: *const dyn Widget),
-    pub _callback_touch_up: *const fn(widget: *const dyn Widget),
+    pub _callback_touch_down: *const CallbackTouchEvent,
+    pub _callback_touch_move: *const CallbackTouchEvent,
+    pub _callback_touch_up: *const CallbackTouchEvent,
 }
 
 pub struct WidgetDefault {
@@ -330,8 +332,8 @@ impl UIComponentInstance {
             _renderable: true,
             _visible: true,
             _touched: false,
-            _touched_pos: Vector2::zeros(),
-            _touched_corner_flags: UICornerFlags::NONE,
+            _touch_start_pos: Vector2::zeros(),
+            _touch_corner_flags: UICornerFlags::NONE,
             _text: String::new(),
             _text_counts: Vec::new(),
             _render_text_count: 0,
@@ -360,90 +362,90 @@ impl UIComponentInstance {
         self._renderable_area.x <= touched_pos.x && touched_pos.x < self._renderable_area.z && self._renderable_area.y <= touched_pos.y && touched_pos.y < self._renderable_area.w
     }
 
-    pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, _touched_pos_delta: &Vector2<f32>) {
+    pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         self._touched = true;
         if self.get_touchable() || self.get_dragable() {
-            self._touched_pos.x = touched_pos.x;
-            self._touched_pos.y = touched_pos.y;
+            self._touch_start_pos.x = touched_pos.x;
+            self._touch_start_pos.y = touched_pos.y;
             let touched_offset_x = self.get_pos_x() - touched_pos.x;
             let touched_offset_y = self.get_pos_y() - touched_pos.y;
 
             let check_thickness: f32 = 10.0;
-            self._touched_corner_flags = UICornerFlags::NONE;
+            self._touch_corner_flags = UICornerFlags::NONE;
             if touched_offset_x.abs() <= check_thickness {
-                self._touched_corner_flags.insert(UICornerFlags::LEFT);
+                self._touch_corner_flags.insert(UICornerFlags::LEFT);
             } else if (touched_offset_x + self.get_size_x()).abs() <= check_thickness {
-                self._touched_corner_flags.insert(UICornerFlags::RIGHT);
+                self._touch_corner_flags.insert(UICornerFlags::RIGHT);
             }
 
             if touched_offset_y.abs() <= check_thickness {
-                self._touched_corner_flags.insert(UICornerFlags::TOP);
+                self._touch_corner_flags.insert(UICornerFlags::TOP);
             } else if (touched_offset_y + self.get_size_y()).abs() <= check_thickness {
-                self._touched_corner_flags.insert(UICornerFlags::BOTTOM);
+                self._touch_corner_flags.insert(UICornerFlags::BOTTOM);
             }
 
             if false == self._callback_touch_down.is_null() {
-                ptr_as_ref(self._callback_touch_down)(self.get_owner_widget().unwrap());
+                ptr_as_ref(self._callback_touch_down)(self, touched_pos, touched_pos_delta);
             }
             self._changed_render_data = true;
         }
     }
 
-    pub fn on_touch_move(&mut self, _touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
+    pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             if self.get_touchable() || self.get_dragable() {
                 if self.get_dragable() {
-                    if self._touched_corner_flags == UICornerFlags::NONE {
+                    if self._touch_corner_flags == UICornerFlags::NONE {
                         self.set_pos(self.get_pos().x + touched_pos_delta.x, self.get_pos().y + touched_pos_delta.y);
                     }
                 }
 
                 if self.get_resizable_x() {
-                    if self._touched_corner_flags.contains(UICornerFlags::LEFT) {
+                    if self._touch_corner_flags.contains(UICornerFlags::LEFT) {
                         let size_x = 0f32.max(self.get_size_x() - touched_pos_delta.x);
                         self.set_size_x(size_x);
                         if 0.0 < size_x {
                             self.set_pos_x(self.get_pos_x() + touched_pos_delta.x);
                         }
-                    } else if self._touched_corner_flags.contains(UICornerFlags::RIGHT) {
+                    } else if self._touch_corner_flags.contains(UICornerFlags::RIGHT) {
                         self.set_size_x(0f32.max(self.get_size_x() + touched_pos_delta.x));
                     }
                 }
 
                 if self.get_resizable_y() {
-                    if self._touched_corner_flags.contains(UICornerFlags::TOP) {
+                    if self._touch_corner_flags.contains(UICornerFlags::TOP) {
                         let size_y = 0f32.max(self.get_size_y() - touched_pos_delta.y);
                         self.set_size_y(size_y);
                         if 0.0 < size_y {
                             self.set_pos_y(self.get_pos_y() + touched_pos_delta.y);
                         }
-                    } else if self._touched_corner_flags.contains(UICornerFlags::BOTTOM) {
+                    } else if self._touch_corner_flags.contains(UICornerFlags::BOTTOM) {
                         self.set_size_y(0f32.max(self.get_size_y() + touched_pos_delta.y));
                     }
                 }
 
                 if false == self._callback_touch_move.is_null() {
-                    ptr_as_ref(self._callback_touch_move)(self.get_owner_widget().unwrap());
+                    ptr_as_ref(self._callback_touch_move)(self, touched_pos, touched_pos_delta);
                 }
                 self._changed_render_data = true;
             }
         }
     }
 
-    pub fn on_touch_up(&mut self, _touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
+    pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             self._touched = false;
             if self.get_touchable() || self.get_dragable() {
-                self._touched_corner_flags = UICornerFlags::NONE;
+                self._touch_corner_flags = UICornerFlags::NONE;
 
                 if self.get_dragable() {
-                    if self._touched_corner_flags == UICornerFlags::NONE {
+                    if self._touch_corner_flags == UICornerFlags::NONE {
                         self.set_pos(self.get_pos().x + touched_pos_delta.x, self.get_pos().y + touched_pos_delta.y);
                     }
                 }
 
                 if false == self._callback_touch_up.is_null() {
-                    ptr_as_ref(self._callback_touch_up)(self.get_owner_widget().unwrap());
+                    ptr_as_ref(self._callback_touch_up)(self, touched_pos, touched_pos_delta);
                 }
                 self._changed_render_data = true;
             }
@@ -692,15 +694,18 @@ impl UIComponentInstance {
             self._changed_render_data = true;
         }
     }
-    pub fn set_callback_touch_down(&mut self, callback_touch_down: *const fn(widget: *const dyn Widget)) {
+    pub fn set_callback_touch_down(&mut self, callback_touch_down: *const CallbackTouchEvent) {
         self._callback_touch_down = callback_touch_down;
     }
-    pub fn set_callback_touch_move(&mut self, callback_touch_move: *const fn(widget: *const dyn Widget)) {
+    pub fn set_callback_touch_move(&mut self, callback_touch_move: *const CallbackTouchEvent) {
         self._callback_touch_move = callback_touch_move;
     }
-    pub fn set_callback_touch_up(&mut self, callback_touch_up: *const fn(widget: *const dyn Widget)) {
+    pub fn set_callback_touch_up(&mut self, callback_touch_up: *const CallbackTouchEvent) {
         self._callback_touch_up = callback_touch_up;
     }
+    pub fn get_touched(&self) -> bool { self._touched }
+    pub fn get_touch_start_pos(&self) -> &Vector2<f32> { &self._touch_start_pos }
+    pub fn get_touch_corner_flags(&self) -> UICornerFlags { self._touch_corner_flags }
     pub fn get_dragable(&self) -> bool { self._ui_component_data._dragable }
     pub fn set_dragable(&mut self, dragable: bool) { self._ui_component_data._dragable = dragable; }
     pub fn get_touchable(&self) -> bool { self._ui_component_data._touchable }
