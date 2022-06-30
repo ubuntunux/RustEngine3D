@@ -17,7 +17,7 @@ use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::renderer_context::{ RendererContext };
 use crate::renderer::transform_object::TransformObjectData;
-use crate::utilities::system::{ self, RcRefCell, ptr_as_ref };
+use crate::utilities::system::{ self, RcRefCell, ptr_as_ref, ptr_as_mut };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::render_pass::{ PipelineData };
@@ -193,8 +193,8 @@ pub struct UIComponentData {
 pub struct UIComponentInstance {
     pub _ui_component_data: UIComponentData,
     pub _owner_widget: *const dyn Widget,
-    pub _parent: Option<*mut UIComponentInstance>,
-    pub _children: Vec<*mut UIComponentInstance>,
+    pub _parent: *const UIComponentInstance,
+    pub _children: Vec<*const UIComponentInstance>,
     pub _changed_layout: bool,
     pub _changed_child_layout: bool,
     pub _changed_deep_child_layout: bool,
@@ -233,8 +233,8 @@ pub struct WidgetDefault {
     pub _ui_widget_name: String,
     pub _ui_widget_type: UIWidgetTypes,
     pub _ui_component: UIComponentInstance,
-    pub _parent: Option<*mut dyn Widget>,
-    pub _widgets: Vec<*mut dyn Widget>,
+    pub _parent: *const dyn Widget,
+    pub _widgets: Vec<*const dyn Widget>,
 }
 
 pub trait ProjectUIManagerBase {
@@ -306,7 +306,7 @@ impl UIComponentInstance {
         UIComponentInstance {
             _ui_component_data: UIComponentData::default(),
             _owner_widget: std::ptr::null() as *const WidgetDefault,
-            _parent: None,
+            _parent: std::ptr::null(),
             _children: Vec::new(),
             _changed_layout: true,
             _changed_child_layout: false,
@@ -344,16 +344,17 @@ impl UIComponentInstance {
     }
 
     pub fn get_owner_widget(&self) -> &dyn Widget { ptr_as_ref(self._owner_widget) }
-    pub fn get_parent(&self) -> &Option<*mut UIComponentInstance> { &self._parent }
-    pub fn set_parent(&mut self, parent: Option<*mut UIComponentInstance>) {
-        if self._parent.is_some() {
+    pub fn has_parent(&self) -> bool { false == self._parent.is_null() }
+    pub fn get_parent(&self) -> &UIComponentInstance { ptr_as_ref(self._parent) }
+    pub fn set_parent(&mut self, parent: *const UIComponentInstance) {
+        if false == self._parent.is_null() {
             panic!("Widget already has parent");
         }
         self._parent = parent;
     }
     pub fn clear_children(&mut self) {
         for child in self._children.iter() {
-            unsafe { child.as_mut().unwrap().clear_children(); }
+            ptr_as_mut(*child).clear_children();
         }
         self._children.clear();
         self.set_changed_layout(true);
@@ -740,30 +741,27 @@ impl UIComponentInstance {
     pub fn set_resizable_x(&mut self, resizable: bool) { self._ui_component_data._resizable_x = resizable; }
     pub fn get_resizable_y(&self) -> bool { self._ui_component_data._resizable_y }
     pub fn set_resizable_y(&mut self, resizable: bool) { self._ui_component_data._resizable_y = resizable; }
-    pub fn add_ui_component(&mut self, child: *mut UIComponentInstance) {
-        unsafe {
-            if child.as_ref().unwrap().get_parent().is_some() {
-                panic!("Widget already has parent");
-            }
+    pub fn add_ui_component(&mut self, child_ptr: *const UIComponentInstance) {
+        let child = ptr_as_mut(child_ptr);
+        if child.has_parent() {
+            panic!("Widget already has parent");
+        }
 
-            if false == self._children.contains(&child) {
-                self._children.push(child);
-                child.as_mut().unwrap().set_parent(Some(self));
-                self.set_changed_layout(true);
-            }
+        if false == self._children.contains(&child_ptr) {
+            self._children.push(child_ptr);
+            child.set_parent(self);
+            self.set_changed_layout(true);
         }
     }
 
-    pub fn remove_ui_component(&mut self, child: *mut UIComponentInstance) {
-        unsafe {
-            if let Some(index) = self._children.iter().position(|x| *x == child) {
-                // if self._viewport_manager.focused_widget is widget {
-                //     self._viewport_manager.focused_widget = None
-                // }
-                self._children.remove(index);
-                child.as_mut().unwrap().set_parent(None);
-                self.set_changed_layout(true);
-            }
+    pub fn remove_ui_component(&mut self, child: *const UIComponentInstance) {
+        if let Some(index) = self._children.iter().position(|x| *x == child) {
+            // if self._viewport_manager.focused_widget is widget {
+            //     self._viewport_manager.focused_widget = None
+            // }
+            self._children.remove(index);
+            ptr_as_mut(child).set_parent(std::ptr::null());
+            self.set_changed_layout(true);
         }
     }
 
@@ -972,18 +970,16 @@ impl UIComponentInstance {
         }
 
         if self._visible {
-            unsafe {
-                for child_ui_component in self._children.iter() {
-                    child_ui_component.as_mut().unwrap().collect_ui_render_data(
-                        font_data,
-                        render_ui_count,
-                        render_ui_group,
-                        prev_render_group_data,
-                        render_ui_instance_datas,
-                        need_to_collect_render_data,
-                        opacity
-                    );
-                }
+            for child_ui_component in self._children.iter() {
+                ptr_as_mut(*child_ui_component).collect_ui_render_data(
+                    font_data,
+                    render_ui_count,
+                    render_ui_group,
+                    prev_render_group_data,
+                    render_ui_instance_datas,
+                    need_to_collect_render_data,
+                    opacity
+                );
             }
         }
     }
@@ -1028,7 +1024,7 @@ impl UIComponentInstance {
             // update required contents size
             let mut required_contents_size = Vector2::<f32>::zeros();
             for child in self._children.iter() {
-                let child_ui_instance = unsafe { child.as_mut().unwrap() };
+                let child_ui_instance = ptr_as_mut(*child);
                 child_ui_instance.update_layout_size(inherit_changed_layout, &self._contents_area_size, font_data);
 
                 // accumulate required_contents_size
@@ -1166,7 +1162,7 @@ impl UIComponentInstance {
 
                 // update children ui area
                 for child in self._children.iter() {
-                    let child_ui_instance = unsafe { child.as_mut().unwrap() };
+                    let child_ui_instance = ptr_as_mut(*child);
                     child_ui_instance.update_layout_area(
                         self.get_layout_type(),
                         self.get_layout_orientation(),
@@ -1196,8 +1192,7 @@ impl UIComponentInstance {
 
             // recursive update_layout
             for child in self._children.iter() {
-                let child_ui_instance = unsafe { child.as_mut().unwrap() };
-                child_ui_instance.update_layout(inherit_changed_layout, update_depth + 1, font_data);
+                ptr_as_mut(*child).update_layout(inherit_changed_layout, update_depth + 1, font_data);
             }
         }
 
@@ -1223,7 +1218,7 @@ impl UIComponentInstance {
     ) {
         let mut child_index: isize = self._children.len() as isize - 1;
         while 0 <= child_index {
-            let child_ui_instance = unsafe { self._children[child_index as usize].as_mut().unwrap() };
+            let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
             child_ui_instance.update_ui_component(
                 delta_time,
                 window_size,
@@ -1281,9 +1276,11 @@ pub trait Widget {
     fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance;
     fn get_changed_layout(&self) -> bool;
     fn clear_parent(&mut self);
-    fn set_parent(&mut self, widget: *mut dyn Widget);
-    fn add_widget(&mut self, widget: *mut dyn Widget);
-    fn remove_widget(&mut self, widget: *mut dyn Widget);
+    fn has_parent(&self) -> bool;
+    fn get_parent(&self) -> &dyn Widget;
+    fn set_parent(&mut self, widget: *const dyn Widget);
+    fn add_widget(&mut self, widget: *const dyn Widget);
+    fn remove_widget(&mut self, widget: *const dyn Widget);
     fn clear_widgets(&mut self);
 }
 
@@ -1293,7 +1290,7 @@ impl WidgetDefault {
             _ui_widget_name: String::from(widget_name),
             _ui_widget_type: UIWidgetTypes::Default,
             _ui_component: UIComponentInstance::create_ui_component(),
-            _parent: None,
+            _parent: std::ptr::null() as *const WidgetDefault,
             _widgets: Vec::new(),
         });
         widget._ui_component._owner_widget = widget.as_ref();
@@ -1311,36 +1308,36 @@ impl Widget for WidgetDefault {
     fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance { &mut self._ui_component }
     fn get_changed_layout(&self) -> bool { self._ui_component._changed_layout }
     fn clear_parent(&mut self) {
-        self._parent = None;
-        self._ui_component._parent = None;
+        self._parent = std::ptr::null() as *const WidgetDefault;
+        self._ui_component._parent = std::ptr::null();
     }
-    fn set_parent(&mut self, widget: *mut dyn Widget) {
-        unsafe {
-            if self._parent.is_some() {
-                (*self._parent.unwrap()).remove_widget(self);
-            }
-            self._parent = Some(widget);
-            self._ui_component._parent = Some(widget.as_mut().unwrap().get_ui_component_mut());
-            self._ui_component.set_changed_child_layout(true);
-            self._ui_component.set_changed_layout(true);
+    fn has_parent(&self) -> bool { false == self._parent.is_null() }
+    fn get_parent(&self) -> &dyn Widget { ptr_as_ref(self._parent) }
+    fn set_parent(&mut self, widget: *const dyn Widget) {
+        if self.has_parent() {
+            ptr_as_mut(self._parent).remove_widget(self);
         }
+        self._parent = widget;
+        self._ui_component._parent = ptr_as_ref(widget).get_ui_component();
+        self._ui_component.set_changed_child_layout(true);
+        self._ui_component.set_changed_layout(true);
     }
-    fn add_widget(&mut self, widget: *mut dyn Widget) {
-        unsafe {
-            widget.as_mut().unwrap().set_parent(self);
-            self._widgets.push(widget);
-            self._ui_component._children.push(widget.as_mut().unwrap().get_ui_component_mut());
-            self._ui_component.set_changed_child_layout(true);
-            self._ui_component.set_changed_layout(true);
-        }
+    fn add_widget(&mut self, widget: *const dyn Widget) {
+        let widget_instance = ptr_as_mut(widget);
+        widget_instance.set_parent(self);
+        self._widgets.push(widget);
+        self._ui_component._children.push(widget_instance.get_ui_component());
+        self._ui_component.set_changed_child_layout(true);
+        self._ui_component.set_changed_layout(true);
     }
-    fn remove_widget(&mut self, widget: *mut dyn Widget) {
+    fn remove_widget(&mut self, widget: *const dyn Widget) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
             if *child_widget == widget {
+                let widget_instance = ptr_as_mut(widget);
+                widget_instance.clear_parent();
+                widget_instance.clear_widgets();
                 unsafe {
-                    (*widget).clear_parent();
-                    (*widget).clear_widgets();
-                    drop(Box::from_raw(widget));
+                    drop(Box::from_raw(widget as *mut dyn Widget));
                 }
                 self._widgets.remove(i);
                 self._ui_component._children.remove(i);
@@ -1352,14 +1349,14 @@ impl Widget for WidgetDefault {
     }
     fn clear_widgets(&mut self) {
         unsafe {
-            for child_widget in self._widgets.iter_mut() {
-                (**child_widget).clear_widgets();
-                drop(Box::from_raw(*child_widget));
+            for child_widget in self._widgets.iter() {
+                ptr_as_mut(*child_widget).clear_widgets();
+                drop(Box::from_raw(*child_widget as *mut dyn Widget));
             }
         }
-        self._parent = None;
+        self._parent = std::ptr::null() as *const WidgetDefault;
         self._widgets.clear();
-        self._ui_component._parent = None;
+        self._ui_component._parent = std::ptr::null();
         self._ui_component._children.clear();
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
@@ -1409,7 +1406,7 @@ impl UIManager {
         unsafe {
             let mut ui_manager = UIManager {
                 _project_ui_manager: project_ui_manager,
-                _root: Box::from_raw(UIManager::create_widget("root", UIWidgetTypes::Default)),
+                _root: Box::from_raw(UIManager::create_widget("root", UIWidgetTypes::Default) as *mut dyn Widget),
                 _window_size: Vector2::zeros(),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
@@ -1493,7 +1490,7 @@ impl UIManager {
         self._ui_mesh_index_count = indices.len() as u32;
     }
 
-    pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> *mut dyn Widget {
+    pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> *const dyn Widget {
         Box::into_raw(match widget_type {
             UIWidgetTypes::Default => WidgetDefault::create_widget(widget_name),
         })
