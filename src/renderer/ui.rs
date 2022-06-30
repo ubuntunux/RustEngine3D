@@ -192,7 +192,7 @@ pub struct UIComponentData {
 
 pub struct UIComponentInstance {
     pub _ui_component_data: UIComponentData,
-    pub _owner_widget: Option<*mut dyn Widget>,
+    pub _owner_widget: *const dyn Widget,
     pub _parent: Option<*mut UIComponentInstance>,
     pub _children: Vec<*mut UIComponentInstance>,
     pub _changed_layout: bool,
@@ -305,7 +305,7 @@ impl UIComponentInstance {
     pub fn create_ui_component() -> UIComponentInstance {
         UIComponentInstance {
             _ui_component_data: UIComponentData::default(),
-            _owner_widget: None,
+            _owner_widget: std::ptr::null() as *const WidgetDefault,
             _parent: None,
             _children: Vec::new(),
             _changed_layout: true,
@@ -343,7 +343,7 @@ impl UIComponentInstance {
         }
     }
 
-    pub fn get_owner_widget(&self) -> &Option<*mut dyn Widget> { &self._owner_widget }
+    pub fn get_owner_widget(&self) -> &dyn Widget { ptr_as_ref(self._owner_widget) }
     pub fn get_parent(&self) -> &Option<*mut UIComponentInstance> { &self._parent }
     pub fn set_parent(&mut self, parent: Option<*mut UIComponentInstance>) {
         if self._parent.is_some() {
@@ -1296,7 +1296,7 @@ impl WidgetDefault {
             _parent: None,
             _widgets: Vec::new(),
         });
-        widget._ui_component._owner_widget = Some(&mut (*widget));
+        widget._ui_component._owner_widget = widget.as_ref();
         widget
     }
 }
