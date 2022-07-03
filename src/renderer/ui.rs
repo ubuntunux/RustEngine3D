@@ -1,4 +1,4 @@
-use std::boxed::Box;
+use std::rc::Rc;
 
 use bitflags::bitflags;
 use serde::{ Serialize, Deserialize };
@@ -234,7 +234,7 @@ pub struct WidgetDefault {
     pub _ui_widget_type: UIWidgetTypes,
     pub _ui_component: UIComponentInstance,
     pub _parent: *const dyn Widget,
-    pub _widgets: Vec<*const dyn Widget>,
+    pub _widgets: Vec<Rc<dyn Widget>>,
 }
 
 pub trait ProjectUIManagerBase {
@@ -248,7 +248,7 @@ pub trait ProjectUIManagerBase {
 
 pub struct UIManager {
     pub _project_ui_manager: *const dyn ProjectUIManagerBase,
-    pub _root: Box<dyn Widget>,
+    pub _root: Rc<dyn Widget>,
     pub _window_size: Vector2<i32>,
     pub _ui_mesh_vertex_buffer: BufferData,
     pub _ui_mesh_index_buffer: BufferData,
@@ -1279,21 +1279,21 @@ pub trait Widget {
     fn has_parent(&self) -> bool;
     fn get_parent(&self) -> &dyn Widget;
     fn set_parent(&mut self, widget: *const dyn Widget);
-    fn add_widget(&mut self, widget: *const dyn Widget);
+    fn add_widget(&mut self, widget: &Rc<dyn Widget>);
     fn remove_widget(&mut self, widget: *const dyn Widget);
     fn clear_widgets(&mut self);
 }
 
 impl WidgetDefault {
-    fn create_widget(widget_name: &str) -> Box<dyn Widget> {
-        let mut widget = Box::new(WidgetDefault {
+    fn create_widget(widget_name: &str) -> Rc<dyn Widget> {
+        let widget = Rc::new(WidgetDefault {
             _ui_widget_name: String::from(widget_name),
             _ui_widget_type: UIWidgetTypes::Default,
             _ui_component: UIComponentInstance::create_ui_component(),
             _parent: std::ptr::null() as *const WidgetDefault,
             _widgets: Vec::new(),
         });
-        widget._ui_component._owner_widget = widget.as_ref();
+        ptr_as_mut(widget.as_ref())._ui_component._owner_widget = widget.as_ref();
         widget
     }
 }
@@ -1322,23 +1322,20 @@ impl Widget for WidgetDefault {
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
     }
-    fn add_widget(&mut self, widget: *const dyn Widget) {
-        let widget_instance = ptr_as_mut(widget);
+    fn add_widget(&mut self, widget: &Rc<dyn Widget>) {
+        let widget_instance = ptr_as_mut(widget.as_ref());
         widget_instance.set_parent(self);
-        self._widgets.push(widget);
+        self._widgets.push(widget.clone());
         self._ui_component._children.push(widget_instance.get_ui_component());
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
     }
     fn remove_widget(&mut self, widget: *const dyn Widget) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
-            if *child_widget == widget {
+            if child_widget.as_ref() as *const dyn Widget == widget {
                 let widget_instance = ptr_as_mut(widget);
                 widget_instance.clear_parent();
                 widget_instance.clear_widgets();
-                unsafe {
-                    drop(Box::from_raw(widget as *mut dyn Widget));
-                }
                 self._widgets.remove(i);
                 self._ui_component._children.remove(i);
                 self._ui_component.set_changed_child_layout(true);
@@ -1348,11 +1345,8 @@ impl Widget for WidgetDefault {
         }
     }
     fn clear_widgets(&mut self) {
-        unsafe {
-            for child_widget in self._widgets.iter() {
-                ptr_as_mut(*child_widget).clear_widgets();
-                drop(Box::from_raw(*child_widget as *mut dyn Widget));
-            }
+        for child_widget in self._widgets.iter() {
+            ptr_as_mut(child_widget.as_ref()).clear_widgets();
         }
         self._parent = std::ptr::null() as *const WidgetDefault;
         self._widgets.clear();
@@ -1406,7 +1400,7 @@ impl UIManager {
         unsafe {
             let mut ui_manager = UIManager {
                 _project_ui_manager: project_ui_manager,
-                _root: Box::from_raw(UIManager::create_widget("root", UIWidgetTypes::Default) as *mut dyn Widget),
+                _root: UIManager::create_widget("root", UIWidgetTypes::Default),
                 _window_size: Vector2::zeros(),
                 _ui_mesh_vertex_buffer: BufferData::default(),
                 _ui_mesh_index_buffer: BufferData::default(),
@@ -1418,10 +1412,11 @@ impl UIManager {
                 _default_render_ui_material: None,
             };
             ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
-            ui_manager._root.get_ui_component_mut().set_layout_type(UILayoutType::FloatLayout);
-            ui_manager._root.get_ui_component_mut().set_size_hint_x(Some(1.0));
-            ui_manager._root.get_ui_component_mut().set_size_hint_y(Some(1.0));
-            ui_manager._root.get_ui_component_mut().set_renderable(false);
+            let ui_component = ptr_as_mut(ui_manager._root.as_ref()).get_ui_component_mut();
+            ui_component.set_layout_type(UILayoutType::FloatLayout);
+            ui_component.set_size_hint_x(Some(1.0));
+            ui_component.set_size_hint_y(Some(1.0));
+            ui_component.set_renderable(false);
             ui_manager
         }
     }
@@ -1452,7 +1447,7 @@ impl UIManager {
 
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
-        self._root.clear_widgets();
+        ptr_as_mut(self._root.as_ref()).clear_widgets();
         drop(&self._root);
         buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);
         buffer::destroy_buffer_data(device, &self._ui_mesh_index_buffer);
@@ -1490,10 +1485,10 @@ impl UIManager {
         self._ui_mesh_index_count = indices.len() as u32;
     }
 
-    pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> *const dyn Widget {
-        Box::into_raw(match widget_type {
+    pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> Rc<dyn Widget> {
+        match widget_type {
             UIWidgetTypes::Default => WidgetDefault::create_widget(widget_name),
-        })
+        }
     }
 
     pub fn render_ui(
@@ -1578,8 +1573,7 @@ impl UIManager {
         mouse_input_data: &MouseInputData,
         _engine_resources: &EngineResources
     ) {
-        let root_ui_component = self._root.get_ui_component_mut();
-
+        let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         if *window_size != self._window_size {
             self._window_size = window_size.clone() as Vector2<i32>;
             root_ui_component.set_changed_layout(true);
