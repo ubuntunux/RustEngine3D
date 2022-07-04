@@ -1,3 +1,4 @@
+use std::os::raw::c_void;
 use std::rc::Rc;
 
 use bitflags::bitflags;
@@ -23,7 +24,7 @@ use crate::vulkan_context::geometry_buffer::{ self, VertexData };
 use crate::vulkan_context::render_pass::{ PipelineData };
 use crate::vulkan_context::vulkan_context::{ get_color32 };
 
-pub type CallbackTouchEvent = fn(ui_component: &mut UIComponentInstance, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>);
+pub type CallbackTouchEvent = fn(ui_component: &mut UIComponentInstance, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) -> bool;
 
 pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
 
@@ -227,6 +228,7 @@ pub struct UIComponentInstance {
     pub _callback_touch_down: *const CallbackTouchEvent,
     pub _callback_touch_move: *const CallbackTouchEvent,
     pub _callback_touch_up: *const CallbackTouchEvent,
+    pub _user_data: *const c_void,
 }
 
 pub struct WidgetDefault {
@@ -340,6 +342,7 @@ impl UIComponentInstance {
             _callback_touch_down: std::ptr::null(),
             _callback_touch_move: std::ptr::null(),
             _callback_touch_up: std::ptr::null(),
+            _user_data: std::ptr::null(),
         }
     }
 
@@ -364,8 +367,8 @@ impl UIComponentInstance {
     }
 
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
-        self._touched = true;
         if self.get_touchable() || self.get_dragable() {
+            let mut touched: bool = true;
             self._touch_start_pos.x = touched_pos.x;
             self._touch_start_pos.y = touched_pos.y;
             let touched_offset_x = self.get_pos_x() - touched_pos.x;
@@ -386,9 +389,10 @@ impl UIComponentInstance {
             }
 
             if false == self._callback_touch_down.is_null() {
-                ptr_as_ref(self._callback_touch_down)(self, touched_pos, touched_pos_delta);
+                touched = ptr_as_ref(self._callback_touch_down)(self, touched_pos, touched_pos_delta);
             }
             self._changed_render_data = true;
+            self._touched = touched;
         }
     }
 
@@ -435,7 +439,6 @@ impl UIComponentInstance {
 
     pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
-            self._touched = false;
             if self.get_touchable() || self.get_dragable() {
                 self._touch_corner_flags = UICornerFlags::NONE;
 
@@ -450,6 +453,7 @@ impl UIComponentInstance {
                 }
                 self._changed_render_data = true;
             }
+            self._touched = false;
         }
     }
     pub fn get_pivot(&self) -> &Vector3<f32> {
@@ -703,6 +707,12 @@ impl UIComponentInstance {
     }
     pub fn set_callback_touch_up(&mut self, callback_touch_up: *const CallbackTouchEvent) {
         self._callback_touch_up = callback_touch_up;
+    }
+    pub fn get_user_data(&self) -> *const c_void {
+        self._user_data
+    }
+    pub fn set_user_data(&mut self, user_data: *const c_void) {
+        self._user_data = user_data;
     }
     pub fn get_touched(&self) -> bool { self._touched }
     pub fn get_touch_start_pos(&self) -> &Vector2<f32> { &self._touch_start_pos }
