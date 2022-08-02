@@ -64,8 +64,37 @@ pub fn radian_to_degree(degree: f32) -> f32 {
     degree / std::f32::consts::PI * 180.0
 }
 
+pub fn safe_normalize(vec: &Vector3<f32>) -> Vector3<f32> {
+    let distance = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
+    if 0.0 < distance {
+        return vec / distance;
+    }
+    Vector3::zeros()
+}
+
+pub fn safe_normalize_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
+    let distance = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
+    if 0.0 < distance {
+        return (vec / distance, distance);
+    }
+    (Vector3::zeros(), 0.0)
+}
+
+pub fn safe_normalize_mut(vec: &mut Vector3<f32>) {
+    let distance = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
+    if 0.0 < distance {
+        vec.x /= distance;
+        vec.y /= distance;
+        vec.z /= distance;
+    }
+}
+
 pub fn make_vector_xz(vec: &Vector3<f32>) -> Vector3<f32> {
     Vector3::new(vec.x, 0.0, vec.z)
+}
+
+pub fn make_vector_xz_mut(vec: &mut Vector3<f32>) {
+    vec.y = 0.0;
 }
 
 pub fn make_normalize_xz(vec: &Vector3<f32>) -> Vector3<f32> {
