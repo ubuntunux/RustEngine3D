@@ -147,6 +147,10 @@ impl MouseInputData {
 }
 
 impl KeyboardInputData {
+    pub fn is_any_key_hold(&self) -> bool {
+        false == self._key_hold_map.is_empty()
+    }
+
     pub fn get_key_hold(&self, key: VirtualKeyCode) -> bool {
         match self._key_hold_map.get(&key) {
             Some(a) => *a,
@@ -155,11 +159,19 @@ impl KeyboardInputData {
     }
 
     pub fn set_key_hold(&mut self, key: VirtualKeyCode, hold: bool) {
-        self._key_hold_map.insert(key, hold);
+        if hold {
+            self._key_hold_map.insert(key, hold);
+        } else {
+            self._key_hold_map.remove(&key);
+        }
     }
 
     pub fn clear_key_hold(&mut self) {
         self._key_hold_map.clear();
+    }
+
+    pub fn is_any_key_pressed(&self) -> bool {
+        false == self._key_pressed_map.is_empty()
     }
 
     pub fn get_key_pressed(&self, key: VirtualKeyCode) -> bool {
