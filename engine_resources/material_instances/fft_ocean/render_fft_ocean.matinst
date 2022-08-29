@@ -1,5 +1,5 @@
 {"material_name": "fft_ocean/render_fft_ocean",
- "material_parameters": {
+ "material_resources": {
     "texture_spectrum_1_2": "fft_ocean/spectrum_1_2",
     "texture_spectrum_3_4": "fft_ocean/spectrum_3_4",
     "texture_butterfly": "fft_ocean/butterfly",

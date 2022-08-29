@@ -1,6 +1,6 @@
 { "pipelines": [ {"render_pass": "render_particle_translucent", "pipeline": "alpha_blend"}
                ]
-, "material_parameters": { "textureBase": "common/default"
+, "material_resources": { "textureBase": "common/default"
                          , "textureMaterial": "common/default_m"
                          , "textureNormal": "common/default_n"
                          , "transmittance_texture": "precomputed_atmosphere/transmittance"

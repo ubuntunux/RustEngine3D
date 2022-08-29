@@ -1318,8 +1318,8 @@ impl EngineResources {
             };
             let pipeline_create_infos = material_create_info.get("pipelines").unwrap().as_array().unwrap();
             let empty_object = json!({});
-            let material_parameters = match material_create_info.get("material_parameters") {
-                Some(material_parameters) => material_parameters,
+            let material_resources = match material_create_info.get("material_resources") {
+                Some(material_resources) => material_resources,
                 _ => &empty_object,
             };
             let render_pass_pipeline_datas: Vec<Option<RenderPassPipelineData>> = pipeline_create_infos.iter().map(|pipeline_create_info| {
@@ -1338,7 +1338,7 @@ impl EngineResources {
                     None
                 }
             }).collect();
-            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
+            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_resources);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
@@ -1379,29 +1379,29 @@ impl EngineResources {
                 Value::String(material_data_name) => material_data_name,
                 _ => panic!("material name parsing error")
             };
-            let material_parameter_map = match material_instance_create_info.get("material_parameters").unwrap() {
-                Value::Object(material_parameter_map) => material_parameter_map,
+            let material_resource_map = match material_instance_create_info.get("material_resources").unwrap() {
+                Value::Object(material_resource_map) => material_resource_map,
                 _ => panic!("material parameters parsing error")
             };
             let material_data = self.get_material_data(material_data_name.as_str()).clone();
-            let default_material_parameter_map = &material_data.borrow()._material_parameter_map;
+            let default_material_resource_map = &material_data.borrow()._material_resource_map;
             let pipeline_bind_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
                 let descriptor_data_create_infos = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data._descriptor_data_create_infos;
                 let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
                     let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-                        let material_parameter_name = &descriptor_data_create_info._descriptor_name;
-                        let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
-                        let maybe_material_parameter = match material_parameter_map.get(material_parameter_name) {
-                            None => default_material_parameter_map.get(material_parameter_name),
+                        let material_resource_name = &descriptor_data_create_info._descriptor_name;
+                        let material_resource_resource_type = &descriptor_data_create_info._descriptor_resource_type;
+                        let maybe_material_resource = match material_resource_map.get(material_resource_name) {
+                            None => default_material_resource_map.get(material_resource_name),
                             value => value,
                         };
-                        let descriptor_resource_info = match material_parameter_resource_type {
+                        let descriptor_resource_info = match material_resource_resource_type {
                             DescriptorResourceType::UniformBuffer | DescriptorResourceType::StorageBuffer => {
-                                let uniform_buffer_data = renderer_context.get_shader_buffer_data_from_str(material_parameter_name.as_str());
+                                let uniform_buffer_data = renderer_context.get_shader_buffer_data_from_str(material_resource_name.as_str());
                                 uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone()
                             },
                             DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
-                                let texture_data = match maybe_material_parameter {
+                                let texture_data = match maybe_material_resource {
                                     Some(Value::String(value)) => self.get_texture_data(value),
                                     _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                 };
@@ -1415,7 +1415,7 @@ impl EngineResources {
                                 }
                             },
                             DescriptorResourceType::RenderTarget | DescriptorResourceType::StorageRenderTarget => {
-                                let texture_data = renderer_context.get_render_target_from_str(material_parameter_name.as_str());
+                                let texture_data = renderer_context.get_render_target_from_str(material_resource_name.as_str());
                                 if descriptor_data_create_info.use_sub_image() {
                                     DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_sub_image_info(
                                         descriptor_data_create_info._descriptor_image_layer,

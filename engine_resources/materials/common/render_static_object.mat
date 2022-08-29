@@ -9,7 +9,7 @@
                , {"render_pass": "render_pass_static_shadow", "pipeline": "render_object"}
                , {"render_pass": "capture_static_height_map", "pipeline": "render_object"}
                ]
-, "material_parameters": { "textureBase": "common/default"
+, "material_resources": { "textureBase": "common/default"
                          , "textureMaterial": "common/default_m"
                          , "textureNormal": "common/default_n"
                          , "transmittance_texture": "precomputed_atmosphere/transmittance"

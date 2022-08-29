@@ -1,5 +1,5 @@
 {"pipelines": [{"render_pass": "render_debug", "pipeline": "render_debug"}],
- "material_parameters": {
+ "material_resources": {
     "texture_2d": "common/default",
     "texture_2d_array": "common/default_2d_array",
     "texture_3d": "common/default_3d",

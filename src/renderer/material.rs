@@ -9,14 +9,14 @@ use crate::vulkan_context::render_pass::{
 pub struct MaterialData {
     pub _material_data_name: String,
     pub _render_pass_pipeline_data_map: RenderPassPipelineDataMap,
-    pub _material_parameter_map: serde_json::Value,
+    pub _material_resource_map: serde_json::Value,
 }
 
 impl MaterialData {
     pub fn create_material(
         material_data_name: &String,
         render_pass_pipeline_datas: &Vec<Option<RenderPassPipelineData>>,
-        material_parameter_map: &serde_json::Value
+        material_resource_map: &serde_json::Value
     ) -> MaterialData {
         log::debug!("create_material: {}", material_data_name);
 
@@ -36,7 +36,7 @@ impl MaterialData {
         MaterialData {
             _material_data_name: material_data_name.clone(),
             _render_pass_pipeline_data_map: render_pass_pipeline_data_map,
-            _material_parameter_map: material_parameter_map.clone()
+            _material_resource_map: material_resource_map.clone()
         }
     }
 
