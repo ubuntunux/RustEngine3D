@@ -3,6 +3,7 @@ use nalgebra;
 use nalgebra::{Vector3, Vector4, Matrix4};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(default)]
 pub struct BoundingBox {
     pub _min: Vector3<f32>,
     pub _max: Vector3<f32>,

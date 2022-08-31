@@ -95,6 +95,7 @@ impl Default for ParticleVelocityType {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct EffectDataCreateInfo {
     pub _emitter_data_create_infos: Vec<EmitterDataCreateInfo>,
 }
@@ -108,6 +109,7 @@ impl Default for EffectDataCreateInfo {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct EmitterDataCreateInfo {
     pub _enable: bool,
     pub _emitter_data_name: String,
@@ -213,6 +215,7 @@ pub struct EmitterData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct EffectCreateInfo {
     pub _effect_position: Vector3<f32>,
     pub _effect_rotation: Vector3<f32>,

@@ -12,6 +12,7 @@ use crate::utilities::system::{ RcRefCell };
 use crate::utilities::bounding_box::{ BoundingBox };
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct MeshDataCreateInfo {
     pub _bound_box: BoundingBox,
     pub _skeleton_create_infos: Vec<SkeletonDataCreateInfo>,

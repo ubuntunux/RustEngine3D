@@ -107,6 +107,7 @@ impl Default for UICornerFlags {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(default)]
 pub struct UIVertexData {
     pub _position: Vector3<f32>,
 }

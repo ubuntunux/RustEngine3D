@@ -49,6 +49,7 @@ pub struct PushConstant_RenderFont {
 
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct FontDataCreateInfo {
     pub _font_data_name: String,
     pub _range_min: u32,
@@ -56,6 +57,19 @@ pub struct FontDataCreateInfo {
     pub _text_count: u32,
     pub _count_of_side: u32,
     pub _font_size: f32,
+}
+
+impl Default for FontDataCreateInfo {
+    fn default() -> FontDataCreateInfo {
+        FontDataCreateInfo {
+            _font_data_name: String::new(),
+            _range_min: 0,
+            _range_max: 0,
+            _text_count: 0,
+            _count_of_side: 0,
+            _font_size: 10.0,
+        }
+    }
 }
 
 pub struct FontData {
@@ -83,6 +97,7 @@ impl Default for FontData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(default)]
 pub struct FontVertexData {
     pub _position: Vector3<f32>,
 }

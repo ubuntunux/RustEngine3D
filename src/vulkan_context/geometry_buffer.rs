@@ -12,6 +12,7 @@ use crate::utilities::math;
 use crate::utilities::bounding_box::{ BoundingBox, calc_bounding_box };
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(default)]
 pub struct StaticVertexData {
     pub _position: Vector3<f32>,
     pub _normal: Vector3<f32>,
@@ -33,6 +34,7 @@ impl Default for StaticVertexData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[serde(default)]
 pub struct SkeletalVertexData {
     pub _position: Vector3<f32>,
     pub _normal: Vector3<f32>,
@@ -58,6 +60,7 @@ impl Default for SkeletalVertexData {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(default)]
 pub struct GeometryCreateInfo {
     pub _vertex_datas: Vec<StaticVertexData>,
     pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,

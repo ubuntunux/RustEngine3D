@@ -12,6 +12,7 @@ use crate::utilities::math;
 use crate::renderer::transform_object::TransformObjectData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct CameraCreateInfo {
     pub meter_per_unit: f32,
     pub near: f32,

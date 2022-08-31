@@ -23,6 +23,7 @@ pub struct AudioData {
 }
 
 #[derive(Serialize, Deserialize, Default)]
+#[serde(default)]
 pub struct AudioBankCreateInfo {
     pub _audio_names: Vec<String>,
 }

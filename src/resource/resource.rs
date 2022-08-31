@@ -8,7 +8,7 @@ use ash::{ vk };
 use bincode;
 use byteorder::{ LittleEndian, ReadBytesExt };
 use image::{ self, GenericImageView, };
-use nalgebra::Vector2;
+use nalgebra::{Vector2, Vector4};
 use serde_json::{ self, Value, json };
 use serde::{ Serialize, Deserialize };
 
@@ -92,15 +92,31 @@ pub const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 pub const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct MetaData {
-    _is_engine_resource: bool,
-    _meta_file_path: PathBuf,
-    _resource_version: i32,
-    _resource_file_path: PathBuf,
-    _resource_modify_time: SystemTime,
-    _source_file_path: PathBuf,
-    _source_modify_time: SystemTime,
-    _source_changed: bool
+    pub _is_engine_resource: bool,
+    pub _meta_file_path: PathBuf,
+    pub _resource_version: i32,
+    pub _resource_file_path: PathBuf,
+    pub _resource_modify_time: SystemTime,
+    pub _source_file_path: PathBuf,
+    pub _source_modify_time: SystemTime,
+    pub _source_changed: bool
+}
+
+impl Default for MetaData {
+    fn default() -> MetaData {
+        MetaData {
+            _is_engine_resource: true,
+            _meta_file_path: PathBuf::new(),
+            _resource_version: 0,
+            _resource_file_path: PathBuf::new(),
+            _resource_modify_time: SystemTime::now(),
+            _source_file_path: PathBuf::new(),
+            _source_modify_time: SystemTime::now(),
+            _source_changed: false
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1317,11 +1333,6 @@ impl EngineResources {
                 _ => panic!("material parsing error"),
             };
             let pipeline_create_infos = material_create_info.get("pipelines").unwrap().as_array().unwrap();
-            let empty_object = json!({});
-            let material_resources = match material_create_info.get("material_resources") {
-                Some(material_resources) => material_resources,
-                _ => &empty_object,
-            };
             let render_pass_pipeline_datas: Vec<Option<RenderPassPipelineData>> = pipeline_create_infos.iter().map(|pipeline_create_info| {
                 let render_pass_data_name = match pipeline_create_info.get("render_pass").unwrap() {
                     Value::String(render_pass_data_name) => render_pass_data_name,
@@ -1338,6 +1349,18 @@ impl EngineResources {
                     None
                 }
             }).collect();
+            let empty_object = json!({});
+            let material_resources = match material_create_info.get("material_resources") {
+                Some(material_resources) => material_resources,
+                _ => &empty_object,
+            };
+
+            let empty_map = serde_json::Map::new();
+            let material_parameters = match material_create_info.get("material_parameters") {
+                Some(Value::Object(material_parameters)) => material_parameters,
+                _ => &empty_map,
+            };
+
             let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_resources);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }

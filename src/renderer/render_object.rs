@@ -12,6 +12,7 @@ use crate::utilities::system::RcRefCell;
 use crate::utilities::bounding_box::BoundingBox;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(default)]
 pub struct RenderObjectCreateInfo {
     pub _model_data_name: String,
     pub _position: Vector3<f32>,

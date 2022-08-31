@@ -29,6 +29,7 @@ pub struct SkeletonData {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct AnimationNodeCreateInfo {
     pub _name: String,
     pub _precomputed_root_matrix: bool,
@@ -73,11 +74,13 @@ pub struct AnimationData {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(default)]
 pub struct SkeletonHierachyTree {
     pub _children: HashMap<String, SkeletonHierachyTree>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
 pub struct SkeletonDataCreateInfo {
     pub _name: String,
     pub _hierachy: SkeletonHierachyTree, // bone names map as hierachy

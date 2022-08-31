@@ -10,6 +10,7 @@ use crate::constants;
 
 // scene_constants.glsl - struct LIGHT_CONSTANTS
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct LightConstants {
     pub _shadow_view_projection: Matrix4<f32>,
     pub _light_position: Vector3<f32>,
@@ -37,6 +38,7 @@ impl Default for LightConstants {
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct DirectionalLightCreateInfo {
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
