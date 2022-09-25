@@ -6,6 +6,7 @@ use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
+    PipelinePushConstantCreateInfo,
     ImageAttachmentDescription,
     DepthStencilStateCreateInfo,
 };
@@ -77,11 +78,13 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: vec![vk::PushConstantRange {
-                stage_flags: vk::ShaderStageFlags::ALL,
-                offset: 0,
-                size: std::mem::size_of::<PushConstant_FFT_Variance>() as u32,
-            }],
+            _push_constant_create_infos: vec![
+                PipelinePushConstantCreateInfo {
+                    _stage_flags: vk::ShaderStageFlags::ALL,
+                    _offset: 0,
+                    _push_constant_data: Box::new(PushConstant_FFT_Variance::default())
+                }
+            ],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,

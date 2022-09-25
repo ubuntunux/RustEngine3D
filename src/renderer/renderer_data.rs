@@ -4,7 +4,7 @@ use std::cell::{ Ref, RefMut };
 use std::vec::Vec;
 
 use ash::{ vk, Device };
-use nalgebra::{ Vector2, Matrix4 };
+use nalgebra::{ Vector2, Vector4, Matrix4 };
 
 use crate::constants;
 use crate::application::scene_manager::ProjectSceneManagerBase;
@@ -923,7 +923,8 @@ impl RendererData {
                             command_buffer,
                             pipeline_data,
                             &PushConstant_StaticRenderObject {
-                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>
+                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
+                                _color: Vector4::new(0.0, 0.0, 1.0, 1.0)
                             }
                         );
                     },
@@ -943,6 +944,7 @@ impl RendererData {
                                 _local_matrix_prev: render_object._transform_object.get_prev_matrix().clone() as Matrix4<f32>,
                                 _bone_matrix_offset: bone_metrices_offset as u32,
                                 _bone_matrix_count: bone_count as u32,
+                                _color: Vector4::new(0.0, 0.0, 1.0, 1.0),
                                 ..Default::default()
                             }
                         );

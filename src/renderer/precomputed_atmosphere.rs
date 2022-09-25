@@ -10,7 +10,7 @@ use crate::vulkan_context::vulkan_context::Layers;
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT };
+use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT, PushConstant };
 use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
 
 pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
@@ -219,14 +219,24 @@ pub struct PushConstant_Atmosphere {
     pub _reserved2: i32,
 }
 
+impl PushConstant for PushConstant_Atmosphere {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
+}
+
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_PrecomputedAtmosphere {
     pub _luminance_from_radiance: Matrix3<f32>,
     pub _luminance_from_radiance_reserved: [f32; 3],
     pub _scattering_order: i32,
     pub _layer: i32,
     pub _reserved0: i32,
+}
+
+impl PushConstant for PushConstant_PrecomputedAtmosphere {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
 }
 
 fn cie_color_matching_function_table_value(wavelength: f32, column: i32) -> f32 {

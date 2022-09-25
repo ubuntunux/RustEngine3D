@@ -55,7 +55,7 @@ void main() {
 
 #if (RenderMode_GBuffer == RenderMode)
     // xyz: albedo, w: emissive_intensity
-    outAlbedo.xyz = base_color.xyz;
+    outAlbedo.xyz = base_color.xyz * pushConstant._color.xyz;
     outAlbedo.w = material.z;
     // x: roughness y: metalic, zw: vertex_normal
     outMaterial.xy = material.xy;
@@ -68,7 +68,7 @@ void main() {
     vec2 screen_texcoord = (vs_output.projection_pos.xy / vs_output.projection_pos.w) * 0.5 + 0.5;
     float depth = gl_FragCoord.z;
     vec3 world_position = vs_output.relative_position.xyz + view_constants.CAMERA_POSITION;
-    float opacity = base_color.w;
+    float opacity = base_color.w * pushConstant._color.w;
     vec3 emissive_color = vec3(0.0);
     float roughness = material.x;
     float metalicness = material.y;
@@ -88,7 +88,7 @@ void main() {
         view_constants,
         light_constants,
         //point_lights,
-        base_color.xyz,
+        base_color.xyz * pushConstant._color.xyz,
         opacity,
         metalicness,
         roughness,

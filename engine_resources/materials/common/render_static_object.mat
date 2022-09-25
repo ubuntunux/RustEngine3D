@@ -16,10 +16,6 @@
                          , "irradiance_texture": "precomputed_atmosphere/irradiance"
                          , "scattering_texture": "precomputed_atmosphere/scattering"
                          }
-, "material_parameters": { "base_color": [1.0, 1.0, 1.0, 1.0]
-                         , "float_value": 1.0
-                         , "integer_value": 3
-                         , "bool_value": true
-                         }
+,"material_parameters": {"_color":[9.0,1.0,1.0,1.0]}
 }
 

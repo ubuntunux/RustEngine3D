@@ -3,6 +3,9 @@ use std::cmp::max;
 
 use ash::{ vk, Device };
 use crate::renderer::renderer_context::RendererContext;
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer_data::RendererData;
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
@@ -10,9 +13,6 @@ use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::vulkan_context::{ SwapchainArray, Layers, MipLevels };
 use crate::utilities::system::newRcRefCell;
-
-use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::renderer_data::RendererData;
 
 const CM: f64 = 0.23;
 const KM: f64 = 370.0;
@@ -48,6 +48,11 @@ pub struct PushConstant_FFT_Waves {
     pub _reserved2: i32,
 }
 
+impl PushConstant for PushConstant_FFT_Waves {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Init {
@@ -58,6 +63,11 @@ pub struct PushConstant_FFT_Init {
     pub _reserved1: i32,
 }
 
+impl PushConstant for PushConstant_FFT_Init {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
+}
+
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Variance {
@@ -66,6 +76,11 @@ pub struct PushConstant_FFT_Variance {
     pub _fft_size: i32,
     pub _slope_variance_delta: f32,
     pub _c: f32,
+}
+
+impl PushConstant for PushConstant_FFT_Variance {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
 }
 
 #[allow(non_camel_case_types)]
@@ -79,6 +94,11 @@ pub struct PushConstant_FFT_Ocean {
     pub _reserved0: i32,
     pub _reserved1: i32,
     pub _reserved2: i32,
+}
+
+impl PushConstant for PushConstant_FFT_Ocean {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
 }
 
 pub struct FFTOcean {

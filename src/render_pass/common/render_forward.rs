@@ -7,6 +7,7 @@ use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData, Skel
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
+    PipelinePushConstantCreateInfo,
     ImageAttachmentDescription,
     DepthStencilStateCreateInfo,
 };
@@ -122,14 +123,16 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
                 RenderObjectType::Static => StaticVertexData::create_vertex_input_attribute_descriptions(),
                 RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions(),
             },
-            _push_constant_ranges: vec![vk::PushConstantRange {
-                stage_flags: vk::ShaderStageFlags::ALL,
-                offset: 0,
-                size: match render_object_type {
-                    RenderObjectType::Static => std::mem::size_of::<PushConstant_StaticRenderObject>() as u32,
-                    RenderObjectType::Skeletal => std::mem::size_of::<PushConstant_SkeletalRenderObject>() as u32,
+            _push_constant_create_infos: vec![
+                PipelinePushConstantCreateInfo {
+                    _stage_flags: vk::ShaderStageFlags::ALL,
+                    _offset: 0,
+                    _push_constant_data: match render_object_type {
+                        RenderObjectType::Static => Box::new(PushConstant_StaticRenderObject::default()),
+                        RenderObjectType::Skeletal => Box::new(PushConstant_SkeletalRenderObject::default()),
+                    }
                 }
-            }],
+            ],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,

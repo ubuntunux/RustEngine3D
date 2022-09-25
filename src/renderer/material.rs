@@ -1,25 +1,29 @@
 use serde_json;
-
 use crate::vulkan_context::render_pass::{
     RenderPassPipelineData,
     RenderPassPipelineDataMap,
 };
+use crate::renderer::push_constants::PushConstant;
+use crate::renderer::push_constants::PushConstantsMap;
 
 #[derive(Clone, Debug)]
 pub struct MaterialData {
     pub _material_data_name: String,
     pub _render_pass_pipeline_data_map: RenderPassPipelineDataMap,
-    pub _material_resource_map: serde_json::Value,
+    pub _material_resources: serde_json::Value,
+    pub _push_constants_map: PushConstantsMap
 }
 
 impl MaterialData {
     pub fn create_material(
         material_data_name: &String,
         render_pass_pipeline_datas: &Vec<Option<RenderPassPipelineData>>,
-        material_resource_map: &serde_json::Value
+        material_resources: &serde_json::Value,
+        material_parameters: &serde_json::Value
     ) -> MaterialData {
         log::debug!("create_material: {}", material_data_name);
 
+        let mut push_constants_map = PushConstantsMap::new();
         let mut render_pass_pipeline_data_map = RenderPassPipelineDataMap::new();
         for maybe_render_pass_pipeline_data in render_pass_pipeline_datas.iter() {
             if maybe_render_pass_pipeline_data.is_some() {
@@ -30,13 +34,17 @@ impl MaterialData {
                     render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name
                 );
                 log::trace!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
-                render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, render_pass_pipeline_data.clone());
+                render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name.clone(), render_pass_pipeline_data.clone());
+
+                let push_constants: Vec<Box<dyn PushConstant>> = Vec::new();
+                push_constants_map.insert(render_pass_pipeline_data_name.clone(), push_constants);
             }
         }
         MaterialData {
             _material_data_name: material_data_name.clone(),
             _render_pass_pipeline_data_map: render_pass_pipeline_data_map,
-            _material_resource_map: material_resource_map.clone()
+            _material_resources: material_resources.clone(),
+            _push_constants_map: push_constants_map
         }
     }
 

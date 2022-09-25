@@ -22,18 +22,11 @@ use crate::vulkan_context::geometry_buffer::{
     VertexData,
     StaticVertexData
 };
-use crate::vulkan_context::framebuffer::{
-    FramebufferDataCreateInfo,
-};
-use crate::vulkan_context::shader::{
-    create_shader_stage_create_info,
-    destroy_shader_stage_create_info
-};
-use crate::utilities::system::{
-    RcRefCell,
-    newRcRefCell
-};
+use crate::vulkan_context::framebuffer::{ FramebufferDataCreateInfo };
+use crate::vulkan_context::shader::{ create_shader_stage_create_info, destroy_shader_stage_create_info};
+use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::renderer::renderer_context::RendererContext;
+use crate::renderer::push_constants::PushConstant;
 
 
 #[derive(Clone, Debug)]
@@ -94,7 +87,7 @@ pub struct PipelineDataCreateInfo {
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
     pub _vertex_input_bind_descriptions: Vec<vk::VertexInputBindingDescription>,
     pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
-    pub _push_constant_ranges: Vec<vk::PushConstantRange>, // ex) mem::size_of::<PushConstant_StaticRenderObject>()
+    pub _push_constant_create_infos: Vec<PipelinePushConstantCreateInfo>,
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 }
 
@@ -126,10 +119,17 @@ impl Default for PipelineDataCreateInfo {
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_ranges: Vec::new(),
+            _push_constant_create_infos: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
     }
+}
+
+#[derive(Clone, Debug)]
+pub struct PipelinePushConstantCreateInfo {
+    pub _stage_flags: vk::ShaderStageFlags,
+    pub _offset: u32,
+    pub _push_constant_data: Box<dyn PushConstant>
 }
 
 #[derive(Clone, Debug)]
@@ -427,9 +427,18 @@ pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_
 
 pub fn create_pipeline_layout(
     device: &Device,
-    push_constant_ranges: &[vk::PushConstantRange],
+    push_constant_create_infos: &[PipelinePushConstantCreateInfo],
     descriptor_set_layouts: &[vk::DescriptorSetLayout]
 ) -> vk::PipelineLayout {
+    let push_constant_ranges: Vec<vk::PushConstantRange> =
+        push_constant_create_infos.iter().map(|push_constant_create_info| {
+            vk::PushConstantRange {
+                stage_flags: push_constant_create_info._stage_flags,
+                offset: push_constant_create_info._offset,
+                size: push_constant_create_info._push_constant_data.as_ref().get_size(),
+            }
+        }).collect();
+
     let pipeline_create_info = vk::PipelineLayoutCreateInfo {
         p_set_layouts: descriptor_set_layouts.as_ptr(),
         set_layout_count: descriptor_set_layouts.len() as u32,
@@ -474,7 +483,7 @@ pub fn create_graphics_pipeline_data(
     let shader_stage_infos = vec![vertex_shader_create_info, fragment_shader_create_info];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &pipeline_data_create_info._push_constant_ranges,
+        &pipeline_data_create_info._push_constant_create_infos,
         &descriptor_set_layouts
     );
     let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
@@ -629,7 +638,7 @@ pub fn create_compute_pipeline_data(
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &pipeline_data_create_info._push_constant_ranges,
+        &pipeline_data_create_info._push_constant_create_infos,
         &descriptor_set_layouts
     );
     let pipeline_create_info = [vk::ComputePipelineCreateInfo {
@@ -729,7 +738,7 @@ pub fn create_ray_tracing_pipeline_data(
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &pipeline_data_create_info._push_constant_ranges,
+        &pipeline_data_create_info._push_constant_create_infos,
         &descriptor_set_layouts
     );
     let pipeline_create_info = [

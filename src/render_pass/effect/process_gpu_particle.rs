@@ -5,6 +5,7 @@ use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
+    PipelinePushConstantCreateInfo
 };
 use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
@@ -24,11 +25,13 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("compute_gpu_particle_count"),
             _pipeline_compute_shader_file: PathBuf::from("effect/compute_gpu_particle_count.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_ranges: vec![vk::PushConstantRange {
-                stage_flags: vk::ShaderStageFlags::ALL,
-                offset: 0,
-                size: std::mem::size_of::<PushConstant_ComputeGpuParticleCount>() as u32
-            }],
+            _push_constant_create_infos: vec![
+                PipelinePushConstantCreateInfo {
+                    _stage_flags: vk::ShaderStageFlags::ALL,
+                    _offset: 0,
+                    _push_constant_data: Box::new(PushConstant_ComputeGpuParticleCount::default())
+                }
+            ],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
@@ -65,11 +68,13 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("update_gpu_particle"),
             _pipeline_compute_shader_file: PathBuf::from("effect/update_gpu_particle.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_ranges: vec![vk::PushConstantRange {
-                stage_flags: vk::ShaderStageFlags::ALL,
-                offset: 0,
-                size: std::mem::size_of::<PushConstant_UpdateGpuParticle>() as u32
-            }],
+            _push_constant_create_infos: vec![
+                PipelinePushConstantCreateInfo {
+                    _stage_flags: vk::ShaderStageFlags::ALL,
+                    _offset: 0,
+                    _push_constant_data: Box::new(PushConstant_UpdateGpuParticle::default())
+                }
+            ],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,

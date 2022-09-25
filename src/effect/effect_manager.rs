@@ -16,6 +16,7 @@ use crate::constants::{
 };
 use crate::effect::effect_data::*;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
@@ -91,7 +92,7 @@ pub struct GpuParticleUpdateBufferData {
 
 // push constants
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_ComputeGpuParticleCount {
     pub _process_emitter_count: i32,
     pub _dispatch_count: i32,
@@ -99,8 +100,13 @@ pub struct PushConstant_ComputeGpuParticleCount {
     pub _reserved1: i32,
 }
 
+impl PushConstant for PushConstant_ComputeGpuParticleCount {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
+}
+
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_UpdateGpuParticle {
     pub _process_particle_count: i32,
     pub _dispatch_count: i32,
@@ -108,8 +114,13 @@ pub struct PushConstant_UpdateGpuParticle {
     pub _reserved1: i32,
 }
 
+impl PushConstant for PushConstant_UpdateGpuParticle {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
+}
+
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderParticle {
     pub _allocated_emitter_index: i32,
     pub _allocated_particle_offset: i32,
@@ -117,14 +128,8 @@ pub struct PushConstant_RenderParticle {
     pub _reserved1: i32,
 }
 
-impl Default for PushConstant_RenderParticle {
-    fn default() -> PushConstant_RenderParticle {
-        PushConstant_RenderParticle {
-            _allocated_emitter_index: 0,
-            _allocated_particle_offset: 0,
-            _reserved0: 0,
-            _reserved1: 0,
-        }
+impl PushConstant for PushConstant_RenderParticle {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
     }
 }
 

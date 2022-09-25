@@ -8,7 +8,7 @@ use ash::{ vk };
 use bincode;
 use byteorder::{ LittleEndian, ReadBytesExt };
 use image::{ self, GenericImageView, };
-use nalgebra::{Vector2, Vector4};
+use nalgebra::{ Vector2 };
 use serde_json::{ self, Value, json };
 use serde::{ Serialize, Deserialize };
 
@@ -24,6 +24,7 @@ use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::ModelData;
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
+use crate::renderer::push_constants::{PushConstant_SkeletalRenderObject};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
@@ -35,6 +36,7 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ self, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
+
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -1321,6 +1323,24 @@ impl EngineResources {
 
     // Material_datas
     pub fn load_material_datas(&mut self) {
+        ///////////////////////////////////
+        // TEST CODE
+        let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
+        default_effect_file_path.push(MATERIAL_DIRECTORY);
+        default_effect_file_path.push(DEFAULT_MATERIAL_INSTANCE_NAME);
+        default_effect_file_path.set_extension("txt");
+        let mut write_file = File::create(&default_effect_file_path).expect("Failed to create file");
+        let default_material_parameter = PushConstant_SkeletalRenderObject::default();
+        let mut write_contents: String = serde_json::to_string(&default_material_parameter).expect("Failed to serialize.");
+        write_contents = write_contents.replace(",\"", ",\n\"");
+        write_file.write(write_contents.as_bytes()).expect("Failed to write");
+        log::info!("{:?}", default_effect_file_path);
+
+        let loaded_contents = system::load(default_effect_file_path);
+        let contents: PushConstant_SkeletalRenderObject = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+        log::info!("contents - {:?}", contents);
+        ///////////////////////////////////
+
         log::info!("    load_material_datas");
         let material_directory = PathBuf::from(MATERIAL_DIRECTORY);
         let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
@@ -1355,13 +1375,12 @@ impl EngineResources {
                 _ => &empty_object,
             };
 
-            let empty_map = serde_json::Map::new();
             let material_parameters = match material_create_info.get("material_parameters") {
-                Some(Value::Object(material_parameters)) => material_parameters,
-                _ => &empty_map,
+                Some(material_parameters) => material_parameters,
+                _ => &empty_object,
             };
 
-            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_resources);
+            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_resources, material_parameters);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
@@ -1402,20 +1421,20 @@ impl EngineResources {
                 Value::String(material_data_name) => material_data_name,
                 _ => panic!("material name parsing error")
             };
-            let material_resource_map = match material_instance_create_info.get("material_resources").unwrap() {
-                Value::Object(material_resource_map) => material_resource_map,
+            let material_resources = match material_instance_create_info.get("material_resources").unwrap() {
+                Value::Object(material_resources) => material_resources,
                 _ => panic!("material parameters parsing error")
             };
             let material_data = self.get_material_data(material_data_name.as_str()).clone();
-            let default_material_resource_map = &material_data.borrow()._material_resource_map;
+            let default_material_resources = &material_data.borrow()._material_resources;
             let pipeline_bind_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
                 let descriptor_data_create_infos = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data._descriptor_data_create_infos;
                 let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
                     let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                         let material_resource_name = &descriptor_data_create_info._descriptor_name;
                         let material_resource_resource_type = &descriptor_data_create_info._descriptor_resource_type;
-                        let maybe_material_resource = match material_resource_map.get(material_resource_name) {
-                            None => default_material_resource_map.get(material_resource_name),
+                        let maybe_material_resource = match material_resources.get(material_resource_name) {
+                            None => default_material_resources.get(material_resource_name),
                             value => value,
                         };
                         let descriptor_resource_info = match material_resource_resource_type {

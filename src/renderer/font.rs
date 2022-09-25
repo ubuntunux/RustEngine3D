@@ -7,6 +7,7 @@ use ash::{ vk, Device };
 use crate::constants;
 use crate::resource::resource::{ EngineResources, DEFAULT_FONT_NAME };
 use crate::renderer::renderer_context::RendererContext;
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::utility;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
@@ -38,7 +39,7 @@ impl Default for RenderTextInfo {
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderFont {
     pub _inv_canvas_size: Vector2<f32>,
     pub _offset: Vector2<f32>,
@@ -47,6 +48,10 @@ pub struct PushConstant_RenderFont {
     pub _reserved0: u32,
 }
 
+impl PushConstant for PushConstant_RenderFont {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]

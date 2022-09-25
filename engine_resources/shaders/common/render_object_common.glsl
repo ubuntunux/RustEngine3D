@@ -29,6 +29,7 @@ layout(binding = 4) uniform AtmosphereConstants
 layout( push_constant ) uniform PushConstant_StaticRenderObject
 {
     mat4 _localMatrix;
+    vec4 _color;
 } pushConstant;
 #elif (RenderObjectType_Skeletal == RenderObjectType)
 layout( push_constant ) uniform PushConstant_SkeletalRenderObject
@@ -39,6 +40,7 @@ layout( push_constant ) uniform PushConstant_SkeletalRenderObject
     uint _bone_matrix_count;
     uint _reserved0;
     uint _reserved1;
+    vec4 _color;
 } pushConstant;
 #endif
 

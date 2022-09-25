@@ -16,6 +16,7 @@ use crate::application::input::{
 use crate::resource::resource::EngineResources;
 use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::renderer_context::{ RendererContext };
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell, ptr_as_ref, ptr_as_mut };
@@ -46,11 +47,16 @@ pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 //            |--render-size--------------------------------------------------|
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderUI {
     pub _inv_canvas_size: Vector2<f32>,
     pub _instance_id_offset: u32,
     pub _reserved0: u32,
+}
+
+impl PushConstant for PushConstant_RenderUI {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
