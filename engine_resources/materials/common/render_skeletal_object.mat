@@ -9,7 +9,7 @@
                , {"render_pass": "render_pass_skeletal_shadow", "pipeline": "render_object"}
                , {"render_pass": "capture_skeletal_height_map", "pipeline": "render_object"}
                ]
-, "material_resources": { "textureBase": "common/default"
+, "material_parameters": { "textureBase": "common/default"
                          , "textureMaterial": "common/default_m"
                          , "textureNormal": "common/default_n"
                          , "transmittance_texture": "precomputed_atmosphere/transmittance"

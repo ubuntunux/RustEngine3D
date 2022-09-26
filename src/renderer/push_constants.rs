@@ -8,6 +8,7 @@ use nalgebra::{
 };
 use serde::{ Serialize, Deserialize };
 use serde_json;
+use crate::utilities::json::get_json_vector4;
 
 pub const NONE_PUSH_CONSTANT: Option<&()> = None;
 
@@ -60,8 +61,8 @@ impl Default for PushConstant_StaticRenderObject {
 }
 
 impl PushConstant for PushConstant_StaticRenderObject {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
-
+    fn update_push_constant(&mut self, material_parameters: &serde_json::Value) {
+        get_json_vector4(material_parameters, "_color", &mut self._color);
     }
 }
 
@@ -93,8 +94,8 @@ impl Default for PushConstant_SkeletalRenderObject {
 }
 
 impl PushConstant for PushConstant_SkeletalRenderObject {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
-
+    fn update_push_constant(&mut self, material_parameters: &serde_json::Value) {
+        get_json_vector4(material_parameters, "_color", &mut self._color);
     }
 }
 

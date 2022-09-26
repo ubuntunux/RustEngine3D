@@ -924,7 +924,7 @@ impl RendererData {
                             pipeline_data,
                             &PushConstant_StaticRenderObject {
                                 _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
-                                _color: Vector4::new(0.0, 0.0, 1.0, 1.0)
+                                _color: Vector4::new(1.0, 1.0, 1.0, 1.0)
                             }
                         );
                     },
@@ -944,7 +944,7 @@ impl RendererData {
                                 _local_matrix_prev: render_object._transform_object.get_prev_matrix().clone() as Matrix4<f32>,
                                 _bone_matrix_offset: bone_metrices_offset as u32,
                                 _bone_matrix_count: bone_count as u32,
-                                _color: Vector4::new(0.0, 0.0, 1.0, 1.0),
+                                _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
                                 ..Default::default()
                             }
                         );

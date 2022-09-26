@@ -24,7 +24,6 @@ use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::ModelData;
 use crate::renderer::material::{ self, MaterialData };
 use crate::renderer::material_instance::{ self, MaterialInstanceData };
-use crate::renderer::push_constants::{PushConstant_SkeletalRenderObject};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
@@ -1323,24 +1322,6 @@ impl EngineResources {
 
     // Material_datas
     pub fn load_material_datas(&mut self) {
-        ///////////////////////////////////
-        // TEST CODE
-        let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
-        default_effect_file_path.push(MATERIAL_DIRECTORY);
-        default_effect_file_path.push(DEFAULT_MATERIAL_INSTANCE_NAME);
-        default_effect_file_path.set_extension("txt");
-        let mut write_file = File::create(&default_effect_file_path).expect("Failed to create file");
-        let default_material_parameter = PushConstant_SkeletalRenderObject::default();
-        let mut write_contents: String = serde_json::to_string(&default_material_parameter).expect("Failed to serialize.");
-        write_contents = write_contents.replace(",\"", ",\n\"");
-        write_file.write(write_contents.as_bytes()).expect("Failed to write");
-        log::info!("{:?}", default_effect_file_path);
-
-        let loaded_contents = system::load(default_effect_file_path);
-        let contents: PushConstant_SkeletalRenderObject = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-        log::info!("contents - {:?}", contents);
-        ///////////////////////////////////
-
         log::info!("    load_material_datas");
         let material_directory = PathBuf::from(MATERIAL_DIRECTORY);
         let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
@@ -1369,18 +1350,14 @@ impl EngineResources {
                     None
                 }
             }).collect();
-            let empty_object = json!({});
-            let material_resources = match material_create_info.get("material_resources") {
-                Some(material_resources) => material_resources,
-                _ => &empty_object,
-            };
 
+            let empty_object = json!({});
             let material_parameters = match material_create_info.get("material_parameters") {
                 Some(material_parameters) => material_parameters,
                 _ => &empty_object,
             };
 
-            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_resources, material_parameters);
+            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
@@ -1421,29 +1398,35 @@ impl EngineResources {
                 Value::String(material_data_name) => material_data_name,
                 _ => panic!("material name parsing error")
             };
-            let material_resources = match material_instance_create_info.get("material_resources").unwrap() {
-                Value::Object(material_resources) => material_resources,
+
+            let mut material_parameters = match material_instance_create_info.get("material_parameters").unwrap() {
+                Value::Object(material_parameters) => material_parameters.clone(),
                 _ => panic!("material parameters parsing error")
             };
+
             let material_data = self.get_material_data(material_data_name.as_str()).clone();
-            let default_material_resources = &material_data.borrow()._material_resources;
+            if let Value::Object(default_material_parameters) = &material_data.borrow()._material_parameters {
+                for (key, value) in default_material_parameters.iter() {
+                    if false == material_parameters.contains_key(key) {
+                        material_parameters.insert(key.to_string(), value.clone());
+                    }
+                }
+            }
+
             let pipeline_bind_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
                 let descriptor_data_create_infos = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data._descriptor_data_create_infos;
                 let descriptor_resource_infos_list = constants::SWAPCHAIN_IMAGE_INDICES.iter().map(|swapchain_index| {
                     let descriptor_resource_infos = descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-                        let material_resource_name = &descriptor_data_create_info._descriptor_name;
-                        let material_resource_resource_type = &descriptor_data_create_info._descriptor_resource_type;
-                        let maybe_material_resource = match material_resources.get(material_resource_name) {
-                            None => default_material_resources.get(material_resource_name),
-                            value => value,
-                        };
-                        let descriptor_resource_info = match material_resource_resource_type {
+                        let material_parameter_name = &descriptor_data_create_info._descriptor_name;
+                        let material_parameter_resource_type = &descriptor_data_create_info._descriptor_resource_type;
+                        let maybe_material_parameter = material_parameters.get(material_parameter_name);
+                        let descriptor_resource_info = match material_parameter_resource_type {
                             DescriptorResourceType::UniformBuffer | DescriptorResourceType::StorageBuffer => {
-                                let uniform_buffer_data = renderer_context.get_shader_buffer_data_from_str(material_resource_name.as_str());
+                                let uniform_buffer_data = renderer_context.get_shader_buffer_data_from_str(material_parameter_name.as_str());
                                 uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone()
                             },
                             DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
-                                let texture_data = match maybe_material_resource {
+                                let texture_data = match maybe_material_parameter {
                                     Some(Value::String(value)) => self.get_texture_data(value),
                                     _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
                                 };
@@ -1457,7 +1440,7 @@ impl EngineResources {
                                 }
                             },
                             DescriptorResourceType::RenderTarget | DescriptorResourceType::StorageRenderTarget => {
-                                let texture_data = renderer_context.get_render_target_from_str(material_resource_name.as_str());
+                                let texture_data = renderer_context.get_render_target_from_str(material_parameter_name.as_str());
                                 if descriptor_data_create_info.use_sub_image() {
                                     DescriptorResourceInfo::DescriptorImageInfo(texture_data.get_sub_image_info(
                                         descriptor_data_create_info._descriptor_image_layer,

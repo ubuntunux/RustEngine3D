@@ -1,2 +1,2 @@
 {"material_name": "common/render_skeletal_object",
- "material_resources": {"textureBase": "common/flat_white", "textureMaterial": "common/flat_green", "textureNormal": "common/default_n"}}
+ "material_parameters": {"textureBase": "common/flat_white", "textureMaterial": "common/flat_green", "textureNormal": "common/default_n"}}
