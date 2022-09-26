@@ -14,7 +14,7 @@ pub const NONE_PUSH_CONSTANT: Option<&()> = None;
 
 pub type PushConstantsMap = HashMap<String, Vec<Box<dyn PushConstant>>>;
 pub trait PushConstant: PushConstantClone + PushConstantSize + Debug {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value);
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>);
 }
 
 pub trait PushConstantClone {
@@ -61,7 +61,7 @@ impl Default for PushConstant_StaticRenderObject {
 }
 
 impl PushConstant for PushConstant_StaticRenderObject {
-    fn update_push_constant(&mut self, material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
         get_json_vector4(material_parameters, "_color", &mut self._color);
     }
 }
@@ -94,7 +94,7 @@ impl Default for PushConstant_SkeletalRenderObject {
 }
 
 impl PushConstant for PushConstant_SkeletalRenderObject {
-    fn update_push_constant(&mut self, material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
         get_json_vector4(material_parameters, "_color", &mut self._color);
     }
 }
@@ -120,7 +120,7 @@ impl Default for PushConstant_BloomHighlight {
 }
 
 impl PushConstant for PushConstant_BloomHighlight {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -144,7 +144,7 @@ impl Default for PushConstant_GaussianBlur {
 }
 
 impl PushConstant for PushConstant_GaussianBlur {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -170,7 +170,7 @@ impl Default for PushConstant_RenderCopy {
 }
 
 impl PushConstant for PushConstant_RenderCopy {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -184,7 +184,7 @@ pub struct PushConstant_BlendCubeMap {
 }
 
 impl PushConstant for PushConstant_BlendCubeMap {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -195,7 +195,7 @@ pub struct PushConstant_RenderColor {
 }
 
 impl PushConstant for PushConstant_RenderColor {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -220,6 +220,6 @@ impl Default for PushConstant_RenderDebug {
 }
 
 impl PushConstant for PushConstant_RenderDebug {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }

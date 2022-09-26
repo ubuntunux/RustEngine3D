@@ -49,7 +49,7 @@ pub struct PushConstant_RenderFont {
 }
 
 impl PushConstant for PushConstant_RenderFont {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 

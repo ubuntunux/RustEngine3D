@@ -10,7 +10,7 @@ use crate::renderer::push_constants::PushConstantsMap;
 pub struct MaterialData {
     pub _material_data_name: String,
     pub _render_pass_pipeline_data_map: RenderPassPipelineDataMap,
-    pub _material_parameters: serde_json::Value,
+    pub _material_parameters: serde_json::Map<String, serde_json::Value>,
     pub _push_constants_map: PushConstantsMap
 }
 
@@ -18,7 +18,7 @@ impl MaterialData {
     pub fn create_material(
         material_data_name: &String,
         render_pass_pipeline_datas: &Vec<Option<RenderPassPipelineData>>,
-        material_parameters: &serde_json::Value
+        material_parameters: &serde_json::Map<String, serde_json::Value>
     ) -> MaterialData {
         log::debug!("create_material: {}", material_data_name);
 

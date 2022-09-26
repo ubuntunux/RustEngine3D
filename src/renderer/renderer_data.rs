@@ -898,7 +898,8 @@ impl RendererData {
             let mut bone_metrices_offset: vk::DeviceSize = 0;
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
-                let pipeline_binding_data: *const PipelineBindingData = render_element._material_instance_data.borrow().get_pipeline_binding_data(&render_pass_pipeline_data_name);
+                let material_instance = render_element._material_instance_data.borrow();
+                let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
                 let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
                 let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
                 let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();

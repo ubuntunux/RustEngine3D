@@ -101,7 +101,7 @@ pub struct PushConstant_ComputeGpuParticleCount {
 }
 
 impl PushConstant for PushConstant_ComputeGpuParticleCount {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -115,7 +115,7 @@ pub struct PushConstant_UpdateGpuParticle {
 }
 
 impl PushConstant for PushConstant_UpdateGpuParticle {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -129,7 +129,7 @@ pub struct PushConstant_RenderParticle {
 }
 
 impl PushConstant for PushConstant_RenderParticle {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 

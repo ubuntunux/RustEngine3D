@@ -49,7 +49,7 @@ pub struct PushConstant_FFT_Waves {
 }
 
 impl PushConstant for PushConstant_FFT_Waves {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -64,7 +64,7 @@ pub struct PushConstant_FFT_Init {
 }
 
 impl PushConstant for PushConstant_FFT_Init {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -79,7 +79,7 @@ pub struct PushConstant_FFT_Variance {
 }
 
 impl PushConstant for PushConstant_FFT_Variance {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -97,7 +97,7 @@ pub struct PushConstant_FFT_Ocean {
 }
 
 impl PushConstant for PushConstant_FFT_Ocean {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 

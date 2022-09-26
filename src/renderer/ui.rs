@@ -55,7 +55,7 @@ pub struct PushConstant_RenderUI {
 }
 
 impl PushConstant for PushConstant_RenderUI {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 

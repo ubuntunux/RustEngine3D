@@ -220,7 +220,7 @@ pub struct PushConstant_Atmosphere {
 }
 
 impl PushConstant for PushConstant_Atmosphere {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 
@@ -235,7 +235,7 @@ pub struct PushConstant_PrecomputedAtmosphere {
 }
 
 impl PushConstant for PushConstant_PrecomputedAtmosphere {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Value) {
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
     }
 }
 

@@ -9,7 +9,7 @@ use bincode;
 use byteorder::{ LittleEndian, ReadBytesExt };
 use image::{ self, GenericImageView, };
 use nalgebra::{ Vector2 };
-use serde_json::{ self, Value, json };
+use serde_json::{ self, Value };
 use serde::{ Serialize, Deserialize };
 
 use crate::application::audio_manager::{
@@ -1351,9 +1351,9 @@ impl EngineResources {
                 }
             }).collect();
 
-            let empty_object = json!({});
+            let empty_object: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
             let material_parameters = match material_create_info.get("material_parameters") {
-                Some(material_parameters) => material_parameters,
+                Some(Value::Object(material_parameters)) => material_parameters,
                 _ => &empty_object,
             };
 
@@ -1399,17 +1399,16 @@ impl EngineResources {
                 _ => panic!("material name parsing error")
             };
 
-            let mut material_parameters = match material_instance_create_info.get("material_parameters").unwrap() {
-                Value::Object(material_parameters) => material_parameters.clone(),
-                _ => panic!("material parameters parsing error")
+            let mut material_parameters: serde_json::Map<String, serde_json::Value> = match material_instance_create_info.get("material_parameters") {
+                Some(Value::Object(material_parameters)) => material_parameters.clone(),
+                _ => serde_json::Map::new(),
             };
 
             let material_data = self.get_material_data(material_data_name.as_str()).clone();
-            if let Value::Object(default_material_parameters) = &material_data.borrow()._material_parameters {
-                for (key, value) in default_material_parameters.iter() {
-                    if false == material_parameters.contains_key(key) {
-                        material_parameters.insert(key.to_string(), value.clone());
-                    }
+            let default_material_parameters = &material_data.borrow()._material_parameters;
+            for (key, value) in default_material_parameters.iter() {
+                if false == material_parameters.contains_key(key) {
+                    material_parameters.insert(key.to_string(), value.clone());
                 }
             }
 
@@ -1467,7 +1466,8 @@ impl EngineResources {
             let material_instance_data = MaterialInstanceData::create_material_instance(
                 renderer_context.get_device(),
                 &material_instance_name,
-                material_data.clone(),
+                &material_data,
+                &material_parameters,
                 pipeline_bind_create_infos
             );
 

@@ -26,6 +26,7 @@ type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
 pub struct MaterialInstanceData {
     pub _material_instance_data_name: String,
     pub _material_data: RcRefCell<MaterialData>,
+    pub _material_parameters: serde_json::Map<String, serde_json::Value>,
     pub _pipeline_binding_data_map: PipelineBindingDataMap,
     pub _default_pipeline_binding_name: String,
 }
@@ -53,7 +54,8 @@ impl MaterialInstanceData {
     pub fn create_material_instance(
         device: &Device,
         material_instance_data_name: &String,
-        material_data: RcRefCell<MaterialData>,
+        material_data: &RcRefCell<MaterialData>,
+        material_parameters: &serde_json::Map<String, serde_json::Value>,
         pipeline_bind_create_infos: Vec<(render_pass::RenderPassPipelineData, SwapchainArray<Vec<descriptor::DescriptorResourceInfo>>)>,
     ) -> MaterialInstanceData {
         log::debug!("create_material_instance: {}", material_instance_data_name);
@@ -99,6 +101,7 @@ impl MaterialInstanceData {
         MaterialInstanceData {
             _material_instance_data_name: material_instance_data_name.clone(),
             _material_data: material_data.clone(),
+            _material_parameters: material_parameters.clone(),
             _pipeline_binding_data_map: pipeline_binding_data_map,
             _default_pipeline_binding_name: default_pipeline_binding_name,
         }
