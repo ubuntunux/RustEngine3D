@@ -350,13 +350,13 @@ impl RendererDataBase for RendererData {
 
         // render shadow
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Static, &static_shadow_render_elements, None);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, RenderMode::Shadow, RenderObjectType::Skeletal, &skeletal_shadow_render_elements, None);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow/render_object", RenderObjectType::Static, &static_shadow_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow/render_object", RenderObjectType::Skeletal, &skeletal_shadow_render_elements);
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-            self.render_solid_object(renderer_context, command_buffer, swapchain_index, RenderMode::CaptureHeightMap, RenderObjectType::Static, &static_render_elements, None);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map/render_object", RenderObjectType::Static, &static_render_elements);
         }
 
         // fft-simulation
@@ -406,8 +406,8 @@ impl RendererDataBase for RendererData {
         }
 
         // render solid object
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Static, &static_render_elements, None);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, RenderMode::GBuffer, RenderObjectType::Skeletal, &skeletal_render_elements, None);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer/render_object", RenderObjectType::Static, &static_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer/render_object", RenderObjectType::Skeletal, &skeletal_render_elements);
 
         // process gpu particles
         {
@@ -812,14 +812,14 @@ impl RendererData {
                     "render_pass_static_forward_light_probe_4/render_object",
                     "render_pass_static_forward_light_probe_5/render_object",
                 ];
+
                 self.render_solid_object(
                     renderer_context,
                     command_buffer,
                     swapchain_index,
-                    RenderMode::Forward,
+                    RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i],
                     RenderObjectType::Static,
-                    static_render_elements,
-                    Some(RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i])
+                    static_render_elements
                 );
 
                 // downsampling light probe
@@ -841,35 +841,17 @@ impl RendererData {
         renderer_context: &RendererContext,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        render_mode: RenderMode,
+        render_pass_pipeline_data_name: &str,
         render_object_type: RenderObjectType,
-        render_elements: &Vec<RenderElementData>,
-        custom_render_pass_pipeline_name: Option<&str>,
+        render_elements: &Vec<RenderElementData>
     ) {
         if 0 == render_elements.len() {
             return;
         }
 
         unsafe {
-            let render_pass_pipeline_data_name: &str = if custom_render_pass_pipeline_name.is_some() {
-                custom_render_pass_pipeline_name.unwrap()
-            } else {
-                match (render_mode, render_object_type) {
-                    (RenderMode::GBuffer, RenderObjectType::Static) => "render_pass_static_gbuffer/render_object",
-                    (RenderMode::Forward, RenderObjectType::Static) => "render_pass_static_forward/render_object",
-                    (RenderMode::Shadow, RenderObjectType::Static) => "render_pass_static_shadow/render_object",
-                    (RenderMode::CaptureHeightMap, RenderObjectType::Static) => "capture_static_height_map/render_object",
-                    (RenderMode::GBuffer, RenderObjectType::Skeletal) => "render_pass_skeletal_gbuffer/render_object",
-                    (RenderMode::Forward, RenderObjectType::Skeletal) => "render_pass_skeletal_forward/render_object",
-                    (RenderMode::Shadow, RenderObjectType::Skeletal) => "render_pass_skeletal_shadow/render_object",
-                    (RenderMode::CaptureHeightMap, RenderObjectType::Skeletal) => "capture_skeletal_height_map/render_object",
-                }
-            };
-
             // upload skeleton bone matrices
-            let mut bone_metrices_offset: vk::DeviceSize = 0;
-            let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
-            let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
+            let mut bone_metrices_offset: usize = 0;
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
                 match render_object_type {
@@ -879,9 +861,9 @@ impl RendererData {
                         if render_object.has_animation_play_info() {
                             let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
                             let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
-                            let bone_count = prev_animation_buffer.len() as vk::DeviceSize;
-                            let prev_animation_buffer_offset = bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
-                            let animation_buffer_offset = (bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>() as vk::DeviceSize;
+                            let bone_count: usize = render_object.get_bone_count();
+                            let prev_animation_buffer_offset = (bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>()) as vk::DeviceSize;
+                            let animation_buffer_offset = ((bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>()) as vk::DeviceSize;
 
                             // TODO : Upload at once
                             self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
@@ -895,7 +877,9 @@ impl RendererData {
             }
 
             // render
-            let mut bone_metrices_offset: vk::DeviceSize = 0;
+            let mut bone_metrices_offset: usize = 0;
+            let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
+            let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
                 let render_object = render_element._render_object.borrow();
                 let material_instance = render_element._material_instance_data.borrow();
@@ -918,6 +902,7 @@ impl RendererData {
                     renderer_context.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
                 }
 
+                // update push constants
                 match render_object_type {
                     RenderObjectType::Static => {
                         renderer_context.upload_push_constant_data(
@@ -930,13 +915,8 @@ impl RendererData {
                         );
                     },
                     RenderObjectType::Skeletal => {
-                        let bone_count = if render_object.has_animation_play_info() {
-                            let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                            prev_animation_buffer.len() as vk::DeviceSize
-                        } else {
-                            0 as vk::DeviceSize
-                        };
-
+                        let bone_count: usize = render_object.get_bone_count();
+                        log::info!("pos: {:?}", render_object._transform_object.get_position());
                         renderer_context.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,

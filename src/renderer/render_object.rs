@@ -40,6 +40,8 @@ pub struct RenderObjectData {
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
     pub _animation_play_info: Option<AnimationPlayInfo>,
+    pub _bone_count: usize,
+    pub _render_bone_offset: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -145,6 +147,8 @@ impl RenderObjectData {
             _geometry_bound_boxes: geometry_bound_boxes,
             _transform_object: transform_object_data,
             _animation_play_info: None,
+            _bone_count: 0,
+            _render_bone_offset: 0,
         };
 
         render_object_data.initialize_animation_play_info(has_animation_data);
@@ -153,16 +157,21 @@ impl RenderObjectData {
 
     pub fn initialize_animation_play_info(&mut self, has_animation_data: bool) {
         if has_animation_data {
+            let mut bone_count = 0usize;
             let mut animation_play_info = AnimationPlayInfo::default();
             for animation in self._mesh_data.borrow_mut()._animation_datas.iter_mut() {
-                let mut animation_buffers: Vec<Matrix4<f32>> = vec![Matrix4::identity(); animation.get_bone_count()];
+                assert!(0 == bone_count || bone_count == animation.get_bone_count());
+                bone_count = animation.get_bone_count();
+                let mut animation_buffers: Vec<Matrix4<f32>> = vec![Matrix4::identity(); bone_count];
                 animation.update_animation_transforms(0.0, &mut animation_buffers);
                 animation_play_info._animation_buffers.push(animation_buffers.clone());
                 animation_play_info._prev_animation_buffers.push(animation_buffers.clone());
                 animation_play_info._blend_animation_buffers.push(animation_buffers.clone())
             }
             animation_play_info._animation_mesh = Some(self._mesh_data.clone());
+
             self._animation_play_info = Some(animation_play_info);
+            self._bone_count = bone_count;
         }
     }
 
@@ -180,6 +189,18 @@ impl RenderObjectData {
 
     pub fn has_animation_play_info(&self) -> bool {
         self._animation_play_info.is_some()
+    }
+
+    pub fn get_bone_count(&self) -> usize {
+        self._bone_count
+    }
+
+    pub fn get_render_bone_offset(&self) -> usize {
+        self._render_bone_offset
+    }
+
+    pub fn set_render_bone_offset(&mut self, render_bone_offset: usize) {
+        self._render_bone_offset = render_bone_offset;
     }
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
