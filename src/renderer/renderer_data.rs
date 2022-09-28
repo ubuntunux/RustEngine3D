@@ -337,6 +337,10 @@ impl RendererDataBase for RendererData {
             self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::LightConstants, main_light.get_light_constants());
             self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::SSAOConstants, &self._renderer_context_ssao._ssao_constants);
             self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::AtmosphereConstants, &self._atmosphere._atmosphere_constants);
+
+            let transform_matrix_count = project_scene_manager.get_render_element_transform_count();
+            let transform_matrices: &[Matrix4<f32>] = &project_scene_manager.get_render_element_transform_metrices()[..transform_matrix_count];
+            self.upload_shader_buffer_datas(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, transform_matrices);
         }
 
         if self._is_first_rendering {
@@ -850,34 +854,6 @@ impl RendererData {
         }
 
         unsafe {
-            // upload skeleton bone matrices
-            let mut bone_metrices_offset: usize = 0;
-            for render_element in render_elements.iter() {
-                let render_object = render_element._render_object.borrow();
-                match render_object_type {
-                    RenderObjectType::Static => {
-                    },
-                    RenderObjectType::Skeletal => {
-                        if render_object.has_animation_play_info() {
-                            let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object.get_prev_animation_buffer(0);
-                            let animation_buffer: &Vec<Matrix4<f32>> = render_object.get_animation_buffer(0);
-                            let bone_count: usize = render_object.get_bone_count();
-                            let prev_animation_buffer_offset = (bone_metrices_offset * std::mem::size_of::<Matrix4<f32>>()) as vk::DeviceSize;
-                            let animation_buffer_offset = ((bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>()) as vk::DeviceSize;
-
-                            // TODO : Upload at once
-                            self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
-                            self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, &animation_buffer, animation_buffer_offset);
-
-                            // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
-                            bone_metrices_offset += bone_count * 2;
-                        }
-                    },
-                };
-            }
-
-            // render
-            let mut bone_metrices_offset: usize = 0;
             let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
@@ -915,22 +891,18 @@ impl RendererData {
                         );
                     },
                     RenderObjectType::Skeletal => {
-                        let bone_count: usize = render_object.get_bone_count();
-                        log::info!("pos: {:?}", render_object._transform_object.get_position());
                         renderer_context.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,
                             &PushConstant_SkeletalRenderObject {
                                 _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
                                 _local_matrix_prev: render_object._transform_object.get_prev_matrix().clone() as Matrix4<f32>,
-                                _bone_matrix_offset: bone_metrices_offset as u32,
-                                _bone_matrix_count: bone_count as u32,
+                                _bone_matrix_offset: render_object.get_transform_matrix_offset() as u32,
+                                _bone_matrix_count: render_object.get_bone_count() as u32,
                                 _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
                                 ..Default::default()
                             }
                         );
-                        // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
-                        bone_metrices_offset += bone_count * 2;
                     },
                 };
                 renderer_context.draw_elements(command_buffer, &render_element._geometry_data.borrow());

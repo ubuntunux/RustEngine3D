@@ -41,7 +41,7 @@ pub struct RenderObjectData {
     pub _transform_object: TransformObjectData,
     pub _animation_play_info: Option<AnimationPlayInfo>,
     pub _bone_count: usize,
-    pub _render_bone_offset: usize,
+    pub _transform_matrix_offset: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -148,7 +148,7 @@ impl RenderObjectData {
             _transform_object: transform_object_data,
             _animation_play_info: None,
             _bone_count: 0,
-            _render_bone_offset: 0,
+            _transform_matrix_offset: 0,
         };
 
         render_object_data.initialize_animation_play_info(has_animation_data);
@@ -195,12 +195,12 @@ impl RenderObjectData {
         self._bone_count
     }
 
-    pub fn get_render_bone_offset(&self) -> usize {
-        self._render_bone_offset
+    pub fn get_transform_matrix_offset(&self) -> usize {
+        self._transform_matrix_offset
     }
 
-    pub fn set_render_bone_offset(&mut self, render_bone_offset: usize) {
-        self._render_bone_offset = render_bone_offset;
+    pub fn set_transform_matrix_offset(&mut self, offset: usize) {
+        self._transform_matrix_offset = offset;
     }
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
