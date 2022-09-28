@@ -14,9 +14,9 @@ layout(binding = 2) uniform LightConstants
 {
     LIGHT_CONSTANTS light_constants;
 };
-layout(binding = 3) buffer BoneConstants
+layout(binding = 3) buffer TransformMetrices
 {
-    mat4 bone_matrices[MAX_BONES];
+    mat4 transform_matrices[MAX_TRANSFORM_COUNT];
 };
 #if (RenderMode_Forward == RenderMode)
 layout(binding = 4) uniform AtmosphereConstants

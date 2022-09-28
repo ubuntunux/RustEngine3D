@@ -32,10 +32,10 @@ void main() {
             const float boneWeight = inBoneWeights[i];
             if(0.0 < boneWeight)
             {
-                prev_position += (bone_matrices[prev_bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * boneWeight;
-                position += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * boneWeight;
-                vertex_normal += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * boneWeight;
-                vertex_tangent += (bone_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * boneWeight;
+                prev_position += (transform_matrices[prev_bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * boneWeight;
+                position += (transform_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inPosition, 1.0)) * boneWeight;
+                vertex_normal += (transform_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inNormal, 0.0)).xyz * boneWeight;
+                vertex_tangent += (transform_matrices[bone_matrix_offset + int(inBoneIndices[i])] * vec4(inTangent, 0.0)).xyz * boneWeight;
             }
         }
         position /= position.w;

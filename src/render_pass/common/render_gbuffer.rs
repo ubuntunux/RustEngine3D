@@ -175,7 +175,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 3,
-                    _descriptor_name: enum_to_string(&ShaderBufferDataType::BoneMatrices),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformMatrices),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()

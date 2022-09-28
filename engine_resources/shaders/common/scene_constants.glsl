@@ -24,8 +24,7 @@
 #define PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE 64
 
 #define MAX_BONES_PER_VERTEX 4
-// MAX_BONES must match with constants.rs
-#define MAX_BONES 128 * 128
+#define MAX_TRANSFORM_COUNT 65536 // MAX_TRANSFORM_COUNT must match with constants.rs
 
 const float PI = 3.14159265358979323846;
 const float HALF_PI = PI * 0.5;

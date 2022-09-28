@@ -43,7 +43,7 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants3,
     LightProbeViewConstants4,
     LightProbeViewConstants5,
-    BoneMatrices,
+    TransformMatrices,
     FontInstanceDataBuffer,
     UIRenderDataBuffer,
     GpuParticleStaticConstants,
@@ -112,14 +112,14 @@ pub struct SSAOConstants {
 }
 
 #[derive(Clone)]
-pub struct BoneMatrices {
-    pub _bone_matrices: [Matrix4<f32>; constants::MAX_BONES],
+pub struct TransformMatrices {
+    pub _transform_matrices: [Matrix4<f32>; constants::MAX_TRANSFORM_COUNT],
 }
 
-impl Default for BoneMatrices {
-    fn default() -> BoneMatrices {
-        BoneMatrices {
-            _bone_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_BONES],
+impl Default for TransformMatrices {
+    fn default() -> TransformMatrices {
+        TransformMatrices {
+            _transform_matrices: [Matrix4::identity() as Matrix4<f32>; constants::MAX_TRANSFORM_COUNT],
         }
     }
 }
@@ -249,7 +249,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants3" => Ok(ShaderBufferDataType::LightProbeViewConstants3),
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
-            "BoneMatrices" => Ok(ShaderBufferDataType::BoneMatrices),
+            "TransformMatrices" => Ok(ShaderBufferDataType::TransformMatrices),
             "FontInstanceDataBuffer" => Ok(ShaderBufferDataType::FontInstanceDataBuffer),
             "UIRenderDataBuffer" => Ok(ShaderBufferDataType::UIRenderDataBuffer),
             "GpuParticleStaticConstants" => Ok(ShaderBufferDataType::GpuParticleStaticConstants),
@@ -368,8 +368,8 @@ pub fn regist_shader_buffer_datas(
         _is_device_local: false,
     };
     regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
-        _shader_buffer_data_type: ShaderBufferDataType::BoneMatrices,
-        _shader_buffer_data_stride: std::mem::size_of::<BoneMatrices>(),
+        _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
+        _shader_buffer_data_stride: std::mem::size_of::<TransformMatrices>(),
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {

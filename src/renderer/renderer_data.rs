@@ -866,8 +866,8 @@ impl RendererData {
                             let animation_buffer_offset = ((bone_metrices_offset + bone_count) * std::mem::size_of::<Matrix4<f32>>()) as vk::DeviceSize;
 
                             // TODO : Upload at once
-                            self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::BoneMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
-                            self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::BoneMatrices, &animation_buffer, animation_buffer_offset);
+                            self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, &prev_animation_buffer, prev_animation_buffer_offset);
+                            self.upload_shader_buffer_datas_offset(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, &animation_buffer, animation_buffer_offset);
 
                             // bone_count = (curr_animation_bone_count + prev_animation_bone_count)
                             bone_metrices_offset += bone_count * 2;

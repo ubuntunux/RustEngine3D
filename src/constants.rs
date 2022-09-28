@@ -61,7 +61,7 @@ pub const SSAO_KERNEL_SIZE: usize = 64; // must match with scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
-pub const MAX_BONES: usize = 128 * 128; // must match with scene_constants.glsl
+pub const MAX_TRANSFORM_COUNT: usize = 65536; // must match with scene_constants.glsl
 pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
 pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.
 
