@@ -25,24 +25,14 @@ layout(binding = 4) uniform AtmosphereConstants
 };
 #endif
 
-#if (RenderObjectType_Static == RenderObjectType)
-layout( push_constant ) uniform PushConstant_StaticRenderObject
+layout( push_constant ) uniform PushConstant_RenderObject
 {
-    mat4 _localMatrix;
-    vec4 _color;
-} pushConstant;
-#elif (RenderObjectType_Skeletal == RenderObjectType)
-layout( push_constant ) uniform PushConstant_SkeletalRenderObject
-{
-    mat4 _localMatrix;
-    mat4 _localMatrixPrev;
-    uint _bone_matrix_offset;
-    uint _bone_matrix_count;
+    uint _transform_matrix_offset;
+    uint _bone_count;
     uint _reserved0;
     uint _reserved1;
     vec4 _color;
 } pushConstant;
-#endif
 
 struct VERTEX_OUTPUT
 {

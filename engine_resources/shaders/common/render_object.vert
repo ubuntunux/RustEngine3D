@@ -22,11 +22,14 @@ void main() {
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
 
+    const uint local_matrix_prev_offset = pushConstant._transform_matrix_offset;
+    const uint local_matrix_offset = local_matrix_prev_offset + 1;
+    const uint prev_bone_matrix_offset = local_matrix_offset + 1;
+    const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_count;
+
 #if (RenderObjectType_Skeletal == RenderObjectType)
-    if (0 < pushConstant._bone_matrix_count)
+    if (0 < pushConstant._bone_count)
     {
-        const uint prev_bone_matrix_offset = pushConstant._bone_matrix_offset;
-        const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_matrix_count;
         for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
         {
             const float boneWeight = inBoneWeights[i];
@@ -57,12 +60,9 @@ void main() {
     vertex_normal = normalize(vertex_normal);
     vertex_tangent = normalize(vertex_tangent);
 
-    mat4 localMatrix = pushConstant._localMatrix;
-#if (RenderObjectType_Skeletal == RenderObjectType)
-    mat4 localMatrixPrev = pushConstant._localMatrixPrev;
-#else
-    mat4 localMatrixPrev = localMatrix;
-#endif
+    mat4 localMatrix = transform_matrices[local_matrix_offset];
+    mat4 localMatrixPrev = transform_matrices[local_matrix_prev_offset];
+
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
     localMatrixPrev[3].xyz -= view_constants.CAMERA_POSITION_PREV;
 

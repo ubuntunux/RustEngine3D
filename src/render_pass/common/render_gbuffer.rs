@@ -1,7 +1,7 @@
 use std::path::PathBuf;
 
 use ash::vk;
-use crate::renderer::push_constants::{ PushConstant_StaticRenderObject, PushConstant_SkeletalRenderObject };
+use crate::renderer::push_constants::{ PushConstant_RenderObject };
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
@@ -145,10 +145,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
                 PipelinePushConstantCreateInfo {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant_data: match render_object_type {
-                        RenderObjectType::Static => Box::new(PushConstant_StaticRenderObject::default()),
-                        RenderObjectType::Skeletal => Box::new(PushConstant_SkeletalRenderObject::default()),
-                    }
+                    _push_constant_data: Box::new(PushConstant_RenderObject::default())
                 }
             ],
             _descriptor_data_create_infos: vec![

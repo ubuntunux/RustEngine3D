@@ -1,11 +1,7 @@
 use std::fmt::Debug;
 use std::collections::HashMap;
 use ash::{ vk };
-use nalgebra::{
-    Vector2,
-    Vector4,
-    Matrix4,
-};
+use nalgebra::{ Vector2, Vector4 };
 use serde::{ Serialize, Deserialize };
 use serde_json;
 use crate::utilities::json::get_json_vector4;
@@ -46,46 +42,19 @@ impl<T> PushConstantSize for T {
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
-pub struct PushConstant_StaticRenderObject {
-    pub _local_matrix: Matrix4<f32>,
-    pub _color: Vector4<f32>
-}
-
-impl Default for PushConstant_StaticRenderObject {
-    fn default() -> PushConstant_StaticRenderObject {
-        PushConstant_StaticRenderObject {
-            _local_matrix: Matrix4::identity(),
-            _color: Vector4::new(1.0, 1.0, 1.0, 1.0)
-        }
-    }
-}
-
-impl PushConstant for PushConstant_StaticRenderObject {
-    fn update_push_constant(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
-        get_json_vector4(material_parameters, "_color", &mut self._color);
-    }
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(default)]
-pub struct PushConstant_SkeletalRenderObject {
-    pub _local_matrix: Matrix4<f32>,
-    pub _local_matrix_prev: Matrix4<f32>,
-    pub _bone_matrix_offset: u32,
-    pub _bone_matrix_count: u32,
+pub struct PushConstant_RenderObject {
+    pub _transform_matrix_offset: u32,
+    pub _bone_count: u32,
     pub _reserved0: u32,
     pub _reserved1: u32,
     pub _color: Vector4<f32>
 }
 
-impl Default for PushConstant_SkeletalRenderObject {
-    fn default() -> PushConstant_SkeletalRenderObject {
-        PushConstant_SkeletalRenderObject {
-            _local_matrix: Matrix4::identity(),
-            _local_matrix_prev: Matrix4::identity(),
-            _bone_matrix_offset: 0,
-            _bone_matrix_count: 0,
+impl Default for PushConstant_RenderObject {
+    fn default() -> PushConstant_RenderObject {
+        PushConstant_RenderObject {
+            _transform_matrix_offset: 0,
+            _bone_count: 0,
             _reserved0: 0,
             _reserved1: 0,
             _color: Vector4::new(1.0, 1.0, 1.0, 1.0)
@@ -93,7 +62,7 @@ impl Default for PushConstant_SkeletalRenderObject {
     }
 }
 
-impl PushConstant for PushConstant_SkeletalRenderObject {
+impl PushConstant for PushConstant_RenderObject {
     fn update_push_constant(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
         get_json_vector4(material_parameters, "_color", &mut self._color);
     }

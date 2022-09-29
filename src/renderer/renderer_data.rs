@@ -18,8 +18,7 @@ use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::precomputed_atmosphere::{ Atmosphere, PushConstant_Atmosphere };
 use crate::renderer::push_constants::{
     NONE_PUSH_CONSTANT,
-    PushConstant_StaticRenderObject,
-    PushConstant_SkeletalRenderObject,
+    PushConstant_RenderObject,
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
     PushConstant_RenderDebug,
@@ -354,13 +353,13 @@ impl RendererDataBase for RendererData {
 
         // render shadow
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow/render_object", RenderObjectType::Static, &static_shadow_render_elements);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow/render_object", RenderObjectType::Skeletal, &skeletal_shadow_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow/render_object", &static_shadow_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow/render_object", &skeletal_shadow_render_elements);
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
-            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map/render_object", RenderObjectType::Static, &static_render_elements);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map/render_object", &static_render_elements);
         }
 
         // fft-simulation
@@ -410,8 +409,8 @@ impl RendererDataBase for RendererData {
         }
 
         // render solid object
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer/render_object", RenderObjectType::Static, &static_render_elements);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer/render_object", RenderObjectType::Skeletal, &skeletal_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer/render_object", &static_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer/render_object", &skeletal_render_elements);
 
         // process gpu particles
         {
@@ -822,7 +821,6 @@ impl RendererData {
                     command_buffer,
                     swapchain_index,
                     RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i],
-                    RenderObjectType::Static,
                     static_render_elements
                 );
 
@@ -846,7 +844,6 @@ impl RendererData {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         render_pass_pipeline_data_name: &str,
-        render_object_type: RenderObjectType,
         render_elements: &Vec<RenderElementData>
     ) {
         if 0 == render_elements.len() {
@@ -879,32 +876,16 @@ impl RendererData {
                 }
 
                 // update push constants
-                match render_object_type {
-                    RenderObjectType::Static => {
-                        renderer_context.upload_push_constant_data(
-                            command_buffer,
-                            pipeline_data,
-                            &PushConstant_StaticRenderObject {
-                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
-                                _color: Vector4::new(1.0, 1.0, 1.0, 1.0)
-                            }
-                        );
-                    },
-                    RenderObjectType::Skeletal => {
-                        renderer_context.upload_push_constant_data(
-                            command_buffer,
-                            pipeline_data,
-                            &PushConstant_SkeletalRenderObject {
-                                _local_matrix: render_object._transform_object.get_matrix().clone() as Matrix4<f32>,
-                                _local_matrix_prev: render_object._transform_object.get_prev_matrix().clone() as Matrix4<f32>,
-                                _bone_matrix_offset: render_object.get_transform_matrix_offset() as u32,
-                                _bone_matrix_count: render_object.get_bone_count() as u32,
-                                _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
-                                ..Default::default()
-                            }
-                        );
-                    },
-                };
+                renderer_context.upload_push_constant_data(
+                    command_buffer,
+                    pipeline_data,
+                    &PushConstant_RenderObject {
+                        _transform_matrix_offset: render_object.get_transform_matrix_offset() as u32,
+                        _bone_count: render_object.get_bone_count() as u32,
+                        _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
+                        ..Default::default()
+                    }
+                );
                 renderer_context.draw_elements(command_buffer, &render_element._geometry_data.borrow());
             }
             renderer_context.end_render_pass(command_buffer);
