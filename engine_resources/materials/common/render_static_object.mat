@@ -16,6 +16,5 @@
                          , "irradiance_texture": "precomputed_atmosphere/irradiance"
                          , "scattering_texture": "precomputed_atmosphere/scattering"
                          }
-,"material_parameters": {"_color":[9.0,1.0,1.0,1.0]}
 }
 
