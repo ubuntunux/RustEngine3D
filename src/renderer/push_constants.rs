@@ -1,10 +1,18 @@
 use std::fmt::Debug;
 use std::collections::HashMap;
 use ash::{ vk };
-use nalgebra::{ Vector2, Vector4 };
+use nalgebra::{ Vector2, Vector3, Vector4 };
 use serde::{ Serialize, Deserialize };
 use serde_json;
 use crate::utilities::json::get_json_vector4;
+
+pub enum PushConstantParameter {
+    Int(i32),
+    Float(f32),
+    Float2(Vector2<f32>),
+    Float3(Vector3<f32>),
+    Float4(Vector4<f32>),
+}
 
 pub const NONE_PUSH_CONSTANT: Option<&()> = None;
 

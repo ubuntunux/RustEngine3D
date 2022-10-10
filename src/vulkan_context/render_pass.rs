@@ -28,7 +28,6 @@ use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::push_constants::PushConstant;
 
-
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
     pub _render_pass_data: RcRefCell<RenderPassData>,
@@ -221,6 +220,7 @@ pub struct PipelineData {
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
     pub _shader_binding_table: Option<BufferData>,
+    pub _push_constant_datas: Vec<Box<dyn PushConstant>>
 }
 
 impl Default for PipelineData {
@@ -237,6 +237,7 @@ impl Default for PipelineData {
             _pipeline_dynamic_states: Vec::new(),
             _descriptor_data: DescriptorData::default(),
             _shader_binding_table: None,
+            _push_constant_datas: Vec::new()
         }
     }
 }
@@ -619,6 +620,9 @@ pub fn create_graphics_pipeline_data(
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
+            _push_constant_datas: pipeline_data_create_info._push_constant_create_infos.iter().map(|push_constant_create_info| {
+                push_constant_create_info._push_constant_data.clone()
+            }).collect(),
             ..Default::default()
         }
     }
@@ -669,6 +673,9 @@ pub fn create_compute_pipeline_data(
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
+            _push_constant_datas: pipeline_data_create_info._push_constant_create_infos.iter().map(|push_constant_create_info| {
+                push_constant_create_info._push_constant_data.clone()
+            }).collect(),
             ..Default::default()
         }
     }
@@ -790,6 +797,9 @@ pub fn create_ray_tracing_pipeline_data(
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
             _shader_binding_table: Some(shader_binding_table),
+            _push_constant_datas: pipeline_data_create_info._push_constant_create_infos.iter().map(|push_constant_create_info| {
+                push_constant_create_info._push_constant_data.clone()
+            }).collect(),
             ..Default::default()
         }
     }

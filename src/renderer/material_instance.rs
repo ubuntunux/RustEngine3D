@@ -6,10 +6,18 @@ use ash::{
 };
 
 use crate::renderer::material::MaterialData;
-use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
+use crate::renderer::push_constants::PushConstant;
+use crate::vulkan_context::descriptor::{ DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-use crate::vulkan_context::render_pass::{self, RenderPassPipelineData, RenderPassData, PipelineData};
+use crate::vulkan_context::render_pass::{ RenderPassPipelineData, RenderPassData, PipelineData};
 use crate::utilities::system::RcRefCell;
+
+#[derive(Clone, Debug)]
+pub struct PipelineBindingDataCreateInfo {
+    pub _render_pass_pipeline_data: RenderPassPipelineData,
+    pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
+    pub _push_constant_datas: Vec<Box<dyn PushConstant>>,
+}
 
 #[derive(Clone, Debug)]
 pub struct PipelineBindingData {
@@ -18,6 +26,7 @@ pub struct PipelineBindingData {
     pub _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>>,
     pub _descriptor_set_count: u32,
     pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
+    pub _push_constant_datas: Vec<Box<dyn PushConstant>>
 }
 
 type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
@@ -56,17 +65,17 @@ impl MaterialInstanceData {
         material_instance_data_name: &String,
         material_data: &RcRefCell<MaterialData>,
         material_parameters: &serde_json::Map<String, serde_json::Value>,
-        pipeline_bind_create_infos: Vec<(render_pass::RenderPassPipelineData, SwapchainArray<Vec<descriptor::DescriptorResourceInfo>>)>,
+        pipeline_bind_create_infos: Vec<PipelineBindingDataCreateInfo>,
     ) -> MaterialInstanceData {
         log::debug!("create_material_instance: {}", material_instance_data_name);
         log::trace!("    material_data: {}", material_data.borrow()._material_data_name);
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
         let mut default_pipeline_binding_name = String::new();
-        for (render_pass_pipeline_data, descriptor_resource_infos_list) in pipeline_bind_create_infos {
+        for pipeline_bind_create_info in pipeline_bind_create_infos {
             let render_pass_pipeline_data_name = format!(
                 "{}/{}",
-                render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
-                render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name,
+                pipeline_bind_create_info._render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
+                pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name,
             );
 
             if default_pipeline_binding_name.is_empty() {
@@ -74,25 +83,26 @@ impl MaterialInstanceData {
             }
 
             log::trace!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
-            let descriptor_data = &render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
-            let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+            let descriptor_data = &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
+            let descriptor_sets = create_descriptor_sets(device, descriptor_data);
             let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                 descriptor_data_create_info._descriptor_binding_index
             }).collect();
-            let write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+            let write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = create_write_descriptor_sets_with_update(
                 device,
                 &descriptor_sets,
                 &descriptor_binding_indices,
                 &descriptor_data._descriptor_set_layout_bindings,
-                &descriptor_resource_infos_list,
+                &pipeline_bind_create_info._descriptor_resource_infos_list,
             );
 
             let pipeline_binding_data = PipelineBindingData {
-                _render_pass_pipeline_data: render_pass_pipeline_data.clone(),
+                _render_pass_pipeline_data: pipeline_bind_create_info._render_pass_pipeline_data.clone(),
                 _descriptor_sets: descriptor_sets,
                 _write_descriptor_sets: write_descriptor_sets,
                 _descriptor_set_count: descriptor_binding_indices.len() as u32,
-                _descriptor_resource_infos_list: descriptor_resource_infos_list,
+                _descriptor_resource_infos_list: pipeline_bind_create_info._descriptor_resource_infos_list,
+                _push_constant_datas: pipeline_bind_create_info._push_constant_datas.clone()
             };
 
             pipeline_binding_data_map.insert(render_pass_pipeline_data_name, pipeline_binding_data);

@@ -23,7 +23,7 @@ use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
 use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
 use crate::renderer::model::ModelData;
 use crate::renderer::material::{ self, MaterialData };
-use crate::renderer::material_instance::{ self, MaterialInstanceData };
+use crate::renderer::material_instance::{ PipelineBindingDataCreateInfo, MaterialInstanceData };
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
@@ -141,7 +141,7 @@ pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
 pub type EffectDataMap = ResourceDataMap<EffectData>;
 pub type FramebufferDatasMap = ResourceDataMap<FramebufferData>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
-pub type MaterialInstanceDataMap = ResourceDataMap<material_instance::MaterialInstanceData>;
+pub type MaterialInstanceDataMap = ResourceDataMap<MaterialInstanceData>;
 pub type FontDataMap = ResourceDataMap<FontData>;
 pub type MeshDataMap = ResourceDataMap<MeshData>;
 pub type ModelDataMap = ResourceDataMap<ModelData>;
@@ -1460,7 +1460,19 @@ impl EngineResources {
                     }).collect();
                     return descriptor_resource_infos;
                 }).collect();
-                return (render_pass_pipeline_data.clone(), descriptor_resource_infos_list);
+
+                // update push constant
+                let mut push_constant_datas = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_datas.clone();
+                for push_constant_data in push_constant_datas.iter_mut() {
+                    push_constant_data.update_push_constant(&material_parameters);
+                }
+
+                // create PipelineBindingDataCreateInfo
+                PipelineBindingDataCreateInfo {
+                    _render_pass_pipeline_data: render_pass_pipeline_data.clone(),
+                    _descriptor_resource_infos_list: descriptor_resource_infos_list,
+                    _push_constant_datas: push_constant_datas
+                }
             }).collect();
 
             let material_instance_data = MaterialInstanceData::create_material_instance(

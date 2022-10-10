@@ -135,6 +135,10 @@ impl RenderObjectData {
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
 
+        // let push_constant_group = model_data.borrow()._material_instance_datas.iter().map(|material_instance_data| {
+        //     material_instance_data.borrow()._material_parameters.clone()
+        // }).collect();
+
         let mesh_data = model_data.borrow()._mesh_data.clone();
         let bound_box = mesh_data.borrow()._bound_box.clone();
         let has_animation_data = mesh_data.borrow().has_animation_data();
