@@ -86,7 +86,7 @@ pub struct PipelineDataCreateInfo {
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
     pub _vertex_input_bind_descriptions: Vec<vk::VertexInputBindingDescription>,
     pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
-    pub _push_constant_create_infos: Vec<PipelinePushConstantCreateInfo>,
+    pub _push_constant_datas: Vec<PipelinePushConstantData>,
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 }
 
@@ -118,14 +118,14 @@ impl Default for PipelineDataCreateInfo {
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_create_infos: Vec::new(),
+            _push_constant_datas: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
     }
 }
 
 #[derive(Clone, Debug)]
-pub struct PipelinePushConstantCreateInfo {
+pub struct PipelinePushConstantData {
     pub _stage_flags: vk::ShaderStageFlags,
     pub _offset: u32,
     pub _push_constant_data: Box<dyn PushConstant>
@@ -220,7 +220,7 @@ pub struct PipelineData {
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
     pub _shader_binding_table: Option<BufferData>,
-    pub _push_constant_datas: Vec<Box<dyn PushConstant>>
+    pub _push_constant_datas: Vec<PipelinePushConstantData>
 }
 
 impl Default for PipelineData {
@@ -428,15 +428,15 @@ pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_
 
 pub fn create_pipeline_layout(
     device: &Device,
-    push_constant_create_infos: &[PipelinePushConstantCreateInfo],
+    push_constant_datas: &[PipelinePushConstantData],
     descriptor_set_layouts: &[vk::DescriptorSetLayout]
 ) -> vk::PipelineLayout {
     let push_constant_ranges: Vec<vk::PushConstantRange> =
-        push_constant_create_infos.iter().map(|push_constant_create_info| {
+        push_constant_datas.iter().map(|push_constant_data| {
             vk::PushConstantRange {
-                stage_flags: push_constant_create_info._stage_flags,
-                offset: push_constant_create_info._offset,
-                size: push_constant_create_info._push_constant_data.as_ref().get_size(),
+                stage_flags: push_constant_data._stage_flags,
+                offset: push_constant_data._offset,
+                size: push_constant_data._push_constant_data.as_ref().get_size(),
             }
         }).collect();
 
@@ -484,7 +484,7 @@ pub fn create_graphics_pipeline_data(
     let shader_stage_infos = vec![vertex_shader_create_info, fragment_shader_create_info];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &pipeline_data_create_info._push_constant_create_infos,
+        &pipeline_data_create_info._push_constant_datas,
         &descriptor_set_layouts
     );
     let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
@@ -620,9 +620,7 @@ pub fn create_graphics_pipeline_data(
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
-            _push_constant_datas: pipeline_data_create_info._push_constant_create_infos.iter().map(|push_constant_create_info| {
-                push_constant_create_info._push_constant_data.clone()
-            }).collect(),
+            _push_constant_datas: pipeline_data_create_info._push_constant_datas.clone(),
             ..Default::default()
         }
     }
@@ -642,7 +640,7 @@ pub fn create_compute_pipeline_data(
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &pipeline_data_create_info._push_constant_create_infos,
+        &pipeline_data_create_info._push_constant_datas,
         &descriptor_set_layouts
     );
     let pipeline_create_info = [vk::ComputePipelineCreateInfo {
@@ -673,9 +671,7 @@ pub fn create_compute_pipeline_data(
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
-            _push_constant_datas: pipeline_data_create_info._push_constant_create_infos.iter().map(|push_constant_create_info| {
-                push_constant_create_info._push_constant_data.clone()
-            }).collect(),
+            _push_constant_datas: pipeline_data_create_info._push_constant_datas.clone(),
             ..Default::default()
         }
     }
@@ -745,7 +741,7 @@ pub fn create_ray_tracing_pipeline_data(
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let pipeline_layout = create_pipeline_layout(
         device,
-        &pipeline_data_create_info._push_constant_create_infos,
+        &pipeline_data_create_info._push_constant_datas,
         &descriptor_set_layouts
     );
     let pipeline_create_info = [
@@ -797,9 +793,7 @@ pub fn create_ray_tracing_pipeline_data(
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
             _shader_binding_table: Some(shader_binding_table),
-            _push_constant_datas: pipeline_data_create_info._push_constant_create_infos.iter().map(|push_constant_create_info| {
-                push_constant_create_info._push_constant_data.clone()
-            }).collect(),
+            _push_constant_datas: pipeline_data_create_info._push_constant_datas.clone(),
             ..Default::default()
         }
     }

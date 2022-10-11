@@ -19,7 +19,7 @@ use crate::vulkan_context::descriptor::{
     DescriptorResourceType,
 };
 use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
-use crate::vulkan_context::render_pass::PipelinePushConstantCreateInfo;
+use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
@@ -141,8 +141,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
                 RenderObjectType::Static => StaticVertexData::create_vertex_input_attribute_descriptions(),
                 RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions(),
             },
-            _push_constant_create_infos: vec![
-                PipelinePushConstantCreateInfo {
+            _push_constant_datas: vec![
+                PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
                     _push_constant_data: Box::new(PushConstant_RenderObject::default())

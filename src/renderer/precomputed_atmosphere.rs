@@ -10,7 +10,7 @@ use crate::vulkan_context::vulkan_context::Layers;
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::push_constants::{ NONE_PUSH_CONSTANT, PushConstant };
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
 
 pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
@@ -594,7 +594,7 @@ impl AtmosphereModel {
             quad_geometry_data,
             None,
             None,
-            NONE_PUSH_CONSTANT,
+            None,
         );
     }
 
@@ -630,7 +630,7 @@ impl AtmosphereModel {
             quad_geometry_data,
             None,
             None,
-            NONE_PUSH_CONSTANT,
+            None,
         );
 
         // compute_direct_irradiance
@@ -642,7 +642,7 @@ impl AtmosphereModel {
             quad_geometry_data,
             None,
             None,
-            NONE_PUSH_CONSTANT,
+            None,
         );
 
         // compute_single_scattering
@@ -971,7 +971,7 @@ impl Atmosphere {
             quad_geometry_data,
             None,
             None,
-            NONE_PUSH_CONSTANT,
+            None,
         );
     }
 }

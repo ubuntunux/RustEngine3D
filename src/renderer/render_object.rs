@@ -10,6 +10,7 @@ use crate::renderer::animation::AnimationData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::RcRefCell;
 use crate::utilities::bounding_box::BoundingBox;
+use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
@@ -36,6 +37,7 @@ pub struct RenderObjectData {
     pub _render_object_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _model_data: RcRefCell<ModelData>,
+    pub _push_constant_datas_group: Vec<Vec<PipelinePushConstantData>>,
     pub _bound_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
@@ -135,9 +137,9 @@ impl RenderObjectData {
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
 
-        // let push_constant_group = model_data.borrow()._material_instance_datas.iter().map(|material_instance_data| {
-        //     material_instance_data.borrow()._material_parameters.clone()
-        // }).collect();
+        let push_constant_datas_group = model_data.borrow()._material_instance_datas.iter().map(|material_instance_data| {
+            material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_datas.clone()
+        }).collect();
 
         let mesh_data = model_data.borrow()._mesh_data.clone();
         let bound_box = mesh_data.borrow()._bound_box.clone();
@@ -150,6 +152,7 @@ impl RenderObjectData {
             _bound_box: bound_box,
             _geometry_bound_boxes: geometry_bound_boxes,
             _transform_object: transform_object_data,
+            _push_constant_datas_group: push_constant_datas_group,
             _animation_play_info: None,
             _bone_count: 0,
             _transform_matrix_offset: 0,

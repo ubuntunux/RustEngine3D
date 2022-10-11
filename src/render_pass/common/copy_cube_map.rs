@@ -5,7 +5,7 @@ use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
-    PipelinePushConstantCreateInfo
+    PipelinePushConstantData
 };
 use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
@@ -73,8 +73,8 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("blend"),
             _pipeline_compute_shader_file: PathBuf::from("common/blend_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_create_infos: vec![
-                PipelinePushConstantCreateInfo {
+            _push_constant_datas: vec![
+                PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
                     _push_constant_data: Box::new(PushConstant_BlendCubeMap::default())

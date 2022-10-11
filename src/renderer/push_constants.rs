@@ -14,8 +14,6 @@ pub enum PushConstantParameter {
     Float4(Vector4<f32>),
 }
 
-pub const NONE_PUSH_CONSTANT: Option<&()> = None;
-
 pub type PushConstantsMap = HashMap<String, Vec<Box<dyn PushConstant>>>;
 pub trait PushConstant: PushConstantClone + PushConstantSize + Debug {
     fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>);
@@ -39,11 +37,17 @@ impl Clone for Box<dyn PushConstant> {
 
 pub trait PushConstantSize {
     fn get_size(&self) -> u32;
+    fn to_bytes(&self) -> &[u8];
 }
 
 impl<T> PushConstantSize for T {
     fn get_size(&self) -> u32 {
         std::mem::size_of::<T>() as u32
+    }
+    fn to_bytes(&self) -> &[u8] {
+        unsafe {
+            std::slice::from_raw_parts((self as *const T) as *const u8, std::mem::size_of::<T>())
+        }
     }
 }
 

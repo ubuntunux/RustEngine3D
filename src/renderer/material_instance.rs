@@ -6,17 +6,16 @@ use ash::{
 };
 
 use crate::renderer::material::MaterialData;
-use crate::renderer::push_constants::PushConstant;
 use crate::vulkan_context::descriptor::{ DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-use crate::vulkan_context::render_pass::{ RenderPassPipelineData, RenderPassData, PipelineData};
+use crate::vulkan_context::render_pass::{ RenderPassPipelineData, RenderPassData, PipelineData, PipelinePushConstantData };
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
 pub struct PipelineBindingDataCreateInfo {
     pub _render_pass_pipeline_data: RenderPassPipelineData,
     pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
-    pub _push_constant_datas: Vec<Box<dyn PushConstant>>,
+    pub _push_constant_datas: Vec<PipelinePushConstantData>,
 }
 
 #[derive(Clone, Debug)]
@@ -26,7 +25,7 @@ pub struct PipelineBindingData {
     pub _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>>,
     pub _descriptor_set_count: u32,
     pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
-    pub _push_constant_datas: Vec<Box<dyn PushConstant>>
+    pub _push_constant_datas: Vec<PipelinePushConstantData>
 }
 
 type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;

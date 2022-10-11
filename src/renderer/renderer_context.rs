@@ -32,6 +32,7 @@ use crate::renderer::font::FontManager;
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::ui::{ UIManager };
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::renderer_data::RendererData;
 use crate::resource::resource::EngineResources;
 use crate::utilities::system;
@@ -479,7 +480,7 @@ impl RendererContext {
         }
     }
 
-    pub fn dispatch_material_instance<T>(
+    pub fn dispatch_material_instance(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
@@ -489,7 +490,7 @@ impl RendererContext {
         group_count_y: u32,
         group_count_z: u32,
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
-        push_constant_data: Option<&T>,
+        push_constant_data: Option<&dyn PushConstant>,
     ) {
         let engine_resources = self.get_engine_resources();
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data(material_instance_name).borrow();
@@ -498,10 +499,20 @@ impl RendererContext {
         } else {
             material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name)
         };
-        self.dispatch_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, group_count_x, group_count_y, group_count_z, custom_descriptor_sets, push_constant_data);
+
+        self.dispatch_render_pass_pipeline(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            group_count_x,
+            group_count_y,
+            group_count_z,
+            custom_descriptor_sets,
+            push_constant_data
+        );
     }
 
-    pub fn dispatch_render_pass_pipeline<T>(
+    pub fn dispatch_render_pass_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
@@ -510,7 +521,7 @@ impl RendererContext {
         group_count_y: u32,
         group_count_z: u32,
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
-        push_constant_data: Option<&T>,
+        push_constant_data: Option<&dyn PushConstant>,
     ) {
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         self.begin_compute_pipeline(command_buffer, pipeline_data);
@@ -525,7 +536,7 @@ impl RendererContext {
         self.dispatch_compute_pipeline(command_buffer, group_count_x, group_count_y, group_count_z);
     }
 
-    pub fn render_material_instance<T>(
+    pub fn render_material_instance(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
@@ -534,7 +545,7 @@ impl RendererContext {
         geometry_data: &GeometryData,
         custom_framebuffer_data: Option<&FramebufferData>,
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
-        push_constant_data: Option<&T>,
+        push_constant_data: Option<&dyn PushConstant>,
     ) {
         let engine_resources = self.get_engine_resources();
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data(material_instance_name).borrow();
@@ -546,7 +557,7 @@ impl RendererContext {
         self.render_render_pass_pipeline(command_buffer, swapchain_index, pipeline_binding_data, geometry_data, custom_framebuffer_data, custom_descriptor_sets, push_constant_data);
     }
 
-    pub fn render_render_pass_pipeline<T>(
+    pub fn render_render_pass_pipeline(
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
@@ -554,7 +565,7 @@ impl RendererContext {
         geometry_data: &GeometryData,
         custom_framebuffer_data: Option<&FramebufferData>,
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
-        push_constant_data: Option<&T>,
+        push_constant_data: Option<&dyn PushConstant>,
     ) {
         let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
@@ -664,12 +675,19 @@ impl RendererContext {
         }
     }
 
-    pub fn upload_push_constant_data<T>(&self, command_buffer: vk::CommandBuffer, pipeline_data: &PipelineData, push_constant_data: &T) {
-        let constants: &[u8] = system::to_bytes(push_constant_data);
+    pub fn upload_push_constant_data(&self, command_buffer: vk::CommandBuffer, pipeline_data: &PipelineData, push_constant_data: &dyn PushConstant) {
+        let constants: &[u8] = push_constant_data.to_bytes();
         unsafe {
             self._device.cmd_push_constants(command_buffer, pipeline_data._pipeline_layout, vk::ShaderStageFlags::ALL, 0, constants);
         }
     }
+
+    // pub fn upload_push_constant_data2<T>(&self, command_buffer: vk::CommandBuffer, pipeline_data: &PipelineData, push_constant_data: &T) {
+    //     let constants: &[u8] = system::to_bytes(push_constant_data);
+    //     unsafe {
+    //         self._device.cmd_push_constants(command_buffer, pipeline_data._pipeline_layout, vk::ShaderStageFlags::ALL, 0, constants);
+    //     }
+    // }
 
     pub fn dispatch_compute_pipeline(
         &self,

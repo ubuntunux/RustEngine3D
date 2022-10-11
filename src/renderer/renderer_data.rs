@@ -17,7 +17,6 @@ use crate::renderer::renderer_context::{RendererDataBase, RendererContext };
 use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::precomputed_atmosphere::{ Atmosphere, PushConstant_Atmosphere };
 use crate::renderer::push_constants::{
-    NONE_PUSH_CONSTANT,
     PushConstant_RenderObject,
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
@@ -349,16 +348,16 @@ impl RendererDataBase for RendererData {
         }
 
         // clear gbuffer
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, None);
 
         // render shadow
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, None);
         self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow/render_object", &static_shadow_render_elements);
         self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow/render_object", &skeletal_shadow_render_elements);
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
-            renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+            renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, None);
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map/render_object", &static_render_elements);
         }
 
@@ -444,7 +443,7 @@ impl RendererDataBase for RendererData {
         self.render_post_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data, &engine_resources);
 
         // Render Final
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
 
         // Render UI
         ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
@@ -652,7 +651,7 @@ impl RendererData {
         }
     }
 
-    pub fn copy_cube_map<T>(
+    pub fn copy_cube_map(
         &self,
         renderer_context: &RendererContext,
         command_buffer: vk::CommandBuffer,
@@ -661,7 +660,7 @@ impl RendererData {
         render_pass_pipeline_data_name: &str,
         mip_level_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
         image_width: u32,
-        push_constant_data: Option<&T>,
+        push_constant_data: Option<&PushConstant_BlendCubeMap>,
     ) {
         let copy_cube_map_material_instance = engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
         let pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data(render_pass_pipeline_data_name);
@@ -724,7 +723,7 @@ impl RendererData {
             "copy_cube_map/copy",
             &self._light_probe_datas._only_sky_copy_descriptor_sets,
             constants::LIGHT_PROBE_SIZE,
-            NONE_PUSH_CONSTANT
+            None
         );
 
         // render atmosphere, inscatter
@@ -754,7 +753,7 @@ impl RendererData {
                 quad_geometry_data,
                 Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas_only_sky[i]),
                 Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
-                NONE_PUSH_CONSTANT,
+                None,
             );
 
             // downsampling for only sky
@@ -780,7 +779,7 @@ impl RendererData {
                 "copy_cube_map/copy",
                 &self._light_probe_datas._light_probe_forward_copy_descriptor_sets,
                 constants::LIGHT_PROBE_SIZE,
-                NONE_PUSH_CONSTANT
+                None
             );
 
             for i in 0..constants::CUBE_LAYER_COUNT {
@@ -793,7 +792,7 @@ impl RendererData {
                     "clear_light_probe_depth_4/clear",
                     "clear_light_probe_depth_5/clear",
                 ];
-                renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+                renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, None);
 
                 // composite atmosphere
                 renderer_context.render_render_pass_pipeline(
@@ -803,7 +802,7 @@ impl RendererData {
                     quad_geometry_data,
                     Some(&self._light_probe_datas._composite_atmosphere_framebuffer_datas[i]),
                     Some(&self._light_probe_datas._composite_atmosphere_descriptor_sets[i]),
-                    NONE_PUSH_CONSTANT,
+                    None,
                 );
 
                 // render forward for light probe
@@ -1009,7 +1008,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // render_taa
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
 
         // copy SceneColorCopy -> TAAResolve
         let framebuffer = Some(&self._renderer_context_taa._taa_resolve_framebuffer_data);
@@ -1050,7 +1049,7 @@ impl RendererData {
                 quad_geometry_data,
                 Some(&self._renderer_context_bloom._bloom_downsample_framebuffer_datas[i]),
                 Some(&self._renderer_context_bloom._bloom_downsample_descriptor_sets[i]),
-                NONE_PUSH_CONSTANT
+                None
             );
         }
 
@@ -1080,7 +1079,7 @@ impl RendererData {
 
     pub fn render_ssr(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // Screen Space Reflection
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
 
         // Screen Space Reflection Resolve
         let (framebuffer, descriptor_sets) = match self._renderer_context_ssr._current_ssr_resolved {
@@ -1088,12 +1087,12 @@ impl RendererData {
             RenderTargetType::SSRResolvedPrev => (Some(&self._renderer_context_ssr._framebuffer_data1), Some(&self._renderer_context_ssr._descriptor_sets1)),
             _ => panic!("error")
         };
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, None);
     }
 
     pub fn render_ssao(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // render ssao
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, None);
 
         // render ssao blur
         let framebuffer_h = Some(&self._renderer_context_ssao._ssao_blur_framebuffer_data0);
@@ -1118,14 +1117,14 @@ impl RendererData {
             RenderTargetType::SSRResolvedPrev => Some(&self._renderer_context_composite_gbuffer._descriptor_sets1),
             _ => panic!("error")
         };
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, None);
     }
 
     pub fn generate_min_z(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         let engine_resources = renderer_context.get_engine_resources();
 
         // Copy Scene Depth
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, None);
 
         // Generate Hierachical Min Z
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/generate_min_z").borrow();
@@ -1202,6 +1201,6 @@ impl RendererData {
         self.render_bloom(command_buffer, swapchain_index, quad_geometry_data, renderer_context, engine_resources);
 
         // Motion Blur
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_motion_blur", DEFAULT_PIPELINE, &quad_geometry_data, None, None, NONE_PUSH_CONSTANT);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_motion_blur", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
     }
 }
