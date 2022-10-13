@@ -42,8 +42,7 @@ pub struct RenderObjectData {
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
     pub _animation_play_info: Option<AnimationPlayInfo>,
-    pub _bone_count: usize,
-    pub _transform_matrix_offset: usize,
+    pub _bone_count: usize
 }
 
 #[derive(Clone, Debug)]
@@ -154,8 +153,7 @@ impl RenderObjectData {
             _transform_object: transform_object_data,
             _push_constant_datas_group: push_constant_datas_group,
             _animation_play_info: None,
-            _bone_count: 0,
-            _transform_matrix_offset: 0,
+            _bone_count: 0
         };
 
         render_object_data.initialize_animation_play_info(has_animation_data);
@@ -190,6 +188,10 @@ impl RenderObjectData {
         &self._model_data
     }
 
+    pub fn get_push_constant_datas(&self, model_index: usize) -> &Vec<PipelinePushConstantData> {
+        &self._push_constant_datas_group[model_index]
+    }
+
     pub fn get_transform_object_data(&self) -> &TransformObjectData {
         &self._transform_object
     }
@@ -200,14 +202,6 @@ impl RenderObjectData {
 
     pub fn get_bone_count(&self) -> usize {
         self._bone_count
-    }
-
-    pub fn get_transform_matrix_offset(&self) -> usize {
-        self._transform_matrix_offset
-    }
-
-    pub fn set_transform_matrix_offset(&mut self, offset: usize) {
-        self._transform_matrix_offset = offset;
     }
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {

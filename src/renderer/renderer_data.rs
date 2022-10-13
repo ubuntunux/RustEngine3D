@@ -4,7 +4,7 @@ use std::cell::{ Ref, RefMut };
 use std::vec::Vec;
 
 use ash::{ vk, Device };
-use nalgebra::{ Vector2, Vector4, Matrix4 };
+use nalgebra::{Vector2, Matrix4};
 
 use crate::constants;
 use crate::application::scene_manager::ProjectSceneManagerBase;
@@ -17,7 +17,6 @@ use crate::renderer::renderer_context::{RendererDataBase, RendererContext };
 use crate::renderer::fft_ocean::FFTOcean;
 use crate::renderer::precomputed_atmosphere::{ Atmosphere, PushConstant_Atmosphere };
 use crate::renderer::push_constants::{
-    PushConstant_RenderObject,
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
     PushConstant_RenderDebug,
@@ -50,6 +49,7 @@ use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, PipelineData };
 use crate::vulkan_context::texture::{ self, TextureData };
 use crate::vulkan_context::vulkan_context::{ self, SwapchainArray, MipLevels };
+use crate::utilities::system::ptr_as_ref;
 
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
@@ -853,8 +853,8 @@ impl RendererData {
             let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
-                let render_object = render_element._render_object.borrow();
                 let material_instance = render_element._material_instance_data.borrow();
+                let push_constant_datas = ptr_as_ref(render_element._push_constant_datas);
                 let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
                 let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
                 let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
@@ -875,16 +875,13 @@ impl RendererData {
                 }
 
                 // update push constants
-                renderer_context.upload_push_constant_data(
-                    command_buffer,
-                    pipeline_data,
-                    &PushConstant_RenderObject {
-                        _transform_matrix_offset: render_object.get_transform_matrix_offset() as u32,
-                        _bone_count: render_object.get_bone_count() as u32,
-                        _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
-                        ..Default::default()
-                    }
-                );
+                for push_constant_data in push_constant_datas.iter() {
+                    renderer_context.upload_push_constant_data(
+                        command_buffer,
+                        pipeline_data,
+                        push_constant_data._push_constant.as_ref()
+                    );
+                }
                 renderer_context.draw_elements(command_buffer, &render_element._geometry_data.borrow());
             }
             renderer_context.end_render_pass(command_buffer);

@@ -7,6 +7,7 @@ use serde_json;
 use crate::utilities::json::get_json_vector4;
 
 pub enum PushConstantParameter {
+    None,
     Int(i32),
     Float(f32),
     Float2(Vector2<f32>),
@@ -16,7 +17,15 @@ pub enum PushConstantParameter {
 
 pub type PushConstantsMap = HashMap<String, Vec<Box<dyn PushConstant>>>;
 pub trait PushConstant: PushConstantClone + PushConstantSize + Debug {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>);
+    fn get_push_constant_parameter(&self, _key: &str) -> PushConstantParameter {
+        panic!("Not implemented.")
+    }
+    fn set_push_constant_parameter(&mut self, _key: &str, _value: &PushConstantParameter) {
+        panic!("Not implemented.")
+    }
+    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+        panic!("Not implemented.")
+    }
 }
 
 pub trait PushConstantClone {
@@ -75,6 +84,20 @@ impl Default for PushConstant_RenderObject {
 }
 
 impl PushConstant for PushConstant_RenderObject {
+    fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
+        if "_transform_matrix_offset" == key {
+            if let PushConstantParameter::Int(transform_matrix_offset) = value {
+                self._transform_matrix_offset = *transform_matrix_offset as u32;
+            }
+        } else if "_bone_count" == key {
+            if let PushConstantParameter::Int(bone_count) = value {
+                self._bone_count = *bone_count as u32;
+            }
+        } else {
+            panic!("Not implemented for {:?}", key);
+        }
+    }
+
     fn update_push_constant(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
         get_json_vector4(material_parameters, "_color", &mut self._color);
     }

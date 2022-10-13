@@ -77,7 +77,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant_data: Box::new(PushConstant_BlendCubeMap::default())
+                    _push_constant: Box::new(PushConstant_BlendCubeMap::default())
                 }
             ],
             _descriptor_data_create_infos: vec![

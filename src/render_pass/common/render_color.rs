@@ -87,7 +87,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant_data: Box::new(PushConstant_RenderColor::default())
+                    _push_constant: Box::new(PushConstant_RenderColor::default())
                 }
             ],
             ..Default::default()

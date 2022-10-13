@@ -86,7 +86,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant_data: Box::new(PushConstant_BloomHighlight::default())
+                    _push_constant: Box::new(PushConstant_BloomHighlight::default())
                 }
             ],
             _descriptor_data_create_infos: vec![

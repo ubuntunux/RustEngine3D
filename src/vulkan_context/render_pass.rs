@@ -128,7 +128,7 @@ impl Default for PipelineDataCreateInfo {
 pub struct PipelinePushConstantData {
     pub _stage_flags: vk::ShaderStageFlags,
     pub _offset: u32,
-    pub _push_constant_data: Box<dyn PushConstant>
+    pub _push_constant: Box<dyn PushConstant>
 }
 
 #[derive(Clone, Debug)]
@@ -436,7 +436,7 @@ pub fn create_pipeline_layout(
             vk::PushConstantRange {
                 stage_flags: push_constant_data._stage_flags,
                 offset: push_constant_data._offset,
-                size: push_constant_data._push_constant_data.as_ref().get_size(),
+                size: push_constant_data._push_constant.as_ref().get_size(),
             }
         }).collect();
 
