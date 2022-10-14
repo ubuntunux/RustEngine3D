@@ -32,10 +32,9 @@ use crate::resource::texture_generator;
 use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
-use crate::vulkan_context::render_pass::{ self, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
+use crate::vulkan_context::render_pass::{ self, RenderPassDataCreateInfo, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
-use crate::utilities::system::{ self, RcRefCell, newRcRefCell };
-
+use crate::utilities::system::{ self, RcRefCell, newRcRefCell, ptr_as_ref };
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -147,13 +146,15 @@ pub type MeshDataMap = ResourceDataMap<MeshData>;
 pub type ModelDataMap = ResourceDataMap<ModelData>;
 pub type TextureDataMap = ResourceDataMap<TextureData>;
 pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
+pub type RenderPassDataCreateInfoMap = HashMap<String, RenderPassDataCreateInfo>;
 pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 
 
 pub trait ProjectResourcesBase {
-    fn initialize_project_resources(&mut self, engine_resources: &EngineResources, renderer_context: &RendererContext);
+    fn initialize_project_resources(&mut self, engine_resources: &EngineResources);
+    fn load_project_resources(&mut self, renderer_context: &RendererContext);
     fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
     fn load_graphics_datas(&mut self, renderer_context: &RendererContext);
     fn unload_graphics_datas(&mut self, renderer_context: &RendererContext);
@@ -192,6 +193,7 @@ pub struct EngineResources {
     pub _texture_data_map: TextureDataMap,
     pub _framebuffer_datas_map: FramebufferDatasMap,
     pub _render_pass_data_map: RenderPassDataMap,
+    pub _render_pass_data_create_info_map: RenderPassDataCreateInfoMap,
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
     pub _descriptor_data_map: DescriptorDataMap
@@ -319,6 +321,7 @@ impl EngineResources {
             _texture_data_map: TextureDataMap::new(),
             _framebuffer_datas_map: FramebufferDatasMap::new(),
             _render_pass_data_map: RenderPassDataMap::new(),
+            _render_pass_data_create_info_map: RenderPassDataCreateInfoMap::new(),
             _material_data_map: MaterialDataMap::new(),
             _material_instance_data_map: MaterialInstanceDataMap::new(),
             _descriptor_data_map: DescriptorDataMap::new(),
@@ -452,11 +455,13 @@ impl EngineResources {
 
     pub fn initialize_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("initialize_engine_resources");
-        let is_reload: bool = false;
+        self.get_project_resources_mut().initialize_project_resources(self);
 
         // load engine resources
+        let is_reload: bool = false;
         self.load_texture_datas(renderer_context);
         self.load_font_datas(renderer_context);
+        self.load_render_pass_data_create_infos(renderer_context);
         self.load_render_pass_datas(renderer_context);
         self.load_framebuffer_datas(renderer_context);
         self.load_material_datas();
@@ -467,7 +472,7 @@ impl EngineResources {
         self.load_effect_datas();
 
         // load project resources
-        self.get_project_resources_mut().initialize_project_resources(self, renderer_context);
+        self.get_project_resources_mut().load_project_resources(renderer_context);
         log::info!("Done - initialize_engine_resources");
     }
 
@@ -1237,10 +1242,9 @@ impl EngineResources {
     // Framebuffer
     pub fn load_framebuffer_datas(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_framebuffer_datas");
-        let render_pass_data_create_infos = renderer_context.get_render_pass_data_create_infos();
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
-            for render_pass_data_create_info in render_pass_data_create_infos.iter() {
+            for (_key, render_pass_data_create_info) in self._render_pass_data_create_info_map.iter() {
                 if render_pass_data_create_info._render_pass_create_info_name == render_pass_data._render_pass_data_name {
                     if render_pass_data_create_info._render_pass_framebuffer_create_info.is_valid() {
                         let framebuffer_data = framebuffer::create_framebuffer_data(
@@ -1272,16 +1276,29 @@ impl EngineResources {
         get_resource_data_must(&self._framebuffer_datas_map, resource_name)
     }
 
-    // RenderPassLoader
-    pub fn load_render_pass_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("    load_render_pass_datas");
+    // render pass data create info
+    pub fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext) {
         let render_pass_data_create_infos = renderer_context.get_render_pass_data_create_infos();
         for render_pass_data_create_info in render_pass_data_create_infos.iter() {
-            let descriptor_datas = render_pass_data_create_info._pipeline_data_create_infos
-                .iter()
-                .map(|pipeline_data_create_info| {
+            self._render_pass_data_create_info_map.insert(
+                render_pass_data_create_info._render_pass_create_info_name.clone(),
+                render_pass_data_create_info.clone()
+            );
+        }
+    }
+
+    // render pass data
+    pub fn load_render_pass_datas(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_render_pass_datas");
+
+        let render_pass_data_create_info_map = ptr_as_ref(&self._render_pass_data_create_info_map);
+        for (_key, render_pass_data_create_info) in render_pass_data_create_info_map.iter() {
+            let mut descriptor_datas: Vec<RcRefCell<DescriptorData>> = Vec::new();
+            for pipeline_data_create_info in render_pass_data_create_info._pipeline_data_create_infos.iter() {
+                descriptor_datas.push(
                     self.get_descriptor_data(renderer_context, &render_pass_data_create_info._render_pass_create_info_name, pipeline_data_create_info)
-                }).collect();
+                );
+            }
             let default_render_pass_data = render_pass::create_render_pass_data(
                 renderer_context,
                 render_pass_data_create_info,
