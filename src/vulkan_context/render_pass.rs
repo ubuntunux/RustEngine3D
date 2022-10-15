@@ -59,6 +59,17 @@ impl Default for RenderPassDataCreateInfo {
     }
 }
 
+impl RenderPassDataCreateInfo {
+    pub fn get_pipeline_data_create_info_clone(&self, key: &str) -> PipelineDataCreateInfo {
+        for pipeline_data_create_info in self._pipeline_data_create_infos.iter() {
+            if key == pipeline_data_create_info._pipeline_data_create_info_name {
+                return pipeline_data_create_info.clone();
+            }
+        }
+        panic!("Not found pipeline_data_create_info: {:?}", key)
+    }
+}
+
 #[derive(Clone, Debug)]
 pub struct PipelineDataCreateInfo {
     pub _pipeline_data_create_info_name: String,

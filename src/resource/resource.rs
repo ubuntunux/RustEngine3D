@@ -34,7 +34,7 @@ use crate::vulkan_context::framebuffer::{self, FramebufferData };
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ self, RenderPassDataCreateInfo, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
-use crate::utilities::system::{ self, RcRefCell, newRcRefCell, ptr_as_ref };
+use crate::utilities::system::{ self, RcRefCell, newRcRefCell, ptr_as_ref, ptr_as_mut };
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -158,6 +158,7 @@ pub trait ProjectResourcesBase {
     fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
     fn load_graphics_datas(&mut self, renderer_context: &RendererContext);
     fn unload_graphics_datas(&mut self, renderer_context: &RendererContext);
+    fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext, render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap);
     fn regist_resource(&mut self);
     fn unregist_resource(&mut self);
     fn has_audio_data(&self, resource_name: &str) -> bool;
@@ -1285,6 +1286,9 @@ impl EngineResources {
                 render_pass_data_create_info.clone()
             );
         }
+
+        let project_resources = ptr_as_mut(self._project_resources);
+        project_resources.load_render_pass_data_create_infos(renderer_context, &mut self._render_pass_data_create_info_map);
     }
 
     // render pass data
