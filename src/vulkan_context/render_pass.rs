@@ -28,6 +28,11 @@ use crate::utilities::system::{ RcRefCell, newRcRefCell };
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::push_constants::PushConstant;
 
+pub fn get_render_pass_pipeline_data_name(render_pass_data_name: &str, pipeline_data_name: &str) -> String {
+    format!("{}/{}", render_pass_data_name, pipeline_data_name)
+}
+
+
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
     pub _render_pass_data: RcRefCell<RenderPassData>,

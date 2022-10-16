@@ -1,5 +1,6 @@
 use serde_json;
 use crate::vulkan_context::render_pass::{
+    get_render_pass_pipeline_data_name,
     RenderPassPipelineData,
     RenderPassPipelineDataMap,
 };
@@ -27,10 +28,9 @@ impl MaterialData {
         for maybe_render_pass_pipeline_data in render_pass_pipeline_datas.iter() {
             if maybe_render_pass_pipeline_data.is_some() {
                 let render_pass_pipeline_data = maybe_render_pass_pipeline_data.as_ref().unwrap();
-                let render_pass_pipeline_data_name = format!(
-                    "{}/{}",
-                    render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
-                    render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name
+                let render_pass_pipeline_data_name = get_render_pass_pipeline_data_name(
+                    &render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
+                    &render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name
                 );
                 log::trace!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
                 render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name.clone(), render_pass_pipeline_data.clone());

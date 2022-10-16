@@ -1,14 +1,15 @@
 use std::collections::HashMap;
-
-use ash::{
-    vk,
-    Device,
-};
-
+use ash::{vk, Device};
 use crate::renderer::material::MaterialData;
 use crate::vulkan_context::descriptor::{ DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-use crate::vulkan_context::render_pass::{ RenderPassPipelineData, RenderPassData, PipelineData, PipelinePushConstantData };
+use crate::vulkan_context::render_pass::{
+    get_render_pass_pipeline_data_name,
+    RenderPassPipelineData,
+    RenderPassData,
+    PipelineData,
+    PipelinePushConstantData
+};
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
@@ -75,7 +76,7 @@ impl MaterialInstanceData {
         for pipeline_bind_create_info in pipeline_bind_create_infos {
             let render_pass_name = &pipeline_bind_create_info._render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name;
             let pipeline_name = &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name;
-            let render_pass_pipeline_data_name = format!("{}/{}", render_pass_name.clone(), pipeline_name.clone());
+            let render_pass_pipeline_data_name = get_render_pass_pipeline_data_name(render_pass_name, pipeline_name);
 
             if default_pipeline_binding_name.is_empty() {
                 default_pipeline_binding_name = render_pass_pipeline_data_name.clone();

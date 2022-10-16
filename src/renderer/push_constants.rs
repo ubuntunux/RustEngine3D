@@ -4,7 +4,7 @@ use ash::{ vk };
 use nalgebra::{ Vector2, Vector3, Vector4 };
 use serde::{ Serialize, Deserialize };
 use serde_json;
-use crate::utilities::json::get_json_vector4;
+use crate::utilities::json::convert_json_value_to_push_constant_parameter;
 
 pub enum PushConstantParameter {
     None,
@@ -24,7 +24,11 @@ pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName 
         panic!("Not implemented.")
     }
 
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+    fn update_material_parameters(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+        // ex)
+        // if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
+        //     self._color = value;
+        // }
     }
 }
 
@@ -92,6 +96,7 @@ impl PushConstantName for PushConstant_RenderObject {
         "PushConstant_RenderObject"
     }
 }
+
 impl PushConstant for PushConstant_RenderObject {
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
         if "_transform_matrix_offset" == key {
@@ -107,8 +112,10 @@ impl PushConstant for PushConstant_RenderObject {
         }
     }
 
-    fn update_push_constant(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
-        get_json_vector4(material_parameters, "_color", &mut self._color);
+    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
+        if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
+            self._color = value;
+        }
     }
 }
 

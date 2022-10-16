@@ -1485,7 +1485,7 @@ impl EngineResources {
                 // update push constant
                 let mut push_constant_datas = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_datas.clone();
                 for push_constant_data in push_constant_datas.iter_mut() {
-                    push_constant_data._push_constant.update_push_constant(&material_parameters);
+                    push_constant_data._push_constant.update_material_parameters(&material_parameters);
                 }
 
                 // create PipelineBindingDataCreateInfo
