@@ -4,15 +4,7 @@
 
 #include "../common/scene_constants.glsl"
 #include "../common/render_quad_common.glsl"
-
-layout( push_constant ) uniform PushConstant_FFT_Init
-{
-    vec4 _inverse_grid_sizes;
-    float _fft_size;
-    float _t;
-    int _reserved0;
-    int _reserved1;
-} pushConstant;
+#include "common_fft_ocean.glsl"
 
 layout(binding = 0) uniform sampler2D texture_spectrum_1_2;
 layout(binding = 1) uniform sampler2D texture_spectrum_3_4;
@@ -40,15 +32,16 @@ vec2 i(vec2 z)
 
 void main()
 {
+    const float fft_size = pushConstant._fft_size;
     vec2 uv = vs_output.texCoord;
-    vec2 st = floor(uv * pushConstant._fft_size) / pushConstant._fft_size;
+    vec2 st = floor(uv * fft_size) / fft_size;
     float x = uv.x > 0.5 ? st.x - 1.0 : st.x;
     float y = uv.y > 0.5 ? st.y - 1.0 : st.y;
 
     vec4 s12 = textureLod(texture_spectrum_1_2, uv, 0.0);
     vec4 s34 = textureLod(texture_spectrum_3_4, uv, 0.0);
-    vec4 s12c = textureLod(texture_spectrum_1_2, vec2(1.0 + 0.5 / pushConstant._fft_size) - st, 0.0);
-    vec4 s34c = textureLod(texture_spectrum_3_4, vec2(1.0 + 0.5 / pushConstant._fft_size) - st, 0.0);
+    vec4 s12c = textureLod(texture_spectrum_1_2, vec2(1.0 + 0.5 / fft_size) - st, 0.0);
+    vec4 s34c = textureLod(texture_spectrum_3_4, vec2(1.0 + 0.5 / fft_size) - st, 0.0);
 
     vec2 k1 = vec2(x, y) * pushConstant._inverse_grid_sizes.x;
     vec2 k2 = vec2(x, y) * pushConstant._inverse_grid_sizes.y;

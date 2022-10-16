@@ -1,4 +1,5 @@
 #include "../precomputed_atmosphere/atmosphere_predefined.glsl"
+#include "common_fft_ocean.glsl"
 
 layout(binding = 0) uniform SceneConstants
 {
@@ -28,18 +29,6 @@ layout(binding = 12) uniform sampler2D transmittance_texture;
 layout(binding = 13) uniform sampler2D irradiance_texture;
 layout(binding = 14) uniform sampler3D scattering_texture;
 layout(binding = 15) uniform sampler3D single_mie_scattering_texture;
-
-layout( push_constant ) uniform PushConstant_FFT_Ocean
-{
-    vec4 _simulation_size;
-    vec2 _cell_size;
-    float _simulation_wind;
-    float _simulation_amplitude;
-    float _t;
-    int _reserved0;
-    int _reserved1;
-    int _reserved2;
-} pushConstant;
 
 struct VERTEX_OUTPUT
 {

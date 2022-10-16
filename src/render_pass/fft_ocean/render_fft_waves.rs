@@ -17,7 +17,7 @@ use crate::vulkan_context::descriptor::{
 };
 use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
-use crate::renderer::fft_ocean::PushConstant_FFT_Waves;
+use crate::renderer::fft_ocean::PushConstant_FFT_Ocean;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
@@ -84,7 +84,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant: Box::new(PushConstant_FFT_Waves::default())
+                    _push_constant: Box::new(PushConstant_FFT_Ocean::default())
                 }
             ],
             _descriptor_data_create_infos: vec![
@@ -123,7 +123,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant: Box::new(PushConstant_FFT_Waves::default())
+                    _push_constant: Box::new(PushConstant_FFT_Ocean::default())
                 }
             ],
             _descriptor_data_create_infos: vec![

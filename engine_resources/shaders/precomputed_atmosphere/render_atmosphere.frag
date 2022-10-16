@@ -5,16 +5,9 @@
 #include "../common/scene_constants.glsl"
 #include "../common/blending.glsl"
 #include "../common/utility.glsl"
+#include "precomputed_atmosphere_common.glsl"
 #include "atmosphere_common.glsl"
 #include "render_atmosphere_common.glsl"
-
-layout( push_constant ) uniform PushConstant_Atmosphere
-{
-    int render_light_probe_mode;
-    int reserved0;
-    int reserved1;
-    int reserved2;
-} pushConstants;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -40,7 +33,7 @@ void main()
     out_color = vec4(0.0, 0.0, 0.0, 1.0);
     out_inscatter = vec4(0.0, 0.0, 0.0, 1.0);
 
-    const bool is_render_light_probe_mode = 0 != pushConstants.render_light_probe_mode;
+    const bool is_render_light_probe_mode = 0 != pushConstant._render_light_probe_mode;
     const float min_dist = 1000.0;
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
 

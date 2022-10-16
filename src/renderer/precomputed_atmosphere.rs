@@ -212,30 +212,12 @@ pub enum Luminance {
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
-pub struct PushConstant_Atmosphere {
-    pub _render_light_probe_mode: i32,
-    pub _reserved0: i32,
-    pub _reserved1: i32,
-    pub _reserved2: i32,
-}
-
-impl PushConstantName for PushConstant_Atmosphere {
-    fn get_push_constant_name(&self) -> &str {
-        "PushConstant_Atmosphere"
-    }
-}
-
-impl PushConstant for PushConstant_Atmosphere {
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
 pub struct PushConstant_PrecomputedAtmosphere {
     pub _luminance_from_radiance: Matrix3<f32>,
     pub _luminance_from_radiance_reserved: [f32; 3],
     pub _scattering_order: i32,
     pub _layer: i32,
-    pub _reserved0: i32,
+    pub _render_light_probe_mode: i32,
 }
 
 impl PushConstantName for PushConstant_PrecomputedAtmosphere {
@@ -626,7 +608,7 @@ impl AtmosphereModel {
             _luminance_from_radiance_reserved: [0.0, 0.0, 0.0],
             _scattering_order: 0,
             _layer: 0,
-            _reserved0: 0,
+            _render_light_probe_mode: 0,
         };
 
         // compute_transmittance
@@ -964,7 +946,7 @@ impl Atmosphere {
             quad_geometry_data,
             None,
             None,
-            Some(&PushConstant_Atmosphere {
+            Some(&PushConstant_PrecomputedAtmosphere {
                 _render_light_probe_mode: if render_light_probe_mode { 1 } else { 0 },
                 ..Default::default()
             }),

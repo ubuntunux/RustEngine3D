@@ -4,14 +4,7 @@
 
 #include "../common/scene_constants.glsl"
 #include "../common/render_quad_common.glsl"
-
-layout( push_constant ) uniform PushConstant_FFT_Waves
-{
-    float _pass;
-    int _reserved0;
-    int _reserved1;
-    int _reserved2;
-} pushConstant;
+#include "common_fft_ocean.glsl"
 
 layout(binding = 0) uniform sampler2D texture_butterfly;
 layout(binding = 1) uniform sampler2DArray texture_fft; // 2 complex inputs (= 4 values) per layer

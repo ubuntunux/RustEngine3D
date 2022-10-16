@@ -15,7 +15,7 @@ use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceD
 use crate::renderer::render_element::RenderElementData;
 use crate::renderer::renderer_context::{RendererDataBase, RendererContext };
 use crate::renderer::fft_ocean::FFTOcean;
-use crate::renderer::precomputed_atmosphere::{ Atmosphere, PushConstant_Atmosphere };
+use crate::renderer::precomputed_atmosphere::{ Atmosphere, PushConstant_PrecomputedAtmosphere };
 use crate::renderer::push_constants::{
     PushConstant_GaussianBlur,
     PushConstant_RenderCopy,
@@ -708,7 +708,7 @@ impl RendererData {
             ShaderBufferDataType::LightProbeViewConstants4,
             ShaderBufferDataType::LightProbeViewConstants5,
         ];
-        let render_atmosphere_push_constants = PushConstant_Atmosphere {
+        let render_atmosphere_push_constants = PushConstant_PrecomputedAtmosphere {
             _render_light_probe_mode: 1,
             ..Default::default()
         };

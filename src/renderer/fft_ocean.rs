@@ -41,71 +41,21 @@ const DEFAULT_FFT_SEED: i32 = 1234;
 
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
-pub struct PushConstant_FFT_Waves {
-    pub _pass: f32,
-    pub _reserved0: i32,
-    pub _reserved1: i32,
-    pub _reserved2: i32,
-}
-
-impl PushConstantName for PushConstant_FFT_Waves {
-    fn get_push_constant_name(&self) -> &str {
-        "PushConstant_FFT_Waves"
-    }
-}
-
-impl PushConstant for PushConstant_FFT_Waves {
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
-pub struct PushConstant_FFT_Init {
-    pub _inverse_grid_sizes: [f32; 4],
-    pub _fft_size: f32,
-    pub _t: f32,
-    pub _reserved0: i32,
-    pub _reserved1: i32,
-}
-
-impl PushConstantName for PushConstant_FFT_Init {
-    fn get_push_constant_name(&self) -> &str {
-        "PushConstant_FFT_Init"
-    }
-}
-
-impl PushConstant for PushConstant_FFT_Init {
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
-pub struct PushConstant_FFT_Variance {
-    pub _grid_sizes: [f32; 4],
-    pub _n_slope_variance: f32,
-    pub _fft_size: i32,
-    pub _slope_variance_delta: f32,
-    pub _c: f32,
-}
-
-impl PushConstantName for PushConstant_FFT_Variance {
-    fn get_push_constant_name(&self) -> &str {
-        "PushConstant_FFT_Variance"
-    }
-}
-
-impl PushConstant for PushConstant_FFT_Variance {
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Ocean {
+    pub _grid_sizes: [f32; 4],
+    pub _inverse_grid_sizes: [f32; 4],
     pub _simulation_size: [f32; 4],
     pub _cell_size: [f32; 2],
     pub _simulation_wind: f32,
     pub _simulation_amplitude: f32,
     pub _t: f32,
+    pub _fft_size: i32,
+    pub _pass: f32,
+    pub _n_slope_variance: f32,
+    pub _slope_variance_delta: f32,
+    pub _c: f32,
     pub _reserved0: i32,
     pub _reserved1: i32,
-    pub _reserved2: i32,
 }
 
 impl PushConstantName for PushConstant_FFT_Ocean {
@@ -549,12 +499,13 @@ impl FFTOcean {
         let material_instance_data = engine_resources.get_material_instance_data("fft_ocean/render_fft_ocean").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_variance/render_fft_variance");
         let framebuffer_count = self._fft_variance_framebuffers.len();
-        let mut push_constants = PushConstant_FFT_Variance {
+        let mut push_constants = PushConstant_FFT_Ocean {
             _grid_sizes: GRID_SIZES,
             _n_slope_variance: N_SLOPE_VARIANCE as f32,
             _fft_size: FFT_SIZE,
             _slope_variance_delta: ((self._theoretic_slope_variance - self._total_slope_variance) * 0.5) as f32,
             _c: 0.0,
+            ..Default::default()
         };
 
         for i in 0..framebuffer_count {
@@ -592,9 +543,9 @@ impl FFTOcean {
 
         // fft init
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_init/render_fft_init");
-        let push_constants = PushConstant_FFT_Init {
+        let push_constants = PushConstant_FFT_Ocean {
             _inverse_grid_sizes: INVERSE_GRID_SIZES,
-            _fft_size: FFT_SIZE as f32,
+            _fft_size: FFT_SIZE,
             _t: self._acc_time * self._simulation_wind,
             ..Default::default()
         };
@@ -602,7 +553,7 @@ impl FFTOcean {
 
         // fft wave x
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_waves/render_fft_x");
-        let mut push_constants = PushConstant_FFT_Waves {
+        let mut push_constants = PushConstant_FFT_Ocean {
             _pass: 0.0,
             ..Default::default()
         };

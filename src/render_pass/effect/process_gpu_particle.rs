@@ -12,7 +12,7 @@ use crate::vulkan_context::descriptor::{
     DescriptorResourceType,
 };
 
-use crate::effect::effect_manager::{PushConstant_ComputeGpuParticleCount, PushConstant_UpdateGpuParticle };
+use crate::effect::effect_manager::PushConstant_UpdateGpuParticle;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
@@ -29,7 +29,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
-                    _push_constant: Box::new(PushConstant_ComputeGpuParticleCount::default())
+                    _push_constant: Box::new(PushConstant_UpdateGpuParticle::default())
                 }
             ],
             _descriptor_data_create_infos: vec![

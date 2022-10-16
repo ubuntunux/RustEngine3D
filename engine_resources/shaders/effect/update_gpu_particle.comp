@@ -37,14 +37,6 @@ layout(binding = 8) buffer GpuParticleUpdateBuffer
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
 
-layout( push_constant ) uniform PushConstant_UpdateGpuParticle
-{
-    int _process_particle_count;
-    int _dispatch_count;
-    int _reserved0;
-    int _reserved1;
-} pushConstant;
-
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
 

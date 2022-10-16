@@ -93,29 +93,11 @@ pub struct GpuParticleUpdateBufferData {
 // push constants
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
-pub struct PushConstant_ComputeGpuParticleCount {
-    pub _process_emitter_count: i32,
-    pub _dispatch_count: i32,
-    pub _reserved0: i32,
-    pub _reserved1: i32,
-}
-
-impl PushConstantName for PushConstant_ComputeGpuParticleCount {
-    fn get_push_constant_name(&self) -> &str {
-        "PushConstant_ComputeGpuParticleCount"
-    }
-}
-
-impl PushConstant for PushConstant_ComputeGpuParticleCount {
-}
-
-#[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
 pub struct PushConstant_UpdateGpuParticle {
+    pub _process_emitter_count: i32,
     pub _process_particle_count: i32,
     pub _dispatch_count: i32,
     pub _reserved0: i32,
-    pub _reserved1: i32,
 }
 
 impl PushConstantName for PushConstant_UpdateGpuParticle {
@@ -303,11 +285,10 @@ impl EffectManager {
             1,
             1,
             None,
-            Some(&PushConstant_ComputeGpuParticleCount {
+            Some(&PushConstant_UpdateGpuParticle {
                 _process_emitter_count: 0,
                 _dispatch_count: dispatch_count,
-                _reserved0: 0,
-                _reserved1: 0,
+                ..Default::default()
             }),
         );
 
@@ -325,8 +306,7 @@ impl EffectManager {
             Some(&PushConstant_UpdateGpuParticle {
                 _process_particle_count: 0,
                 _dispatch_count: dispatch_count,
-                _reserved0: 0,
-                _reserved1: 0,
+                ..Default::default()
             }),
         );
     }
@@ -514,11 +494,10 @@ impl EffectManager {
                 1,
                 1,
                 None,
-                Some(&PushConstant_ComputeGpuParticleCount {
+                Some(&PushConstant_UpdateGpuParticle {
                     _process_emitter_count: process_emitter_count,
                     _dispatch_count: dispatch_count,
-                    _reserved0: 0,
-                    _reserved1: 0,
+                    ..Default::default()
                 }),
             );
 
@@ -561,8 +540,7 @@ impl EffectManager {
                 Some(&PushConstant_UpdateGpuParticle {
                     _process_particle_count: process_gpu_particle_count,
                     _dispatch_count: dispatch_count,
-                    _reserved0: 0,
-                    _reserved1: 0,
+                    ..Default::default()
                 }),
             );
 

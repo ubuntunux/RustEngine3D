@@ -4,15 +4,7 @@
 
 #include "../common/scene_constants.glsl"
 #include "../common/render_quad_common.glsl"
-
-layout( push_constant ) uniform PushConstant_FFT_Variance
-{
-    vec4 _grid_sizes;
-    float _n_slope_variance;
-    int _fft_size;
-    float _slope_variance_delta;
-    float _c;
-} pushConstant;
+#include "common_fft_ocean.glsl"
 
 layout(binding = 0) uniform sampler2D texture_spectrum_1_2;
 layout(binding = 1) uniform sampler2D texture_spectrum_3_4;
