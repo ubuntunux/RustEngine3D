@@ -5,7 +5,7 @@ use ash::{ vk, Device };
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::push_constants::PushConstant;
+use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
@@ -48,9 +48,13 @@ pub struct PushConstant_FFT_Waves {
     pub _reserved2: i32,
 }
 
-impl PushConstant for PushConstant_FFT_Waves {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_FFT_Waves {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_FFT_Waves"
     }
+}
+
+impl PushConstant for PushConstant_FFT_Waves {
 }
 
 #[allow(non_camel_case_types)]
@@ -63,9 +67,13 @@ pub struct PushConstant_FFT_Init {
     pub _reserved1: i32,
 }
 
-impl PushConstant for PushConstant_FFT_Init {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_FFT_Init {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_FFT_Init"
     }
+}
+
+impl PushConstant for PushConstant_FFT_Init {
 }
 
 #[allow(non_camel_case_types)]
@@ -78,9 +86,13 @@ pub struct PushConstant_FFT_Variance {
     pub _c: f32,
 }
 
-impl PushConstant for PushConstant_FFT_Variance {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_FFT_Variance {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_FFT_Variance"
     }
+}
+
+impl PushConstant for PushConstant_FFT_Variance {
 }
 
 #[allow(non_camel_case_types)]
@@ -96,9 +108,13 @@ pub struct PushConstant_FFT_Ocean {
     pub _reserved2: i32,
 }
 
-impl PushConstant for PushConstant_FFT_Ocean {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_FFT_Ocean {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_FFT_Ocean"
     }
+}
+
+impl PushConstant for PushConstant_FFT_Ocean {
 }
 
 pub struct FFTOcean {

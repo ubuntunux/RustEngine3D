@@ -35,6 +35,7 @@ pub struct MaterialInstanceData {
     pub _material_instance_data_name: String,
     pub _material_data: RcRefCell<MaterialData>,
     pub _material_parameters: serde_json::Map<String, serde_json::Value>,
+    pub _render_pass_pipeline_data_names_map: HashMap<String, Vec<String>>,
     pub _pipeline_binding_data_map: PipelineBindingDataMap,
     pub _default_pipeline_binding_name: String,
 }
@@ -68,14 +69,13 @@ impl MaterialInstanceData {
     ) -> MaterialInstanceData {
         log::debug!("create_material_instance: {}", material_instance_data_name);
         log::trace!("    material_data: {}", material_data.borrow()._material_data_name);
+        let mut render_pass_pipeline_data_names_map: HashMap<String, Vec<String>> = HashMap::new();
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
         let mut default_pipeline_binding_name = String::new();
         for pipeline_bind_create_info in pipeline_bind_create_infos {
-            let render_pass_pipeline_data_name = format!(
-                "{}/{}",
-                pipeline_bind_create_info._render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
-                pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name,
-            );
+            let render_pass_name = &pipeline_bind_create_info._render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name;
+            let pipeline_name = &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name;
+            let render_pass_pipeline_data_name = format!("{}/{}", render_pass_name.clone(), pipeline_name.clone());
 
             if default_pipeline_binding_name.is_empty() {
                 default_pipeline_binding_name = render_pass_pipeline_data_name.clone();
@@ -104,13 +104,22 @@ impl MaterialInstanceData {
                 _push_constant_datas: pipeline_bind_create_info._push_constant_datas.clone()
             };
 
-            pipeline_binding_data_map.insert(render_pass_pipeline_data_name, pipeline_binding_data);
+            // insert to pipeline_binding_data_map
+            pipeline_binding_data_map.insert(render_pass_pipeline_data_name.clone(), pipeline_binding_data.clone());
+
+            // insert to render_pass_pipeline_data_names_map
+            if let Some(render_pass_pipeline_data_names) = render_pass_pipeline_data_names_map.get_mut(render_pass_name) {
+                render_pass_pipeline_data_names.push(render_pass_pipeline_data_name.clone());
+            } else {
+                render_pass_pipeline_data_names_map.insert(render_pass_name.clone(), vec![render_pass_pipeline_data_name.clone()]);
+            }
         }
 
         MaterialInstanceData {
             _material_instance_data_name: material_instance_data_name.clone(),
             _material_data: material_data.clone(),
             _material_parameters: material_parameters.clone(),
+            _render_pass_pipeline_data_names_map: render_pass_pipeline_data_names_map,
             _pipeline_binding_data_map: pipeline_binding_data_map,
             _default_pipeline_binding_name: default_pipeline_binding_name,
         }
@@ -120,29 +129,23 @@ impl MaterialInstanceData {
         log::debug!("destroy_material_instance: {}", self._material_instance_data_name);
     }
 
-    pub fn get_default_pipeline_binding_data(
-        &self,
-    ) -> &PipelineBindingData {
+    pub fn get_default_pipeline_binding_data(&self) -> &PipelineBindingData {
         self._pipeline_binding_data_map.get(self._default_pipeline_binding_name.as_str()).unwrap()
     }
 
-    pub fn get_default_pipeline_binding_data_mut(
-        &mut self,
-    ) -> &mut PipelineBindingData {
+    pub fn get_default_pipeline_binding_data_mut(&mut self) -> &mut PipelineBindingData {
         self._pipeline_binding_data_map.get_mut(self._default_pipeline_binding_name.as_str()).unwrap()
     }
 
-    pub fn get_pipeline_binding_data(
-        &self,
-        render_pass_pipeline_data_name: &str,
-    ) -> &PipelineBindingData {
+    pub fn get_pipeline_binding_data(&self, render_pass_pipeline_data_name: &str) -> &PipelineBindingData {
         self._pipeline_binding_data_map.get(render_pass_pipeline_data_name).unwrap()
     }
 
-    pub fn get_pipeline_binding_data_mut(
-        &mut self,
-        render_pass_pipeline_data_name: &str,
-    ) -> &mut PipelineBindingData {
+    pub fn get_pipeline_binding_data_mut(&mut self, render_pass_pipeline_data_name: &str) -> &mut PipelineBindingData {
         self._pipeline_binding_data_map.get_mut(render_pass_pipeline_data_name).unwrap()
+    }
+
+    pub fn get_render_pass_pipeline_data_names(&self, render_pass_name: &str) -> &Vec<String> {
+        self._render_pass_pipeline_data_names_map.get(render_pass_name).unwrap()
     }
 }

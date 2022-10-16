@@ -10,7 +10,7 @@ use crate::vulkan_context::vulkan_context::Layers;
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::push_constants::PushConstant;
+use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
 
 pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
@@ -219,9 +219,13 @@ pub struct PushConstant_Atmosphere {
     pub _reserved2: i32,
 }
 
-impl PushConstant for PushConstant_Atmosphere {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_Atmosphere {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_Atmosphere"
     }
+}
+
+impl PushConstant for PushConstant_Atmosphere {
 }
 
 #[allow(non_camel_case_types)]
@@ -234,9 +238,13 @@ pub struct PushConstant_PrecomputedAtmosphere {
     pub _reserved0: i32,
 }
 
-impl PushConstant for PushConstant_PrecomputedAtmosphere {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_PrecomputedAtmosphere {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_PrecomputedAtmosphere"
     }
+}
+
+impl PushConstant for PushConstant_PrecomputedAtmosphere {
 }
 
 fn cie_color_matching_function_table_value(wavelength: f32, column: i32) -> f32 {

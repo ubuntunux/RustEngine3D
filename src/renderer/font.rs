@@ -7,7 +7,7 @@ use ash::{ vk, Device };
 use crate::constants;
 use crate::resource::resource::{ EngineResources, DEFAULT_FONT_NAME };
 use crate::renderer::renderer_context::RendererContext;
-use crate::renderer::push_constants::PushConstant;
+use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::utility;
 use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
@@ -48,9 +48,13 @@ pub struct PushConstant_RenderFont {
     pub _reserved0: u32,
 }
 
-impl PushConstant for PushConstant_RenderFont {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_RenderFont {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_RenderFont"
     }
+}
+
+impl PushConstant for PushConstant_RenderFont {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

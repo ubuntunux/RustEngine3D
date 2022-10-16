@@ -16,7 +16,7 @@ use crate::constants::{
 };
 use crate::effect::effect_data::*;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
-use crate::renderer::push_constants::PushConstant;
+use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
@@ -100,9 +100,13 @@ pub struct PushConstant_ComputeGpuParticleCount {
     pub _reserved1: i32,
 }
 
-impl PushConstant for PushConstant_ComputeGpuParticleCount {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_ComputeGpuParticleCount {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_ComputeGpuParticleCount"
     }
+}
+
+impl PushConstant for PushConstant_ComputeGpuParticleCount {
 }
 
 #[allow(non_camel_case_types)]
@@ -114,9 +118,13 @@ pub struct PushConstant_UpdateGpuParticle {
     pub _reserved1: i32,
 }
 
-impl PushConstant for PushConstant_UpdateGpuParticle {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_UpdateGpuParticle {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_UpdateGpuParticle"
     }
+}
+
+impl PushConstant for PushConstant_UpdateGpuParticle {
 }
 
 #[allow(non_camel_case_types)]
@@ -128,9 +136,13 @@ pub struct PushConstant_RenderParticle {
     pub _reserved1: i32,
 }
 
-impl PushConstant for PushConstant_RenderParticle {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_RenderParticle {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_RenderParticle"
     }
+}
+
+impl PushConstant for PushConstant_RenderParticle {
 }
 
 // interfaces

@@ -352,13 +352,13 @@ impl RendererDataBase for RendererData {
 
         // render shadow
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, None);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow/render_object", &static_shadow_render_elements);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow/render_object", &skeletal_shadow_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow", &static_shadow_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow", &skeletal_shadow_render_elements);
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, None);
-            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map/render_object", &static_render_elements);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map", &static_render_elements);
         }
 
         // fft-simulation
@@ -408,8 +408,8 @@ impl RendererDataBase for RendererData {
         }
 
         // render solid object
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer/render_object", &static_render_elements);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer/render_object", &skeletal_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer", &static_render_elements);
+        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer", &skeletal_render_elements);
 
         // process gpu particles
         {
@@ -806,20 +806,20 @@ impl RendererData {
                 );
 
                 // render forward for light probe
-                const RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES: [&str; 6] = [
-                    "render_pass_static_forward_light_probe_0/render_object",
-                    "render_pass_static_forward_light_probe_1/render_object",
-                    "render_pass_static_forward_light_probe_2/render_object",
-                    "render_pass_static_forward_light_probe_3/render_object",
-                    "render_pass_static_forward_light_probe_4/render_object",
-                    "render_pass_static_forward_light_probe_5/render_object",
+                const RENDER_FORWARD_RENDER_PASS_NAMES: [&str; 6] = [
+                    "render_pass_static_forward_light_probe_0",
+                    "render_pass_static_forward_light_probe_1",
+                    "render_pass_static_forward_light_probe_2",
+                    "render_pass_static_forward_light_probe_3",
+                    "render_pass_static_forward_light_probe_4",
+                    "render_pass_static_forward_light_probe_5",
                 ];
 
                 self.render_solid_object(
                     renderer_context,
                     command_buffer,
                     swapchain_index,
-                    RENDER_FORWARD_RENDER_PASS_PIPELINE_NAMES[i],
+                    RENDER_FORWARD_RENDER_PASS_NAMES[i],
                     static_render_elements
                 );
 
@@ -842,7 +842,7 @@ impl RendererData {
         renderer_context: &RendererContext,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        render_pass_pipeline_data_name: &str,
+        render_pass_name: &str,
         render_elements: &Vec<RenderElementData>
     ) {
         if 0 == render_elements.len() {
@@ -855,34 +855,37 @@ impl RendererData {
             for render_element in render_elements.iter() {
                 let material_instance = render_element._material_instance_data.borrow();
                 let push_constant_datas = ptr_as_ref(render_element._push_constant_datas);
-                let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
-                let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
-                let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
-                let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
-                let pipeline_data: &PipelineData = &pipeline_data.borrow();
+                let render_pass_pipeline_data_names = material_instance.get_render_pass_pipeline_data_names(render_pass_name);
+                for render_pass_pipeline_data_name in render_pass_pipeline_data_names.iter() {
+                    let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
+                    let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
+                    let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
+                    let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
+                    let pipeline_data: &PipelineData = &pipeline_data.borrow();
 
-                if prev_pipeline_data != pipeline_data_ptr {
-                    if false == prev_pipeline_data.is_null() {
-                        renderer_context.end_render_pass(command_buffer);
+                    if prev_pipeline_data != pipeline_data_ptr {
+                        if false == prev_pipeline_data.is_null() {
+                            renderer_context.end_render_pass(command_buffer);
+                        }
+                        renderer_context.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
+                        prev_pipeline_data = pipeline_data_ptr;
                     }
-                    renderer_context.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, None);
-                    prev_pipeline_data = pipeline_data_ptr;
-                }
 
-                if prev_pipeline_binding_data != pipeline_binding_data {
-                    prev_pipeline_binding_data = pipeline_binding_data;
-                    renderer_context.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
-                }
+                    if prev_pipeline_binding_data != pipeline_binding_data {
+                        prev_pipeline_binding_data = pipeline_binding_data;
+                        renderer_context.bind_descriptor_sets(command_buffer, swapchain_index, &(*pipeline_binding_data), None);
+                    }
 
-                // update push constants
-                for push_constant_data in push_constant_datas.iter() {
-                    renderer_context.upload_push_constant_data(
-                        command_buffer,
-                        pipeline_data,
-                        push_constant_data._push_constant.as_ref()
-                    );
+                    // update push constants
+                    for push_constant_data in push_constant_datas.iter() {
+                        renderer_context.upload_push_constant_data(
+                            command_buffer,
+                            pipeline_data,
+                            push_constant_data._push_constant.as_ref()
+                        );
+                    }
+                    renderer_context.draw_elements(command_buffer, &render_element._geometry_data.borrow());
                 }
-                renderer_context.draw_elements(command_buffer, &render_element._geometry_data.borrow());
             }
             renderer_context.end_render_pass(command_buffer);
         }

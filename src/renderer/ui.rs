@@ -16,7 +16,7 @@ use crate::application::input::{
 use crate::resource::resource::EngineResources;
 use crate::renderer::font::FontData;
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
-use crate::renderer::push_constants::PushConstant;
+use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::{ RendererContext };
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell, ptr_as_ref, ptr_as_mut };
@@ -54,10 +54,15 @@ pub struct PushConstant_RenderUI {
     pub _reserved0: u32,
 }
 
-impl PushConstant for PushConstant_RenderUI {
-    fn update_push_constant(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+impl PushConstantName for PushConstant_RenderUI {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_RenderUI"
     }
 }
+
+impl PushConstant for PushConstant_RenderUI {
+}
+
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum UIWidgetTypes {
