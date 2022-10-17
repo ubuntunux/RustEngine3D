@@ -17,7 +17,7 @@ use crate::vulkan_context::vulkan_context::{ self, CubeMapArray, SwapchainArray,
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_LightProbe {
+pub struct RenderContext_LightProbe {
     pub _next_refresh_time: f64,
     pub _light_probe_refresh_term: f64,
     pub _light_probe_blend_time: f64,
@@ -36,9 +36,9 @@ pub struct RenderComponent_LightProbe {
     pub _light_probe_forward_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
 }
 
-impl Default for RenderComponent_LightProbe {
-    fn default() -> RenderComponent_LightProbe {
-        RenderComponent_LightProbe {
+impl Default for RenderContext_LightProbe {
+    fn default() -> RenderContext_LightProbe {
+        RenderContext_LightProbe {
             _next_refresh_time: 0.0,
             _light_probe_refresh_term: 5.0,
             _light_probe_blend_time: 0.0,
@@ -61,13 +61,13 @@ impl Default for RenderComponent_LightProbe {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_ClearRenderTargets {
+pub struct RenderContext_ClearRenderTargets {
     pub _color_framebuffer_datas: HashMap<String, Layers<MipLevels<FramebufferData>>>,
 }
 
-impl Default for RenderComponent_ClearRenderTargets {
-    fn default() -> RenderComponent_ClearRenderTargets {
-        RenderComponent_ClearRenderTargets {
+impl Default for RenderContext_ClearRenderTargets {
+    fn default() -> RenderContext_ClearRenderTargets {
+        RenderContext_ClearRenderTargets {
             _color_framebuffer_datas: HashMap::new()
         }
     }
@@ -75,14 +75,14 @@ impl Default for RenderComponent_ClearRenderTargets {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_CompositeGBuffer {
+pub struct RenderContext_CompositeGBuffer {
     pub _descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
     pub _descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
 }
 
-impl Default for RenderComponent_CompositeGBuffer {
-    fn default() -> RenderComponent_CompositeGBuffer {
-        RenderComponent_CompositeGBuffer {
+impl Default for RenderContext_CompositeGBuffer {
+    fn default() -> RenderContext_CompositeGBuffer {
+        RenderContext_CompositeGBuffer {
             _descriptor_sets0: Vec::new(),
             _descriptor_sets1: Vec::new(),
         }
@@ -91,15 +91,15 @@ impl Default for RenderComponent_CompositeGBuffer {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_SceneColorDownSampling {
+pub struct RenderContext_SceneColorDownSampling {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
     pub _descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
 }
 
-impl Default for RenderComponent_SceneColorDownSampling {
-    fn default() -> RenderComponent_SceneColorDownSampling {
-        RenderComponent_SceneColorDownSampling {
+impl Default for RenderContext_SceneColorDownSampling {
+    fn default() -> RenderContext_SceneColorDownSampling {
+        RenderContext_SceneColorDownSampling {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
             _descriptor_sets: Vec::new(),
@@ -109,7 +109,7 @@ impl Default for RenderComponent_SceneColorDownSampling {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_Bloom {
+pub struct RenderContext_Bloom {
     pub _bloom_downsample_framebuffer_datas: Vec<FramebufferData>,
     pub _bloom_downsample_descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
     pub _bloom_temp_framebuffer_datas: Vec<FramebufferData>,
@@ -119,9 +119,9 @@ pub struct RenderComponent_Bloom {
     pub _bloom_push_constants: PushConstant_BloomHighlight,
 }
 
-impl Default for RenderComponent_Bloom {
-    fn default() -> RenderComponent_Bloom {
-        RenderComponent_Bloom {
+impl Default for RenderContext_Bloom {
+    fn default() -> RenderContext_Bloom {
+        RenderContext_Bloom {
             _bloom_downsample_framebuffer_datas: Vec::new(),
             _bloom_downsample_descriptor_sets: Vec::new(),
             _bloom_temp_framebuffer_datas: Vec::new(),
@@ -140,7 +140,7 @@ impl Default for RenderComponent_Bloom {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_SSAO {
+pub struct RenderContext_SSAO {
     pub _ssao_kernel_size: i32,
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
@@ -151,8 +151,8 @@ pub struct RenderComponent_SSAO {
     pub _ssao_blur_descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
 }
 
-impl Default for RenderComponent_SSAO {
-    fn default() -> RenderComponent_SSAO {
+impl Default for RenderContext_SSAO {
+    fn default() -> RenderContext_SSAO {
         let mut random_normals: [Vector4<f32>; 64] = [Vector4::new(0.0, 0.0, 0.0, 0.0); constants::SSAO_KERNEL_SIZE];
         for i in 0..constants::SSAO_KERNEL_SIZE {
             let scale = rand::random::<f32>();
@@ -164,7 +164,7 @@ impl Default for RenderComponent_SSAO {
             random_normals[i] = Vector4::new(normal.x, normal.y, normal.z, 0.0);
         }
 
-        RenderComponent_SSAO {
+        RenderContext_SSAO {
             _ssao_kernel_size: constants::SSAO_KERNEL_SIZE as i32,
             _ssao_radius: constants::SSAO_RADIUS,
             _ssao_noise_dim: unsafe { constants::SSAO_NOISE_DIM },
@@ -181,7 +181,7 @@ impl Default for RenderComponent_SSAO {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_TAA {
+pub struct RenderContext_TAA {
     pub _enable_taa: bool,
     pub _rendertarget_width: u32,
     pub _rendertarget_height: u32,
@@ -189,9 +189,9 @@ pub struct RenderComponent_TAA {
     pub _taa_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
-impl Default for RenderComponent_TAA {
-    fn default() -> RenderComponent_TAA {
-        RenderComponent_TAA {
+impl Default for RenderContext_TAA {
+    fn default() -> RenderContext_TAA {
+        RenderContext_TAA {
             _enable_taa: true,
             _rendertarget_width: 1024,
             _rendertarget_height: 768,
@@ -203,15 +203,15 @@ impl Default for RenderComponent_TAA {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_HierachicalMinZ {
+pub struct RenderContext_HierachicalMinZ {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
     pub _descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
 }
 
-impl Default for RenderComponent_HierachicalMinZ {
-    fn default() -> RenderComponent_HierachicalMinZ {
-        RenderComponent_HierachicalMinZ {
+impl Default for RenderContext_HierachicalMinZ {
+    fn default() -> RenderContext_HierachicalMinZ {
+        RenderContext_HierachicalMinZ {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
             _descriptor_sets: Vec::new(),
@@ -221,7 +221,7 @@ impl Default for RenderComponent_HierachicalMinZ {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderComponent_SSR {
+pub struct RenderContext_SSR {
     pub _framebuffer_data0: FramebufferData,
     pub _framebuffer_data1: FramebufferData,
     pub _descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
@@ -230,9 +230,9 @@ pub struct RenderComponent_SSR {
     pub _previous_ssr_resolved: RenderTargetType,
 }
 
-impl Default for RenderComponent_SSR {
-    fn default() -> RenderComponent_SSR {
-        RenderComponent_SSR {
+impl Default for RenderContext_SSR {
+    fn default() -> RenderContext_SSR {
+        RenderContext_SSR {
             _framebuffer_data0: FramebufferData::default(),
             _framebuffer_data1: FramebufferData::default(),
             _descriptor_sets0: SwapchainArray::new(),
@@ -243,7 +243,7 @@ impl Default for RenderComponent_SSR {
     }
 }
 
-impl RenderComponent_Bloom {
+impl RenderContext_Bloom {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -314,7 +314,7 @@ impl RenderComponent_Bloom {
     }
 }
 
-impl RenderComponent_TAA {
+impl RenderContext_TAA {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -344,7 +344,7 @@ impl RenderComponent_TAA {
     }
 }
 
-impl RenderComponent_SSAO {
+impl RenderContext_SSAO {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -381,7 +381,7 @@ impl RenderComponent_SSAO {
     }
 }
 
-impl RenderComponent_HierachicalMinZ {
+impl RenderContext_HierachicalMinZ {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -415,7 +415,7 @@ impl RenderComponent_HierachicalMinZ {
     }
 }
 
-impl RenderComponent_SceneColorDownSampling {
+impl RenderContext_SceneColorDownSampling {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -446,7 +446,7 @@ impl RenderComponent_SceneColorDownSampling {
     }
 }
 
-impl RenderComponent_SSR {
+impl RenderContext_SSR {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -488,7 +488,7 @@ impl RenderComponent_SSR {
 }
 
 
-impl RenderComponent_CompositeGBuffer {
+impl RenderContext_CompositeGBuffer {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -516,7 +516,7 @@ impl RenderComponent_CompositeGBuffer {
     }
 }
 
-impl RenderComponent_ClearRenderTargets {
+impl RenderContext_ClearRenderTargets {
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -580,7 +580,7 @@ impl RenderComponent_ClearRenderTargets {
     }
 }
 
-impl RenderComponent_LightProbe {
+impl RenderContext_LightProbe {
     pub fn initialize(
         &mut self,
         device: &Device,

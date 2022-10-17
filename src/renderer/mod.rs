@@ -10,7 +10,7 @@ pub mod mesh;
 pub mod model;
 pub mod precomputed_atmosphere;
 pub mod push_constants;
-pub mod render_components;
+pub mod render_context;
 pub mod render_element;
 pub mod render_object;
 pub mod render_target;
