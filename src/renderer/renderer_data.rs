@@ -172,31 +172,6 @@ impl RendererDataBase for RendererData {
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
         );
-        // Clear Render Targets
-        self._render_context_clear_render_targets.initialize(
-            device,
-            engine_resources,
-            &[
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
-                (*self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
-            ]
-        );
         // RenderContext_LightProbe
         self._render_context_light_probe.initialize(
             device,
@@ -233,6 +208,32 @@ impl RendererDataBase for RendererData {
                 &[ (0, utility::create_swapchain_array(top_level_descriptor_resource_info.clone())) ],
             );
         }
+
+        // Last - Clear Render Targets
+        self._render_context_clear_render_targets.initialize(
+            device,
+            engine_resources,
+            &[
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
+                (*self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
+                (*self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
+            ]
+        );
     }
 
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
