@@ -29,7 +29,7 @@ use crate::renderer::render_context::{
     RenderContext_TAA,
     RenderContext_HierachicalMinZ,
     RenderContext_SceneColorDownSampling,
-    RenderContext_SSR,
+    RenderContext_TAA_Simple,
     RenderContext_CompositeGBuffer,
     RenderContext_ClearRenderTargets,
     RenderContext_LightProbe,
@@ -90,7 +90,7 @@ pub struct RendererData {
     pub _render_context_taa: RenderContext_TAA,
     pub _render_context_hiz: RenderContext_HierachicalMinZ,
     pub _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling,
-    pub _render_context_ssr: RenderContext_SSR,
+    pub _render_context_ssr: RenderContext_TAA_Simple,
     pub _render_context_composite_gbuffer: RenderContext_CompositeGBuffer,
     pub _render_context_clear_render_targets: RenderContext_ClearRenderTargets,
     pub _render_context_light_probe: RenderContext_LightProbe,
@@ -542,7 +542,7 @@ impl RendererData {
             _render_context_taa: RenderContext_TAA::default(),
             _render_context_hiz: RenderContext_HierachicalMinZ::default(),
             _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(),
-            _render_context_ssr: RenderContext_SSR::default(),
+            _render_context_ssr: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
             _render_context_clear_render_targets: RenderContext_ClearRenderTargets::default(),
             _render_context_light_probe: RenderContext_LightProbe::default(),
@@ -1089,12 +1089,12 @@ impl RendererData {
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
 
         // Screen Space Reflection Resolve
-        let (framebuffer, descriptor_sets) = match self._render_context_ssr._current_ssr_resolved {
+        let (framebuffer, descriptor_sets) = match self._render_context_ssr._current_taa_resolved {
             RenderTargetType::SSRResolved => (Some(&self._render_context_ssr._framebuffer_data0), Some(&self._render_context_ssr._descriptor_sets0)),
             RenderTargetType::SSRResolvedPrev => (Some(&self._render_context_ssr._framebuffer_data1), Some(&self._render_context_ssr._descriptor_sets1)),
             _ => panic!("error")
         };
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr_resolve", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, None);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_taa_simple", DEFAULT_PIPELINE, quad_geometry_data, framebuffer, descriptor_sets, None);
     }
 
     pub fn render_ssao(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
@@ -1119,7 +1119,7 @@ impl RendererData {
     }
 
     pub fn composite_gbuffer(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let descriptor_sets = match self._render_context_ssr._current_ssr_resolved {
+        let descriptor_sets = match self._render_context_ssr._current_taa_resolved {
             RenderTargetType::SSRResolved => Some(&self._render_context_composite_gbuffer._descriptor_sets0),
             RenderTargetType::SSRResolvedPrev => Some(&self._render_context_composite_gbuffer._descriptor_sets1),
             _ => panic!("error")

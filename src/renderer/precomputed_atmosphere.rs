@@ -7,7 +7,7 @@ use crate::resource::resource::EngineResources;
 use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::vulkan_context::{Layers, SwapchainArray};
-use crate::renderer::render_context::RenderContext_SSR;
+use crate::renderer::render_context::RenderContext_TAA_Simple;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{DEFAULT_PIPELINE, RendererData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
@@ -385,7 +385,7 @@ pub struct Atmosphere {
     pub _compute_multiple_scattering_framebuffers: Layers<FramebufferData>,
     pub _compute_single_scattering_framebuffers: Layers<FramebufferData>,
     pub _compute_scattering_density_framebuffers: Layers<FramebufferData>,
-    pub _render_context_precomputed_atmosphere: RenderContext_SSR,
+    pub _render_context_precomputed_atmosphere: RenderContext_TAA_Simple,
     pub _composite_atmosphere_descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
     pub _composite_atmosphere_descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
 }
@@ -742,7 +742,7 @@ impl Atmosphere {
             _compute_multiple_scattering_framebuffers: Layers::new(),
             _compute_single_scattering_framebuffers: Layers::new(),
             _compute_scattering_density_framebuffers: Layers::new(),
-            _render_context_precomputed_atmosphere: RenderContext_SSR::default(),
+            _render_context_precomputed_atmosphere: RenderContext_TAA_Simple::default(),
             _composite_atmosphere_descriptor_sets0: Vec::new(),
             _composite_atmosphere_descriptor_sets1: Vec::new(),
         }
@@ -993,7 +993,7 @@ impl Atmosphere {
         );
 
         // Anti-Aliasing
-        let (taa_framebuffer, taa_descriptor_sets, composite_descriptor_sets) = match self._render_context_precomputed_atmosphere._current_ssr_resolved {
+        let (taa_framebuffer, taa_descriptor_sets, composite_descriptor_sets) = match self._render_context_precomputed_atmosphere._current_taa_resolved {
             RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED => (
                 Some(&self._render_context_precomputed_atmosphere._framebuffer_data0),
                 Some(&self._render_context_precomputed_atmosphere._descriptor_sets0),
@@ -1004,12 +1004,12 @@ impl Atmosphere {
                 Some(&self._render_context_precomputed_atmosphere._descriptor_sets1),
                 Some(&self._composite_atmosphere_descriptor_sets0)
             ),
-            _ => panic!("not matched render target. {:?}", self._render_context_precomputed_atmosphere._current_ssr_resolved)
+            _ => panic!("not matched render target. {:?}", self._render_context_precomputed_atmosphere._current_taa_resolved)
         };
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,
-            "common/render_ssr_resolve",
+            "common/render_taa_simple",
             DEFAULT_PIPELINE,
             quad_geometry_data,
             taa_framebuffer,

@@ -221,24 +221,24 @@ impl Default for RenderContext_HierachicalMinZ {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_SSR {
+pub struct RenderContext_TAA_Simple {
     pub _framebuffer_data0: FramebufferData,
     pub _framebuffer_data1: FramebufferData,
     pub _descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
     pub _descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
-    pub _current_ssr_resolved: RenderTargetType,
-    pub _previous_ssr_resolved: RenderTargetType,
+    pub _current_taa_resolved: RenderTargetType,
+    pub _previous_taa_resolved: RenderTargetType,
 }
 
-impl Default for RenderContext_SSR {
-    fn default() -> RenderContext_SSR {
-        RenderContext_SSR {
+impl Default for RenderContext_TAA_Simple {
+    fn default() -> RenderContext_TAA_Simple {
+        RenderContext_TAA_Simple {
             _framebuffer_data0: FramebufferData::default(),
             _framebuffer_data1: FramebufferData::default(),
             _descriptor_sets0: SwapchainArray::new(),
             _descriptor_sets1: SwapchainArray::new(),
-            _current_ssr_resolved: RenderTargetType::SSRResolved,
-            _previous_ssr_resolved: RenderTargetType::SSRResolvedPrev,
+            _current_taa_resolved: RenderTargetType::TAAResolve,
+            _previous_taa_resolved: RenderTargetType::TAAResolve,
         }
     }
 }
@@ -446,49 +446,49 @@ impl RenderContext_SceneColorDownSampling {
     }
 }
 
-impl RenderContext_SSR {
+impl RenderContext_TAA_Simple {
     pub fn initialize(
         &mut self,
         device: &Device,
         engine_resources: &EngineResources,
         texture_ssr: &TextureData,
-        texture_ssr_resolved: &TextureData,
-        texture_ssr_resolved_prev: &TextureData,
-        current_ssr_resolved: RenderTargetType,
-        previous_ssr_resolved: RenderTargetType
+        texture_taa_resolved: &TextureData,
+        texture_taa_resolved_prev: &TextureData,
+        current_taa_resolved: RenderTargetType,
+        previous_taa_resolved: RenderTargetType
     ) {
-        let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_ssr_resolve").borrow();
+        let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_taa_simple").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let layer: u32 = 0;
         let mip_level: u32 = 0;
         let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            texture_ssr_resolved, layer, mip_level, None,
+            texture_taa_resolved, layer, mip_level, None,
             &[
                 (0, utility::create_descriptor_image_info_swapchain_array(texture_ssr.get_sub_image_info(layer, mip_level))),
-                (1, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved_prev.get_sub_image_info(layer, mip_level)))
+                (1, utility::create_descriptor_image_info_swapchain_array(texture_taa_resolved_prev.get_sub_image_info(layer, mip_level)))
             ]
         );
         let (framebuffer_data1, descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
-            texture_ssr_resolved_prev, layer, mip_level, None,
+            texture_taa_resolved_prev, layer, mip_level, None,
             &[
                 (0, utility::create_descriptor_image_info_swapchain_array(texture_ssr.get_sub_image_info(layer, mip_level))),
-                (1, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_sub_image_info(layer, mip_level)))
+                (1, utility::create_descriptor_image_info_swapchain_array(texture_taa_resolved.get_sub_image_info(layer, mip_level)))
             ]
         );
         self._framebuffer_data0 = framebuffer_data0;
         self._framebuffer_data1 = framebuffer_data1;
         self._descriptor_sets0 = descriptor_sets0;
         self._descriptor_sets1 = descriptor_sets1;
-        self._current_ssr_resolved = current_ssr_resolved;
-        self._previous_ssr_resolved = previous_ssr_resolved;
+        self._current_taa_resolved = current_taa_resolved;
+        self._previous_taa_resolved = previous_taa_resolved;
     }
 
     pub fn update(&mut self) {
-        let temp = self._current_ssr_resolved;
-        self._current_ssr_resolved = self._previous_ssr_resolved;
-        self._previous_ssr_resolved = temp;
+        let temp = self._current_taa_resolved;
+        self._current_taa_resolved = self._previous_taa_resolved;
+        self._previous_taa_resolved = temp;
     }
 
     pub fn destroy(&mut self, device: &Device) {
@@ -503,8 +503,8 @@ impl RenderContext_CompositeGBuffer {
         &mut self,
         device: &Device,
         engine_resources: &EngineResources,
-        texture_ssr_resolved: &TextureData,
-        texture_ssr_resolved_prev: &TextureData,
+        texture_taa_resolved: &TextureData,
+        texture_taa_resolved_prev: &TextureData,
     ) {
         let render_copy_material_instance = engine_resources.get_material_instance_data("common/composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
@@ -512,11 +512,11 @@ impl RenderContext_CompositeGBuffer {
         self._descriptor_sets0 = utility::create_descriptor_sets(
             device,
             pipeline_binding_data,
-            &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_default_image_info()))],
+            &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_taa_resolved.get_default_image_info()))],
         );
         self._descriptor_sets1 = utility::create_descriptor_sets(
             device, pipeline_binding_data,
-            &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved_prev.get_default_image_info()))]
+            &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_taa_resolved_prev.get_default_image_info()))]
         );
     }
 

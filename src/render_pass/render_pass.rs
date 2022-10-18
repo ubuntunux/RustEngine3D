@@ -63,7 +63,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         common::render_ssao::get_render_pass_data_create_info(renderer_data),
         common::render_ssao_blur::get_render_pass_data_create_info(renderer_data),
         common::render_ssr::get_render_pass_data_create_info(renderer_data),
-        common::render_ssr_resolve::get_render_pass_data_create_info(renderer_data),
+        common::render_taa_simple::get_render_pass_data_create_info(renderer_data),
         common::render_taa::get_render_pass_data_create_info(renderer_data),
         common::render_ui::get_render_pass_data_create_info(renderer_data),
         effect::process_gpu_particle::get_render_pass_data_create_info(renderer_data),

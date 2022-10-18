@@ -20,6 +20,6 @@ pub mod render_shadow;
 pub mod render_ssao;
 pub mod render_ssao_blur;
 pub mod render_ssr;
-pub mod render_ssr_resolve;
+pub mod render_taa_simple;
 pub mod render_taa;
 pub mod render_ui;
