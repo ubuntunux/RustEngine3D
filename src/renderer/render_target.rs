@@ -43,7 +43,9 @@ pub enum RenderTargetType {
     FFT_B,
     FFT_SLOPE_VARIANCE,
     // Precomputed Atmosphere
-    PRECOMPUTED_ATMOSPHERE,
+    PRECOMPUTED_ATMOSPHERE_COLOR,
+    PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED,
+    PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV,
     PRECOMPUTED_ATMOSPHERE_INSCATTER,
     PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE,
     PRECOMPUTED_ATMOSPHERE_SCATTERING,
@@ -98,7 +100,9 @@ impl std::str::FromStr for RenderTargetType {
             "FFT_A" => Ok(RenderTargetType::FFT_A),
             "FFT_B" => Ok(RenderTargetType::FFT_B),
             "FFT_SLOPE_VARIANCE" => Ok(RenderTargetType::FFT_SLOPE_VARIANCE),
-            "PRECOMPUTED_ATMOSPHERE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE),
+            "PRECOMPUTED_ATMOSPHERE_COLOR" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
+            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED),
+            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV),
             "PRECOMPUTED_ATMOSPHERE_INSCATTER" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER),
             "PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
             "PRECOMPUTED_ATMOSPHERE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING),
@@ -124,6 +128,15 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
         _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
         ..Default::default()
     };
+
+    let precomputed_atmosphere_texture_create_info = TextureCreateInfo {
+        _texture_width: window_width / 4,
+        _texture_height: window_width / 4,
+        _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+        _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+        ..Default::default()
+    };
+
     let texture_create_infos = vec![
         TextureCreateInfo {
             _texture_name: RenderTargetType::SceneColor.to_string(),
@@ -414,20 +427,20 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
         },
         // Precomputed Atmosphere
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE.to_string(),
-            _texture_width: window_width / 4,
-            _texture_height: window_width / 4,
-            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            ..Default::default()
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR.to_string(),
+            ..precomputed_atmosphere_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED.to_string(),
+            ..precomputed_atmosphere_texture_create_info.clone()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV.to_string(),
+            ..precomputed_atmosphere_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER.to_string(),
-            _texture_width: window_width / 4,
-            _texture_height: window_width / 4,
-            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            ..Default::default()
+            ..precomputed_atmosphere_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE.to_string(),

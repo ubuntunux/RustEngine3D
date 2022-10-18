@@ -6,10 +6,10 @@ use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
 use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
-use crate::vulkan_context::vulkan_context::Layers;
-
+use crate::vulkan_context::vulkan_context::{Layers, SwapchainArray};
+use crate::renderer::render_context::RenderContext_SSR;
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::renderer_data::RendererData;
+use crate::renderer::renderer_data::{DEFAULT_PIPELINE, RendererData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
 
@@ -385,6 +385,9 @@ pub struct Atmosphere {
     pub _compute_multiple_scattering_framebuffers: Layers<FramebufferData>,
     pub _compute_single_scattering_framebuffers: Layers<FramebufferData>,
     pub _compute_scattering_density_framebuffers: Layers<FramebufferData>,
+    pub _render_context_precomputed_atmosphere: RenderContext_SSR,
+    pub _composite_atmosphere_descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
+    pub _composite_atmosphere_descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
 }
 
 impl DensityProfileLayer {
@@ -739,6 +742,9 @@ impl Atmosphere {
             _compute_multiple_scattering_framebuffers: Layers::new(),
             _compute_single_scattering_framebuffers: Layers::new(),
             _compute_scattering_density_framebuffers: Layers::new(),
+            _render_context_precomputed_atmosphere: RenderContext_SSR::default(),
+            _composite_atmosphere_descriptor_sets0: Vec::new(),
+            _composite_atmosphere_descriptor_sets1: Vec::new(),
         }
     }
 
@@ -854,65 +860,92 @@ impl Atmosphere {
     }
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, engine_resources: &EngineResources) {
-        if USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
-            return;
-        }
-
         let device = renderer_data.get_renderer_context().get_device();
-        let delta_scattering_density = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
-        let delta_rayleigh_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
-        let delta_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
-        let scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
-        let optional_single_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
         let material_instance = engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
-        let compute_multiple_scattering_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_multiple_scattering/default");
-        let compute_single_scattering_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_single_scattering/default");
-        let compute_scattering_density_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_scattering_density/default");
-        for layer in 0..SCATTERING_TEXTURE_DEPTH as u32 {
-            // compute_multiple_scattering
-            self._compute_multiple_scattering_framebuffers.push(
-                utility::create_framebuffers(
-                    device,
-                    &compute_multiple_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
-                    "compute_multiple_scattering",
-                    &[
-                        // DELTA_RAYLEIGH_SCATTERING equal to DELTA_MULTIPLE_SCATTERING_TEXTURE
-                        RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                        RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                    ],
-                    &[],
-                    &[],
-                )
-            );
-            // compute_single_scattering
-            let compute_single_scattering_rendertargets = vec![
-                RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
-                RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
-            ];
 
-            self._compute_single_scattering_framebuffers.push(
-                utility::create_framebuffers(
-                    device,
-                    &compute_single_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
-                    "compute_single_scattering",
-                    &compute_single_scattering_rendertargets,
-                    &[],
-                    &[],
-                )
-            );
-            // compute_scattering_density
-            self._compute_scattering_density_framebuffers.push(
-                utility::create_framebuffers(
-                    device,
-                    &compute_scattering_density_pipeline_binding_data.get_render_pass_data().borrow(),
-                    "compute_scattering_density",
-                    &[RenderTargetInfo { _texture_data: &delta_scattering_density, _target_layer: layer, _target_mip_level: 0, _clear_value: None }],
-                    &[],
-                    &[],
-                )
-            );
+        // render precomputed atmosphere
+        self._render_context_precomputed_atmosphere.initialize(
+            device,
+            engine_resources,
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED),
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV),
+            RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED,
+            RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV
+        );
+
+        // composite atmosphere
+        let composite_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
+        let composite_atmosphere_descriptor_binding_index: usize = 15;
+        let precomputed_atmosphere_color_resolved = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED);
+        let precomputed_atmosphere_color_resolved_prev = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV);
+        self._composite_atmosphere_descriptor_sets0 = utility::create_descriptor_sets(
+            device,
+            composite_atmosphere_pipeline_binding_data,
+            &[(composite_atmosphere_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(precomputed_atmosphere_color_resolved.get_default_image_info()))],
+        );
+        self._composite_atmosphere_descriptor_sets1 = utility::create_descriptor_sets(
+            device,
+            composite_atmosphere_pipeline_binding_data,
+            &[(composite_atmosphere_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(precomputed_atmosphere_color_resolved_prev.get_default_image_info()))]
+        );
+
+        // precomputed atmosphere
+        if false == USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
+            let delta_scattering_density = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
+            let delta_rayleigh_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
+            let delta_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
+            let scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
+            let optional_single_mie_scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
+            let compute_multiple_scattering_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_multiple_scattering/default");
+            let compute_single_scattering_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_single_scattering/default");
+            let compute_scattering_density_pipeline_binding_data = material_instance.get_pipeline_binding_data("compute_scattering_density/default");
+            for layer in 0..SCATTERING_TEXTURE_DEPTH as u32 {
+                // compute_multiple_scattering
+                self._compute_multiple_scattering_framebuffers.push(
+                    utility::create_framebuffers(
+                        device,
+                        &compute_multiple_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
+                        "compute_multiple_scattering",
+                        &[
+                            // DELTA_RAYLEIGH_SCATTERING equal to DELTA_MULTIPLE_SCATTERING_TEXTURE
+                            RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                            RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                        ],
+                        &[],
+                        &[],
+                    )
+                );
+                // compute_single_scattering
+                let compute_single_scattering_rendertargets = vec![
+                    RenderTargetInfo { _texture_data: &delta_rayleigh_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                    RenderTargetInfo { _texture_data: &delta_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                    RenderTargetInfo { _texture_data: &scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None },
+                    RenderTargetInfo { _texture_data: &optional_single_mie_scattering, _target_layer: layer, _target_mip_level: 0, _clear_value: None }
+                ];
+
+                self._compute_single_scattering_framebuffers.push(
+                    utility::create_framebuffers(
+                        device,
+                        &compute_single_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
+                        "compute_single_scattering",
+                        &compute_single_scattering_rendertargets,
+                        &[],
+                        &[],
+                    )
+                );
+                // compute_scattering_density
+                self._compute_scattering_density_framebuffers.push(
+                    utility::create_framebuffers(
+                        device,
+                        &compute_scattering_density_pipeline_binding_data.get_render_pass_data().borrow(),
+                        "compute_scattering_density",
+                        &[RenderTargetInfo { _texture_data: &delta_scattering_density, _target_layer: layer, _target_mip_level: 0, _clear_value: None }],
+                        &[],
+                        &[],
+                    )
+                );
+            }
         }
     }
 
@@ -927,6 +960,13 @@ impl Atmosphere {
         self._compute_multiple_scattering_framebuffers.clear();
         self._compute_single_scattering_framebuffers.clear();
         self._compute_scattering_density_framebuffers.clear();
+        self._composite_atmosphere_descriptor_sets0.clear();
+        self._composite_atmosphere_descriptor_sets1.clear();
+        self._render_context_precomputed_atmosphere.destroy(device);
+    }
+
+    pub fn update(&mut self) {
+        self._render_context_precomputed_atmosphere.update();
     }
 
     pub fn render_precomputed_atmosphere(
@@ -935,7 +975,7 @@ impl Atmosphere {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         renderer_context: &RendererContext,
-        render_light_probe_mode: bool,
+        render_light_probe_mode: bool
     ) {
         // Render Atmosphere
         renderer_context.render_material_instance(
@@ -952,6 +992,31 @@ impl Atmosphere {
             }),
         );
 
+        // Anti-Aliasing
+        let (taa_framebuffer, taa_descriptor_sets, composite_descriptor_sets) = match self._render_context_precomputed_atmosphere._current_ssr_resolved {
+            RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED => (
+                Some(&self._render_context_precomputed_atmosphere._framebuffer_data0),
+                Some(&self._render_context_precomputed_atmosphere._descriptor_sets0),
+                Some(&self._composite_atmosphere_descriptor_sets1)
+            ),
+            RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV => (
+                Some(&self._render_context_precomputed_atmosphere._framebuffer_data1),
+                Some(&self._render_context_precomputed_atmosphere._descriptor_sets1),
+                Some(&self._composite_atmosphere_descriptor_sets0)
+            ),
+            _ => panic!("not matched render target. {:?}", self._render_context_precomputed_atmosphere._current_ssr_resolved)
+        };
+        renderer_context.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "common/render_ssr_resolve",
+            DEFAULT_PIPELINE,
+            quad_geometry_data,
+            taa_framebuffer,
+            taa_descriptor_sets,
+            None
+        );
+
         // Composite Atmosphere
         renderer_context.render_material_instance(
             command_buffer,
@@ -960,7 +1025,7 @@ impl Atmosphere {
             "composite_atmosphere/default",
             quad_geometry_data,
             None,
-            None,
+            composite_descriptor_sets,
             None,
         );
     }

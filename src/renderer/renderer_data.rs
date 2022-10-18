@@ -162,8 +162,11 @@ impl RendererDataBase for RendererData {
         self._render_context_ssr.initialize(
             device,
             engine_resources,
+            self._render_target_data_map.get(&RenderTargetType::SSR).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
+            RenderTargetType::SSRResolved,
+            RenderTargetType::SSRResolvedPrev
         );
         // Composite GBuffer
         self._render_context_composite_gbuffer.initialize(
@@ -228,6 +231,8 @@ impl RendererDataBase for RendererData {
                 (*self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
                 (*self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(), vulkan_context::get_depth_clear_one()),
@@ -283,6 +288,7 @@ impl RendererDataBase for RendererData {
     }
 
     fn pre_update_render_scene(&mut self, delta_time: f64) {
+        self._atmosphere.update();
         self._fft_ocean.update(delta_time);
         self._render_context_ssr.update();
     }

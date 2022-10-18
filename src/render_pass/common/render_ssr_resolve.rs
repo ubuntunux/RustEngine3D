@@ -25,7 +25,7 @@ use crate::renderer::renderer_data::RendererData;
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SSRResolved),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: None,
@@ -83,14 +83,14 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SSR),
+                    _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(&RenderTargetType::SSRResolvedPrev),
+                    _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()

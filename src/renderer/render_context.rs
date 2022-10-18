@@ -451,28 +451,38 @@ impl RenderContext_SSR {
         &mut self,
         device: &Device,
         engine_resources: &EngineResources,
+        texture_ssr: &TextureData,
         texture_ssr_resolved: &TextureData,
         texture_ssr_resolved_prev: &TextureData,
+        current_ssr_resolved: RenderTargetType,
+        previous_ssr_resolved: RenderTargetType
     ) {
         let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_ssr_resolve").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
-        let descriptor_binding_index: usize = 1;
         let layer: u32 = 0;
         let mip_level: u32 = 0;
         let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             texture_ssr_resolved, layer, mip_level, None,
-            &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved_prev.get_sub_image_info(layer, mip_level)))]
+            &[
+                (0, utility::create_descriptor_image_info_swapchain_array(texture_ssr.get_sub_image_info(layer, mip_level))),
+                (1, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved_prev.get_sub_image_info(layer, mip_level)))
+            ]
         );
         let (framebuffer_data1, descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device, pipeline_binding_data,
             texture_ssr_resolved_prev, layer, mip_level, None,
-            &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_sub_image_info(layer, mip_level)))]
+            &[
+                (0, utility::create_descriptor_image_info_swapchain_array(texture_ssr.get_sub_image_info(layer, mip_level))),
+                (1, utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_sub_image_info(layer, mip_level)))
+            ]
         );
         self._framebuffer_data0 = framebuffer_data0;
         self._framebuffer_data1 = framebuffer_data1;
         self._descriptor_sets0 = descriptor_sets0;
         self._descriptor_sets1 = descriptor_sets1;
+        self._current_ssr_resolved = current_ssr_resolved;
+        self._previous_ssr_resolved = previous_ssr_resolved;
     }
 
     pub fn update(&mut self) {

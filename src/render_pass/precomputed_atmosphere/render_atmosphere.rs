@@ -28,7 +28,7 @@ use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE);
+    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR);
     let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER);
     let render_target_infos: [RenderTargetInfo; 2] = [
         RenderTargetInfo { _texture_data: render_target0, _target_layer: 0, _target_mip_level: 0, _clear_value: None, },
