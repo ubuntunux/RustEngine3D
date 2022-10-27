@@ -818,7 +818,7 @@ impl ColladaGeometry {
                     let offset = texcoord._offset;
                     if let ColladaSourceData::VectorArray(texcoord) = sources.get(source_id).unwrap() {
                         let texcoord = &texcoord[vert_indices[offset] as usize];
-                        self._texcoords.push(Vector2::new(texcoord[0], texcoord[1]));
+                        self._texcoords.push(Vector2::new(texcoord[0], 1.0 - texcoord[1]));
                     }
                 }
             }

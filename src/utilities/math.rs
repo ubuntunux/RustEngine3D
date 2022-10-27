@@ -531,34 +531,34 @@ pub fn matrix_rotate(M, rx, ry, rz):
     M[...] = np.dot(M, R)
 */
 
-pub fn swap_up_axis_matrix(matrix: &mut Matrix4<f32>, transpose: bool, is_inverse_matrix: bool, up_axis: &str) {
+pub fn swap_up_axis_matrix(matrix: &mut Matrix4<f32>, transpose: bool, _is_inverse_matrix: bool, _up_axis: &str) {
     if transpose {
         matrix.transpose_mut();
     }
 
-    if "Z_UP" == up_axis {
-        if is_inverse_matrix {
-            let other = matrix as &Matrix4<f32> * get_rotation_matrix_x(HALF_PI);
-            matrix.copy_from(&other);
-        } else {
-            let other = get_rotation_matrix_x(-HALF_PI) * matrix as &Matrix4<f32>;
-            matrix.copy_from(&other);
-        }
-    }
+    // if "Z_UP" == up_axis {
+    //     if is_inverse_matrix {
+    //         let other = matrix as &Matrix4<f32> * get_rotation_matrix_x(HALF_PI);
+    //         matrix.copy_from(&other);
+    //     } else {
+    //         let other = get_rotation_matrix_x(-HALF_PI) * matrix as &Matrix4<f32>;
+    //         matrix.copy_from(&other);
+    //     }
+    // }
 }
 
-pub fn swap_matrix(matrix: &mut Matrix4<f32>, transpose: bool, up_axis: &str) {
+pub fn swap_matrix(matrix: &mut Matrix4<f32>, transpose: bool, _up_axis: &str) {
     if transpose {
         matrix.transpose_mut();
     }
 
-    if "Z_UP" == up_axis {
-        let other: Matrix4<f32> = matrix.clone() as Matrix4<f32>;
-        matrix.set_column(0, &other.column(0));
-        matrix.set_column(1, &other.column(2));
-        matrix.set_column(2, &(other.column(1).clone() * -1.0));
-        matrix.set_column(3, &other.column(3));
-    }
+    // if "Z_UP" == up_axis {
+    //     let other: Matrix4<f32> = matrix.clone() as Matrix4<f32>;
+    //     matrix.set_column(0, &other.column(0));
+    //     matrix.set_column(1, &other.column(2));
+    //     matrix.set_column(2, &(other.column(1).clone() * -1.0));
+    //     matrix.set_column(3, &other.column(3));
+    // }
 }
 
 /*

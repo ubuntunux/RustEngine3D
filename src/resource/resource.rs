@@ -493,7 +493,6 @@ impl EngineResources {
         self.unload_material_datas();
         self.unload_framebuffer_datas(renderer_context);
         self.unload_render_pass_datas(renderer_context);
-        self.unload_render_pass_data_create_infos(renderer_context);
         self.unload_font_datas();
         self.unload_texture_datas(renderer_context);
         self.unload_descriptor_datas(renderer_context);
@@ -503,7 +502,6 @@ impl EngineResources {
     pub fn load_graphics_datas(&mut self, renderer_context: &RendererContext) {
         log::info!("load_graphics_datas");
         let is_reload: bool = true;
-        self.load_render_pass_data_create_infos(renderer_context);
         self.load_render_pass_datas(renderer_context);
         self.load_framebuffer_datas(renderer_context);
         self.load_material_datas();
@@ -517,7 +515,6 @@ impl EngineResources {
         self.unload_material_datas();
         self.unload_framebuffer_datas(renderer_context);
         self.unload_render_pass_datas(renderer_context);
-        self.unload_render_pass_data_create_infos(renderer_context);
         self.unload_descriptor_datas(renderer_context);
     }
 
@@ -1292,10 +1289,6 @@ impl EngineResources {
 
         let project_resources = ptr_as_mut(self._project_resources);
         project_resources.load_render_pass_data_create_infos(renderer_context, &mut self._render_pass_data_create_info_map);
-    }
-
-    pub fn unload_render_pass_data_create_infos(&mut self, _renderer_context: &RendererContext) {
-        self._render_pass_data_create_info_map.clear();
     }
 
     // render pass data

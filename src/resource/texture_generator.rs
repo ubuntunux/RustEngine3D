@@ -90,6 +90,9 @@ pub fn generate_images(texture_source_directory: &PathBuf) {
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_red.png", 2, 2, [255, 0, 0, 255]);
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_green.png", 2, 2, [0, 255, 0, 255]);
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_blue.png", 2, 2, [0, 0, 255, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_yellow.png", 2, 2, [255, 255, 0, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_cyan.png", 2, 2, [0, 255, 255, 255]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_magenta.png", 2, 2, [255, 0, 255, 255]);
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal.png", 2, 2, [128, 128, 255, 255]);
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_white_no_alpha.png", 2, 2, [255, 255, 255, 0]);
     generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal_no_alpha.png", 2, 2, [128, 128, 255, 0]);
