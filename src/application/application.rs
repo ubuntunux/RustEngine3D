@@ -3,6 +3,7 @@ use std::time;
 use log::{ self, LevelFilter };
 use nalgebra::Vector2;
 use sdl2::Sdl;
+use sdl2::event;
 use winit::event::{ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, VirtualKeyCode, WindowEvent, DeviceEvent, KeyboardInput};
 use winit::event_loop::{
     ControlFlow,
@@ -110,6 +111,7 @@ pub struct EngineApplication {
     pub _keyboard_input_data: Box<input::KeyboardInputData>,
     pub _mouse_move_data: Box<input::MouseMoveData>,
     pub _mouse_input_data: Box<input::MouseInputData>,
+    pub _joystick_input_data: Box<input::JoystickInputData>,
     pub _audio_manager: Box<AudioManager>,
     pub _effect_manager: Box<EffectManager>,
     pub _engine_resources: Box<EngineResources>,
@@ -160,6 +162,7 @@ impl EngineApplication {
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
+        let joystick_input_data = input::JoystickInputData::create_joystick_input_data(sdl);
         let engine_application_box = Box::new(EngineApplication {
             _window: window,
             _window_size: window_size.into(),
@@ -170,6 +173,7 @@ impl EngineApplication {
             _keyboard_input_data: keyboard_input_data,
             _mouse_move_data: mouse_move_data,
             _mouse_input_data: mouse_input_data,
+            _joystick_input_data: joystick_input_data,
             _audio_manager: audio_manager,
             _font_manager: font_manager,
             _ui_manager: ui_manager,
@@ -240,6 +244,7 @@ impl EngineApplication {
         self._mouse_input_data.clear_mouse_input();
         self._keyboard_input_data.clear_key_pressed();
         self._keyboard_input_data.clear_key_released();
+        self._joystick_input_data.clear_joystick_input_data();
     }
 
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
@@ -409,7 +414,9 @@ pub fn run_application(
 
     log::info!("run_application");
 
+    sdl2::hint::set("SDL_JOYSTICK_THREAD", "1");
     let sdl = sdl2::init().expect("failed to sdl2::init");
+
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
     let window: Window = WindowBuilder::new()
@@ -448,7 +455,7 @@ pub fn run_application(
     let mut need_initialize: bool = true;
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
-    event_loop.run(move |event, __window_target, control_flow|{
+    event_loop.run(move |event, __window_target, control_flow| {
         let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
             if maybe_engine_application.is_some() {
@@ -478,6 +485,25 @@ pub fn run_application(
 
         let engine_application = maybe_engine_application.as_mut().unwrap().as_mut();
 
+        // sdl event
+        for event in sdl.event_pump().unwrap().poll_iter() {
+            match event {
+                event::Event::ControllerAxisMotion { axis, value, .. } => {
+                    engine_application._joystick_input_data.update_controller_axis_motion(axis, value);
+                }
+                event::Event::ControllerButtonDown { button, .. } =>  {
+                    engine_application._joystick_input_data.update_controller_button_down(button);
+                    log::info!("Button {:?} down", button)
+                },
+                event::Event::ControllerButtonUp { button, .. } => {
+                    engine_application._joystick_input_data.update_controller_button_up(button);
+                },
+                event::Event::Quit { .. } => break,
+                _ => (),
+            }
+        }
+
+        // winit event
         match event {
             Event::Resumed => {
                 log::info!("Application was resumed");

@@ -65,6 +65,9 @@ pub const MAX_TRANSFORM_COUNT: usize = 65536; // must match with scene_constants
 pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
 pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.
 
+// application
+pub const JOYSTICK_SENSOR_DEAD_ZONE: i16 = 10_000;
+
 // effect
 pub static mut MAX_EMITTER_COUNT: i32 = 1024;
 pub static mut MAX_PARTICLE_COUNT: i32 = 262144;
