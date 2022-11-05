@@ -18,7 +18,7 @@ use winit::window::{
 
 use crate::application::audio_manager::AudioManager;
 use crate::application::scene_manager::ProjectSceneManagerBase;
-use crate::application::input;
+use crate::application::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::font::FontManager;
 use crate::renderer::renderer_context::RendererContext;
@@ -239,12 +239,12 @@ impl EngineApplication {
         }
     }
 
-    pub fn clear_input_events(&mut self) {
+    pub fn update_input_events(&mut self) {
         self._mouse_move_data.clear_mouse_move_delta();
         self._mouse_input_data.clear_mouse_input();
         self._keyboard_input_data.clear_key_pressed();
         self._keyboard_input_data.clear_key_released();
-        self._joystick_input_data.clear_joystick_input_data();
+        self._joystick_input_data.update_joystick_button_state();
     }
 
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
@@ -492,11 +492,10 @@ pub fn run_application(
                     engine_application._joystick_input_data.update_controller_axis_motion(axis, value);
                 }
                 event::Event::ControllerButtonDown { button, .. } =>  {
-                    engine_application._joystick_input_data.update_controller_button_down(button);
-                    log::info!("Button {:?} down", button)
+                    engine_application._joystick_input_data.update_controller_button_state(button, ButtonState::Pressed);
                 },
                 event::Event::ControllerButtonUp { button, .. } => {
-                    engine_application._joystick_input_data.update_controller_button_up(button);
+                    engine_application._joystick_input_data.update_controller_button_state(button, ButtonState::Released);
                 },
                 event::Event::Quit { .. } => break,
                 _ => (),
@@ -523,7 +522,7 @@ pub fn run_application(
             Event::NewEvents(_) => {
                 // reset input states on new frame
                 if run_application {
-                    engine_application.clear_input_events();
+                    engine_application.update_input_events();
                 }
             },
             Event::MainEventsCleared => {

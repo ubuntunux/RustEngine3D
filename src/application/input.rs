@@ -13,7 +13,7 @@ pub enum ButtonState {
     None,
     Pressed,
     Hold,
-    Release
+    Released
 }
 
 #[derive(Clone, Debug)]
@@ -67,10 +67,10 @@ impl Default for MouseInputData {
 }
 
 pub struct JoystickInputData {
-    pub _left_stick_direction: Vector2<i16>,
-    pub _right_stick_direction: Vector2<i16>,
-    pub _left_stick_button: ButtonState,
-    pub _right_stick_button: ButtonState,
+    pub _stick_left_direction: Vector2<i16>,
+    pub _stick_right_direction: Vector2<i16>,
+    pub _btn_left_stick: ButtonState,
+    pub _btn_right_stick: ButtonState,
     pub _btn_left: ButtonState,
     pub _btn_right: ButtonState,
     pub _btn_up: ButtonState,
@@ -279,10 +279,10 @@ impl JoystickInputData {
         }
 
         Box::new(JoystickInputData {
-            _left_stick_direction: Vector2::zeros(),
-            _right_stick_direction: Vector2::zeros(),
-            _left_stick_button: ButtonState::None,
-            _right_stick_button: ButtonState::None,
+            _stick_left_direction: Vector2::zeros(),
+            _stick_right_direction: Vector2::zeros(),
+            _btn_left_stick: ButtonState::None,
+            _btn_right_stick: ButtonState::None,
             _btn_left: ButtonState::None,
             _btn_right: ButtonState::None,
             _btn_up: ButtonState::None,
@@ -302,26 +302,30 @@ impl JoystickInputData {
         })
     }
 
-    pub fn clear_joystick_input_data(&mut self) {
-        self._left_stick_direction = Vector2::zeros();
-        self._right_stick_direction = Vector2::zeros();
-        self._left_stick_button = ButtonState::None;
-        self._right_stick_button = ButtonState::None;
-        self._btn_left = ButtonState::None;
-        self._btn_right = ButtonState::None;
-        self._btn_up = ButtonState::None;
-        self._btn_down = ButtonState::None;
-        self._btn_a = ButtonState::None;
-        self._btn_b = ButtonState::None;
-        self._btn_x = ButtonState::None;
-        self._btn_y = ButtonState::None;
-        self._btn_left_bumper = ButtonState::None;
-        self._btn_left_trigger = 0;
-        self._btn_right_bumper = ButtonState::None;
-        self._btn_right_trigger = 0;
-        self._btn_back = ButtonState::None;
-        self._btn_start = ButtonState::None;
-        self._btn_guide = ButtonState::None;
+    pub fn reset_button_state(button: &mut ButtonState) {
+        match button {
+            ButtonState::Pressed => { *button = ButtonState::Hold },
+            ButtonState::Released => { *button = ButtonState::None },
+            _ => ()
+        }
+    }
+
+    pub fn update_joystick_button_state(&mut self) {
+        JoystickInputData::reset_button_state(&mut self._btn_left_stick);
+        JoystickInputData::reset_button_state(&mut self._btn_right_stick);
+        JoystickInputData::reset_button_state(&mut self._btn_left);
+        JoystickInputData::reset_button_state(&mut self._btn_right);
+        JoystickInputData::reset_button_state(&mut self._btn_up);
+        JoystickInputData::reset_button_state(&mut self._btn_down);
+        JoystickInputData::reset_button_state(&mut self._btn_a);
+        JoystickInputData::reset_button_state(&mut self._btn_b);
+        JoystickInputData::reset_button_state(&mut self._btn_x);
+        JoystickInputData::reset_button_state(&mut self._btn_y);
+        JoystickInputData::reset_button_state(&mut self._btn_left_bumper);
+        JoystickInputData::reset_button_state(&mut self._btn_right_bumper);
+        JoystickInputData::reset_button_state(&mut self._btn_back);
+        JoystickInputData::reset_button_state(&mut self._btn_start);
+        JoystickInputData::reset_button_state(&mut self._btn_guide);
     }
 
     pub fn has_game_controller(&self) -> bool {
@@ -334,8 +338,6 @@ impl JoystickInputData {
 
     pub fn update_controller_axis_motion(&mut self, axis: Axis, value: i16) {
         if self.has_game_controller() {
-            log::info!("Axis {:?} moved to {}", axis, value);
-
             match axis {
                 Axis::TriggerLeft => {
                     self._btn_left_trigger = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
@@ -348,48 +350,53 @@ impl JoystickInputData {
                 Axis::LeftX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
                         // Axis motion is an absolin the range [-32768, 32767]. Let's simulate a very rough dead zone to ignore spurious events.
-                        self._left_stick_direction.x = value;
+                        self._stick_left_direction.x = value;
+                    } else {
+                        self._stick_left_direction.x = 0;
                     }
                 },
                 Axis::LeftY => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
-                        self._left_stick_direction.y = value;
+                        self._stick_left_direction.y = value;
+                    } else {
+                        self._stick_left_direction.y = 0;
                     }
                 },
                 Axis::RightX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
-                        self._right_stick_direction.x = value;
+                        self._stick_right_direction.x = value;
+                    } else {
+                        self._stick_right_direction.x = 0;
                     }
                 },
                 Axis::RightY => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
-                        self._right_stick_direction.y = value;
+                        self._stick_right_direction.y = value;
+                    } else {
+                        self._stick_right_direction.y = 0;
                     }
                 }
             }
         }
     }
 
-    pub fn update_controller_button_down(&mut self, button: Button) {
-        // A = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_A as i32,
-        // B = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_B as i32,
-        // X = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_X as i32,
-        // Y = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_Y as i32,
-        // Back = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_BACK as i32,
-        // Guide = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_GUIDE as i32,
-        // Start = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_START as i32,
-        // LeftStick = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSTICK as i32,
-        // RightStick = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSTICK as i32,
-        // LeftShoulder = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_LEFTSHOULDER as i32,
-        // RightShoulder = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_RIGHTSHOULDER as i32,
-        // DPadUp = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_UP as i32,
-        // DPadDown = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_DOWN as i32,
-        // DPadLeft = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_LEFT as i32,
-        // DPadRight = sys::SDL_GameControllerButton::SDL_CONTROLLER_BUTTON_DPAD_RIGHT as i32,
-        log::info!("Button {:?} down", button)
-    }
-
-    pub fn update_controller_button_up(&mut self, button: Button) {
-        log::info!("Button {:?} up", button)
+    pub fn update_controller_button_state(&mut self, button: Button, button_state: ButtonState) {
+        match button {
+            Button::A => { self._btn_a = button_state },
+            Button::B => { self._btn_b = button_state },
+            Button::X => { self._btn_x = button_state },
+            Button::Y => { self._btn_y = button_state },
+            Button::Back => { self._btn_back = button_state },
+            Button::Guide => { self._btn_guide = button_state },
+            Button::Start => { self._btn_start = button_state },
+            Button::LeftStick => { self._btn_left_stick = button_state },
+            Button::RightStick => { self._btn_right_stick = button_state },
+            Button::LeftShoulder => { self._btn_left_bumper = button_state },
+            Button::RightShoulder => { self._btn_right_bumper = button_state },
+            Button::DPadUp => { self._btn_up = button_state },
+            Button::DPadDown => { self._btn_down = button_state },
+            Button::DPadLeft => { self._btn_left = button_state },
+            Button::DPadRight => { self._btn_right = button_state }
+        }
     }
 }
