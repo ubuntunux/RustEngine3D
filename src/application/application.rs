@@ -239,7 +239,7 @@ impl EngineApplication {
         }
     }
 
-    pub fn update_input_events(&mut self) {
+    pub fn clear_and_update_input_datas(&mut self) {
         self._mouse_move_data.clear_mouse_move_delta();
         self._mouse_input_data.clear_mouse_input();
         self._keyboard_input_data.clear_key_pressed();
@@ -485,23 +485,6 @@ pub fn run_application(
 
         let engine_application = maybe_engine_application.as_mut().unwrap().as_mut();
 
-        // sdl event
-        for event in sdl.event_pump().unwrap().poll_iter() {
-            match event {
-                event::Event::ControllerAxisMotion { axis, value, .. } => {
-                    engine_application._joystick_input_data.update_controller_axis_motion(axis, value);
-                }
-                event::Event::ControllerButtonDown { button, .. } =>  {
-                    engine_application._joystick_input_data.update_controller_button_state(button, ButtonState::Pressed);
-                },
-                event::Event::ControllerButtonUp { button, .. } => {
-                    engine_application._joystick_input_data.update_controller_button_state(button, ButtonState::Released);
-                },
-                event::Event::Quit { .. } => break,
-                _ => (),
-            }
-        }
-
         // winit event
         match event {
             Event::Resumed => {
@@ -522,12 +505,31 @@ pub fn run_application(
             Event::NewEvents(_) => {
                 // reset input states on new frame
                 if run_application {
-                    engine_application.update_input_events();
+                    engine_application.clear_and_update_input_datas();
+
+                    // sdl event
+                    for event in sdl.event_pump().unwrap().poll_iter() {
+                        match event {
+                            event::Event::ControllerAxisMotion { axis, value, .. } => {
+                                engine_application._joystick_input_data.update_controller_axis_motion(axis, value);
+                            }
+                            event::Event::ControllerButtonDown { button, .. } =>  {
+                                engine_application._joystick_input_data.update_controller_button_state(button, ButtonState::Pressed);
+                            },
+                            event::Event::ControllerButtonUp { button, .. } => {
+                                engine_application._joystick_input_data.update_controller_button_state(button, ButtonState::Released);
+                            },
+                            event::Event::Quit { .. } => break,
+                            _ => (),
+                        }
+                    }
                 }
             },
             Event::MainEventsCleared => {
                 if run_application {
-                    if false == engine_application.update_event(current_time) {
+                    // update main event
+                    let result = engine_application.update_event(current_time);
+                    if false == result {
                         *control_flow = ControlFlow::Exit;
                         run_application = false;
                     }
@@ -550,27 +552,27 @@ pub fn run_application(
                 },
                 WindowEvent::MouseInput { button, state, .. } => {
                     engine_application.update_mouse_input(button, state);
-                }
+                },
                 WindowEvent::CursorMoved { position, .. } => {
                     engine_application.update_cursor_moved(position);
-                }
+                },
                 WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y), .. } => {
                     engine_application.update_mouse_wheel(scroll_x, scroll_y);
-                }
+                },
                 WindowEvent::CursorEntered { device_id: _device_id, .. } => {
                     engine_application.update_cursor_entered();
-                }
+                },
                 WindowEvent::CursorLeft { device_id: _device_id, .. } => {
                     engine_application.update_cursor_left();
-                }
+                },
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
                         engine_application.update_keyboard_input(&input);
                     }
-                }
+                },
                 WindowEvent::Touch(touch) => {
                     engine_application.update_touch(&touch);
-                }
+                },
                 _ => (),
             },
             Event::RedrawEventsCleared => {
