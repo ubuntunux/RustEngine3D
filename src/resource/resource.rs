@@ -35,7 +35,6 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ self, RenderPassDataCreateInfo, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell, ptr_as_ref, ptr_as_mut };
-use nalgebra_glm::Vec3;
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -675,11 +674,17 @@ impl EngineResources {
                     _enable: true,
                     _emitter_data_name: String::from("emitter"),
                     _emitter_lifetime: -1.0,
-                    _spawn_term: 0.5,
-                    _particle_lifetime_min: 2.0,
-                    _particle_lifetime_max: 2.0,
                     _scale_min: Vector3::new(0.5,0.5,0.5),
                     _scale_max: Vector3::new(1.0,1.0,1.0),
+                    _max_particle_count: 1000,
+                    _spawn_count: 10,
+                    _spawn_term: 0.0,
+                    _particle_lifetime_min: 1.0,
+                    _particle_lifetime_max: 3.0,
+                    _velocity_min: Vector3::new(-1.0,15.0,-1.0),
+                    _velocity_max: Vector3::new(1.0,15.0,1.0),
+                    _force_min: Vector3::new(0.0,-7.0,0.0),
+                    _force_max: Vector3::new(0.0,-8.0,0.0),
                     _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
                     _mesh_name: String::from(DEFAULT_MESH_NAME),
                     ..Default::default()
