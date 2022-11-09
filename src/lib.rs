@@ -9,6 +9,8 @@ extern crate image;
 extern crate serde;
 extern crate serde_json;
 extern crate regex;
+extern crate nalgebra_glm;
+extern crate cgmath;
 
 pub mod constants;
 pub mod application;

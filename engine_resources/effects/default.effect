@@ -18,7 +18,7 @@
 "_align_mode":"Billboard",
 "_blend_mode":"AlphaBlend",
 "_geometry_type":"Quad",
-"_material_instance_name":"effects/default",
+"_material_instance_name":"effect/render_particle",
 "_mesh_name":"quad",
 "_rotation_min":[0.0,0.0,0.0],
 "_rotation_max":[0.0,0.0,0.0],

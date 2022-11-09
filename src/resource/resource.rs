@@ -8,7 +8,7 @@ use ash::{ vk };
 use bincode;
 use byteorder::{ LittleEndian, ReadBytesExt };
 use image::{ self, GenericImageView, };
-use nalgebra::{ Vector2 };
+use nalgebra::{ Vector2, Vector3 };
 use serde_json::{ self, Value };
 use serde::{ Serialize, Deserialize };
 
@@ -35,6 +35,7 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::render_pass::{ self, RenderPassDataCreateInfo, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
 use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
 use crate::utilities::system::{ self, RcRefCell, newRcRefCell, ptr_as_ref, ptr_as_mut };
+use nalgebra_glm::Vec3;
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -83,7 +84,7 @@ pub const EXT_TEXTURE: [&str; 1] = ["texture"];
 pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
 pub const DEFAULT_EFFECT_NAME: &str = "default";
-pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "common/render_particle";
+pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "effect/render_particle";
 pub const DEFAULT_FONT_NAME: &str = "NanumBarunGothic_Basic_Latin";
 pub const DEFAULT_MESH_NAME: &str = "quad";
 pub const DEFAULT_MODEL_NAME: &str = "quad";
@@ -567,7 +568,7 @@ impl EngineResources {
 
         // create default audio bank data
         {
-            let mut default_audio_bank_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+            let mut default_audio_bank_file_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
             default_audio_bank_file_path.push(&audio_bank_directory);
             default_audio_bank_file_path.push(&DEFAULT_AUDIO_BANK_NAME);
             default_audio_bank_file_path.set_extension(EXT_AUDIO_BANK);
@@ -663,7 +664,7 @@ impl EngineResources {
     pub fn load_effect_datas(&mut self) {
         log::info!("    load_effect_datas");
         // create default effect
-        let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+        let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
         default_effect_file_path.push(EFFECT_DIRECTORY);
         default_effect_file_path.push(DEFAULT_EFFECT_NAME);
         default_effect_file_path.set_extension(EXT_EFFECT);
@@ -674,6 +675,11 @@ impl EngineResources {
                     _enable: true,
                     _emitter_data_name: String::from("emitter"),
                     _emitter_lifetime: -1.0,
+                    _spawn_term: 0.5,
+                    _particle_lifetime_min: 2.0,
+                    _particle_lifetime_max: 2.0,
+                    _scale_min: Vector3::new(0.5,0.5,0.5),
+                    _scale_max: Vector3::new(1.0,1.0,1.0),
                     _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
                     _mesh_name: String::from(DEFAULT_MESH_NAME),
                     ..Default::default()
@@ -1097,7 +1103,7 @@ impl EngineResources {
         // generate necessary texture datas
         #[cfg(not(target_os = "android"))]
         {
-            let mut engine_texture_source_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+            let mut engine_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
             engine_texture_source_path.push(TEXTURE_SOURCE_DIRECTORY);
             texture_generator::generate_images(&engine_texture_source_path);
         }
