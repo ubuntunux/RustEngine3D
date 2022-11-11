@@ -1,6 +1,4 @@
-# Rust3DEngine
-Rust3DEngine
-
-### Note
- * Triangle (1024 x 768) : 2200fps / 0.45ms
- * submit test
+## Welcome to RustEngine3D
+* An open source Rust Vulkan renderer using the ash API.
+* RustEngine3D Demo: https://github.com/ubuntunux/rust_engine_3d_demo
+* ash: https://github.com/ash-rs/ash
