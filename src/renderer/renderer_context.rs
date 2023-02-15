@@ -157,7 +157,7 @@ pub struct RendererContext {
     pub _swapchain_data: swapchain::SwapchainData,
     pub _swapchain_support_details: swapchain::SwapchainSupportDetails,
     pub _swapchain_interface: Swapchain,
-    pub _debug_util_interface: Option<DebugUtils>,
+    pub _debug_utils: Option<DebugUtils>,
     pub _debug_call_back: vk::DebugUtilsMessengerEXT,
     pub _image_available_semaphores: FrameArray<vk::Semaphore>,
     pub _render_finished_semaphores: FrameArray<vk::Semaphore>,
@@ -280,7 +280,7 @@ impl RendererContext {
 
             // debug utils
             let debug_call_back: vk::DebugUtilsMessengerEXT;
-            let debug_util_interface: Option<DebugUtils>;
+            let debug_utils: Option<DebugUtils>;
             if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
                 let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
                 let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
@@ -291,10 +291,10 @@ impl RendererContext {
                     pfn_user_callback: Some(vulkan_debug_callback),
                     ..Default::default()
                 };
-                debug_util_interface = Some(DebugUtils::new(&entry, &instance));
-                debug_call_back = debug_util_interface.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
+                debug_utils = Some(DebugUtils::new(&entry, &instance));
+                debug_call_back = debug_utils.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
             } else {
-                debug_util_interface = None;
+                debug_utils = None;
                 debug_call_back = vk::DebugUtilsMessengerEXT::null();
             }
 
@@ -316,7 +316,7 @@ impl RendererContext {
                 _swapchain_data: swapchain_data,
                 _swapchain_support_details: swapchain_support_details,
                 _swapchain_interface: swapchain_interface,
-                _debug_util_interface: debug_util_interface,
+                _debug_utils: debug_utils,
                 _debug_call_back: debug_call_back,
                 _image_available_semaphores: image_available_semaphores,
                 _render_finished_semaphores: render_finished_semaphores,
@@ -366,6 +366,11 @@ impl RendererContext {
     }
     pub fn get_instance(&self) -> &Instance { &self._instance }
     pub fn get_device(&self) -> &Device { &self._device }
+
+    pub fn get_debug_utils(&self) -> &DebugUtils {
+        self._debug_utils.as_ref().unwrap()
+    }
+
     pub fn get_use_ray_tracing(&self) -> bool { self._render_features._use_ray_tracing }
     pub fn get_ray_tracing(&self) -> &RayTracing { &self._ray_tracing }
     pub fn get_ray_tracing_properties(&self) -> &vk::PhysicalDeviceRayTracingPropertiesNV { &self._ray_tracing_properties }
@@ -451,8 +456,8 @@ impl RendererContext {
             swapchain::destroy_swapchain_data(&self._device, &self._swapchain_interface, &self._swapchain_data);
             device::destroy_device(&self._device);
             device::destroy_vk_surface(&self._surface_interface, self._surface);
-            if self._debug_util_interface.is_some() {
-                self._debug_util_interface.as_ref().unwrap().destroy_debug_utils_messenger(self._debug_call_back, None);
+             if self._debug_utils.is_some() {
+                self.get_debug_utils().destroy_debug_utils_messenger(self._debug_call_back, None);
             }
             device::destroy_vk_instance(&self._instance);
         }

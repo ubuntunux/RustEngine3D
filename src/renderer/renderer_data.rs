@@ -2,6 +2,8 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
 use std::vec::Vec;
+use std::os::raw::c_char;
+use std::ffi::CString;
 
 use ash::{ vk, Device };
 use nalgebra::{Vector2, Matrix4};
@@ -48,7 +50,7 @@ use crate::vulkan_context::descriptor::{ DescriptorResourceInfo };
 use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, PipelineData };
 use crate::vulkan_context::texture::{ self, TextureData };
-use crate::vulkan_context::vulkan_context::{ self, SwapchainArray, MipLevels };
+use crate::vulkan_context::vulkan_context::{ self, SwapchainArray, MipLevels, ScopedLable };
 use crate::utilities::system::ptr_as_ref;
 
 
@@ -306,6 +308,8 @@ impl RendererDataBase for RendererData {
         delta_time: f64,
         _elapsed_frame: u64,
     ) {
+        let label_render_scene = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_scene");
+
         let engine_resources = renderer_context.get_engine_resources();
         let main_camera = project_scene_manager.get_main_camera();
         let main_light = project_scene_manager.get_main_light().borrow();
@@ -323,6 +327,8 @@ impl RendererDataBase for RendererData {
 
         // Upload Uniform Buffers
         {
+            let label_upload_uniform_buffers = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "upload_uniform_buffers");
+
             self._scene_constants.update_scene_constants(
                 renderer_context._swapchain_data._swapchain_extent.width,
                 renderer_context._swapchain_data._swapchain_extent.height,
@@ -349,30 +355,42 @@ impl RendererDataBase for RendererData {
         }
 
         if self._is_first_rendering {
+            let _ = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "prepare ocean & atmosphere");
             self.clear_render_targets(command_buffer, swapchain_index, renderer_context, &engine_resources, &quad_geometry_data);
             self._fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
             self._atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, renderer_context);
         }
 
         // clear gbuffer
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, None);
+        {
+            let label_clear_gbuffer = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "clear_gbuffer");
+            renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, None);
+        }
 
         // render shadow
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, None);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow", &static_shadow_render_elements);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow", &skeletal_shadow_render_elements);
+        {
+            let label_render_shadow = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render shadow");
+            renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, None);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow", &static_shadow_render_elements);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow", &skeletal_shadow_render_elements);
+        }
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
+            let label_capture_height_map = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "capture_height_map");
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, None);
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map", &static_render_elements);
         }
 
         // fft-simulation
-        self._fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
+        {
+            let label_fft_simulation = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "fft_simulation");
+            self._fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
+        }
 
         // light probe
         if self._render_context_light_probe._next_refresh_time <= elapsed_time || self._render_context_light_probe._light_probe_capture_count < 2 {
+            let label_render_light_probe = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_light_probe");
             self.render_light_probe(
                 renderer_context,
                 command_buffer,
@@ -391,6 +409,7 @@ impl RendererDataBase for RendererData {
 
         let light_probe_term = self._render_context_light_probe._light_probe_blend_term.min(self._render_context_light_probe._light_probe_refresh_term);
         if self._render_context_light_probe._light_probe_blend_time < light_probe_term {
+            let label_copy_cube_map = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "copy_cube_map");
             self._render_context_light_probe._light_probe_blend_time += delta_time;
             let blend_ratio: f64 = 1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
             self.copy_cube_map(
@@ -415,11 +434,15 @@ impl RendererDataBase for RendererData {
         }
 
         // render solid object
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer", &static_render_elements);
-        self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer", &skeletal_render_elements);
+        {
+            let label_render_solid_object = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_solid_object");
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer", &static_render_elements);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer", &skeletal_render_elements);
+        }
 
         // process gpu particles
         {
+            let label_process_gpu_particles = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "process_gpu_particles");
             let effect_manager = self.get_effect_manager_mut();
             if effect_manager.get_need_to_clear_gpu_particle_buffer() {
                 effect_manager.clear_gpu_particles(command_buffer, swapchain_index, renderer_context, &engine_resources);
@@ -429,43 +452,69 @@ impl RendererDataBase for RendererData {
         }
 
         // pre-process: min-z, ssr, ssao, gbuffer, downsampling scnee color
-        self.render_pre_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data);
+        {
+            let label_pre_process = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "pre_process");
+            self.render_pre_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data);
+        }
 
         // render ocean
-        self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+        {
+            let label_render_ocean = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_ocean");
+            self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+        }
 
         // render atmosphere
-        let render_light_probe_mode: bool = false;
-        self._atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, &renderer_context, render_light_probe_mode);
+        {
+            let label_render_ocean = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "label_render_ocean");
+            let render_light_probe_mode: bool = false;
+            self._atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, &renderer_context, render_light_probe_mode);
+        }
 
         // render translucent
-        self.render_translucent(command_buffer, swapchain_index, &engine_resources);
+        {
+            let label_render_translucent = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_translucent");
+            self.render_translucent(command_buffer, swapchain_index, &engine_resources);
+        }
 
         // TEST_CODE: ray tracing test
         if renderer_context.get_use_ray_tracing() {
+            let label_render_ray_tracing = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_ray_tracing");
             self.render_ray_tracing(renderer_context, command_buffer, swapchain_index, &engine_resources);
         }
 
         // post-process: taa, bloom, motion blur
-        self.render_post_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data, &engine_resources);
+        {
+            let label_render_post_process = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_post_process");
+            self.render_post_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data, &engine_resources);
+        }
 
         // Render Final
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
+        {
+            let label_render_final = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_final");
+            renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
+        }
 
         // Render UI
-        ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+        {
+            let label_render_ui = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_ui");
+            ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+        }
 
         // Render Text
-        let render_text_info = RenderTextInfo {
-            _render_font_size: 12,
-            _initial_column: 0,
-            _initial_row: 0,
-            _render_text_offset: Vector2::new(10.0, 10.0),
-        };
-        font_manager.render_text(command_buffer, swapchain_index, &renderer_context, &engine_resources, &render_text_info);
+        {
+            let label_render_text = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_text");
+            let render_text_info = RenderTextInfo {
+                _render_font_size: 12,
+                _initial_column: 0,
+                _initial_row: 0,
+                _render_text_offset: Vector2::new(10.0, 10.0),
+            };
+            font_manager.render_text(command_buffer, swapchain_index, &renderer_context, &engine_resources, &render_text_info);
+        }
 
         // Render Debug
         if RenderTargetType::BackBuffer != self._debug_render_target {
+            let label_render_debug = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_debug");
             let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
             let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
             renderer_context.begin_render_pass_pipeline(
@@ -508,18 +557,21 @@ impl RendererDataBase for RendererData {
         }
 
         // TEST CODE: readback image
-        // let texture_data = self.get_render_target(RenderTargetType::CaptureHeightMap);
-        // let buffer_size = unsafe { renderer_context.get_device().get_image_memory_requirements(texture_data._image).size };
-        // let mut read_data: Vec<f32> = vec![0.0; buffer_size as usize];
-        // texture::read_texture_data(
-        //     renderer_context.get_device(),
-        //     renderer_context.get_command_pool(),
-        //     renderer_context.get_graphics_queue(),
-        //     renderer_context.get_device_memory_properties(),
-        //     texture_data,
-        //     &mut read_data
-        // );
-        // println!("{:?}", read_data);
+        // {
+        //     let label_render_debug = ScopedLable::create_scoped_lable(renderer_context.get_debug_utils(), command_buffer, "render_debug");
+        //     let texture_data = self.get_render_target(RenderTargetType::CaptureHeightMap);
+        //     let buffer_size = unsafe { renderer_context.get_device().get_image_memory_requirements(texture_data._image).size };
+        //     let mut read_data: Vec<f32> = vec![0.0; buffer_size as usize];
+        //     texture::read_texture_data(
+        //         renderer_context.get_device(),
+        //         renderer_context.get_command_pool(),
+        //         renderer_context.get_graphics_queue(),
+        //         renderer_context.get_device_memory_properties(),
+        //         texture_data,
+        //         &mut read_data
+        //     );
+        //     println!("{:?}", read_data);
+        // }
     }
 }
 
