@@ -4,6 +4,7 @@ use nalgebra::{ Vector2, Vector3, Matrix3 };
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
+use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::geometry_buffer::{ GeometryData };
 use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
 use crate::vulkan_context::vulkan_context::{Layers, SwapchainArray};
@@ -756,6 +757,7 @@ impl Atmosphere {
         renderer_context: &RendererContext
     ) {
         // precompute constants
+        let label_precompute_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "precompute_atmosphere");
         let max_sun_zenith_angle = 120.0 / 180.0 * K_PI;
 
         let rayleigh_layer = DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / K_RAYLEIGH_SCALE_HEIGHT, 0.0, 0.0);

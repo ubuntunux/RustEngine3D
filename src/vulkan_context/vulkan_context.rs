@@ -1,15 +1,12 @@
 use std::cmp::min;
 use std::default::Default;
 use std::vec::Vec;
-use std::ffi::CString;
-use std::os::raw::c_char;
 
 use ash;
 use ash::{
     vk,
     Device,
 };
-use ash::extensions::ext::DebugUtils;
 
 pub type CubeMapArray<T> = Vec<T>; // equivalent to [T; constants::CUBE_LAYER_COUNT as usize]
 pub type SwapchainArray<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
@@ -32,45 +29,6 @@ pub struct RenderFeatures {
     pub _msaa_samples: vk::SampleCountFlags,
     pub _use_ray_tracing: bool,
 }
-
-pub struct ScopedLable {
-    pub _debug_utils: *const DebugUtils,
-    pub _command_buffer: vk::CommandBuffer,
-    pub _label_text: CString,
-    pub _label: vk::DebugUtilsLabelEXT,
-}
-
-impl Drop for ScopedLable {
-    fn drop(&mut self) {
-        unsafe {
-            (*self._debug_utils).cmd_end_debug_utils_label(self._command_buffer);
-        }
-    }
-}
-
-impl ScopedLable {
-    pub fn create_scoped_lable(debug_utils: *const DebugUtils, command_buffer: vk::CommandBuffer, label_name: &str) -> ScopedLable {
-        let label_text: CString = CString::new(label_name).unwrap();
-        let label_name_ptr = label_text.as_ptr() as *const c_char;
-        let label = ScopedLable {
-            _debug_utils: debug_utils,
-            _command_buffer: command_buffer,
-            _label_text: label_text,
-            _label: vk::DebugUtilsLabelEXT {
-                s_type: vk::StructureType::DEBUG_UTILS_LABEL_EXT,
-                p_label_name: label_name_ptr,
-                ..Default::default()
-            },
-        };
-
-        unsafe {
-            (*debug_utils).cmd_begin_debug_utils_label(command_buffer, &label._label);
-        }
-
-        label
-    }
-}
-
 
 pub fn get_format_size(format: vk::Format) -> u32 {
     match format {

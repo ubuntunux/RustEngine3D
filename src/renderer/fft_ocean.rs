@@ -12,6 +12,7 @@ use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::framebuffer::{ self, FramebufferData };
 use crate::vulkan_context::vulkan_context::{ SwapchainArray, Layers, MipLevels };
+use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::utilities::system::newRcRefCell;
 
 const CM: f64 = 0.23;
@@ -496,6 +497,7 @@ impl FFTOcean {
         engine_resources: &EngineResources,
     ) {
         // fft variance
+        let label_compute_slope_variance = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "compute_slope_variance");
         let material_instance_data = engine_resources.get_material_instance_data("fft_ocean/render_fft_ocean").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_fft_variance/render_fft_variance");
         let framebuffer_count = self._fft_variance_framebuffers.len();
@@ -539,6 +541,7 @@ impl FFTOcean {
         renderer_context: &RendererContext,
         engine_resources: &EngineResources,
     ) {
+        let label_simulate_fft_waves = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "simulate_fft_waves");
         let material_instance_data = engine_resources.get_material_instance_data("fft_ocean/render_fft_ocean").borrow();
 
         // fft init

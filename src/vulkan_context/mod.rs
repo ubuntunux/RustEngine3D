@@ -2,6 +2,7 @@ pub mod buffer;
 pub mod command_buffer;
 pub mod descriptor;
 pub mod device;
+pub mod debug_utils;
 pub mod framebuffer;
 pub mod geometry_buffer;
 pub mod queue;

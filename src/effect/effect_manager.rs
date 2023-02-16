@@ -23,6 +23,7 @@ use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::resource::resource::EngineResources;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
+use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 
 
 // code coupling with effect_constats.glsl
@@ -616,6 +617,7 @@ impl EffectManager {
         }
 
         let renderer_context: &RendererContext = renderer_data.get_renderer_context();
+        let label_render_effects = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_effects");
         let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
         let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
         let render_pass_pipeline_data_name = "render_particle_translucent/alpha_blend";

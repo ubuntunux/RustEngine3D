@@ -46,6 +46,7 @@ use crate::vulkan_context::{
     texture,
 };
 use crate::vulkan_context::buffer::{ ShaderBufferData };
+use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::descriptor::{ self, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::FramebufferData;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
@@ -822,15 +823,19 @@ impl RendererContext {
         };
 
         unsafe {
+            let waiting_for_fence = false;
             let fences = &[fence];
             self._device.reset_fences(fences).expect("failed to reset_fences");
 
-            let waiting_for_fence = false;
-            self._device.queue_submit(
-                self._queue_family_datas._graphics_queue,
-                &[submit_info],
-                if waiting_for_fence { fence } else { vk::Fence::null() }
-            ).expect("vkQueueSubmit failed!");
+            // vkQueueSubmit
+            {
+                let label_render_effects = ScopedDebugLabel::create_scoped_queue_label(self.get_debug_utils(), self._queue_family_datas._graphics_queue, "vkQueueSubmit");
+                self._device.queue_submit(
+                    self._queue_family_datas._graphics_queue,
+                    &[submit_info],
+                    if waiting_for_fence { fence } else { vk::Fence::null() }
+                ).expect("vkQueueSubmit failed!");
+            }
 
             if waiting_for_fence {
                 self._device.wait_for_fences(fences, true, std::u64::MAX).expect("vkWaitForFences failed!");
