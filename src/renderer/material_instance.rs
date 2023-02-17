@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use ash::{vk, Device};
+use ash::extensions::ext::DebugUtils;
 use crate::renderer::material::MaterialData;
 use crate::vulkan_context::descriptor::{ DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
@@ -63,6 +64,7 @@ impl PipelineBindingData {
 impl MaterialInstanceData {
     pub fn create_material_instance(
         device: &Device,
+        debug_utils: &DebugUtils,
         material_instance_data_name: &String,
         material_data: &RcRefCell<MaterialData>,
         material_parameters: &serde_json::Map<String, serde_json::Value>,
@@ -84,7 +86,7 @@ impl MaterialInstanceData {
 
             log::trace!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
             let descriptor_data = &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
-            let descriptor_sets = create_descriptor_sets(device, descriptor_data);
+            let descriptor_sets = create_descriptor_sets(device, debug_utils, render_pass_pipeline_data_name.as_str(), descriptor_data);
             let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
                 descriptor_data_create_info._descriptor_binding_index
             }).collect();

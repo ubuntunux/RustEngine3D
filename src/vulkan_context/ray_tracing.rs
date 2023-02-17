@@ -1,5 +1,6 @@
 use ash::extensions::nv::RayTracing;
 use ash::{ vk, Device };
+use ash::extensions::ext::DebugUtils;
 use nalgebra::Vector3;
 
 use crate::renderer::utility::find_exactly_matching_memory_type_index;
@@ -146,6 +147,7 @@ impl RayTracingData {
         &mut self,
         device: &Device,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+        debug_utils: &DebugUtils,
         ray_tracing: &RayTracing,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
@@ -169,6 +171,8 @@ impl RayTracingData {
                 command_pool,
                 command_queue,
                 device_memory_properties,
+                debug_utils,
+                "raytracing_vertex_buffer",
                 vk::BufferUsageFlags::VERTEX_BUFFER,
                 &vertex_datas,
             );
@@ -180,6 +184,8 @@ impl RayTracingData {
                 command_pool,
                 command_queue,
                 device_memory_properties,
+                debug_utils,
+                "raytracing_index_buffer",
                 vk::BufferUsageFlags::INDEX_BUFFER,
                 &indices
             );
@@ -249,6 +255,8 @@ impl RayTracingData {
                 command_pool,
                 command_queue,
                 device_memory_properties,
+                debug_utils,
+                "raytracing_instance_buffer",
                 vk::BufferUsageFlags::RAY_TRACING_NV,
                 &self._instance_data
             );
@@ -297,6 +305,8 @@ impl RayTracingData {
             self._scratch_buffer_data = buffer::create_buffer_data(
                 device,
                 device_memory_properties,
+                debug_utils,
+                "raytracing_scratch_buffer",
                 scratch_buffer_size,
                 vk::BufferUsageFlags::RAY_TRACING_NV,
                 vk::MemoryPropertyFlags::DEVICE_LOCAL

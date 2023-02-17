@@ -5,6 +5,7 @@ use bitflags::bitflags;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3, Vector4, Matrix4 };
 use ash::{ vk, Device };
+use ash::extensions::ext::DebugUtils;
 
 use crate::constants;
 use crate::application::application::TimeData;
@@ -1445,7 +1446,13 @@ impl UIManager {
 
     pub fn initialize_ui_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
         self._font_data = engine_resources.get_default_font_data().clone();
-        self.create_ui_vertex_data(renderer_context.get_device(), renderer_context.get_command_pool(), renderer_context.get_graphics_queue(), renderer_context.get_device_memory_properties());
+        self.create_ui_vertex_data(
+            renderer_context.get_device(),
+            renderer_context.get_debug_utils(),
+            renderer_context.get_command_pool(),
+            renderer_context.get_graphics_queue(),
+            renderer_context.get_device_memory_properties()
+        );
         self.create_ui_graphics_data(engine_resources);
         self.get_project_ui_manager_mut().initialize_project_ui_manager(&self);
         self.get_project_ui_manager_mut().build_ui(renderer_context, engine_resources);
@@ -1478,6 +1485,7 @@ impl UIManager {
     pub fn create_ui_vertex_data(
         &mut self,
         device: &Device,
+        debug_utils: &DebugUtils,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties
@@ -1492,6 +1500,8 @@ impl UIManager {
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            "ui_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &vertex_datas,
         );
@@ -1501,6 +1511,8 @@ impl UIManager {
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            "ui_index_buffer",
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices
         );

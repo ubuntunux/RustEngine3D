@@ -88,24 +88,18 @@ pub unsafe extern "system" fn vulkan_debug_callback(
 
 pub fn get_debug_message_level(debug_message_level: vk::DebugUtilsMessageSeverityFlagsEXT) -> vk::DebugUtilsMessageSeverityFlagsEXT {
     match debug_message_level {
-        vk::DebugUtilsMessageSeverityFlagsEXT::INFO => (
+        vk::DebugUtilsMessageSeverityFlagsEXT::INFO =>
             vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
-                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
-        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => (
             vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => (
-            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
-        _ => (
-            vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
-                vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
-                vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
-                vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        ),
+            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+        vk::DebugUtilsMessageSeverityFlagsEXT::WARNING =>
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
+        _ => vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE |
+             vk::DebugUtilsMessageSeverityFlagsEXT::INFO |
+             vk::DebugUtilsMessageSeverityFlagsEXT::WARNING |
+             vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
     }
 }
 
@@ -118,7 +112,7 @@ pub trait RendererDataBase {
     );
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
-    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, engine_resources: &EngineResources);
+    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, debug_utils: &DebugUtils, engine_resources: &EngineResources);
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
     fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
     fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData;
@@ -206,6 +200,26 @@ impl RendererContext {
             let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
             let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
 
+            // debug utils
+            let debug_call_back: vk::DebugUtilsMessengerEXT;
+            let debug_utils: Option<DebugUtils>;
+            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
+                let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
+                let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+                    message_severity: debug_message_level,
+                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
+                    pfn_user_callback: Some(vulkan_debug_callback),
+                    ..Default::default()
+                };
+                debug_utils = Some(DebugUtils::new(&entry, &instance));
+                debug_call_back = debug_utils.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
+            } else {
+                debug_utils = None;
+                debug_call_back = vk::DebugUtilsMessengerEXT::null();
+            }
+
             log::info!("PhysicalDeviceProperties");
             log::info!("    vulakn api_version: {}.{}.{}", vk::api_version_major(device_properties.api_version), vk::api_version_minor(device_properties.api_version), vk::api_version_patch(device_properties.api_version));
             log::info!("    driver_version: {}.{}.{}", vk::api_version_major(device_properties.driver_version), vk::api_version_minor(device_properties.driver_version), vk::api_version_patch(device_properties.driver_version));
@@ -267,6 +281,7 @@ impl RendererContext {
             let swapchain_interface = Swapchain::new(&instance, &device);
             let swapchain_data: swapchain::SwapchainData = swapchain::create_swapchain_data(
                 &device,
+                debug_utils.as_ref().unwrap(),
                 &swapchain_interface,
                 surface,
                 &swapchain_support_details,
@@ -278,26 +293,6 @@ impl RendererContext {
             let frame_fences = sync::create_fences(&device);
             let command_pool = command_buffer::create_command_pool(&device, &queue_family_datas);
             let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
-
-            // debug utils
-            let debug_call_back: vk::DebugUtilsMessengerEXT;
-            let debug_utils: Option<DebugUtils>;
-            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
-                let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
-                let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
-                    message_severity: debug_message_level,
-                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
-                    pfn_user_callback: Some(vulkan_debug_callback),
-                    ..Default::default()
-                };
-                debug_utils = Some(DebugUtils::new(&entry, &instance));
-                debug_call_back = debug_utils.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
-            } else {
-                debug_utils = None;
-                debug_call_back = vk::DebugUtilsMessengerEXT::null();
-            }
 
             // renderer data
             let renderer_data = Box::new(RendererData::create_renderer_data());
@@ -340,7 +335,7 @@ impl RendererContext {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
-        self._image_samplers = image_sampler::create_image_samplers(self.get_device());
+        self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
         self.get_renderer_data_mut().initialize_renderer_data(self, engine_resources, effect_manager);
 
         // TEST CODE
@@ -384,6 +379,7 @@ impl RendererContext {
         t.initialize_ray_tracing_data(
             self.get_device(),
             self.get_device_memory_properties(),
+            self.get_debug_utils(),
             self.get_ray_tracing(),
             self.get_command_pool(),
             self.get_graphics_queue(),
@@ -413,6 +409,7 @@ impl RendererContext {
             self.get_device_memory_properties(),
             self.get_command_pool(),
             self.get_graphics_queue(),
+            self.get_debug_utils(),
             texture_create_info
         )
     }
@@ -424,6 +421,7 @@ impl RendererContext {
             self.get_device_memory_properties(),
             self.get_command_pool(),
             self.get_graphics_queue(),
+            self.get_debug_utils(),
             texture_create_info
         )
     }
@@ -436,6 +434,7 @@ impl RendererContext {
             self.get_command_pool(),
             self.get_graphics_queue(),
             self.get_device_memory_properties(),
+            self.get_debug_utils(),
             geometry_name,
             geometry_create_info
         )
@@ -792,6 +791,7 @@ impl RendererContext {
         self._swapchain_support_details = swapchain::query_swapchain_support(&self._surface_interface, self._physical_device, self._surface);
         self._swapchain_data = swapchain::create_swapchain_data(
             &self._device,
+            self.get_debug_utils(),
             &self._swapchain_interface,
             self._surface,
             &self._swapchain_support_details,
@@ -829,7 +829,7 @@ impl RendererContext {
 
             // vkQueueSubmit
             {
-                let label_render_effects = ScopedDebugLabel::create_scoped_queue_label(self.get_debug_utils(), self._queue_family_datas._graphics_queue, "vkQueueSubmit");
+                let _label_render_effects = ScopedDebugLabel::create_scoped_queue_label(self.get_debug_utils(), self._queue_family_datas._graphics_queue, "vkQueueSubmit");
                 self._device.queue_submit(
                     self._queue_family_datas._graphics_queue,
                     &[submit_info],
@@ -1019,12 +1019,12 @@ impl RendererContext {
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::prepare_framebuffer_and_descriptors");
-        self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(&self._device, &self.get_engine_resources());
+        self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(self.get_device(), self.get_debug_utils(), &self.get_engine_resources());
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::destroy_framebuffer_and_descriptors");
-        self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(&self._device);
+        self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {

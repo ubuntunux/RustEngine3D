@@ -1,9 +1,10 @@
 use std::mem;
 use std::collections::HashMap;
 
-use serde::{ Serialize, Deserialize };
 use ash::{ vk, Device };
-use nalgebra::{ self, Vector2, Vector3, Vector4 };
+use ash::extensions::ext::DebugUtils;
+use nalgebra::{ self, Vector2, Vector3 };
+use serde::{ Serialize, Deserialize };
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::vulkan_context::buffer;
@@ -181,6 +182,7 @@ pub fn create_geometry_data(
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
     geometry_name: &String,
     geometry_create_info: &GeometryCreateInfo
 ) -> GeometryData {
@@ -192,6 +194,8 @@ pub fn create_geometry_data(
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            geometry_name.as_str(),
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &geometry_create_info._skeletal_vertex_datas,
         )
@@ -201,6 +205,8 @@ pub fn create_geometry_data(
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            geometry_name.as_str(),
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &geometry_create_info._vertex_datas,
         )
@@ -211,6 +217,8 @@ pub fn create_geometry_data(
         command_pool,
         command_queue,
         device_memory_properties,
+        debug_utils,
+        geometry_name.as_str(),
         vk::BufferUsageFlags::INDEX_BUFFER,
         &geometry_create_info._indices
     );

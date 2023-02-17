@@ -8,6 +8,7 @@ use ash::{
     vk,
     Device,
 };
+use ash::extensions::ext::DebugUtils;
 use nalgebra::{
     Vector2,
     Vector3,
@@ -262,12 +263,13 @@ impl std::str::FromStr for ShaderBufferDataType {
     }
 }
 
-pub fn regist_shader_buffer_data(shdaer_buffer_create_info: &mut RegistShaderBufferCreateInfo) {
+pub fn regist_shader_buffer_data(debug_utils: &DebugUtils, shdaer_buffer_create_info: &mut RegistShaderBufferCreateInfo) {
     unsafe {
         let buffer_data_size = shdaer_buffer_create_info._shader_buffer_data_stride * shdaer_buffer_create_info._shader_buffer_data_count;
         let uniform_buffer_data = buffer::create_shader_buffer_data(
             &*shdaer_buffer_create_info._device,
             &*shdaer_buffer_create_info._memory_properties,
+            debug_utils,
             &String::from(format!("{:?}", shdaer_buffer_create_info._shader_buffer_data_type)),
             shdaer_buffer_create_info._buffer_usage,
             buffer_data_size as vk::DeviceSize,
@@ -282,6 +284,7 @@ pub fn regist_shader_buffer_data(shdaer_buffer_create_info: &mut RegistShaderBuf
 pub fn regist_shader_buffer_datas(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
     shader_buffer_data_map: &mut ShaderBufferDataMap,
 ) {
     // Regist Uniform Buffer
@@ -298,57 +301,57 @@ pub fn regist_shader_buffer_datas(
         _is_device_local: false,
     };
 
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::SceneConstants,
         _shader_buffer_data_stride: std::mem::size_of::<SceneConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::ViewConstants,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightConstants,
         _shader_buffer_data_stride: std::mem::size_of::<LightConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::SSAOConstants,
         _shader_buffer_data_stride: std::mem::size_of::<SSAOConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::AtmosphereConstants,
         _shader_buffer_data_stride: std::mem::size_of::<AtmosphereConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants0,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants1,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants2,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants3,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants4,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants5,
         _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
         ..uniform_buffer_create_info
@@ -367,42 +370,42 @@ pub fn regist_shader_buffer_datas(
         _has_staging_buffer: true,
         _is_device_local: false,
     };
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
         _shader_buffer_data_stride: std::mem::size_of::<TransformMatrices>(),
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::FontInstanceDataBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<FontInstanceData>(),
         _shader_buffer_data_count: unsafe { constants::MAX_FONT_INSTANCE_COUNT as usize },
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::UIRenderDataBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<UIRenderData>(),
         _shader_buffer_data_count: unsafe { constants::MAX_UI_INSTANCE_COUNT as usize },
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleStaticConstants,
         _shader_buffer_data_stride: std::mem::size_of::<GpuParticleStaticConstants>(),
         _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize },
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleDynamicConstants,
         _shader_buffer_data_stride: std::mem::size_of::<GpuParticleDynamicConstants>(),
         _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize },
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<i32>(),
         _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize },
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<GpuParticleCountBufferData>(),
         _shader_buffer_data_count: unsafe { constants::MAX_EMITTER_COUNT as usize * 2 },
@@ -412,7 +415,7 @@ pub fn regist_shader_buffer_datas(
         _is_device_local: true,
         ..storage_buffer_create_info
     });
-    regist_shader_buffer_data(&mut RegistShaderBufferCreateInfo {
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<GpuParticleUpdateBufferData>(),
         _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize * 2 },

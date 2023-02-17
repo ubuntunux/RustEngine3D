@@ -1,15 +1,12 @@
 use std::cmp::{ min, max };
 
-use ash::{
-    vk,
-    Device,
-};
-use ash::extensions::khr::{
-    Surface,
-    Swapchain,
-};
+use ash::{vk, Device};
+use ash::vk::Handle;
+use ash::extensions::ext::DebugUtils;
+use ash::extensions::khr::{Surface, Swapchain};
 
 use crate::constants;
+use crate::vulkan_context::debug_utils;
 use crate::vulkan_context::queue;
 use crate::vulkan_context::texture;
 use crate::vulkan_context::vulkan_context::{ SwapchainArray };
@@ -98,6 +95,7 @@ pub fn query_swapchain_support(
 
 pub fn create_swapchain_data(
     device: &Device,
+    debug_utils: &DebugUtils,
     swapchain_interface: &Swapchain,
     surface: vk::SurfaceKHR,
     swapchain_support_details: &SwapchainSupportDetails,
@@ -157,7 +155,16 @@ pub fn create_swapchain_data(
     unsafe {
         let swapchain = swapchain_interface.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
         let swapchain_images: SwapchainArray<vk::Image> = swapchain_interface.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
-        let swapchain_image_views = create_swapchain_image_views(&device, &swapchain_images, swapchain_create_info.image_format);
+        for image in swapchain_images.iter() {
+            debug_utils::set_object_debug_info(
+                device,
+                debug_utils,
+                "swapchain",
+                vk::ObjectType::IMAGE,
+                image.as_raw()
+            );
+        }
+        let swapchain_image_views = create_swapchain_image_views(&device, debug_utils, &swapchain_images, swapchain_create_info.image_format);
 
         log::info!("create_swapchain_data : {:?}", swapchain);
         log::info!("    present_mode : {:?}", present_mode);
@@ -188,13 +195,14 @@ pub fn destroy_swapchain_data(device: &Device, swapchain_interface: &Swapchain, 
 
 pub fn create_swapchain_image_views(
     device: &Device,
+    debug_utils: &DebugUtils,
     swapchain_images: &SwapchainArray<vk::Image>,
     image_format: vk::Format,
 ) -> SwapchainArray<vk::ImageView> {
     swapchain_images
         .iter()
         .map(|image| {
-            texture::create_image_view(device, *image, vk::ImageViewType::TYPE_2D, image_format, vk::ImageAspectFlags::COLOR, 0, 1, 0, 1)
+            texture::create_image_view(device, debug_utils, "swapchain", *image, vk::ImageViewType::TYPE_2D, image_format, vk::ImageAspectFlags::COLOR, 0, 1, 0, 1)
         })
         .collect()
 }

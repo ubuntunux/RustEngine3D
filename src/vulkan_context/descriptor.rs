@@ -1,12 +1,12 @@
 use std::ffi::c_void;
 
-use ash::{
-    vk,
-    Device,
-};
+use ash::{vk, Device};
+use ash::vk::Handle;
+use ash::extensions::ext::DebugUtils;
 
 use crate::constants;
 use crate::renderer::utility::ptr_chain_iter;
+use crate::vulkan_context::debug_utils;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 
@@ -105,6 +105,8 @@ pub fn convert_resource_type_to_descriptor_type(resource_type: &DescriptorResour
 
 pub fn create_descriptor_pool(
     device: &Device,
+    debug_utils: &DebugUtils,
+    descriptor_name: &str,
     pool_sizes: &Vec<vk::DescriptorPoolSize>,
     max_descriptor_sets_count: u32
 ) -> vk::DescriptorPool {
@@ -118,8 +120,15 @@ pub fn create_descriptor_pool(
             ..Default::default()
         };
         unsafe {
-            let descriptor_pool = device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
-            log::trace!("    CreateDescriptorPool : {:?}", descriptor_pool);
+            let descriptor_pool: vk::DescriptorPool = device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
+            debug_utils::set_object_debug_info(
+                device,
+                debug_utils,
+                descriptor_name,
+                vk::ObjectType::DESCRIPTOR_POOL,
+                descriptor_pool.as_raw()
+            );
+            log::trace!("    CreateDescriptorPool: {:?}({:?})", descriptor_name, descriptor_pool);
             return descriptor_pool;
         }
     }
@@ -135,6 +144,8 @@ pub fn destroy_descriptor_pool(device: &Device, descriptor_pool: vk::DescriptorP
 
 pub fn create_descriptor_set_layout(
     device: &Device,
+    debug_utils: &DebugUtils,
+    descriptor_name: &str,
     layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>
 ) -> vk::DescriptorSetLayout {
     let layout_create_info = vk::DescriptorSetLayoutCreateInfo {
@@ -144,7 +155,14 @@ pub fn create_descriptor_set_layout(
     };
     unsafe {
         let descriptor_set_layout = device.create_descriptor_set_layout(&layout_create_info, None).expect("vkCreateDescriptorSetLayout failed!");
-        log::trace!("    CreateDescriptorSetLayout: {:?}", descriptor_set_layout);
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            descriptor_name,
+            vk::ObjectType::DESCRIPTOR_SET_LAYOUT,
+            descriptor_set_layout.as_raw()
+        );
+        log::trace!("    CreateDescriptorSetLayout: {:?}({:?})", descriptor_name, descriptor_set_layout);
         descriptor_set_layout
     }
 }
@@ -158,6 +176,8 @@ pub fn destroy_descriptor_set_layout(device: &Device, descriptor_set_layout: vk:
 
 pub fn create_descriptor_data(
     device: &Device,
+    debug_utils: &DebugUtils,
+    descriptor_name: &str,
     descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
     max_descriptor_sets_count: u32
 ) -> DescriptorData {
@@ -183,8 +203,8 @@ pub fn create_descriptor_data(
             }
         })
         .collect();
-    let descriptor_set_layout = create_descriptor_set_layout(device, &descriptor_layout_bindings);
-    let descriptor_pool = create_descriptor_pool(device, &descriptor_pool_sizes, max_descriptor_sets_count);
+    let descriptor_set_layout = create_descriptor_set_layout(device, debug_utils, descriptor_name, &descriptor_layout_bindings);
+    let descriptor_pool = create_descriptor_pool(device, debug_utils, descriptor_name, &descriptor_pool_sizes, max_descriptor_sets_count);
     DescriptorData {
         _descriptor_data_create_infos: descriptor_data_create_infos.clone(),
         _descriptor_set_layout_bindings: descriptor_layout_bindings,
@@ -205,6 +225,8 @@ pub fn destroy_descriptor_data(device: &Device, descriptor_data: &DescriptorData
 
 pub fn create_descriptor_sets(
     device: &Device,
+    debug_utils: &DebugUtils,
+    pipeline_data_name: &str,
     descriptor_data: &DescriptorData
 ) -> SwapchainArray<vk::DescriptorSet> {
     if vk::DescriptorPool::null() != descriptor_data._descriptor_pool {
@@ -219,6 +241,15 @@ pub fn create_descriptor_sets(
         };
         unsafe {
             let descriptor_sets = device.allocate_descriptor_sets(&allocation_info).expect("failed to allocate_descriptor_sets");
+            for descriptor_set in descriptor_sets.iter() {
+                debug_utils::set_object_debug_info(
+                    device,
+                    debug_utils,
+                    pipeline_data_name,
+                    vk::ObjectType::DESCRIPTOR_SET,
+                    descriptor_set.as_raw()
+                );
+            }
             log::trace!("    CreateDescriptorSet: {:?}", descriptor_sets);
             return descriptor_sets;
         }

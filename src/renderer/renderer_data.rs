@@ -2,10 +2,9 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
 use std::vec::Vec;
-use std::os::raw::c_char;
-use std::ffi::CString;
 
-use ash::{ vk, Device };
+use ash::{vk, Device};
+use ash::extensions::ext::DebugUtils;
 use nalgebra::{Vector2, Matrix4};
 
 use crate::constants;
@@ -112,7 +111,12 @@ impl RendererDataBase for RendererData {
         self._engine_resources = engine_resources;
         self._effect_manager = effect_manager;
 
-        shader_buffer_datas::regist_shader_buffer_datas(renderer_context.get_device(), renderer_context.get_device_memory_properties(), &mut self._shader_buffer_data_map);
+        shader_buffer_datas::regist_shader_buffer_datas(
+            renderer_context.get_device(),
+            renderer_context.get_device_memory_properties(),
+            renderer_context.get_debug_utils(),
+            &mut self._shader_buffer_data_map
+        );
 
         self.create_render_targets(renderer_context);
         self.get_fft_ocean_mut().regist_fft_ocean_textures(renderer_context, self.get_engine_resources_mut());
@@ -127,43 +131,54 @@ impl RendererDataBase for RendererData {
         self._is_first_rendering = is_first_rendering;
     }
 
-    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, engine_resources: &EngineResources) {
+    fn prepare_framebuffer_and_descriptors(&mut self, device: &Device, debug_utils: &DebugUtils, engine_resources: &EngineResources) {
         // Bloom
         self._render_context_bloom.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::BloomTemp0).as_ref().unwrap(),
         );
+
         // Temporal AA
         self._render_context_taa.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
         );
+
         // SSAO
         self._render_context_ssao.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::SSAO).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSAOTemp).as_ref().unwrap(),
         );
+
         // Hierachical Min Z
         self._render_context_hiz.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
         );
+
         // SceneColor Downsampling
         self._render_context_scene_color_downsampling.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
         );
+
         // SSR
         self._render_context_ssr.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::SSR).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
@@ -171,16 +186,20 @@ impl RendererDataBase for RendererData {
             RenderTargetType::SSRResolved,
             RenderTargetType::SSRResolvedPrev
         );
+
         // Composite GBuffer
         self._render_context_composite_gbuffer.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
         );
+
         // RenderContext_LightProbe
         self._render_context_light_probe.initialize(
             device,
+            debug_utils,
             engine_resources,
             self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
@@ -210,6 +229,7 @@ impl RendererDataBase for RendererData {
             let top_level_descriptor_resource_info = self.get_renderer_context()._ray_tracing_test_data.get_top_level_descriptor_resource_info();
             let _render_ray_tracing_descriptor_sets = utility::create_descriptor_sets(
                 device,
+                debug_utils,
                 render_ray_tracing_pipeline_binding_data,
                 &[ (0, utility::create_swapchain_array(top_level_descriptor_resource_info.clone())) ],
             );
@@ -218,6 +238,7 @@ impl RendererDataBase for RendererData {
         // Last - Clear Render Targets
         self._render_context_clear_render_targets.initialize(
             device,
+            debug_utils,
             engine_resources,
             &[
                 (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -309,7 +330,7 @@ impl RendererDataBase for RendererData {
         delta_time: f64,
         _elapsed_frame: u64,
     ) {
-        let label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_scene");
+        let _label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_scene");
 
         let engine_resources = renderer_context.get_engine_resources();
         let main_camera = project_scene_manager.get_main_camera();
@@ -328,7 +349,7 @@ impl RendererDataBase for RendererData {
 
         // Upload Uniform Buffers
         {
-            let label_upload_uniform_buffers = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "upload_uniform_buffers");
+            let _label_upload_uniform_buffers = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "upload_uniform_buffers");
             self._scene_constants.update_scene_constants(
                 renderer_context._swapchain_data._swapchain_extent.width,
                 renderer_context._swapchain_data._swapchain_extent.height,
@@ -356,7 +377,7 @@ impl RendererDataBase for RendererData {
         }
 
         if self._is_first_rendering {
-            let label_precompute_environment = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "precompute_environment");
+            let _label_precompute_environment = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "precompute_environment");
             self.clear_render_targets(command_buffer, swapchain_index, renderer_context, &engine_resources, &quad_geometry_data);
             self._fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
             self._atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, renderer_context);
@@ -364,13 +385,13 @@ impl RendererDataBase for RendererData {
 
         // clear gbuffer
         {
-            let label_clear_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "clear_gbuffer");
+            let _label_clear_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "clear_gbuffer");
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, None);
         }
 
         // render shadow
         {
-            let label_render_shadow = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render shadow");
+            let _label_render_shadow = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render shadow");
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_shadow/clear", &quad_geometry_data, None, None, None);
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_shadow", &static_shadow_render_elements);
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_shadow", &skeletal_shadow_render_elements);
@@ -378,20 +399,20 @@ impl RendererDataBase for RendererData {
 
         // capture height map
         if render_capture_height_map || self._is_first_rendering {
-            let label_capture_height_map = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "capture_height_map");
+            let _label_capture_height_map = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "capture_height_map");
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_capture_height_map/clear", &quad_geometry_data, None, None, None);
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "capture_static_height_map", &static_render_elements);
         }
 
         // fft-simulation
         {
-            let label_fft_simulation = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "fft_simulation");
+            let _label_fft_simulation = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "fft_simulation");
             self._fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
         }
 
         // light probe
         if self._render_context_light_probe._next_refresh_time <= elapsed_time || self._render_context_light_probe._light_probe_capture_count < 2 {
-            let label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_light_probe");
+            let _label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_light_probe");
             self.render_light_probe(
                 renderer_context,
                 command_buffer,
@@ -410,7 +431,7 @@ impl RendererDataBase for RendererData {
 
         let light_probe_term = self._render_context_light_probe._light_probe_blend_term.min(self._render_context_light_probe._light_probe_refresh_term);
         if self._render_context_light_probe._light_probe_blend_time < light_probe_term {
-            let label_copy_cube_map = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "copy_cube_map");
+            let _label_copy_cube_map = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "copy_cube_map");
             self._render_context_light_probe._light_probe_blend_time += delta_time;
             let blend_ratio: f64 = 1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
             self.copy_cube_map(
@@ -436,14 +457,14 @@ impl RendererDataBase for RendererData {
 
         // render solid object
         {
-            let label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_solid_object");
+            let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_solid_object");
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_static_gbuffer", &static_render_elements);
             self.render_solid_object(renderer_context, command_buffer, swapchain_index, "render_pass_skeletal_gbuffer", &skeletal_render_elements);
         }
 
         // process gpu particles
         {
-            let label_process_gpu_particles = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "process_gpu_particles");
+            let _label_process_gpu_particles = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "process_gpu_particles");
             let effect_manager = self.get_effect_manager_mut();
             if effect_manager.get_need_to_clear_gpu_particle_buffer() {
                 effect_manager.clear_gpu_particles(command_buffer, swapchain_index, renderer_context, &engine_resources);
@@ -454,56 +475,56 @@ impl RendererDataBase for RendererData {
 
         // pre-process: min-z, ssr, ssao, gbuffer, downsampling scnee color
         {
-            let label_pre_process = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "pre_process");
+            let _label_pre_process = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "pre_process");
             self.render_pre_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data);
         }
 
         // render ocean
         {
-            let label_render_ocean = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ocean");
+            let _label_render_ocean = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ocean");
             self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
 
         // render atmosphere
         {
-            let label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "label_render_atmosphere");
+            let _label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "label_render_atmosphere");
             let render_light_probe_mode: bool = false;
             self._atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, &renderer_context, render_light_probe_mode);
         }
 
         // render translucent
         {
-            let label_render_translucent = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_translucent");
+            let _label_render_translucent = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_translucent");
             self.render_translucent(command_buffer, swapchain_index, &engine_resources);
         }
 
         // TEST_CODE: ray tracing test
         if renderer_context.get_use_ray_tracing() {
-            let label_render_ray_tracing = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ray_tracing");
+            let _label_render_ray_tracing = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ray_tracing");
             self.render_ray_tracing(renderer_context, command_buffer, swapchain_index, &engine_resources);
         }
 
         // post-process: taa, bloom, motion blur
         {
-            let label_render_post_process = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_post_process");
+            let _label_render_post_process = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_post_process");
             self.render_post_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data, &engine_resources);
         }
 
         // Render Final
         {
-            let label_render_final = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_final");
+            let _label_render_final = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_final");
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_final", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
         }
 
         // Render UI
         {
-            let label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ui");
+            let _label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ui");
             ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
 
         // Render Text
         {
-            let label_render_text = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_text");
+            let _label_render_text = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_text");
             let render_text_info = RenderTextInfo {
                 _render_font_size: 12,
                 _initial_column: 0,
@@ -515,7 +536,7 @@ impl RendererDataBase for RendererData {
 
         // Render Debug
         if RenderTargetType::BackBuffer != self._debug_render_target {
-            let label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
+            let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
             let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> = engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
             let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
             renderer_context.begin_render_pass_pipeline(
@@ -559,7 +580,7 @@ impl RendererDataBase for RendererData {
 
         // TEST CODE: readback image
         // {
-        //     let label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
+        //     let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
         //     let texture_data = self.get_render_target(RenderTargetType::CaptureHeightMap);
         //     let buffer_size = unsafe { renderer_context.get_device().get_image_memory_requirements(texture_data._image).size };
         //     let mut read_data: Vec<f32> = vec![0.0; buffer_size as usize];
@@ -684,7 +705,7 @@ impl RendererData {
         engine_resources: &EngineResources,
         _quad_geometry_data: &GeometryData,
     ) {
-        let label_clear_render_targets = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "clear_render_targets");
+        let _label_clear_render_targets = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "clear_render_targets");
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/clear_render_target").borrow();
         for (_, framebuffers) in self._render_context_clear_render_targets._color_framebuffer_datas.iter() {
             let default_frame_buffer = &framebuffers[0][0];
@@ -910,7 +931,7 @@ impl RendererData {
             return;
         }
 
-        let label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, render_pass_name);
+        let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, render_pass_name);
 
         unsafe {
             let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
@@ -1071,7 +1092,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // render_taa
-        let label_render_taa = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_taa");
+        let _label_render_taa = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_taa");
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_taa", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
 
         // copy SceneColorCopy -> TAAResolve
@@ -1089,7 +1110,7 @@ impl RendererData {
         renderer_context: &RendererContext,
         engine_resources: &EngineResources
     ) {
-        let label_render_bloom = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_bloom");
+        let _label_render_bloom = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_bloom");
         let render_bloom_material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/render_bloom").borrow();
         // render_bloom_highlight
         let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
@@ -1144,7 +1165,7 @@ impl RendererData {
 
     pub fn render_ssr(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // Screen Space Reflection
-        let label_render_ssr = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ssr");
+        let _label_render_ssr = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ssr");
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssr", DEFAULT_PIPELINE, &quad_geometry_data, None, None, None);
 
         // Screen Space Reflection Resolve
@@ -1158,7 +1179,7 @@ impl RendererData {
 
     pub fn render_ssao(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
         // render ssao
-        let label_render_ssao = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ssao");
+        let _label_render_ssao = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ssao");
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/render_ssao", DEFAULT_PIPELINE, quad_geometry_data, None, None, None);
 
         // render ssao blur
@@ -1179,7 +1200,7 @@ impl RendererData {
     }
 
     pub fn composite_gbuffer(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let label_composite_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "composite_gbuffer");
+        let _label_composite_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "composite_gbuffer");
         let descriptor_sets = match self._render_context_ssr._current_taa_resolved {
             RenderTargetType::SSRResolved => Some(&self._render_context_composite_gbuffer._descriptor_sets0),
             RenderTargetType::SSRResolvedPrev => Some(&self._render_context_composite_gbuffer._descriptor_sets1),
@@ -1189,7 +1210,7 @@ impl RendererData {
     }
 
     pub fn generate_min_z(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let label_generate_min_z = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "generate_min_z");
+        let _label_generate_min_z = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "generate_min_z");
         let engine_resources = renderer_context.get_engine_resources();
 
         // Copy Scene Depth
@@ -1214,7 +1235,7 @@ impl RendererData {
     }
 
     pub fn scene_color_downsampling(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, renderer_context: &RendererContext) {
-        let label_scene_color_downsampling = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "scene_color_downsampling");
+        let _label_scene_color_downsampling = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "scene_color_downsampling");
         let engine_resources = renderer_context.get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data("common/downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();

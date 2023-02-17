@@ -757,7 +757,7 @@ impl Atmosphere {
         renderer_context: &RendererContext
     ) {
         // precompute constants
-        let label_precompute_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "precompute_atmosphere");
+        let _label_precompute_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "precompute_atmosphere");
         let max_sun_zenith_angle = 120.0 / 180.0 * K_PI;
 
         let rayleigh_layer = DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / K_RAYLEIGH_SCALE_HEIGHT, 0.0, 0.0);
@@ -863,11 +863,13 @@ impl Atmosphere {
 
     pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData, engine_resources: &EngineResources) {
         let device = renderer_data.get_renderer_context().get_device();
+        let debug_utils = renderer_data.get_renderer_context().get_debug_utils();
         let material_instance = engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
 
         // render precomputed atmosphere
         self._render_context_precomputed_atmosphere.initialize(
             device,
+            debug_utils,
             engine_resources,
             renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
             renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED),
@@ -883,11 +885,13 @@ impl Atmosphere {
         let precomputed_atmosphere_color_resolved_prev = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV);
         self._composite_atmosphere_descriptor_sets0 = utility::create_descriptor_sets(
             device,
+            debug_utils,
             composite_atmosphere_pipeline_binding_data,
             &[(composite_atmosphere_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(precomputed_atmosphere_color_resolved.get_default_image_info()))],
         );
         self._composite_atmosphere_descriptor_sets1 = utility::create_descriptor_sets(
             device,
+            debug_utils,
             composite_atmosphere_pipeline_binding_data,
             &[(composite_atmosphere_descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(precomputed_atmosphere_color_resolved_prev.get_default_image_info()))]
         );
@@ -907,6 +911,7 @@ impl Atmosphere {
                 self._compute_multiple_scattering_framebuffers.push(
                     utility::create_framebuffers(
                         device,
+                        debug_utils,
                         &compute_multiple_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
                         "compute_multiple_scattering",
                         &[
@@ -929,6 +934,7 @@ impl Atmosphere {
                 self._compute_single_scattering_framebuffers.push(
                     utility::create_framebuffers(
                         device,
+                        debug_utils,
                         &compute_single_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
                         "compute_single_scattering",
                         &compute_single_scattering_rendertargets,
@@ -940,6 +946,7 @@ impl Atmosphere {
                 self._compute_scattering_density_framebuffers.push(
                     utility::create_framebuffers(
                         device,
+                        debug_utils,
                         &compute_scattering_density_pipeline_binding_data.get_render_pass_data().borrow(),
                         "compute_scattering_density",
                         &[RenderTargetInfo { _texture_data: &delta_scattering_density, _target_layer: layer, _target_mip_level: 0, _clear_value: None }],

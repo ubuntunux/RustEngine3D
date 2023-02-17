@@ -1264,6 +1264,7 @@ impl EngineResources {
                     if render_pass_data_create_info._render_pass_framebuffer_create_info.is_valid() {
                         let framebuffer_data = framebuffer::create_framebuffer_data(
                             renderer_context.get_device(),
+                            renderer_context.get_debug_utils(),
                             render_pass_data._render_pass,
                             render_pass_data._render_pass_data_name.as_str(),
                             render_pass_data_create_info._render_pass_framebuffer_create_info.clone(),
@@ -1516,6 +1517,7 @@ impl EngineResources {
 
             let material_instance_data = MaterialInstanceData::create_material_instance(
                 renderer_context.get_device(),
+                renderer_context.get_debug_utils(),
                 &material_instance_name,
                 &material_data,
                 &material_parameters,
@@ -1559,13 +1561,20 @@ impl EngineResources {
     ) -> RcRefCell<DescriptorData> {
         let descriptor_name: String = format!("{}{}", render_pass_name, pipeline_data_create_info._pipeline_data_create_info_name);
         let descriptor_data_create_infos = &pipeline_data_create_info._descriptor_data_create_infos;
+        // TODO: Let's set an appropriate max_descriptor_pool_count according to the render pass
         let max_descriptor_pool_count: u32 = unsafe { (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32 };
         let maybe_descriptor_data = self._descriptor_data_map.get(&descriptor_name);
         match maybe_descriptor_data {
             Some(descriptor_data) => descriptor_data.clone(),
             None => {
                 let descriptor_data = newRcRefCell(
-                    descriptor::create_descriptor_data(renderer_context.get_device(), descriptor_data_create_infos, max_descriptor_pool_count)
+                    descriptor::create_descriptor_data(
+                        renderer_context.get_device(),
+                        renderer_context.get_debug_utils(),
+                        descriptor_name.as_str(),
+                        descriptor_data_create_infos,
+                        max_descriptor_pool_count
+                    )
                 );
                 self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
                 descriptor_data

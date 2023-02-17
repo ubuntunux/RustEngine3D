@@ -3,28 +3,17 @@ use std::path::{
     PathBuf,
 };
 
-use ash::{
-    vk,
-    Device,
-};
+use ash::{vk, Device};
+use ash::extensions::ext::DebugUtils;
 use ash::vk::Handle;
 use ash::extensions::nv::RayTracing;
-
-use crate::vulkan_context::buffer::{
-    self,
-    BufferData
-};
-use crate::vulkan_context::descriptor::{
-    DescriptorDataCreateInfo,
-    DescriptorData,
-};
-use crate::vulkan_context::geometry_buffer::{
-    VertexData,
-    StaticVertexData
-};
+use crate::vulkan_context::buffer::{self, BufferData};
+use crate::vulkan_context::debug_utils;
+use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorData};
+use crate::vulkan_context::geometry_buffer::{VertexData, StaticVertexData};
 use crate::vulkan_context::framebuffer::{ FramebufferDataCreateInfo };
 use crate::vulkan_context::shader::{ create_shader_stage_create_info, destroy_shader_stage_create_info};
-use crate::utilities::system::{ RcRefCell, newRcRefCell };
+use crate::utilities::system::{RcRefCell, newRcRefCell};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::push_constants::PushConstant;
 
@@ -297,7 +286,8 @@ pub fn create_render_pass_data(
     descriptor_datas: &Vec<RcRefCell<DescriptorData>>
 ) -> RenderPassData {
     let device = renderer_context.get_device();
-    let render_pass = create_render_pass(device, &render_pass_data_create_info);
+    let debug_utils = renderer_context.get_debug_utils();
+    let render_pass = create_render_pass(device, debug_utils, &render_pass_data_create_info);
     let count = render_pass_data_create_info._pipeline_data_create_infos.len();
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
     let mut default_pipeline_data_name: String = String::new();
@@ -307,6 +297,7 @@ pub fn create_render_pass_data(
             if vk::PipelineBindPoint::GRAPHICS == bind_point {
                 create_graphics_pipeline_data(
                     device,
+                    debug_utils,
                     render_pass,
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
                     false == render_pass_data_create_info._depth_attachment_descriptions.is_empty(),
@@ -315,6 +306,7 @@ pub fn create_render_pass_data(
             } else if vk::PipelineBindPoint::COMPUTE == bind_point {
                 create_compute_pipeline_data(
                     device,
+                    debug_utils,
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
                     &descriptor_datas[i].borrow()
                 )
@@ -324,6 +316,7 @@ pub fn create_render_pass_data(
                     renderer_context.get_command_pool(),
                     renderer_context.get_graphics_queue(),
                     renderer_context.get_device_memory_properties(),
+                    debug_utils,
                     renderer_context.get_ray_tracing(),
                     renderer_context.get_ray_tracing_properties(),
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
@@ -337,6 +330,7 @@ pub fn create_render_pass_data(
         }
         pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
+
     log::trace!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
@@ -357,6 +351,7 @@ pub fn destroy_render_pass_data(device: &Device, render_pass_data: &RenderPassDa
 
 pub fn create_render_pass(
     device: &Device,
+    debug_utils: &DebugUtils,
     render_pass_data_create_info: &RenderPassDataCreateInfo
 ) -> vk::RenderPass {
     let create_image_attachment = | attachment_description: &ImageAttachmentDescription | -> vk::AttachmentDescription {
@@ -429,6 +424,13 @@ pub fn create_render_pass(
     };
     unsafe {
         let render_pass = device.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            render_pass_data_create_info._render_pass_create_info_name.as_str(),
+            vk::ObjectType::RENDER_PASS,
+            render_pass.as_raw()
+        );
         log::debug!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
         render_pass
     }
@@ -444,6 +446,8 @@ pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_
 
 pub fn create_pipeline_layout(
     device: &Device,
+    debug_utils: &DebugUtils,
+    pipeline_layout_name: &str,
     push_constant_datas: &[PipelinePushConstantData],
     descriptor_set_layouts: &[vk::DescriptorSetLayout]
 ) -> vk::PipelineLayout {
@@ -465,7 +469,14 @@ pub fn create_pipeline_layout(
     };
     unsafe {
         let pipeline_layout = device.create_pipeline_layout(&pipeline_create_info, None).expect("VkCreatePipelineLayout failed!!");
-        log::trace!("    create_pipeline_layout: {:?}", pipeline_layout);
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            pipeline_layout_name,
+            vk::ObjectType::PIPELINE_LAYOUT,
+            pipeline_layout.as_raw()
+        );
+        log::trace!("    create_pipeline_layout: {:?}({:?})", pipeline_layout_name, pipeline_layout);
         pipeline_layout
     }
 }
@@ -479,6 +490,7 @@ pub fn destroy_pipieline_layout(device: &Device, pipeline_layout: vk::PipelineLa
 
 pub fn create_graphics_pipeline_data(
     device: &Device,
+    debug_utils: &DebugUtils,
     render_pass: vk::RenderPass,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     has_depth_stencil_attachment: bool,
@@ -486,12 +498,14 @@ pub fn create_graphics_pipeline_data(
 ) -> PipelineData {
     let vertex_shader_create_info = create_shader_stage_create_info(
         device,
+        debug_utils,
         &pipeline_data_create_info._pipeline_vertex_shader_file,
         &pipeline_data_create_info._pipeline_shader_defines,
         vk::ShaderStageFlags::VERTEX
     );
     let fragment_shader_create_info = create_shader_stage_create_info(
         device,
+        debug_utils,
         &pipeline_data_create_info._pipeline_fragment_shader_file,
         &pipeline_data_create_info._pipeline_shader_defines,
         vk::ShaderStageFlags::FRAGMENT
@@ -500,6 +514,8 @@ pub fn create_graphics_pipeline_data(
     let shader_stage_infos = vec![vertex_shader_create_info, fragment_shader_create_info];
     let pipeline_layout = create_pipeline_layout(
         device,
+        debug_utils,
+        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
         &pipeline_data_create_info._push_constant_datas,
         &descriptor_set_layouts
     );
@@ -621,7 +637,15 @@ pub fn create_graphics_pipeline_data(
             &grphics_pipeline_create_info,
             None
         ).expect("vkCreateGraphicsPipelines failed!");
+        assert_eq!(1, graphics_pipelines.len());
 
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            vk::ObjectType::PIPELINE,
+            graphics_pipelines[0].as_raw()
+        );
         log::trace!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
         log::trace!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
         log::trace!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
@@ -644,11 +668,13 @@ pub fn create_graphics_pipeline_data(
 
 pub fn create_compute_pipeline_data(
     device: &Device,
+    debug_utils: &DebugUtils,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     descriptor_data: &DescriptorData
 ) -> PipelineData {
     let shader_create_info = create_shader_stage_create_info(
         device,
+        debug_utils,
         &pipeline_data_create_info._pipeline_compute_shader_file,
         &pipeline_data_create_info._pipeline_shader_defines,
         vk::ShaderStageFlags::COMPUTE
@@ -656,6 +682,8 @@ pub fn create_compute_pipeline_data(
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let pipeline_layout = create_pipeline_layout(
         device,
+        debug_utils,
+        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
         &pipeline_data_create_info._push_constant_datas,
         &descriptor_set_layouts
     );
@@ -674,7 +702,15 @@ pub fn create_compute_pipeline_data(
             &pipeline_create_info,
             None
         ).expect("vkCreateComputePipelines failed!");
+        assert_eq!(1, pipelines.len());
 
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            vk::ObjectType::PIPELINE,
+            pipelines[0].as_raw()
+        );
         log::trace!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipelines);
         log::trace!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
         log::trace!("    computeShader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
@@ -698,6 +734,7 @@ pub fn create_ray_tracing_pipeline_data(
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
     ray_tracing: &RayTracing,
     ray_tracing_properties: &vk::PhysicalDeviceRayTracingPropertiesNV,
     pipeline_data_create_info: &PipelineDataCreateInfo,
@@ -737,18 +774,21 @@ pub fn create_ray_tracing_pipeline_data(
     let shader_create_infos = [
         create_shader_stage_create_info(
             device,
+            debug_utils,
             &pipeline_data_create_info._pipeline_ray_generation_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
             vk::ShaderStageFlags::RAYGEN_KHR
         ),
         create_shader_stage_create_info(
             device,
+            debug_utils,
             &pipeline_data_create_info._pipeline_ray_closet_hit_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
             vk::ShaderStageFlags::CLOSEST_HIT_KHR
         ),
         create_shader_stage_create_info(
             device,
+            debug_utils,
             &pipeline_data_create_info._pipeline_ray_miss_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
             vk::ShaderStageFlags::MISS_KHR
@@ -757,6 +797,8 @@ pub fn create_ray_tracing_pipeline_data(
     let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
     let pipeline_layout = create_pipeline_layout(
         device,
+        debug_utils,
+        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
         &pipeline_data_create_info._push_constant_datas,
         &descriptor_set_layouts
     );
@@ -773,7 +815,14 @@ pub fn create_ray_tracing_pipeline_data(
     ];
 
     unsafe {
-        let pipeline = ray_tracing.create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None,).expect("create_ray_tracing_pipelines failed!")[0];
+        let pipeline = ray_tracing.create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None).expect("create_ray_tracing_pipelines failed!")[0];
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            vk::ObjectType::PIPELINE,
+            pipeline.as_raw()
+        );
 
         log::trace!("    create_ray_tracing_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipeline);
         log::trace!("    shader defines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
@@ -793,6 +842,8 @@ pub fn create_ray_tracing_pipeline_data(
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::BufferUsageFlags::TRANSFER_SRC,
             &table_data
         );

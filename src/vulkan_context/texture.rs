@@ -2,15 +2,13 @@ use std::cmp::{ max, min };
 use std::mem::align_of;
 use std::os::raw::c_void;
 
-use ash::{
-    vk,
-    Device,
-    Instance,
-};
+use ash::{vk, Device, Instance};
+use ash::vk::Handle;
+use ash::extensions::ext::DebugUtils;
 use ash::util::Align;
 
 use crate::constants;
-use crate::vulkan_context::buffer;
+use crate::vulkan_context::{buffer, debug_utils};
 use crate::renderer::utility::find_memory_type_index;
 use crate::vulkan_context::vulkan_context::{ run_commands_once, Layers, MipLevels };
 
@@ -505,6 +503,8 @@ pub fn find_supported_format(
 
 pub fn create_image_sampler(
     device: &Device,
+    debug_utils: &DebugUtils,
+    image_name: &str,
     mip_levels: u32,
     min_filter: vk::Filter,
     mag_filter: vk::Filter,
@@ -532,6 +532,13 @@ pub fn create_image_sampler(
 
     unsafe {
         let sampler = device.create_sampler(&sampler_create_info, None).expect("Failed to create sampler.");
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            image_name,
+            vk::ObjectType::SAMPLER,
+            sampler.as_raw()
+        );
         log::trace!("create_image_sampler: {:?}", sampler);
         sampler
     }
@@ -546,6 +553,8 @@ pub fn destroy_image_sampler(device: &Device, sampler: vk::Sampler) {
 
 pub fn create_image_view(
     device: &Device,
+    debug_utils: &DebugUtils,
+    image_name: &str,
     image: vk::Image,
     view_type:vk::ImageViewType,
     format: vk::Format,
@@ -575,7 +584,15 @@ pub fn create_image_view(
         ..Default::default()
     };
     unsafe {
-        device.create_image_view(&create_view_info, None).expect("vkCreateImageView failed!")
+        let image_view = device.create_image_view(&create_view_info, None).expect("vkCreateImageView failed!");
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            image_name,
+            vk::ObjectType::IMAGE_VIEW,
+            image_view.as_raw()
+        );
+        image_view
     }
 }
 
@@ -588,6 +605,8 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 
 pub fn create_image_datas(
     device: &Device,
+    debug_utils: &DebugUtils,
+    image_name: &str,
     image: vk::Image,
     image_view_type: vk::ImageViewType,
     image_format: vk::Format,
@@ -606,6 +625,8 @@ pub fn create_image_datas(
     // image sampler
     let image_sampler = create_image_sampler(
         device,
+        debug_utils,
+        image_name,
         mip_levels,
         min_filter,
         mag_filter,
@@ -616,6 +637,8 @@ pub fn create_image_datas(
     // default image view and descriptor
     let image_view = create_image_view(
         device,
+        debug_utils,
+        image_name,
         image,
         image_view_type,
         image_format,
@@ -648,6 +671,8 @@ pub fn create_image_datas(
         for mip_level in base_mip_level..mip_levels {
             let sub_image_view = create_image_view(
                 device,
+                debug_utils,
+                image_name,
                 image,
                 sub_image_view_type,
                 image_format,
@@ -874,6 +899,7 @@ pub fn create_render_target<T: Copy>(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
+    debug_utils: &DebugUtils,
     texture_create_info: &TextureCreateInfo<T>,
 ) -> TextureData {
     let is_render_target = true;
@@ -884,6 +910,7 @@ pub fn create_render_target<T: Copy>(
         memory_properties,
         command_pool,
         command_queue,
+        debug_utils,
         texture_create_info,
         is_render_target,
     )
@@ -896,6 +923,7 @@ pub fn create_texture_data<T: Copy>(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
+    debug_utils: &DebugUtils,
     texture_create_info: &TextureCreateInfo<T>,
 ) -> TextureData {
     let is_render_target = false;
@@ -906,6 +934,7 @@ pub fn create_texture_data<T: Copy>(
         memory_properties,
         command_pool,
         command_queue,
+        debug_utils,
         texture_create_info,
         is_render_target,
     )
@@ -918,6 +947,7 @@ fn create_texture_data_inner<T: Copy>(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
+    debug_utils: &DebugUtils,
     texture_create_info: &TextureCreateInfo<T>,
     is_render_target: bool,
 ) -> TextureData {
@@ -995,6 +1025,14 @@ fn create_texture_data_inner<T: Copy>(
         vk::MemoryPropertyFlags::DEVICE_LOCAL
     );
 
+    debug_utils::set_object_debug_info(
+        device,
+        debug_utils,
+        texture_create_info._texture_name.as_str(),
+        vk::ObjectType::IMAGE,
+        image.as_raw()
+    );
+
     run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
         transition_image_layout(
             device,
@@ -1016,6 +1054,8 @@ fn create_texture_data_inner<T: Copy>(
         let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
             device,
             memory_properties,
+            debug_utils,
+            texture_create_info._texture_name.as_str(),
             buffer_size,
             staging_buffer_usage_flags,
             staging_buffer_memory_property_flags
@@ -1077,6 +1117,8 @@ fn create_texture_data_inner<T: Copy>(
     // create image view, sampler, descriptor
     let image_datas = create_image_datas(
         device,
+        debug_utils,
+        texture_create_info._texture_name.as_str(),
         image,
         texture_create_info._texture_view_type,
         image_format,
@@ -1158,6 +1200,7 @@ pub fn read_texture_data<T: Copy>(
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
     texture_data: &TextureData,
     read_data: &mut [T],
 ) {
@@ -1169,6 +1212,8 @@ pub fn read_texture_data<T: Copy>(
     let staging_buffer_data: buffer::BufferData = buffer::create_buffer_data(
         device,
         memory_properties,
+        debug_utils,
+        texture_data._texture_data_name.as_str(),
         buffer_size,
         staging_buffer_usage_flags,
         staging_buffer_memory_property_flags

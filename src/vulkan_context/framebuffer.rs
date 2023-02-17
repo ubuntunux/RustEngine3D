@@ -1,17 +1,13 @@
 use std::cmp::max;
 
-use ash::{
-    vk,
-    Device,
-};
+use ash::{vk, Device};
+use ash::vk::Handle;
+use ash::extensions::ext::DebugUtils;
 
 use crate::constants;
-use crate::vulkan_context::vulkan_context::{
-    self,
-    SwapchainArray
-};
+use crate::vulkan_context::debug_utils;
+use crate::vulkan_context::vulkan_context::{self, SwapchainArray};
 use crate::vulkan_context::texture::TextureData;
-
 
 #[derive(Clone)]
 pub struct FramebufferDataCreateInfo {
@@ -146,6 +142,7 @@ pub fn create_framebuffer_data_create_info(
 
 pub fn create_framebuffer_data(
     device: &Device,
+    debug_utils: &DebugUtils,
     render_pass: vk::RenderPass,
     framebuffer_name: &str,
     framebuffer_data_create_info: FramebufferDataCreateInfo
@@ -167,7 +164,15 @@ pub fn create_framebuffer_data(
         let framebuffers: Vec<vk::Framebuffer> = constants::SWAPCHAIN_IMAGE_INDICES
             .iter()
             .map(|index| {
-                device.create_framebuffer(&get_framebuffer_create_info(*index), None).expect("vkCreateFramebuffer failed!")
+                let framebuffer = device.create_framebuffer(&get_framebuffer_create_info(*index), None).expect("vkCreateFramebuffer failed!");
+                debug_utils::set_object_debug_info(
+                    device,
+                    debug_utils,
+                    framebuffer_name,
+                    vk::ObjectType::FRAMEBUFFER,
+                    framebuffer.as_raw()
+                );
+                framebuffer
             }).collect();
 
         let render_pass_begin_infos: Vec<vk::RenderPassBeginInfo> = framebuffers

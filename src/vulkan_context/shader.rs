@@ -1,20 +1,16 @@
 use std::fs;
 use std::io::Read;
-use std::path::{
-    PathBuf,
-};
+use std::path::PathBuf;
 use std::os::raw::c_char;
 use std::process;
 
 use regex::Regex;
-
-use ash::{
-    vk,
-    Device,
-};
+use ash::{vk, Device};
+use ash::extensions::ext::DebugUtils;
 use ash::vk::Handle;
 use crate::utilities::system;
 use crate::resource::resource;
+use crate::vulkan_context::debug_utils;
 
 pub fn spirv_file_path_with_defines(is_engine_resource: bool, shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
     let ext = shader_filename.extension().unwrap();
@@ -42,6 +38,20 @@ pub fn spirv_file_path_with_defines(is_engine_resource: bool, shader_filename: &
     spirv_file_path_str.push_str(ext.to_str().unwrap());
     spirv_file_path_str.push_str(".spirv");
     PathBuf::from(spirv_file_path_str)
+}
+
+pub fn get_shader_module_name(shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
+    let mut shader_module_name = PathBuf::new();
+    shader_module_name.push(shader_filename.parent().unwrap());
+    shader_module_name.push(shader_filename.file_stem().unwrap());
+
+    if false == shader_defines.is_empty() {
+        let mut combined_shader_define: String = shader_defines.join("_");
+        combined_shader_define = combined_shader_define.replace("=", "");
+        shader_module_name.push("_");
+        shader_module_name.push(&combined_shader_define);
+    }
+    shader_module_name
 }
 
 pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
@@ -156,6 +166,7 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
 
 pub fn create_shader_stage_create_info(
     device: &Device,
+    debug_utils: &DebugUtils,
     shader_filename: &PathBuf,
     shader_defines: &[String],
     stage_flag: vk::ShaderStageFlags
@@ -169,6 +180,15 @@ pub fn create_shader_stage_create_info(
     };
     unsafe {
         let shader_module = device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
+        let shader_module_name: PathBuf = get_shader_module_name(&shader_filename, &shader_defines);
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            shader_module_name.to_str().unwrap(),
+            vk::ObjectType::SHADER_MODULE,
+            shader_module.as_raw()
+        );
+
         log::trace!("    create_shader_module: {:#X} {:?}: {:?}", shader_module.as_raw(), stage_flag, shader_filename);
         let main: *const c_char = "main\0".as_ptr() as *const c_char;
         vk::PipelineShaderStageCreateInfo {

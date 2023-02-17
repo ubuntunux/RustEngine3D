@@ -3,6 +3,7 @@ use std::cmp::max;
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector2, Vector3 };
 use ash::{ vk, Device };
+use ash::extensions::ext::DebugUtils;
 
 use crate::constants;
 use crate::resource::resource::{ EngineResources, DEFAULT_FONT_NAME };
@@ -206,22 +207,23 @@ impl VertexData for FontVertexData {
 }
 
 impl TextRenderData {
-    pub fn create_text_render_data(device: &Device, engine_resources: &EngineResources, font_data: &RcRefCell<FontData>) -> TextRenderData {
+    pub fn create_text_render_data(device: &Device, debug_utils: &DebugUtils, engine_resources: &EngineResources, font_data: &RcRefCell<FontData>) -> TextRenderData {
         let mut text_render_data = TextRenderData {
             _font_data: font_data.clone(),
             ..Default::default()
         };
         text_render_data._font_instance_datas.resize(unsafe { constants::MAX_FONT_INSTANCE_COUNT }, FontInstanceData::default());
-        text_render_data.create_texture_render_data_descriptor_sets(device, engine_resources);
+        text_render_data.create_texture_render_data_descriptor_sets(device, debug_utils, engine_resources);
         text_render_data
     }
 
-    pub fn create_texture_render_data_descriptor_sets(&mut self, device: &Device, engine_resources: &EngineResources) {
+    pub fn create_texture_render_data_descriptor_sets(&mut self, device: &Device, debug_utils: &DebugUtils, engine_resources: &EngineResources) {
         let material_instance = engine_resources.get_material_instance_data("ui/render_font").borrow();
         let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
         let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(self._font_data.borrow()._texture.borrow().get_default_image_info().clone());
         self._render_font_descriptor_sets = utility::create_descriptor_sets(
             device,
+            debug_utils,
             render_font_pipeline_binding_data,
             &[ (0, utility::create_swapchain_array(font_texture_image_info.clone())) ]
         );
@@ -321,12 +323,18 @@ impl FontManager {
     pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
         let ascii_font_data = engine_resources.get_font_data(DEFAULT_FONT_NAME);
         self._ascii = ascii_font_data.clone();
-        self._text_render_data = TextRenderData::create_text_render_data(renderer_context.get_device(), engine_resources, &ascii_font_data);
-        self.create_font_vertex_data(renderer_context.get_device(), renderer_context.get_command_pool(), renderer_context.get_graphics_queue(), renderer_context.get_device_memory_properties());
+        self._text_render_data = TextRenderData::create_text_render_data(renderer_context.get_device(), renderer_context.get_debug_utils(), engine_resources, &ascii_font_data);
+        self.create_font_vertex_data(
+            renderer_context.get_device(),
+            renderer_context.get_debug_utils(),
+            renderer_context.get_command_pool(),
+            renderer_context.get_graphics_queue(),
+            renderer_context.get_device_memory_properties()
+        );
     }
 
     pub fn create_font_descriptor_sets(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
-        self._text_render_data.create_texture_render_data_descriptor_sets(renderer_context.get_device(), engine_resources);
+        self._text_render_data.create_texture_render_data_descriptor_sets(renderer_context.get_device(), renderer_context.get_debug_utils(), engine_resources);
     }
 
     pub fn destroy_font_descriptor_sets(&mut self) {
@@ -343,6 +351,7 @@ impl FontManager {
     pub fn create_font_vertex_data(
         &mut self,
         device: &Device,
+        debug_utils: &DebugUtils,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties
@@ -357,6 +366,8 @@ impl FontManager {
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            "font_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &vertex_datas,
         );
@@ -366,6 +377,8 @@ impl FontManager {
             command_pool,
             command_queue,
             device_memory_properties,
+            debug_utils,
+            "font_index_buffer",
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices
         );

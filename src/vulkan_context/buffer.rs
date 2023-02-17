@@ -1,13 +1,13 @@
 use std::mem;
 
-use ash::{
-    vk,
-    Device,
-};
+use ash::{vk, Device};
+use ash::vk::Handle;
 use ash::util::Align;
+use ash::extensions::ext::DebugUtils;
 
 use crate::constants;
 use crate::renderer::utility::find_memory_type_index;
+use crate::vulkan_context::debug_utils;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::vulkan_context::{run_commands_once, SwapchainArray};
 
@@ -41,6 +41,8 @@ impl Default for BufferData {
 pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     device: &Device,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
+    buffer_name: &str,
     dst_buffer_type: vk::BufferUsageFlags,
     upload_datas: &Vec<T>,
 ) -> BufferData {
@@ -51,6 +53,8 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     let dst_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
+        debug_utils,
+        buffer_name,
         buffer_size,
         buffer_usage_flags,
         buffer_memory_property_flags
@@ -64,6 +68,8 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
+    buffer_name: &str,
     dst_buffer_type: vk::BufferUsageFlags,
     upload_datas: &Vec<T>,
 ) -> BufferData {
@@ -78,6 +84,8 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     let staging_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
+        debug_utils,
+        buffer_name,
         buffer_size,
         staging_buffer_usage_flags,
         staging_buffer_memory_property_flags
@@ -90,6 +98,8 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     let dst_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
+        debug_utils,
+        buffer_name,
         buffer_size,
         buffer_usage_flags,
         buffer_memory_property_flags
@@ -109,6 +119,8 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
 pub fn create_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
+    buffer_name: &str,
     buffer_size: vk::DeviceSize,
     buffer_usage_flags: vk::BufferUsageFlags,
     memory_property_flags: vk::MemoryPropertyFlags
@@ -132,7 +144,15 @@ pub fn create_buffer_data(
         let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-        log::trace!("    Create Buffer ({:?}): buffer({:?}), memory({:?})", buffer_usage_flags, buffer, buffer_memory);
+        debug_utils::set_object_debug_info(
+            device,
+            debug_utils,
+            buffer_name,
+            vk::ObjectType::BUFFER,
+            buffer.as_raw()
+        );
+
+        log::trace!("    Create Buffer ({:?}): ({:?}), buffer({:?}), memory({:?})", buffer_name, buffer_usage_flags, buffer, buffer_memory);
         log::trace!("        buffer_size: {:?}", buffer_size);
         log::trace!("        memory_type_index: {:?}", memory_type_index);
         log::trace!("        memory_requirements: {:?}", buffer_memory_requirements);
@@ -246,6 +266,7 @@ pub fn copy_buffer_offset(
 pub fn create_shader_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
+    debug_utils: &DebugUtils,
     buffer_name: &String,
     buffer_usage: vk::BufferUsageFlags,
     buffer_size: vk::DeviceSize,
@@ -271,11 +292,11 @@ pub fn create_shader_buffer_data(
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT
     };
     let buffers: SwapchainArray<BufferData> = if is_single_index_buffer {
-        let buffer = create_buffer_data(device, memory_properties, buffer_size, buffer_usage_flags, memory_property_flags);
+        let buffer = create_buffer_data(device, memory_properties, debug_utils, buffer_name.as_str(), buffer_size, buffer_usage_flags, memory_property_flags);
         vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
     } else {
         (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-            create_buffer_data(device, memory_properties, buffer_size, buffer_usage_flags, memory_property_flags)
+            create_buffer_data(device, memory_properties, debug_utils, buffer_name.as_str(), buffer_size, buffer_usage_flags, memory_property_flags)
         }).collect()
     };
 
@@ -285,11 +306,11 @@ pub fn create_shader_buffer_data(
         let staging_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
         Some(
             if is_single_index_buffer {
-                let buffer = create_buffer_data(device, memory_properties, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags);
+                let buffer = create_buffer_data(device, memory_properties, debug_utils, buffer_name, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags);
                 vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
             } else {
                 (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-                    create_buffer_data(device, memory_properties, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags)
+                    create_buffer_data(device, memory_properties, debug_utils, buffer_name, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags)
                 }).collect()
             }
         )

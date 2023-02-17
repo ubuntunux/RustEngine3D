@@ -1,4 +1,5 @@
 use ash::{ vk, Device };
+use ash::extensions::ext::DebugUtils;
 use ash::vk::BaseOutStructure;
 
 use crate::constants;
@@ -22,6 +23,7 @@ pub fn create_descriptor_image_info_swapchain_array(image_info: vk::DescriptorIm
 
 pub fn create_framebuffer(
     device: &Device,
+    debug_utils: &DebugUtils,
     render_pass_data: &RenderPassData,
     render_target: &TextureData,
     render_target_layer: u32,
@@ -30,6 +32,7 @@ pub fn create_framebuffer(
 ) -> FramebufferData {
     framebuffer::create_framebuffer_data(
         device,
+        debug_utils,
         render_pass_data._render_pass,
         format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
         framebuffer::create_framebuffer_data_create_info(
@@ -47,6 +50,7 @@ pub fn create_framebuffer(
 
 pub fn create_framebuffers(
     device: &Device,
+    debug_utils: &DebugUtils,
     render_pass_data: &RenderPassData,
     framebuffer_name: &str,
     color_render_targets: &[RenderTargetInfo],
@@ -55,6 +59,7 @@ pub fn create_framebuffers(
 ) -> FramebufferData {
     framebuffer::create_framebuffer_data(
         device,
+        debug_utils,
         render_pass_data._render_pass,
         format!("{}_{}", render_pass_data._render_pass_data_name, framebuffer_name).as_str(),
         framebuffer::create_framebuffer_data_create_info(color_render_targets, depth_render_targets, resolve_render_targets),
@@ -63,6 +68,7 @@ pub fn create_framebuffers(
 
 pub fn create_framebuffer_2d_array(
     device: &Device,
+    debug_utils: &DebugUtils,
     render_pass_data: &RenderPassData,
     render_target: &TextureData,
     render_target_miplevel: u32,
@@ -76,8 +82,10 @@ pub fn create_framebuffer_2d_array(
             _clear_value: clear_value,
         }
     ).collect();
+
     framebuffer::create_framebuffer_data(
         device,
+        debug_utils,
         render_pass_data._render_pass,
         format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
         framebuffer::create_framebuffer_data_create_info(
@@ -90,6 +98,7 @@ pub fn create_framebuffer_2d_array(
 
 pub fn create_descriptor_sets(
     device: &Device,
+    debug_utils: &DebugUtils,
     pipeline_binding_data: &PipelineBindingData,
     descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)]
 ) -> SwapchainArray<vk::DescriptorSet> {
@@ -108,7 +117,7 @@ pub fn create_descriptor_sets(
             }
         }
     }
-    let descriptor_sets = descriptor::create_descriptor_sets(device, descriptor_data);
+    let descriptor_sets = descriptor::create_descriptor_sets(device, debug_utils, pipeline_data._pipeline_data_name.as_str(), descriptor_data);
     let _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
         device,
         &descriptor_sets,
@@ -121,6 +130,7 @@ pub fn create_descriptor_sets(
 
 pub fn create_framebuffer_and_descriptor_sets(
     device: &Device,
+    debug_utils: &DebugUtils,
     pipeline_binding_data: &PipelineBindingData,
     render_target: &TextureData,
     render_target_layer: u32,
@@ -130,6 +140,7 @@ pub fn create_framebuffer_and_descriptor_sets(
 ) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
+        debug_utils,
         &pipeline_binding_data.get_render_pass_data().borrow(),
         render_target,
         render_target_layer,
@@ -138,6 +149,7 @@ pub fn create_framebuffer_and_descriptor_sets(
     );
     let descriptor_sets = create_descriptor_sets(
         device,
+        debug_utils,
         pipeline_binding_data,
         descriptor_resource_infos_list
     );
@@ -146,6 +158,7 @@ pub fn create_framebuffer_and_descriptor_sets(
 
 pub fn create_framebuffers_and_descriptor_sets(
     device: &Device,
+    debug_utils: &DebugUtils,
     pipeline_binding_data: &PipelineBindingData,
     framebuffer_name: &str,
     color_render_targets: &[RenderTargetInfo],
@@ -155,6 +168,7 @@ pub fn create_framebuffers_and_descriptor_sets(
 ) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffers(
         device,
+        debug_utils,
         &pipeline_binding_data.get_render_pass_data().borrow(),
         framebuffer_name,
         color_render_targets,
@@ -163,6 +177,7 @@ pub fn create_framebuffers_and_descriptor_sets(
     );
     let descriptor_sets = create_descriptor_sets(
         device,
+        debug_utils,
         pipeline_binding_data,
         descriptor_resource_infos_list
     );
