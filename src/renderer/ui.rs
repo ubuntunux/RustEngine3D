@@ -47,6 +47,7 @@ pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 // |--margin--|--border--|--padding--|--contents-size--|--padding--|--border--|--margin--|
 //            |--render-size--------------------------------------------------|
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderUI {
@@ -118,6 +119,7 @@ impl Default for UICornerFlags {
     }
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(default)]
 pub struct UIVertexData {
@@ -138,6 +140,7 @@ pub struct UIRenderGroupData {
     pub _material_instance: *const MaterialInstanceData
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct UIRenderData {
     pub _ui_texcoord: Vector4<f32>,

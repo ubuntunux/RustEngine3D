@@ -32,6 +32,7 @@ const GPU_PARTICLE_CONSTANT_FLAG_FIRST_UPDATE: u32 = 1 << 0;
 const GPU_PARTICLE_CONSTANT_FLAG_CLEAR: u32 = 1 << 1;
 
 // shader storage buffer
+#[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuParticleStaticConstants {
     pub _spawn_volume_transform: Matrix4<f32>,
@@ -54,6 +55,7 @@ pub struct GpuParticleStaticConstants {
     pub _reserved1: i32,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuParticleDynamicConstants {
     pub _emitter_transform: Matrix4<f32>,
@@ -67,6 +69,7 @@ pub struct GpuParticleDynamicConstants {
     pub _reserved1: u32,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuParticleCountBufferData {
     pub _particle_buffer_offset: i32,
@@ -75,6 +78,7 @@ pub struct GpuParticleCountBufferData {
     pub _particle_dead_count: i32,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy, Default)]
 pub struct GpuParticleUpdateBufferData {
     pub _particle_emitter_transform: Matrix4<f32>,
@@ -92,6 +96,7 @@ pub struct GpuParticleUpdateBufferData {
 }
 
 // push constants
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_UpdateGpuParticle {
@@ -110,6 +115,7 @@ impl PushConstantName for PushConstant_UpdateGpuParticle {
 impl PushConstant for PushConstant_UpdateGpuParticle {
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderParticle {

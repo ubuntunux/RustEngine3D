@@ -40,6 +40,7 @@ const GRID_VERTEX_COUNT: u32 = 200;
 const GRID_CELL_SIZE: [f32; 2] = [1.0 / GRID_VERTEX_COUNT as f32, 1.0 / GRID_VERTEX_COUNT as f32];
 const DEFAULT_FFT_SEED: i32 = 1234;
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_FFT_Ocean {

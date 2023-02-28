@@ -9,6 +9,7 @@ use crate::utilities::math::{
 use crate::constants;
 
 // scene_constants.glsl - struct LIGHT_CONSTANTS
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct LightConstants {

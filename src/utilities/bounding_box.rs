@@ -2,6 +2,7 @@ use serde::{ Serialize, Deserialize };
 use nalgebra;
 use nalgebra::{Vector3, Vector4, Matrix4};
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct BoundingBox {

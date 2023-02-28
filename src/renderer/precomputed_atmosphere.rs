@@ -211,6 +211,7 @@ pub enum Luminance {
     PRECOMPUTED = 2,
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_PrecomputedAtmosphere {
@@ -305,6 +306,7 @@ fn _convert_spectrum_to_linear_srgb(wavelengths: &[f32], spectrum: &[f32]) -> [f
     [r, g, b]
 }
 
+#[repr(C)]
 #[derive(Clone, Copy)]
 pub struct DensityProfileLayer {
     pub _width: f32,

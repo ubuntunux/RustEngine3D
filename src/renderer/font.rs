@@ -21,6 +21,7 @@ pub const USE_DISTANCE_FIELD: bool = true;
 pub const FONT_SIZE: u32 = 80;
 pub const FONT_PADDING: u32 = 1;
 
+#[repr(C)]
 pub struct RenderTextInfo {
     pub _render_font_size: u32,
     pub _initial_column: i32,
@@ -39,6 +40,7 @@ impl Default for RenderTextInfo {
     }
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderFont {
@@ -106,6 +108,7 @@ impl Default for FontData {
     }
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(default)]
 pub struct FontVertexData {
@@ -120,6 +123,7 @@ impl Default for FontVertexData {
     }
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
 pub struct FontInstanceData {
     pub _font_texcoord: Vector2<f32>,

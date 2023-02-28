@@ -68,6 +68,7 @@ impl<T> PushConstantSize for T {
     }
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
@@ -119,6 +120,7 @@ impl PushConstant for PushConstant_RenderObject {
     }
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_BloomHighlight {
@@ -148,6 +150,7 @@ impl PushConstantName for PushConstant_BloomHighlight {
 impl PushConstant for PushConstant_BloomHighlight {
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_GaussianBlur {
@@ -175,6 +178,7 @@ impl PushConstantName for PushConstant_GaussianBlur {
 impl PushConstant for PushConstant_GaussianBlur {
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderCopy {
@@ -204,6 +208,7 @@ impl PushConstantName for PushConstant_RenderCopy {
 impl PushConstant for PushConstant_RenderCopy {
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_BlendCubeMap {
@@ -222,6 +227,7 @@ impl PushConstantName for PushConstant_BlendCubeMap {
 impl PushConstant for PushConstant_BlendCubeMap {
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderColor {
@@ -237,6 +243,7 @@ impl PushConstantName for PushConstant_RenderColor {
 impl PushConstant for PushConstant_RenderColor {
 }
 
+#[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderDebug {

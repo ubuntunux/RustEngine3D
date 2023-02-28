@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use ash::{ vk, Device };
 use ash::extensions::ext::DebugUtils;
-use nalgebra::{ self, Vector2, Vector3 };
+use nalgebra::{ Vector2, Vector3, Vector4 };
 use serde::{ Serialize, Deserialize };
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
@@ -12,6 +12,7 @@ use crate::vulkan_context::vulkan_context::{ get_color32, get_format_size };
 use crate::utilities::math;
 use crate::utilities::bounding_box::{ BoundingBox, calc_bounding_box };
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(default)]
 pub struct StaticVertexData {
@@ -24,6 +25,7 @@ pub struct StaticVertexData {
 
 impl Default for StaticVertexData {
     fn default() -> StaticVertexData {
+        log::info!("StaticVertexData: {:?}", mem::size_of::<StaticVertexData>() as u32);
         StaticVertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
             _normal: Vector3::new(0.0, 0.0, 0.0),
@@ -34,6 +36,7 @@ impl Default for StaticVertexData {
     }
 }
 
+#[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(default)]
 pub struct SkeletalVertexData {

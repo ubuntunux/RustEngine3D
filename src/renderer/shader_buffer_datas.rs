@@ -55,6 +55,7 @@ pub enum ShaderBufferDataType {
 }
 
 // scene_constants.glsl - struct SCENE_CONSTANTS
+#[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct SceneConstants {
     pub _screen_size: Vector2<f32>,
@@ -74,6 +75,7 @@ pub struct SceneConstants {
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
+#[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct ViewConstants {
     pub _view: Matrix4<f32>,
@@ -107,11 +109,13 @@ pub struct ViewConstants {
 }
 
 // render_ssao.frag - SSAOConstants
+#[repr(C)]
 #[derive(Clone)]
 pub struct SSAOConstants {
     pub _ssao_kernel_samples: [Vector4<f32>; constants::SSAO_KERNEL_SIZE],
 }
 
+#[repr(C)]
 #[derive(Clone)]
 pub struct TransformMatrices {
     pub _transform_matrices: [Matrix4<f32>; constants::MAX_TRANSFORM_COUNT],
@@ -126,6 +130,7 @@ impl Default for TransformMatrices {
 }
 
 // pecomputed_atmosphere/atmosphere_common.glsl - struct ATMOSPHERE_CONSTANTS
+#[repr(C)]
 #[derive(Clone, Debug, Default)]
 pub struct AtmosphereConstants {
     pub _sky_radiance_to_luminance: Vector3<f32>,
