@@ -25,7 +25,6 @@ pub struct StaticVertexData {
 
 impl Default for StaticVertexData {
     fn default() -> StaticVertexData {
-        log::info!("StaticVertexData: {:?}", mem::size_of::<StaticVertexData>() as u32);
         StaticVertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
             _normal: Vector3::new(0.0, 0.0, 0.0),
