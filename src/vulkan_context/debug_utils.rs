@@ -79,6 +79,6 @@ pub fn set_object_debug_info(device: &Device, debug_utils: &DebugUtils, object_n
         ..Default::default()
     };
     unsafe {
-        debug_utils.set_debug_utils_object_name(device.handle(), &object_name_info).expect("failed to set_debug_utils_object_name.");
+        debug_utils.debug_utils_set_object_name(device.handle(), &object_name_info).expect("failed to set_debug_utils_object_name.");
     }
 }
