@@ -668,7 +668,10 @@ pub fn create_image_datas(
     for layer in base_array_layer..sub_image_layer_count {
         let mut miplevel_sub_image_views: MipLevels<vk::ImageView> = MipLevels::new();
         let mut miplevel_sub_image_infos: MipLevels<vk::DescriptorImageInfo> = MipLevels::new();
-        for mip_level in base_mip_level..mip_levels {
+        for sub_image_mip_level in base_mip_level..mip_levels {
+            let sub_image_base_array_layer = if image_view_type ==  vk::ImageViewType::TYPE_3D { base_array_layer } else { layer };
+            let sub_image_level_count = 1;
+            let sub_image_layer_count = 1;
             let sub_image_view = create_image_view(
                 device,
                 debug_utils,
@@ -677,10 +680,10 @@ pub fn create_image_datas(
                 sub_image_view_type,
                 image_format,
                 image_aspect,
-                mip_level,
-                1,
-                layer,
-                1,
+                sub_image_mip_level,
+                sub_image_level_count,
+                sub_image_base_array_layer,
+                sub_image_layer_count,
             );
             let sub_image_info = vk::DescriptorImageInfo {
                 sampler: image_sampler,
