@@ -62,10 +62,11 @@ pub const DEFAULT_PIPELINE: &str = "";
 #[derive(Clone, Debug, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum RenderMode {
-    GBuffer = 0,
-    Forward = 1,
-    Shadow = 2,
-    CaptureHeightMap = 3,
+    DepthPrepass = 0,
+    GBuffer = 1,
+    Forward = 2,
+    Shadow = 3,
+    CaptureHeightMap = 4,
 }
 
 // NOTE : RenderObjectType must match with scene_constants.glsl
@@ -387,6 +388,13 @@ impl RendererDataBase for RendererData {
         {
             let _label_clear_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "clear_gbuffer");
             renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", "clear_gbuffer/clear", &quad_geometry_data, None, None, None);
+        }
+
+        // depth prepass solid object
+        {
+            let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "depth_prepass_object");
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "depth_prepass_static", &static_render_elements);
+            self.render_solid_object(renderer_context, command_buffer, swapchain_index, "depth_prepass_skeletal", &skeletal_render_elements);
         }
 
         // render shadow

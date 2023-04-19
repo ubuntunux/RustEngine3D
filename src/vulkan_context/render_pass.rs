@@ -163,7 +163,7 @@ impl Default for DepthStencilStateCreateInfo {
         DepthStencilStateCreateInfo {
             _depth_test_enable: true,
             _depth_write_enable: true,
-            _depth_compare_op: vk::CompareOp::LESS,
+            _depth_compare_op: vk::CompareOp::LESS_OR_EQUAL,
             _stencil_test_enable: false,
             _front_fail_op: vk::StencilOp::KEEP, // fail the stencil test
             _front_pass_op: vk::StencilOp::KEEP, // pass both the depth and stencil tests

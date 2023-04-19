@@ -69,7 +69,7 @@ void main() {
     vec3 relative_pos = (localMatrix * position).xyz;
     vec3 relative_pos_prev = (localMatrixPrev * prev_position).xyz;
 
-#if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
+#if (RenderMode_DepthPrepass == RenderMode || RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
     vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
     vs_output.projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
 #elif (RenderMode_Shadow == RenderMode)

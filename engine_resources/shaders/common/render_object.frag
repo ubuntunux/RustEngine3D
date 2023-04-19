@@ -33,7 +33,7 @@ layout(location = 2) out vec4 outNormal;
 layout(location = 3) out vec2 outVelocity;
 #elif (RenderMode_Forward == RenderMode)
 layout(location = 0) out vec4 outColor;
-#elif (RenderMode_Shadow == RenderMode || RenderMode_CaptureHeightMap == RenderMode)
+#elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode || RenderMode_CaptureHeightMap == RenderMode)
 layout(location = 0) out float outDepth;
 #endif
 
@@ -107,7 +107,7 @@ void main() {
     );
     outColor.xyz += emissive_color;
     outColor.w = 1.0;
-#elif (RenderMode_Shadow == RenderMode || RenderMode_CaptureHeightMap == RenderMode)
+#elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode || RenderMode_CaptureHeightMap == RenderMode)
     outDepth = gl_FragCoord.z;
 #endif
 }

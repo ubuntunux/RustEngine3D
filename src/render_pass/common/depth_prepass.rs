@@ -1,8 +1,9 @@
 use std::path::PathBuf;
 
 use ash::vk;
+
 use crate::renderer::push_constants::{ PushConstant_RenderObject };
-use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData };
+use crate::renderer::renderer_data::{RendererData, RenderMode, RenderObjectType };
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::utilities::system::enum_to_string;
@@ -11,6 +12,7 @@ use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData, Skel
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
+    PipelinePushConstantData,
     ImageAttachmentDescription,
     DepthStencilStateCreateInfo,
 };
@@ -18,42 +20,17 @@ use crate::vulkan_context::descriptor::{
     DescriptorDataCreateInfo,
     DescriptorResourceType,
 };
-use crate::vulkan_context::vulkan_context::{ self, BlendMode, };
-use crate::vulkan_context::render_pass::PipelinePushConstantData;
+use crate::vulkan_context::vulkan_context;
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, is_clear_gbuffer: bool) -> FramebufferDataCreateInfo {
+
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        &[
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneAlbedo),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            },
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneMaterial),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            },
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneNormal),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 0.5, 1.0, 0.0)),
-            },
-            RenderTargetInfo {
-                _texture_data: renderer_data.get_render_target(RenderTargetType::SceneVelocity),
-                _target_layer: 0,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            }
-        ],
+        &[],
         &[RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
             _target_layer: 0,
             _target_mip_level: 0,
-            _clear_value: if is_clear_gbuffer { Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)) } else { None },
+            _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(1.0, 0)),
         }],
         &[]
     )
@@ -61,26 +38,11 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, is_clear_g
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_object_type: RenderObjectType) -> RenderPassDataCreateInfo {
     let render_pass_name = match render_object_type {
-        RenderObjectType::Static => String::from("render_pass_static_gbuffer"),
-        RenderObjectType::Skeletal => String::from("render_pass_skeletal_gbuffer"),
+        RenderObjectType::Static => String::from("depth_prepass_static"),
+        RenderObjectType::Skeletal => String::from("depth_prepass_skeletal"),
     };
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, false);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
-    let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
-        color_attachment_descriptions.push(
-            ImageAttachmentDescription {
-                _attachment_image_format: *format,
-                _attachment_image_samples: sample_count,
-                _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
-                _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                _attachment_initial_layout: vk::ImageLayout::GENERAL,
-                _attachment_final_layout: vk::ImageLayout::GENERAL,
-                _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                ..Default::default()
-            }
-        );
-    }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(
@@ -124,19 +86,17 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
             _pipeline_fragment_shader_file: PathBuf::from("common/render_object.frag"),
             _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
             _pipeline_shader_defines: vec![
-                format!("RenderMode={:?}", RenderMode::GBuffer as i32),
+                format!("RenderMode={:?}", RenderMode::DepthPrepass as i32),
                 format!("RenderObjectType={:?}", render_object_type as i32),
             ],
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
-            //_pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
-            _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
-                _depth_write_enable: false,
-                ..Default::default()
-            },
+            _pipeline_depth_bias_constant_factor: 0.0,
+            _pipeline_depth_bias_clamp: 0.0,
+            _pipeline_depth_bias_slope_factor: 0.0,
+            _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: match render_object_type {
                 RenderObjectType::Static => StaticVertexData::get_vertex_input_binding_descriptions(),
                 RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions(),
@@ -187,20 +147,6 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
                     _descriptor_resource_type: DescriptorResourceType::Texture,
                     _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                     ..Default::default()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 13,
-                    _descriptor_name: String::from("textureMaterial"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                    ..Default::default()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 14,
-                    _descriptor_name: String::from("textureNormal"),
-                    _descriptor_resource_type: DescriptorResourceType::Texture,
-                    _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                    ..Default::default()
                 }
             ],
             ..Default::default()
@@ -210,7 +156,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
     RenderPassDataCreateInfo  {
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
-        _color_attachment_descriptions: color_attachment_descriptions,
+        _color_attachment_descriptions: Vec::new(),
         _depth_attachment_descriptions: depth_attachment_descriptions,
         _resolve_attachment_descriptions: Vec::new(),
         _subpass_dependencies: subpass_dependencies,
