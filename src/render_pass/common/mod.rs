@@ -3,6 +3,7 @@ pub mod clear_render_target;
 pub mod clear_framebuffer;
 pub mod composite_gbuffer;
 pub mod copy_cube_map;
+pub mod depth_prepass;
 pub mod downsampling;
 pub mod generate_min_z;
 pub mod render_bloom;

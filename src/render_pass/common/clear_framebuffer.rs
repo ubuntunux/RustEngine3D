@@ -17,7 +17,7 @@ use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, framebuffer_name: &str) -> FramebufferDataCreateInfo {
     let light_probe_depth_only: bool = true;
     match framebuffer_name {
-        "clear_gbuffer" => render_pass::common::render_gbuffer::get_framebuffer_data_create_info(renderer_data),
+        "clear_gbuffer" => render_pass::common::render_gbuffer::get_framebuffer_data_create_info(renderer_data, true),
         "clear_shadow" => render_pass::common::render_shadow::get_framebuffer_data_create_info(renderer_data),
         "clear_capture_height_map" => render_pass::common::capture_height_map::get_framebuffer_data_create_info(renderer_data),
         "clear_light_probe_depth_0" => render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(renderer_data, 0, light_probe_depth_only),

@@ -5,10 +5,11 @@
 #define SSAO_KERNEL_SIZE 64
 
 // enum RenderMode
-#define RenderMode_GBuffer 0
-#define RenderMode_Forward 1
-#define RenderMode_Shadow 2
-#define RenderMode_CaptureHeightMap 3
+#define RenderMode_DepthPrepass 0
+#define RenderMode_GBuffer 1
+#define RenderMode_Forward 2
+#define RenderMode_Shadow 3
+#define RenderMode_CaptureHeightMap 4
 
 // enum RenderObjectType
 #define RenderObjectType_Static 0
