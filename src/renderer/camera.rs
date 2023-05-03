@@ -200,7 +200,7 @@ impl CameraObjectData {
     }
 
     pub fn update_projection(&mut self) {
-        self._projection = math::get_clip_space_matrix() * math::perspective(self._aspect, self._fov, self._near, self._far);
+        self._projection = math::perspective(self._aspect, self._fov, self._near, self._far);
         self._projection_jitter.copy_from(&self._projection);
         linalg::try_invert_to(self._projection.into(), &mut self._inv_projection);
         self._inv_projection_jitter.copy_from(&self._inv_projection);

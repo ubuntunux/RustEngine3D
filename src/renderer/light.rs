@@ -2,10 +2,7 @@ use nalgebra::{Vector3, Vector4, Matrix4};
 use serde::{ Serialize, Deserialize };
 
 use crate::renderer::transform_object::TransformObjectData;
-use crate::utilities::math::{
-    get_clip_space_matrix,
-    orthogonal,
-};
+use crate::utilities::math::orthogonal;
 use crate::constants;
 
 // scene_constants.glsl - struct LIGHT_CONSTANTS
@@ -114,7 +111,7 @@ impl DirectionalLightData {
         let height = shadow_dimensions.y;
         let near = shadow_dimensions.z;
         let far = shadow_dimensions.w;
-        self._light_shadow_projection = get_clip_space_matrix() * orthogonal(-width, width, -height, height, near, far);
+        self._light_shadow_projection = orthogonal(-width, width, -height, height, near, far);
         self._updated_light_data = true;
     }
 

@@ -183,40 +183,24 @@ pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> 
 }
 
 pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Matrix4<f32> {
-    let mut m: Matrix4<f32> = Matrix4::identity();
-    m.m11 = 2.0 / (right - left);
-    m.m22 = 2.0 / (top - bottom);
-    m.m33 = -2.0 / (far - near);
-    m.m14 = -(right + left) / (right - left);
-    m.m24 = -(top + bottom) / (top - bottom);
-    m.m34 = -(far + near) / (far - near);
-    m.m44 = 1.0;
-    m
+    let orthogonal_matrix = Matrix4::from_columns(&[
+        Vector4::new(2.0 / (right - left), 0.0, 0.0, 0.0),
+        Vector4::new(0.0, 2.0 / (top - bottom), 0.0, 0.0),
+        Vector4::new(0.0, 0.0, -2.0 / (far - near), 0.0),
+        Vector4::new(-(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0)
+    ]);
+    get_clip_space_matrix() * orthogonal_matrix
 }
 
 pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) -> Matrix4<f32> {
-    let height: f32 = degree_to_radian(fov * 0.5).tan() * near;
-    let width: f32 = height * aspect;
-    let depth = far - near;
-    // Compact version, it is assumed that x1 and x2 are the same.
-    Matrix4::from_columns(&[
-        Vector4::new(near / width, 0.0, 0.0, 0.0),
-        Vector4::new(0.0, near / height, 0.0, 0.0),
-        Vector4::new(0.0, 0.0, -(far + near) / depth, -1.0),
-        Vector4::new(0.0, 0.0, -(2.0 * near * far) / depth, 0.0)
-    ])
-
-    // Verbose version
-    // let left = -width;
-    // let right = width;
-    // let top = height;
-    // let bottom = -height;
-    // Matrix4::from_columns(&[
-    //     Vector4::new(2.0 * near / (right - left), 0.0, 0.0, 0.0),
-    //     Vector4::new(0.0, 2.0 * near / (top - bottom), 0.0, 0.0),
-    //     Vector4::new((right + left) / (right - left), (top + bottom) / (top - bottom), -(far + near) / (far - near), -1.0),
-    //     Vector4::new(0.0, 0.0, -2.0 * near * far / (far - near), 0.0),
-    // ])
+    let fov_half_tan: f32 = degree_to_radian(fov * 0.5).tan();
+    // clip_space * projection_matrix;
+    Matrix4::new(
+        1.0 / (fov_half_tan * aspect), 0.0, 0.0, 0.0,
+        0.0, -1.0 / fov_half_tan, 0.0, 0.0,
+        0.0, 0.0, -(far + near) / (far - near) * 0.5 - 0.5, -(near * far) / (far - near),
+        0.0, 0.0, -1.0,  0.0
+    )
 }
 
 /*
