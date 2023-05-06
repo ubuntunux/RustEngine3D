@@ -257,9 +257,7 @@ impl CameraObjectData {
             // view matrix is inverse matrix of transform, cause it's camera.
             self._view = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
             self._inv_view = self._transform_object.get_matrix().clone() as Matrix4<f32>;
-            self._view_origin.set_column(0, &self._view.column(0));
-            self._view_origin.set_column(1, &self._view.column(1));
-            self._view_origin.set_column(2, &self._view.column(2));
+            self._view_origin = self._view.clone() as Matrix4<f32>;
             self._view_origin.set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
             self._inv_view_origin = self._view_origin.transpose();
             self._view_projection = &self._projection * &self._view;
@@ -272,8 +270,8 @@ impl CameraObjectData {
 
         // Update projection jitter
         if self._enable_jitter {
-            self._projection_jitter.column_mut(2)[0] = -self._jitter[0];
-            self._projection_jitter.column_mut(2)[1] = -self._jitter[1];
+            self._projection_jitter.column_mut(2)[0] = self._jitter[0];
+            self._projection_jitter.column_mut(2)[1] = self._jitter[1];
             linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
             self._view_projection_jitter = &self._projection_jitter * &self._view;
             self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
