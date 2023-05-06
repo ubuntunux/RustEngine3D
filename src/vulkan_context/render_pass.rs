@@ -112,7 +112,7 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_sample_count: vk::SampleCountFlags::TYPE_1,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
-            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
             _pipeline_depth_bias_constant_factor: 0.0,
             _pipeline_depth_bias_clamp: 0.0,
             _pipeline_depth_bias_slope_factor: 0.0,

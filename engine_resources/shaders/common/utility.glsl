@@ -156,8 +156,8 @@ vec4 linear_depth_to_device_depth(const vec4 zNear, const vec4 zFar, const vec4 
 
 vec4 relative_world_from_device_depth(const in mat4x4 inv_view_origin_projection, const in vec2 tex_coord, const float depth)
 {
-    vec4 clip_coord = vec4(tex_coord * 2.0 - 1.0, depth, 1.0);
-    vec4 relative_pos = inv_view_origin_projection * clip_coord;
+    vec4 ndc = vec4(tex_coord.xy * 2.0 - 1.0, depth, 1.0);
+    vec4 relative_pos = inv_view_origin_projection * ndc;
     relative_pos.xyz /= relative_pos.w;
     return relative_pos;
 }

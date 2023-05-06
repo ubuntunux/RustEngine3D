@@ -107,7 +107,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, particle_b
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: sample_count,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
-            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(blend_mode); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
                 _depth_write_enable: false,

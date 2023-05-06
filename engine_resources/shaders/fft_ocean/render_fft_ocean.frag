@@ -45,7 +45,7 @@ void main()
     const vec3 vertex_normal = normalize(vs_output.vertex_normal);
     const vec3 N = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.2);
     const vec3 smooth_normal = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.5);
-    const vec3 L = light_constants.LIGHT_DIRECTION.xyz;
+    const vec3 L = -light_constants.LIGHT_DIRECTION.xyz;
     const vec3 H = normalize(V + L);
     const float NdL = dot(N, L);
     const float clampled_NdL = clamp(NdL, 0.0, 1.0);

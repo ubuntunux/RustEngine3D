@@ -41,7 +41,7 @@ void main()
 
     float world_pos_y = max(0.0, view_constants.CAMERA_POSITION.y);
 
-    vec3 sun_direction = light_constants.LIGHT_DIRECTION.xyz;
+    vec3 sun_direction = -light_constants.LIGHT_DIRECTION.xyz;
     vec3 eye_direction = normalize(vs_output.eye_ray);
     vec3 screen_center_ray = -vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
     float VdotL = dot(eye_direction, sun_direction);
@@ -288,7 +288,7 @@ void main()
             camera - atmosphere_constants.earth_center,
             far_point.xyz - atmosphere_constants.earth_center,
             scene_shadow_length,
-            light_constants.LIGHT_DIRECTION.xyz,
+            sun_direction,
             scene_transmittance
         );
 

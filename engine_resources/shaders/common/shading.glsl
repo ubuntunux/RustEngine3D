@@ -260,7 +260,7 @@ vec4 surface_shading(
     const in float depth
 )
 {
-    const vec3 L = normalize(light_constants.LIGHT_DIRECTION);
+    const vec3 L = normalize(-light_constants.LIGHT_DIRECTION);
     vec3 light_color = light_constants.LIGHT_COLOR.xyz;
 
     // under water
@@ -302,7 +302,7 @@ vec4 surface_shading(
         scene_linear_depth,
         view_constants.CAMERA_POSITION.xyz,
         -V,
-        light_constants.LIGHT_DIRECTION.xyz,
+        L,
         N,
         scene_sun_irradiance,
         scene_sky_irradiance,

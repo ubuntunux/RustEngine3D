@@ -109,7 +109,7 @@ void main()
         dist,
         view_constants.CAMERA_POSITION.xyz,
         eye_direction,
-        light_constants.LIGHT_DIRECTION.xyz,
+        -light_constants.LIGHT_DIRECTION.xyz,
         vertex_normal,
         sun_irradiance,
         sky_irradiance,

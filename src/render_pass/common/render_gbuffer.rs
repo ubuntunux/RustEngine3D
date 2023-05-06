@@ -131,7 +131,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
             _pipeline_sample_count: sample_count,
             //_pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
-            _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+            _pipeline_front_face: vk::FrontFace::CLOCKWISE,
             _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
                 _depth_write_enable: false,

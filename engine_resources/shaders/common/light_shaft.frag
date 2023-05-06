@@ -22,7 +22,7 @@ void main()
 
     const float screenRatio = BACKBUFFER_SIZE.y / BACKBUFFER_SIZE.x;
 
-    vec4 sun_proj = PROJECTION * VIEW_ORIGIN * vec4(LIGHT_DIRECTION.xyz * NEAR_FAR.y, 1.0);
+    vec4 sun_proj = PROJECTION * VIEW_ORIGIN * vec4(-LIGHT_DIRECTION.xyz * NEAR_FAR.y, 1.0);
     sun_proj.xyz /= sun_proj.w;
     vec2 sun_uv = sun_proj.xy * 0.5 + 0.5;
 
@@ -60,7 +60,7 @@ void main()
         sample_uv += uv_dir_delta;
     }
 
-    light_shaft_color *= saturate(dot(screen_center_ray, LIGHT_DIRECTION.xyz)) / float(light_shaft_samples);
+    light_shaft_color *= saturate(dot(screen_center_ray, -LIGHT_DIRECTION.xyz)) / float(light_shaft_samples);
     light_shaft_color *= light_shaft_intensity * noise;
 
     fs_output.xyz = light_shaft_color;

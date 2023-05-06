@@ -817,12 +817,12 @@ impl RendererData {
         );
 
         // render atmosphere, inscatter
-        for i in 0..constants::CUBE_LAYER_COUNT {
-            let mut light_probe_camera = project_scene_manager.get_light_probe_camera(i).borrow_mut();
+        for layer_index in 0..constants::CUBE_LAYER_COUNT {
+            let mut light_probe_camera = project_scene_manager.get_light_probe_camera(layer_index).borrow_mut();
             light_probe_camera._transform_object.set_position(main_camera_position);
             light_probe_camera.update_camera_object_data();
             light_probe_view_constants.update_view_constants(&light_probe_camera);
-            self.upload_shader_buffer_data(command_buffer, swapchain_index, &light_probe_view_constant_types[i].clone(), &light_probe_view_constants);
+            self.upload_shader_buffer_data(command_buffer, swapchain_index, &light_probe_view_constant_types[layer_index].clone(), &light_probe_view_constants);
 
             // render atmosphere
             renderer_context.render_render_pass_pipeline(
@@ -830,8 +830,8 @@ impl RendererData {
                 swapchain_index,
                 render_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._render_context_light_probe._render_atmosphere_framebuffer_datas[i]),
-                Some(&self._render_context_light_probe._render_atmosphere_descriptor_sets[i]),
+                Some(&self._render_context_light_probe._render_atmosphere_framebuffer_datas[layer_index]),
+                Some(&self._render_context_light_probe._render_atmosphere_descriptor_sets[layer_index]),
                 Some(&render_atmosphere_push_constants)
             );
 
@@ -841,14 +841,14 @@ impl RendererData {
                 swapchain_index,
                 composite_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_datas_only_sky[i]),
-                Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[i]),
+                Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_datas_only_sky[layer_index]),
+                Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
                 None,
             );
 
             // downsampling for only sky
             renderer_context.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-            let mip_level_descriptor_sets = &self._render_context_light_probe._only_sky_downsampling_descriptor_sets[i];
+            let mip_level_descriptor_sets = &self._render_context_light_probe._only_sky_downsampling_descriptor_sets[layer_index];
             let mip_levels = mip_level_descriptor_sets.len();
             for mip_level in 0..mip_levels {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
@@ -872,7 +872,7 @@ impl RendererData {
                 None
             );
 
-            for i in 0..constants::CUBE_LAYER_COUNT {
+            for layer_index in 0..constants::CUBE_LAYER_COUNT {
                 // clear light probe depth
                 const CLEAR_LIGHT_PROBE_PIPELINES: [&str; 6] = [
                     "clear_light_probe_depth_0/clear",
@@ -882,7 +882,7 @@ impl RendererData {
                     "clear_light_probe_depth_4/clear",
                     "clear_light_probe_depth_5/clear",
                 ];
-                renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[i], &quad_geometry_data, None, None, None);
+                renderer_context.render_material_instance(command_buffer, swapchain_index, "common/clear_framebuffer", CLEAR_LIGHT_PROBE_PIPELINES[layer_index], &quad_geometry_data, None, None, None);
 
                 // composite atmosphere
                 renderer_context.render_render_pass_pipeline(
@@ -890,8 +890,8 @@ impl RendererData {
                     swapchain_index,
                     composite_atmosphere_pipeline_binding_data,
                     quad_geometry_data,
-                    Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_datas[i]),
-                    Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[i]),
+                    Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_datas[layer_index]),
+                    Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
                     None,
                 );
 
@@ -909,13 +909,13 @@ impl RendererData {
                     renderer_context,
                     command_buffer,
                     swapchain_index,
-                    RENDER_FORWARD_RENDER_PASS_NAMES[i],
+                    RENDER_FORWARD_RENDER_PASS_NAMES[layer_index],
                     static_render_elements
                 );
 
                 // downsampling light probe
                 renderer_context.begin_compute_pipeline(command_buffer, &downsampling_pipeline_binding_data.get_pipeline_data().borrow());
-                let mip_level_descriptor_sets = &self._render_context_light_probe._light_probe_downsampling_descriptor_sets[i];
+                let mip_level_descriptor_sets = &self._render_context_light_probe._light_probe_downsampling_descriptor_sets[layer_index];
                 let mip_levels = mip_level_descriptor_sets.len();
                 for mip_level in 0..mip_levels {
                     let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);

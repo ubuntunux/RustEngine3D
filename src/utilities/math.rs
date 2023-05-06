@@ -33,18 +33,7 @@ pub fn hammersley_2d(sample_idx: u32, num_samples: u32) -> Vector2<f32> {
     Vector2::new((sample_idx as f32) / (num_samples as f32), radical_inverse_base2(sample_idx))
 }
 
-pub fn get_clip_space_matrix() -> Matrix4<f32> {
-    // -- ... and a {clip space -> screen space} matrix that converts points into
-    // --     the vulkan screen space {x: -1..1, y: 1..-1, z: 0..1}
-    Matrix4::new(
-        1.0, 0.0, 0.0, 0.0,
-        0.0, -1.0, 0.0, 0.0,
-        0.0, 0.0, 0.5, 0.5,
-        0.0, 0.0, 0.0, 1.0,
-    )
-}
-
-pub fn get_world_left() -> Vector3<f32> {
+pub fn get_world_right() -> Vector3<f32> {
     Vector3::new(1.0, 0.0, 0.0)
 }
 
@@ -183,23 +172,21 @@ pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> 
 }
 
 pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Matrix4<f32> {
-    let orthogonal_matrix = Matrix4::from_columns(&[
-        Vector4::new(2.0 / (right - left), 0.0, 0.0, 0.0),
-        Vector4::new(0.0, 2.0 / (top - bottom), 0.0, 0.0),
-        Vector4::new(0.0, 0.0, -2.0 / (far - near), 0.0),
-        Vector4::new(-(right + left) / (right - left), -(top + bottom) / (top - bottom), -(far + near) / (far - near), 1.0)
-    ]);
-    get_clip_space_matrix() * orthogonal_matrix
+    Matrix4::new(
+        2.0 / (right - left), 0.0, 0.0, -(right + left) / (right - left),
+        0.0, 2.0 / (bottom - top), 0.0, -(bottom + top) / (bottom - top),
+        0.0, 0.0, 1.0 / (far - near), -near / (far - near),
+        0.0, 0.0, 0.0, 1.0
+    )
 }
 
 pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) -> Matrix4<f32> {
     let fov_half_tan: f32 = degree_to_radian(fov * 0.5).tan();
-    // clip_space * projection_matrix;
     Matrix4::new(
         1.0 / (fov_half_tan * aspect), 0.0, 0.0, 0.0,
         0.0, -1.0 / fov_half_tan, 0.0, 0.0,
-        0.0, 0.0, -(far + near) / (far - near) * 0.5 - 0.5, -(near * far) / (far - near),
-        0.0, 0.0, -1.0,  0.0
+        0.0, 0.0, far / (far - near), -(near * far) / (far - near),
+        0.0, 0.0, 1.0,  0.0
     )
 }
 
@@ -610,7 +597,7 @@ pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {
 
 pub fn convert_to_screen_texcoord(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
     let ndc = view_projection * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
-    let mut texcoord = Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, ndc.y / ndc.w * 0.5 + 0.5);
+    let mut texcoord = Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, 0.5 - ndc.y / ndc.w * 0.5);
     if clamp {
         if ndc.w < 0.0 {
             texcoord.x = 1.0 - texcoord.x;

@@ -76,7 +76,7 @@ impl TransformObjectData {
     pub fn get_inverse_matrix(&self) -> &Matrix4<f32> {
         &self._inverse_matrix
     }
-    pub fn get_left(&self) -> &Vector3<f32> {
+    pub fn get_right(&self) -> &Vector3<f32> {
         unsafe { &*(self._rotation_matrix.column(0).as_ptr() as *const Vector3<f32>) }
     }
     pub fn get_up(&self) -> &Vector3<f32> {
@@ -96,8 +96,8 @@ impl TransformObjectData {
     pub fn move_position(&mut self, move_speed: &Vector3<f32>) {
         self._position += move_speed;
     }
-    pub fn move_left(&mut self, move_speed: f32) {
-        self._position += (self.get_left() * move_speed) as Vector3<f32>;
+    pub fn move_right(&mut self, move_speed: f32) {
+        self._position += (self.get_right() * move_speed) as Vector3<f32>;
     }
     pub fn move_up(&mut self, move_speed: f32) {
         self._position += (self.get_up() * move_speed) as Vector3<f32>;
