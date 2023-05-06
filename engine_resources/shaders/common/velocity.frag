@@ -11,9 +11,8 @@ void main() {
     vec2 tex_coord = vs_output.tex_coord.xy;
     float depth = texture2D(texture_depth, tex_coord).x;
 
-    vec4 clip_coord = vec4(tex_coord * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-    vec4 world_pos = INV_VIEW * INV_PROJECTION * clip_coord;
-    world_pos /= world_pos.w;
+    vec4 world_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION, tex_coord.xy, depth);
+    world_pos.xyz += view_constants.CAMERA_POSITION;
     world_pos.w = 1.0;
 
     vec4 clip_coord_prev = PREV_VIEW_PROJECTION * world_pos;

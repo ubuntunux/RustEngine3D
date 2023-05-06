@@ -118,11 +118,11 @@ void main() {
     }
 
     ivec2 PixelPos = ivec2(gl_FragCoord.xy);
-
-    vec4 ndc_coord = vec4(vs_output.texCoord.xy * 2.0 - 1.0, depth * 2.0 - 1.0, 1.0);
-    vec4 relative_pos = view_constants.INV_VIEW_ORIGIN_PROJECTION * ndc_coord;
-    relative_pos.xyz /= relative_pos.w;
-
+    vec4 relative_pos = relative_world_from_device_depth(
+        view_constants.INV_VIEW_ORIGIN_PROJECTION,
+        vs_output.texCoord.xy,
+        depth * depth // NOTE: depth * depth is better than depth...
+    );
     vec4 material = texture(texture_material, vs_output.texCoord.xy);
     float Roughness = material.x;
     vec4 normal = texture(texture_normal, vs_output.texCoord.xy);
