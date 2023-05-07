@@ -18,7 +18,7 @@ layout (location = 0) out vec4 fs_output;
 void main()
 {
     vec2 uv = vs_output.tex_coord;
-    vec3 screen_center_ray = -vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
+    vec3 screen_center_ray = vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
 
     const float screenRatio = BACKBUFFER_SIZE.y / BACKBUFFER_SIZE.x;
 

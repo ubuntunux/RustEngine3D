@@ -43,7 +43,6 @@ void main()
 
     vec3 sun_direction = -light_constants.LIGHT_DIRECTION.xyz;
     vec3 eye_direction = normalize(vs_output.eye_ray);
-    vec3 screen_center_ray = -vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
     float VdotL = dot(eye_direction, sun_direction);
 
     float device_depth = texture(texture_depth, vs_output.uv).x;

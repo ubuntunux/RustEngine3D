@@ -16,22 +16,19 @@ void main()
     vec2 uv = vs_output.uvs.xy;
     vec2 fft_uv = vs_output.uvs.zw;
     vec2 screen_texcoord = (vs_output.proj_pos.xy / vs_output.proj_pos.w) * 0.5 + 0.5;
-    vec3 view_center_ray = vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
     float screen_fade = pow(vs_output.screen_fade, 100.0f);
-
     vec3 relative_pos = vs_output.relative_pos;
     vec3 world_pos = relative_pos + view_constants.CAMERA_POSITION.xyz;
     float dist = length(relative_pos);
-    vec3 V = -relative_pos / dist;
-    float view_ray_angle = dot(view_center_ray, V);
-
-    float device_depth = texture(texture_depth, screen_texcoord).x;
-    float scene_dist = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth) / view_ray_angle;
+    vec3 eye_vector = (0.0 < dist) ? (relative_pos / dist) : vec3(0, 1, 0);
     float vertex_noise = vs_output.vertex_noise;
-
+    float device_depth = texture(texture_depth, screen_texcoord).x;
     // fix scene_depth
-    vec3 tempPos = -V * scene_dist;
-    tempPos.xz = mix(relative_pos.xz, tempPos.xz, abs(V.y));
+    vec3 view_center_ray = vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
+    float view_ray_angle = dot(view_center_ray, eye_vector);
+    float scene_dist = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth) / view_ray_angle;
+    vec3 tempPos = eye_vector * scene_dist;
+    tempPos.xz = mix(relative_pos.xz, tempPos.xz, abs(eye_vector.y));
     scene_dist = length(tempPos.xyz);
 
     vec3 sun_irradiance = vs_output.sun_irradiance;
@@ -42,6 +39,7 @@ void main()
     slopes += textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.z, 2.0), 0.0).xy;
     slopes += textureLod(fftWavesSampler, vec3(uv / pushConstant._simulation_size.w, 2.0), 0.0).zw;
 
+    const vec3 V = -eye_vector;
     const vec3 vertex_normal = normalize(vs_output.vertex_normal);
     const vec3 N = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.2);
     const vec3 smooth_normal = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.5);
@@ -53,24 +51,23 @@ void main()
     const float NdH = clamp(dot(N, H), 0.001, 1.0);
     const float HdV = clamp(dot(H, V), 0.001, 1.0);
     const float LdV = clamp(dot(L, V), 0.001, 1.0);
-    const vec3 R = reflect(-V, N);
-    const vec3 smoothR = reflect(-V, smooth_normal);
+    const vec3 R = reflect(V, N);
+    const vec3 smoothR = reflect(V, smooth_normal);
 
     // refract
     vec2 reflected_screen_uv = screen_texcoord + N.xz * 0.05f;
     float reflected_device_depth = texture(texture_depth, reflected_screen_uv).x;
     float refracted_scene_dist = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, reflected_device_depth) / view_ray_angle;
     float refracted_scene_dist_origin = refracted_scene_dist;
-
     // fix refractedSceneDepth
-    tempPos = -V * refracted_scene_dist;
-    tempPos.xz = mix(relative_pos.xz, tempPos.xz, abs(V.y));
+    tempPos = eye_vector * refracted_scene_dist;
+    tempPos.xz = mix(relative_pos.xz, tempPos.xz, abs(eye_vector.y));
     refracted_scene_dist = length(tempPos.xyz);
 
     float dist_diff = max(0.0f, max(scene_dist, refracted_scene_dist) - dist);
 
     // groud pos
-    vec3 groundPos = world_pos - V * dist_diff + vec3(N.x, 0.0f, N.z) * 0.5f;
+    vec3 groundPos = world_pos + eye_vector * dist_diff + vec3(N.x, 0.0f, N.z) * 0.5f;
 
     bool isUnderWater = view_constants.CAMERA_POSITION.y < scene_constants.SEA_HEIGHT;
     float opacity = saturate(1.0 - exp(-dist_diff * 0.2)) * screen_fade;
@@ -99,7 +96,7 @@ void main()
             under_water_shadow = max(sky_irradiance, under_water_shadow);
 
             const float chromaSeperation = sin(pushConstant._t * 3.5f) * 0.0025;
-            vec3 caustic_uv = vec3((groundPos + L * dist_diff).xz * 0.3 + vertex_normal.xz * 0.5, scene_constants.TIME);
+            vec3 caustic_uv = vec3((groundPos - L * dist_diff).xz * 0.3 + vertex_normal.xz * 0.5, scene_constants.TIME);
             vec3 caustic_color;
             caustic_color.r = texture(texture_caustic, caustic_uv + vec3(0.0f, chromaSeperation, 0.0)).r;
             caustic_color.g = texture(texture_caustic, caustic_uv + vec3(chromaSeperation, 0.0f, 0.0)).g;

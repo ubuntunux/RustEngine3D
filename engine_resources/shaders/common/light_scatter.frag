@@ -18,7 +18,7 @@ void main()
 {
     vec2 uv = vs_output.tex_coord;
     vec3 eye_direction = normalize(depth_to_relative_world(uv, 0.0).xyz);
-    vec3 screen_center_ray = -vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
+    vec3 screen_center_ray = vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
     float scene_linear_depth = textureLod(texture_linear_depth, uv, 0.0).x;
     float scene_dist = clamp(scene_linear_depth / dot(screen_center_ray, eye_direction), 0.0, NEAR_FAR.y);
 
