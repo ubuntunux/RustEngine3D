@@ -130,28 +130,28 @@ vec4 uint_color_to_float_color(uint color) {
     return fColor;
 }
 
-// depth(0.0 ~ 1.0) to linear depth(near ~ far)
+// depth(1.0 ~ 0.0) to linear depth(near ~ far)
 float device_depth_to_linear_depth(const float zNear, const float zFar, const float depth)
 {
-    return zNear * zFar / (zFar + depth * (zNear - zFar));
+    return zNear * zFar / (zNear + depth * (zFar - zNear));
 }
 
 // vectorized version
 vec4 device_depth_to_linear_depth(const vec4 zNear, const vec4 zFar, const vec4 depth)
 {
-    return zNear * zFar / (zFar + depth * (zNear - zFar));
+    return zNear * zFar / (zNear + depth * (zFar - zNear));
 }
 
-// linear depth(near ~ far) to device depth(0.0 ~ 1.0)
+// linear depth(near ~ far) to device depth(1.0 ~ 0.0)
 float linear_depth_to_device_depth(const float zNear, const float zFar, const float linear_depth)
 {
-    return saturate((zFar - (zNear * zFar / linear_depth)) / (zFar - zNear));
+    return saturate((zNear - (zNear * zFar / linear_depth)) / (zNear - zFar));
 }
 
 // vectorized version
 vec4 linear_depth_to_device_depth(const vec4 zNear, const vec4 zFar, const vec4 linear_depth)
 {
-    return saturate((zFar - (zNear * zFar / linear_depth)) / (zFar - zNear));
+    return saturate((zNear - (zNear * zFar / linear_depth)) / (zNear - zFar));
 }
 
 vec4 relative_world_from_device_depth(const in mat4x4 inv_view_origin_projection, const in vec2 tex_coord, const float depth)

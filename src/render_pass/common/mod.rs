@@ -5,7 +5,7 @@ pub mod composite_gbuffer;
 pub mod copy_cube_map;
 pub mod depth_prepass;
 pub mod downsampling;
-pub mod generate_min_z;
+pub mod generate_max_z;
 pub mod render_bloom;
 pub mod render_color;
 pub mod render_copy;

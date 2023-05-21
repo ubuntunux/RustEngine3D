@@ -175,7 +175,7 @@ pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: 
     Matrix4::new(
         2.0 / (right - left), 0.0, 0.0, -(right + left) / (right - left),
         0.0, 2.0 / (bottom - top), 0.0, -(bottom + top) / (bottom - top),
-        0.0, 0.0, 1.0 / (far - near), -near / (far - near),
+        0.0, 0.0, 1.0 / (near - far), -far / (near - far),
         0.0, 0.0, 0.0, 1.0
     )
 }
@@ -185,7 +185,7 @@ pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) -> Matrix4<f32> {
     Matrix4::new(
         1.0 / (fov_half_tan * aspect), 0.0, 0.0, 0.0,
         0.0, -1.0 / fov_half_tan, 0.0, 0.0,
-        0.0, 0.0, far / (far - near), -(near * far) / (far - near),
+        0.0, 0.0, near / (near - far), -(near * far) / (near - far),
         0.0, 0.0, 1.0,  0.0
     )
 }

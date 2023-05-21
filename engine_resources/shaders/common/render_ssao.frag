@@ -36,7 +36,7 @@ layout(location = 0) out float outColor;
 void main() {
     const vec2 texCoord = vs_output.texCoord;
     const float device_depth = texture(textureSceneDepth, texCoord).x;
-    if(1.0 == device_depth)
+    if(0.0 == device_depth)
     {
         discard;
     }
@@ -78,7 +78,7 @@ void main() {
         }
 
         const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
-        if(offset.z <= occlusion_depth)
+        if(occlusion_depth <= offset.z)
         {
             continue;
         }

@@ -1217,16 +1217,16 @@ impl RendererData {
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/composite_gbuffer", DEFAULT_PIPELINE, &quad_geometry_data, None, descriptor_sets, None);
     }
 
-    pub fn generate_min_z(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
-        let _label_generate_min_z = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "generate_min_z");
+    pub fn generate_max_z(&self, renderer_context: &RendererContext, command_buffer: vk::CommandBuffer, swapchain_index: u32, quad_geometry_data: &GeometryData) {
+        let _label_generate_max_z = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "generate_max_z");
         let engine_resources = renderer_context.get_engine_resources();
 
         // Copy Scene Depth
-        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/generate_min_z", "generate_min_z/render_copy", &quad_geometry_data, None, None, None);
+        renderer_context.render_material_instance(command_buffer, swapchain_index, "common/generate_max_z", "generate_max_z/render_copy", &quad_geometry_data, None, None, None);
 
         // Generate Hierachical Min Z
-        let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/generate_min_z").borrow();
-        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
+        let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/generate_max_z").borrow();
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_max_z/generate_max_z");
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._render_context_hiz._descriptor_sets.len();
         renderer_context.begin_compute_pipeline(command_buffer, pipeline_data);
@@ -1270,7 +1270,7 @@ impl RendererData {
         quad_geometry_data: &GeometryData
     ) {
         // Generate Hierachical Min Z
-        self.generate_min_z(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
+        self.generate_max_z(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // Screen Space Reflection
         self.render_ssr(renderer_context, command_buffer, swapchain_index, quad_geometry_data);

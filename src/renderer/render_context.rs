@@ -393,8 +393,8 @@ impl RenderContext_HierachicalMinZ {
         engine_resources: &EngineResources,
         render_target_hierachical_min_z: &TextureData,
     ) {
-        let generate_min_z_material_instance = engine_resources.get_material_instance_data("common/generate_min_z").borrow();
-        let pipeline_binding_data = generate_min_z_material_instance.get_pipeline_binding_data("generate_min_z/generate_min_z");
+        let generate_max_z_material_instance = engine_resources.get_material_instance_data("common/generate_max_z").borrow();
+        let pipeline_binding_data = generate_max_z_material_instance.get_pipeline_binding_data("generate_max_z/generate_max_z");
         let layer: u32 = 0;
         let downsampling_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
         for mip_level in 0..downsampling_count {

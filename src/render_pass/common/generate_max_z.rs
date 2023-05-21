@@ -38,7 +38,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("generate_min_z");
+    let render_pass_name = String::from("generate_max_z");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -100,8 +100,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ..Default::default()
         },
         PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("generate_min_z"),
-            _pipeline_compute_shader_file: PathBuf::from("common/generate_min_z.comp"),
+            _pipeline_data_create_info_name: String::from("generate_max_z"),
+            _pipeline_compute_shader_file: PathBuf::from("common/generate_max_z.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
