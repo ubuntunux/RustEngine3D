@@ -112,7 +112,7 @@ void main() {
     float depth = texture(texture_depth, texCoord).x;
     float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
 
-    if(1.0 <= depth)
+    if(depth <= 0.0)
     {
         return;
     }
@@ -121,7 +121,7 @@ void main() {
     vec4 relative_pos = relative_world_from_device_depth(
         view_constants.INV_VIEW_ORIGIN_PROJECTION,
         vs_output.texCoord.xy,
-        depth * depth // NOTE: depth * depth is better than depth...
+        sqrt(depth) // NOTE: depth * depth is better than depth...
     );
     vec4 material = texture(texture_material, vs_output.texCoord.xy);
     float Roughness = material.x;

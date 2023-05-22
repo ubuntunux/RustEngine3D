@@ -34,14 +34,10 @@ vec4 RayCast(
     vec4 RayEndClip = matProjection * RayEndV;
  
     vec3 RayStartScreen = RayStartClip.xyz / RayStartClip.w;
-    RayStartScreen.z = RayStartScreen.z * 0.5 + 0.5;
-
     vec3 RayEndScreen = RayEndClip.xyz / RayEndClip.w;
-    RayEndScreen.z = RayEndScreen.z * 0.5 + 0.5;
  
     vec4 RayDepthClip = RayStartClip + matProjection * vec4(0, 0, LinearDepth, 0);
     vec3 RayDepthScreen = RayDepthClip.xyz / RayDepthClip.w;
-    RayDepthScreen.z = RayDepthScreen.z * 0.5 + 0.5;
  
     vec3 RayStepScreen = RayEndScreen - RayStartScreen;
  
@@ -79,7 +75,7 @@ vec4 RayCast(
         // Use lower res for farther samples
         vec4 SampleDepth = SampleDepthtexture2D(texture_depth, SampleUV0, SampleUV1, lod_level);
 
-        vec4 DepthDiff = SampleZ - SampleDepth;
+        vec4 DepthDiff = SampleDepth - SampleZ;
  
         bvec4 Hit = bvec4(
             abs(DepthDiff[0] - CompareTolerance) < CompareTolerance,

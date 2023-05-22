@@ -51,7 +51,7 @@ float get_shadow_factor_func(
         );
 
         float shadow_factor = 1.0;
-        if((shadow_depth - depth_bias) <= shadow_proj.z)
+        if(shadow_proj.z < (shadow_depth + depth_bias))
         {
             shadow_factor = saturate(shadow_dist);
         }
