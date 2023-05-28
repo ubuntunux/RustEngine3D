@@ -621,7 +621,7 @@ impl RenderContext_LightProbe {
         light_probe_view_constants: &[&ShaderBufferData],
     ) {
         let material_instance = engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
-        let texture_white_image_info = DescriptorResourceInfo::DescriptorImageInfo(engine_resources.get_texture_data("common/flat_white").borrow().get_default_image_info().clone());
+        let texture_depth = DescriptorResourceInfo::DescriptorImageInfo(engine_resources.get_texture_data("common/flat_black").borrow().get_default_image_info().clone());
         let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
         let composite_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
         let downsampling_material_instance = engine_resources.get_material_instance_data("common/downsampling").borrow();
@@ -654,7 +654,7 @@ impl RenderContext_LightProbe {
                 render_atmosphere_pipeline_binding_data,
                 &[
                     (1, light_probe_view_constants[i]._descriptor_buffer_infos.clone()),
-                    (5, utility::create_swapchain_array(texture_white_image_info.clone())),
+                    (5, utility::create_swapchain_array(texture_depth.clone())),
                 ]
             ));
 
@@ -689,7 +689,7 @@ impl RenderContext_LightProbe {
                 composite_atmosphere_pipeline_binding_data,
                 &[
                     (1, light_probe_view_constants[i]._descriptor_buffer_infos.clone()),
-                    (5, utility::create_swapchain_array(texture_white_image_info.clone())),
+                    (5, utility::create_swapchain_array(texture_depth.clone())),
                     (15, utility::create_swapchain_array(light_probe_atmosphere_color_image_info.clone())),
                     (16, utility::create_swapchain_array(light_probe_atmosphere_inscatter_image_info.clone())),
                 ]
