@@ -495,7 +495,7 @@ impl RendererDataBase for RendererData {
 
         // render atmosphere
         {
-            let _label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "label_render_atmosphere");
+            let _label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_atmosphere");
             let render_light_probe_mode: bool = false;
             self._atmosphere.render_precomputed_atmosphere(command_buffer, swapchain_index, &quad_geometry_data, &renderer_context, render_light_probe_mode);
         }
