@@ -173,7 +173,7 @@ impl CameraObjectData {
         const DEPTH: f32 = 0.0;
         let ndc: Vector4<f32> = Vector4::new(
             (screen_pos.x as f32 / self._window_size.x as f32) * 2.0 - 1.0,
-            1.0 - (screen_pos.y as f32 / self._window_size.y as f32) * 2.0,
+            (screen_pos.y as f32 / self._window_size.y as f32) * 2.0 - 1.0,
             DEPTH,
             1.0
         );
@@ -188,7 +188,7 @@ impl CameraObjectData {
         const DEPTH: f32 = 0.0;
         let ndc: Vector4<f32> = Vector4::new(
             (screen_pos.x as f32 / self._window_size.x as f32) * 2.0 - 1.0,
-            1.0 - (screen_pos.y as f32 / self._window_size.y as f32) * 2.0,
+            (screen_pos.y as f32 / self._window_size.y as f32) * 2.0 - 1.0,
             DEPTH,
             1.0
         );

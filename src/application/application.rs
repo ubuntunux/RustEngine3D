@@ -287,7 +287,7 @@ impl EngineApplication {
         self.set_grab_mode(self._is_grab_mode_backup);
     }
 
-    pub fn update_cursor_left(&mut self) {
+    pub fn update_cursor_mode(&mut self) {
         self._is_grab_mode_backup = self._is_grab_mode;
         self.set_grab_mode(false);
     }
@@ -563,7 +563,7 @@ pub fn run_application(
                     engine_application.update_cursor_entered();
                 },
                 WindowEvent::CursorLeft { device_id: _device_id, .. } => {
-                    engine_application.update_cursor_left();
+                    engine_application.update_cursor_mode();
                 },
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
