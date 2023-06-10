@@ -5,7 +5,7 @@ use crate::utilities::system::enum_to_string;
 use crate::constants;
 use crate::renderer::ui::{ PushConstant_RenderUI, UIVertexData };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
-use crate::vulkan_context::geometry_buffer::VertexData;
+use crate::vulkan_context::geometry_buffer::VertexDataBase;
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,

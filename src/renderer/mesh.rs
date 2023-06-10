@@ -41,10 +41,10 @@ impl Default for MeshDataCreateInfo {
 }
 
 impl MeshDataCreateInfo {
-    pub fn create_mesh_data_crate_info(mut mesh_data_create_info: MeshDataCreateInfo) -> MeshDataCreateInfo {
+    pub fn calc_mesh_bounding_box(geometry_create_infos: &Vec<GeometryCreateInfo>) -> BoundingBox {
         let mut bound_min = Vector3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX) * 0.5;
         let mut bound_max = Vector3::new(std::f32::MIN, std::f32::MIN, std::f32::MIN) * 0.5;
-        for geometry_data in mesh_data_create_info._geometry_create_infos.iter() {
+        for geometry_data in geometry_create_infos.iter() {
             for i in 0..3 {
                 if geometry_data._bounding_box._min[i] < bound_min[i] {
                     bound_min[i] = geometry_data._bounding_box._min[i];
@@ -55,14 +55,13 @@ impl MeshDataCreateInfo {
             }
         }
 
-        mesh_data_create_info._bound_box = BoundingBox {
+        BoundingBox {
             _min: bound_min,
             _max: bound_max,
             _center: &bound_max * 0.5 + &bound_min * 0.5,
             _size: &bound_max - &bound_min,
             _radius: (&bound_max * 0.5 - &bound_min * 0.5).norm(),
-        };
-        mesh_data_create_info
+        }
     }
 }
 

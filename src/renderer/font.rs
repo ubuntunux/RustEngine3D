@@ -14,7 +14,7 @@ use crate::utilities::system::{ newRcRefCell, RcRefCell };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::texture::TextureData;
-use crate::vulkan_context::geometry_buffer::{ self, VertexData };
+use crate::vulkan_context::geometry_buffer::{ self, VertexDataBase };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 pub const USE_DISTANCE_FIELD: bool = true;
@@ -191,7 +191,7 @@ impl FontVertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
 }
 
-impl VertexData for FontVertexData {
+impl VertexDataBase for FontVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;

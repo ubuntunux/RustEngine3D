@@ -18,7 +18,7 @@ use crate::utilities::bounding_box::{ self, BoundingBox, };
 use crate::utilities::math;
 use crate::utilities::xml::{ self, XmlTree, };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, StaticVertexData, SkeletalVertexData };
+use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, SkeletalVertexData };
 use crate::constants;
 
 
@@ -1115,40 +1115,34 @@ impl Collada {
             );
 
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
-
-            let vertex_datas: Vec<StaticVertexData>;
-            let skeletal_vertex_datas: Vec<SkeletalVertexData>;
+            let vertex_count = geometry._positions.len();
+            let mut vertex_datas: Vec<VertexData> = Vec::new();
+            let mut skeletal_vertex_datas: Vec<SkeletalVertexData> = Vec::new();
 
             if geometry._bone_indices.is_empty() {
-                vertex_datas = geometry._positions
-                    .iter()
-                    .enumerate()
-                    .map(|(index, position)| {
-                        StaticVertexData {
-                            _position: position.clone() as Vector3<f32>,
-                            _normal: geometry._normals[index].clone() as Vector3<f32>,
-                            _tangent: tangents[index].clone() as Vector3<f32>,
-                            _color: vertex_color,
-                            _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
-                        }
-                    }).collect();
-                skeletal_vertex_datas = Vec::new();
+                vertex_datas.reserve(vertex_count);
+                for index in 0..vertex_count {
+                    vertex_datas.push(VertexData {
+                        _position: geometry._positions[index].clone() as Vector3<f32>,
+                        _normal: geometry._normals[index].clone() as Vector3<f32>,
+                        _tangent: tangents[index].clone() as Vector3<f32>,
+                        _color: vertex_color,
+                        _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
+                    });
+                }
             } else {
-                vertex_datas = Vec::new();
-                skeletal_vertex_datas = geometry._positions
-                    .iter()
-                    .enumerate()
-                    .map(|(index, position)| {
-                        SkeletalVertexData {
-                            _position: position.clone() as Vector3<f32>,
-                            _normal: geometry._normals[index].clone() as Vector3<f32>,
-                            _tangent: tangents[index].clone() as Vector3<f32>,
-                            _color: vertex_color,
-                            _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
-                            _bone_indices: geometry._bone_indices[index].clone() as Vector4<u32>,
-                            _bone_weights: geometry._bone_weights[index].clone() as Vector4<f32>,
-                        }
-                    }).collect();
+                skeletal_vertex_datas.reserve(vertex_count);
+                for index in 0..vertex_count {
+                    skeletal_vertex_datas.push(SkeletalVertexData {
+                        _position: geometry._positions[index].clone() as Vector3<f32>,
+                        _normal: geometry._normals[index].clone() as Vector3<f32>,
+                        _tangent: tangents[index].clone() as Vector3<f32>,
+                        _color: vertex_color,
+                        _texcoord: geometry._texcoords[index].clone() as Vector2<f32>,
+                        _bone_indices: geometry._bone_indices[index].clone() as Vector4<u32>,
+                        _bone_weights: geometry._bone_weights[index].clone() as Vector4<f32>
+                    });
+                }
             }
 
             geometry_datas.push(GeometryCreateInfo {
@@ -1168,12 +1162,13 @@ impl Collada {
         let geometry_datas = collada.get_geometry_data();
         let skeleton_datas = collada.get_skeleton_data();
         let animation_datas = collada.get_animation_data(&skeleton_datas);
+        let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_datas);
 
-        MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+        MeshDataCreateInfo {
+            _bound_box: bounding_box,
             _skeleton_create_infos: skeleton_datas,
             _animation_node_create_infos: animation_datas,
-            _geometry_create_infos: geometry_datas,
-            ..Default::default()
-        })
+            _geometry_create_infos: geometry_datas
+        }
     }
 }

@@ -311,7 +311,6 @@ vec4 surface_shading(
 
     vec3 result = vec3(0.0, 0.0, 0.0);
     vec3 F0 = mix(vec3(max(0.04, reflectance)), base_color.xyz, metallic);
-    vec3 fresnel = fresnelSchlick(NdV, F0);
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
     vec3 shadow_factor = vec3(get_shadow_factor(
@@ -354,8 +353,11 @@ vec4 surface_shading(
     );
 
 #if TRANSPARENT_MATERIAL == 1
-    float reflectivity = max(max(fresnel.r, fresnel.g), fresnel.b);
-    opacity = clamp(opacity + opacity * reflectivity, 0.0, 1.0);
+    {
+        vec3 fresnel = fresnelSchlick(NdV, F0);
+        float reflectivity = max(max(fresnel.r, fresnel.g), fresnel.b);
+        opacity = clamp(opacity + opacity * reflectivity, 0.0, 1.0);
+    }
 #endif
 
     // Directional Light

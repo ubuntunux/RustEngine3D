@@ -13,7 +13,7 @@ use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{
     self,
     GeometryCreateInfo,
-    StaticVertexData,
+    VertexData,
 };
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system;
@@ -229,11 +229,11 @@ impl WaveFrontOBJ {
 
             let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
-            let vertex_datas: Vec<StaticVertexData> = positions
+            let vertex_datas: Vec<VertexData> = positions
                 .iter()
                 .enumerate()
                 .map(|(index, position)| {
-                    StaticVertexData {
+                    VertexData {
                         _position: position.clone() as Vector3<f32>,
                         _normal: normals[index].clone() as Vector3<f32>,
                         _tangent: tangents[index].clone() as Vector3<f32>,
@@ -325,10 +325,11 @@ impl WaveFrontOBJ {
         let texcoord_y = true;
         obj.parse(filename, 1.0, texcoord_y);
         let geometry_create_infos = obj.generate_geometry_datas();
-
-        MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
+        let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
+        MeshDataCreateInfo {
+            _bound_box: bounding_box,
             _geometry_create_infos: geometry_create_infos,
             ..Default::default()
-        })
+        }
     }
 }

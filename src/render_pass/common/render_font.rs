@@ -4,7 +4,7 @@ use ash::vk;
 use crate::constants;
 use crate::renderer::font::{ self, PushConstant_RenderFont, FontVertexData };
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
-use crate::vulkan_context::geometry_buffer::VertexData;
+use crate::vulkan_context::geometry_buffer::VertexDataBase;
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,

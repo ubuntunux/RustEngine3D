@@ -28,6 +28,7 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
 use crate::resource::obj_loader::WaveFrontOBJ;
+use crate::resource::gltf_loader::GLTF;
 use crate::resource::texture_generator;
 use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
 use crate::vulkan_context::framebuffer::{self, FramebufferData };
@@ -67,7 +68,9 @@ pub const EXT_FONT: &str = "font";
 pub const EXT_FONT_TEXTURE: &str = "png";
 pub const EXT_OBJ: &str = "obj";
 pub const EXT_COLLADA: &str = "dae";
-pub const EXT_MESH_SOURCE: [&str; 2] = [EXT_OBJ, EXT_COLLADA];
+pub const EXT_GLTF_BINARY: &str = "glb";
+pub const EXT_GLTF: &str = "gltf";
+pub const EXT_MESH_SOURCE: [&str; 3] = [EXT_OBJ, EXT_COLLADA, EXT_GLTF];
 pub const EXT_META_FILE: &str = "meta";
 pub const EXT_JSON: &str = "json";
 pub const EXT_MATERIAL: &str = "mat";
@@ -998,6 +1001,8 @@ impl EngineResources {
                     let mesh_data_create_info = match src_file_ext.as_str() {
                         EXT_OBJ => WaveFrontOBJ::get_mesh_data_create_infos(&mesh_source_file),
                         EXT_COLLADA => Collada::get_mesh_data_create_infos(&mesh_source_file),
+                        EXT_GLTF_BINARY => GLTF::get_mesh_data_create_infos(&mesh_source_file),
+                        EXT_GLTF => GLTF::get_mesh_data_create_infos(&mesh_source_file),
                         _ => panic!("error")
                     };
 

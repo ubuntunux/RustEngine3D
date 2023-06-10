@@ -15,8 +15,12 @@ pub struct BoundingBox {
 
 impl Default for BoundingBox {
     fn default() -> BoundingBox {
-        let min = Vector3::new(-1.0, -1.0, -1.0);
-        let max = Vector3::new(1.0, 1.0, 1.0);
+        BoundingBox::create_bounding_box(&Vector3::new(-1.0, -1.0, -1.0), &Vector3::new(1.0, 1.0, 1.0))
+    }
+}
+
+impl BoundingBox {
+    pub fn create_bounding_box(min: &Vector3<f32>, max: &Vector3<f32>) -> BoundingBox {
         BoundingBox {
             _min: min.clone(),
             _max: max.clone(),

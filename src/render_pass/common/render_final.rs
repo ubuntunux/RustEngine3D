@@ -4,7 +4,7 @@ use ash::vk;
 use crate::constants;
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
-use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData };
+use crate::vulkan_context::geometry_buffer::{ VertexDataBase, VertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
@@ -85,8 +85,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _depth_write_enable: false,
                 ..Default::default()
             },
-            _vertex_input_bind_descriptions: StaticVertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: StaticVertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,

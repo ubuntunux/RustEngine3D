@@ -9,7 +9,7 @@ use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
-use crate::vulkan_context::geometry_buffer::{ VertexData, StaticVertexData, SkeletalVertexData };
+use crate::vulkan_context::geometry_buffer::{ VertexDataBase, VertexData, SkeletalVertexData };
 use crate::vulkan_context::render_pass::{
     RenderPassDataCreateInfo,
     PipelineDataCreateInfo,
@@ -98,11 +98,11 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_obj
             _pipeline_depth_bias_slope_factor: unsafe { SHADOW_DEPTH_SLOPE_BIAS },
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: match render_object_type {
-                RenderObjectType::Static => StaticVertexData::get_vertex_input_binding_descriptions(),
+                RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
                 RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions(),
             },
             _vertex_input_attribute_descriptions: match render_object_type {
-                RenderObjectType::Static => StaticVertexData::create_vertex_input_attribute_descriptions(),
+                RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
                 RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions(),
             },
             _push_constant_datas: vec![

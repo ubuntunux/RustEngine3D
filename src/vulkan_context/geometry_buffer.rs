@@ -15,7 +15,7 @@ use crate::utilities::bounding_box::{ BoundingBox, calc_bounding_box };
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
 #[serde(default)]
-pub struct StaticVertexData {
+pub struct VertexData {
     pub _position: Vector3<f32>,
     pub _normal: Vector3<f32>,
     pub _tangent: Vector3<f32>,
@@ -23,9 +23,9 @@ pub struct StaticVertexData {
     pub _texcoord: Vector2<f32>
 }
 
-impl Default for StaticVertexData {
-    fn default() -> StaticVertexData {
-        StaticVertexData {
+impl Default for VertexData {
+    fn default() -> VertexData {
+        VertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
             _normal: Vector3::new(0.0, 0.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
@@ -45,7 +45,7 @@ pub struct SkeletalVertexData {
     pub _color: u32,
     pub _texcoord: Vector2<f32>,
     pub _bone_indices: Vector4<u32>,
-    pub _bone_weights: Vector4<f32>,
+    pub _bone_weights: Vector4<f32>
 }
 
 impl Default for SkeletalVertexData {
@@ -57,7 +57,7 @@ impl Default for SkeletalVertexData {
             _color: 0,
             _texcoord: Vector2::new(0.0, 0.0),
             _bone_indices: Vector4::new(0, 0, 0, 0),
-            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
+            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0)
         }
     }
 }
@@ -65,10 +65,10 @@ impl Default for SkeletalVertexData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct GeometryCreateInfo {
-    pub _vertex_datas: Vec<StaticVertexData>,
+    pub _vertex_datas: Vec<VertexData>,
     pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,
     pub _indices: Vec<u32>,
-    pub _bounding_box: BoundingBox,
+    pub _bounding_box: BoundingBox
 }
 
 impl Default for GeometryCreateInfo {
@@ -77,7 +77,7 @@ impl Default for GeometryCreateInfo {
             _vertex_datas: Vec::new(),
             _skeletal_vertex_datas: Vec::new(),
             _indices: Vec::new(),
-            _bounding_box: BoundingBox::default(),
+            _bounding_box: BoundingBox::default()
         }
     }
 }
@@ -112,12 +112,12 @@ pub fn add_vertex_input_attribute_description(
     });
 }
 
-pub trait VertexData {
+pub trait VertexDataBase {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription>;
     fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription>;
 }
 
-impl StaticVertexData {
+impl VertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const NORMAL: vk::Format = vk::Format::R32G32B32_SFLOAT;
     const TANGENT: vk::Format = vk::Format::R32G32B32_SFLOAT;
@@ -125,22 +125,22 @@ impl StaticVertexData {
     const TEXCOORD: vk::Format = vk::Format::R32G32_SFLOAT;
 }
 
-impl VertexData for StaticVertexData {
+impl VertexDataBase for VertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::POSITION);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::NORMAL);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::TANGENT);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::COLOR);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, StaticVertexData::TEXCOORD);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::POSITION);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::NORMAL);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TANGENT);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::COLOR);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TEXCOORD);
         vertex_input_attribute_descriptions
     }
 
     fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: mem::size_of::<StaticVertexData>() as u32,
+            stride: mem::size_of::<VertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX
         }]
     }
@@ -156,7 +156,7 @@ impl SkeletalVertexData {
     const BONE_WEIGHTS: vk::Format = vk::Format::R32G32B32A32_SFLOAT;
 }
 
-impl VertexData for SkeletalVertexData {
+impl VertexDataBase for SkeletalVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
@@ -328,7 +328,7 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
         .iter()
         .enumerate()
         .map(|(index, __position)| {
-            StaticVertexData {
+            VertexData {
                 _position: positions[index].clone() as Vector3<f32>,
                 _normal: normals[index].clone() as Vector3<f32>,
                 _tangent: tangents[index].clone() as Vector3<f32>,
@@ -337,15 +337,19 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
             }
         }).collect();
 
-    MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
-        _geometry_create_infos: vec![GeometryCreateInfo {
-            _vertex_datas: vertex_datas,
-            _indices: indices,
-            _bounding_box: calc_bounding_box(&positions),
-            ..Default::default()
-        }],
+    let geometry_create_infos = vec![GeometryCreateInfo {
+        _vertex_datas: vertex_datas,
+        _indices: indices,
+        _bounding_box: calc_bounding_box(&positions),
         ..Default::default()
-    })
+    }];
+    let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
+
+    MeshDataCreateInfo {
+        _bound_box: bounding_box,
+        _geometry_create_infos: geometry_create_infos,
+        ..Default::default()
+    }
 }
 
 pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
@@ -383,7 +387,7 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
         .iter()
         .enumerate()
         .map(|(index, __position)| {
-            StaticVertexData {
+            VertexData {
                 _position: positions[index].clone() as Vector3<f32>,
                 _normal: normals[index].clone() as Vector3<f32>,
                 _tangent: tangents[index].clone() as Vector3<f32>,
@@ -393,15 +397,18 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
             }
         }).collect();
 
-    MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
-        _geometry_create_infos: vec![GeometryCreateInfo {
-            _vertex_datas: vertex_datas,
-            _indices: indices,
-            _bounding_box: calc_bounding_box(&positions),
-            ..Default::default()
-        }],
+    let geometry_create_infos = vec![GeometryCreateInfo {
+        _vertex_datas: vertex_datas,
+        _indices: indices,
+        _bounding_box: calc_bounding_box(&positions),
         ..Default::default()
-    })
+    }];
+    let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
+    MeshDataCreateInfo {
+        _bound_box: bounding_box,
+        _geometry_create_infos: geometry_create_infos,
+        ..Default::default()
+    }
 }
 
 pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDataCreateInfo {
@@ -453,7 +460,7 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
         .iter()
         .enumerate()
         .map(|(index, __position)| {
-            StaticVertexData {
+            VertexData {
                 _position: positions[index].clone() as Vector3<f32>,
                 _normal: normals[index].clone() as Vector3<f32>,
                 _tangent: tangents[index].clone() as Vector3<f32>,
@@ -463,13 +470,16 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
             }
         }).collect();
 
-    MeshDataCreateInfo::create_mesh_data_crate_info(MeshDataCreateInfo {
-        _geometry_create_infos: vec![GeometryCreateInfo {
-            _vertex_datas: vertex_datas,
-            _indices: indices,
-            _bounding_box: calc_bounding_box(&positions),
-            ..Default::default()
-        }],
+    let geometry_create_infos = vec![GeometryCreateInfo {
+        _vertex_datas: vertex_datas,
+        _indices: indices,
+        _bounding_box: calc_bounding_box(&positions),
         ..Default::default()
-    })
+    }];
+    let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
+    MeshDataCreateInfo {
+        _bound_box: bounding_box,
+        _geometry_create_infos: geometry_create_infos,
+        ..Default::default()
+    }
 }

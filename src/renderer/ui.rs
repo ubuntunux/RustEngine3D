@@ -22,7 +22,7 @@ use crate::renderer::renderer_context::{ RendererContext };
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell, ptr_as_ref, ptr_as_mut };
 use crate::vulkan_context::buffer::{ self, BufferData };
-use crate::vulkan_context::geometry_buffer::{ self, VertexData };
+use crate::vulkan_context::geometry_buffer::{ self, VertexDataBase };
 use crate::vulkan_context::render_pass::{ PipelineData };
 use crate::vulkan_context::vulkan_context::{ get_color32 };
 
@@ -1387,7 +1387,7 @@ impl UIVertexData {
     const POSITION: vk::Format = vk::Format::R32G32B32_SFLOAT;
 }
 
-impl VertexData for UIVertexData {
+impl VertexDataBase for UIVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
         let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
