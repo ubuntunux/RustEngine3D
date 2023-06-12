@@ -27,9 +27,9 @@ impl Default for VertexData {
     fn default() -> VertexData {
         VertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
-            _normal: Vector3::new(0.0, 0.0, 0.0),
+            _normal: Vector3::new(0.0, 1.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
-            _color: 0,
+            _color: u32::MAX,
             _texcoord: Vector2::new(0.0, 0.0)
         }
     }
