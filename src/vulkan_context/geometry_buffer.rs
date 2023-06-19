@@ -29,7 +29,7 @@ impl Default for VertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
             _normal: Vector3::new(0.0, 1.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
-            _color: u32::MAX,
+            _color: get_color32(255, 255, 255, 255),
             _texcoord: Vector2::new(0.0, 0.0)
         }
     }
@@ -54,7 +54,7 @@ impl Default for SkeletalVertexData {
             _position: Vector3::new(0.0, 0.0, 0.0),
             _normal: Vector3::new(0.0, 0.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
-            _color: 0,
+            _color: get_color32(255, 255, 255, 255),
             _texcoord: Vector2::new(0.0, 0.0),
             _bone_indices: Vector4::new(0, 0, 0, 0),
             _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0)

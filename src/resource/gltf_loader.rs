@@ -5,10 +5,10 @@ use std::path::PathBuf;
 use std::{fs, io};
 use std::boxed::Box;
 use std::error::Error as StdError;
+use std::sync::mpsc::channel;
 use byteorder::WriteBytesExt;
 
 use gltf;
-use gltf::scene::Transform;
 use nalgebra::{
     self,
     Vector2,
@@ -17,6 +17,7 @@ use nalgebra::{
     Matrix4,
 };
 use nalgebra_glm as glm;
+use rand::seq::index::sample;
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree, SkeletonDataCreateInfo };
@@ -28,6 +29,8 @@ use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, SkeletalVertexData };
 use crate::constants;
 use crate::renderer::push_constants::PushConstantSize;
+
+pub const SHOW_GLTF_LOG: bool = false;
 
 type Point3 = [u32; 3];
 
@@ -46,181 +49,355 @@ pub struct GLTF {
     pub filename: PathBuf
 }
 
-pub fn display_gltf(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, depth: i32, mesh_data_create_info: &mut MeshDataCreateInfo) {
-    // let mut text: String = String::from("    ");
-    // for i in 0..depth {
-    //     text += "    ";
-    // }
-    // text += node.name().unwrap();
-    // log::info!("\tNode {:?}, Index: {:?}, Mesh: {:?}, Skin: {:?}, Weight: {:?}, Extras: {:?}, Transform: {:?}",
-    //     text,
-    //     node.index(),
-    //     node.mesh().is_some(),
-    //     node.skin().is_some(),
-    //     node.weights().is_some(),
-    //     node.extras(),
-    //     node.transform()
-    // );
+pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::buffer::View) {
+    if SHOW_GLTF_LOG {
+        log::info!("{} Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
+            prefix,
+            accessor.data_type(),
+            accessor.index(),
+            accessor.dimensions(),
+            accessor.size(),
+            accessor.count(),
+            view.length(),
+            view.offset(),
+            view.target()
+        );
+    }
+}
+
+pub fn parsing_index_buffer(node: &gltf::Node, primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> Vec<u32> {
+    let accessor = primitive.indices().unwrap();
+    let view = accessor.view().unwrap();
+    log_assesor_view("\t\t\tIndices", &accessor, &view);
+
+    // convert index buffer to data
+    let buffer_offset = view.offset();
+    let buffer_length = view.length();
+    let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+    assert_eq!(gltf::accessor::DataType::U16, accessor.data_type());
+    let index_count = bytes.len() / 2;
+    let mut indices: Vec<u32> = vec![0; index_count];
+    for i in 0..index_count {
+        indices[i] = (bytes[i * 2] as u32) | ((bytes[i * 2 + 1] as u32) << 8);
+    }
+
+    return indices;
+}
+
+pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, node: &gltf::Node, primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> (Vec<VertexData>, Vec<SkeletalVertexData>) {
+    let mut vertex_datas: Vec<VertexData> = Vec::new();
+    let mut skeletal_vertex_datas: Vec<SkeletalVertexData> = Vec::new();
+    for attribute in primitive.attributes() {
+        let semantic = &attribute.0;
+        let accessor = &attribute.1;
+        let view = accessor.view().unwrap();
+        let vertex_count = accessor.count();
+
+        // convert buffer to data
+        let buffer_offset = view.offset();
+        let buffer_length = view.length();
+        let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+
+        if is_skeletal_mesh {
+            if skeletal_vertex_datas.is_empty() {
+                skeletal_vertex_datas.resize(vertex_count, SkeletalVertexData::default());
+            }
+        } else {
+            if vertex_datas.is_empty() {
+                vertex_datas.resize(vertex_count, VertexData::default());
+            }
+        }
+
+        match semantic {
+            gltf::Semantic::Positions => {
+                assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+                assert_eq!(gltf::accessor::Dimensions::Vec3, accessor.dimensions());
+
+                let m: &[[f32; 4]; 4] = &node.transform().matrix();
+                let transform: Matrix4<f32> = Matrix4::new(
+                    m[0][0], m[1][0], m[2][0], m[3][0],
+                    m[0][1], m[1][1], m[2][1], m[3][1],
+                    m[0][2], m[1][2], m[2][2], m[3][2],
+                    m[0][3], m[1][3], m[2][3], m[3][3]
+                );
+                let is_identity: bool = transform == Matrix4::identity();
+
+                let mut buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
+                for (i, data) in buffer_data.iter_mut().enumerate() {
+                    if false == is_identity {
+                        let mut position: Vector4<f32> = Vector4::new(data.x, data.y, data.z, 1.0);
+                        position = &transform * &position;
+                        data.x = position.x;
+                        data.y = position.y;
+                        data.z = position.z;
+                    }
+
+                    if is_skeletal_mesh {
+                        skeletal_vertex_datas[i]._position.clone_from(&data);
+                    } else {
+                        vertex_datas[i]._position.clone_from(&data);
+                    }
+                }
+            },
+            gltf::Semantic::Normals => {
+                assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+                assert_eq!(gltf::accessor::Dimensions::Vec3, accessor.dimensions());
+                let buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
+                for (i, data) in buffer_data.iter().enumerate() {
+                    if is_skeletal_mesh {
+                        skeletal_vertex_datas[i]._normal.clone_from(&data);
+                    } else {
+                        vertex_datas[i]._normal.clone_from(&data);
+                    }
+                }
+            },
+            gltf::Semantic::Tangents => {
+                assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+                assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
+                let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
+                for (i, data) in buffer_data.iter().enumerate() {
+                    if is_skeletal_mesh {
+                        skeletal_vertex_datas[i]._tangent = Vector3::new(data.x, data.y, data.z);
+                    } else {
+                        vertex_datas[i]._tangent = Vector3::new(data.x, data.y, data.z);
+                    }
+                }
+            },
+            gltf::Semantic::Colors(color_index) => {
+                if 0 == *color_index {
+                    assert_eq!(gltf::accessor::DataType::U16, accessor.data_type());
+                    assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
+                    let buffer_data: Vec<Vector4<u16>> = system::convert_vec(bytes);
+                    for (i, data) in buffer_data.iter().enumerate() {
+                        // U16 -> U8
+                        let color = vulkan_context::get_color32(
+                            (data.x >> 8) as u32,
+                            (data.y >> 8) as u32,
+                            (data.z >> 8) as u32,
+                            (data.w >> 8) as u32
+                        );
+                        if is_skeletal_mesh {
+                            skeletal_vertex_datas[i]._color = color;
+                        } else {
+                            vertex_datas[i]._color = color;
+                        }
+                    }
+                }
+            },
+            gltf::Semantic::TexCoords(uv_index) => {
+                if 0 == *uv_index {
+                    assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+                    assert_eq!(gltf::accessor::Dimensions::Vec2, accessor.dimensions());
+                    let buffer_data: Vec<Vector2<f32>> = system::convert_vec(bytes);
+                    for (i, data) in buffer_data.iter().enumerate() {
+                        if is_skeletal_mesh {
+                            skeletal_vertex_datas[i]._texcoord.clone_from(&data);
+                        } else {
+                            vertex_datas[i]._texcoord.clone_from(&data);
+                        }
+                    }
+                }
+            },
+            gltf::Semantic::Joints(joint_index) => {
+                if 0 == *joint_index {
+                    assert!(is_skeletal_mesh);
+                    assert_eq!(gltf::accessor::DataType::U8, accessor.data_type());
+                    assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
+                    let buffer_data: Vec<Vector4<u8>> = system::convert_vec(bytes);
+                    for (i, data) in buffer_data.iter().enumerate() {
+                        skeletal_vertex_datas[i]._bone_indices = Vector4::new(data.x as u32, data.y as u32, data.z as u32, data.w as u32);
+                    }
+                }
+            },
+            gltf::Semantic::Weights(weight_index) => {
+                if 0 == *weight_index {
+                    assert!(is_skeletal_mesh);
+                    assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+                    assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
+                    let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
+                    for (i, data) in buffer_data.iter().enumerate() {
+                        skeletal_vertex_datas[i]._bone_weights.clone_from(data);
+                    }
+                }
+            },
+            _ => panic!("Unimplemented Semantic: {:?}", semantic)
+        }
+    }
+
+    return (vertex_datas, skeletal_vertex_datas);
+}
+
+pub fn parsing_inverse_bind_matrices(skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>) -> Vec<Matrix4<f32>> {
+    let accessor = skin.inverse_bind_matrices().unwrap();
+    let view = accessor.view().unwrap();
+    let buffer_offset = view.offset();
+    let buffer_length = view.length();
+    let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+    log_assesor_view("\t\t\tInverse Bind Matrices", &accessor, &view);
+
+    // convert index buffer to data
+    let buffer_offset = view.offset();
+    let buffer_length = view.length();
+    let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
+    assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
+    assert_eq!(gltf::accessor::Dimensions::Mat4, accessor.dimensions());
+    let inverse_bind_matrices: Vec<Matrix4<f32>> = system::convert_vec(bytes);
+    return inverse_bind_matrices;
+}
+
+pub fn parsing_bone_hierachy(bone_node: &gltf::Node, hierachy: &mut SkeletonHierachyTree) {
+    for child_node in bone_node.children() {
+        assert!(child_node.mesh().is_none());
+        let mut child_hierachy = SkeletonHierachyTree::default();
+        parsing_bone_hierachy(&child_node, &mut child_hierachy);
+        hierachy._children.insert(child_node.name().unwrap().to_string(), child_hierachy);
+    }
+}
+
+pub fn parsing_skins(nodes: gltf::iter::Nodes, skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>, mesh_data_create_info: &mut MeshDataCreateInfo) {
+    for armature_node in nodes {
+        if armature_node.name().unwrap() == skin.name().unwrap() {
+            // inverse bind metrices
+            let inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
+
+            // all bone names
+            let mut bone_names: Vec<String> = Vec::new();
+            for joint in skin.joints() {
+                bone_names.push(joint.name().unwrap().to_string());
+            }
+
+            // build hierachy
+            let mut hierachy = SkeletonHierachyTree::default();
+            for child_node in armature_node.children() {
+                if child_node.mesh().is_none() {
+                    let mut child_hierachy = SkeletonHierachyTree::default();
+                    parsing_bone_hierachy(&child_node, &mut child_hierachy);
+                    hierachy._children.insert(child_node.name().unwrap().to_string(), child_hierachy);
+                }
+            }
+
+            // skeletone create info
+            mesh_data_create_info._skeleton_create_infos.push(
+                SkeletonDataCreateInfo {
+                    _name: armature_node.name().unwrap().to_string(),
+                    _hierachy: hierachy,
+                    _bone_names: bone_names,
+                    _inv_bind_matrices: inverse_bind_matrices
+                }
+            );
+            break;
+        }
+    }
+}
+
+pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>, mesh_data_create_info: &mut MeshDataCreateInfo) {
+    let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
+    let mut animation_node_datas: Vec<AnimationNodeCreateInfo> = Vec::new();
+    for bone_name in skeleton_create_info._bone_names.iter() {
+        let mut animation_node_data = AnimationNodeCreateInfo {
+            _name: format!("{}_{}", skin.name().unwrap(), bone_name),
+            _target: bone_name.clone(),
+            ..Default::default()
+        };
+
+        for animation in animations.clone() {
+            if SHOW_GLTF_LOG {
+                log::info!("\tAnimation: {:?}, Index: {:?}", animation.name(), animation.index());
+            }
+            for channel in animation.channels() {
+                let target = channel.target();
+                let target_node = target.node();
+                if bone_name == target_node.name().unwrap() {
+                    let target_index = target_node.index();
+                    let property = target.property();
+                    let sampler = channel.sampler();
+                    let input_accesor = sampler.input();
+                    let input_view = input_accesor.view().unwrap();
+                    let output_accesor = sampler.output();
+                    let output_view = output_accesor.view().unwrap();
+                    let interpolation = sampler.interpolation();
+
+                    if SHOW_GLTF_LOG {
+                        log::info!("\tTarget {:?} Index: {:?}. Property: {:?}", target_node.name().unwrap(), target_index, property);
+                        log::info!("        Sampler Interpolation: {:?}", sampler.interpolation());
+                        log_assesor_view("        Sampler Input", &sampler.input(), sampler.input().view().as_ref().unwrap());
+                        log_assesor_view("        Sampler Output", &sampler.output(), sampler.output().view().as_ref().unwrap());
+                    }
+
+                    // input data
+                    if animation_node_data._times.is_empty() {
+                        let input_buffer_offset = input_view.offset();
+                        let input_buffer_length = input_view.length();
+                        let input_bytes: Vec<u8> = buffers[0].0[input_buffer_offset..(input_buffer_offset + input_buffer_length)].to_vec();
+                        assert_eq!(gltf::accessor::DataType::F32, input_accesor.data_type());
+                        assert_eq!(gltf::accessor::Dimensions::Scalar, input_accesor.dimensions());
+                        animation_node_data._times = system::convert_vec(input_bytes);
+                    }
+
+                    // output data
+                    let output_buffer_offset = output_view.offset();
+                    let output_buffer_length = output_view.length();
+                    let output_bytes: Vec<u8> = buffers[0].0[output_buffer_offset..(output_buffer_offset + output_buffer_length)].to_vec();
+                    match property {
+                        gltf::animation::Property::Translation => {
+                            assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
+                            assert_eq!(gltf::accessor::Dimensions::Vec3, output_accesor.dimensions());
+                            animation_node_data._locations = system::convert_vec(output_bytes);
+                        },
+                        gltf::animation::Property::Rotation => {
+                            assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
+                            assert_eq!(gltf::accessor::Dimensions::Vec4, output_accesor.dimensions());
+                            animation_node_data._rotations = system::convert_vec(output_bytes);
+                        },
+                        gltf::animation::Property::Scale => {
+                            assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
+                            assert_eq!(gltf::accessor::Dimensions::Vec3, output_accesor.dimensions());
+                            animation_node_data._scales = system::convert_vec(output_bytes);
+                        },
+                        _ => panic!("not implementation!")
+                    }
+                }
+            }
+        }
+        animation_node_datas.push(animation_node_data);
+    }
+    mesh_data_create_info._animation_node_create_infos.push(animation_node_datas);
+}
+
+pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, depth: i32, mesh_data_create_info: &mut MeshDataCreateInfo) {
+    if SHOW_GLTF_LOG {
+        let mut text: String = String::from("    ");
+        for i in 0..depth {
+            text += "    ";
+        }
+        log::info!("{}Node {:?} Index: {:?}, Mesh: {:?}, Skin: {:?}, Weight: {:?}, Extras: {:?}, Transform: {:?}",
+            text,
+            node.name().unwrap(),
+            node.index(),
+            node.mesh().is_some(),
+            node.skin().is_some(),
+            node.weights().is_some(),
+            node.extras(),
+            node.transform()
+        );
+    }
 
     if node.mesh().is_some() {
+        let is_skeletal_mesh: bool = node.skin().is_some();
         let mesh = node.mesh().unwrap();
-        //log::info!("\tMesh Index: {:?}", mesh.index());
+        if SHOW_GLTF_LOG {
+            log::info!("\tMesh {:?}, Index: {:?}", mesh.name(), mesh.index());
+        }
         for primitive in mesh.primitives() {
-            //log::info!("\t\tPrimitive Index: {:?}, BoundBox: {:?}", primitive.index(), primitive.bounding_box());
+            if SHOW_GLTF_LOG {
+                log::info!("\t\tPrimitive Index: {:?}, BoundBox: {:?}", primitive.index(), primitive.bounding_box());
+            }
             let bounding_box: BoundingBox = BoundingBox::create_bounding_box(
                 &Vector3::new (primitive.bounding_box().min[0], primitive.bounding_box().min[1], primitive.bounding_box().min[2]),
                 &Vector3::new (primitive.bounding_box().max[0], primitive.bounding_box().max[1], primitive.bounding_box().max[2])
             );
-
-            let indices_accesor = primitive.indices().unwrap();
-            let indices_view = indices_accesor.view().unwrap();
-            //log::info!("\t\t\tIndices Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
-            //     indices_accesor.data_type(),
-            //     indices_accesor.index(),
-            //     indices_accesor.dimensions(),
-            //     indices_accesor.size(),
-            //     indices_accesor.count(),
-            //     indices_view.length(),
-            //     indices_view.offset(),
-            //     indices_view.target()
-            // );
-
-            // convert buffer to data
-            let index_buffer_offset = indices_view.offset();
-            let index_buffer_length = indices_view.length();
-            let index_bytes: Vec<u8> = buffers[0].0[index_buffer_offset..(index_buffer_offset + index_buffer_length)].to_vec();
-            assert_eq!(gltf::accessor::DataType::U16, indices_accesor.data_type());
-            let index_count = index_bytes.len() / 2;
-            let mut indices: Vec<u32> = vec![0; index_count];
-            for i in 0..index_count {
-                indices[i] = (index_bytes[i * 2] as u32) | ((index_bytes[i * 2 + 1] as u32) << 8);
-            }
-
-            let is_skeletal_mesh: bool = false;
-            let mut vertex_datas: Vec<VertexData> = Vec::new();
-            let mut skeletal_vertex_datas: Vec<SkeletalVertexData> = Vec::new();
-            for attribute in primitive.attributes() {
-                let semantic = &attribute.0;
-                let accesor = &attribute.1;
-                let view = accesor.view().unwrap();
-                let vertex_count = accesor.count();
-
-                //log::info!("\t\t\tAttribute {:?}, Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
-                //     semantic,
-                //     accesor.data_type(),
-                //     accesor.index(),
-                //     accesor.dimensions(),
-                //     accesor.size(),
-                //     accesor.count(),
-                //     view.length(),
-                //     view.offset(),
-                //     view.target()
-                // );
-
-                // convert buffer to data
-                let buffer_offset = view.offset();
-                let buffer_length = view.length();
-                let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
-
-                if is_skeletal_mesh {
-                    if skeletal_vertex_datas.is_empty() {
-                        skeletal_vertex_datas.resize(vertex_count, SkeletalVertexData::default());
-                    }
-                } else {
-                    if vertex_datas.is_empty() {
-                        vertex_datas.resize(vertex_count, VertexData::default());
-                    }
-                }
-
-                match semantic {
-                    gltf::Semantic::Positions => {
-                        assert_eq!(gltf::accessor::DataType::F32, accesor.data_type());
-                        assert_eq!(gltf::accessor::Dimensions::Vec3, accesor.dimensions());
-
-                        let m: &[[f32; 4]; 4] = &node.transform().matrix();
-                        let transform: Matrix4<f32> = Matrix4::new(
-                            m[0][0], m[1][0], m[2][0], m[3][0],
-                            m[0][1], m[1][1], m[2][1], m[3][1],
-                            m[0][2], m[1][2], m[2][2], m[3][2],
-                            m[0][3], m[1][3], m[2][3], m[3][3]
-                        );
-                        let is_identity: bool = transform == Matrix4::identity();
-
-                        let mut buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
-                        for (i, data) in buffer_data.iter_mut().enumerate() {
-                            if false == is_identity {
-                                let mut position: Vector4<f32> = Vector4::new(data.x, data.y, data.z, 1.0);
-                                position = &transform * &position;
-                                data.x = position.x;
-                                data.y = position.y;
-                                data.z = position.z;
-                            }
-
-                            if is_skeletal_mesh {
-                                skeletal_vertex_datas[i]._position.clone_from(&data);
-                            } else {
-                                vertex_datas[i]._position.clone_from(&data);
-                            }
-                        }
-                    },
-                    gltf::Semantic::Normals => {
-                        assert_eq!(gltf::accessor::DataType::F32, accesor.data_type());
-                        assert_eq!(gltf::accessor::Dimensions::Vec3, accesor.dimensions());
-                        let buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
-                        for (i, data) in buffer_data.iter().enumerate() {
-                            if is_skeletal_mesh {
-                                skeletal_vertex_datas[i]._normal.clone_from(&data);
-                            } else {
-                                vertex_datas[i]._normal.clone_from(&data);
-                            }
-                        }
-                    },
-                    gltf::Semantic::Tangents => {
-                        assert_eq!(gltf::accessor::DataType::F32, accesor.data_type());
-                        assert_eq!(gltf::accessor::Dimensions::Vec4, accesor.dimensions());
-                        let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
-                        for (i, data) in buffer_data.iter().enumerate() {
-                            if is_skeletal_mesh {
-                                skeletal_vertex_datas[i]._tangent = Vector3::new(data.x, data.y, data.z);
-                            } else {
-                                vertex_datas[i]._tangent = Vector3::new(data.x, data.y, data.z);
-                            }
-                        }
-                    },
-                    gltf::Semantic::Colors(_color_index) => {
-                        assert_eq!(gltf::accessor::DataType::U16, accesor.data_type());
-                        assert_eq!(gltf::accessor::Dimensions::Vec4, accesor.dimensions());
-                        let buffer_data: Vec<Vector4<u16>> = system::convert_vec(bytes);
-                        for (i, data) in buffer_data.iter().enumerate() {
-                            // U16 -> U8
-                            let color = vulkan_context::get_color32(
-                                (data.x >> 8) as u32,
-                                (data.y >> 8) as u32,
-                                (data.z >> 8) as u32,
-                                (data.w >> 8) as u32
-                            );
-                            if is_skeletal_mesh {
-                                skeletal_vertex_datas[i]._color = color;
-                            } else {
-                                vertex_datas[i]._color = color;
-                            }
-                        }
-                    },
-                    gltf::Semantic::TexCoords(_uv_index) => {
-                        assert_eq!(gltf::accessor::DataType::F32, accesor.data_type());
-                        assert_eq!(gltf::accessor::Dimensions::Vec2, accesor.dimensions());
-                        let buffer_data: Vec<Vector2<f32>> = system::convert_vec(bytes);
-                        for (i, data) in buffer_data.iter().enumerate() {
-                            if is_skeletal_mesh {
-                                skeletal_vertex_datas[i]._texcoord.clone_from(&data);
-                            } else {
-                                vertex_datas[i]._texcoord.clone_from(&data);
-                            }
-                        }
-                    },
-                    _ => panic!("Unimplemented Semantic: {:?}", semantic)
-                }
-            }
+            let indices = parsing_index_buffer(node, &primitive, buffers);
+            let (vertex_datas, skeletal_vertex_datas) = parsing_vertex_buffer(is_skeletal_mesh, node, &primitive, buffers);
 
             // insert GeometryCreateInfo
             mesh_data_create_info._geometry_create_infos.push(
@@ -235,7 +412,7 @@ pub fn display_gltf(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, depth:
     }
 
     for child in node.children() {
-        display_gltf(&child, buffers, depth + 1, mesh_data_create_info);
+        parsing_meshes(&child, buffers, depth + 1, mesh_data_create_info);
     }
 }
 
@@ -243,43 +420,34 @@ impl GLTF {
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         let mut mesh_data_create_info = MeshDataCreateInfo::default();
 
-        //log::info!("GLTF: {:?}", filename);
         let (document, buffers, images) = gltf::import(filename).unwrap();
+        // let scenes = document.scenes();
+        // let nodes = document.nodes();
+        // let accessors = document.accessors();
+        // let views = document.views();
+        // let meshes = document.meshes();
+        // let materials = document.materials();
+        // let textures = document.textures();
+        // let animations = document.animations();
+        // let samplers = document.samplers();
+        // let skins = document.skins();
+        // let cameras = document.cameras();
+        // let images = document.images();
+
+        if SHOW_GLTF_LOG {
+            log::info!("GLTF: {:?}", filename);
+        }
+
+        for skin in document.skins() {
+            parsing_skins(document.nodes(), &skin, &buffers, &mut mesh_data_create_info);
+            parsing_animation(document.animations(), &skin, &buffers, &mut mesh_data_create_info);
+        }
+
         for scene in document.scenes() {
             for node in scene.nodes() {
-                display_gltf(&node, &buffers, 0, &mut mesh_data_create_info);
+                parsing_meshes(&node, &buffers, 0, &mut mesh_data_create_info);
             }
         }
-
-        for (i, buffer) in document.buffers().enumerate() {
-            //log::info!("\tBuffer Index: {:?}, Length: {:?}, Buffer Length: {:?}", buffer.index(), buffer.length(), buffers[i].0.len());
-        }
-
-        for (i, image) in document.images().enumerate() {
-            //log::info!("\tImage Index: {:?}", image.index());
-        }
-
-        // pub struct VertexData {
-        //     pub _position: Vector3<f32>,
-        //     pub _normal: Vector3<f32>,
-        //     pub _tangent: Vector3<f32>,
-        //     pub _color: u32,
-        //     pub _texcoord: Vector2<f32>
-        // }
-        //
-        // pub struct GeometryCreateInfo {
-        //     pub _vertex_datas: Vec<VertexData>,
-        //     pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,
-        //     pub _indices: Vec<u32>,
-        //     pub _bounding_box: BoundingBox,
-        // }
-        //
-        // pub struct MeshDataCreateInfo {
-        //     pub _bound_box: BoundingBox,
-        //     pub _skeleton_create_infos: Vec<SkeletonDataCreateInfo>,
-        //     pub _animation_node_create_infos: Vec<Vec<AnimationNodeCreateInfo>>,
-        //     pub _geometry_create_infos: Vec<GeometryCreateInfo>,
-        // }
 
         mesh_data_create_info._bound_box = MeshDataCreateInfo::calc_mesh_bounding_box(&mesh_data_create_info._geometry_create_infos);
         mesh_data_create_info
