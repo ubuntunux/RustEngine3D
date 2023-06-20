@@ -1,12 +1,4 @@
-use std::cmp::min;
-use std::collections::HashMap;
-use std::ops::Add;
 use std::path::PathBuf;
-use std::{fs, io};
-use std::boxed::Box;
-use std::error::Error as StdError;
-use std::sync::mpsc::channel;
-use byteorder::WriteBytesExt;
 
 use gltf;
 use nalgebra::{
@@ -16,21 +8,17 @@ use nalgebra::{
     Vector4,
     Matrix4,
 };
-use nalgebra_glm as glm;
-use rand::seq::index::sample;
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree, SkeletonDataCreateInfo };
-use crate::utilities::bounding_box::{ self, BoundingBox, };
+use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::system;
-use crate::utilities::xml::{ self, XmlTree, };
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::geometry_buffer::{ self, GeometryCreateInfo, VertexData, SkeletalVertexData };
+use crate::vulkan_context::geometry_buffer::{ GeometryCreateInfo, VertexData, SkeletalVertexData };
 use crate::constants;
-use crate::renderer::push_constants::PushConstantSize;
 
-pub const SHOW_GLTF_LOG: bool = false;
+pub const SHOW_GLTF_LOG: bool = true;
 
 type Point3 = [u32; 3];
 
@@ -65,7 +53,7 @@ pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::bu
     }
 }
 
-pub fn parsing_index_buffer(node: &gltf::Node, primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> Vec<u32> {
+pub fn parsing_index_buffer(primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> Vec<u32> {
     let accessor = primitive.indices().unwrap();
     let view = accessor.view().unwrap();
     log_assesor_view("\t\t\tIndices", &accessor, &view);
@@ -84,9 +72,12 @@ pub fn parsing_index_buffer(node: &gltf::Node, primitive: &gltf::Primitive, buff
     return indices;
 }
 
-pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, node: &gltf::Node, primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> (Vec<VertexData>, Vec<SkeletalVertexData>) {
+pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, parent_transform: &Matrix4<f32>, primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> (Vec<VertexData>, Vec<SkeletalVertexData>) {
+    let is_identity: bool = *parent_transform == Matrix4::identity();
+    let mut find_tangent_data: bool = false;
     let mut vertex_datas: Vec<VertexData> = Vec::new();
     let mut skeletal_vertex_datas: Vec<SkeletalVertexData> = Vec::new();
+
     for attribute in primitive.attributes() {
         let semantic = &attribute.0;
         let accessor = &attribute.1;
@@ -112,24 +103,10 @@ pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, node: &gltf::Node, primitiv
             gltf::Semantic::Positions => {
                 assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
                 assert_eq!(gltf::accessor::Dimensions::Vec3, accessor.dimensions());
-
-                let m: &[[f32; 4]; 4] = &node.transform().matrix();
-                let transform: Matrix4<f32> = Matrix4::new(
-                    m[0][0], m[1][0], m[2][0], m[3][0],
-                    m[0][1], m[1][1], m[2][1], m[3][1],
-                    m[0][2], m[1][2], m[2][2], m[3][2],
-                    m[0][3], m[1][3], m[2][3], m[3][3]
-                );
-                let is_identity: bool = transform == Matrix4::identity();
-
                 let mut buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
                 for (i, data) in buffer_data.iter_mut().enumerate() {
                     if false == is_identity {
-                        let mut position: Vector4<f32> = Vector4::new(data.x, data.y, data.z, 1.0);
-                        position = &transform * &position;
-                        data.x = position.x;
-                        data.y = position.y;
-                        data.z = position.z;
+                        *data = math::apply_matrix_to_vector(parent_transform, &data, 1.0);
                     }
 
                     if is_skeletal_mesh {
@@ -142,8 +119,13 @@ pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, node: &gltf::Node, primitiv
             gltf::Semantic::Normals => {
                 assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
                 assert_eq!(gltf::accessor::Dimensions::Vec3, accessor.dimensions());
-                let buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
-                for (i, data) in buffer_data.iter().enumerate() {
+                let mut buffer_data: Vec<Vector3<f32>> = system::convert_vec(bytes);
+                for (i, data) in buffer_data.iter_mut().enumerate() {
+                    if false == is_identity {
+                        *data = math::apply_matrix_to_vector(parent_transform, &data, 0.0);
+                        *data = math::safe_normalize(&data);
+                    }
+
                     if is_skeletal_mesh {
                         skeletal_vertex_datas[i]._normal.clone_from(&data);
                     } else {
@@ -152,14 +134,21 @@ pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, node: &gltf::Node, primitiv
                 }
             },
             gltf::Semantic::Tangents => {
+                find_tangent_data = true;
                 assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
                 assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
-                let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
-                for (i, data) in buffer_data.iter().enumerate() {
+                let mut buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
+                for (i, data) in buffer_data.iter_mut().enumerate() {
+                    let mut data = Vector3::new(data.x, data.y, data.z);
+                    if false == is_identity {
+                        data = math::apply_matrix_to_vector(parent_transform, &data, 0.0);
+                        data = math::safe_normalize(&data);
+                    }
+
                     if is_skeletal_mesh {
-                        skeletal_vertex_datas[i]._tangent = Vector3::new(data.x, data.y, data.z);
+                        skeletal_vertex_datas[i]._tangent = data;
                     } else {
-                        vertex_datas[i]._tangent = Vector3::new(data.x, data.y, data.z);
+                        vertex_datas[i]._tangent = data;
                     }
                 }
             },
@@ -224,18 +213,18 @@ pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, node: &gltf::Node, primitiv
         }
     }
 
+    if false == find_tangent_data {
+        panic!("not found tangent normal!");
+    }
+
     return (vertex_datas, skeletal_vertex_datas);
 }
 
 pub fn parsing_inverse_bind_matrices(skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>) -> Vec<Matrix4<f32>> {
     let accessor = skin.inverse_bind_matrices().unwrap();
     let view = accessor.view().unwrap();
-    let buffer_offset = view.offset();
-    let buffer_length = view.length();
-    let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
     log_assesor_view("\t\t\tInverse Bind Matrices", &accessor, &view);
 
-    // convert index buffer to data
     let buffer_offset = view.offset();
     let buffer_length = view.length();
     let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
@@ -315,7 +304,7 @@ pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, 
                     let input_view = input_accesor.view().unwrap();
                     let output_accesor = sampler.output();
                     let output_view = output_accesor.view().unwrap();
-                    let interpolation = sampler.interpolation();
+                    let _interpolation = sampler.interpolation();
 
                     if SHOW_GLTF_LOG {
                         log::info!("\tTarget {:?} Index: {:?}. Property: {:?}", target_node.name().unwrap(), target_index, property);
@@ -367,7 +356,7 @@ pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, 
 pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, depth: i32, mesh_data_create_info: &mut MeshDataCreateInfo) {
     if SHOW_GLTF_LOG {
         let mut text: String = String::from("    ");
-        for i in 0..depth {
+        for _i in 0..depth {
             text += "    ";
         }
         log::info!("{}Node {:?} Index: {:?}, Mesh: {:?}, Skin: {:?}, Weight: {:?}, Extras: {:?}, Transform: {:?}",
@@ -385,19 +374,38 @@ pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, dept
     if node.mesh().is_some() {
         let is_skeletal_mesh: bool = node.skin().is_some();
         let mesh = node.mesh().unwrap();
+        let m: &[[f32; 4]; 4] = &node.transform().matrix();
+        let parent_transform: Matrix4<f32> = Matrix4::new(
+            m[0][0], m[1][0], m[2][0], m[3][0],
+            m[0][1], m[1][1], m[2][1], m[3][1],
+            m[0][2], m[1][2], m[2][2], m[3][2],
+            m[0][3], m[1][3], m[2][3], m[3][3]
+        );
+
         if SHOW_GLTF_LOG {
-            log::info!("\tMesh {:?}, Index: {:?}", mesh.name(), mesh.index());
+            log::info!("\tMesh {:?}, Index: {:?}, Transform: {:?}", mesh.name(), mesh.index(), parent_transform);
         }
         for primitive in mesh.primitives() {
             if SHOW_GLTF_LOG {
                 log::info!("\t\tPrimitive Index: {:?}, BoundBox: {:?}", primitive.index(), primitive.bounding_box());
             }
-            let bounding_box: BoundingBox = BoundingBox::create_bounding_box(
-                &Vector3::new (primitive.bounding_box().min[0], primitive.bounding_box().min[1], primitive.bounding_box().min[2]),
-                &Vector3::new (primitive.bounding_box().max[0], primitive.bounding_box().max[1], primitive.bounding_box().max[2])
+
+            // bound box
+            let bound_min = math::apply_matrix_to_vector(
+                &parent_transform,
+                &Vector3::new(primitive.bounding_box().min[0], primitive.bounding_box().min[1], primitive.bounding_box().min[2]),
+                1.0
             );
-            let indices = parsing_index_buffer(node, &primitive, buffers);
-            let (vertex_datas, skeletal_vertex_datas) = parsing_vertex_buffer(is_skeletal_mesh, node, &primitive, buffers);
+            let bound_max = math::apply_matrix_to_vector(
+                &parent_transform,
+                &Vector3::new(primitive.bounding_box().max[0], primitive.bounding_box().max[1], primitive.bounding_box().max[2]),
+                1.0
+            );
+            let bounding_box: BoundingBox = BoundingBox::create_bounding_box(&bound_min, &bound_max);
+
+            // parsing vertex buffer
+            let indices = parsing_index_buffer(&primitive, buffers);
+            let (vertex_datas, skeletal_vertex_datas) = parsing_vertex_buffer(is_skeletal_mesh, &parent_transform, &primitive, buffers);
 
             // insert GeometryCreateInfo
             mesh_data_create_info._geometry_create_infos.push(
@@ -420,7 +428,7 @@ impl GLTF {
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         let mut mesh_data_create_info = MeshDataCreateInfo::default();
 
-        let (document, buffers, images) = gltf::import(filename).unwrap();
+        let (document, buffers, _images) = gltf::import(filename).unwrap();
         // let scenes = document.scenes();
         // let nodes = document.nodes();
         // let accessors = document.accessors();

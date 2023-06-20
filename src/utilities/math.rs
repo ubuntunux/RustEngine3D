@@ -54,27 +54,30 @@ pub fn radian_to_degree(degree: f32) -> f32 {
 }
 
 pub fn safe_normalize(vec: &Vector3<f32>) -> Vector3<f32> {
-    let distance = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
-    if 0.0 < distance {
-        return vec / distance;
+    let mag_sq = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+    if 0.0 < mag_sq {
+        let mag = mag_sq.sqrt();
+        return vec / mag;
     }
     Vector3::zeros()
 }
 
 pub fn safe_normalize_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
-    let distance = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
-    if 0.0 < distance {
-        return (vec / distance, distance);
+    let mag_sq = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+    if 0.0 < mag_sq {
+        let mag = mag_sq.sqrt();
+        return (vec / mag, mag);
     }
     (Vector3::zeros(), 0.0)
 }
 
 pub fn safe_normalize_mut(vec: &mut Vector3<f32>) {
-    let distance = (vec.x * vec.x + vec.y * vec.y + vec.z * vec.z).sqrt();
-    if 0.0 < distance {
-        vec.x /= distance;
-        vec.y /= distance;
-        vec.z /= distance;
+    let mag_sq = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+    if 0.0 < mag_sq {
+        let mag = mag_sq.sqrt();
+        vec.x /= mag;
+        vec.y /= mag;
+        vec.z /= mag;
     }
 }
 
@@ -100,6 +103,12 @@ pub fn make_normalize_xz_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
         return (Vector3::new(vec.x / distance, 0.0, vec.z / distance), distance);
     }
     (Vector3::zeros(), 0.0)
+}
+
+pub fn apply_matrix_to_vector(matrix: &Matrix4<f32>, vec: &Vector3<f32>, w: f32) -> Vector3<f32> {
+    let vec: Vector4<f32> = Vector4::new(vec.x, vec.y, vec.z, w);
+    let vec = matrix * &vec;
+    Vector3::new(vec.x, vec.y, vec.z)
 }
 
 pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
