@@ -32,8 +32,8 @@ pub struct SkeletonData {
 #[serde(default)]
 pub struct AnimationNodeCreateInfo {
     pub _name: String,
-    pub _precomputed_root_matrix: bool,
-    pub _precomputed_combine_inv_bind_matrix: bool,
+    pub _hierachically_accumlated_matrix: bool,
+    pub _combined_inv_bind_matrix: bool,
     pub _target: String,
     pub _times: Vec<f32>,
     pub _locations: Vec<Vector3<f32>>,
@@ -47,8 +47,8 @@ pub struct AnimationNodeCreateInfo {
 #[derive(Clone, Debug)]
 pub struct AnimationNodeData {
     pub _name: String,
-    pub _precomputed_root_matrix: bool,
-    pub _precomputed_combine_inv_bind_matrix: bool,
+    pub _hierachically_accumlated_matrix: bool,
+    pub _combined_inv_bind_matrix: bool,
     pub _target: String,
     pub _frame_times: Vec<f32>,
     pub _locations: Vec<Vector3<f32>>,
@@ -92,8 +92,8 @@ impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
             _name: String::new(),
-            _precomputed_root_matrix: constants::PRECOMPUTED_ROOT_MATRIX,
-            _precomputed_combine_inv_bind_matrix: constants::PRECOMPUTED_COMBINE_INV_BIND_MATRIX,
+            _hierachically_accumlated_matrix: constants::HIERACHICALLY_ACCUMULATED_MATRIX,
+            _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
             _target: String::new(),
             _times: Vec::new(),
             _locations: Vec::new(),
@@ -268,12 +268,12 @@ impl AnimationData {
 
     pub fn update_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
         unsafe {
-            if (*self._root_node)._precomputed_root_matrix {
+            if (*self._root_node)._hierachically_accumlated_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {
                     node.update_animation_node(frame, &mut animation_transforms[index]);
                     // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
                     // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
-                    if false == node._precomputed_combine_inv_bind_matrix {
+                    if false == node._combined_inv_bind_matrix {
                         animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
                     }
                 }
@@ -294,8 +294,8 @@ impl AnimationNodeData {
     pub fn create_animation_node_data(bone: *const BoneData, animation_node_create_info: &AnimationNodeCreateInfo) -> AnimationNodeData {
         AnimationNodeData {
             _name: animation_node_create_info._name.clone(),
-            _precomputed_root_matrix: animation_node_create_info._precomputed_root_matrix,
-            _precomputed_combine_inv_bind_matrix: animation_node_create_info._precomputed_combine_inv_bind_matrix,
+            _hierachically_accumlated_matrix: animation_node_create_info._hierachically_accumlated_matrix,
+            _combined_inv_bind_matrix: animation_node_create_info._combined_inv_bind_matrix,
             _target: animation_node_create_info._target.clone(),  // bone name
             _frame_times: animation_node_create_info._times.clone(),
             _locations: animation_node_create_info._locations.clone(),

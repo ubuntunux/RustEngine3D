@@ -9,6 +9,7 @@ use nalgebra::{
     Matrix4,
 };
 
+use crate::constants;
 use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree, SkeletonDataCreateInfo };
 use crate::utilities::bounding_box::BoundingBox;
@@ -16,9 +17,9 @@ use crate::utilities::math;
 use crate::utilities::system;
 use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{ GeometryCreateInfo, VertexData, SkeletalVertexData };
-use crate::constants;
 
-pub const SHOW_GLTF_LOG: bool = true;
+
+pub const SHOW_GLTF_LOG: bool = false;
 
 type Point3 = [u32; 3];
 
@@ -243,7 +244,12 @@ pub fn parsing_bone_hierachy(bone_node: &gltf::Node, hierachy: &mut SkeletonHier
     }
 }
 
-pub fn parsing_skins(nodes: gltf::iter::Nodes, skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>, mesh_data_create_info: &mut MeshDataCreateInfo) {
+pub fn parsing_skins(
+    nodes: gltf::iter::Nodes,
+    skin: &gltf::Skin,
+    buffers: &Vec<gltf::buffer::Data>,
+    mesh_data_create_info: &mut MeshDataCreateInfo
+) {
     for armature_node in nodes {
         if armature_node.name().unwrap() == skin.name().unwrap() {
             // inverse bind metrices
@@ -274,9 +280,10 @@ pub fn parsing_skins(nodes: gltf::iter::Nodes, skin: &gltf::Skin, buffers: &Vec<
                     _inv_bind_matrices: inverse_bind_matrices
                 }
             );
-            break;
+            return;
         }
     }
+    panic!("not found armature node");
 }
 
 pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>, mesh_data_create_info: &mut MeshDataCreateInfo) {
@@ -348,9 +355,56 @@ pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, 
                 }
             }
         }
+        let num_keyframes = animation_node_data._times.len();
+        assert_eq!(num_keyframes, animation_node_data._locations.len());
+        assert_eq!(num_keyframes, animation_node_data._rotations.len());
+        assert_eq!(num_keyframes, animation_node_data._scales.len());
         animation_node_datas.push(animation_node_data);
     }
+
+    if 0 < animation_node_datas.len() {
+        let num_keyframes = animation_node_datas[0]._times.len();
+        for animation_node_data in animation_node_datas.iter() {
+            assert_eq!(num_keyframes, animation_node_data._times.len());
+        }
+    }
     mesh_data_create_info._animation_node_create_infos.push(animation_node_datas);
+}
+
+pub fn precompute_animation(
+    frame_index: usize,
+    parent_transform: &Matrix4<f32>,
+    bone_index: usize,
+    hierachy: &SkeletonHierachyTree,
+    bone_names: &Vec<String>,
+    inv_bind_matrices: &Vec<Matrix4<f32>>,
+    animation_node_datas: &mut Vec<AnimationNodeCreateInfo>
+)
+{
+    // precompute bone animation matrix with ancestor bone matrices
+    let animation_node_data = &mut animation_node_datas[bone_index];
+    let transform: Matrix4<f32> = parent_transform * math::combinate_matrix(
+        &animation_node_data._locations[frame_index],
+        &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
+        &animation_node_data._scales[frame_index]
+    );
+
+    // combine animation matrix with inv_bind_matrix
+    if constants::COMBINED_INVERSE_BIND_MATRIX {
+        let combined_transform = transform * &inv_bind_matrices[bone_index];
+        animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
+        animation_node_data._rotations[frame_index] = math::extract_quaternion(&combined_transform);
+        animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
+    } else {
+        animation_node_data._locations[frame_index] = math::extract_location(&transform);
+        animation_node_data._rotations[frame_index] = math::extract_quaternion(&transform);
+        animation_node_data._scales[frame_index] = math::extract_scale(&transform);
+    }
+
+    for (child_bone_name, child_hierachy) in hierachy._children.iter() {
+        let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;
+        precompute_animation(frame_index, &transform, child_bone_index, &child_hierachy, bone_names, inv_bind_matrices, animation_node_datas);
+    }
 }
 
 pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, depth: i32, mesh_data_create_info: &mut MeshDataCreateInfo) {
@@ -426,29 +480,31 @@ pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, dept
 
 impl GLTF {
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
-        let mut mesh_data_create_info = MeshDataCreateInfo::default();
-
-        let (document, buffers, _images) = gltf::import(filename).unwrap();
-        // let scenes = document.scenes();
-        // let nodes = document.nodes();
-        // let accessors = document.accessors();
-        // let views = document.views();
-        // let meshes = document.meshes();
-        // let materials = document.materials();
-        // let textures = document.textures();
-        // let animations = document.animations();
-        // let samplers = document.samplers();
-        // let skins = document.skins();
-        // let cameras = document.cameras();
-        // let images = document.images();
-
         if SHOW_GLTF_LOG {
             log::info!("GLTF: {:?}", filename);
         }
-
+        let (document, buffers, _images) = gltf::import(filename).unwrap();
+        let mut mesh_data_create_info = MeshDataCreateInfo::default();
         for skin in document.skins() {
             parsing_skins(document.nodes(), &skin, &buffers, &mut mesh_data_create_info);
             parsing_animation(document.animations(), &skin, &buffers, &mut mesh_data_create_info);
+
+            if constants::HIERACHICALLY_ACCUMULATED_MATRIX {
+                let n = mesh_data_create_info._animation_node_create_infos.len();
+                let animation_node_datas = &mut mesh_data_create_info._animation_node_create_infos[n - 1];
+                let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
+                let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
+                let bone_names = &skeleton_create_info._bone_names;
+                let parent_transform: Matrix4<f32> = Matrix4::identity();
+
+                for (child_bone_name, child_hierachy) in skeleton_create_info._hierachy._children.iter() {
+                    let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;
+                    let total_frame_count = animation_node_datas[child_bone_index]._times.len();
+                    for frame_index in 0..total_frame_count {
+                        precompute_animation(frame_index, &parent_transform,child_bone_index, &child_hierachy, bone_names, inv_bind_matrices, animation_node_datas);
+                    }
+                }
+            }
         }
 
         for scene in document.scenes() {

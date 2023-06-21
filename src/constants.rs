@@ -62,8 +62,8 @@ pub const SSAO_RADIUS: f32 = 2.0;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
 pub const MAX_TRANSFORM_COUNT: usize = 65536; // must match with scene_constants.glsl
-pub const PRECOMPUTED_ROOT_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
-pub const PRECOMPUTED_COMBINE_INV_BIND_MATRIX: bool = PRECOMPUTED_ROOT_MATRIX && false; // combine animation matrix with inv_bind_matrix.
+pub const HIERACHICALLY_ACCUMULATED_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
+pub const COMBINED_INVERSE_BIND_MATRIX: bool = true && HIERACHICALLY_ACCUMULATED_MATRIX; // combine animation matrix with inv_bind_matrix.
 
 // application
 pub const JOYSTICK_SENSOR_DEAD_ZONE: i16 = 10_000;
