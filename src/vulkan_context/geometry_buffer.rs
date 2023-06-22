@@ -278,7 +278,10 @@ pub fn compute_tangent(
 ) -> Vec<Vector3<f32>> {
     let vertex_count = positions.len();
     let index_count = indices.len();
-    assert_eq!(0, index_count as u32 % 3);
+    assert_ne!(0, vertex_count);
+    assert_eq!(0, index_count % 3);
+    assert_eq!(normals.len(), positions.len());
+    assert_eq!(texcoords.len(), positions.len());
     let mut tangent_map: HashMap<usize, Vector3<f32>> = HashMap::new();
     for i in (0..index_count).step_by(3) {
         let i0 = indices[i] as usize;

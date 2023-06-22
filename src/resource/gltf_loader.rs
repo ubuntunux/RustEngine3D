@@ -15,7 +15,7 @@ use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree,
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::system;
-use crate::vulkan_context::vulkan_context;
+use crate::vulkan_context::{geometry_buffer, vulkan_context};
 use crate::vulkan_context::geometry_buffer::{ GeometryCreateInfo, VertexData, SkeletalVertexData };
 
 
@@ -73,7 +73,12 @@ pub fn parsing_index_buffer(primitive: &gltf::Primitive, buffers: &Vec<gltf::buf
     return indices;
 }
 
-pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, parent_transform: &Matrix4<f32>, primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> (Vec<VertexData>, Vec<SkeletalVertexData>) {
+pub fn parsing_vertex_buffer(
+    is_skeletal_mesh: bool,
+    parent_transform: &Matrix4<f32>,
+    primitive: &gltf::Primitive,
+    buffers: &Vec<gltf::buffer::Data>
+) -> (Vec<VertexData>, Vec<SkeletalVertexData>, bool) {
     let is_identity: bool = *parent_transform == Matrix4::identity();
     let mut find_tangent_data: bool = false;
     let mut vertex_datas: Vec<VertexData> = Vec::new();
@@ -214,11 +219,45 @@ pub fn parsing_vertex_buffer(is_skeletal_mesh: bool, parent_transform: &Matrix4<
         }
     }
 
-    if false == find_tangent_data {
-        panic!("not found tangent normal!");
+    return (vertex_datas, skeletal_vertex_datas, find_tangent_data);
+}
+
+pub fn compute_tangent(
+    is_skeletal_mesh: bool,
+    indices: &Vec<u32>,
+    vertex_datas: &mut Vec<VertexData>,
+    skeletal_vertex_datas: &mut Vec<SkeletalVertexData>
+) {
+    let mut positions: Vec<Vector3<f32>> = Vec::new();
+    let mut normals: Vec<Vector3<f32>> = Vec::new();
+    let mut texcoords: Vec<Vector2<f32>> = Vec::new();
+    let vertex_count = if is_skeletal_mesh { skeletal_vertex_datas.len() } else { vertex_datas.len() };
+    positions.reserve(vertex_count);
+    normals.reserve(vertex_count);
+    texcoords.reserve(vertex_count);
+
+    // gather vertex datas
+    for vertex_data_index in 0..vertex_count {
+        if is_skeletal_mesh {
+            positions.push(skeletal_vertex_datas[vertex_data_index]._position.clone());
+            normals.push(skeletal_vertex_datas[vertex_data_index]._normal.clone());
+            texcoords.push(skeletal_vertex_datas[vertex_data_index]._texcoord.clone());
+        } else {
+            positions.push(vertex_datas[vertex_data_index]._position.clone());
+            normals.push(vertex_datas[vertex_data_index]._normal.clone());
+            texcoords.push(vertex_datas[vertex_data_index]._texcoord.clone());
+        }
     }
 
-    return (vertex_datas, skeletal_vertex_datas);
+    // insert tangent
+    let tangents: Vec<Vector3<f32>> = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
+    for (vertex_data_index, tangent) in tangents.iter().enumerate() {
+        if is_skeletal_mesh {
+            skeletal_vertex_datas[vertex_data_index]._tangent.clone_from(&tangent);
+        } else {
+            vertex_datas[vertex_data_index]._tangent.clone_from(&tangent);
+        }
+    }
 }
 
 pub fn parsing_inverse_bind_matrices(skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>) -> Vec<Matrix4<f32>> {
@@ -459,7 +498,13 @@ pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, dept
 
             // parsing vertex buffer
             let indices = parsing_index_buffer(&primitive, buffers);
-            let (vertex_datas, skeletal_vertex_datas) = parsing_vertex_buffer(is_skeletal_mesh, &parent_transform, &primitive, buffers);
+            let (mut vertex_datas, mut skeletal_vertex_datas, find_tangent_data) =
+                parsing_vertex_buffer(is_skeletal_mesh, &parent_transform, &primitive, buffers);
+
+            // compute tangent normal
+            if false == find_tangent_data {
+                compute_tangent(is_skeletal_mesh, &indices, &mut vertex_datas, &mut skeletal_vertex_datas);
+            }
 
             // insert GeometryCreateInfo
             mesh_data_create_info._geometry_create_infos.push(
