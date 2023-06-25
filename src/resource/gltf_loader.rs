@@ -1,13 +1,7 @@
 use std::path::PathBuf;
 
 use gltf;
-use nalgebra::{
-    self,
-    Vector2,
-    Vector3,
-    Vector4,
-    Matrix4,
-};
+use nalgebra::{Vector2, Vector3, Vector4, Matrix4};
 
 use crate::constants;
 use crate::renderer::mesh::{ MeshDataCreateInfo };
@@ -291,6 +285,14 @@ pub fn parsing_skins(
 ) {
     for armature_node in nodes {
         if armature_node.name().unwrap() == skin.name().unwrap() {
+            let m: &[[f32; 4]; 4] = &armature_node.transform().matrix();
+            let armature_transform: Matrix4<f32> = Matrix4::new(
+                m[0][0], m[1][0], m[2][0], m[3][0],
+                m[0][1], m[1][1], m[2][1], m[3][1],
+                m[0][2], m[1][2], m[2][2], m[3][2],
+                m[0][3], m[1][3], m[2][3], m[3][3]
+            );
+
             // inverse bind metrices
             let inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
 
@@ -314,6 +316,7 @@ pub fn parsing_skins(
             mesh_data_create_info._skeleton_create_infos.push(
                 SkeletonDataCreateInfo {
                     _name: armature_node.name().unwrap().to_string(),
+                    _transform: armature_transform,
                     _hierachy: hierachy,
                     _bone_names: bone_names,
                     _inv_bind_matrices: inverse_bind_matrices
@@ -540,7 +543,7 @@ impl GLTF {
                 let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
-                let parent_transform: Matrix4<f32> = Matrix4::identity();
+                let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
 
                 for (child_bone_name, child_hierachy) in skeleton_create_info._hierachy._children.iter() {
                     let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;

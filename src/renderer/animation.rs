@@ -83,6 +83,7 @@ pub struct SkeletonHierachyTree {
 #[serde(default)]
 pub struct SkeletonDataCreateInfo {
     pub _name: String,
+    pub _transform: Matrix4<f32>,
     pub _hierachy: SkeletonHierachyTree, // bone names map as hierachy
     pub _bone_names: Vec<String>, // bone name list ordered by index
     pub _inv_bind_matrices: Vec<Matrix4<f32>>,  // inverse matrix of bone

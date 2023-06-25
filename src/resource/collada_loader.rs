@@ -942,6 +942,7 @@ impl Collada {
 
                 let skeleton_data = SkeletonDataCreateInfo {
                     _name: controller._name.clone(),
+                    _transform: Matrix4::identity(),
                     _hierachy: hierachy, // bone names map as hierachy
                     _bone_names: controller._bone_names.clone(), // bone name list ordered by index
                     _inv_bind_matrices: controller._inv_bind_matrices.clone(), // inverse matrix of bone
