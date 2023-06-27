@@ -61,7 +61,17 @@ pub fn parsing_index_buffer(primitive: &gltf::Primitive, buffers: &Vec<gltf::buf
     let index_count = bytes.len() / 2;
     let mut indices: Vec<u32> = vec![0; index_count];
     for i in 0..index_count {
-        indices[i] = (bytes[i * 2] as u32) | ((bytes[i * 2 + 1] as u32) << 8);
+        let index_value = (bytes[i * 2] as u32) | ((bytes[i * 2 + 1] as u32) << 8);
+        let remainder = i % 3;
+        let mut index_of_indices = i;
+        if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
+            if 1 == remainder {
+                index_of_indices = i + 1;
+            } else if 2 == remainder {
+                index_of_indices = i - 1;
+            }
+        }
+        indices[index_of_indices] = index_value;
     }
 
     return indices;
@@ -286,7 +296,7 @@ pub fn parsing_skins(
     for armature_node in nodes {
         if armature_node.name().unwrap() == skin.name().unwrap() {
             let m: &[[f32; 4]; 4] = &armature_node.transform().matrix();
-            let armature_transform: Matrix4<f32> = Matrix4::new(
+            let mut parent_transform: Matrix4<f32> = Matrix4::new(
                 m[0][0], m[1][0], m[2][0], m[3][0],
                 m[0][1], m[1][1], m[2][1], m[3][1],
                 m[0][2], m[1][2], m[2][2], m[3][2],
@@ -294,7 +304,14 @@ pub fn parsing_skins(
             );
 
             // inverse bind metrices
-            let inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
+            let mut inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
+
+            if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
+                parent_transform.set_column(1, &(-parent_transform.column(1)));
+                for inverse_bind_matrix in inverse_bind_matrices.iter_mut() {
+                    inverse_bind_matrix.set_column(1, &(-inverse_bind_matrix.column(1)));
+                }
+            }
 
             // all bone names
             let mut bone_names: Vec<String> = Vec::new();
@@ -316,7 +333,7 @@ pub fn parsing_skins(
             mesh_data_create_info._skeleton_create_infos.push(
                 SkeletonDataCreateInfo {
                     _name: armature_node.name().unwrap().to_string(),
-                    _transform: armature_transform,
+                    _transform: parent_transform,
                     _hierachy: hierachy,
                     _bone_names: bone_names,
                     _inv_bind_matrices: inverse_bind_matrices
@@ -471,12 +488,16 @@ pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, dept
         let is_skeletal_mesh: bool = node.skin().is_some();
         let mesh = node.mesh().unwrap();
         let m: &[[f32; 4]; 4] = &node.transform().matrix();
-        let parent_transform: Matrix4<f32> = Matrix4::new(
+        let mut parent_transform: Matrix4<f32> = Matrix4::new(
             m[0][0], m[1][0], m[2][0], m[3][0],
             m[0][1], m[1][1], m[2][1], m[3][1],
             m[0][2], m[1][2], m[2][2], m[3][2],
             m[0][3], m[1][3], m[2][3], m[3][3]
         );
+
+        if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
+            parent_transform.set_column(1, &(-parent_transform.column(1)));
+        }
 
         if SHOW_GLTF_LOG {
             log::info!("\tMesh {:?}, Index: {:?}, Transform: {:?}", mesh.name(), mesh.index(), parent_transform);
@@ -543,7 +564,7 @@ impl GLTF {
                 let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
-                let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
+                let mut parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
 
                 for (child_bone_name, child_hierachy) in skeleton_create_info._hierachy._children.iter() {
                     let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;

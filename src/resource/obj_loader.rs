@@ -6,8 +6,11 @@ use nalgebra::{
     self,
     Vector2,
     Vector3,
+    Vector4,
+    Matrix4
 };
 
+use crate::constants;
 use crate::renderer::mesh::{ MeshDataCreateInfo };
 use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::geometry_buffer::{
@@ -16,6 +19,7 @@ use crate::vulkan_context::geometry_buffer::{
     VertexData,
 };
 use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::math;
 use crate::utilities::system;
 
 type Point3 = [u32; 3];
@@ -225,6 +229,19 @@ impl WaveFrontOBJ {
             if 0 == positions.len() {
                 log::error!("%s has a empty mesh. {} {}", self.filename.to_str().unwrap(), mesh.name);
                 continue;
+            }
+
+            if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
+                for i in 0..positions.len() {
+                    positions[i].z = -positions[i].z;
+                    normals[i].z = -normals[i].z;
+                }
+
+                for i in (0..indices.len()).step_by(3) {
+                    let index_value = indices[i + 2];
+                    indices[i + 2] = indices[i + 1];
+                    indices[i + 1] = index_value;
+                }
             }
 
             let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
