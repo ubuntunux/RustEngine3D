@@ -564,7 +564,7 @@ impl GLTF {
                 let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
-                let mut parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
+                let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
 
                 for (child_bone_name, child_hierachy) in skeleton_create_info._hierachy._children.iter() {
                     let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;

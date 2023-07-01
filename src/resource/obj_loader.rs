@@ -5,9 +5,7 @@ use std::io::Read;
 use nalgebra::{
     self,
     Vector2,
-    Vector3,
-    Vector4,
-    Matrix4
+    Vector3
 };
 
 use crate::constants;
@@ -19,7 +17,6 @@ use crate::vulkan_context::geometry_buffer::{
     VertexData,
 };
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::math;
 use crate::utilities::system;
 
 type Point3 = [u32; 3];
