@@ -34,7 +34,6 @@ void main()
     out_inscatter = vec4(0.0, 0.0, 0.0, 1.0);
 
     const bool is_render_light_probe_mode = 0 != pushConstant._render_light_probe_mode;
-    const float min_dist = 1000.0;
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
 
     vec3 camera = vec3(0.0, max(10.0, view_constants.CAMERA_POSITION.y), 0.0) * ATMOSPHERE_RATIO;
@@ -46,7 +45,7 @@ void main()
     float VdotL = dot(eye_direction, sun_direction);
 
     float device_depth = texture(texture_depth, vs_output.uv).x;
-    float scene_linear_depth = clamp(device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth), 0.0, view_constants.NEAR_FAR.y);
+    float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
     float scene_shadow_length = GetSceneShadowLength(
         atmosphere_constants,
         scene_linear_depth,
@@ -78,7 +77,7 @@ void main()
     vec3 sun_disc = vec3(0.0);
     const float sun_absorption = 0.9;
     const float sun_disc_intensity = 20.0;
-    if (false == is_render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL && 1.0 == device_depth)
+    if (false == is_render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL && 0.0 == device_depth)
     {
         sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
@@ -100,8 +99,7 @@ void main()
     if(in_the_cloud)
     {
         // be in clouds
-        ray_start_pos = vec3(0.0, 0.0, 0.0);
-        hit_dist = 0.0;
+        hit_dist = view_constants.NEAR_FAR.x;
     }
     else
     {
@@ -132,8 +130,8 @@ void main()
         }
 
         hit_dist = -dot(eye_direction, to_origin) + c;
-        ray_start_pos = eye_direction * hit_dist;
     }
+    ray_start_pos = eye_direction * hit_dist;
 
     // apply altitude of camera
     ray_start_pos.y += world_pos_y;
@@ -143,6 +141,7 @@ void main()
 
     // Cloud
     vec3 cloud_color = vec3(0.0);
+    float visibility = 1.0;
     float cloud_opacity = 0.0;
     if(render_cloud)
     {
@@ -193,17 +192,13 @@ void main()
 
             const int march_count = 32;
             const int light_march_count = 16;
-            const float cloud_absorption_ratio = 3.0;
-            const float cloud_absorption_ratio_for_light = 2.0;
-            const float cloud_absorption = clamp(atmosphere_constants.cloud_absorption * cloud_absorption_ratio , 0.0, 1.0);
-            const float cloud_absorption_for_light = clamp(atmosphere_constants.cloud_absorption * cloud_absorption_ratio_for_light, 0, 1.0);
+            const float absorption_exp = atmosphere_constants.cloud_absorption * -8.0;
             float march_step = atmosphere_constants.cloud_height / float(march_count);
             float cloud_march_step = march_step;
             float increase_march_step = march_step * 0.05;
             float ray_start_dist = length(ray_start_pos.xyz);
-            uint seed = uint(mod(scene_constants.TIME, 1.0) * 1000.0);
-
-            float step_noise = (interleaved_gradient_noise(ivec2(vs_output.uv * 1024) + ivec2(seed)) * 2.0 - 1.0) * march_step * 2.0;
+            uint seed = uint(scene_constants.TIME * 1000.0);
+            float step_noise = (interleaved_gradient_noise(ivec2(vs_output.uv * 1024) + ivec2(seed)) * 2.0 - 1.0) * march_step;
             for(int i = 0; i < march_count; ++i)
             {
                 float ray_dist = float(i) * cloud_march_step;
@@ -247,20 +242,23 @@ void main()
                         continue;
                     }
 
-                    fade = 1.0 - pow(abs(saturate(relative_altitude / atmosphere_constants.cloud_height) * 2.0 - 1.0), 3.0);
+                    fade = saturate(relative_altitude / atmosphere_constants.cloud_height);
+                    fade = 1.0 - pow(abs(fade * 2.0 - 1.0), 3.0);
 
                     float cloud_density_for_light = get_cloud_density(cloud_scale, noise_scale, light_pos.xzy, speed, fade);
-                    light_intensity *= (1.0 - cloud_density_for_light * cloud_absorption_for_light);
-                    if(light_intensity <= 0.01)
+                    light_intensity *= exp(cloud_density_for_light * absorption_exp);
+                    if(light_intensity <= 0.005)
                     {
                         light_intensity = 0.0;
                         break;
                     }
                 }
 
-                cloud_color += light_color * light_intensity * light_intensity * cloud_density * (1.0 - cloud_opacity);
-                cloud_opacity = clamp(cloud_opacity + cloud_density * cloud_absorption, 0.0, 1.0);
-                if(1.0 <= cloud_opacity || i == (march_count - 1))
+                visibility *= exp(cloud_density * absorption_exp);
+                cloud_opacity = 1.0 - visibility;
+                cloud_color += visibility * cloud_density * light_color * light_intensity;
+
+                if(visibility <= 0.005 || i == (march_count - 1))
                 {
                     break;
                 }
@@ -271,8 +269,7 @@ void main()
         }
 
         // atmosphere
-        out_color.xyz += radiance * (1.0 - cloud_opacity) + cloud_color * cloud_opacity * 4.0;
-        out_color.xyz += sun_disc * saturate(1.0 - cloud_opacity);
+        out_color.xyz += cloud_color * cloud_opacity * 20.0 + (radiance + sun_disc) * (1.0 - cloud_opacity);
         out_color.w = clamp(cloud_opacity, 0.0, 1.0);
 
         // inscattering
