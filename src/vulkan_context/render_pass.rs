@@ -79,6 +79,7 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _pipeline_sample_count: vk::SampleCountFlags,
     pub _pipeline_polygon_mode: vk::PolygonMode,
+    pub _pipeline_topology: vk::PrimitiveTopology,
     pub _pipeline_cull_mode: vk::CullModeFlags,
     pub _pipeline_front_face: vk::FrontFace,
     pub _pipeline_depth_bias_constant_factor: f32,
@@ -111,6 +112,7 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
             _pipeline_sample_count: vk::SampleCountFlags::TYPE_1,
             _pipeline_polygon_mode: vk::PolygonMode::FILL,
+            _pipeline_topology: vk::PrimitiveTopology::TRIANGLE_LIST,
             _pipeline_cull_mode: vk::CullModeFlags::NONE,
             _pipeline_front_face: vk::FrontFace::CLOCKWISE,
             _pipeline_depth_bias_constant_factor: 0.0,
@@ -527,7 +529,7 @@ pub fn create_graphics_pipeline_data(
         ..Default::default()
     };
     let input_assembly = vk::PipelineInputAssemblyStateCreateInfo {
-        topology: vk::PrimitiveTopology::TRIANGLE_LIST,
+        topology: pipeline_data_create_info._pipeline_topology,
         primitive_restart_enable: 0,
         ..Default::default()
     };

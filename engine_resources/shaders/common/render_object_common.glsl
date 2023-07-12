@@ -14,7 +14,7 @@ layout(binding = 2) uniform LightConstants
 {
     LIGHT_CONSTANTS light_constants;
 };
-layout(binding = 3) buffer TransformMetrices
+layout(binding = 3) buffer TransformMatrices
 {
     mat4 transform_matrices[MAX_TRANSFORM_COUNT];
 };

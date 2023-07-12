@@ -28,6 +28,7 @@ use winit::window::{ Window };
 use crate::constants;
 use crate::application::scene_manager::ProjectSceneManagerBase;
 use crate::effect::effect_manager::EffectManager;
+use crate::renderer::debug_line::DebugLineManager;
 use crate::renderer::font::FontManager;
 use crate::renderer::image_sampler::{ self, ImageSamplerData };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
@@ -128,6 +129,7 @@ pub trait RendererDataBase {
         swapchain_index: u32,
         renderer_context: &RendererContext,
         project_scene_manager: &dyn ProjectSceneManagerBase,
+        debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -927,6 +929,7 @@ impl RendererContext {
     pub fn render_scene(
         &mut self,
         project_scene_manager: &dyn ProjectSceneManagerBase,
+        debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
@@ -972,6 +975,7 @@ impl RendererContext {
                     swapchain_index,
                     &self,
                     project_scene_manager,
+                    debug_line_manager,
                     font_manager,
                     ui_manager,
                     elapsed_time,

@@ -11,6 +11,7 @@ use crate::constants;
 use crate::application::scene_manager::ProjectSceneManagerBase;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::camera::CameraObjectData;
+use crate::renderer::debug_line::DebugLineManager;
 use crate::renderer::font::{ FontManager, RenderTextInfo };
 use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::render_element::RenderElementData;
@@ -325,11 +326,12 @@ impl RendererDataBase for RendererData {
         swapchain_index: u32,
         renderer_context: &RendererContext,
         project_scene_manager: &dyn ProjectSceneManagerBase,
+        debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
         elapsed_time: f64,
         delta_time: f64,
-        _elapsed_frame: u64,
+        _elapsed_frame: u64
     ) {
         let _label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_scene");
 
@@ -373,7 +375,7 @@ impl RendererDataBase for RendererData {
             self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::AtmosphereConstants, &self._atmosphere._atmosphere_constants);
 
             let transform_matrix_count = project_scene_manager.get_render_element_transform_count();
-            let transform_matrices: &[Matrix4<f32>] = &project_scene_manager.get_render_element_transform_metrices()[..transform_matrix_count];
+            let transform_matrices: &[Matrix4<f32>] = &project_scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
             self.upload_shader_buffer_datas(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, transform_matrices);
         }
 
@@ -528,6 +530,12 @@ impl RendererDataBase for RendererData {
         {
             let _label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ui");
             ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+        }
+
+        // Render Debug Line
+        {
+            let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug_line");
+            debug_line_manager.render_debug_line(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
 
         // Render Text

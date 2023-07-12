@@ -1,5 +1,6 @@
 pub mod animation;
 pub mod camera;
+pub mod debug_line;
 pub mod image_sampler;
 pub mod fft_ocean;
 pub mod font;

@@ -24,6 +24,7 @@ use crate::effect::effect_manager::{
 };
 use crate::renderer::camera::CameraObjectData;
 use crate::renderer::light::LightConstants;
+use crate::renderer::debug_line::DebugLineInstanceData;
 use crate::renderer::font::FontInstanceData;
 use crate::renderer::ui::UIRenderData;
 use crate::vulkan_context::buffer::{ self, ShaderBufferData };
@@ -45,6 +46,7 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants4,
     LightProbeViewConstants5,
     TransformMatrices,
+    DebugLineInstanceDataBuffer,
     FontInstanceDataBuffer,
     UIRenderDataBuffer,
     GpuParticleStaticConstants,
@@ -256,6 +258,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
             "TransformMatrices" => Ok(ShaderBufferDataType::TransformMatrices),
+            "DebugLineInstanceDataBuffer" => Ok(ShaderBufferDataType::DebugLineInstanceDataBuffer),
             "FontInstanceDataBuffer" => Ok(ShaderBufferDataType::FontInstanceDataBuffer),
             "UIRenderDataBuffer" => Ok(ShaderBufferDataType::UIRenderDataBuffer),
             "GpuParticleStaticConstants" => Ok(ShaderBufferDataType::GpuParticleStaticConstants),
@@ -378,6 +381,12 @@ pub fn regist_shader_buffer_datas(
     regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
         _shader_buffer_data_stride: std::mem::size_of::<TransformMatrices>(),
+        ..storage_buffer_create_info
+    });
+    regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
+        _shader_buffer_data_type: ShaderBufferDataType::DebugLineInstanceDataBuffer,
+        _shader_buffer_data_stride: std::mem::size_of::<DebugLineInstanceData>(),
+        _shader_buffer_data_count: constants::MAX_DEBUG_LINE_INSTANCE_COUNT,
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {

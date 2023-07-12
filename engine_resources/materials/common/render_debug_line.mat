@@ -1,0 +1,3 @@
+{"pipelines": [{"render_pass": "render_debug_line", "pipeline": "render_debug_line"}],
+ "material_parameters": { }
+}

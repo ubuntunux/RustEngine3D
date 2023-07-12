@@ -934,12 +934,6 @@ impl Collada {
                     Collada::build_hierachy(controller, &root_node, &mut hierachy);
                 }
 
-                const TRANSPOSE: bool = true;
-                const IS_INVERSE_MATRIX: bool = true;
-                for matrix in controller._inv_bind_matrices.iter_mut() {
-                    math::swap_up_axis_matrix(matrix, TRANSPOSE, IS_INVERSE_MATRIX, self._up_axis.as_str());
-                }
-
                 let skeleton_data = SkeletonDataCreateInfo {
                     _name: controller._name.clone(),
                     _transform: Matrix4::identity(),
@@ -1011,10 +1005,7 @@ impl Collada {
                     // precompute all animation frames
                     for frame in 0..animations[i]._outputs.len() {
                         // only root bone adjust convert_matrix for swap Y-Z Axis
-                        let transpose: bool = true;
-                        let is_inverse_matrix: bool = false;
-                        let mut transform: Matrix4<f32> = animations[i]._outputs[frame].clone() as Matrix4<f32>;
-                        math::swap_up_axis_matrix(&mut transform, transpose, is_inverse_matrix, self._up_axis.as_str());
+                        let transform: Matrix4<f32> = animations[i]._outputs[frame].clone() as Matrix4<f32>;
                         if constants::COMBINED_INVERSE_BIND_MATRIX {
                             let bone_index = bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap() as usize;
                             let inv_bind_matrix: &Matrix4<f32> = &inv_bind_matrices[bone_index];
@@ -1079,11 +1070,6 @@ impl Collada {
         let mut geometry_datas: Vec<GeometryCreateInfo> = Vec::new();
         for i in 0..self._geometries.len() {
             let geometry: &mut ColladaGeometry = &mut self._geometries[i];
-
-            // swap y and z
-            let transpose: bool = true;
-            let is_inverse_matrix: bool = false;
-            math::swap_up_axis_matrix(&mut geometry._bind_shape_matrix, transpose, is_inverse_matrix, self._up_axis.as_str());
 
             // precompute bind_shape_matrix
             for position_index in 0..geometry._positions.len() {

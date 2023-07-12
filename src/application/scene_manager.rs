@@ -16,5 +16,5 @@ pub trait ProjectSceneManagerBase {
     fn get_skeletal_render_elements(&self) -> &Vec<RenderElementData>;
     fn get_skeletal_shadow_render_elements(&self) -> &Vec<RenderElementData>;
     fn get_render_element_transform_count(&self) -> usize;
-    fn get_render_element_transform_metrices(&self) -> &Vec<Matrix4<f32>>;
+    fn get_render_element_transform_matrices(&self) -> &Vec<Matrix4<f32>>;
 }

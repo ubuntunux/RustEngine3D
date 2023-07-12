@@ -20,6 +20,7 @@ use crate::application::audio_manager::AudioManager;
 use crate::application::scene_manager::ProjectSceneManagerBase;
 use crate::application::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
+use crate::renderer::debug_line::DebugLineManager;
 use crate::renderer::font::FontManager;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::ui::{ ProjectUIManagerBase, UIManager };
@@ -115,6 +116,7 @@ pub struct EngineApplication {
     pub _audio_manager: Box<AudioManager>,
     pub _effect_manager: Box<EffectManager>,
     pub _engine_resources: Box<EngineResources>,
+    pub _debug_line_manager: Box<DebugLineManager>,
     pub _font_manager: Box<FontManager>,
     pub _renderer_context: Box<RendererContext>,
     pub _ui_manager: Box<UIManager>,
@@ -134,6 +136,8 @@ impl EngineApplication {
     pub fn get_effect_manager_mut(&self) -> &mut EffectManager { ptr_as_mut(self._effect_manager.as_ref()) }
     pub fn get_engine_resources(&self) -> &EngineResources { self._engine_resources.as_ref() }
     pub fn get_engine_resources_mut(&self) -> &mut EngineResources { ptr_as_mut(self._engine_resources.as_ref()) }
+    pub fn get_debug_line_manager(&self) -> &DebugLineManager { self._debug_line_manager.as_ref() }
+    pub fn get_debug_line_manager_mut(&self) -> &mut DebugLineManager { ptr_as_mut(self._debug_line_manager.as_ref()) }
     pub fn get_font_manager(&self) -> &FontManager { self._font_manager.as_ref() }
     pub fn get_font_manager_mut(&self) -> &mut FontManager { ptr_as_mut(self._font_manager.as_ref()) }
     pub fn get_renderer_context(&self) -> &RendererContext { self._renderer_context.as_ref() }
@@ -154,6 +158,7 @@ impl EngineApplication {
         // create managers
         let window_size: Vector2<i32> = Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
         let engine_resources = Box::new(EngineResources::create_engine_resources(project_resources));
+        let debug_line_manager = Box::new(DebugLineManager::create_debug_line_manager());
         let font_manager = Box::new(FontManager::create_font_manager());
         let ui_manager = Box::new(UIManager::create_ui_manager(project_ui_manager));
         let renderer_context = Box::new(RendererContext::create_renderer_context(app_name, app_version, &window_size, &window, engine_resources.as_ref()));
@@ -175,6 +180,7 @@ impl EngineApplication {
             _mouse_input_data: mouse_input_data,
             _joystick_input_data: joystick_input_data,
             _audio_manager: audio_manager,
+            _debug_line_manager: debug_line_manager,
             _font_manager: font_manager,
             _ui_manager: ui_manager,
             _renderer_context: renderer_context,
@@ -191,6 +197,9 @@ impl EngineApplication {
             engine_application.get_effect_manager()
         );
         engine_application.get_engine_resources_mut().initialize_engine_resources(
+            engine_application.get_renderer_context()
+        );
+        engine_application.get_debug_line_manager_mut().initialize_debug_line_manager(
             engine_application.get_renderer_context()
         );
         engine_application.get_font_manager_mut().initialize_font_manager(
@@ -220,6 +229,7 @@ impl EngineApplication {
         self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
         self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
+        self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
         self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
         self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
@@ -328,6 +338,7 @@ impl EngineApplication {
     pub fn update_event(&mut self, current_time: f64) -> bool {
         let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
         let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
+        let debug_line_manager = ptr_as_mut(self._debug_line_manager.as_ref());
         let font_manager = ptr_as_mut(self._font_manager.as_ref());
         let audio_manager = ptr_as_mut(self._audio_manager.as_ref());
         let effect_manager = ptr_as_mut(self._effect_manager.as_ref());
@@ -377,6 +388,7 @@ impl EngineApplication {
                 self.update_project_application();
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
+                debug_line_manager.update();
                 font_manager.update();
                 ui_manager.update(
                     delta_time,
@@ -387,7 +399,7 @@ impl EngineApplication {
                     &self._mouse_input_data,
                     &renderer_context.get_engine_resources());
                 let project_scene_manager = self.get_project_scene_manager();
-                renderer_context.render_scene(project_scene_manager, font_manager, ui_manager, elapsed_time, delta_time, elapsed_frame);
+                renderer_context.render_scene(project_scene_manager, debug_line_manager, font_manager, ui_manager, elapsed_time, delta_time, elapsed_frame);
             }
         }
 

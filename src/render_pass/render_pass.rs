@@ -43,6 +43,7 @@ pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<Re
         common::render_color::get_render_pass_data_create_info(renderer_data, vk::Format::R32_SFLOAT),
         common::render_color::get_render_pass_data_create_info(renderer_data, vk::Format::R32G32B32A32_SFLOAT),
         common::render_debug::get_render_pass_data_create_info(renderer_data),
+        common::render_debug_line::get_render_pass_data_create_info(renderer_data),
         common::render_font::get_render_pass_data_create_info(renderer_data),
         common::render_final::get_render_pass_data_create_info(renderer_data),
         common::render_gaussian_blur::get_render_pass_data_create_info(renderer_data),

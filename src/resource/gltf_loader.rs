@@ -303,7 +303,7 @@ pub fn parsing_skins(
                 m[0][3], m[1][3], m[2][3], m[3][3]
             );
 
-            // inverse bind metrices
+            // inverse bind matrices
             let mut inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
 
             if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {

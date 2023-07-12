@@ -10,6 +10,7 @@ pub mod render_bloom;
 pub mod render_color;
 pub mod render_copy;
 pub mod render_debug;
+pub mod render_debug_line;
 pub mod render_font;
 pub mod render_final;
 pub mod render_forward;
