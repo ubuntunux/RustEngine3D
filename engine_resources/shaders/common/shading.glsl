@@ -85,6 +85,15 @@ float get_shadow_factor(
     return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, sample_count, depth_bias, texture_shadow);
 }
 
+// [Burley 2012, "Physically-Based Shading at Disney"]
+float diffuse_burley( float Roughness, float NoV, float NoL, float VoH )
+{
+    float FD90 = 0.5 + 2 * VoH * VoH * Roughness;
+    float FdV = 1 + (FD90 - 1) * pow( 1 - NoV, 5.0 );
+    float FdL = 1 + (FD90 - 1) * pow( 1 - NoL, 5.0 );
+    return ( (1 / PI) * FdV * FdL );
+}
+
 // https://en.wikipedia.org/wiki/Oren%E2%80%93Nayar_reflectance_model
 float oren_nayar(float roughness2, float NdotL, float NdotV, vec3 N, vec3 V, vec3 L)
 {
@@ -110,46 +119,46 @@ vec3 fresnelSchlickRoughness(float cosTheta, vec3 F0, float roughness)
     return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow(1.0 - cosTheta, 5.0);
 }
 
-float D_blinn(float roughness, float NdH)
+float D_blinn(float roughness, float NoH)
 {
     float m = roughness * roughness;
     float m2 = m * m;
     float n = 2.0 / m2 - 2.0;
-    return (n + 2.0) / (2.0 * PI) * pow(NdH, n);
+    return (n + 2.0) / (2.0 * PI) * pow(NoH, n);
 }
 
-float D_beckmann(float roughness, float NdH)
+float D_beckmann(float roughness, float NoH)
 {
     float m = roughness * roughness;
     float m2 = m * m;
-    float NdH2 = NdH * NdH;
-    return exp((NdH2 - 1.0) / (m2 * NdH2)) / (PI * m2 * NdH2 * NdH2);
+    float NoH2 = NoH * NoH;
+    return exp((NoH2 - 1.0) / (m2 * NoH2)) / (PI * m2 * NoH2 * NoH2);
 }
 
-float DistributionGGX(float NdH, float roughness)
+float DistributionGGX(float NoH, float roughness)
 {
     const float a = roughness * roughness;
     const float a2 = a * a;
-    const float NdH2 = NdH * NdH;
+    const float NoH2 = NoH * NoH;
     const float nom = a2;
-    float denom = (NdH2 * (a2 - 1.0) + 1.0);
+    float denom = (NoH2 * (a2 - 1.0) + 1.0);
     denom = PI * denom * denom;
     return nom / denom;
 }
 
-float GeometrySchlickGGX(float NdV, float roughness)
+float GeometrySchlickGGX(float NoV, float roughness)
 {
     const float r = (roughness + 1.0);
     const float k = (r * r) / 8.0;
-    const float num = NdV;
-    const float denom = NdV * (1.0 - k) + k;
+    const float num = NoV;
+    const float denom = NoV * (1.0 - k) + k;
     return num / denom;
 }
 
-float GeometrySmith(float NdV, float NdL, float roughness)
+float GeometrySmith(float NoV, float NoL, float roughness)
 {
-    float ggx2  = GeometrySchlickGGX(NdV, roughness);
-    float ggx1  = GeometrySchlickGGX(NdL, roughness);
+    float ggx2  = GeometrySchlickGGX(NoV, roughness);
+    float ggx1  = GeometrySchlickGGX(NoL, roughness);
     return ggx1 * ggx2;
 }
 
@@ -162,28 +171,28 @@ vec3 phong_specular(in float LdR, in vec3 specular, in float roughness)
 }
 
 // simple blinn specular calculation with normalization
-vec3 blinn_specular(in float NdH, in vec3 specular, in float roughness)
+vec3 blinn_specular(in float NoH, in vec3 specular, in float roughness)
 {
     float k = 1.999 / (roughness * roughness);
-    return min(1.0, 3.0 * 0.0398 * k) * pow(NdH, min(10000.0, k)) * specular;
+    return min(1.0, 3.0 * 0.0398 * k) * pow(NoH, min(10000.0, k)) * specular;
 }
 
-vec3 cooktorrance_specular(vec3 F, float NdL, float NdV, float NdH, float roughness)
+vec3 cooktorrance_specular(vec3 F, float NoL, float NoV, float NoH, float roughness)
 {
-    float NDF = DistributionGGX(NdH, roughness);
-    float G = GeometrySmith(NdV, NdL, roughness);
+    float NDF = DistributionGGX(NoH, roughness);
+    float G = GeometrySmith(NoV, NoL, roughness);
     vec3 numerator = NDF * G * F;
-    float denominator = 4.0 * NdV * NdL;
+    float denominator = 4.0 * NoV * NoL;
     return numerator / max(denominator, 0.00001);
 }
 
-vec2 env_BRDF_pproximate(float NdV, float roughness)
+vec2 env_BRDF_pproximate(float NoV, float roughness)
 {
     // see https://www.unrealengine.com/blog/physically-based-shading-on-mobile
     const vec4 c0 = vec4(-1.0, -0.0275, -0.572,  0.022);
     const vec4 c1 = vec4( 1.0,  0.0425,  1.040, -0.040);
     vec4 r = roughness * c0 + c1;
-    float a004 = min(r.x * r.x, exp2(-9.28 * NdV)) * r.x + r.y;
+    float a004 = min(r.x * r.x, exp2(-9.28 * NoV)) * r.x + r.y;
     return vec2(-1.04, 1.04) * a004 + r.zw;
 }
 
@@ -198,17 +207,17 @@ void apply_image_based_lighting(
     const in vec3 sun_direction,
     const in vec3 N,
     const in vec3 R,
-    float NdV,
+    float NoV,
     inout vec3 diffuse_light,
     inout vec3 specular_light
 )
 {
     const vec2 env_size = textureSize(texture_probe, 0);
     const float max_env_mipmap = min(8.0, log2(max(env_size.x, env_size.y)) - 1.0);
-    vec2 envBRDF = env_BRDF_pproximate(NdV, roughness);
+    vec2 envBRDF = env_BRDF_pproximate(NoV, roughness);
     // clamp uv ( half_texel ~ 1.0 - half_texel)
-    //vec2 envBRDF2  = texture(ibl_brdf_lut, clamp(vec2(NdV, 1.0 - roughness), vec2(0.0009765625), vec2(0.9990234375))).xy;
-    const vec3 kS = fresnelSchlickRoughness(NdV, F0, roughness);
+    //vec2 envBRDF2  = texture(ibl_brdf_lut, clamp(vec2(NoV, 1.0 - roughness), vec2(0.0009765625), vec2(0.9990234375))).xy;
+    const vec3 kS = fresnelSchlickRoughness(NoV, F0, roughness);
     const vec3 kD = vec3(1.0) - kS;
     const vec3 shValue = kS * envBRDF.x + envBRDF.y;
     vec3 ibl_diffuse_light = textureLod(texture_probe, N, max_env_mipmap).xyz;
@@ -279,12 +288,12 @@ vec4 surface_shading(
     const vec3 R = reflect(-V, N);
     const vec3 H = normalize(V + L);
 
-    const float NdL = dot(N, L);
-    const float clampled_NdL = clamp(NdL, 0.0, 1.0);
-    const float NdV = clamp(dot(N, V), 0.001, 1.0);
-    const float NdH = clamp(dot(N, H), 0.001, 1.0);
-    const float HdV = clamp(dot(H, V), 0.001, 1.0);
-    const float LdV = clamp(dot(L, V), 0.001, 1.0);
+    const float NoL = dot(N, L);
+    const float clampled_NoL = clamp(NoL, 0.0, 1.0);
+    const float NoV = clamp(dot(N, V), 0.001, 1.0);
+    const float NoH = clamp(dot(N, H), 0.001, 1.0);
+    const float VoH = clamp(dot(H, V), 0.001, 1.0);
+    const float VoL = clamp(dot(L, V), 0.001, 1.0);
 
     // Atmosphere
     vec3 scene_in_scatter = vec3(0.0);
@@ -347,14 +356,14 @@ vec4 surface_shading(
         L,
         N,
         R,
-        NdV,
+        NoV,
         diffuse_light,
         specular_light
     );
 
 #if TRANSPARENT_MATERIAL == 1
     {
-        vec3 fresnel = fresnelSchlick(NdV, F0);
+        vec3 fresnel = fresnelSchlick(NoV, F0);
         float reflectivity = max(max(fresnel.r, fresnel.g), fresnel.b);
         opacity = clamp(opacity + opacity * reflectivity, 0.0, 1.0);
     }
@@ -362,9 +371,10 @@ vec4 surface_shading(
 
     // Directional Light
     {
-        const vec3 F = fresnelSchlick(HdV, F0);
-        diffuse_light += oren_nayar(roughness2, clampled_NdL, NdV, N, V, L) * (vec3(1.0) - F) * light_color;
-        specular_light += cooktorrance_specular(F, clampled_NdL, NdV, NdH, roughness) * clampled_NdL * light_color;
+        const vec3 F = fresnelSchlick(VoH, F0);
+        //diffuse_light += oren_nayar(roughness2, clampled_NoL, NoV, N, V, L) * (vec3(1.0) - F) * light_color;
+        diffuse_light += diffuse_burley(roughness, NoV, NoL, VoH ) * clampled_NoL * (vec3(1.0) - F) * light_color;
+        specular_light += cooktorrance_specular(F, clampled_NoL, NoV, NoH, roughness) * clampled_NoL * light_color;
     }
 
     // apply sea ratio
@@ -394,12 +404,12 @@ vec4 surface_shading(
 //        float point_light_attenuation = clamp(1.0 - point_light_dist / point_light_radius, 0.0, 1.0);
 //        point_light_attenuation *= point_light_attenuation;
 //        const vec3 point_light_color = point_lights.data[i].color.xyz * point_light_attenuation;
-//        const float point_light_NdL = max(0.01, dot(N, point_light_dir));
-//        const float point_light_NdH = max(0.01, dot(N, point_light_half));
-//        const float point_light_HdV = max(0.01, dot(V, point_light_half));
-//        const vec3 point_light_F = fresnelSchlick(point_light_HdV, F0);
-//        diffuse_light += oren_nayar(roughness2, point_light_NdL, NdV, N, V, point_light_dir) * (vec3(1.0) - point_light_F) * point_light_color;
-//        specular_light += cooktorrance_specular(point_light_F, point_light_NdL, NdV, point_light_NdH, roughness) * point_light_NdL * point_light_color;
+//        const float point_light_NoL = max(0.01, dot(N, point_light_dir));
+//        const float point_light_NoH = max(0.01, dot(N, point_light_half));
+//        const float point_light_VoH = max(0.01, dot(V, point_light_half));
+//        const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
+//        diffuse_light += oren_nayar(roughness2, point_light_NoL, NoV, N, V, point_light_dir) * (vec3(1.0) - point_light_F) * point_light_color;
+//        specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
 //    }
 
 /*

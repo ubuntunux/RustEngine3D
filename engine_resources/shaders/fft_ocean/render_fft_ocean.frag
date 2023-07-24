@@ -45,12 +45,12 @@ void main()
     const vec3 smooth_normal = normalize(vec3(-slopes.x, 1.0, -slopes.y) + vertex_normal * 0.5);
     const vec3 L = -light_constants.LIGHT_DIRECTION.xyz;
     const vec3 H = normalize(V + L);
-    const float NdL = dot(N, L);
-    const float clampled_NdL = clamp(NdL, 0.0, 1.0);
-    const float NdV = clamp(dot(N, V), 0.001, 1.0);
-    const float NdH = clamp(dot(N, H), 0.001, 1.0);
-    const float HdV = clamp(dot(H, V), 0.001, 1.0);
-    const float LdV = clamp(dot(L, V), 0.001, 1.0);
+    const float NoL = dot(N, L);
+    const float clampled_NoL = clamp(NoL, 0.0, 1.0);
+    const float NoV = clamp(dot(N, V), 0.001, 1.0);
+    const float NoH = clamp(dot(N, H), 0.001, 1.0);
+    const float VoH = clamp(dot(H, V), 0.001, 1.0);
+    const float VoL = clamp(dot(L, V), 0.001, 1.0);
     const vec3 R = reflect(V, N);
     const vec3 smoothR = reflect(V, smooth_normal);
 
@@ -154,16 +154,17 @@ void main()
         L,
         N,
         smoothR,
-        NdV,
+        NoV,
         diffuse_light,
         specular_light
     );
 
     // Directional Light
     {
-        const vec3 F = fresnelSchlick(HdV, F0);
-        diffuse_light += oren_nayar(roughness2, clampled_NdL, NdV, N, V, L) * (vec3(1.0) - F) * light_color;
-        specular_light += cooktorrance_specular(F, clampled_NdL, NdV, NdH, roughness) * clampled_NdL * light_color;
+        const vec3 F = fresnelSchlick(VoH, F0);
+        //diffuse_light += oren_nayar(roughness2, clampled_NoL, NoV, N, V, L) * (vec3(1.0) - F) * light_color;
+        diffuse_light += diffuse_burley(roughness, NoV, NoL, VoH ) * clampled_NoL * (vec3(1.0) - F) * light_color;
+        specular_light += cooktorrance_specular(F, clampled_NoL, NoV, NoH, roughness) * clampled_NoL * light_color;
     }
 
     // scattering
