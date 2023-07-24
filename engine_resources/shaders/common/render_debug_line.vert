@@ -21,5 +21,11 @@ void main() {
     {
         gl_Position = vec4(debug_line_data._positions1.xyz, 1.0);
     }
+
+    if(1 == debug_line_data._is_debug_line_3d)
+    {
+        gl_Position =  view_constants.PROJECTION * view_constants.VIEW * gl_Position;
+    }
+
     vs_output.color = uint_color_to_float_color(debug_line_data._color);
 }

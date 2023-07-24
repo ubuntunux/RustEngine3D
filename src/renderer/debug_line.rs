@@ -170,10 +170,12 @@ impl DebugLineManager {
         renderer_context: &RendererContext,
         engine_resources: &EngineResources
     ) {
-        // self.add_debug_line_2d(
-        //     &Vector3::new(0.0, 0.0, 0.0),
-        //     &Vector3::new(1.0, 1.0, 0.0),
-        //     get_color32(255, 255, 0, 255)
+        // Test Debugline
+        // let t = renderer_context._renderer_data._scene_constants._time;
+        // self.add_debug_line_3d(
+        //     &Vector3::new(5.0, 12.0, 5.0),
+        //     &Vector3::new(5.0 + t.sin() * 10.0, 12.0, 5.0 + t.cos() * 10.0),
+        //     get_color32(0, 0, 255, 255)
         // );
 
         if self._show && 0 < self._debug_line_instance_datas.len() {
