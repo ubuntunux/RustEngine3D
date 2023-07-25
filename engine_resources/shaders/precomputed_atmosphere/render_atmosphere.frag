@@ -14,6 +14,25 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 out_color;
 layout(location = 1) out vec4 out_inscatter;
 
+// https://www.astro.umd.edu/~jph/HG_note.pdf HG, g in [-1,1]
+// note: multiply by 4*PI to integrate to 1 on the sphere, I think... (check with integral_of_spherical_func)
+float HenyeyGreensteinPhaseFunction( float cos_theta, float g )
+{
+    float g2 = g * g;
+    return ( 1.0 / ( 4.0 * 3.141592 ) ) * ( 1.0 - g2 ) / pow( 1.0 + g2 - 2.0 * g * cos_theta, 1.5 );
+}
+
+float calc_Fr_c( float cos_theta )
+{
+    // *4.0*PI is so that function integrates to 1 on the sphere
+    // note: linear combination still integrate to 1
+    return mix(HenyeyGreensteinPhaseFunction( cos_theta, 0.42 ), // normal phase (increase g to strengthen illumination in sun direction)
+            HenyeyGreensteinPhaseFunction( cos_theta, -0.3 ), // hack boost clouds on the other side of the sun too..
+        0.3 ) * 4.0 * 3.141592;
+    // also see Physically based Sky, Atmosphere and Cloud Rendering in Frostbite:
+    // http://blog.selfshadow.com/publications/s2016-shading-course/hillaire/s2016_pbs_frostbite_sky_clouds.pptx
+}
+
 float get_cloud_density(vec3 cloud_scale, vec3 noise_scale, vec3 uvw, vec3 speed, float weight)
 {
     uvw.xy += view_constants.CAMERA_POSITION.xz;
@@ -143,6 +162,7 @@ void main()
     vec3 cloud_color = vec3(0.0);
     float visibility = 1.0;
     float cloud_opacity = 0.0;
+
     if(render_cloud)
     {
         vec3 cloud_inscatter = vec3(0.0);
@@ -178,6 +198,10 @@ void main()
         float atmosphere_lighting = max(0.2, pow(saturate(dot(N, sun_direction) * 0.5 + 0.5), 1.0));
         vec3 light_color = (cloud_sun_irradiance + cloud_sky_irradiance);
         light_color *= atmosphere_constants.cloud_exposure * light_constants.LIGHT_COLOR.xyz * atmosphere_lighting;
+
+        const float c0 = saturate(calc_Fr_c(VdotL));
+        const float c1 = saturate(calc_Fr_c(1.0));
+
         if(0.0 <= hit_dist && hit_dist < far_dist)
         {
             const vec3 speed = vec3(atmosphere_constants.cloud_speed, atmosphere_constants.cloud_speed, 0.0) * scene_constants.TIME;
@@ -246,7 +270,7 @@ void main()
                     fade = 1.0 - pow(abs(fade * 2.0 - 1.0), 3.0);
 
                     float cloud_density_for_light = get_cloud_density(cloud_scale, noise_scale, light_pos.xzy, speed, fade);
-                    light_intensity *= exp(cloud_density_for_light * absorption_exp);
+                    light_intensity *= c1 * exp(cloud_density_for_light * absorption_exp);
                     if(light_intensity <= 0.005)
                     {
                         light_intensity = 0.0;
@@ -254,7 +278,7 @@ void main()
                     }
                 }
 
-                visibility *= exp(cloud_density * absorption_exp);
+                visibility *= c0 * exp(cloud_density * absorption_exp);
                 cloud_opacity = 1.0 - visibility;
                 cloud_color += visibility * cloud_density * light_color * light_intensity;
 

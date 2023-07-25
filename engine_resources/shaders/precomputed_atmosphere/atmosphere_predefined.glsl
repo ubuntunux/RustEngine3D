@@ -70,7 +70,7 @@ const int SCATTERING_TEXTURE_NU_SIZE = 8;
 const int IRRADIANCE_TEXTURE_WIDTH = 64;
 const int IRRADIANCE_TEXTURE_HEIGHT = 16;
 const vec2 IRRADIANCE_TEXTURE_SIZE = vec2(64, 16);
-const float ATMOSPHERE_RATIO = 0.1;
+const float ATMOSPHERE_RATIO = 0.01;
 
 const AtmosphereParameters ATMOSPHERE = AtmosphereParameters(
 vec3(1.474, 1.8504, 1.91198),
