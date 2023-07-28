@@ -1183,23 +1183,23 @@ float GetSceneShadowLength(
     const float earth_radius = abs(atmosphere_constants.earth_center.y);
     bool shadow_enter = false;
     bool do_exit = false;
-    float scene_shadow_out = 0.0;
-    float scene_shadow_in = 0.0;
+    vec3 scene_shadow_in = vec3(0.0);
     float shadow_length = 0.0;
     const int LOOP = 64;
-    float d = min(far * 0.01, scene_dist) / float(LOOP);
+    float d = min(far, scene_dist) / float(LOOP);
     float enter_count = 0.0;
 
     for(int i=0; i<LOOP; ++i)
     {
         float ray_dist = float(i) * d;
-        vec3 world_pos = camera_position.xyz + view_direction * ray_dist;
+        vec3 relative_pos = view_direction * ray_dist;
+        vec3 world_pos = camera_position.xyz + relative_pos;
         vec4 shadow_uv = shadow_view_projection * vec4(world_pos, 1.0);
         shadow_uv.xyz /= shadow_uv.w;
-        shadow_uv.xyz = shadow_uv.xyz * 0.5 + 0.5;
+        shadow_uv.xy = shadow_uv.xy * 0.5 + 0.5;
         float shadow_depth = texture(texture_shadow, shadow_uv.xy).x;
 
-        if(shadow_uv.x < 0.0 || 1.0 < shadow_uv.x || shadow_uv.y < 0.0 || 1.0 < shadow_uv.y || scene_dist <= ray_dist)
+        if(shadow_uv.x < 0.0 || 1.0 < shadow_uv.x || shadow_uv.y < 0.0 || 1.0 < shadow_uv.y || shadow_uv.z < 0.0 || 1.0 < shadow_uv.z || scene_dist <= ray_dist)
         {
             do_exit = true;
         }
@@ -1208,22 +1208,19 @@ float GetSceneShadowLength(
             // Clip shdoaw by ground. Check if the ray enters the earth.
             do_exit = true;
         }
-        else if(false == shadow_enter && shadow_depth <= shadow_uv.z)
+        else if(false == shadow_enter && shadow_uv.z <= shadow_depth)
         {
             // enter the shadow.
             shadow_enter = true;
-            scene_shadow_in = dot(view_direction, world_pos);
+            scene_shadow_in = relative_pos;
         }
-        else if(shadow_enter && shadow_uv.z < shadow_depth)
+        else if(shadow_enter && shadow_depth < shadow_uv.z)
         {
             // It came out of the shadows or hit the surface of the object.
-            scene_shadow_out = dot(view_direction, world_pos);
-            shadow_length += scene_shadow_out - scene_shadow_in;
+            shadow_length += length(relative_pos - scene_shadow_in);
 
             // initialize
             shadow_enter = false;
-            scene_shadow_in = 0.0;
-            scene_shadow_out = 0.0;
             continue;
         }
 
@@ -1237,26 +1234,16 @@ float GetSceneShadowLength(
             if(shadow_enter)
             {
                 // If there is already a shadow, set the position outside the shadow to the current position.
-                scene_shadow_out = dot(view_direction, world_pos);
-                shadow_length += scene_shadow_out - scene_shadow_in;
-            }
-            else
-            {
-                // Shadow not detected.
-                scene_shadow_in = 0.0;
-                scene_shadow_out = 0.0;
+                shadow_length += length(relative_pos - scene_shadow_in);
             }
             break;
         }
     }
 
-    shadow_length = enter_count / float(LOOP);
-
     vec3 sun_direction = light_direction.xyz;
     vec3 relative_camera_pos = camera_position.xyz * ATMOSPHERE_RATIO;
     float lightshaft_fadein_hack = smoothstep(0.02, 0.04, dot(normalize(relative_camera_pos - atmosphere_constants.earth_center), sun_direction));
-
-    return max(0.0, shadow_length) * lightshaft_fadein_hack * 2.0;
+    return max(0.0, shadow_length * ATMOSPHERE_RATIO) * lightshaft_fadein_hack;
 }
 
 

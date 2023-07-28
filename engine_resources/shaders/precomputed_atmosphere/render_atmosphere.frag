@@ -66,14 +66,14 @@ void main()
     float device_depth = texture(texture_depth, vs_output.uv).x;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
     float scene_shadow_length = GetSceneShadowLength(
-        atmosphere_constants,
-        scene_linear_depth,
-        view_constants.NEAR_FAR.y,
-        view_constants.CAMERA_POSITION.xyz,
-        eye_direction,
-        sun_direction,
-        light_constants.SHADOW_VIEW_PROJECTION,
-        texture_shadow
+    atmosphere_constants,
+    scene_linear_depth,
+    view_constants.NEAR_FAR.y,
+    view_constants.CAMERA_POSITION.xyz,
+    eye_direction,
+    sun_direction,
+    light_constants.SHADOW_VIEW_PROJECTION,
+    texture_shadow
     );
 
     // Sky
@@ -90,6 +90,7 @@ void main()
         sun_direction,
         transmittance
     );
+
     vec3 solar_radiance = GetSolarRadiance(ATMOSPHERE, atmosphere_constants);
 
     // Sun
@@ -202,7 +203,7 @@ void main()
         const float c0 = saturate(calc_Fr_c(VdotL));
         const float c1 = saturate(calc_Fr_c(1.0));
 
-        if(0.0 <= hit_dist && hit_dist < far_dist)
+        if(0.0 <= hit_dist && hit_dist < far_dist && hit_dist < scene_linear_depth)
         {
             const vec3 speed = vec3(atmosphere_constants.cloud_speed, atmosphere_constants.cloud_speed, 0.0) * scene_constants.TIME;
 
