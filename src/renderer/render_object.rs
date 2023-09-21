@@ -8,7 +8,7 @@ use crate::renderer::mesh::MeshData;
 use crate::renderer::model::ModelData;
 use crate::renderer::animation::AnimationData;
 use crate::renderer::transform_object::TransformObjectData;
-use crate::utilities::system::RcRefCell;
+use crate::utilities::system::{RcRefCell, ptr_as_ref};
 use crate::utilities::bounding_box::BoundingBox;
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -222,9 +222,11 @@ impl RenderObjectData {
         &self._animation_play_info.as_ref().unwrap()._animation_buffers[index]
     }
 
-    pub fn update_bound_box(&mut self) {
-        let transform_matrix = self._transform_object.get_matrix();
+    pub fn update_bound_box(&mut self, transform_matrix: &Matrix4<f32>) {
         self._bound_box.update_with_matrix(&self._mesh_data.borrow()._bound_box, transform_matrix);
+    }
+
+    pub fn update_geometry_bound_boxes(&mut self, transform_matrix: &Matrix4<f32>) {
         for (i, geometry_data) in self._mesh_data.borrow()._geometry_datas.iter().enumerate() {
             self._geometry_bound_boxes.get_mut(i).unwrap().update_with_matrix(&geometry_data.borrow()._geometry_bounding_box, transform_matrix);
         }
@@ -233,7 +235,13 @@ impl RenderObjectData {
     pub fn update_render_object_data(&mut self, delta_time: f32) {
         let updated_transform = self._transform_object.update_transform_object();
         if updated_transform {
-            self.update_bound_box();
+            let transform_matrix = ptr_as_ref(self._transform_object.get_matrix());
+            if self.has_animation_play_info() {
+                let animation_play_info = ptr_as_ref(self._animation_play_info.as_ref().unwrap());
+                self.update_bound_box(&(transform_matrix * animation_play_info._animation_buffers[0][0]));
+            } else {
+                self.update_bound_box(transform_matrix);
+            }
         }
 
         // update animation
@@ -276,7 +284,7 @@ impl RenderObjectData {
                 }
 
                 // swap
-                std::mem::swap(&mut animation_play_info._prev_animation_buffers, &mut animation_play_info._animation_buffers);
+                std::mem::swap(&mut animation_play_info._prev_animation_buffers[i], &mut animation_play_info._animation_buffers[i]);
 
                 // update animation buffers
                 if animation_play_info._last_animation_frame != animation_play_info._animation_frame {

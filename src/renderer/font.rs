@@ -216,7 +216,7 @@ impl TextRenderData {
             _font_data: font_data.clone(),
             ..Default::default()
         };
-        text_render_data._font_instance_datas.resize(unsafe { constants::MAX_FONT_INSTANCE_COUNT }, FontInstanceData::default());
+        text_render_data._font_instance_datas.resize(constants::MAX_FONT_INSTANCE_COUNT, FontInstanceData::default());
         text_render_data.create_texture_render_data_descriptor_sets(device, debug_utils, engine_resources);
         text_render_data
     }

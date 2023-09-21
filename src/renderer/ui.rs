@@ -1423,28 +1423,26 @@ impl UIManager {
     pub fn get_root_ptr(&self) -> *const dyn Widget { self._root.as_ref() }
     pub fn create_ui_manager(project_ui_manager: *const dyn ProjectUIManagerBase) -> UIManager {
         log::info!("create_ui_manager");
-        unsafe {
-            let mut ui_manager = UIManager {
-                _project_ui_manager: project_ui_manager,
-                _root: UIManager::create_widget("root", UIWidgetTypes::Default),
-                _window_size: Vector2::zeros(),
-                _ui_mesh_vertex_buffer: BufferData::default(),
-                _ui_mesh_index_buffer: BufferData::default(),
-                _ui_mesh_index_count: 0,
-                _font_data: system::newRcRefCell(FontData::default()),
-                _ui_render_datas: Vec::new(),
-                _render_ui_count: 0,
-                _render_ui_group: Vec::new(),
-                _default_render_ui_material: None,
-            };
-            ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
-            let ui_component = ptr_as_mut(ui_manager._root.as_ref()).get_ui_component_mut();
-            ui_component.set_layout_type(UILayoutType::FloatLayout);
-            ui_component.set_size_hint_x(Some(1.0));
-            ui_component.set_size_hint_y(Some(1.0));
-            ui_component.set_renderable(false);
-            ui_manager
-        }
+        let mut ui_manager = UIManager {
+            _project_ui_manager: project_ui_manager,
+            _root: UIManager::create_widget("root", UIWidgetTypes::Default),
+            _window_size: Vector2::zeros(),
+            _ui_mesh_vertex_buffer: BufferData::default(),
+            _ui_mesh_index_buffer: BufferData::default(),
+            _ui_mesh_index_count: 0,
+            _font_data: system::newRcRefCell(FontData::default()),
+            _ui_render_datas: Vec::new(),
+            _render_ui_count: 0,
+            _render_ui_group: Vec::new(),
+            _default_render_ui_material: None,
+        };
+        ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
+        let ui_component = ptr_as_mut(ui_manager._root.as_ref()).get_ui_component_mut();
+        ui_component.set_layout_type(UILayoutType::FloatLayout);
+        ui_component.set_size_hint_x(Some(1.0));
+        ui_component.set_size_hint_y(Some(1.0));
+        ui_component.set_renderable(false);
+        ui_manager
     }
 
     pub fn initialize_ui_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {

@@ -392,13 +392,13 @@ pub fn regist_shader_buffer_datas(
     regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::FontInstanceDataBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<FontInstanceData>(),
-        _shader_buffer_data_count: unsafe { constants::MAX_FONT_INSTANCE_COUNT as usize },
+        _shader_buffer_data_count: constants::MAX_FONT_INSTANCE_COUNT,
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
         _shader_buffer_data_type: ShaderBufferDataType::UIRenderDataBuffer,
         _shader_buffer_data_stride: std::mem::size_of::<UIRenderData>(),
-        _shader_buffer_data_count: unsafe { constants::MAX_UI_INSTANCE_COUNT as usize },
+        _shader_buffer_data_count: constants::MAX_UI_INSTANCE_COUNT,
         ..storage_buffer_create_info
     });
     regist_shader_buffer_data(debug_utils, &mut RegistShaderBufferCreateInfo {
