@@ -464,7 +464,7 @@ impl FontManager {
         }
     }
 
-    pub fn update(&self) {
+    pub fn update_font_manager(&self) {
 
     }
 }

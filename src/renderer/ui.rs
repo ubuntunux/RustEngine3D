@@ -8,7 +8,7 @@ use ash::{ vk, Device };
 use ash::extensions::ext::DebugUtils;
 
 use crate::constants;
-use crate::application::application::TimeData;
+use crate::application::application::{EngineApplication, TimeData};
 use crate::application::input::{
     KeyboardInputData,
     MouseMoveData,
@@ -262,6 +262,7 @@ pub trait ProjectUIManagerBase {
     fn get_root_widget_mut(&self) -> &mut dyn Widget;
     fn initialize_project_ui_manager(&mut self, ui_manager: &UIManager);
     fn build_ui(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources);
+    fn update_ui_manager(&mut self, engine_application: &EngineApplication, delta_time: f64);
 }
 
 pub struct UIManager {
@@ -1598,7 +1599,7 @@ impl UIManager {
         }
     }
 
-    pub fn update(
+    pub fn update_ui_manager(
         &mut self,
         delta_time: f64,
         window_size: &Vector2<i32>,
@@ -1608,6 +1609,7 @@ impl UIManager {
         mouse_input_data: &MouseInputData,
         _engine_resources: &EngineResources
     ) {
+        // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         if *window_size != self._window_size {
             self._window_size = window_size.clone() as Vector2<i32>;

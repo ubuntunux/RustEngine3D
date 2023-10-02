@@ -99,7 +99,7 @@ pub trait ProjectApplicationBase {
     fn terminate_project_application(&mut self);
     fn resized_window(&self, width: i32, height: i32);
     fn update_event(&mut self);
-    fn update_project_application(&mut self);
+    fn update_project_application(&mut self, delta_time: f64);
 }
 
 pub struct EngineApplication {
@@ -385,12 +385,12 @@ impl EngineApplication {
         } else {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
-                self.update_project_application();
+                self.update_project_application(delta_time);
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
-                debug_line_manager.update();
-                font_manager.update();
-                ui_manager.update(
+                debug_line_manager.update_debug_line();
+                font_manager.update_font_manager();
+                ui_manager.update_ui_manager(
                     delta_time,
                     &self._window_size,
                     &self._time_data,
@@ -406,8 +406,8 @@ impl EngineApplication {
         return true;
     }
 
-    pub fn update_project_application(&self) {
-        self.get_project_application_mut().update_project_application();
+    pub fn update_project_application(&self, delta_time:f64) {
+        self.get_project_application_mut().update_project_application(delta_time);
     }
 }
 

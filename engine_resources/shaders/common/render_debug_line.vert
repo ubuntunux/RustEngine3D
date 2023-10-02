@@ -26,6 +26,12 @@ void main() {
     {
         gl_Position =  view_constants.PROJECTION * view_constants.VIEW * gl_Position;
     }
+    else
+    {
+        // 2d
+        gl_Position.x = (gl_Position.x / scene_constants.SCREEN_SIZE.x) * 2.0 - 1.0;
+        gl_Position.y = (gl_Position.y / scene_constants.SCREEN_SIZE.y) * 2.0 - 1.0;
+    }
 
     vs_output.color = uint_color_to_float_color(debug_line_data._color);
 }

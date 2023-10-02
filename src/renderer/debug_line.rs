@@ -1,5 +1,5 @@
 use serde::{ Serialize, Deserialize };
-use nalgebra::{ Vector3, Vector4 };
+use nalgebra::{ Vector2, Vector3, Vector4 };
 use ash::{ vk, Device };
 use ash::extensions::ext::DebugUtils;
 
@@ -141,12 +141,13 @@ impl DebugLineManager {
         self._debug_line_index_count = indices.len() as u32;
     }
 
-    pub fn add_debug_line_2d(&mut self, position0: &Vector3<f32>, position1: &Vector3<f32>, color: u32) {
+    // screen size coordinate
+    pub fn add_debug_line_2d(&mut self, position0: &Vector2<f32>, position1: &Vector2<f32>, color: u32) {
         self._debug_line_instance_datas.push(
             DebugLineInstanceData {
-                _positions0: position0.clone(),
+                _positions0: Vector3::new(position0.x, position0.y, 0.0),
                 _color: color,
-                _positions1: position1.clone(),
+                _positions1: Vector3::new(position1.x, position1.y, 0.0),
                 _is_debug_line_3d: 0
             }
         );
@@ -171,12 +172,14 @@ impl DebugLineManager {
         engine_resources: &EngineResources
     ) {
         // Test Debugline
-        // let t = renderer_context._renderer_data._scene_constants._time;
-        // self.add_debug_line_3d(
-        //     &Vector3::new(5.0, 12.0, 5.0),
-        //     &Vector3::new(5.0 + t.sin() * 10.0, 12.0, 5.0 + t.cos() * 10.0),
-        //     get_color32(0, 0, 255, 255)
-        // );
+        if false {
+            let t = renderer_context._renderer_data._scene_constants._time;
+            self.add_debug_line_3d(
+                &Vector3::new(5.0, 12.0, 5.0),
+                &Vector3::new(5.0 + t.sin() * 10.0, 12.0, 5.0 + t.cos() * 10.0),
+                get_color32(0, 0, 255, 255)
+            );
+        }
 
         if self._show && 0 < self._debug_line_instance_datas.len() {
             let material_instance_data = engine_resources.get_material_instance_data("common/render_debug_line").borrow();
@@ -208,7 +211,7 @@ impl DebugLineManager {
         }
     }
 
-    pub fn update(&self) {
+    pub fn update_debug_line(&self) {
 
     }
 }
