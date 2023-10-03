@@ -397,6 +397,7 @@ impl JoystickInputData {
             Button::DPadDown => { self._btn_down = button_state },
             Button::DPadLeft => { self._btn_left = button_state },
             Button::DPadRight => { self._btn_right = button_state }
+            _ => {}
         }
     }
 }

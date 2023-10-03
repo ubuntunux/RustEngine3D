@@ -104,6 +104,7 @@ pub enum UILayoutState {
 }
 
 bitflags! {
+    #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
     pub struct UICornerFlags: i32 {
         const NONE = 0;
         const LEFT = 1 << 0;
@@ -188,7 +189,7 @@ pub struct UIComponentData {
     pub _padding: Vector4<f32>,
     pub _margine: Vector4<f32>,
     pub _texcoord: Vector4<f32>,
-    pub _dragable: bool,
+    pub _draggable: bool,
     pub _touchable: bool,
     pub _has_cursor: bool,
     pub _scroll_x: bool,
@@ -235,7 +236,7 @@ pub struct UIComponentInstance {
     pub _ui_layout_state: UILayoutState,
     pub _opacity: f32,
     pub _renderable: bool,
-    pub _visible: bool, // hierachycal visible flag
+    pub _visible: bool, // hierarchical visible flag
     pub _touched: bool,
     pub _touch_start_pos: Vector2<f32>,
     pub _touch_corner_flags: UICornerFlags,
@@ -302,7 +303,7 @@ impl Default for UIComponentData {
             _border: 0.0,
             _border_color: get_color32(0, 0, 0, 255),
             _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
-            _dragable: false,
+            _draggable: false,
             _touchable: false,
             _has_cursor: false,
             _scroll_x: false,
@@ -384,7 +385,7 @@ impl UIComponentInstance {
     }
 
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
-        if self.get_touchable() || self.get_dragable() {
+        if self.get_touchable() || self.get_draggable() {
             let mut touched: bool = true;
             self._touch_start_pos.x = touched_pos.x;
             self._touch_start_pos.y = touched_pos.y;
@@ -415,8 +416,8 @@ impl UIComponentInstance {
 
     pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
-            if self.get_touchable() || self.get_dragable() {
-                if self.get_dragable() {
+            if self.get_touchable() || self.get_draggable() {
+                if self.get_draggable() {
                     if self._touch_corner_flags == UICornerFlags::NONE {
                         self.set_pos(self.get_pos().x + touched_pos_delta.x, self.get_pos().y + touched_pos_delta.y);
                     }
@@ -456,10 +457,10 @@ impl UIComponentInstance {
 
     pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
-            if self.get_touchable() || self.get_dragable() {
+            if self.get_touchable() || self.get_draggable() {
                 self._touch_corner_flags = UICornerFlags::NONE;
 
-                if self.get_dragable() {
+                if self.get_draggable() {
                     if self._touch_corner_flags == UICornerFlags::NONE {
                         self.set_pos(self.get_pos().x + touched_pos_delta.x, self.get_pos().y + touched_pos_delta.y);
                     }
@@ -734,8 +735,8 @@ impl UIComponentInstance {
     pub fn get_touched(&self) -> bool { self._touched }
     pub fn get_touch_start_pos(&self) -> &Vector2<f32> { &self._touch_start_pos }
     pub fn get_touch_corner_flags(&self) -> UICornerFlags { self._touch_corner_flags }
-    pub fn get_dragable(&self) -> bool { self._ui_component_data._dragable }
-    pub fn set_dragable(&mut self, dragable: bool) { self._ui_component_data._dragable = dragable; }
+    pub fn get_draggable(&self) -> bool { self._ui_component_data._draggable }
+    pub fn set_draggable(&mut self, draggable: bool) { self._ui_component_data._draggable = draggable; }
     pub fn get_touchable(&self) -> bool { self._ui_component_data._touchable }
     pub fn set_touchable(&mut self, touchable: bool) { self._ui_component_data._touchable = touchable; }
     pub fn get_has_cursor(&self) -> bool { self._ui_component_data._has_cursor }
