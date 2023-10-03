@@ -1,2 +1,7 @@
 {"material_name": "effect/render_particle",
- "material_parameters": {"textureBase": "common/default", "textureMaterial": "common/default_m", "textureNormal": "common/default_n"}}
+ "material_parameters": {
+    "textureBase": "common/flat_yellow",
+    "textureMaterial": "common/default_emissive",
+    "textureNormal": "common/default_n"
+    }
+}
