@@ -1,5 +1,5 @@
-
 use std::cmp::max;
+use std::num::Wrapping;
 
 use ash::{ vk, Device };
 use crate::renderer::renderer_context::RendererContext;
@@ -428,7 +428,7 @@ impl FFTOcean {
 
         let s = self.spectrum(kx, ky, false);
         let h = (s / 2.0).sqrt() * dk;
-        self._fft_seed = (self._fft_seed * 1103515245 + 12345) & 0x7FFFFFFF;
+        self._fft_seed = (Wrapping(self._fft_seed) * Wrapping(1103515245) + Wrapping(12345)).0 & 0x7FFFFFFF;
         let phi = frandom(self._fft_seed) * 2.0 * std::f64::consts::PI;
         (h * phi.cos(), h * phi.sin())
     }

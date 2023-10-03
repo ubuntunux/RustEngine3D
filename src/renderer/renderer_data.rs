@@ -2,6 +2,7 @@ use std::str::FromStr;
 use std::collections::HashMap;
 use std::cell::{ Ref, RefMut };
 use std::vec::Vec;
+use std::num::Wrapping;
 
 use ash::{vk, Device};
 use ash::extensions::ext::DebugUtils;
@@ -784,7 +785,7 @@ impl RendererData {
             }
             let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
             renderer_context.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, descriptor_sets);
-            let dispatch_count = image_width >> mip_level;
+            let dispatch_count: u32 = (Wrapping(image_width) >> mip_level).0;
             renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
         }
     }
