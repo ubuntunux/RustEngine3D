@@ -22,6 +22,7 @@ use ash::extensions::khr::{
 use ash::extensions::nv::RayTracing;
 use ash::vk::CommandBuffer;
 use nalgebra::Vector2;
+use raw_window_handle::{RawDisplayHandle, HasRawWindowHandle};
 use winit;
 use winit::window::{ Window };
 
@@ -175,6 +176,7 @@ impl RendererContext {
     pub fn create_renderer_context(
         app_name: &str,
         app_version: u32,
+        display_handle: RawDisplayHandle,
         window_size: &Vector2<i32>,
         window: &Window,
         engine_resources: *const EngineResources,
@@ -182,7 +184,7 @@ impl RendererContext {
         unsafe {
             log::info!("createrenderer_context: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
             let entry = Entry::linked();
-            let surface_extensions = ash_window::enumerate_required_extensions(window).unwrap();
+            let surface_extensions = ash_window::enumerate_required_extensions(display_handle).unwrap();
             let required_layer_names = device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS);
             let required_instance_layers: Vec<*const c_char> = required_layer_names.iter().map(|layer| layer.as_ptr()).collect();
             let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS.iter().map(|str| CString::new(str.as_str()).unwrap() ).collect();
@@ -193,7 +195,7 @@ impl RendererContext {
                 Vec::new()
             };
             let instance: Instance = device::create_vk_instance(&entry, &app_name, app_version, &surface_extensions, &required_instance_layers);
-            let surface = device::create_vk_surface(&entry, &instance, window);
+            let surface = device::create_vk_surface(&entry, &instance, display_handle, window.raw_window_handle());
             let surface_interface = Surface::new(&entry, &instance);
             let (physical_device, swapchain_support_details, physical_device_features, has_ray_tracing_extensions) =
                 device::select_physical_device(&instance, &surface_interface, surface, &device_extensions, &device_extensions_for_ray_tracing).unwrap();

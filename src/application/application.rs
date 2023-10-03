@@ -2,6 +2,7 @@ use std::time;
 
 use log::{ self, LevelFilter };
 use nalgebra::Vector2;
+use raw_window_handle::{HasRawDisplayHandle, RawDisplayHandle};
 use sdl2::Sdl;
 use sdl2::event;
 use winit::event::{ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, VirtualKeyCode, WindowEvent, DeviceEvent, KeyboardInput};
@@ -11,6 +12,7 @@ use winit::event_loop::{
 };
 use winit::dpi;
 use winit::window::{
+    CursorGrabMode,
     Fullscreen,
     WindowBuilder,
     Window
@@ -103,10 +105,11 @@ pub trait ProjectApplicationBase {
 }
 
 pub struct EngineApplication {
+    pub _display_handle: RawDisplayHandle,
     pub _window: *const Window,
+    pub _window_size: Vector2<i32>,
     pub _is_grab_mode: bool,
     pub _is_grab_mode_backup: bool,
-    pub _window_size: Vector2<i32>,
     pub _time_data: TimeData,
     pub _camera_move_speed: f32,
     pub _keyboard_input_data: Box<input::KeyboardInputData>,
@@ -147,6 +150,7 @@ impl EngineApplication {
     pub fn create_project_application(
         app_name: &str,
         app_version: u32,
+        display_handle: RawDisplayHandle,
         window: &Window,
         sdl: &Sdl,
         project_application: *const dyn ProjectApplicationBase,
@@ -161,7 +165,7 @@ impl EngineApplication {
         let debug_line_manager = Box::new(DebugLineManager::create_debug_line_manager());
         let font_manager = Box::new(FontManager::create_font_manager());
         let ui_manager = Box::new(UIManager::create_ui_manager(project_ui_manager));
-        let renderer_context = Box::new(RendererContext::create_renderer_context(app_name, app_version, &window_size, &window, engine_resources.as_ref()));
+        let renderer_context = Box::new(RendererContext::create_renderer_context(app_name, app_version, display_handle, &window_size, window, engine_resources.as_ref()));
         let effect_manager = Box::new(EffectManager::create_effect_manager());
         let audio_manager = Box::new(AudioManager::create_audio_manager(&sdl, engine_resources.as_ref()));
         let keyboard_input_data = input::create_keyboard_input_data();
@@ -169,6 +173,7 @@ impl EngineApplication {
         let mouse_input_data = input::create_mouse_input_data();
         let joystick_input_data = input::JoystickInputData::create_joystick_input_data(sdl);
         let engine_application_box = Box::new(EngineApplication {
+            _display_handle: display_handle,
             _window: window,
             _window_size: window_size.into(),
             _is_grab_mode: false,
@@ -289,7 +294,9 @@ impl EngineApplication {
 
     pub fn set_grab_mode(&mut self, is_grab_mode: bool) {
         self._is_grab_mode = is_grab_mode;
-        let _result = self.get_window().set_cursor_grab(is_grab_mode);
+        let _result = self.get_window().set_cursor_grab(
+            if is_grab_mode { CursorGrabMode::Confined } else { CursorGrabMode::None }
+        );
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
@@ -425,6 +432,7 @@ pub fn run_application(
 
     let time_instance = time::Instant::now();
     let event_loop = EventLoop::new();
+    let display_handle: RawDisplayHandle = event_loop.raw_display_handle();
     let window: Window = WindowBuilder::new()
         .with_title(app_name.clone())
         .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize { width: initial_window_size.x as u32, height: initial_window_size.y as u32 }))
@@ -435,7 +443,7 @@ pub fn run_application(
     for (monitor_index, monitor) in event_loop.available_monitors().enumerate() {
         log::info!("Monitor[{}]: {:?}", monitor_index, monitor.name());
         for (video_index, video_mode) in monitor.video_modes().enumerate() {
-            log::info!("    Video Mode[{}]: {:?}, {:?} bit, {:?} hz", video_index, video_mode.size(), video_mode.bit_depth(), video_mode.refresh_rate());
+            log::info!("    Video Mode[{}]: {:?}, {:?} bit, {:?} hz", video_index, video_mode.size(), video_mode.bit_depth(), video_mode.refresh_rate_millihertz());
         }
     }
 
@@ -473,6 +481,7 @@ pub fn run_application(
             let engine_application = EngineApplication::create_project_application(
                 app_name.as_str(),
                 app_version,
+                display_handle,
                 &window,
                 &sdl,
                 project_application,

@@ -13,10 +13,7 @@ use ash::extensions::ext::DebugUtils;
 use ash::extensions::khr::{
     Surface,
 };
-
-use winit::window::{
-    Window
-};
+use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
 
 use crate::constants;
 use crate::vulkan_context::swapchain;
@@ -189,10 +186,10 @@ pub fn destroy_vk_instance(instance: &Instance) {
     }
 }
 
-pub fn create_vk_surface(entry: &Entry, instance: &Instance, window: &Window) -> vk::SurfaceKHR {
+pub fn create_vk_surface(entry: &Entry, instance: &Instance, display_handle: RawDisplayHandle, window_handle: RawWindowHandle) -> vk::SurfaceKHR {
     log::info!("create_vk_surface");
     unsafe {
-        ash_window::create_surface(entry, instance, window, None).unwrap()
+        ash_window::create_surface(entry, instance, display_handle, window_handle, None).unwrap()
     }
 }
 

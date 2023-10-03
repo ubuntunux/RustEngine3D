@@ -9,8 +9,8 @@ readme = "RustEngine3D"
 edition = "2021"
 
 [dependencies]
-ash = { version = "0.37.0", default-features = false, features = ["linked", "debug"] }
-ash-window = "0.10.0"
+ash = { version = "0.37.3", default-features = false, features = ["linked", "debug"] }
+ash-window = "0.12.0"
 bincode = "1.2.1"
 bitflags = "1.3.2"
 byteorder = "1.3.4"
@@ -19,19 +19,19 @@ chrono = "0.4.15"
 env_logger = "0.7.0"
 image = "0.23.13"
 log = "0.4"
-nalgebra = {version = "0.23.1", features = ["serde-serialize"]}
-nalgebra-glm = "0.9"
+nalgebra = {version = "0.32.3", features = ["serde-serialize"]}
+nalgebra-glm = "0.18.0"
 time = "0.1.38"
 rand = "0.7"
 regex = "1.5.5"
 rusttype = "0.9.2"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-winit = "0.24"
-winit_input_helper = "0.9.0"
+winit = "0.28.7"
+winit_input_helper = "0.14.1"
 which = "4.0.2"
 xml-rs = "0.8"
-raw-window-handle = "0.4.3"
+raw-window-handle = "0.5.2"
 
 [dependencies.gltf]
 version = "1.2.0"
@@ -40,11 +40,6 @@ features = ["extras", "names", "import"]
 [dependencies.sdl2]
 version = "0.34.5"
 features = ["mixer"]
-
-# android
-#anyhow = "1.0.12"
-#cpal = "0.13.3"
-#ndk-glue = "0.3"
 
 [lib]
 crate-type = ["lib", "cdylib"]
