@@ -4,8 +4,10 @@ use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3, Vector4, Quaternion, Matrix4 };
 use nalgebra_glm as glm;
 
+use crate::renderer::mesh::MeshData;
 use crate::renderer::transform_object::{ TransformObjectData };
 use crate::utilities::math;
+use crate::utilities::system::RcRefCell;
 use crate::constants;
 
 #[derive(Clone, Debug)]
@@ -25,7 +27,7 @@ pub struct SkeletonData {
     pub _index: usize,
     pub _bone_names: Vec<String>,
     pub _bones: Vec<BoneData>,
-    pub _hierachy: Vec<*mut BoneData>,
+    pub _hierarchy: Vec<*mut BoneData>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -39,7 +41,7 @@ pub struct AnimationNodeCreateInfo {
     pub _locations: Vec<Vector3<f32>>,
     pub _rotations: Vec<Quaternion<f32>>,
     pub _scales: Vec<Vector3<f32>>,
-    pub _interpoations: Vec<String>,
+    pub _interpolations: Vec<String>,
     pub _in_tangents: Vec<Vec<f32>>,
     pub _out_tangents: Vec<Vec<f32>>,
 }
@@ -54,7 +56,7 @@ pub struct AnimationNodeData {
     pub _locations: Vec<Vector3<f32>>,
     pub _rotations: Vec<Quaternion<f32>>,
     pub _scales: Vec<Vector3<f32>>,
-    pub _interpoations: Vec<String>,
+    pub _interpolations: Vec<String>,
     pub _in_tangents: Vec<Vec<f32>>,
     pub _out_tangents: Vec<Vec<f32>>,
     pub _bone: *const BoneData,
@@ -75,8 +77,8 @@ pub struct AnimationData {
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
-pub struct SkeletonHierachyTree {
-    pub _children: HashMap<String, SkeletonHierachyTree>,
+pub struct SkeletonHierarchyTree {
+    pub _children: HashMap<String, SkeletonHierarchyTree>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -84,11 +86,41 @@ pub struct SkeletonHierachyTree {
 pub struct SkeletonDataCreateInfo {
     pub _name: String,
     pub _transform: Matrix4<f32>,
-    pub _hierachy: SkeletonHierachyTree, // bone names map as hierachy
+    pub _hierarchy: SkeletonHierarchyTree, // bone names map as hierarchy
     pub _bone_names: Vec<String>, // bone name list ordered by index
     pub _inv_bind_matrices: Vec<Matrix4<f32>>,  // inverse matrix of bone
 }
 
+#[derive(Clone, Debug)]
+pub struct AnimationPlayInfo {
+    pub _last_animation_frame: f32,
+    pub _animation_loop: bool,
+    pub _animation_blend_time: f32,
+    pub _animation_elapsed_time: f32,
+    pub _animation_speed: f32,
+    pub _animation_frame: f32,
+    pub _animation_play_time: f32,
+    pub _animation_end_time: Option<f32>,
+    pub _is_animation_end: bool,
+    pub _animation_buffers: Vec<Vec<Matrix4<f32>>>,
+    pub _prev_animation_buffers: Vec<Vec<Matrix4<f32>>>,
+    pub _blend_animation_buffers: Vec<Vec<Matrix4<f32>>>,
+    pub _animation_count: i32,
+    pub _animation_mesh: Option<RcRefCell<MeshData>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct AnimationPlayArgs {
+    pub _speed: f32,
+    pub _loop: bool,
+    pub _start_time: f32,
+    pub _end_time: Option<f32>,
+    pub _blend_time: f32,
+    pub _force: bool,
+    pub _reset: bool,
+}
+
+// Implementation
 impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
@@ -100,16 +132,16 @@ impl Default for AnimationNodeCreateInfo {
             _locations: Vec::new(),
             _rotations: Vec::new(),
             _scales: Vec::new(),
-            _interpoations: Vec::new(),
+            _interpolations: Vec::new(),
             _in_tangents: Vec::new(),
             _out_tangents: Vec::new(),
         }
     }
 }
 
-impl Default for SkeletonHierachyTree {
-    fn default() -> SkeletonHierachyTree {
-        SkeletonHierachyTree {
+impl Default for SkeletonHierarchyTree {
+    fn default() -> SkeletonHierarchyTree {
+        SkeletonHierarchyTree {
             _children: HashMap::new(),
         }
     }
@@ -152,27 +184,27 @@ impl SkeletonData {
                 .map(|(index, bone_name)| {
                 BoneData::create_bone(bone_name, index, 0, &Matrix4::identity())
             }).collect(),
-            _hierachy: Vec::new(),
+            _hierarchy: Vec::new(),
         };
-        skeleton_data.build_bone(&skeleton_data_create_info._hierachy, &skeleton_data_create_info._inv_bind_matrices, std::ptr::null_mut(), 0);
+        skeleton_data.build_bone(&skeleton_data_create_info._hierarchy, &skeleton_data_create_info._inv_bind_matrices, std::ptr::null_mut(), 0);
         skeleton_data
     }
 
-    pub fn build_bone(&mut self, hierachy: &SkeletonHierachyTree, inv_bind_matrices: &Vec<Matrix4<f32>>, parent_bone: *mut BoneData, depth: u32) {
-        for (bone_name, child_hierachy) in hierachy._children.iter() {
+    pub fn build_bone(&mut self, hierarchy: &SkeletonHierarchyTree, inv_bind_matrices: &Vec<Matrix4<f32>>, parent_bone: *mut BoneData, depth: u32) {
+        for (bone_name, child_hierarchy) in hierarchy._children.iter() {
             if let Some(index) = self._bone_names.iter().position(|key| key == bone_name) {
                 self._bones[index] = BoneData::create_bone(bone_name, index, depth, &inv_bind_matrices[index]);
                 let bone: *mut BoneData = &mut self._bones[index];
                 if parent_bone.is_null() {
                     // add root
-                    self._hierachy.push(bone);
+                    self._hierarchy.push(bone);
                 } else {
                     unsafe {
                         (*parent_bone).add_child(bone);
                     }
                 }
                 // recursive build bone
-                self.build_bone(child_hierachy, inv_bind_matrices, bone, depth + 1);
+                self.build_bone(child_hierarchy, inv_bind_matrices, bone, depth + 1);
             }
         }
     }
@@ -279,7 +311,7 @@ impl AnimationData {
                     }
                 }
             } else {
-                for bone in (*self._skeleton)._hierachy.iter() {
+                for bone in (*self._skeleton)._hierarchy.iter() {
                     let index: usize = (**bone)._index;
                     let node = &self._nodes[index];
                     node.update_animation_node(frame, &mut animation_transforms[index]);
@@ -302,7 +334,7 @@ impl AnimationNodeData {
             _locations: animation_node_create_info._locations.clone(),
             _rotations: animation_node_create_info._rotations.clone(),
             _scales: animation_node_create_info._scales.clone(),
-            _interpoations: animation_node_create_info._interpoations.clone(),
+            _interpolations: animation_node_create_info._interpolations.clone(),
             _in_tangents: animation_node_create_info._in_tangents.clone(),
             _out_tangents: animation_node_create_info._out_tangents.clone(),
             _bone: bone,
@@ -323,6 +355,56 @@ impl AnimationNodeData {
                 math::matrix_scale(transform, scale.x, scale.y, scale.z);
                 transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
             }
+        }
+    }
+}
+
+impl Default for AnimationPlayInfo {
+    fn default() -> AnimationPlayInfo {
+        AnimationPlayInfo {
+            _last_animation_frame: 0.0,
+            _animation_loop: true,
+            _animation_blend_time: 0.5,
+            _animation_elapsed_time: 0.0,
+            _animation_speed: 1.0,
+            _animation_frame: 0.0,
+            _animation_play_time: 0.0,
+            _animation_end_time: None,
+            _is_animation_end: false,
+            _animation_buffers: Vec::new(),
+            _prev_animation_buffers: Vec::new(),
+            _blend_animation_buffers: Vec::new(),
+            _animation_count: 0,
+            _animation_mesh: None,
+        }
+    }
+}
+
+impl Default for AnimationPlayArgs {
+    fn default() -> AnimationPlayArgs {
+        AnimationPlayArgs {
+            _speed: 1.0,
+            _loop: true,
+            _start_time: 0.0,
+            _end_time: None,
+            _blend_time: 0.5,
+            _force: false,
+            _reset: true,
+        }
+    }
+}
+
+impl AnimationPlayInfo {
+    pub fn set_animation_play_info(&mut self, animation_args: &AnimationPlayArgs) {
+        self._animation_speed = animation_args._speed;
+        self._animation_loop = animation_args._loop;
+        self._animation_blend_time = animation_args._blend_time;
+        self._animation_end_time = animation_args._end_time;
+        if animation_args._reset {
+            self._animation_elapsed_time = 0.0;
+            self._animation_play_time = animation_args._start_time;
+            self._animation_frame = 0.0;
+            self._is_animation_end = false;
         }
     }
 }

@@ -13,7 +13,7 @@ use nalgebra::{
 use nalgebra_glm as glm;
 
 use crate::renderer::mesh::{ MeshDataCreateInfo };
-use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree, SkeletonDataCreateInfo };
+use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierarchyTree, SkeletonDataCreateInfo };
 use crate::utilities::bounding_box::{ self, BoundingBox, };
 use crate::utilities::math;
 use crate::utilities::xml::{ self, XmlTree, };
@@ -903,11 +903,11 @@ impl Collada {
         }
     }
 
-    pub fn build_hierachy(controller: &ColladaContoller, parent_node: &ColladaNode, hierachy_tree: &mut SkeletonHierachyTree) {
+    pub fn build_hierarchy(controller: &ColladaContoller, parent_node: &ColladaNode, hierarchy_tree: &mut SkeletonHierarchyTree) {
         for child in parent_node._children.iter() {
             if controller._bone_names.contains(&child._name) {
-                hierachy_tree._children.insert(child._name.clone(), SkeletonHierachyTree::default());
-                Collada::build_hierachy(controller, child, &mut hierachy_tree._children.get_mut(&child._name).unwrap());
+                hierarchy_tree._children.insert(child._name.clone(), SkeletonHierarchyTree::default());
+                Collada::build_hierarchy(controller, child, &mut hierarchy_tree._children.get_mut(&child._name).unwrap());
             }
         }
     }
@@ -919,7 +919,7 @@ impl Collada {
             if false == check_duplicated.contains(&controller._name.as_str()) {
                 check_duplicated.push(controller._name.as_str());
 
-                let mut hierachy: SkeletonHierachyTree = SkeletonHierachyTree::default();
+                let mut hierarchy: SkeletonHierarchyTree = SkeletonHierarchyTree::default();
                 let mut root_node: Option<&ColladaNode> = None;
                 // find root amature
                 for node in self._nodes.iter() {
@@ -930,14 +930,14 @@ impl Collada {
                 }
 
                 if let Some(root_node) = root_node {
-                    // recursive build hierachy of bones
-                    Collada::build_hierachy(controller, &root_node, &mut hierachy);
+                    // recursive build hierarchy of bones
+                    Collada::build_hierarchy(controller, &root_node, &mut hierarchy);
                 }
 
                 let skeleton_data = SkeletonDataCreateInfo {
                     _name: controller._name.clone(),
                     _transform: Matrix4::identity(),
-                    _hierachy: hierachy, // bone names map as hierachy
+                    _hierarchy: hierarchy, // bone names map as hierarchy
                     _bone_names: controller._bone_names.clone(), // bone name list ordered by index
                     _inv_bind_matrices: controller._inv_bind_matrices.clone(), // inverse matrix of bone
                 };
@@ -949,13 +949,13 @@ impl Collada {
 
     pub fn precompute_animation(
         animations: &mut Vec<ColladaAnimation>,
-        children_hierachy: &SkeletonHierachyTree,
+        children_hierarchy: &SkeletonHierarchyTree,
         bone_names: &Vec<String>,
         inv_bind_matrices: &Vec<Matrix4<f32>>,
         parent_matrix: &Matrix4<f32>,
         frame: usize)
     {
-        for child in children_hierachy._children.keys() {
+        for child in children_hierarchy._children.keys() {
             for i in 0..animations.len() {
                 if *child == animations[i]._target {
                     // just Transpose child bones, no swap y-z.
@@ -974,7 +974,7 @@ impl Collada {
                     // recursive precompute animation
                     Collada::precompute_animation(
                         animations,
-                        children_hierachy._children.get(&animations[i]._target).unwrap(),
+                        children_hierarchy._children.get(&animations[i]._target).unwrap(),
                         bone_names,
                         inv_bind_matrices,
                         &child_transform,
@@ -990,7 +990,7 @@ impl Collada {
         // precompute_animation
         let mut animation_datas: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
         for skeleton_data in skeleton_datas.iter() {
-            let hierachy = &skeleton_data._hierachy;
+            let hierarchy = &skeleton_data._hierarchy;
             let bone_names = &skeleton_data._bone_names;
             let inv_bind_matrices = &skeleton_data._inv_bind_matrices;
             let animations: &mut Vec<ColladaAnimation> = &mut self._animations;
@@ -1001,7 +1001,7 @@ impl Collada {
                 }
 
                 // Find root bone and skeleton data
-                if hierachy._children.contains_key(&animations[i]._target) {
+                if hierarchy._children.contains_key(&animations[i]._target) {
                     // precompute all animation frames
                     for frame in 0..animations[i]._outputs.len() {
                         // only root bone adjust convert_matrix for swap Y-Z Axis
@@ -1016,7 +1016,7 @@ impl Collada {
                         // recursive precompute animation
                         Collada::precompute_animation(
                             animations,
-                            hierachy._children.get(&animations[i]._target).unwrap(),
+                            hierarchy._children.get(&animations[i]._target).unwrap(),
                             bone_names,
                             inv_bind_matrices,
                             &transform,
@@ -1041,7 +1041,7 @@ impl Collada {
                             _locations: animation_node._outputs.iter().map(|output| { math::extract_location(output) }).collect(),
                             _rotations: animation_node._outputs.iter().map(|output| { math::extract_quaternion(output) }).collect(),
                             _scales: animation_node._outputs.iter().map(|output| { math::extract_scale(output) }).collect(),
-                            _interpoations: animation_node._interpolations.clone(),
+                            _interpolations: animation_node._interpolations.clone(),
                             _in_tangents: animation_node._in_tangents.clone(),
                             _out_tangents: animation_node._out_tangents.clone(),
                         };

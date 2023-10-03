@@ -5,7 +5,7 @@ use nalgebra::{Vector2, Vector3, Vector4, Matrix4};
 
 use crate::constants;
 use crate::renderer::mesh::{ MeshDataCreateInfo };
-use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierachyTree, SkeletonDataCreateInfo };
+use crate::renderer::animation::{ AnimationNodeCreateInfo, SkeletonHierarchyTree, SkeletonDataCreateInfo };
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::system;
@@ -278,12 +278,12 @@ pub fn parsing_inverse_bind_matrices(skin: &gltf::Skin, buffers: &Vec<gltf::buff
     return inverse_bind_matrices;
 }
 
-pub fn parsing_bone_hierachy(bone_node: &gltf::Node, hierachy: &mut SkeletonHierachyTree) {
+pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHierarchyTree) {
     for child_node in bone_node.children() {
         assert!(child_node.mesh().is_none());
-        let mut child_hierachy = SkeletonHierachyTree::default();
-        parsing_bone_hierachy(&child_node, &mut child_hierachy);
-        hierachy._children.insert(child_node.name().unwrap().to_string(), child_hierachy);
+        let mut child_hierarchy = SkeletonHierarchyTree::default();
+        parsing_bone_hierarchy(&child_node, &mut child_hierarchy);
+        hierarchy._children.insert(child_node.name().unwrap().to_string(), child_hierarchy);
     }
 }
 
@@ -319,13 +319,13 @@ pub fn parsing_skins(
                 bone_names.push(joint.name().unwrap().to_string());
             }
 
-            // build hierachy
-            let mut hierachy = SkeletonHierachyTree::default();
+            // build hierarchy
+            let mut hierarchy = SkeletonHierarchyTree::default();
             for child_node in armature_node.children() {
                 if child_node.mesh().is_none() {
-                    let mut child_hierachy = SkeletonHierachyTree::default();
-                    parsing_bone_hierachy(&child_node, &mut child_hierachy);
-                    hierachy._children.insert(child_node.name().unwrap().to_string(), child_hierachy);
+                    let mut child_hierarchy = SkeletonHierarchyTree::default();
+                    parsing_bone_hierarchy(&child_node, &mut child_hierarchy);
+                    hierarchy._children.insert(child_node.name().unwrap().to_string(), child_hierarchy);
                 }
             }
 
@@ -334,7 +334,7 @@ pub fn parsing_skins(
                 SkeletonDataCreateInfo {
                     _name: armature_node.name().unwrap().to_string(),
                     _transform: parent_transform,
-                    _hierachy: hierachy,
+                    _hierarchy: hierarchy,
                     _bone_names: bone_names,
                     _inv_bind_matrices: inverse_bind_matrices
                 }
@@ -434,7 +434,7 @@ pub fn precompute_animation(
     frame_index: usize,
     parent_transform: &Matrix4<f32>,
     bone_index: usize,
-    hierachy: &SkeletonHierachyTree,
+    hierarchy: &SkeletonHierarchyTree,
     bone_names: &Vec<String>,
     inv_bind_matrices: &Vec<Matrix4<f32>>,
     animation_node_datas: &mut Vec<AnimationNodeCreateInfo>
@@ -460,9 +460,9 @@ pub fn precompute_animation(
         animation_node_data._scales[frame_index] = math::extract_scale(&transform);
     }
 
-    for (child_bone_name, child_hierachy) in hierachy._children.iter() {
+    for (child_bone_name, child_hierarchy) in hierarchy._children.iter() {
         let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;
-        precompute_animation(frame_index, &transform, child_bone_index, &child_hierachy, bone_names, inv_bind_matrices, animation_node_datas);
+        precompute_animation(frame_index, &transform, child_bone_index, &child_hierarchy, bone_names, inv_bind_matrices, animation_node_datas);
     }
 }
 
@@ -566,11 +566,11 @@ impl GLTF {
                 let bone_names = &skeleton_create_info._bone_names;
                 let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
 
-                for (child_bone_name, child_hierachy) in skeleton_create_info._hierachy._children.iter() {
+                for (child_bone_name, child_hierarchy) in skeleton_create_info._hierarchy._children.iter() {
                     let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;
                     let total_frame_count = animation_node_datas[child_bone_index]._times.len();
                     for frame_index in 0..total_frame_count {
-                        precompute_animation(frame_index, &parent_transform,child_bone_index, &child_hierachy, bone_names, inv_bind_matrices, animation_node_datas);
+                        precompute_animation(frame_index, &parent_transform,child_bone_index, &child_hierarchy, bone_names, inv_bind_matrices, animation_node_datas);
                     }
                 }
             }

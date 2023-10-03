@@ -6,7 +6,7 @@ use serde::{ Serialize, Deserialize };
 
 use crate::renderer::mesh::MeshData;
 use crate::renderer::model::ModelData;
-use crate::renderer::animation::AnimationData;
+use crate::renderer::animation::{AnimationData, AnimationPlayArgs, AnimationPlayInfo};
 use crate::renderer::transform_object::TransformObjectData;
 use crate::utilities::system::{RcRefCell, ptr_as_ref};
 use crate::utilities::bounding_box::BoundingBox;
@@ -43,85 +43,6 @@ pub struct RenderObjectData {
     pub _transform_object: TransformObjectData,
     pub _animation_play_info: Option<AnimationPlayInfo>,
     pub _bone_count: usize
-}
-
-#[derive(Clone, Debug)]
-pub struct AnimationPlayInfo {
-    pub _last_animation_frame: f32,
-    pub _animation_loop: bool,
-    pub _animation_blend_time: f32,
-    pub _animation_elapsed_time: f32,
-    pub _animation_speed: f32,
-    pub _animation_frame: f32,
-    pub _animation_play_time: f32,
-    pub _animation_end_time: Option<f32>,
-    pub _is_animation_end: bool,
-    pub _animation_buffers: Vec<Vec<Matrix4<f32>>>,
-    pub _prev_animation_buffers: Vec<Vec<Matrix4<f32>>>,
-    pub _blend_animation_buffers: Vec<Vec<Matrix4<f32>>>,
-    pub _animation_count: i32,
-    pub _animation_mesh: Option<RcRefCell<MeshData>>,
-}
-
-impl Default for AnimationPlayInfo {
-    fn default() -> AnimationPlayInfo {
-        AnimationPlayInfo {
-            _last_animation_frame: 0.0,
-            _animation_loop: true,
-            _animation_blend_time: 0.5,
-            _animation_elapsed_time: 0.0,
-            _animation_speed: 1.0,
-            _animation_frame: 0.0,
-            _animation_play_time: 0.0,
-            _animation_end_time: None,
-            _is_animation_end: false,
-            _animation_buffers: Vec::new(),
-            _prev_animation_buffers: Vec::new(),
-            _blend_animation_buffers: Vec::new(),
-            _animation_count: 0,
-            _animation_mesh: None,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct AnimationPlayArgs {
-    pub _speed: f32,
-    pub _loop: bool,
-    pub _start_time: f32,
-    pub _end_time: Option<f32>,
-    pub _blend_time: f32,
-    pub _force: bool,
-    pub _reset: bool,
-}
-
-impl Default for AnimationPlayArgs {
-    fn default() -> AnimationPlayArgs {
-        AnimationPlayArgs {
-            _speed: 1.0,
-            _loop: true,
-            _start_time: 0.0,
-            _end_time: None,
-            _blend_time: 0.5,
-            _force: false,
-            _reset: true,
-        }
-    }
-}
-
-impl AnimationPlayInfo {
-    pub fn set_animation_play_info(&mut self, animation_args: &AnimationPlayArgs) {
-        self._animation_speed = animation_args._speed;
-        self._animation_loop = animation_args._loop;
-        self._animation_blend_time = animation_args._blend_time;
-        self._animation_end_time = animation_args._end_time;
-        if animation_args._reset {
-            self._animation_elapsed_time = 0.0;
-            self._animation_play_time = animation_args._start_time;
-            self._animation_frame = 0.0;
-            self._is_animation_end = false;
-        }
-    }
 }
 
 impl RenderObjectData {
