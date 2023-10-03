@@ -105,7 +105,7 @@ impl Default for FFTOcean {
         let simulation_scale = 1.0;
         FFTOcean {
             _name: String::from("ocean"),
-            _height: 0.0,
+            _height: std::f32::MIN,
             _wind: WIND,
             _omega: OMEGA,
             _amplitude: AMPLITUDE,

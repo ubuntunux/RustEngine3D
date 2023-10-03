@@ -67,6 +67,10 @@ pub const HIERACHICALLY_ACCUMULATED_MATRIX: bool = true; // precompute bone anim
 pub const COMBINED_INVERSE_BIND_MATRIX: bool = true && HIERACHICALLY_ACCUMULATED_MATRIX; // combine animation matrix with inv_bind_matrix.
 pub const CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED: bool = true;
 
+// render option
+pub static mut RENDER_OCEAN: bool = true;
+pub static mut RENDER_BOUND_BOX: bool = true;
+
 // application
 pub const JOYSTICK_SENSOR_DEAD_ZONE: i16 = 10_000;
 

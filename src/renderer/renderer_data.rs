@@ -121,7 +121,9 @@ impl RendererDataBase for RendererData {
         );
 
         self.create_render_targets(renderer_context);
-        self.get_fft_ocean_mut().regist_fft_ocean_textures(renderer_context, self.get_engine_resources_mut());
+        if unsafe { constants::RENDER_OCEAN } {
+            self.get_fft_ocean_mut().regist_fft_ocean_textures(renderer_context, self.get_engine_resources_mut());
+        }
     }
 
     fn is_first_rendering(&self) -> bool {
@@ -220,7 +222,9 @@ impl RendererDataBase for RendererData {
             ]
         );
 
-        self.get_fft_ocean_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+        if unsafe { constants::RENDER_OCEAN } {
+            self.get_fft_ocean_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+        }
         self.get_atmosphere_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
 
         // TEST CODE
@@ -268,7 +272,9 @@ impl RendererDataBase for RendererData {
     }
 
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
-        self.get_fft_ocean_mut().destroy_fft_ocean(self.get_renderer_context().get_device());
+        if unsafe { constants::RENDER_OCEAN } {
+            self.get_fft_ocean_mut().destroy_fft_ocean(self.get_renderer_context().get_device());
+        }
         self.get_atmosphere_mut().destroy_atmosphere(self.get_renderer_context().get_device());
         self._render_context_bloom.destroy(device);
         self._render_context_taa.destroy(device);
@@ -315,7 +321,9 @@ impl RendererDataBase for RendererData {
 
     fn pre_update_render_scene(&mut self, delta_time: f64) {
         self._atmosphere.update();
-        self._fft_ocean.update(delta_time);
+        if unsafe { constants::RENDER_OCEAN } {
+            self._fft_ocean.update(delta_time);
+        }
         self._render_context_ssr.update();
     }
 
@@ -382,7 +390,9 @@ impl RendererDataBase for RendererData {
         if self._is_first_rendering {
             let _label_precompute_environment = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "precompute_environment");
             self.clear_render_targets(command_buffer, swapchain_index, renderer_context, &engine_resources, &quad_geometry_data);
-            self._fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
+            if unsafe { constants::RENDER_OCEAN } {
+                self._fft_ocean.compute_slope_variance_texture(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
+            }
             self._atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, renderer_context);
         }
 
@@ -415,7 +425,7 @@ impl RendererDataBase for RendererData {
         }
 
         // fft-simulation
-        {
+        if unsafe { constants::RENDER_OCEAN } {
             let _label_fft_simulation = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "fft_simulation");
             self._fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, renderer_context, &engine_resources);
         }
@@ -431,8 +441,7 @@ impl RendererDataBase for RendererData {
                 &engine_resources,
                 project_scene_manager,
                 &main_camera,
-                static_render_elements,
-                &self._fft_ocean
+                static_render_elements
             );
             self._render_context_light_probe._next_refresh_time = elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
             self._render_context_light_probe._light_probe_blend_time = 0.0;
@@ -490,7 +499,7 @@ impl RendererDataBase for RendererData {
         }
 
         // render ocean
-        {
+        if unsafe { constants::RENDER_OCEAN } {
             let _label_render_ocean = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ocean");
             self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
@@ -789,8 +798,7 @@ impl RendererData {
         engine_resources: &EngineResources,
         project_scene_manager: &dyn ProjectSceneManagerBase,
         main_camera: &CameraObjectData,
-        static_render_elements: &Vec<RenderElementData>,
-        _fft_ocean: &FFTOcean,
+        static_render_elements: &Vec<RenderElementData>
     ) {
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
