@@ -78,7 +78,7 @@ impl WaveFrontOBJ {
                 });
             }
             let mesh_count: usize = self.meshes.len();
-            let mut mesh_object: &mut MeshObject = &mut self.meshes[mesh_count - 1];
+            let mesh_object: &mut MeshObject = &mut self.meshes[mesh_count - 1];
 
             // first strings
             pre_fix = head;

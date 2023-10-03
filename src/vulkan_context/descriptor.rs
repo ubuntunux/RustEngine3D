@@ -359,7 +359,7 @@ pub fn update_write_descriptor_set(
     descriptor_index: usize,
     descriptor_resource_info: &DescriptorResourceInfo
 ) {
-    let mut write_descriptor_set = &mut write_descriptor_sets[descriptor_index];
+    let write_descriptor_set = &mut write_descriptor_sets[descriptor_index];
     match descriptor_resource_info {
         DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {
             write_descriptor_set.p_buffer_info = buffer_info;

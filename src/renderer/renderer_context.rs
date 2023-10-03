@@ -269,7 +269,7 @@ impl RendererContext {
             } else {
                 vec![graphics_queue_index, present_queue_index]
             };
-            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set, &device_extension_names_raw, &required_instance_layers);
+            let device = device::create_device(&instance, physical_device, &render_features, &queue_family_index_set, &device_extension_names_raw);
             let ray_tracing = Rc::new(RayTracing::new(&instance, &device));
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();

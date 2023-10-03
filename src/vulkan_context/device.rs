@@ -257,8 +257,7 @@ pub fn create_device(
     physical_device: vk::PhysicalDevice,
     render_features: &vulkan_context::RenderFeatures,
     queue_family_index_set: &Vec<u32>,
-    device_extension_names_raw: &Vec<*const c_char>,
-    instance_layer_names_raw: &Vec<*const c_char>
+    device_extension_names_raw: &Vec<*const c_char>
 ) -> Device {
     let queue_priorities = [1.0];
     let queue_create_infos: Vec<vk::DeviceQueueCreateInfo> = queue_family_index_set
@@ -285,8 +284,6 @@ pub fn create_device(
     let mut device_create_info = vk::DeviceCreateInfo {
         queue_create_info_count: queue_create_infos.len() as u32,
         p_queue_create_infos: queue_create_infos.as_ptr(),
-        enabled_layer_count: instance_layer_names_raw.len() as u32,
-        pp_enabled_layer_names: instance_layer_names_raw.as_ptr(),
         enabled_extension_count: device_extension_names_raw.len() as u32,
         pp_enabled_extension_names: device_extension_names_raw.as_ptr(),
         p_enabled_features: &device_features,

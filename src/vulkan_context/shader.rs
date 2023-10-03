@@ -2,6 +2,7 @@ use std::fs;
 use std::io::Read;
 use std::path::PathBuf;
 use std::os::raw::c_char;
+#[cfg(not(target_os = "android"))]
 use std::process;
 
 use regex::Regex;

@@ -360,12 +360,6 @@ impl EngineApplication {
         let elapsed_frame = self._time_data._elapsed_frame;
 
         if renderer_context.get_need_recreate_swapchain() {
-            #[cfg(target_os = "android")]
-                {
-                    // Destroy app on suspend for android target.
-                    run_application = false;
-                    initialize_done = false;
-                }
             #[cfg(not(target_os = "android"))]
                 {
                     log::info!("<<begin recreate_swapchain>>");

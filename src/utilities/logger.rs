@@ -1,5 +1,7 @@
 use env_logger;
+#[cfg(not(target_os = "android"))]
 use std::io::Write;
+#[cfg(not(target_os = "android"))]
 use chrono::Local;
 use log::LevelFilter;
 

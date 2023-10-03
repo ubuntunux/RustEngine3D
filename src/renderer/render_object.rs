@@ -246,7 +246,7 @@ impl RenderObjectData {
 
         // update animation
         if self.has_animation_play_info() {
-            let mut animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
+            let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
             let mut blend_ratio: f32 = 1.0;
             let animation_datas: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_datas;
             for (i, animation) in animation_datas.iter().enumerate() {
