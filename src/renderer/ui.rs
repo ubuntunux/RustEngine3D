@@ -1477,6 +1477,7 @@ impl UIManager {
         unsafe { &mut *(self._project_ui_manager as *mut dyn ProjectUIManagerBase) }
     }
 
+    #[allow(dropping_references)]
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
         ptr_as_mut(self._root.as_ref()).clear_widgets();
