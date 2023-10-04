@@ -7,7 +7,7 @@ use crate::renderer::mesh::MeshData;
 use crate::renderer::transform_object::TransformObjectData;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::system::{ newRcRefCell, RcRefCell };
+use crate::utilities::system::{ ptr_as_ref, ptr_as_mut, newRcRefCell, RcRefCell };
 use crate::utilities::math;
 
 pub const INVALID_EFFECT_ID: i64 = -1;
@@ -363,11 +363,11 @@ impl EffectInstance {
     }
 
     pub fn get_effect_manager(&self) -> &EffectManager {
-        unsafe { &*self._effect_manager }
+        ptr_as_ref(self._effect_manager)
     }
 
     pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
-        unsafe { &mut *(self._effect_manager as *mut EffectManager) }
+        ptr_as_mut(self._effect_manager)
     }
 
     pub fn get_effect_world_transform(&self) -> &Matrix4<f32> {
@@ -382,7 +382,7 @@ impl EffectInstance {
         self._is_alive = true;
         self._elapsed_time = 0.0;
 
-        let effect_manager = unsafe { &mut *(self._effect_manager as *mut EffectManager) };
+        let effect_manager = ptr_as_mut(self._effect_manager);
         for emitter in self._emitters.iter_mut() {
             effect_manager.allocate_emitter(emitter);
             emitter.play_emitter();
@@ -397,7 +397,7 @@ impl EffectInstance {
 
         let updated_effect_transform = self._effect_transform.update_transform_object();
 
-        let effect_manager = unsafe { &mut *(self._effect_manager as *mut EffectManager) };
+        let effect_manager = ptr_as_mut(self._effect_manager);
         let mut is_alive = false;
         for emitter in self._emitters.iter_mut() {
             if emitter._is_alive {
@@ -438,11 +438,11 @@ impl EmitterInstance {
     }
 
     pub fn get_parent_effect(&self) -> &EffectInstance {
-        unsafe { &*self._parent_effect }
+        ptr_as_ref(self._parent_effect)
     }
 
     pub fn get_parent_effect_mut(&self) -> &mut EffectInstance {
-        unsafe { &mut *(self._parent_effect as *mut EffectInstance) }
+        ptr_as_mut(self._parent_effect)
     }
 
     pub fn is_valid_allocated(&self) -> bool {
@@ -454,7 +454,7 @@ impl EmitterInstance {
     }
 
     pub fn get_emitter_data(&self) -> &EmitterData {
-        unsafe { &*self._emitter_data }
+        ptr_as_ref(self._emitter_data)
     }
 
     pub fn play_emitter(&mut self) {
@@ -467,7 +467,7 @@ impl EmitterInstance {
 
     pub fn update_emitter(&mut self, delta_time: f32, updated_effect_transform: bool) {
         if self._is_alive {
-            let emitter_data = unsafe { &*self._emitter_data };
+            let emitter_data = ptr_as_ref(self._emitter_data);
 
             self._particle_spawn_count = 0;
 

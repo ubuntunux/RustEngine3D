@@ -5,6 +5,7 @@ use nalgebra::{
     Quaternion,
 };
 
+use crate::utilities::system::{ptr_as_ref};
 use crate::utilities::math::{
     TWO_PI,
     make_rotation_matrix,
@@ -77,13 +78,13 @@ impl TransformObjectData {
         &self._inverse_matrix
     }
     pub fn get_right(&self) -> &Vector3<f32> {
-        unsafe { &*(self._rotation_matrix.column(0).as_ptr() as *const Vector3<f32>) }
+        ptr_as_ref(self._rotation_matrix.column(0).as_ptr() as *const Vector3<f32>)
     }
     pub fn get_up(&self) -> &Vector3<f32> {
-        unsafe { &*(self._rotation_matrix.column(1).as_ptr() as *const Vector3<f32>) }
+        ptr_as_ref(self._rotation_matrix.column(1).as_ptr() as *const Vector3<f32>)
     }
     pub fn get_front(&self) -> &Vector3<f32> {
-        unsafe { &*(self._rotation_matrix.column(2).as_ptr() as *const Vector3<f32>) }
+        ptr_as_ref(self._rotation_matrix.column(2).as_ptr() as *const Vector3<f32>)
     }
     pub fn get_position(&self) -> &Vector3<f32> { &self._position }
     pub fn set_position(&mut self, position: &Vector3<f32>) { self._position.copy_from(position); }
@@ -91,7 +92,7 @@ impl TransformObjectData {
     pub fn set_position_y(&mut self, pos_y: f32) { self._position.y = pos_y; }
     pub fn set_position_z(&mut self, pos_z: f32) { self._position.z = pos_z; }
     pub fn get_prev_position(&self) -> &Vector3<f32> {
-        unsafe { &*(self._prev_matrix.column(3).as_ptr() as *const Vector3<f32>) }
+        ptr_as_ref(self._prev_matrix.column(3).as_ptr() as *const Vector3<f32>)
     }
     pub fn move_position(&mut self, move_speed: &Vector3<f32>) {
         self._position += move_speed;

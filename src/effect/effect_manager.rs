@@ -21,7 +21,7 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::resource::resource::EngineResources;
-use crate::utilities::system::RcRefCell;
+use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
 use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 
@@ -150,8 +150,8 @@ pub struct EffectManager {
 }
 
 impl EffectManager {
-    pub fn create_effect_manager() -> EffectManager {
-        EffectManager {
+    pub fn create_effect_manager() -> Box<EffectManager> {
+        Box::new(EffectManager {
             _effect_id_generator: 0,
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
@@ -163,7 +163,7 @@ impl EffectManager {
             _gpu_particle_dynamic_constants: unsafe { vec![GpuParticleDynamicConstants::default(); MAX_EMITTER_COUNT as usize] },
             _gpu_particle_emitter_indices: unsafe { vec![INVALID_ALLOCATED_EMITTER_INDEX; MAX_PARTICLE_COUNT as usize] },
             _need_to_clear_gpu_particle_buffer: true,
-        }
+        })
     }
 
     pub fn initialize_effect_manager(&mut self) {
@@ -336,8 +336,8 @@ impl EffectManager {
                 return if lhs.is_null() { Greater } else { Less }
             }
 
-            let lhs: &EmitterInstance = unsafe { &**lhs };
-            let rhs: &EmitterInstance = unsafe { &**rhs };
+            let lhs: &EmitterInstance = ptr_as_ref(*lhs);
+            let rhs: &EmitterInstance = ptr_as_ref(*rhs);
 
             if lhs._parent_effect != rhs._parent_effect {
                 return if lhs._parent_effect < rhs._parent_effect { Less } else { Greater }
@@ -355,7 +355,7 @@ impl EffectManager {
                 break;
             }
 
-            let emitter: &mut EmitterInstance = unsafe { &mut *(emitter as *mut EmitterInstance) };
+            let emitter: &mut EmitterInstance = ptr_as_mut(emitter);
             let emitter_data: &EmitterData = emitter.get_emitter_data();
             let available_particle_count: i32 = unsafe { max(0, min(MAX_PARTICLE_COUNT - process_gpu_particle_count, emitter_data._max_particle_count)) };
             if 0 == available_particle_count {
@@ -630,7 +630,7 @@ impl EffectManager {
         let mut prev_pipeline_data: *const PipelineData = std::ptr::null();
         let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
         for emitter in self._effect_render_group.iter() {
-            let emitter: &EmitterInstance = unsafe { &**emitter };
+            let emitter: &EmitterInstance = ptr_as_ref(*emitter);
             let emitter_data: &EmitterData = emitter.get_emitter_data();
             let material_instance_data: &MaterialInstanceData = &emitter_data._material_instance_data.borrow();
             let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);

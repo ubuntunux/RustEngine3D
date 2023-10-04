@@ -77,15 +77,15 @@ impl VertexDataBase for DebugLineVertexData {
 }
 
 impl DebugLineManager {
-    pub fn create_debug_line_manager() -> DebugLineManager {
+    pub fn create_debug_line_manager() -> Box<DebugLineManager> {
         log::info!("create_debug_line_manager");
-        DebugLineManager {
+        Box::new(DebugLineManager {
             _show: true,
             _debug_line_vertex_buffer: BufferData::default(),
             _debug_line_index_buffer: BufferData::default(),
             _debug_line_index_count: 0,
             _debug_line_instance_data_list: Vec::new(),
-        }
+        })
     }
 
     pub fn initialize_debug_line_manager(&mut self, renderer_context: &RendererContext) {

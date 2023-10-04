@@ -90,7 +90,7 @@ impl AudioInstance {
 }
 
 impl AudioManager {
-    pub fn create_audio_manager(sdl: &Sdl, engine_resources: *const EngineResources) -> AudioManager {
+    pub fn create_audio_manager(sdl: &Sdl, engine_resources: *const EngineResources) -> Box<AudioManager> {
         log::info!("create_audio_manager");
         let audio_subsystem = sdl.audio().expect("failed to sdl.audio");
         let frequency = 44_100;
@@ -119,14 +119,14 @@ impl AudioManager {
             log::info!("\tquery spec => {:?}", sdl2::mixer::query_spec());
         }
 
-        AudioManager {
+        Box::new(AudioManager {
             _engine_resources: engine_resources,
             _audio_instances: HashMap::new(),
             _bgm: None,
             _audio_subsystem: audio_subsystem,
             _mixer_context: mixer_context,
             _volume: DEFAULT_AUDIO_VOLUME,
-        }
+        })
     }
 
     pub fn initialize_audio_manager(&mut self) {

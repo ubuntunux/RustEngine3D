@@ -18,6 +18,7 @@ use crate::application::audio_manager::{
     AudioBankCreateInfo
 };
 use crate::constants;
+use crate::application::scene_manager::SceneDataCreateInfo;
 use crate::effect::effect_data::{ EffectData, EffectDataCreateInfo, EmitterDataCreateInfo, EmitterData };
 use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
 use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
@@ -59,6 +60,7 @@ pub const TEXTURE_SOURCE_DIRECTORY: &str = "externals/textures";
 pub const TEXTURE_DIRECTORY: &str = "textures";
 pub const SHADER_CACHE_DIRECTORY: &str = "shader_caches";
 pub const SHADER_DIRECTORY: &str = "shaders";
+pub const SCENE_DIRECTORY: &str = "scenes";
 
 pub const EXT_AUDIO_SOURCE: [&str; 2] = ["wav", "mp3"];
 pub const EXT_AUDIO_BANK: &str = "bank";
@@ -82,6 +84,7 @@ pub const EXT_TEXTURE_CUBE: &str = "cube";
 pub const EXT_TEXTURE_2D_ARRAY: &str = "2darray";
 pub const EXT_TEXTURE_3D: &str = "3d";
 pub const EXT_TEXTURE: [&str; 1] = ["texture"];
+pub const EXT_SCENE: &str = "scene";
 
 pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
@@ -150,6 +153,7 @@ pub type ModelDataMap = ResourceDataMap<ModelData>;
 pub type TextureDataMap = ResourceDataMap<TextureData>;
 pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
 pub type RenderPassDataCreateInfoMap = HashMap<String, RenderPassDataCreateInfo>;
+pub type SceneDataCreateInfoMap = ResourceDataMap<SceneDataCreateInfo>;
 pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
@@ -198,6 +202,7 @@ pub struct EngineResources {
     pub _framebuffer_data_list_map: FramebufferDataListMap,
     pub _render_pass_data_map: RenderPassDataMap,
     pub _render_pass_data_create_info_map: RenderPassDataCreateInfoMap,
+    pub _scene_data_create_infos_map: SceneDataCreateInfoMap,
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
     pub _descriptor_data_map: DescriptorDataMap
@@ -312,7 +317,7 @@ impl MetaData {
 }
 
 impl EngineResources {
-    pub fn create_engine_resources(project_resources: *const dyn ProjectResourcesBase) -> EngineResources {
+    pub fn create_engine_resources(project_resources: *const dyn ProjectResourcesBase) -> Box<EngineResources> {
         let mut engine_resource = EngineResources {
             _project_resources: project_resources,
             _relative_resource_file_path_map: HashMap::new(),
@@ -326,21 +331,22 @@ impl EngineResources {
             _framebuffer_data_list_map: FramebufferDataListMap::new(),
             _render_pass_data_map: RenderPassDataMap::new(),
             _render_pass_data_create_info_map: RenderPassDataCreateInfoMap::new(),
+            _scene_data_create_infos_map: SceneDataCreateInfoMap::new(),
             _material_data_map: MaterialDataMap::new(),
             _material_instance_data_map: MaterialInstanceDataMap::new(),
             _descriptor_data_map: DescriptorDataMap::new(),
         };
 
         engine_resource.preinitialize_engine_resources();
-        engine_resource
+        Box::new(engine_resource)
     }
 
     pub fn get_project_resources(&self) -> &dyn ProjectResourcesBase {
-        unsafe { &*self._project_resources }
+        ptr_as_ref(self._project_resources)
     }
 
     pub fn get_project_resources_mut(&self) -> &mut dyn ProjectResourcesBase {
-        unsafe { &mut *(self._project_resources as *mut dyn ProjectResourcesBase) }
+        ptr_as_mut(self._project_resources)
     }
 
     pub fn preinitialize_engine_resources(&mut self) {
@@ -474,6 +480,7 @@ impl EngineResources {
         self.load_model_data_list();
         self.load_audio_data_list();
         self.load_effect_data_list();
+        self.load_scene_data_list(renderer_context);
 
         // load project resources
         self.get_project_resources_mut().load_project_resources(renderer_context);
@@ -488,6 +495,7 @@ impl EngineResources {
         self.get_project_resources_mut().destroy_project_resources(renderer_context);
 
         // destroy engine resources
+        self.unload_scene_data_list(renderer_context);
         self.unload_effect_data_list();
         self.unload_audio_data_list();
         self.unload_model_data_list();
@@ -635,7 +643,7 @@ impl EngineResources {
 
     pub fn get_audio_bank_data(&mut self, resource_name: &str) -> &ResourceData {
         if let Some(resource_info) = self._audio_bank_data_map.get(resource_name) {
-            let resource_info = unsafe { &mut *(resource_info as *const ResourceInfo as *mut ResourceInfo) };
+            let resource_info = ptr_as_mut(resource_info);
             match resource_info._resource_data {
                 ResourceData::None => {
                     if resource_info._meta_data._resource_file_path.is_file() {
@@ -1592,5 +1600,43 @@ impl EngineResources {
             descriptor::destroy_descriptor_data(renderer_context.get_device(), &(*descriptor_data).borrow());
         }
         self._descriptor_data_map.clear();
+    }
+
+    // SceneData
+    pub fn load_scene_data_list(&mut self, _renderer_context: &RendererContext) {
+        log::info!("    load_scene_data_list");
+        let scene_directory = PathBuf::from(SCENE_DIRECTORY);
+        let scene_data_files: Vec<PathBuf> = self.collect_resources(&scene_directory, &[EXT_SCENE]);
+        for scene_data_file in scene_data_files {
+            let scene_data_name = get_unique_resource_name(&self._scene_data_create_infos_map, &scene_directory, &scene_data_file);
+            let loaded_contents = system::load(&scene_data_file);
+            let scene_data_create_info: SceneDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            self._scene_data_create_infos_map.insert(scene_data_name.clone(), newRcRefCell(scene_data_create_info));
+        }
+    }
+
+    pub fn unload_scene_data_list(&mut self, _renderer_context: &RendererContext) {
+        self._scene_data_create_infos_map.clear();
+    }
+
+    pub fn save_scene_data(&mut self, scene_data_name: &str, scene_data_create_info: &SceneDataCreateInfo) {
+        let mut scene_data_filepath = PathBuf::from(PROJECT_RESOURCE_PATH);
+        scene_data_filepath.push(SCENE_DIRECTORY);
+        scene_data_filepath.push(scene_data_name);
+        scene_data_filepath.set_extension(EXT_SCENE);
+        let mut write_file = File::create(&scene_data_filepath).expect("Failed to create file");
+        let mut write_contents: String = serde_json::to_string(&scene_data_create_info).expect("Failed to serialize.");
+        write_contents = write_contents.replace(",\"", ",\n\"");
+        write_file.write(write_contents.as_bytes()).expect("Failed to write");
+
+        self._scene_data_create_infos_map.insert(String::from(scene_data_name), newRcRefCell(scene_data_create_info.clone()));
+    }
+
+    pub fn has_scene_data(&self, resource_name: &str) -> bool {
+        self._scene_data_create_infos_map.get(resource_name).is_some()
+    }
+
+    pub fn get_scene_data(&self, resource_name: &str) -> &RcRefCell<SceneDataCreateInfo> {
+        self._scene_data_create_infos_map.get(resource_name).unwrap()
     }
 }

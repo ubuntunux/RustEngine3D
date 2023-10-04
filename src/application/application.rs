@@ -19,7 +19,7 @@ use winit::window::{
 };
 
 use crate::application::audio_manager::AudioManager;
-use crate::application::scene_manager::ProjectSceneManagerBase;
+use crate::application::scene_manager::{ProjectSceneManagerBase, SceneManager};
 use crate::application::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::debug_line::DebugLineManager;
@@ -99,7 +99,6 @@ impl TimeData {
 pub trait ProjectApplicationBase {
     fn initialize_project_application(&mut self, engine_application: &EngineApplication, window_size: &Vector2<i32>);
     fn terminate_project_application(&mut self);
-    fn resized_window(&self, width: i32, height: i32);
     fn update_event(&mut self);
     fn update_project_application(&mut self, delta_time: f64);
 }
@@ -123,15 +122,15 @@ pub struct EngineApplication {
     pub _font_manager: Box<FontManager>,
     pub _renderer_context: Box<RendererContext>,
     pub _ui_manager: Box<UIManager>,
+    pub _scene_manager: Box<SceneManager>,
     pub _project_application: *const dyn ProjectApplicationBase,
-    pub _project_scene_manager: *const dyn ProjectSceneManagerBase,
 }
 
 impl EngineApplication {
-    pub fn get_project_application(&self) -> &dyn ProjectApplicationBase { unsafe { &*self._project_application } }
-    pub fn get_project_application_mut(&self) -> &mut dyn ProjectApplicationBase { unsafe { &mut *(self._project_application as *mut dyn ProjectApplicationBase) } }
-    pub fn get_project_scene_manager(&self) -> &dyn ProjectSceneManagerBase { unsafe { &*self._project_scene_manager } }
-    pub fn get_project_scene_manager_mut(&self) -> &mut dyn ProjectSceneManagerBase { unsafe { &mut *(self._project_scene_manager as *mut dyn ProjectSceneManagerBase) } }
+    pub fn get_project_application(&self) -> &dyn ProjectApplicationBase { ptr_as_ref(self._project_application) }
+    pub fn get_project_application_mut(&self) -> &mut dyn ProjectApplicationBase { ptr_as_mut(self._project_application) }
+    pub fn get_scene_manager(&self) -> &SceneManager { self._scene_manager.as_ref() }
+    pub fn get_scene_manager_mut(&self) -> &mut SceneManager { ptr_as_mut(self._scene_manager.as_ref()) }
     pub fn get_window(&self) -> &Window { ptr_as_ref(self._window) }
     pub fn get_audio_manager(&self) -> &AudioManager { self._audio_manager.as_ref() }
     pub fn get_audio_manager_mut(&self) -> &mut AudioManager { ptr_as_mut(self._audio_manager.as_ref()) }
@@ -161,18 +160,19 @@ impl EngineApplication {
     ) -> Box<EngineApplication> {
         // create managers
         let window_size: Vector2<i32> = Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
-        let engine_resources = Box::new(EngineResources::create_engine_resources(project_resources));
-        let debug_line_manager = Box::new(DebugLineManager::create_debug_line_manager());
-        let font_manager = Box::new(FontManager::create_font_manager());
-        let ui_manager = Box::new(UIManager::create_ui_manager(project_ui_manager));
-        let renderer_context = Box::new(RendererContext::create_renderer_context(app_name, app_version, display_handle, &window_size, window, engine_resources.as_ref()));
-        let effect_manager = Box::new(EffectManager::create_effect_manager());
-        let audio_manager = Box::new(AudioManager::create_audio_manager(&sdl, engine_resources.as_ref()));
+        let engine_resources = EngineResources::create_engine_resources(project_resources);
+        let debug_line_manager = DebugLineManager::create_debug_line_manager();
+        let font_manager = FontManager::create_font_manager();
+        let ui_manager = UIManager::create_ui_manager(project_ui_manager);
+        let renderer_context = RendererContext::create_renderer_context(app_name, app_version, display_handle, &window_size, window, engine_resources.as_ref());
+        let effect_manager = EffectManager::create_effect_manager();
+        let audio_manager = AudioManager::create_audio_manager(&sdl, engine_resources.as_ref());
+        let scene_manager = SceneManager::create_scene_manager(project_scene_manager);
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
         let joystick_input_data = input::JoystickInputData::create_joystick_input_data(sdl);
-        let engine_application_box = Box::new(EngineApplication {
+        let engine_application_ptr = Box::new(EngineApplication {
             _display_handle: display_handle,
             _window: window,
             _window_size: window_size.into(),
@@ -190,13 +190,13 @@ impl EngineApplication {
             _ui_manager: ui_manager,
             _renderer_context: renderer_context,
             _engine_resources: engine_resources,
-            _project_application: project_application,
-            _project_scene_manager: project_scene_manager,
             _effect_manager: effect_manager,
+            _scene_manager: scene_manager,
+            _project_application: project_application,
         });
 
         // initialize managers
-        let engine_application = engine_application_box.as_ref();
+        let engine_application = engine_application_ptr.as_ref();
         engine_application.get_renderer_context_mut().initialize_renderer_context(
             engine_application.get_engine_resources(),
             engine_application.get_effect_manager()
@@ -223,7 +223,7 @@ impl EngineApplication {
 
         // initialize application
         engine_application.get_project_application_mut().initialize_project_application(&engine_application, &window_size);
-        engine_application_box
+        engine_application_ptr
     }
 
     pub fn terminate_application(&mut self) {
@@ -243,7 +243,7 @@ impl EngineApplication {
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;
         self._window_size.y = size.height as i32;
-        self.get_project_application().resized_window(size.width as i32, size.height as i32);
+        self.get_scene_manager_mut().resized_window(size.width as i32, size.height as i32);
 
         let renderer_context = self.get_renderer_context_mut();
         let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
@@ -399,8 +399,8 @@ impl EngineApplication {
                     &self._mouse_move_data,
                     &self._mouse_input_data,
                     &renderer_context.get_engine_resources());
-                let project_scene_manager = self.get_project_scene_manager();
-                renderer_context.render_scene(project_scene_manager, debug_line_manager, font_manager, ui_manager, elapsed_time, delta_time, elapsed_frame);
+                let scene_manager = self.get_scene_manager();
+                renderer_context.render_scene(scene_manager, debug_line_manager, font_manager, ui_manager, elapsed_time, delta_time, elapsed_frame);
             }
         }
 

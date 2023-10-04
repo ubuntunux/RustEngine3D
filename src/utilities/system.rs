@@ -9,7 +9,6 @@ pub type BoxRefCell<T> = Box<RefCell<T>>;
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 
-
 pub fn ptr_as_ref<T: ?Sized>(t: *const T) -> &'static T {
     unsafe { &*t }
 }

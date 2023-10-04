@@ -1423,7 +1423,7 @@ impl UIRenderGroupData {
 
 impl UIManager {
     pub fn get_root_ptr(&self) -> *const dyn Widget { self._root.as_ref() }
-    pub fn create_ui_manager(project_ui_manager: *const dyn ProjectUIManagerBase) -> UIManager {
+    pub fn create_ui_manager(project_ui_manager: *const dyn ProjectUIManagerBase) -> Box<UIManager> {
         log::info!("create_ui_manager");
         let mut ui_manager = UIManager {
             _project_ui_manager: project_ui_manager,
@@ -1444,7 +1444,7 @@ impl UIManager {
         ui_component.set_size_hint_x(Some(1.0));
         ui_component.set_size_hint_y(Some(1.0));
         ui_component.set_renderable(false);
-        ui_manager
+        Box::new(ui_manager)
     }
 
     pub fn initialize_ui_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
@@ -1470,11 +1470,11 @@ impl UIManager {
     }
 
     pub fn get_project_ui_manager(&self) -> &dyn ProjectUIManagerBase {
-        unsafe { &*self._project_ui_manager }
+        ptr_as_ref(self._project_ui_manager)
     }
 
     pub fn get_project_ui_manager_mut(&self) -> &mut dyn ProjectUIManagerBase {
-        unsafe { &mut *(self._project_ui_manager as *mut dyn ProjectUIManagerBase) }
+        ptr_as_mut(self._project_ui_manager)
     }
 
     #[allow(dropping_references)]

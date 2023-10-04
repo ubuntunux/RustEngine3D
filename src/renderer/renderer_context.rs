@@ -27,7 +27,7 @@ use winit;
 use winit::window::{ Window };
 
 use crate::constants;
-use crate::application::scene_manager::ProjectSceneManagerBase;
+use crate::application::scene_manager::SceneManager;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::debug_line::DebugLineManager;
 use crate::renderer::font::FontManager;
@@ -129,7 +129,7 @@ pub trait RendererDataBase {
         frame_index: usize,
         swapchain_index: u32,
         renderer_context: &RendererContext,
-        project_scene_manager: &dyn ProjectSceneManagerBase,
+        scene_manager: &SceneManager,
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
@@ -180,7 +180,7 @@ impl RendererContext {
         window_size: &Vector2<i32>,
         window: &Window,
         engine_resources: *const EngineResources,
-    ) -> RendererContext {
+    ) -> Box<RendererContext> {
         unsafe {
             log::info!("create_renderer_context: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
             let entry = Entry::linked();
@@ -301,7 +301,7 @@ impl RendererContext {
             // renderer data
             let renderer_data = Box::new(RendererData::create_renderer_data());
 
-            RendererContext {
+            Box::new(RendererContext {
                 _frame_index: 0,
                 _swapchain_index: 0,
                 _need_recreate_swapchain: false,
@@ -331,7 +331,7 @@ impl RendererContext {
                 _ray_tracing_test_data: RayTracingData::create_ray_tracing_data(),
                 _engine_resources: engine_resources.clone(),
                 _renderer_data: renderer_data,
-            }
+            })
         }
     }
 
@@ -930,7 +930,7 @@ impl RendererContext {
 
     pub fn render_scene(
         &mut self,
-        project_scene_manager: &dyn ProjectSceneManagerBase,
+        scene_manager: &SceneManager,
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
@@ -976,7 +976,7 @@ impl RendererContext {
                     frame_index,
                     swapchain_index,
                     &self,
-                    project_scene_manager,
+                    scene_manager,
                     debug_line_manager,
                     font_manager,
                     ui_manager,

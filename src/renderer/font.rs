@@ -311,9 +311,9 @@ impl TextRenderData {
 }
 
 impl FontManager {
-    pub fn create_font_manager() -> FontManager {
+    pub fn create_font_manager() -> Box<FontManager> {
         log::info!("create_font_manager");
-        FontManager {
+        Box::new(FontManager {
             _ascii: newRcRefCell(FontData::default()),
             _show: true,
             _logs: Vec::new(),
@@ -321,7 +321,7 @@ impl FontManager {
             _font_mesh_vertex_buffer: BufferData::default(),
             _font_mesh_index_buffer: BufferData::default(),
             _font_mesh_index_count: 0,
-        }
+        })
     }
 
     pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {

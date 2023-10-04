@@ -9,7 +9,7 @@ use ash::extensions::ext::DebugUtils;
 use nalgebra::{Vector2, Matrix4};
 
 use crate::constants;
-use crate::application::scene_manager::ProjectSceneManagerBase;
+use crate::application::scene_manager::SceneManager;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::camera::CameraObjectData;
 use crate::renderer::debug_line::DebugLineManager;
@@ -53,7 +53,7 @@ use crate::vulkan_context::render_pass::{ RenderPassDataCreateInfo, PipelineData
 use crate::vulkan_context::texture::{ self, TextureData };
 use crate::vulkan_context::vulkan_context::{ self, SwapchainArray, MipLevels };
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
-use crate::utilities::system::ptr_as_ref;
+use crate::utilities::system::{ptr_as_ref, ptr_as_mut};
 
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
@@ -334,7 +334,7 @@ impl RendererDataBase for RendererData {
         frame_index: usize,
         swapchain_index: u32,
         renderer_context: &RendererContext,
-        project_scene_manager: &dyn ProjectSceneManagerBase,
+        scene_manager: &SceneManager,
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
@@ -345,16 +345,16 @@ impl RendererDataBase for RendererData {
         let _label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_scene");
 
         let engine_resources = renderer_context.get_engine_resources();
-        let main_camera = project_scene_manager.get_main_camera();
-        let main_light = project_scene_manager.get_main_light().borrow();
-        let mut capture_height_map = project_scene_manager.get_capture_height_map().borrow_mut();
+        let main_camera = scene_manager.get_main_camera();
+        let main_light = scene_manager.get_main_light().borrow();
+        let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
         let render_capture_height_map: bool = capture_height_map.get_need_to_redraw_shadow_and_reset();
         let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
         let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
-        let static_render_elements = project_scene_manager.get_static_render_elements();
-        let static_shadow_render_elements = project_scene_manager.get_static_shadow_render_elements();
-        let skeletal_render_elements = project_scene_manager.get_skeletal_render_elements();
-        let skeletal_shadow_render_elements = project_scene_manager.get_skeletal_shadow_render_elements();
+        let static_render_elements = scene_manager.get_static_render_elements();
+        let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
+        let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
+        let skeletal_shadow_render_elements = scene_manager.get_skeletal_shadow_render_elements();
 
         // pre update
         self.pre_update_render_scene(delta_time);
@@ -383,8 +383,8 @@ impl RendererDataBase for RendererData {
             self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::SSAOConstants, &self._render_context_ssao._ssao_constants);
             self.upload_shader_buffer_data(command_buffer, swapchain_index, &ShaderBufferDataType::AtmosphereConstants, &self._atmosphere._atmosphere_constants);
 
-            let transform_matrix_count = project_scene_manager.get_render_element_transform_count();
-            let transform_matrices: &[Matrix4<f32>] = &project_scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
+            let transform_matrix_count = scene_manager.get_render_element_transform_count();
+            let transform_matrices: &[Matrix4<f32>] = &scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
             self.upload_shader_buffer_data_list(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, transform_matrices);
         }
 
@@ -440,7 +440,7 @@ impl RendererDataBase for RendererData {
                 swapchain_index,
                 &quad_geometry_data,
                 &engine_resources,
-                project_scene_manager,
+                scene_manager,
                 &main_camera,
                 static_render_elements
             );
@@ -651,14 +651,14 @@ impl RendererData {
         }
     }
 
-    pub fn get_effect_manager(&self) -> &EffectManager { unsafe { &*self._effect_manager } }
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager { unsafe { &mut *(self._effect_manager as *mut EffectManager) } }
-    pub fn get_renderer_context(&self) -> &RendererContext { unsafe { &*self._renderer_context } }
-    pub fn get_renderer_context_mut(&self) -> &mut RendererContext { unsafe { &mut *(self._renderer_context as *mut RendererContext) } }
-    pub fn get_engine_resources(&self) -> &EngineResources { unsafe { &*self._engine_resources } }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources { unsafe { &mut *(self._engine_resources as *mut EngineResources) } }
-    pub fn get_fft_ocean_mut(&self) -> &mut FFTOcean { unsafe { &mut *((&self._fft_ocean as *const FFTOcean) as *mut FFTOcean) } }
-    pub fn get_atmosphere_mut(&self) -> &mut Atmosphere { unsafe { &mut *((&self._atmosphere as *const Atmosphere) as *mut Atmosphere) } }
+    pub fn get_effect_manager(&self) -> &EffectManager { ptr_as_ref(self._effect_manager) }
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager { ptr_as_mut(self._effect_manager) }
+    pub fn get_renderer_context(&self) -> &RendererContext { ptr_as_ref(self._renderer_context) }
+    pub fn get_renderer_context_mut(&self) -> &mut RendererContext { ptr_as_mut(self._renderer_context) }
+    pub fn get_engine_resources(&self) -> &EngineResources { ptr_as_ref(self._engine_resources) }
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources { ptr_as_mut(self._engine_resources) }
+    pub fn get_fft_ocean_mut(&self) -> &mut FFTOcean { ptr_as_mut(&self._fft_ocean) }
+    pub fn get_atmosphere_mut(&self) -> &mut Atmosphere { ptr_as_mut(&self._atmosphere) }
     pub fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData {
         &self._shader_buffer_data_map.get(buffer_data_type).unwrap()
     }
@@ -797,7 +797,7 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         engine_resources: &EngineResources,
-        project_scene_manager: &dyn ProjectSceneManagerBase,
+        scene_manager: &SceneManager,
         main_camera: &CameraObjectData,
         static_render_elements: &Vec<RenderElementData>
     ) {
@@ -835,7 +835,7 @@ impl RendererData {
 
         // render atmosphere, inscatter
         for layer_index in 0..constants::CUBE_LAYER_COUNT {
-            let mut light_probe_camera = project_scene_manager.get_light_probe_camera(layer_index).borrow_mut();
+            let mut light_probe_camera = scene_manager.get_light_probe_camera(layer_index).borrow_mut();
             light_probe_camera._transform_object.set_position(main_camera_position);
             light_probe_camera.update_camera_object_data();
             light_probe_view_constants.update_view_constants(&light_probe_camera);
