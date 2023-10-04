@@ -12,7 +12,7 @@ use crate::renderer::render_context::RenderContext_TAA_Simple;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{DEFAULT_PIPELINE, RendererData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
-use crate::renderer::shader_buffer_datas::{ AtmosphereConstants };
+use crate::renderer::shader_buffer_data::{ AtmosphereConstants };
 
 pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE

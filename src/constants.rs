@@ -3,7 +3,7 @@ use ash::vk;
 
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
-pub const DEPTH_FOMATS: [vk::Format; 5] = [
+pub const DEPTH_FORMATS: [vk::Format; 5] = [
     vk::Format::D32_SFLOAT,
     vk::Format::D32_SFLOAT_S8_UINT,
     vk::Format::D24_UNORM_S8_UINT,

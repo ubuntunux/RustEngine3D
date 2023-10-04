@@ -203,7 +203,7 @@ impl FFTOcean {
                 _texture_format: vk::Format::R32G32B32A32_SFLOAT,
                 _texture_min_filter: vk::Filter::NEAREST,
                 _texture_mag_filter: vk::Filter::NEAREST,
-                _texture_initial_datas: spectrum12_data.clone(),
+                _texture_initial_data_list: spectrum12_data.clone(),
                 ..Default::default()
             });
             engine_resources.regist_texture_data(texture_spectrum_1_2._texture_data_name.clone(), newRcRefCell(texture_spectrum_1_2));
@@ -217,7 +217,7 @@ impl FFTOcean {
                 _texture_format: vk::Format::R32G32B32A32_SFLOAT,
                 _texture_min_filter: vk::Filter::NEAREST,
                 _texture_mag_filter: vk::Filter::NEAREST,
-                _texture_initial_datas: spectrum34_data.clone(),
+                _texture_initial_data_list: spectrum34_data.clone(),
                 ..Default::default()
             });
             engine_resources.regist_texture_data(texture_spectrum_3_4._texture_data_name.clone(), newRcRefCell(texture_spectrum_3_4));
@@ -232,7 +232,7 @@ impl FFTOcean {
                 _texture_min_filter: vk::Filter::NEAREST,
                 _texture_mag_filter: vk::Filter::NEAREST,
                 _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-                _texture_initial_datas: butterfly_data.clone(),
+                _texture_initial_data_list: butterfly_data.clone(),
                 ..Default::default()
             });
             engine_resources.regist_texture_data(texture_butterfly._texture_data_name.clone(), newRcRefCell(texture_butterfly));

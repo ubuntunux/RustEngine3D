@@ -153,7 +153,7 @@ pub struct TextRenderData {
     pub _initial_row: i32,
     pub _font_data: RcRefCell<FontData>,
     pub _render_count: u32,
-    pub _font_instance_datas: Vec<FontInstanceData>,
+    pub _font_instance_data_list: Vec<FontInstanceData>,
     pub _render_font_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
@@ -170,7 +170,7 @@ impl Default for TextRenderData {
             _initial_row: 0,
             _font_data: newRcRefCell(FontData::default()),
             _render_count: 0,
-            _font_instance_datas: Vec::new(),
+            _font_instance_data_list: Vec::new(),
             _render_font_descriptor_sets: SwapchainArray::new(),
         }
     }
@@ -216,7 +216,7 @@ impl TextRenderData {
             _font_data: font_data.clone(),
             ..Default::default()
         };
-        text_render_data._font_instance_datas.resize(constants::MAX_FONT_INSTANCE_COUNT, FontInstanceData::default());
+        text_render_data._font_instance_data_list.resize(constants::MAX_FONT_INSTANCE_COUNT, FontInstanceData::default());
         text_render_data.create_texture_render_data_descriptor_sets(device, debug_utils, engine_resources);
         text_render_data
     }
@@ -269,7 +269,7 @@ impl TextRenderData {
                 let index: u32 = max(0, (*c) as i32 - range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * ratio;
                 let texcoord_y = (index / count_of_side) as f32 * ratio;
-                let font_instance_data = &mut self._font_instance_datas[render_index as usize];
+                let font_instance_data = &mut self._font_instance_data_list[render_index as usize];
                 font_instance_data._font_column = column as f32;
                 font_instance_data._font_row = row as f32;
                 font_instance_data._font_texcoord.x = texcoord_x;
@@ -362,7 +362,7 @@ impl FontManager {
     ) {
         log::debug!("create_font_vertex_data");
         let positions: Vec<Vector3<f32>> = vec![Vector3::new(-0.5, -0.5, 0.0), Vector3::new(0.5, -0.5, 0.0), Vector3::new(0.5, 0.5, 0.0), Vector3::new(-0.5, 0.5, 0.0)];
-        let vertex_datas = positions.iter().map(|position| FontVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
+        let vertex_data_list = positions.iter().map(|position| FontVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
         let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
 
         self._font_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
@@ -373,7 +373,7 @@ impl FontManager {
             debug_utils,
             "font_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &vertex_datas,
+            &vertex_data_list,
         );
 
         self._font_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
@@ -444,9 +444,9 @@ impl FontManager {
 
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
-            let upload_data = &self._text_render_data._font_instance_datas[0..text_count as usize];
+            let upload_data = &self._text_render_data._font_instance_data_list[0..text_count as usize];
             let shader_buffer = renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
-            renderer_context.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer, upload_data);
+            renderer_context.upload_shader_buffer_data_list(command_buffer, swapchain_index, shader_buffer, upload_data);
 
             // render text
             renderer_context.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, none_framebuffer_data);

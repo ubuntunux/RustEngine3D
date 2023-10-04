@@ -24,5 +24,5 @@ layout(binding = 1) uniform ViewConstants
 };
 layout(binding = 2) buffer DebugLineInstanceDataBuffer
 {
-    DebugLineInstanceData debug_line_datas[MAX_DEBUG_LINE_INSTANCE_COUNT];
+    DebugLineInstanceData debug_line_data_list[MAX_DEBUG_LINE_INSTANCE_COUNT];
 };

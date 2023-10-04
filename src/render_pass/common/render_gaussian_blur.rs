@@ -82,7 +82,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_datas: vec![
+            _push_constant_data_list: vec![
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,

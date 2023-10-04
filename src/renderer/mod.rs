@@ -17,7 +17,7 @@ pub mod render_object;
 pub mod render_target;
 pub mod renderer_data;
 pub mod renderer_context;
-pub mod shader_buffer_datas;
+pub mod shader_buffer_data;
 pub mod transform_object;
 pub mod ui;
 pub mod utility;

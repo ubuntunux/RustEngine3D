@@ -10,7 +10,7 @@ layout(location = 0) in vec4 inPosition;
 layout(location = 0) out VERTEX_OUTPUT vs_output;
 
 void main() {
-    DebugLineInstanceData debug_line_data = debug_line_datas[gl_InstanceIndex];
+    DebugLineInstanceData debug_line_data = debug_line_data_list[gl_InstanceIndex];
 
     // NOTE: invert y cause convert world to ndc
     if (0 == gl_VertexIndex)

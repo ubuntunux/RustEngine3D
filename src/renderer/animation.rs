@@ -34,7 +34,7 @@ pub struct SkeletonData {
 #[serde(default)]
 pub struct AnimationNodeCreateInfo {
     pub _name: String,
-    pub _hierachically_accumlated_matrix: bool,
+    pub _hierarchically_accumulated_matrix: bool,
     pub _combined_inv_bind_matrix: bool,
     pub _target: String,
     pub _times: Vec<f32>,
@@ -49,7 +49,7 @@ pub struct AnimationNodeCreateInfo {
 #[derive(Clone, Debug)]
 pub struct AnimationNodeData {
     pub _name: String,
-    pub _hierachically_accumlated_matrix: bool,
+    pub _hierarchically_accumulated_matrix: bool,
     pub _combined_inv_bind_matrix: bool,
     pub _target: String,
     pub _frame_times: Vec<f32>,
@@ -125,7 +125,7 @@ impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
             _name: String::new(),
-            _hierachically_accumlated_matrix: constants::HIERACHICALLY_ACCUMULATED_MATRIX,
+            _hierarchically_accumulated_matrix: constants::HIERACHICALLY_ACCUMULATED_MATRIX,
             _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
             _target: String::new(),
             _times: Vec::new(),
@@ -301,7 +301,7 @@ impl AnimationData {
 
     pub fn update_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
         unsafe {
-            if (*self._root_node)._hierachically_accumlated_matrix {
+            if (*self._root_node)._hierarchically_accumulated_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {
                     node.update_animation_node(frame, &mut animation_transforms[index]);
                     // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
@@ -327,7 +327,7 @@ impl AnimationNodeData {
     pub fn create_animation_node_data(bone: *const BoneData, animation_node_create_info: &AnimationNodeCreateInfo) -> AnimationNodeData {
         AnimationNodeData {
             _name: animation_node_create_info._name.clone(),
-            _hierachically_accumlated_matrix: animation_node_create_info._hierachically_accumlated_matrix,
+            _hierarchically_accumulated_matrix: animation_node_create_info._hierarchically_accumulated_matrix,
             _combined_inv_bind_matrix: animation_node_create_info._combined_inv_bind_matrix,
             _target: animation_node_create_info._target.clone(),  // bone name
             _frame_times: animation_node_create_info._times.clone(),

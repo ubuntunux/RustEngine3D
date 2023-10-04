@@ -159,7 +159,7 @@ pub struct RendererContext {
     pub _debug_call_back: vk::DebugUtilsMessengerEXT,
     pub _image_available_semaphores: FrameArray<vk::Semaphore>,
     pub _render_finished_semaphores: FrameArray<vk::Semaphore>,
-    pub _queue_family_datas: queue::QueueFamilyDatas,
+    pub _queue_family_data_list: queue::QueueFamilyDataList,
     pub _frame_fences: Vec<vk::Fence>,
     pub _command_pool: vk::CommandPool,
     pub _command_buffers: SwapchainArray<vk::CommandBuffer>,
@@ -182,7 +182,7 @@ impl RendererContext {
         engine_resources: *const EngineResources,
     ) -> RendererContext {
         unsafe {
-            log::info!("createrenderer_context: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
+            log::info!("create_renderer_context: {}, width: {}, height: {}", constants::ENGINE_NAME, window_size.x, window_size.y);
             let entry = Entry::linked();
             let surface_extensions = ash_window::enumerate_required_extensions(display_handle).unwrap();
             let required_layer_names = device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS);
@@ -275,7 +275,7 @@ impl RendererContext {
             let ray_tracing = Rc::new(RayTracing::new(&instance, &device));
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
-            let queue_family_datas = queue::QueueFamilyDatas {
+            let queue_family_data_list = queue::QueueFamilyDataList {
                 _graphics_queue: queue_map.get(&graphics_queue_index).unwrap_or(default_queue).clone(),
                 _present_queue: queue_map.get(&present_queue_index).unwrap_or(default_queue).clone(),
                 _queue_family_index_list: queue_family_index_set.clone(),
@@ -289,13 +289,13 @@ impl RendererContext {
                 &swapchain_interface,
                 surface,
                 &swapchain_support_details,
-                &queue_family_datas,
+                &queue_family_data_list,
                 constants::ENABLE_IMMEDIATE_MODE
             );
             let image_available_semaphores = sync::create_semaphores(&device);
             let render_finished_semaphores = sync::create_semaphores(&device);
             let frame_fences = sync::create_fences(&device);
-            let command_pool = command_buffer::create_command_pool(&device, &queue_family_datas);
+            let command_pool = command_buffer::create_command_pool(&device, &queue_family_data_list);
             let command_buffers = command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
             // renderer data
@@ -320,7 +320,7 @@ impl RendererContext {
                 _debug_call_back: debug_call_back,
                 _image_available_semaphores: image_available_semaphores,
                 _render_finished_semaphores: render_finished_semaphores,
-                _queue_family_datas: queue_family_datas,
+                _queue_family_data_list: queue_family_data_list,
                 _frame_fences: frame_fences,
                 _command_pool: command_pool,
                 _command_buffers: command_buffers,
@@ -403,8 +403,8 @@ impl RendererContext {
     pub fn get_command_buffers(&self) -> &SwapchainArray<vk::CommandBuffer> { &self._command_buffers }
     pub fn get_command_buffer(&self, index: usize) -> vk::CommandBuffer { self._command_buffers[index] }
     pub fn get_current_command_buffer(&self) -> vk::CommandBuffer { self._command_buffers[self._swapchain_index as usize] }
-    pub fn get_graphics_queue(&self) -> vk::Queue { self._queue_family_datas._graphics_queue }
-    pub fn get_present_queue(&self) -> vk::Queue { self._queue_family_datas._present_queue }
+    pub fn get_graphics_queue(&self) -> vk::Queue { self._queue_family_data_list._graphics_queue }
+    pub fn get_present_queue(&self) -> vk::Queue { self._queue_family_data_list._present_queue }
     pub fn create_render_target<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_render_target(
             self.get_instance(),
@@ -443,7 +443,7 @@ impl RendererContext {
             geometry_create_info
         )
     }
-    pub fn destroy_geomtry_buffer(&self, geometry_data: &geometry_buffer::GeometryData) {
+    pub fn destroy_geometry_buffer(&self, geometry_data: &geometry_buffer::GeometryData) {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
     }
     pub fn destroy_renderer_context(&mut self) {
@@ -660,8 +660,8 @@ impl RendererContext {
         descriptor_index: usize,
         descriptor_resource_info: &DescriptorResourceInfo
     ) {
-        let wirte_descriptor_sets: &Vec<vk::WriteDescriptorSet> = &pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
-        let write_descriptor_set = descriptor::create_write_descriptor_set(wirte_descriptor_sets, descriptor_index, descriptor_resource_info);
+        let write_descriptor_sets: &Vec<vk::WriteDescriptorSet> = &pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
+        let write_descriptor_set = descriptor::create_write_descriptor_set(write_descriptor_sets, descriptor_index, descriptor_resource_info);
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
         unsafe {
             self._device.update_descriptor_sets(&[write_descriptor_set], descriptor_copies);
@@ -675,12 +675,12 @@ impl RendererContext {
         descriptor_index: usize,
         descriptor_resource_info: &DescriptorResourceInfo
     ) {
-        let wirte_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> = &mut pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
-        descriptor::update_write_descriptor_set(wirte_descriptor_sets, descriptor_index, descriptor_resource_info);
-        let wirte_descriptor_set_offset = wirte_descriptor_sets[descriptor_index];
+        let write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> = &mut pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
+        descriptor::update_write_descriptor_set(write_descriptor_sets, descriptor_index, descriptor_resource_info);
+        let write_descriptor_set_offset = write_descriptor_sets[descriptor_index];
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
         unsafe {
-            self._device.update_descriptor_sets(&[wirte_descriptor_set_offset], descriptor_copies);
+            self._device.update_descriptor_sets(&[write_descriptor_set_offset], descriptor_copies);
         }
     }
 
@@ -776,13 +776,13 @@ impl RendererContext {
 
         // destroy swapchain & graphics engine_resources
         self.destroy_framebuffer_and_descriptors();
-        engine_resources.unload_graphics_datas(self);
+        engine_resources.unload_graphics_data_list(self);
         self.destroy_render_targets();
 
         // recreate swapchain & graphics engine_resources
         self.recreate_swapchain();
         self.create_render_targets();
-        engine_resources.load_graphics_datas(self);
+        engine_resources.load_graphics_data_list(self);
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);
     }
@@ -799,7 +799,7 @@ impl RendererContext {
             &self._swapchain_interface,
             self._surface,
             &self._swapchain_support_details,
-            &self._queue_family_datas,
+            &self._queue_family_data_list,
             unsafe { constants::ENABLE_IMMEDIATE_MODE }
         );
         self._command_buffers = command_buffer::create_command_buffers(&self._device, self._command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
@@ -833,9 +833,9 @@ impl RendererContext {
 
             // vkQueueSubmit
             {
-                let _label_render_effects = ScopedDebugLabel::create_scoped_queue_label(self.get_debug_utils(), self._queue_family_datas._graphics_queue, "vkQueueSubmit");
+                let _label_render_effects = ScopedDebugLabel::create_scoped_queue_label(self.get_debug_utils(), self._queue_family_data_list._graphics_queue, "vkQueueSubmit");
                 self._device.queue_submit(
-                    self._queue_family_datas._graphics_queue,
+                    self._queue_family_data_list._graphics_queue,
                     &[submit_info],
                     if waiting_for_fence { fence } else { vk::Fence::null() }
                 ).expect("vkQueueSubmit failed!");
@@ -899,7 +899,7 @@ impl RendererContext {
         }
     }
 
-    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T]) {
+    pub fn upload_shader_buffer_data_list<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T]) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
             let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
@@ -911,12 +911,12 @@ impl RendererContext {
         }
     }
 
-    pub fn read_shader_buffer_datas<T: Copy>(&self, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, read_offset: u32, read_data: &mut [T]) {
+    pub fn read_shader_buffer_data_list<T: Copy>(&self, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, read_offset: u32, read_data: &mut [T]) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         buffer::read_buffer_data(&self._device, buffer_data, read_offset, read_data);
     }
 
-    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T], offset: vk::DeviceSize) {
+    pub fn upload_shader_buffer_data_list_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data: &ShaderBufferData, upload_data: &[T], offset: vk::DeviceSize) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
             let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];

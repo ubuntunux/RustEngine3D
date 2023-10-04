@@ -289,7 +289,7 @@ pub fn regist_shader_buffer_data(debug_utils: &DebugUtils, shdaer_buffer_create_
     }
 }
 
-pub fn regist_shader_buffer_datas(
+pub fn regist_shader_buffer_data_list(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     debug_utils: &DebugUtils,

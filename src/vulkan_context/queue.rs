@@ -21,7 +21,7 @@ pub struct QueueFamilyIndices {
 }
 
 #[derive(Debug, Clone)]
-pub struct QueueFamilyDatas {
+pub struct QueueFamilyDataList {
     pub _graphics_queue: vk::Queue,
     pub _present_queue: vk::Queue,
     pub _queue_family_index_list: Vec<u32>,
@@ -103,12 +103,12 @@ pub fn get_queue_family_indices(
     physical_device: vk::PhysicalDevice,
     is_concurrent_mode: bool
 ) -> QueueFamilyIndices {
-    let queue_faimilies = get_queue_families(&instance, physical_device);
-    let presentation_queue_family_indices = select_presentation_queue_family(surface_interface, surface, physical_device, &queue_faimilies);
-    let graphics_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::GRAPHICS);
-    let compute_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::COMPUTE);
-    let transfer_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::TRANSFER);
-    let sparse_binding_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_faimilies, vk::QueueFlags::SPARSE_BINDING);
+    let queue_families = get_queue_families(&instance, physical_device);
+    let presentation_queue_family_indices = select_presentation_queue_family(surface_interface, surface, physical_device, &queue_families);
+    let graphics_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::GRAPHICS);
+    let compute_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::COMPUTE);
+    let transfer_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::TRANSFER);
+    let sparse_binding_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::SPARSE_BINDING);
     let default_index = graphics_queue_family_indices[0];
     let fn_get_queue_family_index = |indices: &Vec<u32>| -> u32 {
         if false == indices.is_empty() {

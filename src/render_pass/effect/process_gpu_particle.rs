@@ -15,7 +15,7 @@ use crate::vulkan_context::descriptor::{
 use crate::effect::effect_manager::PushConstant_UpdateGpuParticle;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 
 pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
@@ -25,7 +25,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("compute_gpu_particle_count"),
             _pipeline_compute_shader_file: PathBuf::from("effect/compute_gpu_particle_count.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_datas: vec![
+            _push_constant_data_list: vec![
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
@@ -68,7 +68,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("update_gpu_particle"),
             _pipeline_compute_shader_file: PathBuf::from("effect/update_gpu_particle.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_datas: vec![
+            _push_constant_data_list: vec![
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,

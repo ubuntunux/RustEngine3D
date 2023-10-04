@@ -37,7 +37,7 @@ pub struct RenderObjectData {
     pub _render_object_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _model_data: RcRefCell<ModelData>,
-    pub _push_constant_datas_group: Vec<Vec<PipelinePushConstantData>>,
+    pub _push_constant_data_list_group: Vec<Vec<PipelinePushConstantData>>,
     pub _bound_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
@@ -57,14 +57,14 @@ impl RenderObjectData {
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
 
-        let push_constant_datas_group = model_data.borrow()._material_instance_datas.iter().map(|material_instance_data| {
-            material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_datas.clone()
+        let push_constant_data_list_group = model_data.borrow()._material_instance_data_list.iter().map(|material_instance_data| {
+            material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_data_list.clone()
         }).collect();
 
         let mesh_data = model_data.borrow()._mesh_data.clone();
         let bound_box = mesh_data.borrow()._bound_box.clone();
         let has_animation_data = mesh_data.borrow().has_animation_data();
-        let geometry_bound_boxes = mesh_data.borrow()._geometry_datas.iter().map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone()).collect();
+        let geometry_bound_boxes = mesh_data.borrow()._geometry_data_list.iter().map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone()).collect();
         let mut render_object_data = RenderObjectData {
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
@@ -72,7 +72,7 @@ impl RenderObjectData {
             _bound_box: bound_box,
             _geometry_bound_boxes: geometry_bound_boxes,
             _transform_object: transform_object_data,
-            _push_constant_datas_group: push_constant_datas_group,
+            _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_info: None,
             _bone_count: 0
         };
@@ -85,7 +85,7 @@ impl RenderObjectData {
         if has_animation_data {
             let mut bone_count = 0usize;
             let mut animation_play_info = AnimationPlayInfo::default();
-            for animation in self._mesh_data.borrow_mut()._animation_datas.iter_mut() {
+            for animation in self._mesh_data.borrow_mut()._animation_data_list.iter_mut() {
                 assert!(0 == bone_count || bone_count == animation.get_bone_count());
                 bone_count = animation.get_bone_count();
                 let mut animation_buffers: Vec<Matrix4<f32>> = vec![Matrix4::identity(); bone_count];
@@ -109,8 +109,8 @@ impl RenderObjectData {
         &self._model_data
     }
 
-    pub fn get_push_constant_datas(&self, model_index: usize) -> &Vec<PipelinePushConstantData> {
-        &self._push_constant_datas_group[model_index]
+    pub fn get_push_constant_data_list(&self, model_index: usize) -> &Vec<PipelinePushConstantData> {
+        &self._push_constant_data_list_group[model_index]
     }
 
     pub fn get_transform_object_data(&self) -> &TransformObjectData {
@@ -148,7 +148,7 @@ impl RenderObjectData {
     }
 
     pub fn update_geometry_bound_boxes(&mut self, transform_matrix: &Matrix4<f32>) {
-        for (i, geometry_data) in self._mesh_data.borrow()._geometry_datas.iter().enumerate() {
+        for (i, geometry_data) in self._mesh_data.borrow()._geometry_data_list.iter().enumerate() {
             self._geometry_bound_boxes.get_mut(i).unwrap().update_with_matrix(&geometry_data.borrow()._geometry_bounding_box, transform_matrix);
         }
     }
@@ -169,8 +169,8 @@ impl RenderObjectData {
         if self.has_animation_play_info() {
             let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
             let mut blend_ratio: f32 = 1.0;
-            let animation_datas: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_datas;
-            for (i, animation) in animation_datas.iter().enumerate() {
+            let animation_data_list: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
+            for (i, animation) in animation_data_list.iter().enumerate() {
                 // update animation frame only first animation
                 if 0 == i {
                     if 1 < animation._frame_count {

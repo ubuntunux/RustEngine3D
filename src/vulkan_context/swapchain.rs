@@ -99,7 +99,7 @@ pub fn create_swapchain_data(
     swapchain_interface: &Swapchain,
     surface: vk::SurfaceKHR,
     swapchain_support_details: &SwapchainSupportDetails,
-    queue_family_datas: &queue::QueueFamilyDatas,
+    queue_family_data_list: &queue::QueueFamilyDataList,
     immediate_mode: bool
 ) -> SwapchainData
 {
@@ -144,10 +144,10 @@ pub fn create_swapchain_data(
         clipped: 1,
         ..Default::default()
     };
-    if queue_family_datas._queue_family_indices._graphics_queue_index != queue_family_datas._queue_family_indices._present_queue_index {
+    if queue_family_data_list._queue_family_indices._graphics_queue_index != queue_family_data_list._queue_family_indices._present_queue_index {
         swapchain_create_info.image_sharing_mode = vk::SharingMode::CONCURRENT;
-        swapchain_create_info.queue_family_index_count = queue_family_datas._queue_family_index_list.len() as u32;
-        swapchain_create_info.p_queue_family_indices = (&queue_family_datas._queue_family_index_list).as_ptr();
+        swapchain_create_info.queue_family_index_count = queue_family_data_list._queue_family_index_list.len() as u32;
+        swapchain_create_info.p_queue_family_indices = (&queue_family_data_list._queue_family_index_list).as_ptr();
     } else {
         swapchain_create_info.image_sharing_mode = vk::SharingMode::EXCLUSIVE;
     }

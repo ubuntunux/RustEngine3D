@@ -3,7 +3,7 @@
 
 uniform sampler2D texture_diffuse;
 
-layout(std430, binding=0) buffer particle_buffer { ParticleData particle_datas[]; };
+layout(std430, binding=0) buffer particle_buffer { ParticleData particle_data_list[]; };
 layout(std430, binding=1) buffer index_range_buffer { ParticleIndexRange particle_index_range; };
 
 struct VERTEX_OUTPUT
@@ -36,7 +36,7 @@ void main()
 
     uint id = (particle_index_range.begin_index + gl_InstanceID.x) % PARTICLE_MAX_COUNT;
 
-    if(PARTICLE_STATE_ALIVE != particle_datas[id].state)
+    if(PARTICLE_STATE_ALIVE != particle_data_list[id].state)
     {
         // culling
         gl_Position = vec4(0.0, 0.0, -10.0, 1.0);
@@ -47,16 +47,16 @@ void main()
     vec3 vertex_tangent = normalize(vs_in_tangent);
     vec4 vertex_position = vec4(vs_in_position, 1.0);
 
-    vec3 world_position = particle_datas[id].relative_position.xyz + CAMERA_POSITION.xyz;
-    world_position += (particle_datas[id].local_matrix * vertex_position).xyz;
+    vec3 world_position = particle_data_list[id].relative_position.xyz + CAMERA_POSITION.xyz;
+    world_position += (particle_data_list[id].local_matrix * vertex_position).xyz;
 
     vs_output.world_position = world_position.xyz;
 
     vec2 uv_size = vs_in_texcoord.xy / vec2(PARTICLE_CELL_COUNT);
-    vs_output.uv = particle_datas[id].sequence_uv + uv_size;
-    vs_output.next_uv = particle_datas[id].next_sequence_uv + uv_size;
-    vs_output.sequence_ratio = particle_datas[id].sequence_ratio;
-    vs_output.opacity = particle_datas[id].opacity;
+    vs_output.uv = particle_data_list[id].sequence_uv + uv_size;
+    vs_output.next_uv = particle_data_list[id].next_sequence_uv + uv_size;
+    vs_output.sequence_ratio = particle_data_list[id].sequence_ratio;
+    vs_output.opacity = particle_data_list[id].opacity;
 
     gl_Position = VIEW_PROJECTION * vec4(world_position, 1.0);
 }

@@ -85,8 +85,8 @@ pub fn parsing_vertex_buffer(
 ) -> (Vec<VertexData>, Vec<SkeletalVertexData>, bool) {
     let is_identity: bool = *parent_transform == Matrix4::identity();
     let mut find_tangent_data: bool = false;
-    let mut vertex_datas: Vec<VertexData> = Vec::new();
-    let mut skeletal_vertex_datas: Vec<SkeletalVertexData> = Vec::new();
+    let mut vertex_data_list: Vec<VertexData> = Vec::new();
+    let mut skeletal_vertex_data_list: Vec<SkeletalVertexData> = Vec::new();
 
     for attribute in primitive.attributes() {
         let semantic = &attribute.0;
@@ -100,12 +100,12 @@ pub fn parsing_vertex_buffer(
         let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
 
         if is_skeletal_mesh {
-            if skeletal_vertex_datas.is_empty() {
-                skeletal_vertex_datas.resize(vertex_count, SkeletalVertexData::default());
+            if skeletal_vertex_data_list.is_empty() {
+                skeletal_vertex_data_list.resize(vertex_count, SkeletalVertexData::default());
             }
         } else {
-            if vertex_datas.is_empty() {
-                vertex_datas.resize(vertex_count, VertexData::default());
+            if vertex_data_list.is_empty() {
+                vertex_data_list.resize(vertex_count, VertexData::default());
             }
         }
 
@@ -120,9 +120,9 @@ pub fn parsing_vertex_buffer(
                     }
 
                     if is_skeletal_mesh {
-                        skeletal_vertex_datas[i]._position.clone_from(&data);
+                        skeletal_vertex_data_list[i]._position.clone_from(&data);
                     } else {
-                        vertex_datas[i]._position.clone_from(&data);
+                        vertex_data_list[i]._position.clone_from(&data);
                     }
                 }
             },
@@ -137,9 +137,9 @@ pub fn parsing_vertex_buffer(
                     }
 
                     if is_skeletal_mesh {
-                        skeletal_vertex_datas[i]._normal.clone_from(&data);
+                        skeletal_vertex_data_list[i]._normal.clone_from(&data);
                     } else {
-                        vertex_datas[i]._normal.clone_from(&data);
+                        vertex_data_list[i]._normal.clone_from(&data);
                     }
                 }
             },
@@ -156,9 +156,9 @@ pub fn parsing_vertex_buffer(
                     }
 
                     if is_skeletal_mesh {
-                        skeletal_vertex_datas[i]._tangent = data;
+                        skeletal_vertex_data_list[i]._tangent = data;
                     } else {
-                        vertex_datas[i]._tangent = data;
+                        vertex_data_list[i]._tangent = data;
                     }
                 }
             },
@@ -176,9 +176,9 @@ pub fn parsing_vertex_buffer(
                             (data.w >> 8) as u32
                         );
                         if is_skeletal_mesh {
-                            skeletal_vertex_datas[i]._color = color;
+                            skeletal_vertex_data_list[i]._color = color;
                         } else {
-                            vertex_datas[i]._color = color;
+                            vertex_data_list[i]._color = color;
                         }
                     }
                 }
@@ -190,9 +190,9 @@ pub fn parsing_vertex_buffer(
                     let buffer_data: Vec<Vector2<f32>> = system::convert_vec(bytes);
                     for (i, data) in buffer_data.iter().enumerate() {
                         if is_skeletal_mesh {
-                            skeletal_vertex_datas[i]._texcoord.clone_from(&data);
+                            skeletal_vertex_data_list[i]._texcoord.clone_from(&data);
                         } else {
-                            vertex_datas[i]._texcoord.clone_from(&data);
+                            vertex_data_list[i]._texcoord.clone_from(&data);
                         }
                     }
                 }
@@ -204,7 +204,7 @@ pub fn parsing_vertex_buffer(
                     assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
                     let buffer_data: Vec<Vector4<u8>> = system::convert_vec(bytes);
                     for (i, data) in buffer_data.iter().enumerate() {
-                        skeletal_vertex_datas[i]._bone_indices = Vector4::new(data.x as u32, data.y as u32, data.z as u32, data.w as u32);
+                        skeletal_vertex_data_list[i]._bone_indices = Vector4::new(data.x as u32, data.y as u32, data.z as u32, data.w as u32);
                     }
                 }
             },
@@ -215,7 +215,7 @@ pub fn parsing_vertex_buffer(
                     assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
                     let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
                     for (i, data) in buffer_data.iter().enumerate() {
-                        skeletal_vertex_datas[i]._bone_weights.clone_from(data);
+                        skeletal_vertex_data_list[i]._bone_weights.clone_from(data);
                     }
                 }
             },
@@ -223,33 +223,33 @@ pub fn parsing_vertex_buffer(
         }
     }
 
-    return (vertex_datas, skeletal_vertex_datas, find_tangent_data);
+    return (vertex_data_list, skeletal_vertex_data_list, find_tangent_data);
 }
 
 pub fn compute_tangent(
     is_skeletal_mesh: bool,
     indices: &Vec<u32>,
-    vertex_datas: &mut Vec<VertexData>,
-    skeletal_vertex_datas: &mut Vec<SkeletalVertexData>
+    vertex_data_list: &mut Vec<VertexData>,
+    skeletal_vertex_data_list: &mut Vec<SkeletalVertexData>
 ) {
     let mut positions: Vec<Vector3<f32>> = Vec::new();
     let mut normals: Vec<Vector3<f32>> = Vec::new();
     let mut texcoords: Vec<Vector2<f32>> = Vec::new();
-    let vertex_count = if is_skeletal_mesh { skeletal_vertex_datas.len() } else { vertex_datas.len() };
+    let vertex_count = if is_skeletal_mesh { skeletal_vertex_data_list.len() } else { vertex_data_list.len() };
     positions.reserve(vertex_count);
     normals.reserve(vertex_count);
     texcoords.reserve(vertex_count);
 
-    // gather vertex datas
+    // gather vertex data_list
     for vertex_data_index in 0..vertex_count {
         if is_skeletal_mesh {
-            positions.push(skeletal_vertex_datas[vertex_data_index]._position.clone());
-            normals.push(skeletal_vertex_datas[vertex_data_index]._normal.clone());
-            texcoords.push(skeletal_vertex_datas[vertex_data_index]._texcoord.clone());
+            positions.push(skeletal_vertex_data_list[vertex_data_index]._position.clone());
+            normals.push(skeletal_vertex_data_list[vertex_data_index]._normal.clone());
+            texcoords.push(skeletal_vertex_data_list[vertex_data_index]._texcoord.clone());
         } else {
-            positions.push(vertex_datas[vertex_data_index]._position.clone());
-            normals.push(vertex_datas[vertex_data_index]._normal.clone());
-            texcoords.push(vertex_datas[vertex_data_index]._texcoord.clone());
+            positions.push(vertex_data_list[vertex_data_index]._position.clone());
+            normals.push(vertex_data_list[vertex_data_index]._normal.clone());
+            texcoords.push(vertex_data_list[vertex_data_index]._texcoord.clone());
         }
     }
 
@@ -257,9 +257,9 @@ pub fn compute_tangent(
     let tangents: Vec<Vector3<f32>> = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
     for (vertex_data_index, tangent) in tangents.iter().enumerate() {
         if is_skeletal_mesh {
-            skeletal_vertex_datas[vertex_data_index]._tangent.clone_from(&tangent);
+            skeletal_vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
         } else {
-            vertex_datas[vertex_data_index]._tangent.clone_from(&tangent);
+            vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
         }
     }
 }
@@ -347,7 +347,7 @@ pub fn parsing_skins(
 
 pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>, mesh_data_create_info: &mut MeshDataCreateInfo) {
     let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
-    let mut animation_node_datas: Vec<AnimationNodeCreateInfo> = Vec::new();
+    let mut animation_node_data_list: Vec<AnimationNodeCreateInfo> = Vec::new();
     for bone_name in skeleton_create_info._bone_names.iter() {
         let mut animation_node_data = AnimationNodeCreateInfo {
             _name: format!("{}_{}", skin.name().unwrap(), bone_name),
@@ -418,16 +418,16 @@ pub fn parsing_animation(animations: gltf::iter::Animations, skin: &gltf::Skin, 
         assert_eq!(num_keyframes, animation_node_data._locations.len());
         assert_eq!(num_keyframes, animation_node_data._rotations.len());
         assert_eq!(num_keyframes, animation_node_data._scales.len());
-        animation_node_datas.push(animation_node_data);
+        animation_node_data_list.push(animation_node_data);
     }
 
-    if 0 < animation_node_datas.len() {
-        let num_keyframes = animation_node_datas[0]._times.len();
-        for animation_node_data in animation_node_datas.iter() {
+    if 0 < animation_node_data_list.len() {
+        let num_keyframes = animation_node_data_list[0]._times.len();
+        for animation_node_data in animation_node_data_list.iter() {
             assert_eq!(num_keyframes, animation_node_data._times.len());
         }
     }
-    mesh_data_create_info._animation_node_create_infos.push(animation_node_datas);
+    mesh_data_create_info._animation_node_create_infos.push(animation_node_data_list);
 }
 
 pub fn precompute_animation(
@@ -437,11 +437,11 @@ pub fn precompute_animation(
     hierarchy: &SkeletonHierarchyTree,
     bone_names: &Vec<String>,
     inv_bind_matrices: &Vec<Matrix4<f32>>,
-    animation_node_datas: &mut Vec<AnimationNodeCreateInfo>
+    animation_node_data_list: &mut Vec<AnimationNodeCreateInfo>
 )
 {
     // precompute bone animation matrix with ancestor bone matrices
-    let animation_node_data = &mut animation_node_datas[bone_index];
+    let animation_node_data = &mut animation_node_data_list[bone_index];
     let transform: Matrix4<f32> = parent_transform * math::combinate_matrix(
         &animation_node_data._locations[frame_index],
         &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
@@ -462,7 +462,7 @@ pub fn precompute_animation(
 
     for (child_bone_name, child_hierarchy) in hierarchy._children.iter() {
         let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;
-        precompute_animation(frame_index, &transform, child_bone_index, &child_hierarchy, bone_names, inv_bind_matrices, animation_node_datas);
+        precompute_animation(frame_index, &transform, child_bone_index, &child_hierarchy, bone_names, inv_bind_matrices, animation_node_data_list);
     }
 }
 
@@ -522,19 +522,19 @@ pub fn parsing_meshes(node: &gltf::Node, buffers: &Vec<gltf::buffer::Data>, dept
 
             // parsing vertex buffer
             let indices = parsing_index_buffer(&primitive, buffers);
-            let (mut vertex_datas, mut skeletal_vertex_datas, find_tangent_data) =
+            let (mut vertex_data_list, mut skeletal_vertex_data_list, find_tangent_data) =
                 parsing_vertex_buffer(is_skeletal_mesh, &parent_transform, &primitive, buffers);
 
             // compute tangent normal
             if false == find_tangent_data {
-                compute_tangent(is_skeletal_mesh, &indices, &mut vertex_datas, &mut skeletal_vertex_datas);
+                compute_tangent(is_skeletal_mesh, &indices, &mut vertex_data_list, &mut skeletal_vertex_data_list);
             }
 
             // insert GeometryCreateInfo
             mesh_data_create_info._geometry_create_infos.push(
                 GeometryCreateInfo {
-                    _vertex_datas: vertex_datas,
-                    _skeletal_vertex_datas: skeletal_vertex_datas,
+                    _vertex_data_list: vertex_data_list,
+                    _skeletal_vertex_data_list: skeletal_vertex_data_list,
                     _indices: indices,
                     _bounding_box: bounding_box
                 }
@@ -560,7 +560,7 @@ impl GLTF {
 
             if constants::HIERACHICALLY_ACCUMULATED_MATRIX {
                 let n = mesh_data_create_info._animation_node_create_infos.len();
-                let animation_node_datas = &mut mesh_data_create_info._animation_node_create_infos[n - 1];
+                let animation_node_data_list = &mut mesh_data_create_info._animation_node_create_infos[n - 1];
                 let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
@@ -568,9 +568,9 @@ impl GLTF {
 
                 for (child_bone_name, child_hierarchy) in skeleton_create_info._hierarchy._children.iter() {
                     let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap() as usize;
-                    let total_frame_count = animation_node_datas[child_bone_index]._times.len();
+                    let total_frame_count = animation_node_data_list[child_bone_index]._times.len();
                     for frame_index in 0..total_frame_count {
-                        precompute_animation(frame_index, &parent_transform,child_bone_index, &child_hierarchy, bone_names, inv_bind_matrices, animation_node_datas);
+                        precompute_animation(frame_index, &parent_transform,child_bone_index, &child_hierarchy, bone_names, inv_bind_matrices, animation_node_data_list);
                     }
                 }
             }

@@ -174,7 +174,7 @@ impl WaveFrontOBJ {
         }
     }
 
-    fn generate_geometry_datas(&mut self) -> Vec<GeometryCreateInfo> {
+    fn generate_geometry_data_list(&mut self) -> Vec<GeometryCreateInfo> {
         // If texcoord is empty, add the default texcoord.
         if self.texcoords.len() < 1 {
             self.texcoords.push(Vector2::new(0.0, 0.0));
@@ -184,7 +184,7 @@ impl WaveFrontOBJ {
             self.normals.push(Vector3::new(0.0, 0.0, 0.0));
         }
 
-        let mut geometry_datas: Vec<GeometryCreateInfo> = Vec::new();
+        let mut geometry_data_list: Vec<GeometryCreateInfo> = Vec::new();
         for mesh in self.meshes.iter() {
             let mut positions: Vec<Vector3<f32>> = Vec::new();
             let mut normals: Vec<Vector3<f32>> = Vec::new();
@@ -243,7 +243,7 @@ impl WaveFrontOBJ {
 
             let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
-            let vertex_datas: Vec<VertexData> = positions
+            let vertex_data_list: Vec<VertexData> = positions
                 .iter()
                 .enumerate()
                 .map(|(index, position)| {
@@ -256,8 +256,8 @@ impl WaveFrontOBJ {
                     }
                 }).collect();
 
-            geometry_datas.push(GeometryCreateInfo {
-                _vertex_datas: vertex_datas,
+            geometry_data_list.push(GeometryCreateInfo {
+                _vertex_data_list: vertex_data_list,
                 _indices: indices,
                 _bounding_box: BoundingBox {
                     _min: bound_min,
@@ -269,7 +269,7 @@ impl WaveFrontOBJ {
                 ..Default::default()
             });
         }
-        geometry_datas
+        geometry_data_list
     }
 
     // use tobj library
@@ -338,7 +338,7 @@ impl WaveFrontOBJ {
         //obj.parse_using_library(filename);
         let texcoord_y = true;
         obj.parse(filename, 1.0, texcoord_y);
-        let geometry_create_infos = obj.generate_geometry_datas();
+        let geometry_create_infos = obj.generate_geometry_data_list();
         let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
         MeshDataCreateInfo {
             _bound_box: bounding_box,

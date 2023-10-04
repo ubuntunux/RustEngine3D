@@ -92,7 +92,7 @@ pub struct PipelineDataCreateInfo {
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
     pub _vertex_input_bind_descriptions: Vec<vk::VertexInputBindingDescription>,
     pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
-    pub _push_constant_datas: Vec<PipelinePushConstantData>,
+    pub _push_constant_data_list: Vec<PipelinePushConstantData>,
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 }
 
@@ -125,7 +125,7 @@ impl Default for PipelineDataCreateInfo {
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_datas: Vec::new(),
+            _push_constant_data_list: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
     }
@@ -227,7 +227,7 @@ pub struct PipelineData {
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
     pub _shader_binding_table: Option<BufferData>,
-    pub _push_constant_datas: Vec<PipelinePushConstantData>
+    pub _push_constant_data_list: Vec<PipelinePushConstantData>
 }
 
 impl Default for PipelineData {
@@ -244,7 +244,7 @@ impl Default for PipelineData {
             _pipeline_dynamic_states: Vec::new(),
             _descriptor_data: DescriptorData::default(),
             _shader_binding_table: None,
-            _push_constant_datas: Vec::new()
+            _push_constant_data_list: Vec::new()
         }
     }
 }
@@ -285,7 +285,7 @@ impl RenderPassData {
 pub fn create_render_pass_data(
     renderer_context: &RendererContext,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
-    descriptor_datas: &Vec<RcRefCell<DescriptorData>>
+    descriptor_data_list: &Vec<RcRefCell<DescriptorData>>
 ) -> RenderPassData {
     let device = renderer_context.get_device();
     let debug_utils = renderer_context.get_debug_utils();
@@ -303,14 +303,14 @@ pub fn create_render_pass_data(
                     render_pass,
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
                     false == render_pass_data_create_info._depth_attachment_descriptions.is_empty(),
-                    &descriptor_datas[i].borrow()
+                    &descriptor_data_list[i].borrow()
                 )
             } else if vk::PipelineBindPoint::COMPUTE == bind_point {
                 create_compute_pipeline_data(
                     device,
                     debug_utils,
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    &descriptor_datas[i].borrow()
+                    &descriptor_data_list[i].borrow()
                 )
             } else if vk::PipelineBindPoint::RAY_TRACING_KHR == bind_point || vk::PipelineBindPoint::RAY_TRACING_NV == bind_point {
                 create_ray_tracing_pipeline_data(
@@ -322,7 +322,7 @@ pub fn create_render_pass_data(
                     renderer_context.get_ray_tracing(),
                     renderer_context.get_ray_tracing_properties(),
                     &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    &descriptor_datas[i].borrow()
+                    &descriptor_data_list[i].borrow()
                 )
             } else {
                 panic!("Request::from_raw can not be used Client-side.")
@@ -386,21 +386,21 @@ pub fn create_render_pass(
         .map(|attachment_description| create_image_attachment(attachment_description))
         .collect();
     let mut description_offset: u32 = 0;
-    let color_attachment_refernces: Vec<vk::AttachmentReference> = color_attachment_descriptions
+    let color_attachment_references: Vec<vk::AttachmentReference> = color_attachment_descriptions
         .iter()
         .enumerate()
         .map(|(index, ref description)| {
             create_image_attachment_reference(description, index as u32)
         }).collect();
-    description_offset += color_attachment_refernces.len() as u32;
-    let depth_attachment_refernces: Vec<vk::AttachmentReference> = depth_attachment_descriptions
+    description_offset += color_attachment_references.len() as u32;
+    let depth_attachment_references: Vec<vk::AttachmentReference> = depth_attachment_descriptions
         .iter()
         .enumerate()
         .map(|(index, ref description)| {
             create_image_attachment_reference(description, description_offset + index as u32)
         }).collect();
-    description_offset += depth_attachment_refernces.len() as u32;
-    let resolve_attachment_refernces: Vec<vk::AttachmentReference> = resolve_attachment_descriptions
+    description_offset += depth_attachment_references.len() as u32;
+    let resolve_attachment_references: Vec<vk::AttachmentReference> = resolve_attachment_descriptions
         .iter()
         .enumerate()
         .map(|(index, ref description)| {
@@ -408,10 +408,10 @@ pub fn create_render_pass(
         }).collect();
     let subpasses = [vk::SubpassDescription {
         pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-        p_color_attachments: if !color_attachment_refernces.is_empty() { color_attachment_refernces.as_ptr() } else { std::ptr::null() },
-        color_attachment_count: color_attachment_refernces.len() as u32,
-        p_resolve_attachments: if !resolve_attachment_refernces.is_empty() { resolve_attachment_refernces.as_ptr() } else { std::ptr::null() },
-        p_depth_stencil_attachment: if !depth_attachment_refernces.is_empty() { depth_attachment_refernces.as_ptr() } else { std::ptr::null() },
+        p_color_attachments: if !color_attachment_references.is_empty() { color_attachment_references.as_ptr() } else { std::ptr::null() },
+        color_attachment_count: color_attachment_references.len() as u32,
+        p_resolve_attachments: if !resolve_attachment_references.is_empty() { resolve_attachment_references.as_ptr() } else { std::ptr::null() },
+        p_depth_stencil_attachment: if !depth_attachment_references.is_empty() { depth_attachment_references.as_ptr() } else { std::ptr::null() },
         ..Default::default()
     }];
 
@@ -450,11 +450,11 @@ pub fn create_pipeline_layout(
     device: &Device,
     debug_utils: &DebugUtils,
     pipeline_layout_name: &str,
-    push_constant_datas: &[PipelinePushConstantData],
+    push_constant_data_list: &[PipelinePushConstantData],
     descriptor_set_layouts: &[vk::DescriptorSetLayout]
 ) -> vk::PipelineLayout {
     let push_constant_ranges: Vec<vk::PushConstantRange> =
-        push_constant_datas.iter().map(|push_constant_data| {
+        push_constant_data_list.iter().map(|push_constant_data| {
             vk::PushConstantRange {
                 stage_flags: push_constant_data._stage_flags,
                 offset: push_constant_data._offset,
@@ -483,8 +483,8 @@ pub fn create_pipeline_layout(
     }
 }
 
-pub fn destroy_pipieline_layout(device: &Device, pipeline_layout: vk::PipelineLayout) {
-    log::trace!("    destroy_pipieline_layout: {:?}", pipeline_layout);
+pub fn destroy_pipeline_layout(device: &Device, pipeline_layout: vk::PipelineLayout) {
+    log::trace!("    destroy_pipeline_layout: {:?}", pipeline_layout);
     unsafe {
         device.destroy_pipeline_layout(pipeline_layout, None);
     }
@@ -518,7 +518,7 @@ pub fn create_graphics_pipeline_data(
         device,
         debug_utils,
         pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
-        &pipeline_data_create_info._push_constant_datas,
+        &pipeline_data_create_info._push_constant_data_list,
         &descriptor_set_layouts
     );
     let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
@@ -614,7 +614,7 @@ pub fn create_graphics_pipeline_data(
     } else {
         vk::PipelineDepthStencilStateCreateInfo::default()
     };
-    let grphics_pipeline_create_info = [vk::GraphicsPipelineCreateInfo {
+    let graphics_pipeline_create_info = [vk::GraphicsPipelineCreateInfo {
         stage_count: shader_stage_infos.len() as u32,
         p_stages: shader_stage_infos.as_ptr(),
         p_vertex_input_state: &vertex_input_state_info,
@@ -636,7 +636,7 @@ pub fn create_graphics_pipeline_data(
     unsafe {
         let graphics_pipelines = device.create_graphics_pipelines(
             vk::PipelineCache::null(),
-            &grphics_pipeline_create_info,
+            &graphics_pipeline_create_info,
             None
         ).expect("vkCreateGraphicsPipelines failed!");
         assert_eq!(1, graphics_pipelines.len());
@@ -662,7 +662,7 @@ pub fn create_graphics_pipeline_data(
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
-            _push_constant_datas: pipeline_data_create_info._push_constant_datas.clone(),
+            _push_constant_data_list: pipeline_data_create_info._push_constant_data_list.clone(),
             ..Default::default()
         }
     }
@@ -686,7 +686,7 @@ pub fn create_compute_pipeline_data(
         device,
         debug_utils,
         pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
-        &pipeline_data_create_info._push_constant_datas,
+        &pipeline_data_create_info._push_constant_data_list,
         &descriptor_set_layouts
     );
     let pipeline_create_info = [vk::ComputePipelineCreateInfo {
@@ -725,7 +725,7 @@ pub fn create_compute_pipeline_data(
             _pipeline_bind_point: pipeline_data_create_info._pipeline_bind_point,
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
-            _push_constant_datas: pipeline_data_create_info._push_constant_datas.clone(),
+            _push_constant_data_list: pipeline_data_create_info._push_constant_data_list.clone(),
             ..Default::default()
         }
     }
@@ -801,7 +801,7 @@ pub fn create_ray_tracing_pipeline_data(
         device,
         debug_utils,
         pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
-        &pipeline_data_create_info._push_constant_datas,
+        &pipeline_data_create_info._push_constant_data_list,
         &descriptor_set_layouts
     );
     let pipeline_create_info = [
@@ -852,7 +852,7 @@ pub fn create_ray_tracing_pipeline_data(
 
         log::info!(">>> TEST CODE: create_ray_tracing_pipeline_data");
         log::info!("    create_ray_tracing_pipeline_data.");
-        log::info!("    CEHCK :: do i need present_queue or graphics queue ??");
+        log::info!("    CHECK :: do i need present_queue or graphics queue ??");
         PipelineData {
             _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,
@@ -862,7 +862,7 @@ pub fn create_ray_tracing_pipeline_data(
             _pipeline_dynamic_states: pipeline_data_create_info._pipeline_dynamic_states.clone(),
             _descriptor_data: descriptor_data.clone(),
             _shader_binding_table: Some(shader_binding_table),
-            _push_constant_datas: pipeline_data_create_info._push_constant_datas.clone(),
+            _push_constant_data_list: pipeline_data_create_info._push_constant_data_list.clone(),
             ..Default::default()
         }
     }

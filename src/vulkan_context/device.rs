@@ -31,7 +31,7 @@ pub fn device_create_info_set_push_next<T: vk::ExtendsDeviceCreateInfo>(create_i
 }
 
 pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::ExtensionProperties>) -> Vec<CString> {
-    log::info!("Available {} extentions: {}", extension_type, available_extensions.len());
+    log::info!("Available {} extensions: {}", extension_type, available_extensions.len());
     let mut extension_names: Vec<CString> = Vec::new();
     for available_extension in available_extensions {
         unsafe {

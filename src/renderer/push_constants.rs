@@ -182,7 +182,7 @@ impl PushConstant for PushConstant_GaussianBlur {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone)]
 pub struct PushConstant_RenderCopy {
-    pub _taget_mip_level: u32,
+    pub _target_mip_level: u32,
     pub _reserved0: u32,
     pub _reserved1: u32,
     pub _reserved2: u32,
@@ -191,7 +191,7 @@ pub struct PushConstant_RenderCopy {
 impl Default for PushConstant_RenderCopy {
     fn default() -> PushConstant_RenderCopy {
         PushConstant_RenderCopy {
-            _taget_mip_level: 0,
+            _target_mip_level: 0,
             _reserved0: 0,
             _reserved1: 0,
             _reserved2: 0,

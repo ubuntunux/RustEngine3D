@@ -44,9 +44,9 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     debug_utils: &DebugUtils,
     buffer_name: &str,
     dst_buffer_type: vk::BufferUsageFlags,
-    upload_datas: &Vec<T>,
+    upload_data_list: &Vec<T>,
 ) -> BufferData {
-    let buffer_size = (mem::size_of::<T>() * upload_datas.len()) as vk::DeviceSize;
+    let buffer_size = (mem::size_of::<T>() * upload_data_list.len()) as vk::DeviceSize;
     let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
     let buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
     log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
@@ -59,7 +59,7 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
         buffer_usage_flags,
         buffer_memory_property_flags
     );
-    upload_buffer_data(device, &dst_buffer_data, &upload_datas);
+    upload_buffer_data(device, &dst_buffer_data, &upload_data_list);
     dst_buffer_data
 }
 
@@ -71,9 +71,9 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     debug_utils: &DebugUtils,
     buffer_name: &str,
     dst_buffer_type: vk::BufferUsageFlags,
-    upload_datas: &Vec<T>,
+    upload_data_list: &Vec<T>,
 ) -> BufferData {
-    let buffer_size = (mem::size_of::<T>() * upload_datas.len()) as vk::DeviceSize;
+    let buffer_size = (mem::size_of::<T>() * upload_data_list.len()) as vk::DeviceSize;
     let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
     let buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
     log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
@@ -92,7 +92,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     );
 
     // upload data
-    upload_buffer_data(device, &staging_buffer_data, &upload_datas);
+    upload_buffer_data(device, &staging_buffer_data, &upload_data_list);
 
     // create vertex buffer & copy
     let dst_buffer_data = create_buffer_data(

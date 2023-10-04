@@ -19,14 +19,14 @@ use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceD
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::resource::resource::EngineResources;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::render_pass::{ RenderPassData, PipelineData };
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 
 
-// code coupling with effect_constats.glsl
+// code coupling with effect_constants.glsl
 const GPU_PARTICLE_CONSTANT_FLAG_NONE: u32 = 0;
 const GPU_PARTICLE_CONSTANT_FLAG_FIRST_UPDATE: u32 = 1 << 0;
 const GPU_PARTICLE_CONSTANT_FLAG_CLEAR: u32 = 1 << 1;
@@ -431,19 +431,19 @@ impl EffectManager {
             let gpu_particle_update_buffer = renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleUpdateBuffer);
 
             if 0 < process_emitter_count && 0 < process_gpu_particle_count {
-                renderer_context.upload_shader_buffer_datas(
+                renderer_context.upload_shader_buffer_data_list(
                     command_buffer,
                     swapchain_index,
                     gpu_particle_static_constants_buffer,
                     &self._gpu_particle_static_constants[0..process_emitter_count as usize]
                 );
-                renderer_context.upload_shader_buffer_datas(
+                renderer_context.upload_shader_buffer_data_list(
                     command_buffer,
                     swapchain_index,
                     gpu_particle_dynamic_constants_buffer,
                     &self._gpu_particle_dynamic_constants[0..process_emitter_count as usize]
                 );
-                renderer_context.upload_shader_buffer_datas(
+                renderer_context.upload_shader_buffer_data_list(
                     command_buffer,
                     swapchain_index,
                     gpu_particle_emitter_index_buffer,
@@ -590,8 +590,8 @@ impl EffectManager {
             // println!("prev_gpu_particle_count_buffer_offset: {}, gpu_particle_count_buffer_offset: {}", prev_gpu_particle_count_buffer_offset, gpu_particle_count_buffer_offset);
             // let mut prev_gpu_particle_count_buffer_data: Vec<GpuParticleCountBufferData> = unsafe { vec![GpuParticleCountBufferData::default(); process_emitter_count as usize] };
             // let mut gpu_particle_count_buffer_data: Vec<GpuParticleCountBufferData> = unsafe { vec![GpuParticleCountBufferData::default(); process_emitter_count as usize] };
-            // renderer_context.read_shader_buffer_datas(swapchain_index, gpu_particle_count_buffer, prev_gpu_particle_count_buffer_offset as u32, &mut prev_gpu_particle_count_buffer_data);
-            // renderer_context.read_shader_buffer_datas(swapchain_index, gpu_particle_count_buffer, gpu_particle_count_buffer_offset as u32, &mut gpu_particle_count_buffer_data);
+            // renderer_context.read_shader_buffer_data_list(swapchain_index, gpu_particle_count_buffer, prev_gpu_particle_count_buffer_offset as u32, &mut prev_gpu_particle_count_buffer_data);
+            // renderer_context.read_shader_buffer_data_list(swapchain_index, gpu_particle_count_buffer, gpu_particle_count_buffer_offset as u32, &mut gpu_particle_count_buffer_data);
             // for i in 0..process_emitter_count {
             //     println!("prev_buffer[{}]: {:?}", i + prev_gpu_particle_count_buffer_offset, prev_gpu_particle_count_buffer_data[i as usize]);
             //     println!("curr_buffer[{}]: {:?}", i + gpu_particle_count_buffer_offset, gpu_particle_count_buffer_data[i as usize]);
@@ -600,8 +600,8 @@ impl EffectManager {
             // println!("prev_gpu_particle_update_buffer_offset: {}, gpu_particle_update_buffer_offset: {}", prev_gpu_particle_update_buffer_offset, gpu_particle_update_buffer_offset);
             // let mut prev_gpu_particle_update_buffer_data: Vec<GpuParticleUpdateBufferData> = unsafe { vec![GpuParticleUpdateBufferData::default(); process_gpu_particle_count as usize] };
             // let mut gpu_particle_update_buffer_data: Vec<GpuParticleUpdateBufferData> = unsafe { vec![GpuParticleUpdateBufferData::default(); process_gpu_particle_count as usize] };
-            // renderer_context.read_shader_buffer_datas(swapchain_index, gpu_particle_update_buffer, prev_gpu_particle_update_buffer_offset as u32, &mut prev_gpu_particle_update_buffer_data);
-            // renderer_context.read_shader_buffer_datas(swapchain_index, gpu_particle_update_buffer, gpu_particle_update_buffer_offset as u32, &mut gpu_particle_update_buffer_data);
+            // renderer_context.read_shader_buffer_data_list(swapchain_index, gpu_particle_update_buffer, prev_gpu_particle_update_buffer_offset as u32, &mut prev_gpu_particle_update_buffer_data);
+            // renderer_context.read_shader_buffer_data_list(swapchain_index, gpu_particle_update_buffer, gpu_particle_update_buffer_offset as u32, &mut gpu_particle_update_buffer_data);
             // for i in 0..process_gpu_particle_count {
             //     let prev_update_data = &prev_gpu_particle_update_buffer_data[i as usize];
             //     let update_data = &gpu_particle_update_buffer_data[i as usize];

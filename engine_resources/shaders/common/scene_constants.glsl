@@ -41,7 +41,7 @@ const int MAX_POINT_LIGHTS = 10;
 
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
-// uniform_buffer_datas.rs - struct SceneConstants
+// uniform_buffer_data_list.rs - struct SceneConstants
 struct SCENE_CONSTANTS
 {
     vec2 SCREEN_SIZE;
@@ -60,7 +60,7 @@ struct SCENE_CONSTANTS
     int reserved2;
 };
 
-// uniform_buffer_datas.rs - struct ViewConstants
+// uniform_buffer_data_list.rs - struct ViewConstants
 struct VIEW_CONSTANTS
 {
     mat4 VIEW;
@@ -93,7 +93,7 @@ struct VIEW_CONSTANTS
     float VIEWCONSTANTS_DUMMY2;
 };
 
-// uniform_buffer_datas.rs - struct LightConstants
+// uniform_buffer_data_list.rs - struct LightConstants
 struct LIGHT_CONSTANTS
 {
     mat4 SHADOW_VIEW_PROJECTION;

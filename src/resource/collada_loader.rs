@@ -36,7 +36,7 @@ pub struct Collada {
     pub _nodes: Vec<ColladaNode>,
     pub _node_name_map: HashMap::<String, String>,
     pub _geometries: Vec<ColladaGeometry>,
-    pub _controllers: Vec<ColladaContoller>,
+    pub _controllers: Vec<ColladaController>,
     pub _animations: Vec<ColladaAnimation>,
 }
 
@@ -54,7 +54,7 @@ pub struct ColladaNode {
 }
 
 #[derive(Debug, Clone)]
-pub struct ColladaContoller {
+pub struct ColladaController {
     pub _valid: bool,
     pub _name: String,
     pub _id: String,
@@ -67,7 +67,7 @@ pub struct ColladaContoller {
 }
 
 #[derive(Debug, Clone)]
-pub struct SematicInfo {
+pub struct SemanticInfo {
     pub _source: String,
     pub _offset: usize,
     pub _set_number: String,
@@ -99,7 +99,7 @@ pub struct ColladaGeometry {
     pub _texcoords: Vec<Vector2<f32>>,
     pub _indices: Vec<u32>,
     pub _bind_shape_matrix: Matrix4<f32>,
-    pub _controller: *const ColladaContoller,
+    pub _controller: *const ColladaController,
 }
 
 #[derive(Debug, Clone)]
@@ -117,9 +117,9 @@ pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
     }
 }
 
-pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(datas: &str) -> Vec<T> {
-    let datas = datas.replace("[", "").replace("]", "");
-    let data_list = datas.trim().split(" ").map(|data| {
+pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(data_list: &str) -> Vec<T> {
+    let data_list = data_list.replace("[", "").replace("]", "");
+    let data_list = data_list.trim().split(" ").map(|data| {
         data.trim().parse::<T>()
     });
 
@@ -133,8 +133,8 @@ pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(datas: &str) -> Vec<T>
     values
 }
 
-pub fn parse_vector_list<T: std::str::FromStr + Clone>(datas: &str, component_count: usize) -> Vec<Vec<T>> {
-    let data_list: Vec<Result<T, T::Err>> = datas.replace("[", "").replace("]", "").trim().split(" ").map(|data| data.trim().parse::<T>()).collect();
+pub fn parse_vector_list<T: std::str::FromStr + Clone>(data_list: &str, component_count: usize) -> Vec<Vec<T>> {
+    let data_list: Vec<Result<T, T::Err>> = data_list.replace("[", "").replace("]", "").trim().split(" ").map(|data| data.trim().parse::<T>()).collect();
     let mut values: Vec<Vec<T>> = Vec::new();
     let len = data_list.len() / component_count;
     for i in 0..len {
@@ -187,8 +187,8 @@ pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSour
 
 //     :param xml_element:
 //     :return: {'semantic':{'source', 'offset', 'set'}
-pub fn parsing_sematic(xml_element: &XmlTree) -> HashMap<String, SematicInfo> {
-    let mut semantics: HashMap<String, SematicInfo> = HashMap::new();
+pub fn parsing_semantic(xml_element: &XmlTree) -> HashMap<String, SemanticInfo> {
+    let mut semantics: HashMap<String, SemanticInfo> = HashMap::new();
     let input_elements = xml_element.get_elements("input");
     if input_elements.is_some() {
         for xml_semantic in input_elements.unwrap().iter() {
@@ -224,7 +224,7 @@ pub fn parsing_sematic(xml_element: &XmlTree) -> HashMap<String, SematicInfo> {
                 None => 0,
             };
 
-            semantics.insert(semantic, SematicInfo {
+            semantics.insert(semantic, SemanticInfo {
                 _source: String::from(source),
                 _offset: offset,
                 _set_number: String::from(set_number),
@@ -386,9 +386,9 @@ impl ColladaNode {
     }
 }
 
-impl ColladaContoller {
-    pub fn create_collada_controller(xml_controller: &XmlTree) -> ColladaContoller {
-        let mut collada_controlelr = ColladaContoller {
+impl ColladaController {
+    pub fn create_collada_controller(xml_controller: &XmlTree) -> ColladaController {
+        let mut collada_controller = ColladaController {
             _valid: false,
             _name: xml_controller.attributes.get("name").unwrap().replace(".", "_"),
             _id: xml_controller.attributes.get("id").unwrap().replace(".", "_"),
@@ -400,8 +400,8 @@ impl ColladaContoller {
             _inv_bind_matrices: Vec::new(),
         };
 
-        collada_controlelr.parsing(xml_controller);
-        collada_controlelr
+        collada_controller.parsing(xml_controller);
+        collada_controller
     }
 
     pub fn parsing(&mut self, xml_controller: &XmlTree) {
@@ -428,10 +428,10 @@ impl ColladaContoller {
             let sources: HashMap<String, ColladaSourceData> = parsing_source_data(&xml_skin);
 
             // get vertex position source id
-            let mut joins_semantics: HashMap<String, SematicInfo> = HashMap::new();
+            let mut joins_semantics: HashMap<String, SemanticInfo> = HashMap::new();
             let xml_joints = xml_skin.get_elements("joints");
             if xml_joints.is_some() {
-                joins_semantics = parsing_sematic(&xml_joints.unwrap()[0]);
+                joins_semantics = parsing_semantic(&xml_joints.unwrap()[0]);
             }
 
             // parse vertex weights
@@ -439,7 +439,7 @@ impl ColladaContoller {
             if xml_vertex_weights.is_some() {
                 let xml_vertex_weights = &xml_vertex_weights.unwrap()[0];
                 // parse semantic
-                let weights_semantics = parsing_sematic(xml_vertex_weights);
+                let weights_semantics = parsing_semantic(xml_vertex_weights);
 
                 // parse vertex weights
                 let vcount_text = xml::get_elements_text(&xml_vertex_weights.get_elements("vcount"), "");
@@ -447,7 +447,7 @@ impl ColladaContoller {
                 let vcount_list = parse_list::<i32>(&vcount_text);
                 let v_list = parse_list::<i32>(&v_text);
 
-                // make geomtry data
+                // make geometry data
                 self.build(&sources, &joins_semantics, &weights_semantics, &vcount_list, &v_list);
             }
         }
@@ -456,8 +456,8 @@ impl ColladaContoller {
     pub fn build(
         &mut self,
         sources: &HashMap<String, ColladaSourceData>,
-        joins_semantics: &HashMap<String, SematicInfo>,
-        weights_semantics: &HashMap<String, SematicInfo>,
+        joins_semantics: &HashMap<String, SemanticInfo>,
+        weights_semantics: &HashMap<String, SemanticInfo>,
         vcount_list: &Vec<i32>,
         v_list: &Vec<i32>,
     ) {
@@ -557,10 +557,10 @@ impl ColladaAnimation {
     pub fn parsing(&mut self, xml_animation: &XmlTree, node_name_map: &HashMap<String, String>) {
         let sources = parsing_source_data(xml_animation);
 
-        let mut joins_semantics: HashMap<String, SematicInfo> = HashMap::new();
+        let mut joins_semantics: HashMap<String, SemanticInfo> = HashMap::new();
         let xml_sampler = xml_animation.get_elements("sampler");
         if xml_sampler.is_some() {
-            joins_semantics = parsing_sematic(&xml_sampler.unwrap()[0]);
+            joins_semantics = parsing_semantic(&xml_sampler.unwrap()[0]);
         }
 
         let xml_channel = xml_animation.get_elements("channel");
@@ -625,7 +625,7 @@ impl ColladaAnimation {
 }
 
 impl ColladaGeometry {
-    pub fn create_collada_geometry(xml_geometry: &XmlTree, controllers: &Vec<ColladaContoller>, nodes: &Vec<ColladaNode>) -> ColladaGeometry {
+    pub fn create_collada_geometry(xml_geometry: &XmlTree, controllers: &Vec<ColladaController>, nodes: &Vec<ColladaNode>) -> ColladaGeometry {
         let mut collada_geometry = ColladaGeometry {
             _valid: false,
             _name: xml_geometry.get_attribute("name", "").replace(".", "_"),
@@ -690,7 +690,7 @@ impl ColladaGeometry {
             for tag in ["polygons", "polylist", "triangles"].iter() {
                 if let Some(xml_polygons) = xml_mesh.get_element(tag) {
                     // parse semantic
-                    let semantics: HashMap<String, SematicInfo> = parsing_sematic(xml_polygons);
+                    let semantics: HashMap<String, SemanticInfo> = parsing_semantic(xml_polygons);
                     let semantic_stride: u32 = semantics.len() as u32;
 
                     // parse polygon indices
@@ -730,7 +730,7 @@ impl ColladaGeometry {
                         }
                     }
 
-                    // make geomtry data
+                    // make geometry data
                     self.build(&sources, &position_source_id, &semantics, semantic_stride, &vertex_index_list);
                     return;
                 }
@@ -742,7 +742,7 @@ impl ColladaGeometry {
         &mut self,
         sources: &HashMap<String, ColladaSourceData>,
         position_source_id: &String,
-        semantics: &HashMap<String, SematicInfo>,
+        semantics: &HashMap<String, SemanticInfo>,
         semantic_stride: u32,
         vertex_index_list: &Vec<u32>,
     ) {
@@ -865,12 +865,12 @@ impl Collada {
         let xml_controllers = xml_root.get_elements("library_controllers/controller");
         if xml_controllers.is_some() {
             for xml_controller in xml_controllers.unwrap().iter() {
-                let controller = ColladaContoller::create_collada_controller(xml_controller);
+                let controller = ColladaController::create_collada_controller(xml_controller);
                 collada._controllers.push(controller);
             }
         }
 
-        let emptry_xml_animations: Vec<XmlTree> = Vec::new();
+        let empty_xml_animations: Vec<XmlTree> = Vec::new();
         let xml_animations: &Vec<XmlTree> = match xml_root.get_elements("library_animations/animation") {
             Some(xml_animations) => {
                 match xml_animations[0].get_elements("animation") {
@@ -878,7 +878,7 @@ impl Collada {
                     None => xml_animations,
                 }
             },
-            None => &emptry_xml_animations,
+            None => &empty_xml_animations,
         };
 
         for xml_animation in xml_animations.iter() {
@@ -903,7 +903,7 @@ impl Collada {
         }
     }
 
-    pub fn build_hierarchy(controller: &ColladaContoller, parent_node: &ColladaNode, hierarchy_tree: &mut SkeletonHierarchyTree) {
+    pub fn build_hierarchy(controller: &ColladaController, parent_node: &ColladaNode, hierarchy_tree: &mut SkeletonHierarchyTree) {
         for child in parent_node._children.iter() {
             if controller._bone_names.contains(&child._name) {
                 hierarchy_tree._children.insert(child._name.clone(), SkeletonHierarchyTree::default());
@@ -913,7 +913,7 @@ impl Collada {
     }
 
     pub fn get_skeleton_data(&mut self) -> Vec<SkeletonDataCreateInfo> {
-        let mut skeleton_datas: Vec<SkeletonDataCreateInfo> = Vec::new();
+        let mut skeleton_data_list: Vec<SkeletonDataCreateInfo> = Vec::new();
         let mut check_duplicated: Vec<&str> = Vec::new();
         for controller in self._controllers.iter_mut() {
             if false == check_duplicated.contains(&controller._name.as_str()) {
@@ -921,7 +921,7 @@ impl Collada {
 
                 let mut hierarchy: SkeletonHierarchyTree = SkeletonHierarchyTree::default();
                 let mut root_node: Option<&ColladaNode> = None;
-                // find root amature
+                // find root armature
                 for node in self._nodes.iter() {
                     if node._name.as_str() == controller._name.as_str() {
                         root_node = Some(node);
@@ -941,10 +941,10 @@ impl Collada {
                     _bone_names: controller._bone_names.clone(), // bone name list ordered by index
                     _inv_bind_matrices: controller._inv_bind_matrices.clone(), // inverse matrix of bone
                 };
-                skeleton_datas.push(skeleton_data);
+                skeleton_data_list.push(skeleton_data);
             }
         }
-        skeleton_datas
+        skeleton_data_list
     }
 
     pub fn precompute_animation(
@@ -986,10 +986,10 @@ impl Collada {
         }
     }
 
-    pub fn get_animation_data(&mut self, skeleton_datas: &Vec<SkeletonDataCreateInfo>) -> Vec<Vec<AnimationNodeCreateInfo>> {
+    pub fn get_animation_data(&mut self, skeleton_data_list: &Vec<SkeletonDataCreateInfo>) -> Vec<Vec<AnimationNodeCreateInfo>> {
         // precompute_animation
-        let mut animation_datas: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
-        for skeleton_data in skeleton_datas.iter() {
+        let mut animation_data_list: Vec<Vec<AnimationNodeCreateInfo>> = Vec::new();
+        for skeleton_data in skeleton_data_list.iter() {
             let hierarchy = &skeleton_data._hierarchy;
             let bone_names = &skeleton_data._bone_names;
             let inv_bind_matrices = &skeleton_data._inv_bind_matrices;
@@ -1034,7 +1034,7 @@ impl Collada {
                     if *bone_name == animation_node._target {
                         let animation_node_data = AnimationNodeCreateInfo {
                             _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
-                            _hierachically_accumlated_matrix: constants::HIERACHICALLY_ACCUMULATED_MATRIX,
+                            _hierarchically_accumulated_matrix: constants::HIERACHICALLY_ACCUMULATED_MATRIX,
                             _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
                             _target: animation_node._target.clone(),
                             _times: animation_node._inputs.clone(),
@@ -1052,7 +1052,7 @@ impl Collada {
                 }
 
                 if false == find_animation_node {
-                    log::debug!("not found {} animation datas", bone_name);
+                    log::debug!("not found {} animation data_list", bone_name);
                     let animation_node_data = AnimationNodeCreateInfo {
                         _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
                         _target: bone_name.clone(),
@@ -1061,13 +1061,13 @@ impl Collada {
                     animation_data.push(animation_node_data);
                 }
             }
-            animation_datas.push(animation_data);
+            animation_data_list.push(animation_data);
         }
-        animation_datas
+        animation_data_list
     }
 
     pub fn get_geometry_data(&mut self) -> Vec<GeometryCreateInfo> {
-        let mut geometry_datas: Vec<GeometryCreateInfo> = Vec::new();
+        let mut geometry_data_list: Vec<GeometryCreateInfo> = Vec::new();
         for i in 0..self._geometries.len() {
             let geometry: &mut ColladaGeometry = &mut self._geometries[i];
 
@@ -1103,13 +1103,13 @@ impl Collada {
 
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
             let vertex_count = geometry._positions.len();
-            let mut vertex_datas: Vec<VertexData> = Vec::new();
-            let mut skeletal_vertex_datas: Vec<SkeletalVertexData> = Vec::new();
+            let mut vertex_data_list: Vec<VertexData> = Vec::new();
+            let mut skeletal_vertex_data_list: Vec<SkeletalVertexData> = Vec::new();
 
             if geometry._bone_indices.is_empty() {
-                vertex_datas.reserve(vertex_count);
+                vertex_data_list.reserve(vertex_count);
                 for index in 0..vertex_count {
-                    vertex_datas.push(VertexData {
+                    vertex_data_list.push(VertexData {
                         _position: geometry._positions[index].clone() as Vector3<f32>,
                         _normal: geometry._normals[index].clone() as Vector3<f32>,
                         _tangent: tangents[index].clone() as Vector3<f32>,
@@ -1118,9 +1118,9 @@ impl Collada {
                     });
                 }
             } else {
-                skeletal_vertex_datas.reserve(vertex_count);
+                skeletal_vertex_data_list.reserve(vertex_count);
                 for index in 0..vertex_count {
-                    skeletal_vertex_datas.push(SkeletalVertexData {
+                    skeletal_vertex_data_list.push(SkeletalVertexData {
                         _position: geometry._positions[index].clone() as Vector3<f32>,
                         _normal: geometry._normals[index].clone() as Vector3<f32>,
                         _tangent: tangents[index].clone() as Vector3<f32>,
@@ -1132,30 +1132,30 @@ impl Collada {
                 }
             }
 
-            geometry_datas.push(GeometryCreateInfo {
-                _vertex_datas: vertex_datas,
-                _skeletal_vertex_datas: skeletal_vertex_datas,
+            geometry_data_list.push(GeometryCreateInfo {
+                _vertex_data_list: vertex_data_list,
+                _skeletal_vertex_data_list: skeletal_vertex_data_list,
                 _indices: geometry._indices.clone(),
                 _bounding_box: bounding_box,
                 ..Default::default()
             });
         }
 
-        geometry_datas
+        geometry_data_list
     }
 
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         let mut collada = Collada::create_collada(filename);
-        let geometry_datas = collada.get_geometry_data();
-        let skeleton_datas = collada.get_skeleton_data();
-        let animation_datas = collada.get_animation_data(&skeleton_datas);
-        let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_datas);
+        let geometry_data_list = collada.get_geometry_data();
+        let skeleton_data_list = collada.get_skeleton_data();
+        let animation_data_list = collada.get_animation_data(&skeleton_data_list);
+        let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_data_list);
 
         MeshDataCreateInfo {
             _bound_box: bounding_box,
-            _skeleton_create_infos: skeleton_datas,
-            _animation_node_create_infos: animation_datas,
-            _geometry_create_infos: geometry_datas
+            _skeleton_create_infos: skeleton_data_list,
+            _animation_node_create_infos: animation_data_list,
+            _geometry_create_infos: geometry_data_list
         }
     }
 }

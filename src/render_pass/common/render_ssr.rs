@@ -21,7 +21,7 @@ use crate::vulkan_context::vulkan_context::{
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(

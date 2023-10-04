@@ -8,7 +8,7 @@ uniform uint spawn_count;
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
 layout(std430, binding=0) buffer index_range_buffer { ParticleIndexRange particle_index_range; };
-layout(std430, binding=1) buffer particle_buffer { ParticleData particle_datas[]; };
+layout(std430, binding=1) buffer particle_buffer { ParticleData particle_data_list[]; };
 
 
 void spawn_particle(inout ParticleData particle_data, float random_seed)
@@ -101,7 +101,7 @@ void main()
     if(gl_GlobalInvocationID.x < available_spawn_count)
     {
         uint id = (particle_index_range.begin_index + particle_index_range.instance_count + gl_GlobalInvocationID.x) % PARTICLE_MAX_COUNT;
-        spawn_particle(particle_datas[id], float(id) / float(PARTICLE_MAX_COUNT) + PI);
+        spawn_particle(particle_data_list[id], float(id) / float(PARTICLE_MAX_COUNT) + PI);
     }
 }
 #endif

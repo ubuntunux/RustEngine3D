@@ -40,8 +40,8 @@ pub const UI_INDEX_TOP: usize = 1; // y
 pub const UI_INDEX_RIGHT: usize = 2; // z
 pub const UI_INDEX_BOTTOM: usize = 3; // w
 
-pub const DEFAILT_HORIZONTAL_ALIGN: HorizontalAlign = HorizontalAlign::LEFT;
-pub const DEFAILT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
+pub const DEFAULT_HORIZONTAL_ALIGN: HorizontalAlign = HorizontalAlign::LEFT;
+pub const DEFAULT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 
 // |--ui-size----------------------------------------------------------------------------|
 // |--margin--|--border--|--padding--|--contents-size--|--padding--|--border--|--margin--|
@@ -274,7 +274,7 @@ pub struct UIManager {
     pub _ui_mesh_index_buffer: BufferData,
     pub _ui_mesh_index_count: u32,
     pub _font_data: RcRefCell<FontData>,
-    pub _ui_render_datas: Vec<UIRenderData>,
+    pub _ui_render_data_list: Vec<UIRenderData>,
     pub _render_ui_count: u32,
     pub _render_ui_group: Vec<UIRenderGroupData>,
     pub _default_render_ui_material: Option<RcRefCell<MaterialInstanceData>>,
@@ -291,8 +291,8 @@ impl Default for UIComponentData {
             _layout_orientation: Orientation::HORIZONTAL,
             _pos: Vector2::new(0.0, 0.0),
             _size: Vector2::new(100.0, 100.0),
-            _halign: DEFAILT_HORIZONTAL_ALIGN,
-            _valign: DEFAILT_VERTICAL_ALIGN,
+            _halign: DEFAULT_HORIZONTAL_ALIGN,
+            _valign: DEFAULT_VERTICAL_ALIGN,
             _pos_hint_x: None,
             _pos_hint_y: None,
             _size_hint_x: None,
@@ -841,7 +841,7 @@ impl UIComponentInstance {
         render_ui_count: u32,
         _render_ui_group: &mut Vec<UIRenderGroupData>,
         _prev_render_group_data: &mut UIRenderGroupData,
-        render_ui_instance_datas: &mut [UIRenderData],
+        render_ui_instance_data_list: &mut [UIRenderData],
         opacity: f32
     ) {
         let mut render_ui_index = render_ui_count;
@@ -904,7 +904,7 @@ impl UIComponentInstance {
 
                 if self._contents_area.x < ui_render_area.z && self._contents_area.y < ui_render_area.w &&
                     ui_render_area.x < self._contents_area.z && ui_render_area.y < self._contents_area.w {
-                    let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+                    let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
                     render_ui_instance_data._ui_texcoord.x = texcoord_x;
                     render_ui_instance_data._ui_texcoord.y = texcoord_y;
                     render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
@@ -932,7 +932,7 @@ impl UIComponentInstance {
         render_ui_count: &mut u32,
         render_ui_group: &mut Vec<UIRenderGroupData>,
         prev_render_group_data: &mut UIRenderGroupData,
-        render_ui_instance_datas: &mut [UIRenderData],
+        render_ui_instance_data_list: &mut [UIRenderData],
         mut need_to_collect_render_data: bool,
         mut opacity: f32
     ) {
@@ -946,7 +946,7 @@ impl UIComponentInstance {
             if need_to_collect_render_data {
                 opacity *= self.get_opacity();
 
-                let render_ui_instance_data = &mut render_ui_instance_datas[render_ui_index as usize];
+                let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
                 render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
                 render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
                 render_ui_instance_data._ui_opacity = opacity;
@@ -988,7 +988,7 @@ impl UIComponentInstance {
                         *render_ui_count,
                         render_ui_group,
                         prev_render_group_data,
-                        render_ui_instance_datas,
+                        render_ui_instance_data_list,
                         opacity,
                     );
                 }
@@ -1004,7 +1004,7 @@ impl UIComponentInstance {
                     render_ui_count,
                     render_ui_group,
                     prev_render_group_data,
-                    render_ui_instance_datas,
+                    render_ui_instance_data_list,
                     need_to_collect_render_data,
                     opacity
                 );
@@ -1433,12 +1433,12 @@ impl UIManager {
             _ui_mesh_index_buffer: BufferData::default(),
             _ui_mesh_index_count: 0,
             _font_data: system::newRcRefCell(FontData::default()),
-            _ui_render_datas: Vec::new(),
+            _ui_render_data_list: Vec::new(),
             _render_ui_count: 0,
             _render_ui_group: Vec::new(),
             _default_render_ui_material: None,
         };
-        ui_manager._ui_render_datas.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
+        ui_manager._ui_render_data_list.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
         let ui_component = ptr_as_mut(ui_manager._root.as_ref()).get_ui_component_mut();
         ui_component.set_layout_type(UILayoutType::FloatLayout);
         ui_component.set_size_hint_x(Some(1.0));
@@ -1496,7 +1496,7 @@ impl UIManager {
     ) {
         log::debug!("create_ui_vertex_data");
         let positions: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 0.0, 0.0), Vector3::new(1.0, 0.0, 0.0), Vector3::new(1.0, 1.0, 0.0), Vector3::new(0.0, 1.0, 0.0)];
-        let vertex_datas = positions.iter().map(|position| UIVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
+        let vertex_data_list = positions.iter().map(|position| UIVertexData { _position: (*position).clone() as Vector3<f32> }).collect();
         let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
 
         self._ui_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
@@ -1507,7 +1507,7 @@ impl UIManager {
             debug_utils,
             "ui_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &vertex_datas,
+            &vertex_data_list,
         );
 
         self._ui_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
@@ -1545,9 +1545,9 @@ impl UIManager {
             };
 
             // upload storage buffer
-            let upload_data = &self._ui_render_datas[0..self._render_ui_count as usize];
+            let upload_data = &self._ui_render_data_list[0..self._render_ui_count as usize];
             let shader_buffer_data = renderer_context.get_shader_buffer_data_from_str("UIRenderDataBuffer");
-            renderer_context.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer_data, upload_data);
+            renderer_context.upload_shader_buffer_data_list(command_buffer, swapchain_index, shader_buffer_data, upload_data);
 
             // render ui
             let mut prev_material_instance_data: *const MaterialInstanceData = std::ptr::null();
@@ -1648,8 +1648,8 @@ impl UIManager {
             root_ui_component.update_layout_area(
                 UILayoutType::FloatLayout,
                 Orientation::HORIZONTAL,
-                DEFAILT_HORIZONTAL_ALIGN,
-                DEFAILT_VERTICAL_ALIGN,
+                DEFAULT_HORIZONTAL_ALIGN,
+                DEFAULT_VERTICAL_ALIGN,
                 &contents_area,
                 &contents_area_size,
                 &required_contents_size,
@@ -1676,7 +1676,7 @@ impl UIManager {
             &mut render_ui_count,
             &mut render_ui_group,
             &mut prev_render_group_data,
-            &mut self._ui_render_datas,
+            &mut self._ui_render_data_list,
             need_to_collect_render_data,
             opacity
         );

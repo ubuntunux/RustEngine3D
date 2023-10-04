@@ -73,7 +73,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("blend"),
             _pipeline_compute_shader_file: PathBuf::from("common/blend_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_datas: vec![
+            _push_constant_data_list: vec![
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,

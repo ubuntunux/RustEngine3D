@@ -15,7 +15,7 @@ uniform sampler2D texture_normal;
 #ifdef COMPUTE_SHADER
 layout(local_size_x=PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE, local_size_y=1, local_size_z=1) in;
 
-layout(std430, binding=0) buffer particle_buffer { ParticleData particle_datas[]; };
+layout(std430, binding=0) buffer particle_buffer { ParticleData particle_data_list[]; };
 layout(std430, binding=1) buffer index_range_buffer { ParticleIndexRange particle_index_range; };
 
 
@@ -203,7 +203,7 @@ void update(inout ParticleData particle_data, uint id)
             particle_data.transform_scale += particle_data.velocity_scale * DELTA_TIME;
 
             // relative world position
-            particle_data.relative_position = (particle_datas[id].parent_matrix * vec4(particle_data.transform_position, 1.0)).xyz - CAMERA_POSITION.xyz;
+            particle_data.relative_position = (particle_data_list[id].parent_matrix * vec4(particle_data.transform_position, 1.0)).xyz - CAMERA_POSITION.xyz;
 
             // world velocity
             vec3 world_velocity = mat3(particle_data.parent_matrix) * particle_data.velocity_position.xyz;
@@ -268,10 +268,10 @@ void main()
     {
         uint id = (particle_index_range.begin_index + gl_GlobalInvocationID.x) % PARTICLE_MAX_COUNT;
 
-        update(particle_datas[id], id);
+        update(particle_data_list[id], id);
 
         // update the dead index and update index.
-        if(PARTICLE_STATE_DEAD == particle_datas[id].state)
+        if(PARTICLE_STATE_DEAD == particle_data_list[id].state)
         {
             atomicAdd(particle_index_range.destroy_count, 1);
         }

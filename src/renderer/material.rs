@@ -16,14 +16,14 @@ pub struct MaterialData {
 impl MaterialData {
     pub fn create_material(
         material_data_name: &String,
-        render_pass_pipeline_datas: &Vec<Option<RenderPassPipelineData>>,
+        render_pass_pipeline_data_list: &Vec<Option<RenderPassPipelineData>>,
         material_parameters: &serde_json::Map<String, serde_json::Value>
     ) -> MaterialData {
         log::debug!("create_material: {}", material_data_name);
 
         let mut check_push_consant_names: Vec<String> = Vec::new();
         let mut render_pass_pipeline_data_map = RenderPassPipelineDataMap::new();
-        for maybe_render_pass_pipeline_data in render_pass_pipeline_datas.iter() {
+        for maybe_render_pass_pipeline_data in render_pass_pipeline_data_list.iter() {
             if maybe_render_pass_pipeline_data.is_some() {
                 let render_pass_pipeline_data = maybe_render_pass_pipeline_data.as_ref().unwrap();
                 let render_pass_pipeline_data_name = get_render_pass_pipeline_data_name(
@@ -33,16 +33,16 @@ impl MaterialData {
 
                 // check matched push constant
                 if check_push_consant_names.is_empty() {
-                    check_push_consant_names = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_datas.iter().map(|push_constant_data| {
+                    check_push_consant_names = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_data_list.iter().map(|push_constant_data| {
                         String::from(push_constant_data._push_constant.get_push_constant_name())
                     }).collect();
                 } else {
-                    let push_constant_names: Vec<String> = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_datas.iter().map(
+                    let push_constant_names: Vec<String> = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_data_list.iter().map(
                         |push_constant_data: &PipelinePushConstantData|
                             String::from(push_constant_data._push_constant.get_push_constant_name())
                     ).collect();
 
-                    for push_constant_data in render_pass_pipeline_data._pipeline_data.borrow()._push_constant_datas.iter() {
+                    for push_constant_data in render_pass_pipeline_data._pipeline_data.borrow()._push_constant_data_list.iter() {
                         let mut find_push_constant = false;
                         for check_push_consant_name in check_push_consant_names.iter() {
                             if check_push_consant_name == push_constant_data._push_constant.get_push_constant_name() {

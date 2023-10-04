@@ -10,7 +10,7 @@ layout(binding = 0) uniform sampler2D textureSrc;
 
 layout( push_constant ) uniform PushConstant_RenderCopy
 {
-    uint _taget_mip_level;
+    uint _target_mip_level;
     uint _reserved0;
     uint _reserved1;
     uint _reserved2;
@@ -22,5 +22,5 @@ layout(location = 0) out vec4 outColor;
 
 void main() {
     const vec2 texCoord = vs_output.texCoord.xy;
-    outColor = textureLod(textureSrc, texCoord, float(pushConstant._taget_mip_level));
+    outColor = textureLod(textureSrc, texCoord, float(pushConstant._target_mip_level));
 }

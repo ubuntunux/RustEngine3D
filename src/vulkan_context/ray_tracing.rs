@@ -26,14 +26,14 @@ pub struct RayTracingCreateInfo {
 pub struct RayTracingData {
     pub _vertex_buffer_data: BufferData,
     pub _index_buffer_data: BufferData,
-    pub _geometry_buffer_datas: Vec<vk::GeometryNV>,
+    pub _geometry_buffer_data_list: Vec<vk::GeometryNV>,
     pub _instance_buffer_data: BufferData,
     pub _instance_data: Vec<GeometryInstance>,
     pub _bottom_accel_structs: Vec<vk::AccelerationStructureNV>,
-    pub _bottom_accel_struct_memorys: Vec<vk::DeviceMemory>,
+    pub _bottom_accel_struct_memories: Vec<vk::DeviceMemory>,
     pub _bottom_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV>,
     pub _top_accel_structs: Vec<vk::AccelerationStructureNV>,
-    pub _top_accel_struct_memorys: Vec<vk::DeviceMemory>,
+    pub _top_accel_struct_memories: Vec<vk::DeviceMemory>,
     pub _top_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV>,
     pub _scratch_buffer_data: BufferData,
 }
@@ -130,14 +130,14 @@ impl RayTracingData {
         RayTracingData {
             _vertex_buffer_data: BufferData::default(),
             _index_buffer_data: BufferData::default(),
-            _geometry_buffer_datas: Vec::new(),
+            _geometry_buffer_data_list: Vec::new(),
             _instance_buffer_data: BufferData::default(),
             _instance_data: Vec::new(),
             _bottom_accel_structs: Vec::new(),
-            _bottom_accel_struct_memorys: Vec::new(),
+            _bottom_accel_struct_memories: Vec::new(),
             _bottom_write_descriptor_set_accel_structs: Vec::new(),
             _top_accel_structs: Vec::new(),
-            _top_accel_struct_memorys: Vec::new(),
+            _top_accel_struct_memories: Vec::new(),
             _top_write_descriptor_set_accel_structs: Vec::new(),
             _scratch_buffer_data: BufferData::default(),
         }
@@ -155,12 +155,12 @@ impl RayTracingData {
         unsafe {
             log::info!(">>> TEST CODE: initialize_ray_tracing_data.");
             log::info!("    TODO :: Clean up RayTracingData");
-            log::info!("    CEHCK :: do i need _geometry_buffer_datas as a member?");
-            log::info!("    CEHCK :: do i need _scratch_buffer_data as a member?");
-            log::info!("    CEHCK :: do i need present_queue ??");
+            log::info!("    CHECK :: do i need _geometry_buffer_data_list as a member?");
+            log::info!("    CHECK :: do i need _scratch_buffer_data as a member?");
+            log::info!("    CHECK :: do i need present_queue ??");
 
             // Create vertex buffer
-            let vertex_datas: Vec<Vector3<f32>> = vec![
+            let vertex_data_list: Vec<Vector3<f32>> = vec![
                 Vector3::new(-0.5, -0.5, 0.0),
                 Vector3::new(0.0, 0.5, 0.0),
                 Vector3::new(0.5, -0.5, 0.0)
@@ -174,7 +174,7 @@ impl RayTracingData {
                 debug_utils,
                 "raytracing_vertex_buffer",
                 vk::BufferUsageFlags::VERTEX_BUFFER,
-                &vertex_datas,
+                &vertex_data_list,
             );
 
             // Create index buffer
@@ -191,14 +191,14 @@ impl RayTracingData {
             );
 
             // Create geometry buffer
-            self._geometry_buffer_datas = vec![
+            self._geometry_buffer_data_list = vec![
                 vk::GeometryNV {
                     geometry_type: vk::GeometryTypeNV::TRIANGLES,
                     geometry: vk::GeometryDataNV {
                         triangles: vk::GeometryTrianglesNV {
                             vertex_data: self._vertex_buffer_data._buffer,
                             vertex_offset: 0,
-                            vertex_count: vertex_datas.len() as u32,
+                            vertex_count: vertex_data_list.len() as u32,
                             vertex_stride: vertex_stride as u64,
                             vertex_format: vk::Format::R32G32B32_SFLOAT,
                             index_data: self._index_buffer_data._buffer,
@@ -219,15 +219,15 @@ impl RayTracingData {
                 compacted_size: 0,
                 info: vk::AccelerationStructureInfoNV {
                     ty: vk::AccelerationStructureTypeNV::BOTTOM_LEVEL,
-                    geometry_count: self._geometry_buffer_datas.len() as u32,
-                    p_geometries: self._geometry_buffer_datas.as_ptr(),
+                    geometry_count: self._geometry_buffer_data_list.len() as u32,
+                    p_geometries: self._geometry_buffer_data_list.as_ptr(),
                     flags: vk::BuildAccelerationStructureFlagsNV::PREFER_FAST_TRACE,
                     ..Default::default()
                 },
                 ..Default::default()
             };
 
-            (self._bottom_accel_structs, self._bottom_accel_struct_memorys) =
+            (self._bottom_accel_structs, self._bottom_accel_struct_memories) =
                 create_acceleration_structure(
                     device,
                     device_memory_properties,
@@ -272,7 +272,7 @@ impl RayTracingData {
                 ..Default::default()
             };
 
-            (self._top_accel_structs, self._top_accel_struct_memorys) =
+            (self._top_accel_structs, self._top_accel_struct_memories) =
                 create_acceleration_structure(
                     device,
                     device_memory_properties,
@@ -315,7 +315,7 @@ impl RayTracingData {
             run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer| {
                 self.build_ray_tracing(device, ray_tracing, command_buffer);
             });
-        } // End - create_acceleration_structure_datas
+        } // End - create_acceleration_structure_data_list
     }
 
     pub fn destroy_ray_tracing_data(&mut self, device: &Device, ray_tracing: &RayTracing) {
@@ -330,20 +330,20 @@ impl RayTracingData {
             }
             self._bottom_accel_structs.clear();
 
-            for memory in self._bottom_accel_struct_memorys.iter() {
+            for memory in self._bottom_accel_struct_memories.iter() {
                 device.free_memory(*memory, None);
             }
-            self._bottom_accel_struct_memorys.clear();
+            self._bottom_accel_struct_memories.clear();
 
             for accel_struct in self._top_accel_structs.iter() {
                 ray_tracing.destroy_acceleration_structure(*accel_struct, None);
             }
             self._top_accel_structs.clear();
 
-            for memory in self._top_accel_struct_memorys.iter() {
+            for memory in self._top_accel_struct_memories.iter() {
                 device.free_memory(*memory, None);
             }
-            self._top_accel_struct_memorys.clear();
+            self._top_accel_struct_memories.clear();
         }
         self._bottom_write_descriptor_set_accel_structs.clear();
         self._top_write_descriptor_set_accel_structs.clear();
@@ -365,8 +365,8 @@ impl RayTracingData {
                 command_buffer,
                 &vk::AccelerationStructureInfoNV {
                     ty: vk::AccelerationStructureTypeNV::BOTTOM_LEVEL,
-                    geometry_count: self._geometry_buffer_datas.len() as u32,
-                    p_geometries: self._geometry_buffer_datas.as_ptr(),
+                    geometry_count: self._geometry_buffer_data_list.len() as u32,
+                    p_geometries: self._geometry_buffer_data_list.as_ptr(),
                     ..Default::default()
                 },
                 vk::Buffer::null(),

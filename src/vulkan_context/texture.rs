@@ -27,7 +27,7 @@ pub struct TextureCreateInfo<T> {
     pub _max_mip_levels: u32,
     pub _enable_mipmap: bool,
     pub _enable_anisotropy: bool,
-    pub _texture_initial_datas: Vec<T>
+    pub _texture_initial_data_list: Vec<T>
 }
 
 #[derive(Debug, Clone)]
@@ -73,7 +73,7 @@ impl Default for TextureData {
     }
 }
 
-pub struct ImageDatas {
+pub struct ImageDataList {
     pub _image_view: vk::ImageView,
     pub _image_sampler: vk::Sampler,
     pub _image_info: vk::DescriptorImageInfo,
@@ -87,8 +87,8 @@ pub enum ImageLayoutTransition {
     TransferUndefToTransferDst,
     TransferDstToShaderReadOnly,
     TransferDstToTransferSrc,
-    TransferUndefToDepthStencilAttachemnt,
-    TransferUndefToColorAttachemnt,
+    TransferUndefToDepthStencilAttachement,
+    TransferUndefToColorAttachement,
 }
 
 #[derive(Debug, Clone)]
@@ -117,7 +117,7 @@ impl<T> Default for TextureCreateInfo<T> {
             _max_mip_levels: constants::WHOLE_MIP_LEVELS,
             _enable_mipmap: false,
             _enable_anisotropy: false,
-            _texture_initial_datas: Vec::new(),
+            _texture_initial_data_list: Vec::new(),
         }
     }
 }
@@ -208,7 +208,7 @@ pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) 
             _src_stage_mask: vk::PipelineStageFlags::TRANSFER,
             _dst_stage_mask: vk::PipelineStageFlags::TRANSFER,
         },
-        ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt => TransitionDependent {
+        ImageLayoutTransition::TransferUndefToDepthStencilAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
             _new_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
@@ -216,7 +216,7 @@ pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) 
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
             _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
         },
-        ImageLayoutTransition::TransferUndefToColorAttachemnt => TransitionDependent {
+        ImageLayoutTransition::TransferUndefToColorAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
             _new_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
@@ -253,7 +253,7 @@ pub fn calc_mip_levels(image_width: u32, image_height: u32, image_depth: u32, ma
 }
 
 pub fn get_image_aspect_by_format(image_format: vk::Format) -> vk::ImageAspectFlags {
-    match constants::DEPTH_FOMATS.contains(&image_format) {
+    match constants::DEPTH_FORMATS.contains(&image_format) {
         true => match constants::DEPTH_STENCIL_FORMATS.contains(&image_format) {
             true => vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL,
             false => vk::ImageAspectFlags::DEPTH,
@@ -481,7 +481,7 @@ pub fn find_supported_format(
     features: vk::FormatFeatureFlags,
 ) -> vk::Format {
     unsafe {
-        let candidates: Vec<vk::Format> = constants::DEPTH_FOMATS.iter().filter(|__format| {
+        let candidates: Vec<vk::Format> = constants::DEPTH_FORMATS.iter().filter(|__format| {
             let format_properties = instance.get_physical_device_format_properties(physical_device, require_format);
             match tiling {
                 vk::ImageTiling::LINEAR => (format_properties.linear_tiling_features & features) == features,
@@ -603,7 +603,7 @@ pub fn destroy_image_view(device: &Device, image_view: vk::ImageView) {
 }
 
 
-pub fn create_image_datas(
+pub fn create_image_data_list(
     device: &Device,
     debug_utils: &DebugUtils,
     image_name: &str,
@@ -621,7 +621,7 @@ pub fn create_image_datas(
     base_array_layer: u32,
     layer_count: u32,
     image_depth: u32,
-) -> ImageDatas {
+) -> ImageDataList {
     // image sampler
     let image_sampler = create_image_sampler(
         device,
@@ -697,7 +697,7 @@ pub fn create_image_datas(
         sub_image_infos.push(miplevel_sub_image_infos);
     }
 
-    ImageDatas {
+    ImageDataList {
         _image_view: image_view,
         _image_sampler: image_sampler,
         _image_info: image_info,
@@ -954,9 +954,9 @@ fn create_texture_data_inner<T: Copy>(
     texture_create_info: &TextureCreateInfo<T>,
     is_render_target: bool,
 ) -> TextureData {
-    let image_datas = &texture_create_info._texture_initial_datas;
-    let buffer_size = (image_datas.len() * std::mem::size_of::<T>()) as vk::DeviceSize;
-    let has_initial_datas = 0 < buffer_size;
+    let image_data_list = &texture_create_info._texture_initial_data_list;
+    let buffer_size = (image_data_list.len() * std::mem::size_of::<T>()) as vk::DeviceSize;
+    let has_initial_data_list = 0 < buffer_size;
     let enable_anisotropy = match texture_create_info._enable_anisotropy {
         true => vk::TRUE,
         _ => vk::FALSE
@@ -972,14 +972,14 @@ fn create_texture_data_inner<T: Copy>(
         _ => 1
     };
 
-    let is_depth_format = constants::DEPTH_FOMATS.contains(&texture_create_info._texture_format);
+    let is_depth_format = constants::DEPTH_FORMATS.contains(&texture_create_info._texture_format);
     let common_usage = vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
     let (image_usage, image_aspect, image_layout_transition, image_format, image_layout) =
         if is_render_target {
             if is_depth_format {
                 ( common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
                   vk::ImageAspectFlags::DEPTH,
-                  ImageLayoutTransition::TransferUndefToDepthStencilAttachemnt,
+                  ImageLayoutTransition::TransferUndefToDepthStencilAttachement,
                   find_supported_format(
                       instance,
                       physical_device,
@@ -992,7 +992,7 @@ fn create_texture_data_inner<T: Copy>(
             } else {
                 ( common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE,
                   vk::ImageAspectFlags::COLOR,
-                  ImageLayoutTransition::TransferUndefToColorAttachemnt,
+                  ImageLayoutTransition::TransferUndefToColorAttachement,
                   texture_create_info._texture_format,
                   vk::ImageLayout::GENERAL,
                 )
@@ -1050,7 +1050,7 @@ fn create_texture_data_inner<T: Copy>(
         );
     });
 
-    if has_initial_datas {
+    if has_initial_data_list {
         // create temporary staging buffer
         let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
         let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
@@ -1077,7 +1077,7 @@ fn create_texture_data_inner<T: Copy>(
                 align_of::<T>() as u64,
                 staging_buffer_data._buffer_memory_requirements.size,
             );
-            stageing_buffer_slice.copy_from_slice(image_datas);
+            stageing_buffer_slice.copy_from_slice(image_data_list);
             device.unmap_memory(staging_buffer_data._buffer_memory);
         }
 
@@ -1118,7 +1118,7 @@ fn create_texture_data_inner<T: Copy>(
     }
 
     // create image view, sampler, descriptor
-    let image_datas = create_image_datas(
+    let image_data_list = create_image_data_list(
         device,
         debug_utils,
         texture_create_info._texture_name.as_str(),
@@ -1147,21 +1147,21 @@ fn create_texture_data_inner<T: Copy>(
                texture_create_info._texture_height,
                texture_create_info._texture_layers,
     );
-    log::trace!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_datas._image_view, image_memory, image_datas._image_sampler);
-    if false == image_datas._sub_image_views.is_empty() {
-        log::trace!("                 sub_image_views: {:?}", image_datas._sub_image_views);
+    log::trace!("    TextureData: image: {:?}, image_view: {:?}, image_memory: {:?}, sampler: {:?}", image, image_data_list._image_view, image_memory, image_data_list._image_sampler);
+    if false == image_data_list._sub_image_views.is_empty() {
+        log::trace!("                 sub_image_views: {:?}", image_data_list._sub_image_views);
     }
 
     TextureData {
         _texture_data_name: texture_create_info._texture_name.clone(),
         _image: image,
-        _image_view: image_datas._image_view,
-        _image_info: image_datas._image_info,
+        _image_view: image_data_list._image_view,
+        _image_info: image_data_list._image_info,
         _image_view_type: texture_create_info._texture_view_type,
-        _image_sampler: image_datas._image_sampler,
-        _sub_image_views: image_datas._sub_image_views,
-        _sub_image_infos: image_datas._sub_image_infos,
-        _sub_image_view_type: image_datas._sub_image_view_type,
+        _image_sampler: image_data_list._image_sampler,
+        _sub_image_views: image_data_list._sub_image_views,
+        _sub_image_infos: image_data_list._sub_image_infos,
+        _sub_image_view_type: image_data_list._sub_image_view_type,
         _image_memory: image_memory,
         _image_format: image_format,
         _image_width: texture_create_info._texture_width,

@@ -182,7 +182,7 @@ impl Default for EmitterDataCreateInfo {
 
 pub struct EffectData {
     pub _effect_data_name: String,
-    pub _emitter_datas: Vec<EmitterData>,
+    pub _emitter_data_list: Vec<EmitterData>,
 }
 
 pub struct EmitterData {
@@ -268,11 +268,11 @@ impl EffectData {
     pub fn create_effect_data(
         effect_data_name: &String,
         _effect_data_create_info: &EffectDataCreateInfo,
-        emitter_datas: Vec<EmitterData>
+        emitter_data_list: Vec<EmitterData>
     ) -> EffectData {
         EffectData {
             _effect_data_name: effect_data_name.clone(),
-            _emitter_datas: emitter_datas,
+            _emitter_data_list: emitter_data_list,
         }
     }
 
@@ -329,10 +329,10 @@ impl EffectInstance {
     pub fn create_effect_instance(
         effect_manager: *const EffectManager,
         effect_id: i64,
-        effec_create_info: &EffectCreateInfo,
+        effect_create_info: &EffectCreateInfo,
         effect_data: &RcRefCell<EffectData>
     ) -> RcRefCell<EffectInstance> {
-        let emitters = effect_data.borrow()._emitter_datas.iter().map(|emitter_data| {
+        let emitters = effect_data.borrow()._emitter_data_list.iter().map(|emitter_data| {
             EmitterInstance::create_emitter_instance(emitter_data)
         }).collect();
 
@@ -348,14 +348,14 @@ impl EffectInstance {
             _effect_data: effect_data.clone(),
             _emitters: emitters,
         });
-        effect_instance.borrow_mut().initialize_effect(effec_create_info);
+        effect_instance.borrow_mut().initialize_effect(effect_create_info);
         effect_instance
     }
 
-    pub fn initialize_effect(&mut self, effec_create_info: &EffectCreateInfo) {
-        self._effect_transform.set_position(&effec_create_info._effect_position);
-        self._effect_transform.set_rotation(&effec_create_info._effect_rotation);
-        self._effect_transform.set_scale(&effec_create_info._effect_scale);
+    pub fn initialize_effect(&mut self, effect_create_info: &EffectCreateInfo) {
+        self._effect_transform.set_position(&effect_create_info._effect_position);
+        self._effect_transform.set_rotation(&effect_create_info._effect_rotation);
+        self._effect_transform.set_scale(&effect_create_info._effect_scale);
         let parent_effect = self as *const EffectInstance;
         for emitter in self._emitters.iter_mut() {
             emitter.initialize_emitter(parent_effect);

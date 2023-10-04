@@ -24,9 +24,9 @@ pub struct MeshDataCreateInfo {
 pub struct MeshData {
     pub _name: String,
     pub _bound_box: BoundingBox,
-    pub _skeleton_datas: Vec<SkeletonData>,
-    pub _animation_datas: Vec<AnimationData>,
-    pub _geometry_datas: Vec<RcRefCell<GeometryData>>,
+    pub _skeleton_data_list: Vec<SkeletonData>,
+    pub _animation_data_list: Vec<AnimationData>,
+    pub _geometry_data_list: Vec<RcRefCell<GeometryData>>,
 }
 
 impl Default for MeshDataCreateInfo {
@@ -70,27 +70,27 @@ impl MeshData {
     pub fn create_mesh_data(
         mesh_name: &String,
         mesh_data_create_info: MeshDataCreateInfo,
-        geometry_datas: Vec<RcRefCell<GeometryData>>
+        geometry_data_list: Vec<RcRefCell<GeometryData>>
     ) -> MeshData {
         log::debug!("create_mesh_data: {}", mesh_name);
         let mut mesh_data = MeshData {
             _name: mesh_name.clone(),
             _bound_box: mesh_data_create_info._bound_box,
-            _skeleton_datas: mesh_data_create_info._skeleton_create_infos
+            _skeleton_data_list: mesh_data_create_info._skeleton_create_infos
                 .iter()
                 .enumerate()
                 .map(|(i, skeleton_create_info)| {
                     SkeletonData::create_skeleton_data(i, skeleton_create_info)
                 }).collect(),
-            _animation_datas: Vec::new(),
-            _geometry_datas: geometry_datas,
+            _animation_data_list: Vec::new(),
+            _geometry_data_list: geometry_data_list,
         };
 
         for (i, animation_node_create_info) in mesh_data_create_info._animation_node_create_infos.iter().enumerate() {
-            mesh_data._animation_datas.push(AnimationData::create_animation_data(
-                &format!("{}_{}", mesh_data._name, mesh_data._skeleton_datas[i]._name),
+            mesh_data._animation_data_list.push(AnimationData::create_animation_data(
+                &format!("{}_{}", mesh_data._name, mesh_data._skeleton_data_list[i]._name),
                 i,
-                &mesh_data._skeleton_datas[i],
+                &mesh_data._skeleton_data_list[i],
                 animation_node_create_info,
             ));
         }
@@ -99,23 +99,23 @@ impl MeshData {
     }
 
     pub fn has_animation_data(&self) -> bool {
-        false == self._animation_datas.is_empty()
+        false == self._animation_data_list.is_empty()
     }
 
     pub fn get_geometry_data_count(&self) -> usize {
-        self._geometry_datas.len()
+        self._geometry_data_list.len()
     }
 
-    pub fn get_geomtry_datas(&self) -> &Vec<RcRefCell<GeometryData>> {
-        &self._geometry_datas
+    pub fn get_geometry_data_list(&self) -> &Vec<RcRefCell<GeometryData>> {
+        &self._geometry_data_list
     }
 
     pub fn get_default_geometry_data(&self) -> &RcRefCell<GeometryData> {
-        &self._geometry_datas[0]
+        &self._geometry_data_list[0]
     }
 
-    pub fn get_geomtry_data(&self, index: usize) -> &RcRefCell<GeometryData> {
-        &self._geometry_datas[index]
+    pub fn get_geometry_data(&self, index: usize) -> &RcRefCell<GeometryData> {
+        &self._geometry_data_list[index]
     }
 
     pub fn update_mesh_data(&self) {

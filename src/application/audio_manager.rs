@@ -30,7 +30,7 @@ pub struct AudioBankCreateInfo {
 
 pub struct AudioBankData {
     pub _audio_bank_name: String,
-    pub _audio_datas: Vec<RcRefCell<AudioData>>,
+    pub _audio_data_list: Vec<RcRefCell<AudioData>>,
 }
 
 #[derive(Clone)]
@@ -69,7 +69,7 @@ impl Clone for AudioData {
 
 impl fmt::Debug for AudioBankData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}: {:?}", self._audio_bank_name, self._audio_datas.len())
+        write!(f, "{:?}: {:?}", self._audio_bank_name, self._audio_data_list.len())
     }
 }
 
@@ -178,10 +178,10 @@ impl AudioManager {
 
     pub fn create_audio_instance_from_bank(&mut self, audio_name_bank: &str, audio_loop: AudioLoop) -> Option<RcRefCell<AudioInstance>> {
         if let ResourceData::AudioBank(audio_bank_data) = self.get_engine_resources_mut().get_audio_bank_data(audio_name_bank) {
-            let audio_data_count = audio_bank_data.borrow()._audio_datas.len();
+            let audio_data_count = audio_bank_data.borrow()._audio_data_list.len();
             if 0 < audio_data_count {
                 let audio_data_index: usize = if 1 < audio_data_count { rand::random::<usize>() % audio_data_count } else { 0 };
-                let audio_data = audio_bank_data.borrow()._audio_datas[audio_data_index].clone();
+                let audio_data = audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
                 return Some(self.create_audio_instance_inner(&audio_data, audio_loop))
             }
         }

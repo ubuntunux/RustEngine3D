@@ -17,7 +17,7 @@ use crate::utilities::system::RcRefCell;
 pub struct PipelineBindingDataCreateInfo {
     pub _render_pass_pipeline_data: RenderPassPipelineData,
     pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
-    pub _push_constant_datas: Vec<PipelinePushConstantData>,
+    pub _push_constant_data_list: Vec<PipelinePushConstantData>,
 }
 
 #[derive(Clone, Debug)]
@@ -27,7 +27,7 @@ pub struct PipelineBindingData {
     pub _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>>,
     pub _descriptor_set_count: u32,
     pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
-    pub _push_constant_datas: Vec<PipelinePushConstantData>
+    pub _push_constant_data_list: Vec<PipelinePushConstantData>
 }
 
 type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
@@ -104,7 +104,7 @@ impl MaterialInstanceData {
                 _write_descriptor_sets: write_descriptor_sets,
                 _descriptor_set_count: descriptor_binding_indices.len() as u32,
                 _descriptor_resource_infos_list: pipeline_bind_create_info._descriptor_resource_infos_list,
-                _push_constant_datas: pipeline_bind_create_info._push_constant_datas.clone()
+                _push_constant_data_list: pipeline_bind_create_info._push_constant_data_list.clone()
             };
 
             // insert to pipeline_binding_data_map

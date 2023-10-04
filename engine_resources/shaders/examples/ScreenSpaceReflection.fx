@@ -136,7 +136,7 @@ const float FrameRandom = StateFrameIndexMod8 * 1551.0f;
 
 float quality = distance_fade * distance_fade * distance_fade;
 
-const float Hierachical_Z_Lod_Scale = (lerp(4.0f, 0.0f, quality) + Roughness);
+const float Hierarchical_Z_Lod_Scale = (lerp(4.0f, 0.0f, quality) + Roughness);
 const float random_scale = lerp(0.01f, 0.7f, saturate(Roughness));
 
 int NumSteps = lerp(1, 8, quality);// *saturate(1.0 - Roughness * 0.5f));
@@ -207,7 +207,7 @@ Roughness,
 fDepth,
 NumSteps,
 StepOffset,
-Hierachical_Z_Lod_Scale,
+Hierarchical_Z_Lod_Scale,
 HitUVzTime
 );
 
@@ -252,7 +252,7 @@ Roughness,
 fDepth,
 NumSteps,
 StepOffset,
-Hierachical_Z_Lod_Scale,
+Hierarchical_Z_Lod_Scale,
 HitUVzTime
 );
 

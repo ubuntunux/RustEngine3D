@@ -16,7 +16,7 @@ use crate::vulkan_context::descriptor::{
 use crate::vulkan_context::vulkan_context::{ self, BlendMode };
 
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::renderer::renderer_data::RendererData;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {

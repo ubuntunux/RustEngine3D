@@ -244,7 +244,7 @@ float ConeAngleWorld,
 float SceneDepth,
 int NumSteps, 
 float StepOffset,
-float Hierachical_Z_Lod_Scale,
+float Hierarchical_Z_Lod_Scale,
 out float4 OutHitUVzTime
 )
 {
@@ -370,8 +370,8 @@ break;
 }
 
 LastDiff = DepthDiff.w;
-Level += Hierachical_Z_Lod_Scale / NumSteps;
-RayStepUVz += RayStepUVz * Hierachical_Z_Lod_Scale;
+Level += Hierarchical_Z_Lod_Scale / NumSteps;
+RayStepUVz += RayStepUVz * Hierarchical_Z_Lod_Scale;
 RayUVz += 4 * RayStepUVz;
 
 if (SampleUV1.z < 0.0f || 1.0f < SampleUV1.z || SampleUV1.w < 0.0f || 1.0f < SampleUV1.w)
@@ -417,7 +417,7 @@ const float StateFrameIndexMod8 = 0.0f; // useJitter ? frameCount : 0.0f;
 float FrameRandom = StateFrameIndexMod8 * 1551.0f;
 
 float2 HitSampleUV = float2(-1.0, -1.0); 
-const float Hierachical_Z_Lod_Scale = 1.0f;
+const float Hierarchical_Z_Lod_Scale = 1.0f;
 
 //float quality = distance_fade * distance_fade * distance_fade;
 int NumSteps = 4;// lerp(3, 6, quality);
@@ -448,7 +448,7 @@ Roughness,
 SceneDepth,
 NumSteps,
 StepOffset,
-Hierachical_Z_Lod_Scale,
+Hierarchical_Z_Lod_Scale,
 HitUVzTime
 );
 

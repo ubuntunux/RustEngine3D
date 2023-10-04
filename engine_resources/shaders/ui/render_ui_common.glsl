@@ -32,7 +32,7 @@ layout(binding = 0) uniform sampler2D texture_font;
 layout(binding = 1) uniform sampler2D texture_normal;
 layout(binding = 2) buffer UIRenderDataBuffer
 {
-    UIRenderData ui_render_datas[MAX_UI_INSTANCE_COUNT];
+    UIRenderData ui_render_data_list[MAX_UI_INSTANCE_COUNT];
 };
 
 layout( push_constant ) uniform PushConstant_RenderUI

@@ -50,7 +50,7 @@ pub struct DebugLineManager {
     pub _debug_line_vertex_buffer: BufferData,
     pub _debug_line_index_buffer: BufferData,
     pub _debug_line_index_count: u32,
-    pub _debug_line_instance_datas: Vec<DebugLineInstanceData>,
+    pub _debug_line_instance_data_list: Vec<DebugLineInstanceData>,
 }
 
 // Implementations
@@ -84,7 +84,7 @@ impl DebugLineManager {
             _debug_line_vertex_buffer: BufferData::default(),
             _debug_line_index_buffer: BufferData::default(),
             _debug_line_index_count: 0,
-            _debug_line_instance_datas: Vec::new(),
+            _debug_line_instance_data_list: Vec::new(),
         }
     }
 
@@ -114,7 +114,7 @@ impl DebugLineManager {
     ) {
         log::debug!("create_debug_line_vertex_data");
         let positions: Vec<Vector4<f32>> = vec![Vector4::new(0.0, 0.0, 0.0, 0.0), Vector4::new(1.0, 0.0, 0.0, 0.0)];
-        let vertex_datas = positions.iter().map(|position| DebugLineVertexData { _position: (*position).clone() as Vector4<f32> }).collect();
+        let vertex_data_list = positions.iter().map(|position| DebugLineVertexData { _position: (*position).clone() as Vector4<f32> }).collect();
         let indices: Vec<u32> = vec![0, 1];
 
         self._debug_line_vertex_buffer = buffer::create_buffer_data_with_uploads(
@@ -125,7 +125,7 @@ impl DebugLineManager {
             debug_utils,
             "debug_line_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &vertex_datas,
+            &vertex_data_list,
         );
 
         self._debug_line_index_buffer = buffer::create_buffer_data_with_uploads(
@@ -143,7 +143,7 @@ impl DebugLineManager {
 
     // screen size coordinate
     pub fn add_debug_line_2d(&mut self, position0: &Vector2<f32>, position1: &Vector2<f32>, color: u32) {
-        self._debug_line_instance_datas.push(
+        self._debug_line_instance_data_list.push(
             DebugLineInstanceData {
                 _positions0: Vector3::new(position0.x, position0.y, 0.0),
                 _color: color,
@@ -154,7 +154,7 @@ impl DebugLineManager {
     }
 
     pub fn add_debug_line_3d(&mut self, position0: &Vector3<f32>, position1: &Vector3<f32>, color: u32) {
-        self._debug_line_instance_datas.push(
+        self._debug_line_instance_data_list.push(
             DebugLineInstanceData {
                 _positions0: position0.clone(),
                 _color: color,
@@ -181,7 +181,7 @@ impl DebugLineManager {
             );
         }
 
-        if self._show && 0 < self._debug_line_instance_datas.len() {
+        if self._show && 0 < self._debug_line_instance_data_list.len() {
             let material_instance_data = engine_resources.get_material_instance_data("common/render_debug_line").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
             let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
@@ -190,11 +190,11 @@ impl DebugLineManager {
             let none_framebuffer_data = None;
 
             // upload storage buffer
-            let debug_line_count = constants::MAX_DEBUG_LINE_INSTANCE_COUNT.min(self._debug_line_instance_datas.len()) as u32;
-            let upload_data = &self._debug_line_instance_datas;
+            let debug_line_count = constants::MAX_DEBUG_LINE_INSTANCE_COUNT.min(self._debug_line_instance_data_list.len()) as u32;
+            let upload_data = &self._debug_line_instance_data_list;
             let shader_buffer = renderer_context.get_shader_buffer_data_from_str("DebugLineInstanceDataBuffer");
-            renderer_context.upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer, upload_data);
-            self._debug_line_instance_datas.clear();
+            renderer_context.upload_shader_buffer_data_list(command_buffer, swapchain_index, shader_buffer, upload_data);
+            self._debug_line_instance_data_list.clear();
 
             // render
             renderer_context.begin_render_pass_pipeline(command_buffer, swapchain_index, render_pass_data, pipeline_data, none_framebuffer_data);

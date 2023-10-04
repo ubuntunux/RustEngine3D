@@ -65,8 +65,8 @@ impl Default for SkeletalVertexData {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct GeometryCreateInfo {
-    pub _vertex_datas: Vec<VertexData>,
-    pub _skeletal_vertex_datas: Vec<SkeletalVertexData>,
+    pub _vertex_data_list: Vec<VertexData>,
+    pub _skeletal_vertex_data_list: Vec<SkeletalVertexData>,
     pub _indices: Vec<u32>,
     pub _bounding_box: BoundingBox
 }
@@ -74,8 +74,8 @@ pub struct GeometryCreateInfo {
 impl Default for GeometryCreateInfo {
     fn default() -> GeometryCreateInfo {
         GeometryCreateInfo {
-            _vertex_datas: Vec::new(),
-            _skeletal_vertex_datas: Vec::new(),
+            _vertex_data_list: Vec::new(),
+            _skeletal_vertex_data_list: Vec::new(),
             _indices: Vec::new(),
             _bounding_box: BoundingBox::default()
         }
@@ -190,7 +190,7 @@ pub fn create_geometry_data(
 ) -> GeometryData {
     log::trace!("create_geometry_data: {:?}", geometry_name);
 
-    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_datas.is_empty() {
+    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_data_list.is_empty() {
         buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
@@ -199,7 +199,7 @@ pub fn create_geometry_data(
             debug_utils,
             geometry_name.as_str(),
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &geometry_create_info._skeletal_vertex_datas,
+            &geometry_create_info._skeletal_vertex_data_list,
         )
     } else {
         buffer::create_buffer_data_with_uploads(
@@ -210,7 +210,7 @@ pub fn create_geometry_data(
             debug_utils,
             geometry_name.as_str(),
             vk::BufferUsageFlags::VERTEX_BUFFER,
-            &geometry_create_info._vertex_datas,
+            &geometry_create_info._vertex_data_list,
         )
     };
 
@@ -327,7 +327,7 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
     let texcoords: Vec<Vector2<f32>> = vec![Vector2::new(0.0, 0.0), Vector2::new(1.0, 0.0), Vector2::new(1.0, 1.0), Vector2::new(0.0, 1.0)];
     let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
     let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
-    let vertex_datas = positions
+    let vertex_data_list = positions
         .iter()
         .enumerate()
         .map(|(index, __position)| {
@@ -341,7 +341,7 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
         }).collect();
 
     let geometry_create_infos = vec![GeometryCreateInfo {
-        _vertex_datas: vertex_datas,
+        _vertex_data_list: vertex_data_list,
         _indices: indices,
         _bounding_box: calc_bounding_box(&positions),
         ..Default::default()
@@ -386,7 +386,7 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
     let vertex_color = get_color32(255, 255, 255, 255);
     let indices: Vec<u32> = vec![ 0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22 ];
     let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
-    let vertex_datas = positions
+    let vertex_data_list = positions
         .iter()
         .enumerate()
         .map(|(index, __position)| {
@@ -401,7 +401,7 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
         }).collect();
 
     let geometry_create_infos = vec![GeometryCreateInfo {
-        _vertex_datas: vertex_datas,
+        _vertex_data_list: vertex_data_list,
         _indices: indices,
         _bounding_box: calc_bounding_box(&positions),
         ..Default::default()
@@ -459,7 +459,7 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
 
     let vertex_color = get_color32(255, 255, 255, 255);
     let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
-    let vertex_datas = positions
+    let vertex_data_list = positions
         .iter()
         .enumerate()
         .map(|(index, __position)| {
@@ -474,7 +474,7 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
         }).collect();
 
     let geometry_create_infos = vec![GeometryCreateInfo {
-        _vertex_datas: vertex_datas,
+        _vertex_data_list: vertex_data_list,
         _indices: indices,
         _bounding_box: calc_bounding_box(&positions),
         ..Default::default()

@@ -254,7 +254,7 @@ impl EngineApplication {
         }
     }
 
-    pub fn clear_and_update_input_datas(&mut self) {
+    pub fn clear_and_update_input_data_list(&mut self) {
         self._mouse_move_data.clear_mouse_move_delta();
         self._mouse_input_data.clear_mouse_input();
         self._keyboard_input_data.clear_key_pressed();
@@ -520,7 +520,7 @@ pub fn run_application(
             Event::NewEvents(_) => {
                 // reset input states on new frame
                 if run_application {
-                    engine_application.clear_and_update_input_datas();
+                    engine_application.clear_and_update_input_data_list();
 
                     // sdl event
                     for event in sdl.event_pump().unwrap().poll_iter() {

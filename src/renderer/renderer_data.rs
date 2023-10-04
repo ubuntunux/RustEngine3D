@@ -30,14 +30,14 @@ use crate::renderer::render_context::{
     RenderContext_Bloom,
     RenderContext_SSAO,
     RenderContext_TAA,
-    RenderContext_HierachicalMinZ,
+    RenderContext_HierarchicalMinZ,
     RenderContext_SceneColorDownSampling,
     RenderContext_TAA_Simple,
     RenderContext_CompositeGBuffer,
     RenderContext_ClearRenderTargets,
     RenderContext_LightProbe,
 };
-use crate::renderer::shader_buffer_datas::{
+use crate::renderer::shader_buffer_data::{
     self,
     ShaderBufferDataType,
     ShaderBufferDataMap,
@@ -83,8 +83,8 @@ pub struct RendererData {
     pub _engine_resources: *const EngineResources,
     pub _effect_manager: *const EffectManager,
     pub _is_first_rendering: bool,
-    pub _scene_constants: shader_buffer_datas::SceneConstants,
-    pub _view_constants: shader_buffer_datas::ViewConstants,
+    pub _scene_constants: shader_buffer_data::SceneConstants,
+    pub _view_constants: shader_buffer_data::ViewConstants,
     pub _debug_render_target: RenderTargetType,
     pub _debug_render_target_layer: u32,
     pub _debug_render_target_miplevel: u32,
@@ -93,7 +93,7 @@ pub struct RendererData {
     pub _render_context_bloom: RenderContext_Bloom,
     pub _render_context_ssao: RenderContext_SSAO,
     pub _render_context_taa: RenderContext_TAA,
-    pub _render_context_hiz: RenderContext_HierachicalMinZ,
+    pub _render_context_hiz: RenderContext_HierarchicalMinZ,
     pub _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling,
     pub _render_context_ssr: RenderContext_TAA_Simple,
     pub _render_context_composite_gbuffer: RenderContext_CompositeGBuffer,
@@ -114,7 +114,7 @@ impl RendererDataBase for RendererData {
         self._engine_resources = engine_resources;
         self._effect_manager = effect_manager;
 
-        shader_buffer_datas::regist_shader_buffer_datas(
+        shader_buffer_data::regist_shader_buffer_data_list(
             renderer_context.get_device(),
             renderer_context.get_device_memory_properties(),
             renderer_context.get_debug_utils(),
@@ -164,7 +164,7 @@ impl RendererDataBase for RendererData {
             self._render_target_data_map.get(&RenderTargetType::SSAOTemp).as_ref().unwrap(),
         );
 
-        // Hierachical Min Z
+        // Hierarchical Min Z
         self._render_context_hiz.initialize(
             device,
             debug_utils,
@@ -299,10 +299,10 @@ impl RendererDataBase for RendererData {
     }
     fn create_render_targets(&mut self, renderer_context: &RendererContext) {
         log::info!("create_render_targets");
-        let render_taget_create_infos = render_target::get_render_target_create_infos(renderer_context);
-        for render_taget_create_info in render_taget_create_infos.iter() {
-            let render_target_type: RenderTargetType = RenderTargetType::from_str(render_taget_create_info._texture_name.as_str()).unwrap();
-            let texture_data = renderer_context.create_render_target(render_taget_create_info);
+        let render_target_create_infos = render_target::get_render_target_create_infos(renderer_context);
+        for render_target_create_info in render_target_create_infos.iter() {
+            let render_target_type: RenderTargetType = RenderTargetType::from_str(render_target_create_info._texture_name.as_str()).unwrap();
+            let texture_data = renderer_context.create_render_target(render_target_create_info);
             self._render_target_data_map.insert(render_target_type, texture_data);
         }
     }
@@ -385,7 +385,7 @@ impl RendererDataBase for RendererData {
 
             let transform_matrix_count = project_scene_manager.get_render_element_transform_count();
             let transform_matrices: &[Matrix4<f32>] = &project_scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
-            self.upload_shader_buffer_datas(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, transform_matrices);
+            self.upload_shader_buffer_data_list(command_buffer, swapchain_index, &ShaderBufferDataType::TransformMatrices, transform_matrices);
         }
 
         if self._is_first_rendering {
@@ -630,8 +630,8 @@ impl RendererData {
             _engine_resources: std::ptr::null(),
             _effect_manager: std::ptr::null(),
             _is_first_rendering: true,
-            _scene_constants: shader_buffer_datas::SceneConstants::default(),
-            _view_constants: shader_buffer_datas::ViewConstants::default(),
+            _scene_constants: shader_buffer_data::SceneConstants::default(),
+            _view_constants: shader_buffer_data::ViewConstants::default(),
             _debug_render_target: RenderTargetType::BackBuffer,
             _debug_render_target_layer: 0,
             _debug_render_target_miplevel: 0,
@@ -640,7 +640,7 @@ impl RendererData {
             _render_context_bloom: RenderContext_Bloom::default(),
             _render_context_ssao: RenderContext_SSAO::default(),
             _render_context_taa: RenderContext_TAA::default(),
-            _render_context_hiz: RenderContext_HierachicalMinZ::default(),
+            _render_context_hiz: RenderContext_HierarchicalMinZ::default(),
             _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(),
             _render_context_ssr: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
@@ -708,9 +708,9 @@ impl RendererData {
         self.get_renderer_context().upload_shader_buffer_data(command_buffer, swapchain_index, shader_buffer_data, upload_data);
     }
 
-    pub fn upload_shader_buffer_datas<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &[T]) {
+    pub fn upload_shader_buffer_data_list<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &[T]) {
         let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
-        self.get_renderer_context().upload_shader_buffer_datas(command_buffer, swapchain_index, shader_buffer_data, upload_data);
+        self.get_renderer_context().upload_shader_buffer_data_list(command_buffer, swapchain_index, shader_buffer_data, upload_data);
     }
 
     pub fn upload_shader_buffer_data_offset<T>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &T, offset: vk::DeviceSize) {
@@ -718,9 +718,9 @@ impl RendererData {
         self.get_renderer_context().upload_shader_buffer_data_offset(command_buffer, swapchain_index, shader_buffer_data, upload_data, offset);
     }
 
-    pub fn upload_shader_buffer_datas_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &[T], offset: vk::DeviceSize) {
+    pub fn upload_shader_buffer_data_list_offset<T: Copy>(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32, shader_buffer_data_type: &ShaderBufferDataType, upload_data: &[T], offset: vk::DeviceSize) {
         let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
-        self.get_renderer_context().upload_shader_buffer_datas_offset(command_buffer, swapchain_index, shader_buffer_data, upload_data, offset);
+        self.get_renderer_context().upload_shader_buffer_data_list_offset(command_buffer, swapchain_index, shader_buffer_data, upload_data, offset);
     }
 
     pub fn clear_render_targets(
@@ -733,7 +733,7 @@ impl RendererData {
     ) {
         let _label_clear_render_targets = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "clear_render_targets");
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/clear_render_target").borrow();
-        for (_, framebuffers) in self._render_context_clear_render_targets._color_framebuffer_datas.iter() {
+        for (_, framebuffers) in self._render_context_clear_render_targets._color_framebuffer_data_list.iter() {
             let default_frame_buffer = &framebuffers[0][0];
             let mut render_pass_pipeline_name = String::from("clear");
             for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_color_attachment_formats.iter() {
@@ -806,7 +806,7 @@ impl RendererData {
         let composite_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
         let downsampling_material_instance = engine_resources.get_material_instance_data("common/downsampling").borrow();
         let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
-        let mut light_probe_view_constants = shader_buffer_datas::ViewConstants::default();
+        let mut light_probe_view_constants = shader_buffer_data::ViewConstants::default();
         let light_probe_view_constant_types = [
             ShaderBufferDataType::LightProbeViewConstants0,
             ShaderBufferDataType::LightProbeViewConstants1,
@@ -847,7 +847,7 @@ impl RendererData {
                 swapchain_index,
                 render_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._render_context_light_probe._render_atmosphere_framebuffer_datas[layer_index]),
+                Some(&self._render_context_light_probe._render_atmosphere_framebuffer_data_list[layer_index]),
                 Some(&self._render_context_light_probe._render_atmosphere_descriptor_sets[layer_index]),
                 Some(&render_atmosphere_push_constants)
             );
@@ -858,7 +858,7 @@ impl RendererData {
                 swapchain_index,
                 composite_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_datas_only_sky[layer_index]),
+                Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_data_list_only_sky[layer_index]),
                 Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
                 None,
             );
@@ -907,7 +907,7 @@ impl RendererData {
                     swapchain_index,
                     composite_atmosphere_pipeline_binding_data,
                     quad_geometry_data,
-                    Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_datas[layer_index]),
+                    Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_data_list[layer_index]),
                     Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
                     None,
                 );
@@ -963,7 +963,7 @@ impl RendererData {
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
                 let material_instance = render_element._material_instance_data.borrow();
-                let push_constant_datas = ptr_as_ref(render_element._push_constant_datas);
+                let push_constant_data_list = ptr_as_ref(render_element._push_constant_data_list);
                 let render_pass_pipeline_data_names = material_instance.get_render_pass_pipeline_data_names(render_pass_name);
                 for render_pass_pipeline_data_name in render_pass_pipeline_data_names.iter() {
                     let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
@@ -986,7 +986,7 @@ impl RendererData {
                     }
 
                     // update push constants
-                    for push_constant_data in push_constant_datas.iter() {
+                    for push_constant_data in push_constant_data_list.iter() {
                         renderer_context.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,
@@ -1151,14 +1151,14 @@ impl RendererData {
 
         // render_bloom_downsampling
         let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-        let framebuffer_count = self._render_context_bloom._bloom_downsample_framebuffer_datas.len();
+        let framebuffer_count = self._render_context_bloom._bloom_downsample_framebuffer_data_list.len();
         for i in 0..framebuffer_count {
             renderer_context.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._render_context_bloom._bloom_downsample_framebuffer_datas[i]),
+                Some(&self._render_context_bloom._bloom_downsample_framebuffer_data_list[i]),
                 Some(&self._render_context_bloom._bloom_downsample_descriptor_sets[i]),
                 None
             );
@@ -1167,14 +1167,14 @@ impl RendererData {
         // render_gaussian_blur
         let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/render_gaussian_blur").borrow();
         let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
-        let framebuffer_count = self._render_context_bloom._bloom_temp_framebuffer_datas.len();
+        let framebuffer_count = self._render_context_bloom._bloom_temp_framebuffer_data_list.len();
         for i in 0..framebuffer_count {
             renderer_context.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
                 quad_geometry_data,
-                Some(&self._render_context_bloom._bloom_temp_framebuffer_datas[i]),
+                Some(&self._render_context_bloom._bloom_temp_framebuffer_data_list[i]),
                 Some(&self._render_context_bloom._bloom_temp_descriptor_sets[i]),
                 Some(&PushConstant_GaussianBlur {
                     _blur_scale: if 0 == (i % 2) {
@@ -1241,7 +1241,7 @@ impl RendererData {
         // Copy Scene Depth
         renderer_context.render_material_instance(command_buffer, swapchain_index, "common/generate_max_z", "generate_max_z/render_copy", &quad_geometry_data, None, None, None);
 
-        // Generate Hierachical Min Z
+        // Generate Hierarchical Min Z
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources.get_material_instance_data("common/generate_max_z").borrow();
         let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_max_z/generate_max_z");
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
@@ -1286,7 +1286,7 @@ impl RendererData {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData
     ) {
-        // Generate Hierachical Min Z
+        // Generate Hierarchical Min Z
         self.generate_max_z(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // Screen Space Reflection

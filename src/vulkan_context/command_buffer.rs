@@ -5,7 +5,7 @@ use ash::{
 
 use crate::vulkan_context::queue;
 
-pub fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFamilyDatas) -> vk::CommandPool {
+pub fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFamilyDataList) -> vk::CommandPool {
     let queue_family_index = queue_family_data._queue_family_indices._graphics_queue_index;
     let command_pool_create_info = vk::CommandPoolCreateInfo {
         flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,

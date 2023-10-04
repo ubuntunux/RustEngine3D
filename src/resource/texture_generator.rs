@@ -53,21 +53,21 @@ pub fn generate_3d_data(size: u32) -> Vec<u32> {
 }
 
 pub fn generate_random_data(image_width: u32, image_height: u32) -> Vec<Vector4<f32>> {
-    let mut image_datas: Vec<Vector4<f32>> = Vec::new();
-    image_datas.resize((image_width * image_height) as usize, Vector4::zeros());
-    for image_data in image_datas.iter_mut() {
+    let mut image_data_list: Vec<Vector4<f32>> = Vec::new();
+    image_data_list.resize((image_width * image_height) as usize, Vector4::zeros());
+    for image_data in image_data_list.iter_mut() {
         image_data.x = rand::random::<f32>();
         image_data.y = rand::random::<f32>();
         image_data.z = rand::random::<f32>();
         image_data.w = rand::random::<f32>();
     }
-    image_datas
+    image_data_list
 }
 
 pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vector4<f32>> {
-    let mut image_datas: Vec<Vector4<f32>> = Vec::new();
-    image_datas.resize((image_width * image_height) as usize, Vector4::zeros());
-    for image_data in image_datas.iter_mut() {
+    let mut image_data_list: Vec<Vector4<f32>> = Vec::new();
+    image_data_list.resize((image_width * image_height) as usize, Vector4::zeros());
+    for image_data in image_data_list.iter_mut() {
         let scale = rand::random::<f32>();
         let normal = Vector3::new(
             rand::random::<f32>() * 2.0 - 1.0,
@@ -79,7 +79,7 @@ pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vecto
         image_data.z = normal.z;
         image_data.w = 1.0;
     }
-    image_datas
+    image_data_list
 }
 
 pub fn generate_images(texture_source_directory: &PathBuf) {
@@ -116,7 +116,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_view_type: vk::ImageViewType::TYPE_3D,
         _texture_min_filter: vk::Filter::NEAREST,
         _texture_mag_filter: vk::Filter::NEAREST,
-        _texture_initial_datas: default_3d_data,
+        _texture_initial_data_list: default_3d_data,
         _enable_mipmap: true,
         ..Default::default()
     });
@@ -131,7 +131,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_view_type: vk::ImageViewType::TYPE_2D_ARRAY,
         _texture_min_filter: vk::Filter::NEAREST,
         _texture_mag_filter: vk::Filter::NEAREST,
-        _texture_initial_datas: default_2d_array_data,
+        _texture_initial_data_list: default_2d_array_data,
         _enable_mipmap: true,
         ..Default::default()
     });
@@ -143,7 +143,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_height: 512,
         _texture_format: vk::Format::R32G32B32A32_SFLOAT,
         _texture_view_type: vk::ImageViewType::TYPE_2D,
-        _texture_initial_datas: random_data,
+        _texture_initial_data_list: random_data,
         ..Default::default()
     });
 
@@ -153,7 +153,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_width: unsafe { constants::SSAO_NOISE_DIM as u32 },
         _texture_height: unsafe { constants::SSAO_NOISE_DIM as u32 },
         _texture_format: vk::Format::R32G32B32A32_SFLOAT,
-        _texture_initial_datas: random_normals,
+        _texture_initial_data_list: random_normals,
         ..Default::default()
     });
     let texture_check = renderer_context.create_texture(&TextureCreateInfo {
@@ -162,7 +162,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_height: 2,
         _texture_min_filter: vk::Filter::NEAREST,
         _texture_mag_filter: vk::Filter::NEAREST,
-        _texture_initial_datas: vec![white, black, black, white],
+        _texture_initial_data_list: vec![white, black, black, white],
         ..Default::default()
     });
     let texture_color_cube = renderer_context.create_texture(&TextureCreateInfo {
@@ -170,7 +170,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_width: 1,
         _texture_height: 1,
         _texture_view_type: vk::ImageViewType::CUBE,
-        _texture_initial_datas: vec![ white, black, red, green, blue, yellow ],
+        _texture_initial_data_list: vec![ white, black, red, green, blue, yellow ],
         ..Default::default()
     });
 

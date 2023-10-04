@@ -141,7 +141,7 @@ pub type ResourceInfoMap = HashMap<String, ResourceInfo>;
 
 pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
 pub type EffectDataMap = ResourceDataMap<EffectData>;
-pub type FramebufferDatasMap = ResourceDataMap<FramebufferData>;
+pub type FramebufferDataListMap = ResourceDataMap<FramebufferData>;
 pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<MaterialInstanceData>;
 pub type FontDataMap = ResourceDataMap<FontData>;
@@ -159,8 +159,8 @@ pub trait ProjectResourcesBase {
     fn initialize_project_resources(&mut self, engine_resources: &EngineResources);
     fn load_project_resources(&mut self, renderer_context: &RendererContext);
     fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
-    fn load_graphics_datas(&mut self, renderer_context: &RendererContext);
-    fn unload_graphics_datas(&mut self, renderer_context: &RendererContext);
+    fn load_graphics_data_list(&mut self, renderer_context: &RendererContext);
+    fn unload_graphics_data_list(&mut self, renderer_context: &RendererContext);
     fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext, render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap);
     fn regist_resource(&mut self);
     fn unregist_resource(&mut self);
@@ -195,7 +195,7 @@ pub struct EngineResources {
     pub _mesh_data_map: MeshDataMap,
     pub _model_data_map: ModelDataMap,
     pub _texture_data_map: TextureDataMap,
-    pub _framebuffer_datas_map: FramebufferDatasMap,
+    pub _framebuffer_data_list_map: FramebufferDataListMap,
     pub _render_pass_data_map: RenderPassDataMap,
     pub _render_pass_data_create_info_map: RenderPassDataCreateInfoMap,
     pub _material_data_map: MaterialDataMap,
@@ -323,7 +323,7 @@ impl EngineResources {
             _mesh_data_map: MeshDataMap::new(),
             _model_data_map: ModelDataMap::new(),
             _texture_data_map: TextureDataMap::new(),
-            _framebuffer_datas_map: FramebufferDatasMap::new(),
+            _framebuffer_data_list_map: FramebufferDataListMap::new(),
             _render_pass_data_map: RenderPassDataMap::new(),
             _render_pass_data_create_info_map: RenderPassDataCreateInfoMap::new(),
             _material_data_map: MaterialDataMap::new(),
@@ -463,17 +463,17 @@ impl EngineResources {
 
         // load engine resources
         let is_reload: bool = false;
-        self.load_texture_datas(renderer_context);
-        self.load_font_datas(renderer_context);
+        self.load_texture_data_list(renderer_context);
+        self.load_font_data_list(renderer_context);
         self.load_render_pass_data_create_infos(renderer_context);
-        self.load_render_pass_datas(renderer_context);
-        self.load_framebuffer_datas(renderer_context);
-        self.load_material_datas();
-        self.load_material_instance_datas(renderer_context, is_reload);
-        self.load_mesh_datas(renderer_context);
-        self.load_model_datas();
-        self.load_audio_datas();
-        self.load_effect_datas();
+        self.load_render_pass_data_list(renderer_context);
+        self.load_framebuffer_data_list(renderer_context);
+        self.load_material_data_list();
+        self.load_material_instance_data_list(renderer_context, is_reload);
+        self.load_mesh_data_list(renderer_context);
+        self.load_model_data_list();
+        self.load_audio_data_list();
+        self.load_effect_data_list();
 
         // load project resources
         self.get_project_resources_mut().load_project_resources(renderer_context);
@@ -488,40 +488,40 @@ impl EngineResources {
         self.get_project_resources_mut().destroy_project_resources(renderer_context);
 
         // destroy engine resources
-        self.unload_effect_datas();
-        self.unload_audio_datas();
-        self.unload_model_datas();
-        self.unload_mesh_datas(renderer_context);
-        self.unload_material_instance_datas(is_reload);
-        self.unload_material_datas();
-        self.unload_framebuffer_datas(renderer_context);
-        self.unload_render_pass_datas(renderer_context);
+        self.unload_effect_data_list();
+        self.unload_audio_data_list();
+        self.unload_model_data_list();
+        self.unload_mesh_data_list(renderer_context);
+        self.unload_material_instance_data_list(is_reload);
+        self.unload_material_data_list();
+        self.unload_framebuffer_data_list(renderer_context);
+        self.unload_render_pass_data_list(renderer_context);
         self.unload_render_pass_data_create_infos(renderer_context);
-        self.unload_font_datas();
-        self.unload_texture_datas(renderer_context);
-        self.unload_descriptor_datas(renderer_context);
+        self.unload_font_data_list();
+        self.unload_texture_data_list(renderer_context);
+        self.unload_descriptor_data_list(renderer_context);
     }
 
-    // GraphicsDatas
-    pub fn load_graphics_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("load_graphics_datas");
+    // GraphicsDataList
+    pub fn load_graphics_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("load_graphics_data_list");
         let is_reload: bool = true;
         self.load_render_pass_data_create_infos(renderer_context);
-        self.load_render_pass_datas(renderer_context);
-        self.load_framebuffer_datas(renderer_context);
-        self.load_material_datas();
-        self.load_material_instance_datas(renderer_context, is_reload);
+        self.load_render_pass_data_list(renderer_context);
+        self.load_framebuffer_data_list(renderer_context);
+        self.load_material_data_list();
+        self.load_material_instance_data_list(renderer_context, is_reload);
     }
 
-    pub fn unload_graphics_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("unload_graphics_datas");
+    pub fn unload_graphics_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("unload_graphics_data_list");
         let is_reload: bool = true;
-        self.unload_material_instance_datas(is_reload);
-        self.unload_material_datas();
-        self.unload_framebuffer_datas(renderer_context);
-        self.unload_render_pass_datas(renderer_context);
+        self.unload_material_instance_data_list(is_reload);
+        self.unload_material_data_list();
+        self.unload_framebuffer_data_list(renderer_context);
+        self.unload_render_pass_data_list(renderer_context);
         self.unload_render_pass_data_create_infos(renderer_context);
-        self.unload_descriptor_datas(renderer_context);
+        self.unload_descriptor_data_list(renderer_context);
     }
 
     pub fn create_resource(&mut self) {
@@ -550,12 +550,12 @@ impl EngineResources {
     }
 
     // Audio Data
-    pub fn load_audio_datas(&mut self) {
-        log::info!("    load_audio_datas");
+    pub fn load_audio_data_list(&mut self) {
+        log::info!("    load_audio_data_list");
         let audio_directory = PathBuf::from(AUDIO_DIRECTORY);
         let audio_bank_directory = PathBuf::from(AUDIO_BANK_DIRECTORY);
 
-        // load audio datas
+        // load audio data_list
         let audio_data_files: Vec<PathBuf> = self.collect_resources(&audio_directory, &EXT_AUDIO_SOURCE);
         for audio_data_file in audio_data_files.iter() {
             let audio_data_name = get_unique_resource_name(&self._audio_data_map, &audio_directory, &audio_data_file);
@@ -586,7 +586,7 @@ impl EngineResources {
             }
         }
 
-        // load audio bank datas
+        // load audio bank data_list
         let audio_bank_data_files: Vec<PathBuf> = self.collect_resources(&audio_bank_directory, &[EXT_AUDIO_BANK]);
         for audio_bank_data_file in audio_bank_data_files {
             let audio_bank_data_name = get_unique_resource_name(&self._audio_bank_data_map, &audio_bank_directory, &audio_bank_data_file);
@@ -600,7 +600,7 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_audio_datas(&mut self) {
+    pub fn unload_audio_data_list(&mut self) {
         self._audio_bank_data_map.clear();
         self._audio_data_map.clear();
     }
@@ -642,15 +642,15 @@ impl EngineResources {
                         // load audio bank data
                         let loaded_contents = system::load(&resource_info._meta_data._resource_file_path);
                         let audio_bank_create_info: AudioBankCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-                        let mut audio_datas: Vec<RcRefCell<AudioData>> = Vec::new();
+                        let mut audio_data_list: Vec<RcRefCell<AudioData>> = Vec::new();
                         for audio_name in audio_bank_create_info._audio_names.iter() {
                             if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
-                                audio_datas.push(audio_data.clone());
+                                audio_data_list.push(audio_data.clone());
                             }
                         }
                         let audio_bank_data = AudioBankData {
                             _audio_bank_name: resource_info._resource_name.clone(),
-                            _audio_datas: audio_datas,
+                            _audio_data_list: audio_data_list,
                         };
                         resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
                     }
@@ -663,8 +663,8 @@ impl EngineResources {
     }
 
     // EffectData
-    pub fn load_effect_datas(&mut self) {
-        log::info!("    load_effect_datas");
+    pub fn load_effect_data_list(&mut self) {
+        log::info!("    load_effect_data_list");
         // create default effect
         let mut default_effect_file_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
         default_effect_file_path.push(EFFECT_DIRECTORY);
@@ -705,7 +705,7 @@ impl EngineResources {
             let effect_data_name = get_unique_resource_name(&self._effect_data_map, &PathBuf::from(EFFECT_DIRECTORY), &effect_file);
             let loaded_contents = system::load(&effect_file);
             let effect_data_create_info: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let emitter_datas = effect_data_create_info._emitter_data_create_infos.iter().map(|emitter_data_create_info| {
+            let emitter_data_list = effect_data_create_info._emitter_data_create_infos.iter().map(|emitter_data_create_info| {
                 let material_instance_data = self.get_material_instance_data(&emitter_data_create_info._material_instance_name);
                 let mesh_data = self.get_mesh_data(&emitter_data_create_info._mesh_name);
                 EmitterData::create_emitter_data(
@@ -717,13 +717,13 @@ impl EngineResources {
             let effect_data = EffectData::create_effect_data(
                 &effect_data_name,
                 &effect_data_create_info,
-                emitter_datas
+                emitter_data_list
             );
             self._effect_data_map.insert(effect_data_name.clone(), newRcRefCell(effect_data));
         }
     }
 
-    pub fn unload_effect_datas(&mut self) {
+    pub fn unload_effect_data_list(&mut self) {
         for effect_data in self._effect_data_map.values() {
             effect_data.borrow_mut().destroy_effect_data();
         }
@@ -776,8 +776,8 @@ impl EngineResources {
         font_data_create_info
     }
 
-    pub fn load_font_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("    load_font_datas");
+    pub fn load_font_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
         //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
@@ -851,7 +851,7 @@ impl EngineResources {
                         _texture_layers: image_layers,
                         _texture_format: image_format,
                         _texture_view_type: vk::ImageViewType::TYPE_2D,
-                        _texture_initial_datas: image_data,
+                        _texture_initial_data_list: image_data,
                         _enable_mipmap: false,
                         _enable_anisotropy: false,
                         ..Default::default()
@@ -879,7 +879,7 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_font_datas(&mut self) {
+    pub fn unload_font_data_list(&mut self) {
         self._font_data_map.clear();
     }
 
@@ -896,8 +896,8 @@ impl EngineResources {
     }
 
     // ModelData
-    pub fn load_model_datas(&mut self) {
-        log::info!("    load_model_datas");
+    pub fn load_model_data_list(&mut self) {
+        log::info!("    load_model_data_list");
         let model_directory = PathBuf::from(MODEL_DIRECTORY);
         let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
@@ -919,7 +919,7 @@ impl EngineResources {
             };
             let mesh_data = self.get_mesh_data(mesh_name.as_str());
             let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
-            let material_instance_datas: Vec<RcRefCell<MaterialInstanceData>> = (0..geometry_data_count).map(|index| {
+            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> = (0..geometry_data_count).map(|index| {
                 if index < material_instance_count {
                     match &material_instance_names[index] {
                         Value::String(material_instance_name) => {
@@ -931,12 +931,12 @@ impl EngineResources {
                     self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
                 }
             }).collect();
-            let model_data = ModelData::new_model_data(&model_name, mesh_data.clone(), material_instance_datas);
+            let model_data = ModelData::new_model_data(&model_name, mesh_data.clone(), material_instance_data_list);
             self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
         }
     }
 
-    pub fn unload_model_datas(&mut self) {
+    pub fn unload_model_data_list(&mut self) {
         for model_data in self._model_data_map.values() {
             model_data.borrow().destroy_model_data();
         }
@@ -958,19 +958,19 @@ impl EngineResources {
         mesh_name: &String,
         mesh_data_create_info: MeshDataCreateInfo,
     ) {
-        let mut geometry_datas: Vec<RcRefCell<GeometryData>> = Vec::new();
+        let mut geometry_data_list: Vec<RcRefCell<GeometryData>> = Vec::new();
         for (i, geometry_create_info) in mesh_data_create_info._geometry_create_infos.iter().enumerate() {
             let geomtery_name: String = format!("{}_{}", mesh_name, i);
             let geometry_data = renderer_context.create_geometry_buffer(&geomtery_name, geometry_create_info);
-            geometry_datas.push(newRcRefCell(geometry_data));
+            geometry_data_list.push(newRcRefCell(geometry_data));
         }
 
-        let mesh_data = newRcRefCell(MeshData::create_mesh_data(&mesh_name, mesh_data_create_info, geometry_datas));
+        let mesh_data = newRcRefCell(MeshData::create_mesh_data(&mesh_name, mesh_data_create_info, geometry_data_list));
         self._mesh_data_map.insert(mesh_name.clone(), mesh_data.clone());
     }
 
-    pub fn load_mesh_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("    load_mesh_datas");
+    pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_mesh_data_list");
         self.regist_mesh_data(renderer_context, &String::from("quad"), geometry_buffer::quad_mesh_create_info());
         self.regist_mesh_data(renderer_context, &String::from("cube"), geometry_buffer::cube_mesh_create_info());
         let mesh_directory = PathBuf::from(MESH_DIRECTORY);
@@ -1035,10 +1035,10 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_mesh_datas(&mut self, renderer_context: &RendererContext) {
+    pub fn unload_mesh_data_list(&mut self, renderer_context: &RendererContext) {
         for mesh_data in self._mesh_data_map.values() {
-            for geometry_data in (*mesh_data).borrow().get_geomtry_datas() {
-                renderer_context.destroy_geomtry_buffer(&geometry_data.borrow());
+            for geometry_data in (*mesh_data).borrow().get_geometry_data_list() {
+                renderer_context.destroy_geometry_buffer(&geometry_data.borrow());
             }
         }
         self._mesh_data_map.clear();
@@ -1077,30 +1077,30 @@ impl EngineResources {
         (image_width, image_height, image_layer, image_data_raw, image_format)
     }
 
-    pub fn load_image_datas(texture_files: &Vec<PathBuf>) -> LoadImageInfoType {
+    pub fn load_image_data_list(texture_files: &Vec<PathBuf>) -> LoadImageInfoType {
         let mut image_width: u32 = 0;
         let mut image_height: u32 = 0;
         let mut image_format: vk::Format = vk::Format::UNDEFINED;
-        let mut image_datas: Vec<Vec<u8>> = Vec::new();
+        let mut image_data_list: Vec<Vec<u8>> = Vec::new();
         for texture_file in texture_files.iter() {
             let (width, height, _layer, image_data, format): LoadImageInfoType = EngineResources::load_image_data(texture_file);
             image_width = width;
             image_height = height;
             image_format = format;
-            image_datas.push(image_data.clone());
+            image_data_list.push(image_data.clone());
         }
-        let image_datas = image_datas.concat();
-        (image_width, image_height, texture_files.len() as u32, image_datas, image_format)
+        let image_data_list = image_data_list.concat();
+        (image_width, image_height, texture_files.len() as u32, image_data_list, image_format)
     }
 
     pub fn regist_texture_data(&mut self, texture_data_name: String, texture_data: RcRefCell<TextureData>) {
         self._texture_data_map.insert(texture_data_name, texture_data);
     }
 
-    pub fn load_texture_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("    load_texture_datas");
-        let default_texture_datas: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
-        for texture_data in default_texture_datas {
+    pub fn load_texture_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_texture_data_list");
+        let default_texture_data_list: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
+        for texture_data in default_texture_data_list {
             self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
         }
 
@@ -1110,7 +1110,7 @@ impl EngineResources {
         let mut combined_texture_files_map: HashMap<String, Vec::<PathBuf>> = HashMap::new();
         let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
 
-        // generate necessary texture datas
+        // generate necessary texture data_list
         #[cfg(not(target_os = "android"))]
         {
             let mut engine_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
@@ -1182,7 +1182,7 @@ impl EngineResources {
                     if combined_texture_name.is_some() {
                         let combined_texture_files = combined_texture_files_map.get(texture_data_name.as_str()).unwrap();
                         let image_view_type = combined_texture_types_map.get(texture_data_name.as_str()).unwrap();
-                        (*image_view_type, EngineResources::load_image_datas(&combined_texture_files))
+                        (*image_view_type, EngineResources::load_image_data_list(&combined_texture_files))
                     } else {
                         (vk::ImageViewType::TYPE_2D, EngineResources::load_image_data(texture_src_file))
                     };
@@ -1194,7 +1194,7 @@ impl EngineResources {
                         _texture_layers: image_layers,
                         _texture_format: image_format,
                         _texture_view_type: image_view_type,
-                        _texture_initial_datas: image_data,
+                        _texture_initial_data_list: image_data,
                         _enable_mipmap: true,
                         _enable_anisotropy: false,
                         ..Default::default()
@@ -1221,7 +1221,7 @@ impl EngineResources {
             let wrap: vk::SamplerAddressMode = vk::SamplerAddressMode::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
             let data_bytes: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
             let mut image_data: Vec<u8> = Vec::new();
-            loaded_contents.read_to_end(&mut image_data).expect("Failed to read datas.");
+            loaded_contents.read_to_end(&mut image_data).expect("Failed to read data_list.");
             assert_eq!(data_bytes as usize, image_data.len());
 
             let texture_create_info = TextureCreateInfo {
@@ -1234,7 +1234,7 @@ impl EngineResources {
                 _texture_mag_filter: mag_filter,
                 _texture_wrap_mode: wrap,
                 _texture_view_type: image_view_type,
-                _texture_initial_datas: image_data,
+                _texture_initial_data_list: image_data,
                 _enable_mipmap: enable_mipmap,
                 _enable_anisotropy: false,
                 ..Default::default()
@@ -1244,7 +1244,7 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_texture_datas(&mut self, renderer_context: &RendererContext) {
+    pub fn unload_texture_data_list(&mut self, renderer_context: &RendererContext) {
         for texture_data in self._texture_data_map.values() {
             renderer_context.destroy_texture(&(*texture_data).borrow());
         }
@@ -1260,8 +1260,8 @@ impl EngineResources {
     }
 
     // Framebuffer
-    pub fn load_framebuffer_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("    load_framebuffer_datas");
+    pub fn load_framebuffer_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_framebuffer_data_list");
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
             for (_key, render_pass_data_create_info) in self._render_pass_data_create_info_map.iter() {
@@ -1274,7 +1274,7 @@ impl EngineResources {
                             render_pass_data._render_pass_data_name.as_str(),
                             render_pass_data_create_info._render_pass_framebuffer_create_info.clone(),
                         );
-                        self._framebuffer_datas_map.insert(render_pass_data._render_pass_data_name.clone(), newRcRefCell(framebuffer_data));
+                        self._framebuffer_data_list_map.insert(render_pass_data._render_pass_data_name.clone(), newRcRefCell(framebuffer_data));
                         break;
                     }
                 }
@@ -1282,19 +1282,19 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_framebuffer_datas(&mut self, renderer_context: &RendererContext) {
-        for framebuffer_data in self._framebuffer_datas_map.values() {
+    pub fn unload_framebuffer_data_list(&mut self, renderer_context: &RendererContext) {
+        for framebuffer_data in self._framebuffer_data_list_map.values() {
             framebuffer::destroy_framebuffer_data(renderer_context.get_device(), &framebuffer_data.borrow());
         }
-        self._framebuffer_datas_map.clear();
+        self._framebuffer_data_list_map.clear();
     }
 
     pub fn has_framebuffer_data(&self, resource_name: &str) -> bool {
-        self._framebuffer_datas_map.contains_key(resource_name)
+        self._framebuffer_data_list_map.contains_key(resource_name)
     }
 
     pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
-        get_resource_data_must(&self._framebuffer_datas_map, resource_name)
+        get_resource_data_must(&self._framebuffer_data_list_map, resource_name)
     }
 
     // render pass data create info
@@ -1316,27 +1316,27 @@ impl EngineResources {
     }
 
     // render pass data
-    pub fn load_render_pass_datas(&mut self, renderer_context: &RendererContext) {
-        log::info!("    load_render_pass_datas");
+    pub fn load_render_pass_data_list(&mut self, renderer_context: &RendererContext) {
+        log::info!("    load_render_pass_data_list");
 
         let render_pass_data_create_info_map = ptr_as_ref(&self._render_pass_data_create_info_map);
         for (_key, render_pass_data_create_info) in render_pass_data_create_info_map.iter() {
-            let mut descriptor_datas: Vec<RcRefCell<DescriptorData>> = Vec::new();
+            let mut descriptor_data_list: Vec<RcRefCell<DescriptorData>> = Vec::new();
             for pipeline_data_create_info in render_pass_data_create_info._pipeline_data_create_infos.iter() {
-                descriptor_datas.push(
+                descriptor_data_list.push(
                     self.get_descriptor_data(renderer_context, &render_pass_data_create_info._render_pass_create_info_name, pipeline_data_create_info)
                 );
             }
             let default_render_pass_data = render_pass::create_render_pass_data(
                 renderer_context,
                 render_pass_data_create_info,
-                &descriptor_datas
+                &descriptor_data_list
             );
             self._render_pass_data_map.insert(default_render_pass_data.get_render_pass_data_name().clone(), newRcRefCell(default_render_pass_data));
         }
     }
 
-    pub fn unload_render_pass_datas(&mut self, renderer_context: &RendererContext) {
+    pub fn unload_render_pass_data_list(&mut self, renderer_context: &RendererContext) {
         for render_pass_data in self._render_pass_data_map.values() {
             render_pass::destroy_render_pass_data(renderer_context.get_device(), &(*render_pass_data).borrow());
         }
@@ -1365,9 +1365,9 @@ impl EngineResources {
         }
     }
 
-    // Material_datas
-    pub fn load_material_datas(&mut self) {
-        log::info!("    load_material_datas");
+    // Material_data_list
+    pub fn load_material_data_list(&mut self) {
+        log::info!("    load_material_data_list");
         let material_directory = PathBuf::from(MATERIAL_DIRECTORY);
         let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
         for material_file in material_files {
@@ -1379,7 +1379,7 @@ impl EngineResources {
                 _ => panic!("material parsing error"),
             };
             let pipeline_create_infos = material_create_info.get("pipelines").unwrap().as_array().unwrap();
-            let render_pass_pipeline_datas: Vec<Option<RenderPassPipelineData>> = pipeline_create_infos.iter().map(|pipeline_create_info| {
+            let render_pass_pipeline_data_list: Vec<Option<RenderPassPipelineData>> = pipeline_create_infos.iter().map(|pipeline_create_info| {
                 let render_pass_data_name = match pipeline_create_info.get("render_pass").unwrap() {
                     Value::String(render_pass_data_name) => render_pass_data_name,
                     _ => panic!("failed to parsing render_pass"),
@@ -1402,12 +1402,12 @@ impl EngineResources {
                 _ => &empty_object,
             };
 
-            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_datas, material_parameters);
+            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_data_list, material_parameters);
             self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
 
-    pub fn unload_material_datas(&mut self) {
+    pub fn unload_material_data_list(&mut self) {
         for material_data in self._material_data_map.values() {
             material_data.borrow().destroy_material();
         }
@@ -1422,9 +1422,9 @@ impl EngineResources {
         get_resource_data_must(&self._material_data_map, resource_name)
     }
 
-    // MaterialInstance_datas
-    pub fn load_material_instance_datas(&mut self, renderer_context: &RendererContext, is_reload: bool) {
-        log::info!("    load_material_instance_datas");
+    // MaterialInstance_data_list
+    pub fn load_material_instance_data_list(&mut self, renderer_context: &RendererContext, is_reload: bool) {
+        log::info!("    load_material_instance_data_list");
         let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_DIRECTORY);
         let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
@@ -1495,7 +1495,7 @@ impl EngineResources {
                                 }
                             },
                             DescriptorResourceType::AccelerationStructure => {
-                                log::info!(">>> TEST CODE: load_material_instance_datas: {:?}", material_instance_name);
+                                log::info!(">>> TEST CODE: load_material_instance_data_list: {:?}", material_instance_name);
                                 log::info!("    WriteDescriptorSetAccelerationStructure");
                                 let ray_tracing_data = renderer_context.get_ray_tracing_test_data();
                                 ray_tracing_data.get_top_level_descriptor_resource_info()
@@ -1507,8 +1507,8 @@ impl EngineResources {
                 }).collect();
 
                 // update push constant
-                let mut push_constant_datas = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_datas.clone();
-                for push_constant_data in push_constant_datas.iter_mut() {
+                let mut push_constant_data_list = render_pass_pipeline_data._pipeline_data.borrow()._push_constant_data_list.clone();
+                for push_constant_data in push_constant_data_list.iter_mut() {
                     push_constant_data._push_constant.update_material_parameters(&material_parameters);
                 }
 
@@ -1516,7 +1516,7 @@ impl EngineResources {
                 PipelineBindingDataCreateInfo {
                     _render_pass_pipeline_data: render_pass_pipeline_data.clone(),
                     _descriptor_resource_infos_list: descriptor_resource_infos_list,
-                    _push_constant_datas: push_constant_datas
+                    _push_constant_data_list: push_constant_data_list
                 }
             }).collect();
 
@@ -1539,7 +1539,7 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_material_instance_datas(&mut self, is_reload: bool) {
+    pub fn unload_material_instance_data_list(&mut self, is_reload: bool) {
         for material_instance_data in self._material_instance_data_map.values() {
             (*material_instance_data).borrow().destroy_material_instance();
         }
@@ -1557,7 +1557,7 @@ impl EngineResources {
         get_resource_data_must(&self._material_instance_data_map, resource_name)
     }
 
-    // Descriptor_datas
+    // Descriptor_data_list
     pub fn get_descriptor_data(
         &mut self,
         renderer_context: &RendererContext,
@@ -1587,7 +1587,7 @@ impl EngineResources {
         }
     }
 
-    pub fn unload_descriptor_datas(&mut self, renderer_context: &RendererContext) {
+    pub fn unload_descriptor_data_list(&mut self, renderer_context: &RendererContext) {
         for descriptor_data in self._descriptor_data_map.values() {
             descriptor::destroy_descriptor_data(renderer_context.get_device(), &(*descriptor_data).borrow());
         }

@@ -7,7 +7,7 @@ use ash::extensions::ext::DebugUtils;
 use crate::constants;
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::shader_buffer_datas::SSAOConstants;
+use crate::renderer::shader_buffer_data::SSAOConstants;
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
 use crate::vulkan_context::buffer::ShaderBufferData;
@@ -24,10 +24,10 @@ pub struct RenderContext_LightProbe {
     pub _light_probe_blend_time: f64,
     pub _light_probe_blend_term: f64,
     pub _light_probe_capture_count: u64,
-    pub _render_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
+    pub _render_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData>,
     pub _render_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
-    pub _composite_atmosphere_framebuffer_datas_only_sky: CubeMapArray<FramebufferData>,
-    pub _composite_atmosphere_framebuffer_datas: CubeMapArray<FramebufferData>,
+    pub _composite_atmosphere_framebuffer_data_list_only_sky: CubeMapArray<FramebufferData>,
+    pub _composite_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData>,
     pub _composite_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
     pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
     pub _light_probe_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
@@ -45,10 +45,10 @@ impl Default for RenderContext_LightProbe {
             _light_probe_blend_time: 0.0,
             _light_probe_blend_term: 1.0,
             _light_probe_capture_count: 0,
-            _render_atmosphere_framebuffer_datas: Vec::new(),
+            _render_atmosphere_framebuffer_data_list: Vec::new(),
             _render_atmosphere_descriptor_sets: Vec::new(),
-            _composite_atmosphere_framebuffer_datas_only_sky: Vec::new(),
-            _composite_atmosphere_framebuffer_datas: Vec::new(),
+            _composite_atmosphere_framebuffer_data_list_only_sky: Vec::new(),
+            _composite_atmosphere_framebuffer_data_list: Vec::new(),
             _composite_atmosphere_descriptor_sets: Vec::new(),
             _only_sky_downsampling_descriptor_sets: Vec::new(),
             _light_probe_downsampling_descriptor_sets: Vec::new(),
@@ -63,13 +63,13 @@ impl Default for RenderContext_LightProbe {
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct RenderContext_ClearRenderTargets {
-    pub _color_framebuffer_datas: HashMap<String, Layers<MipLevels<FramebufferData>>>,
+    pub _color_framebuffer_data_list: HashMap<String, Layers<MipLevels<FramebufferData>>>,
 }
 
 impl Default for RenderContext_ClearRenderTargets {
     fn default() -> RenderContext_ClearRenderTargets {
         RenderContext_ClearRenderTargets {
-            _color_framebuffer_datas: HashMap::new()
+            _color_framebuffer_data_list: HashMap::new()
         }
     }
 }
@@ -111,11 +111,11 @@ impl Default for RenderContext_SceneColorDownSampling {
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
 pub struct RenderContext_Bloom {
-    pub _bloom_downsample_framebuffer_datas: Vec<FramebufferData>,
+    pub _bloom_downsample_framebuffer_data_list: Vec<FramebufferData>,
     pub _bloom_downsample_descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
-    pub _bloom_temp_framebuffer_datas: Vec<FramebufferData>,
+    pub _bloom_temp_framebuffer_data_list: Vec<FramebufferData>,
     pub _bloom_temp_descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
-    pub _bloom_blur_framebuffer_datas: Vec<*const FramebufferData>,
+    pub _bloom_blur_framebuffer_data_list: Vec<*const FramebufferData>,
     pub _bloom_blur_descriptor_sets: Vec<*const SwapchainArray<vk::DescriptorSet>>,
     pub _bloom_push_constants: PushConstant_BloomHighlight,
 }
@@ -123,11 +123,11 @@ pub struct RenderContext_Bloom {
 impl Default for RenderContext_Bloom {
     fn default() -> RenderContext_Bloom {
         RenderContext_Bloom {
-            _bloom_downsample_framebuffer_datas: Vec::new(),
+            _bloom_downsample_framebuffer_data_list: Vec::new(),
             _bloom_downsample_descriptor_sets: Vec::new(),
-            _bloom_temp_framebuffer_datas: Vec::new(),
+            _bloom_temp_framebuffer_data_list: Vec::new(),
             _bloom_temp_descriptor_sets: Vec::new(),
-            _bloom_blur_framebuffer_datas: Vec::new(),
+            _bloom_blur_framebuffer_data_list: Vec::new(),
             _bloom_blur_descriptor_sets: Vec::new(),
             _bloom_push_constants: PushConstant_BloomHighlight {
                 _bloom_threshold_min: 0.5,
@@ -204,15 +204,15 @@ impl Default for RenderContext_TAA {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_HierachicalMinZ {
+pub struct RenderContext_HierarchicalMinZ {
     pub _dispatch_group_x: u32,
     pub _dispatch_group_y: u32,
     pub _descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
 }
 
-impl Default for RenderContext_HierachicalMinZ {
-    fn default() -> RenderContext_HierachicalMinZ {
-        RenderContext_HierachicalMinZ {
+impl Default for RenderContext_HierarchicalMinZ {
+    fn default() -> RenderContext_HierarchicalMinZ {
+        RenderContext_HierarchicalMinZ {
             _dispatch_group_x: 1,
             _dispatch_group_y: 1,
             _descriptor_sets: Vec::new(),
@@ -263,7 +263,7 @@ impl RenderContext_Bloom {
                 render_target_bloom0, layer, mip_level + 1, None,
                 &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(render_target_bloom0.get_sub_image_info(layer, mip_level)))]
             );
-            self._bloom_downsample_framebuffer_datas.push(bloom_framebuffer_data);
+            self._bloom_downsample_framebuffer_data_list.push(bloom_framebuffer_data);
             self._bloom_downsample_descriptor_sets.push(bloom_descriptor_set);
         }
 
@@ -281,8 +281,8 @@ impl RenderContext_Bloom {
                 render_target_bloom0, layer, mip_level, None,
                 &[(descriptor_binding_index, utility::create_descriptor_image_info_swapchain_array(render_target_bloom_temp0.get_sub_image_info(layer, mip_level)))]
             );
-            self._bloom_temp_framebuffer_datas.push(gaussian_blur_h_framebuffer_data);
-            self._bloom_temp_framebuffer_datas.push(gaussian_blur_v_framebuffer_data);
+            self._bloom_temp_framebuffer_data_list.push(gaussian_blur_h_framebuffer_data);
+            self._bloom_temp_framebuffer_data_list.push(gaussian_blur_v_framebuffer_data);
             self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets);
             self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets);
         }
@@ -290,9 +290,9 @@ impl RenderContext_Bloom {
         let render_bloom_framebuffer_data = engine_resources.get_framebuffer_data("render_bloom").as_ptr();
         let render_bloom_hightlight_pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
 
-        self._bloom_blur_framebuffer_datas.push(render_bloom_framebuffer_data);
-        for framebuffer_data in self._bloom_downsample_framebuffer_datas.iter() {
-            self._bloom_blur_framebuffer_datas.push(framebuffer_data);
+        self._bloom_blur_framebuffer_data_list.push(render_bloom_framebuffer_data);
+        for framebuffer_data in self._bloom_downsample_framebuffer_data_list.iter() {
+            self._bloom_blur_framebuffer_data_list.push(framebuffer_data);
         }
         self._bloom_blur_descriptor_sets.push(&render_bloom_hightlight_pipeline_binding_data._descriptor_sets);
         for descriptor_set in self._bloom_downsample_descriptor_sets.iter() {
@@ -301,17 +301,17 @@ impl RenderContext_Bloom {
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for framebuffer_data in self._bloom_downsample_framebuffer_datas.iter() {
+        for framebuffer_data in self._bloom_downsample_framebuffer_data_list.iter() {
             framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
-        for framebuffer_data in self._bloom_temp_framebuffer_datas.iter() {
+        for framebuffer_data in self._bloom_temp_framebuffer_data_list.iter() {
             framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
-        self._bloom_downsample_framebuffer_datas.clear();
+        self._bloom_downsample_framebuffer_data_list.clear();
         self._bloom_downsample_descriptor_sets.clear();
-        self._bloom_temp_framebuffer_datas.clear();
+        self._bloom_temp_framebuffer_data_list.clear();
         self._bloom_temp_descriptor_sets.clear();
-        self._bloom_blur_framebuffer_datas.clear();
+        self._bloom_blur_framebuffer_data_list.clear();
         self._bloom_blur_descriptor_sets.clear();
     }
 }
@@ -385,32 +385,32 @@ impl RenderContext_SSAO {
     }
 }
 
-impl RenderContext_HierachicalMinZ {
+impl RenderContext_HierarchicalMinZ {
     pub fn initialize(
         &mut self,
         device: &Device,
         debug_utils: &DebugUtils,
         engine_resources: &EngineResources,
-        render_target_hierachical_min_z: &TextureData,
+        render_target_hierarchical_min_z: &TextureData,
     ) {
         let generate_max_z_material_instance = engine_resources.get_material_instance_data("common/generate_max_z").borrow();
         let pipeline_binding_data = generate_max_z_material_instance.get_pipeline_binding_data("generate_max_z/generate_max_z");
         let layer: u32 = 0;
-        let downsampling_count: u32 = render_target_hierachical_min_z._image_mip_levels - 1;
+        let downsampling_count: u32 = render_target_hierarchical_min_z._image_mip_levels - 1;
         for mip_level in 0..downsampling_count {
             let descriptor_sets = utility::create_descriptor_sets(
                 device,
                 debug_utils,
                 pipeline_binding_data,
                 &[
-                    (0, utility::create_descriptor_image_info_swapchain_array(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level))),
-                    (1, utility::create_descriptor_image_info_swapchain_array(render_target_hierachical_min_z.get_sub_image_info(layer, mip_level + 1))),
+                    (0, utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level))),
+                    (1, utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level + 1))),
                 ]
             );
             self._descriptor_sets.push(descriptor_sets);
         }
-        self._dispatch_group_x = render_target_hierachical_min_z._image_width;
-        self._dispatch_group_y = render_target_hierachical_min_z._image_height;
+        self._dispatch_group_x = render_target_hierarchical_min_z._image_width;
+        self._dispatch_group_y = render_target_hierarchical_min_z._image_height;
     }
 
     pub fn destroy(&mut self, _device: &Device) {
@@ -549,7 +549,7 @@ impl RenderContext_ClearRenderTargets {
     ) {
         let material_instance = engine_resources.get_material_instance_data("common/clear_render_target").borrow();
         for (render_target, clear_value) in render_target_infos.iter() {
-            let is_depth_format = constants::DEPTH_FOMATS.contains(&render_target._image_format);
+            let is_depth_format = constants::DEPTH_FORMATS.contains(&render_target._image_format);
             let render_pass_pipeline_name = format!("clear_{:?}/clear", render_target._image_format);
             let pipeline_binding_data = material_instance.get_pipeline_binding_data(&render_pass_pipeline_name);
             let mut framebuffers: Layers<MipLevels<FramebufferData>> = Vec::new();
@@ -584,24 +584,24 @@ impl RenderContext_ClearRenderTargets {
                     );
                 }
             }
-            self._color_framebuffer_datas.insert(render_target._texture_data_name.clone(), framebuffers);
+            self._color_framebuffer_data_list.insert(render_target._texture_data_name.clone(), framebuffers);
         }
     }
 
     pub fn destroy(&mut self, device: &Device) {
         let func_clear_framebuffers = |framebuffer_map: &mut HashMap<String, Layers<MipLevels<FramebufferData>>>| {
-            for (_, framebuffer_datas) in framebuffer_map.iter_mut() {
-                for layer in 0..framebuffer_datas.len() {
-                    for mip_level in 0..framebuffer_datas[layer].len() {
-                        framebuffer::destroy_framebuffer_data(device, &framebuffer_datas[layer][mip_level]);
+            for (_, framebuffer_data_list) in framebuffer_map.iter_mut() {
+                for layer in 0..framebuffer_data_list.len() {
+                    for mip_level in 0..framebuffer_data_list[layer].len() {
+                        framebuffer::destroy_framebuffer_data(device, &framebuffer_data_list[layer][mip_level]);
                     }
-                    framebuffer_datas[layer].clear();
+                    framebuffer_data_list[layer].clear();
                 }
-                framebuffer_datas.clear();
+                framebuffer_data_list.clear();
             }
             framebuffer_map.clear();
         };
-        func_clear_framebuffers(&mut self._color_framebuffer_datas);
+        func_clear_framebuffers(&mut self._color_framebuffer_data_list);
     }
 }
 
@@ -636,7 +636,7 @@ impl RenderContext_LightProbe {
 
         for i in 0..constants::CUBE_LAYER_COUNT {
             // render_atmosphere
-            self._render_atmosphere_framebuffer_datas.push(utility::create_framebuffers(
+            self._render_atmosphere_framebuffer_data_list.push(utility::create_framebuffers(
                 device,
                 debug_utils,
                 &render_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
@@ -659,7 +659,7 @@ impl RenderContext_LightProbe {
             ));
 
             // composite atmosphere
-            self._composite_atmosphere_framebuffer_datas_only_sky.push(utility::create_framebuffers(
+            self._composite_atmosphere_framebuffer_data_list_only_sky.push(utility::create_framebuffers(
                 device,
                 debug_utils,
                 &composite_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
@@ -670,7 +670,7 @@ impl RenderContext_LightProbe {
                 &[],
                 &[],
             ));
-            self._composite_atmosphere_framebuffer_datas.push(utility::create_framebuffers(
+            self._composite_atmosphere_framebuffer_data_list.push(utility::create_framebuffers(
                 device,
                 debug_utils,
                 &composite_atmosphere_pipeline_binding_data.get_render_pass_data().borrow(),
@@ -780,13 +780,13 @@ impl RenderContext_LightProbe {
 
     pub fn destroy(&mut self, device: &Device) {
         for i in 0..constants::CUBE_LAYER_COUNT {
-            framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_datas[i]);
-            framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas_only_sky[i]);
-            framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_datas[i]);
+            framebuffer::destroy_framebuffer_data(device, &self._render_atmosphere_framebuffer_data_list[i]);
+            framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_data_list_only_sky[i]);
+            framebuffer::destroy_framebuffer_data(device, &self._composite_atmosphere_framebuffer_data_list[i]);
         }
-        self._render_atmosphere_framebuffer_datas.clear();
-        self._composite_atmosphere_framebuffer_datas_only_sky.clear();
-        self._composite_atmosphere_framebuffer_datas.clear();
+        self._render_atmosphere_framebuffer_data_list.clear();
+        self._composite_atmosphere_framebuffer_data_list_only_sky.clear();
+        self._composite_atmosphere_framebuffer_data_list.clear();
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
         self._only_sky_downsampling_descriptor_sets.clear();

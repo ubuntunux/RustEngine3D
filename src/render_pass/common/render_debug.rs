@@ -23,7 +23,7 @@ use crate::vulkan_context::vulkan_context::{
 
 use crate::renderer::push_constants::PushConstant_RenderDebug;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::shader_buffer_datas::ShaderBufferDataType;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let swapchain_data = renderer_data.get_renderer_context().get_swap_chain_data();
@@ -88,7 +88,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_datas: vec![
+            _push_constant_data_list: vec![
                 PipelinePushConstantData {
                     _stage_flags: vk::ShaderStageFlags::ALL,
                     _offset: 0,
