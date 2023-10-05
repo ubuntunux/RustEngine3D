@@ -15,11 +15,11 @@ use crate::application::input::{
     MouseInputData,
 };
 use crate::resource::resource::EngineResources;
-use crate::renderer::font::FontData;
-use crate::renderer::material_instance::{ PipelineBindingData, MaterialInstanceData };
+use crate::scene::font::FontData;
+use crate::scene::material_instance::{ PipelineBindingData, MaterialInstanceData };
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::{ RendererContext };
-use crate::renderer::transform_object::TransformObjectData;
+use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::system::{ self, RcRefCell, ptr_as_ref, ptr_as_mut };
 use crate::vulkan_context::buffer::{ self, BufferData };
 use crate::vulkan_context::geometry_buffer::{ self, VertexDataBase };
@@ -333,7 +333,7 @@ impl UIComponentInstance {
             _changed_deep_child_layout: false,
             _changed_render_data: true,
             _changed_text: false,
-            _render_ui_index: std::u32::MAX,
+            _render_ui_index: u32::MAX,
             _transform: TransformObjectData::new_transform_object_data(),
             _world_to_local_matrix: Matrix4::identity(),
             _local_to_world_matrix: Matrix4::identity(),

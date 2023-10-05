@@ -1,7 +1,7 @@
 use serde::{ Serialize, Deserialize };
 use nalgebra::{ Vector3 };
 
-use crate::renderer::animation::{
+use crate::scene::animation::{
     AnimationNodeCreateInfo,
     AnimationData,
     SkeletonDataCreateInfo,
@@ -42,8 +42,8 @@ impl Default for MeshDataCreateInfo {
 
 impl MeshDataCreateInfo {
     pub fn calc_mesh_bounding_box(geometry_create_infos: &Vec<GeometryCreateInfo>) -> BoundingBox {
-        let mut bound_min = Vector3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX) * 0.5;
-        let mut bound_max = Vector3::new(std::f32::MIN, std::f32::MIN, std::f32::MIN) * 0.5;
+        let mut bound_min = Vector3::new(f32::MAX, f32::MAX, f32::MAX) * 0.5;
+        let mut bound_max = Vector3::new(f32::MIN, f32::MIN, f32::MIN) * 0.5;
         for geometry_data in geometry_create_infos.iter() {
             for i in 0..3 {
                 if geometry_data._bounding_box._min[i] < bound_min[i] {

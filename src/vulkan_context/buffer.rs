@@ -1,9 +1,9 @@
 use std::mem;
 
-use ash::{vk, Device};
-use ash::vk::Handle;
-use ash::util::Align;
 use ash::extensions::ext::DebugUtils;
+use ash::util::Align;
+use ash::vk::Handle;
+use ash::{vk, Device};
 
 use crate::constants;
 use crate::renderer::utility::find_memory_type_index;
@@ -15,7 +15,7 @@ use crate::vulkan_context::vulkan_context::{run_commands_once, SwapchainArray};
 pub struct BufferData {
     pub _buffer: vk::Buffer,
     pub _buffer_memory: vk::DeviceMemory,
-    pub _buffer_memory_requirements: vk::MemoryRequirements
+    pub _buffer_memory_requirements: vk::MemoryRequirements,
 }
 
 #[derive(Debug, Clone)]
@@ -47,9 +47,15 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     upload_data_list: &Vec<T>,
 ) -> BufferData {
     let buffer_size = (mem::size_of::<T>() * upload_data_list.len()) as vk::DeviceSize;
-    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
-    let buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-    log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
+    let buffer_usage_flags =
+        dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_memory_property_flags =
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    log::trace!(
+        "CreateBuffer: type({:?}), size({})",
+        dst_buffer_type,
+        buffer_size
+    );
     let dst_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
@@ -57,7 +63,7 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
         buffer_name,
         buffer_size,
         buffer_usage_flags,
-        buffer_memory_property_flags
+        buffer_memory_property_flags,
     );
     upload_buffer_data(device, &dst_buffer_data, &upload_data_list);
     dst_buffer_data
@@ -74,13 +80,19 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     upload_data_list: &Vec<T>,
 ) -> BufferData {
     let buffer_size = (mem::size_of::<T>() * upload_data_list.len()) as vk::DeviceSize;
-    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_usage_flags =
+        dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
     let buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
-    log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
+    log::trace!(
+        "CreateBuffer: type({:?}), size({})",
+        dst_buffer_type,
+        buffer_size
+    );
 
     // create temporary staging buffer
     let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
-    let staging_buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    let staging_buffer_memory_property_flags =
+        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
     let staging_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
@@ -88,7 +100,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
         buffer_name,
         buffer_size,
         staging_buffer_usage_flags,
-        staging_buffer_memory_property_flags
+        staging_buffer_memory_property_flags,
     );
 
     // upload data
@@ -102,12 +114,23 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
         buffer_name,
         buffer_size,
         buffer_usage_flags,
-        buffer_memory_property_flags
+        buffer_memory_property_flags,
     );
 
     // copy buffer
-    run_commands_once(device, command_pool, command_queue, |device: &Device, command_buffer: vk::CommandBuffer|
-        copy_buffer(device, command_buffer, staging_buffer_data._buffer, dst_buffer_data._buffer, buffer_size)
+    run_commands_once(
+        device,
+        command_pool,
+        command_queue,
+        |device: &Device, command_buffer: vk::CommandBuffer| {
+            copy_buffer(
+                device,
+                command_buffer,
+                staging_buffer_data._buffer,
+                dst_buffer_data._buffer,
+                buffer_size,
+            )
+        },
     );
 
     // destroy temporary staging buffer
@@ -123,7 +146,7 @@ pub fn create_buffer_data(
     buffer_name: &str,
     buffer_size: vk::DeviceSize,
     buffer_usage_flags: vk::BufferUsageFlags,
-    memory_property_flags: vk::MemoryPropertyFlags
+    memory_property_flags: vk::MemoryPropertyFlags,
 ) -> BufferData {
     unsafe {
         let buffer_create_info = vk::BufferCreateInfo {
@@ -132,16 +155,24 @@ pub fn create_buffer_data(
             sharing_mode: vk::SharingMode::EXCLUSIVE,
             ..Default::default()
         };
-        let buffer = device.create_buffer(&buffer_create_info, None).expect("vkCreateBuffer failed!");
+        let buffer = device
+            .create_buffer(&buffer_create_info, None)
+            .expect("vkCreateBuffer failed!");
         let buffer_memory_requirements = device.get_buffer_memory_requirements(buffer);
-        let memory_type_index = find_memory_type_index(&buffer_memory_requirements, memory_properties, memory_property_flags)
-            .expect("Unable to find suitable memorytype for the vertex buffer.");
+        let memory_type_index = find_memory_type_index(
+            &buffer_memory_requirements,
+            memory_properties,
+            memory_property_flags,
+        )
+        .expect("Unable to find suitable memory type for the vertex buffer.");
         let memory_allocate_info = vk::MemoryAllocateInfo {
             allocation_size: buffer_memory_requirements.size,
             memory_type_index,
             ..Default::default()
         };
-        let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
+        let buffer_memory = device
+            .allocate_memory(&memory_allocate_info, None)
+            .expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
         debug_utils::set_object_debug_info(
@@ -149,13 +180,22 @@ pub fn create_buffer_data(
             debug_utils,
             buffer_name,
             vk::ObjectType::BUFFER,
-            buffer.as_raw()
+            buffer.as_raw(),
         );
 
-        log::trace!("    Create Buffer ({:?}): ({:?}), buffer({:?}), memory({:?})", buffer_name, buffer_usage_flags, buffer, buffer_memory);
+        log::trace!(
+            "    Create Buffer ({:?}): ({:?}), buffer({:?}), memory({:?})",
+            buffer_name,
+            buffer_usage_flags,
+            buffer,
+            buffer_memory
+        );
         log::trace!("        buffer_size: {:?}", buffer_size);
         log::trace!("        memory_type_index: {:?}", memory_type_index);
-        log::trace!("        memory_requirements: {:?}", buffer_memory_requirements);
+        log::trace!(
+            "        memory_requirements: {:?}",
+            buffer_memory_requirements
+        );
 
         BufferData {
             _buffer: buffer,
@@ -167,20 +207,31 @@ pub fn create_buffer_data(
 
 pub fn destroy_buffer_data(device: &Device, buffer_data: &BufferData) {
     unsafe {
-        log::trace!("    Destroy Buffer: buffer({:?}), memory({:?})", buffer_data._buffer, buffer_data._buffer_memory);
+        log::trace!(
+            "    Destroy Buffer: buffer({:?}), memory({:?})",
+            buffer_data._buffer,
+            buffer_data._buffer_memory
+        );
         device.destroy_buffer(buffer_data._buffer, None);
         device.free_memory(buffer_data._buffer_memory, None);
     }
 }
 
-pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T]) {
+pub fn upload_buffer_data<T: Copy>(device: &Device, buffer_data: &BufferData, upload_data: &[T]) {
     unsafe {
-        let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+        let upload_data_size = mem::size_of::<T>() as u64 * upload_data.len() as u64;
         assert!(upload_data_size <= buffer_data._buffer_memory_requirements.size);
-        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, 0, upload_data_size, vk::MemoryMapFlags::empty()).unwrap();
+        let buffer_ptr = device
+            .map_memory(
+                buffer_data._buffer_memory,
+                0,
+                upload_data_size,
+                vk::MemoryMapFlags::empty(),
+            )
+            .unwrap();
         let mut slice = Align::new(
             buffer_ptr,
-            std::mem::align_of::<T>() as u64,
+            mem::align_of::<T>() as u64,
             upload_data_size,
         );
         slice.copy_from_slice(upload_data);
@@ -188,27 +239,51 @@ pub fn upload_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, u
     }
 }
 
-pub fn read_buffer_data<T: Copy> (device: &Device, buffer_data: &BufferData, read_offset: u32, read_data: &mut [T]) {
+pub fn read_buffer_data<T: Copy>(
+    device: &Device,
+    buffer_data: &BufferData,
+    read_offset: u32,
+    read_data: &mut [T],
+) {
     unsafe {
         let read_data_count = read_data.len();
-        let read_data_size = std::mem::size_of::<T>() as u64 * read_data_count as u64;
-        let offset = std::mem::size_of::<T>() as u64 * read_offset as u64;
+        let read_data_size = mem::size_of::<T>() as u64 * read_data_count as u64;
+        let offset = mem::size_of::<T>() as u64 * read_offset as u64;
         assert!(read_data_size <= buffer_data._buffer_memory_requirements.size);
-        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, read_data_size, vk::MemoryMapFlags::empty()).unwrap();
+        let buffer_ptr = device
+            .map_memory(
+                buffer_data._buffer_memory,
+                offset,
+                read_data_size,
+                vk::MemoryMapFlags::empty(),
+            )
+            .unwrap();
         let raw_data = std::ptr::slice_from_raw_parts(buffer_ptr, read_data_count) as *const [T];
         read_data.clone_from_slice(&*raw_data);
         device.unmap_memory(buffer_data._buffer_memory);
     }
 }
 
-pub fn upload_buffer_data_offset<T: Copy> (device: &Device, buffer_data: &BufferData, upload_data: &[T], offset: vk::DeviceSize) {
+pub fn upload_buffer_data_offset<T: Copy>(
+    device: &Device,
+    buffer_data: &BufferData,
+    upload_data: &[T],
+    offset: vk::DeviceSize,
+) {
     unsafe {
-        let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
+        let upload_data_size = mem::size_of::<T>() as u64 * upload_data.len() as u64;
         assert!((upload_data_size + offset) <= buffer_data._buffer_memory_requirements.size);
-        let buffer_ptr = device.map_memory(buffer_data._buffer_memory, offset, upload_data_size, vk::MemoryMapFlags::empty()).unwrap();
+        let buffer_ptr = device
+            .map_memory(
+                buffer_data._buffer_memory,
+                offset,
+                upload_data_size,
+                vk::MemoryMapFlags::empty(),
+            )
+            .unwrap();
         let mut slice = Align::new(
             buffer_ptr,
-            std::mem::align_of::<T>() as u64,
+            mem::align_of::<T>() as u64,
             upload_data_size,
         );
         slice.copy_from_slice(upload_data);
@@ -221,25 +296,30 @@ pub fn copy_buffer_region(
     command_buffer: vk::CommandBuffer,
     src_buffer: vk::Buffer,
     dst_buffer: vk::Buffer,
-    regions: &[vk::BufferCopy]
+    regions: &[vk::BufferCopy],
 ) {
-    log::trace!("    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})", src_buffer, dst_buffer, regions);
+    log::trace!(
+        "    CopyBuffer : src_buffer({:?}), dst_buffer({:?}), regions({:?})",
+        src_buffer,
+        dst_buffer,
+        regions
+    );
     unsafe {
         device.cmd_copy_buffer(command_buffer, src_buffer, dst_buffer, regions);
     }
 }
 
 pub fn copy_buffer(
-   device: &Device,
-   command_buffer: vk::CommandBuffer,
-   src_buffer: vk::Buffer,
-   dst_buffer: vk::Buffer,
-   buffer_size: vk::DeviceSize
+    device: &Device,
+    command_buffer: vk::CommandBuffer,
+    src_buffer: vk::Buffer,
+    dst_buffer: vk::Buffer,
+    buffer_size: vk::DeviceSize,
 ) {
     let copy_region: [vk::BufferCopy; 1] = [vk::BufferCopy {
         src_offset: 0,
         dst_offset: 0,
-        size: buffer_size
+        size: buffer_size,
     }];
     copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
 }
@@ -251,16 +331,15 @@ pub fn copy_buffer_offset(
     src_offset: vk::DeviceSize,
     dst_buffer: vk::Buffer,
     dst_offset: vk::DeviceSize,
-    buffer_size: vk::DeviceSize
+    buffer_size: vk::DeviceSize,
 ) {
     let copy_region: [vk::BufferCopy; 1] = [vk::BufferCopy {
         src_offset,
         dst_offset,
-        size: buffer_size
+        size: buffer_size,
     }];
     copy_buffer_region(device, command_buffer, src_buffer, dst_buffer, &copy_region);
 }
-
 
 // ShaderBufferData
 pub fn create_shader_buffer_data(
@@ -292,42 +371,77 @@ pub fn create_shader_buffer_data(
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT
     };
     let buffers: SwapchainArray<BufferData> = if is_single_index_buffer {
-        let buffer = create_buffer_data(device, memory_properties, debug_utils, buffer_name.as_str(), buffer_size, buffer_usage_flags, memory_property_flags);
+        let buffer = create_buffer_data(
+            device,
+            memory_properties,
+            debug_utils,
+            buffer_name.as_str(),
+            buffer_size,
+            buffer_usage_flags,
+            memory_property_flags,
+        );
         vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
     } else {
-        (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-            create_buffer_data(device, memory_properties, debug_utils, buffer_name.as_str(), buffer_size, buffer_usage_flags, memory_property_flags)
-        }).collect()
+        (0..constants::SWAPCHAIN_IMAGE_COUNT)
+            .map(|_i| {
+                create_buffer_data(
+                    device,
+                    memory_properties,
+                    debug_utils,
+                    buffer_name.as_str(),
+                    buffer_size,
+                    buffer_usage_flags,
+                    memory_property_flags,
+                )
+            })
+            .collect()
     };
 
     // staging buffer
     let staging_buffers: Option<SwapchainArray<BufferData>> = if has_staging_buffer {
         let staging_buffer_usage_flags = buffer_usage | vk::BufferUsageFlags::TRANSFER_SRC;
-        let staging_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-        Some(
-            if is_single_index_buffer {
-                let buffer = create_buffer_data(device, memory_properties, debug_utils, buffer_name, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags);
-                vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
-            } else {
-                (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-                    create_buffer_data(device, memory_properties, debug_utils, buffer_name, buffer_size, staging_buffer_usage_flags, staging_memory_property_flags)
-                }).collect()
-            }
-        )
+        let staging_memory_property_flags =
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+        Some(if is_single_index_buffer {
+            let buffer = create_buffer_data(
+                device,
+                memory_properties,
+                debug_utils,
+                buffer_name,
+                buffer_size,
+                staging_buffer_usage_flags,
+                staging_memory_property_flags,
+            );
+            vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
+        } else {
+            (0..constants::SWAPCHAIN_IMAGE_COUNT)
+                .map(|_i| {
+                    create_buffer_data(
+                        device,
+                        memory_properties,
+                        debug_utils,
+                        buffer_name,
+                        buffer_size,
+                        staging_buffer_usage_flags,
+                        staging_memory_property_flags,
+                    )
+                })
+                .collect()
+        })
     } else {
         None
     };
 
-    let descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo> =
-        buffers.iter().map(|buffer_data| {
-            DescriptorResourceInfo::DescriptorBufferInfo(
-                vk::DescriptorBufferInfo {
-                    buffer: buffer_data._buffer,
-                    offset: 0,
-                    range: buffer_size,
-                }
-            )
-        }).collect();
+    let descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo> = buffers
+        .iter()
+        .map(|buffer_data| {
+            DescriptorResourceInfo::DescriptorBufferInfo(vk::DescriptorBufferInfo {
+                buffer: buffer_data._buffer,
+                offset: 0,
+                range: buffer_size,
+            })
+        })
+        .collect();
 
     ShaderBufferData {
         _buffer_name: buffer_name.clone(),
@@ -340,7 +454,10 @@ pub fn create_shader_buffer_data(
 }
 
 pub fn destroy_shader_buffer_data(device: &Device, uniform_buffer_data: &mut ShaderBufferData) {
-    log::debug!("destroy_shader_buffer_data: {:?}", uniform_buffer_data._buffer_name);
+    log::debug!(
+        "destroy_shader_buffer_data: {:?}",
+        uniform_buffer_data._buffer_name
+    );
     let buffer_count = if uniform_buffer_data._is_single_index_buffer {
         1
     } else {

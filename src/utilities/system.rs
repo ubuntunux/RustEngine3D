@@ -1,9 +1,9 @@
-use std::fs;
-use std::rc::{Rc, Weak};
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::{ Path, PathBuf };
+use std::fs;
 use std::io::Cursor;
+use std::path::{Path, PathBuf};
+use std::rc::{Rc, Weak};
 
 pub type BoxRefCell<T> = Box<RefCell<T>>;
 pub type RcRefCell<T> = Rc<RefCell<T>>;
@@ -25,10 +25,14 @@ pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {
 }
 
 #[allow(non_snake_case)]
-pub fn intoWeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> { Rc::downgrade(t) }
+pub fn intoWeakRefCell<T>(t: &RcRefCell<T>) -> WeakRefCell<T> {
+    Rc::downgrade(t)
+}
 
 #[allow(non_snake_case)]
-pub fn intoRcRefCell<T>(t: &WeakRefCell<T>) -> Option<RcRefCell<T>> { Weak::upgrade(t) }
+pub fn intoRcRefCell<T>(t: &WeakRefCell<T>) -> Option<RcRefCell<T>> {
+    Weak::upgrade(t)
+}
 
 pub fn enum_to_string<T: std::fmt::Debug>(e: &T) -> String {
     format!("{:?}", e)
@@ -48,7 +52,9 @@ fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut 
             walk_directory_recursive(&content, extensions, out_contents);
         } else {
             let ext = content.extension();
-            if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
+            if extensions.is_empty()
+                || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap()))
+            {
                 out_contents.push(PathBuf::from(content));
             }
         }
@@ -77,10 +83,8 @@ pub fn generate_unique_name<T>(data_map: &HashMap<String, T>, data_name: &str) -
     }
 }
 
-pub fn convert_to_bytes<'a, T>(data: *const T) -> &'a [u8]{
-    unsafe {
-        std::slice::from_raw_parts(data as *mut u8, std::mem::size_of::<T>())
-    }
+pub fn convert_to_bytes<'a, T>(data: *const T) -> &'a [u8] {
+    unsafe { std::slice::from_raw_parts(data as *mut u8, std::mem::size_of::<T>()) }
 }
 
 pub fn convert_vec<S, D>(src: Vec<S>) -> Vec<D> {
@@ -112,7 +116,12 @@ pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
 
     let asset_manager = ndk_glue::native_activity().asset_manager();
 
-    let path = path.as_ref().strip_prefix("resources/").unwrap().to_str().unwrap();
+    let path = path
+        .as_ref()
+        .strip_prefix("resources/")
+        .unwrap()
+        .to_str()
+        .unwrap();
     let mut asset = asset_manager
         .open(&std::ffi::CString::new(path).unwrap())
         .unwrap();

@@ -4,18 +4,21 @@ use std::path::PathBuf;
 
 use ash::vk;
 use image;
-use nalgebra::{
-    Vector3,
-    Vector4,
-};
+use nalgebra::{Vector3, Vector4};
 use rand;
 
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
-use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
+use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 use crate::vulkan_context::vulkan_context;
 
-fn generate_flat_color_image_rgba8(texture_source_directory: &PathBuf, file_path: &str, image_width: u32, image_height: u32, color: [u8; 4]) {
+fn generate_flat_color_image_rgba8(
+    texture_source_directory: &PathBuf,
+    file_path: &str,
+    image_width: u32,
+    image_height: u32,
+    color: [u8; 4],
+) {
     let mut image_file_path = texture_source_directory.clone();
     image_file_path.push(file_path);
     if false == image_file_path.is_file() {
@@ -24,10 +27,11 @@ fn generate_flat_color_image_rgba8(texture_source_directory: &PathBuf, file_path
         if false == directory.is_dir() {
             fs::create_dir_all(directory).expect("Failed to create directories.");
         }
-        let image = image::ImageBuffer::from_fn(image_width, image_height, |_x, _y| {
-            image::Rgba(color)
-        });
-        image.save(image_file_path.as_path()).expect("Failed to save image.");
+        let image =
+            image::ImageBuffer::from_fn(image_width, image_height, |_x, _y| image::Rgba(color));
+        image
+            .save(image_file_path.as_path())
+            .expect("Failed to save image.");
     }
 }
 
@@ -44,7 +48,7 @@ pub fn generate_3d_data(size: u32) -> Vec<u32> {
                     min(255, (x as f32 * value) as u32),
                     min(255, (y as f32 * value) as u32),
                     min(255, (z as f32 * value) as u32),
-                    255
+                    255,
                 );
             }
         }
@@ -72,8 +76,10 @@ pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vecto
         let normal = Vector3::new(
             rand::random::<f32>() * 2.0 - 1.0,
             rand::random::<f32>() * 2.0 - 1.0,
-            rand::random::<f32>()
-        ).normalize() * scale;
+            rand::random::<f32>(),
+        )
+        .normalize()
+            * scale;
         image_data.x = normal.x;
         image_data.y = normal.y;
         image_data.z = normal.z;
@@ -83,19 +89,97 @@ pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vecto
 }
 
 pub fn generate_images(texture_source_directory: &PathBuf) {
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_none.png", 2, 2, [0, 0, 0, 0]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_black.png", 2, 2, [0, 0, 0, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_gray.png", 2, 2, [128, 128, 128, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_white.png", 2, 2, [255, 255, 255, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_red.png", 2, 2, [255, 0, 0, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_green.png", 2, 2, [0, 255, 0, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_blue.png", 2, 2, [0, 0, 255, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_yellow.png", 2, 2, [255, 255, 0, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_cyan.png", 2, 2, [0, 255, 255, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_magenta.png", 2, 2, [255, 0, 255, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal.png", 2, 2, [128, 128, 255, 255]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_white_no_alpha.png", 2, 2, [255, 255, 255, 0]);
-    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_normal_no_alpha.png", 2, 2, [128, 128, 255, 0]);
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_none.png",
+        2,
+        2,
+        [0, 0, 0, 0],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_black.png",
+        2,
+        2,
+        [0, 0, 0, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_gray.png",
+        2,
+        2,
+        [128, 128, 128, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_white.png",
+        2,
+        2,
+        [255, 255, 255, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_red.png",
+        2,
+        2,
+        [255, 0, 0, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_green.png",
+        2,
+        2,
+        [0, 255, 0, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_blue.png",
+        2,
+        2,
+        [0, 0, 255, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_yellow.png",
+        2,
+        2,
+        [255, 255, 0, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_cyan.png",
+        2,
+        2,
+        [0, 255, 255, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_magenta.png",
+        2,
+        2,
+        [255, 0, 255, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_normal.png",
+        2,
+        2,
+        [128, 128, 255, 255],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_white_no_alpha.png",
+        2,
+        2,
+        [255, 255, 255, 0],
+    );
+    generate_flat_color_image_rgba8(
+        texture_source_directory,
+        "common/flat_normal_no_alpha.png",
+        2,
+        2,
+        [128, 128, 255, 0],
+    );
 }
 
 pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData> {
@@ -147,7 +231,10 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         ..Default::default()
     });
 
-    let random_normals = generate_random_normals(unsafe { constants::SSAO_NOISE_DIM as u32 }, unsafe { constants::SSAO_NOISE_DIM as u32 });
+    let random_normals =
+        generate_random_normals(unsafe { constants::SSAO_NOISE_DIM as u32 }, unsafe {
+            constants::SSAO_NOISE_DIM as u32
+        });
     let texture_random_normal = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from("common/random_normal"),
         _texture_width: unsafe { constants::SSAO_NOISE_DIM as u32 },
@@ -170,7 +257,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         _texture_width: 1,
         _texture_height: 1,
         _texture_view_type: vk::ImageViewType::CUBE,
-        _texture_initial_data_list: vec![ white, black, red, green, blue, yellow ],
+        _texture_initial_data_list: vec![white, black, red, green, blue, yellow],
         ..Default::default()
     });
 
@@ -180,6 +267,6 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         texture_random,
         texture_random_normal,
         texture_check,
-        texture_color_cube
+        texture_color_cube,
     ]
 }

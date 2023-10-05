@@ -1,26 +1,28 @@
 use std::collections::HashMap;
-use std::path::{
-    PathBuf,
-};
+use std::path::PathBuf;
 
-use ash::{vk, Device};
-use ash::extensions::ext::DebugUtils;
-use ash::vk::Handle;
-use ash::extensions::nv::RayTracing;
+use crate::renderer::push_constants::PushConstant;
+use crate::renderer::renderer_context::RendererContext;
+use crate::utilities::system::{newRcRefCell, RcRefCell};
 use crate::vulkan_context::buffer::{self, BufferData};
 use crate::vulkan_context::debug_utils;
-use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorData};
-use crate::vulkan_context::geometry_buffer::{VertexDataBase, VertexData};
-use crate::vulkan_context::framebuffer::{ FramebufferDataCreateInfo };
-use crate::vulkan_context::shader::{ create_shader_stage_create_info, destroy_shader_stage_create_info};
-use crate::utilities::system::{RcRefCell, newRcRefCell};
-use crate::renderer::renderer_context::RendererContext;
-use crate::renderer::push_constants::PushConstant;
+use crate::vulkan_context::descriptor::{DescriptorData, DescriptorDataCreateInfo};
+use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
+use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
+use crate::vulkan_context::shader::{
+    create_shader_stage_create_info, destroy_shader_stage_create_info,
+};
+use ash::extensions::ext::DebugUtils;
+use ash::extensions::nv::RayTracing;
+use ash::vk::Handle;
+use ash::{vk, Device};
 
-pub fn get_render_pass_pipeline_data_name(render_pass_data_name: &str, pipeline_data_name: &str) -> String {
+pub fn get_render_pass_pipeline_data_name(
+    render_pass_data_name: &str,
+    pipeline_data_name: &str,
+) -> String {
     format!("{}/{}", render_pass_data_name, pipeline_data_name)
 }
-
 
 #[derive(Clone, Debug)]
 pub struct RenderPassPipelineData {
@@ -29,14 +31,14 @@ pub struct RenderPassPipelineData {
 }
 
 #[derive(Clone)]
-pub struct RenderPassDataCreateInfo  {
+pub struct RenderPassDataCreateInfo {
     pub _render_pass_create_info_name: String,
     pub _render_pass_framebuffer_create_info: FramebufferDataCreateInfo,
     pub _color_attachment_descriptions: Vec<ImageAttachmentDescription>,
     pub _depth_attachment_descriptions: Vec<ImageAttachmentDescription>,
     pub _resolve_attachment_descriptions: Vec<ImageAttachmentDescription>,
     pub _subpass_dependencies: Vec<vk::SubpassDependency>,
-    pub _pipeline_data_create_infos: Vec<PipelineDataCreateInfo>
+    pub _pipeline_data_create_infos: Vec<PipelineDataCreateInfo>,
 }
 
 impl Default for RenderPassDataCreateInfo {
@@ -124,7 +126,8 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_attribute_descriptions:
+                VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_data_list: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
@@ -135,7 +138,7 @@ impl Default for PipelineDataCreateInfo {
 pub struct PipelinePushConstantData {
     pub _stage_flags: vk::ShaderStageFlags,
     pub _offset: u32,
-    pub _push_constant: Box<dyn PushConstant>
+    pub _push_constant: Box<dyn PushConstant>,
 }
 
 #[derive(Clone, Debug)]
@@ -151,8 +154,8 @@ pub struct DepthStencilStateCreateInfo {
     pub _front_compare_mask: u32,
     pub _front_write_mask: u32,
     pub _front_reference: u32,
-    pub _back_fail_op: vk::StencilOp, // fail the stencil test
-    pub _back_pass_op: vk::StencilOp, // pass both the depth and stencil tests
+    pub _back_fail_op: vk::StencilOp,       // fail the stencil test
+    pub _back_pass_op: vk::StencilOp,       // pass both the depth and stencil tests
     pub _back_depth_fail_op: vk::StencilOp, // pass the stencil test and fail the depth test
     pub _back_compare_op: vk::CompareOp,
     pub _back_compare_mask: u32,
@@ -227,7 +230,7 @@ pub struct PipelineData {
     pub _pipeline_dynamic_states: Vec<vk::DynamicState>,
     pub _descriptor_data: DescriptorData,
     pub _shader_binding_table: Option<BufferData>,
-    pub _push_constant_data_list: Vec<PipelinePushConstantData>
+    pub _push_constant_data_list: Vec<PipelinePushConstantData>,
 }
 
 impl Default for PipelineData {
@@ -244,7 +247,7 @@ impl Default for PipelineData {
             _pipeline_dynamic_states: Vec::new(),
             _descriptor_data: DescriptorData::default(),
             _shader_binding_table: None,
-            _push_constant_data_list: Vec::new()
+            _push_constant_data_list: Vec::new(),
         }
     }
 }
@@ -285,58 +288,73 @@ impl RenderPassData {
 pub fn create_render_pass_data(
     renderer_context: &RendererContext,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
-    descriptor_data_list: &Vec<RcRefCell<DescriptorData>>
+    descriptor_data_list: &Vec<RcRefCell<DescriptorData>>,
 ) -> RenderPassData {
     let device = renderer_context.get_device();
     let debug_utils = renderer_context.get_debug_utils();
     let render_pass = create_render_pass(device, debug_utils, &render_pass_data_create_info);
-    let count = render_pass_data_create_info._pipeline_data_create_infos.len();
+    let count = render_pass_data_create_info
+        ._pipeline_data_create_infos
+        .len();
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
     let mut default_pipeline_data_name: String = String::new();
     for i in 0..count {
-        let bind_point = render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
-        let pipeline_data =
-            if vk::PipelineBindPoint::GRAPHICS == bind_point {
-                create_graphics_pipeline_data(
-                    device,
-                    debug_utils,
-                    render_pass,
-                    &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    false == render_pass_data_create_info._depth_attachment_descriptions.is_empty(),
-                    &descriptor_data_list[i].borrow()
-                )
-            } else if vk::PipelineBindPoint::COMPUTE == bind_point {
-                create_compute_pipeline_data(
-                    device,
-                    debug_utils,
-                    &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    &descriptor_data_list[i].borrow()
-                )
-            } else if vk::PipelineBindPoint::RAY_TRACING_KHR == bind_point || vk::PipelineBindPoint::RAY_TRACING_NV == bind_point {
-                create_ray_tracing_pipeline_data(
-                    device,
-                    renderer_context.get_command_pool(),
-                    renderer_context.get_graphics_queue(),
-                    renderer_context.get_device_memory_properties(),
-                    debug_utils,
-                    renderer_context.get_ray_tracing(),
-                    renderer_context.get_ray_tracing_properties(),
-                    &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    &descriptor_data_list[i].borrow()
-                )
-            } else {
-                panic!("Request::from_raw can not be used Client-side.")
-            };
+        let bind_point =
+            render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
+        let pipeline_data = if vk::PipelineBindPoint::GRAPHICS == bind_point {
+            create_graphics_pipeline_data(
+                device,
+                debug_utils,
+                render_pass,
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                false
+                    == render_pass_data_create_info
+                        ._depth_attachment_descriptions
+                        .is_empty(),
+                &descriptor_data_list[i].borrow(),
+            )
+        } else if vk::PipelineBindPoint::COMPUTE == bind_point {
+            create_compute_pipeline_data(
+                device,
+                debug_utils,
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                &descriptor_data_list[i].borrow(),
+            )
+        } else if vk::PipelineBindPoint::RAY_TRACING_KHR == bind_point
+            || vk::PipelineBindPoint::RAY_TRACING_NV == bind_point
+        {
+            create_ray_tracing_pipeline_data(
+                device,
+                renderer_context.get_command_pool(),
+                renderer_context.get_graphics_queue(),
+                renderer_context.get_device_memory_properties(),
+                debug_utils,
+                renderer_context.get_ray_tracing(),
+                renderer_context.get_ray_tracing_properties(),
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                &descriptor_data_list[i].borrow(),
+            )
+        } else {
+            panic!("Request::from_raw can not be used Client-side.")
+        };
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }
-        pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
+        pipeline_data_map.insert(
+            pipeline_data._pipeline_data_name.clone(),
+            newRcRefCell(pipeline_data),
+        );
     }
 
-    log::trace!("    create_render_pass_data: {}", render_pass_data_create_info._render_pass_create_info_name);
+    log::trace!(
+        "    create_render_pass_data: {}",
+        render_pass_data_create_info._render_pass_create_info_name
+    );
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
-        _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
+        _render_pass_data_name: render_pass_data_create_info
+            ._render_pass_create_info_name
+            .clone(),
         _render_pass: render_pass,
         _default_pipeline_data: default_pipeline_data.clone(),
         _pipeline_data_map: pipeline_data_map,
@@ -344,41 +362,52 @@ pub fn create_render_pass_data(
 }
 
 pub fn destroy_render_pass_data(device: &Device, render_pass_data: &RenderPassData) {
-    destroy_render_pass(device, render_pass_data._render_pass, &render_pass_data._render_pass_data_name);
+    destroy_render_pass(
+        device,
+        render_pass_data._render_pass,
+        &render_pass_data._render_pass_data_name,
+    );
     for pipeline_data in render_pass_data._pipeline_data_map.values() {
         destroy_pipeline_data(device, &mut pipeline_data.borrow_mut());
     }
 }
 
-
 pub fn create_render_pass(
     device: &Device,
     debug_utils: &DebugUtils,
-    render_pass_data_create_info: &RenderPassDataCreateInfo
+    render_pass_data_create_info: &RenderPassDataCreateInfo,
 ) -> vk::RenderPass {
-    let create_image_attachment = | attachment_description: &ImageAttachmentDescription | -> vk::AttachmentDescription {
-        vk::AttachmentDescription {
-            format: attachment_description._attachment_image_format,
-            samples: attachment_description._attachment_image_samples,
-            load_op: attachment_description._attachment_load_operation,
-            store_op: attachment_description._attachment_store_operation,
-            stencil_load_op: attachment_description._attachment_stencil_load_operation,
-            stencil_store_op: attachment_description._attachment_stencil_store_operation,
-            initial_layout: attachment_description._attachment_initial_layout,
-            final_layout: attachment_description._attachment_final_layout,
-            ..Default::default()
-        }
-    };
-    let create_image_attachment_reference = | attachment_description: &ImageAttachmentDescription, index: u32 | -> vk::AttachmentReference {
-        vk::AttachmentReference {
-            attachment: index,
-            layout: attachment_description._attachment_reference_layout,
-        }
-    };
-    let color_attachment_descriptions = &render_pass_data_create_info._color_attachment_descriptions;
-    let depth_attachment_descriptions = &render_pass_data_create_info._depth_attachment_descriptions;
-    let resolve_attachment_descriptions = &render_pass_data_create_info._resolve_attachment_descriptions;
-    let mut attachment_descriptions: Vec<ImageAttachmentDescription> = color_attachment_descriptions.clone();
+    let create_image_attachment =
+        |attachment_description: &ImageAttachmentDescription| -> vk::AttachmentDescription {
+            vk::AttachmentDescription {
+                format: attachment_description._attachment_image_format,
+                samples: attachment_description._attachment_image_samples,
+                load_op: attachment_description._attachment_load_operation,
+                store_op: attachment_description._attachment_store_operation,
+                stencil_load_op: attachment_description._attachment_stencil_load_operation,
+                stencil_store_op: attachment_description._attachment_stencil_store_operation,
+                initial_layout: attachment_description._attachment_initial_layout,
+                final_layout: attachment_description._attachment_final_layout,
+                ..Default::default()
+            }
+        };
+    let create_image_attachment_reference =
+        |attachment_description: &ImageAttachmentDescription,
+         index: u32|
+         -> vk::AttachmentReference {
+            vk::AttachmentReference {
+                attachment: index,
+                layout: attachment_description._attachment_reference_layout,
+            }
+        };
+    let color_attachment_descriptions =
+        &render_pass_data_create_info._color_attachment_descriptions;
+    let depth_attachment_descriptions =
+        &render_pass_data_create_info._depth_attachment_descriptions;
+    let resolve_attachment_descriptions =
+        &render_pass_data_create_info._resolve_attachment_descriptions;
+    let mut attachment_descriptions: Vec<ImageAttachmentDescription> =
+        color_attachment_descriptions.clone();
     attachment_descriptions.extend(depth_attachment_descriptions.clone());
     attachment_descriptions.extend(resolve_attachment_descriptions.clone());
     let image_attachments: Vec<vk::AttachmentDescription> = attachment_descriptions
@@ -391,27 +420,43 @@ pub fn create_render_pass(
         .enumerate()
         .map(|(index, ref description)| {
             create_image_attachment_reference(description, index as u32)
-        }).collect();
+        })
+        .collect();
     description_offset += color_attachment_references.len() as u32;
     let depth_attachment_references: Vec<vk::AttachmentReference> = depth_attachment_descriptions
         .iter()
         .enumerate()
         .map(|(index, ref description)| {
             create_image_attachment_reference(description, description_offset + index as u32)
-        }).collect();
+        })
+        .collect();
     description_offset += depth_attachment_references.len() as u32;
-    let resolve_attachment_references: Vec<vk::AttachmentReference> = resolve_attachment_descriptions
-        .iter()
-        .enumerate()
-        .map(|(index, ref description)| {
-            create_image_attachment_reference(description, description_offset + index as u32)
-        }).collect();
+    let resolve_attachment_references: Vec<vk::AttachmentReference> =
+        resolve_attachment_descriptions
+            .iter()
+            .enumerate()
+            .map(|(index, ref description)| {
+                create_image_attachment_reference(description, description_offset + index as u32)
+            })
+            .collect();
     let subpasses = [vk::SubpassDescription {
         pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-        p_color_attachments: if !color_attachment_references.is_empty() { color_attachment_references.as_ptr() } else { std::ptr::null() },
+        p_color_attachments: if !color_attachment_references.is_empty() {
+            color_attachment_references.as_ptr()
+        } else {
+            std::ptr::null()
+        },
         color_attachment_count: color_attachment_references.len() as u32,
-        p_resolve_attachments: if !resolve_attachment_references.is_empty() { resolve_attachment_references.as_ptr() } else { std::ptr::null() },
-        p_depth_stencil_attachment: if !depth_attachment_references.is_empty() { depth_attachment_references.as_ptr() } else { std::ptr::null() },
+        p_resolve_attachments: if !resolve_attachment_references.is_empty() {
+            resolve_attachment_references.as_ptr()
+        } else {
+            std::ptr::null()
+        },
+        p_depth_stencil_attachment: if !depth_attachment_references.is_empty() {
+            depth_attachment_references.as_ptr()
+        } else {
+            std::ptr::null()
+        },
         ..Default::default()
     }];
 
@@ -425,42 +470,57 @@ pub fn create_render_pass(
         ..Default::default()
     };
     unsafe {
-        let render_pass = device.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
+        let render_pass = device
+            .create_render_pass(&render_pass_create_info, None)
+            .expect("vkCreatePipelineLayout failed!");
         debug_utils::set_object_debug_info(
             device,
             debug_utils,
-            render_pass_data_create_info._render_pass_create_info_name.as_str(),
+            render_pass_data_create_info
+                ._render_pass_create_info_name
+                .as_str(),
             vk::ObjectType::RENDER_PASS,
-            render_pass.as_raw()
+            render_pass.as_raw(),
         );
-        log::debug!("create_render_pass: {} {:?}", render_pass_data_create_info._render_pass_create_info_name, render_pass);
+        log::debug!(
+            "create_render_pass: {} {:?}",
+            render_pass_data_create_info._render_pass_create_info_name,
+            render_pass
+        );
         render_pass
     }
 }
 
-pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_pass_name: &String) {
-    log::debug!("destroy_render_pass: {} {:?}", render_pass_name, render_pass);
+pub fn destroy_render_pass(
+    device: &Device,
+    render_pass: vk::RenderPass,
+    render_pass_name: &String,
+) {
+    log::debug!(
+        "destroy_render_pass: {} {:?}",
+        render_pass_name,
+        render_pass
+    );
     unsafe {
         device.destroy_render_pass(render_pass, None);
     }
 }
-
 
 pub fn create_pipeline_layout(
     device: &Device,
     debug_utils: &DebugUtils,
     pipeline_layout_name: &str,
     push_constant_data_list: &[PipelinePushConstantData],
-    descriptor_set_layouts: &[vk::DescriptorSetLayout]
+    descriptor_set_layouts: &[vk::DescriptorSetLayout],
 ) -> vk::PipelineLayout {
-    let push_constant_ranges: Vec<vk::PushConstantRange> =
-        push_constant_data_list.iter().map(|push_constant_data| {
-            vk::PushConstantRange {
-                stage_flags: push_constant_data._stage_flags,
-                offset: push_constant_data._offset,
-                size: push_constant_data._push_constant.as_ref().get_size(),
-            }
-        }).collect();
+    let push_constant_ranges: Vec<vk::PushConstantRange> = push_constant_data_list
+        .iter()
+        .map(|push_constant_data| vk::PushConstantRange {
+            stage_flags: push_constant_data._stage_flags,
+            offset: push_constant_data._offset,
+            size: push_constant_data._push_constant.as_ref().get_size(),
+        })
+        .collect();
 
     let pipeline_create_info = vk::PipelineLayoutCreateInfo {
         p_set_layouts: descriptor_set_layouts.as_ptr(),
@@ -470,15 +530,21 @@ pub fn create_pipeline_layout(
         ..Default::default()
     };
     unsafe {
-        let pipeline_layout = device.create_pipeline_layout(&pipeline_create_info, None).expect("VkCreatePipelineLayout failed!!");
+        let pipeline_layout = device
+            .create_pipeline_layout(&pipeline_create_info, None)
+            .expect("VkCreatePipelineLayout failed!!");
         debug_utils::set_object_debug_info(
             device,
             debug_utils,
             pipeline_layout_name,
             vk::ObjectType::PIPELINE_LAYOUT,
-            pipeline_layout.as_raw()
+            pipeline_layout.as_raw(),
         );
-        log::trace!("    create_pipeline_layout: {:?}({:?})", pipeline_layout_name, pipeline_layout);
+        log::trace!(
+            "    create_pipeline_layout: {:?}({:?})",
+            pipeline_layout_name,
+            pipeline_layout
+        );
         pipeline_layout
     }
 }
@@ -496,36 +562,46 @@ pub fn create_graphics_pipeline_data(
     render_pass: vk::RenderPass,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     has_depth_stencil_attachment: bool,
-    descriptor_data: &DescriptorData
+    descriptor_data: &DescriptorData,
 ) -> PipelineData {
     let vertex_shader_create_info = create_shader_stage_create_info(
         device,
         debug_utils,
         &pipeline_data_create_info._pipeline_vertex_shader_file,
         &pipeline_data_create_info._pipeline_shader_defines,
-        vk::ShaderStageFlags::VERTEX
+        vk::ShaderStageFlags::VERTEX,
     );
     let fragment_shader_create_info = create_shader_stage_create_info(
         device,
         debug_utils,
         &pipeline_data_create_info._pipeline_fragment_shader_file,
         &pipeline_data_create_info._pipeline_shader_defines,
-        vk::ShaderStageFlags::FRAGMENT
+        vk::ShaderStageFlags::FRAGMENT,
     );
-    let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
+    let descriptor_set_layouts = [descriptor_data._descriptor_set_layout];
     let shader_stage_infos = vec![vertex_shader_create_info, fragment_shader_create_info];
     let pipeline_layout = create_pipeline_layout(
         device,
         debug_utils,
-        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+        pipeline_data_create_info
+            ._pipeline_data_create_info_name
+            .as_str(),
         &pipeline_data_create_info._push_constant_data_list,
-        &descriptor_set_layouts
+        &descriptor_set_layouts,
     );
     let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
-        vertex_binding_description_count: pipeline_data_create_info._vertex_input_bind_descriptions.len() as u32,
-        p_vertex_binding_descriptions: pipeline_data_create_info._vertex_input_bind_descriptions.as_ptr(),
-        vertex_attribute_description_count: pipeline_data_create_info._vertex_input_attribute_descriptions.len() as u32,
-        p_vertex_attribute_descriptions: pipeline_data_create_info._vertex_input_attribute_descriptions.as_ptr(),
+        vertex_binding_description_count: pipeline_data_create_info
+            ._vertex_input_bind_descriptions
+            .len() as u32,
+        p_vertex_binding_descriptions: pipeline_data_create_info
+            ._vertex_input_bind_descriptions
+            .as_ptr(),
+        vertex_attribute_description_count: pipeline_data_create_info
+            ._vertex_input_attribute_descriptions
+            .len() as u32,
+        p_vertex_attribute_descriptions: pipeline_data_create_info
+            ._vertex_input_attribute_descriptions
+            .as_ptr(),
         ..Default::default()
     };
     let input_assembly = vk::PipelineInputAssemblyStateCreateInfo {
@@ -547,10 +623,10 @@ pub fn create_graphics_pipeline_data(
         p_scissors: scissors.as_ptr(),
         ..Default::default()
     };
-    let depth_bias_enable: bool =
-            0.0 != pipeline_data_create_info._pipeline_depth_bias_constant_factor ||
-            0.0 != pipeline_data_create_info._pipeline_depth_bias_clamp ||
-            0.0 != pipeline_data_create_info._pipeline_depth_bias_slope_factor;
+    let depth_bias_enable: bool = 0.0
+        != pipeline_data_create_info._pipeline_depth_bias_constant_factor
+        || 0.0 != pipeline_data_create_info._pipeline_depth_bias_clamp
+        || 0.0 != pipeline_data_create_info._pipeline_depth_bias_slope_factor;
     let rasterizer = vk::PipelineRasterizationStateCreateInfo {
         depth_clamp_enable: 0,
         rasterizer_discard_enable: 0,
@@ -577,11 +653,14 @@ pub fn create_graphics_pipeline_data(
         logic_op_enable: 0,
         logic_op: vk::LogicOp::COPY,
         attachment_count: pipeline_data_create_info._pipeline_color_blend_modes.len() as u32,
-        p_attachments: pipeline_data_create_info._pipeline_color_blend_modes.as_ptr(),
+        p_attachments: pipeline_data_create_info
+            ._pipeline_color_blend_modes
+            .as_ptr(),
         blend_constants,
         ..Default::default()
     };
-    let depth_stencil_state_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
+    let depth_stencil_state_create_info =
+        &pipeline_data_create_info._depth_stencil_state_create_info;
     let depth_stencil_state = if has_depth_stencil_attachment {
         vk::PipelineDepthStencilStateCreateInfo {
             depth_test_enable: depth_stencil_state_create_info._depth_test_enable.into(),
@@ -634,27 +713,48 @@ pub fn create_graphics_pipeline_data(
     }];
 
     unsafe {
-        let graphics_pipelines = device.create_graphics_pipelines(
-            vk::PipelineCache::null(),
-            &graphics_pipeline_create_info,
-            None
-        ).expect("vkCreateGraphicsPipelines failed!");
+        let graphics_pipelines = device
+            .create_graphics_pipelines(
+                vk::PipelineCache::null(),
+                &graphics_pipeline_create_info,
+                None,
+            )
+            .expect("vkCreateGraphicsPipelines failed!");
         assert_eq!(1, graphics_pipelines.len());
 
         debug_utils::set_object_debug_info(
             device,
             debug_utils,
-            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .as_str(),
             vk::ObjectType::PIPELINE,
-            graphics_pipelines[0].as_raw()
+            graphics_pipelines[0].as_raw(),
         );
-        log::trace!("    create_graphics_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, graphics_pipelines);
-        log::trace!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::trace!("    vertexShader: {:#X} {:?}", vertex_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_vertex_shader_file);
-        log::trace!("    fragmentShader: {:#X} {:?}", fragment_shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_fragment_shader_file);
+        log::trace!(
+            "    create_graphics_pipeline_data: {} ({:?})",
+            pipeline_data_create_info._pipeline_data_create_info_name,
+            graphics_pipelines
+        );
+        log::trace!(
+            "    shaderDefines: {:?}",
+            pipeline_data_create_info._pipeline_shader_defines
+        );
+        log::trace!(
+            "    vertexShader: {:#X} {:?}",
+            vertex_shader_create_info.module.as_raw(),
+            pipeline_data_create_info._pipeline_vertex_shader_file
+        );
+        log::trace!(
+            "    fragmentShader: {:#X} {:?}",
+            fragment_shader_create_info.module.as_raw(),
+            pipeline_data_create_info._pipeline_fragment_shader_file
+        );
 
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
+            _pipeline_data_name: pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .clone(),
             _vertex_shader_create_info: vertex_shader_create_info,
             _fragment_shader_create_info: fragment_shader_create_info,
             _pipeline: graphics_pipelines[0],
@@ -672,22 +772,24 @@ pub fn create_compute_pipeline_data(
     device: &Device,
     debug_utils: &DebugUtils,
     pipeline_data_create_info: &PipelineDataCreateInfo,
-    descriptor_data: &DescriptorData
+    descriptor_data: &DescriptorData,
 ) -> PipelineData {
     let shader_create_info = create_shader_stage_create_info(
         device,
         debug_utils,
         &pipeline_data_create_info._pipeline_compute_shader_file,
         &pipeline_data_create_info._pipeline_shader_defines,
-        vk::ShaderStageFlags::COMPUTE
+        vk::ShaderStageFlags::COMPUTE,
     );
-    let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
+    let descriptor_set_layouts = [descriptor_data._descriptor_set_layout];
     let pipeline_layout = create_pipeline_layout(
         device,
         debug_utils,
-        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+        pipeline_data_create_info
+            ._pipeline_data_create_info_name
+            .as_str(),
         &pipeline_data_create_info._push_constant_data_list,
-        &descriptor_set_layouts
+        &descriptor_set_layouts,
     );
     let pipeline_create_info = [vk::ComputePipelineCreateInfo {
         flags: pipeline_data_create_info._pipeline_create_flags,
@@ -699,26 +801,39 @@ pub fn create_compute_pipeline_data(
     }];
 
     unsafe {
-        let pipelines = device.create_compute_pipelines(
-            vk::PipelineCache::null(),
-            &pipeline_create_info,
-            None
-        ).expect("vkCreateComputePipelines failed!");
+        let pipelines = device
+            .create_compute_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None)
+            .expect("vkCreateComputePipelines failed!");
         assert_eq!(1, pipelines.len());
 
         debug_utils::set_object_debug_info(
             device,
             debug_utils,
-            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .as_str(),
             vk::ObjectType::PIPELINE,
-            pipelines[0].as_raw()
+            pipelines[0].as_raw(),
         );
-        log::trace!("    create_compute_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipelines);
-        log::trace!("    shaderDefines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
-        log::trace!("    computeShader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_compute_shader_file);
+        log::trace!(
+            "    create_compute_pipeline_data: {} ({:?})",
+            pipeline_data_create_info._pipeline_data_create_info_name,
+            pipelines
+        );
+        log::trace!(
+            "    shaderDefines: {:?}",
+            pipeline_data_create_info._pipeline_shader_defines
+        );
+        log::trace!(
+            "    computeShader: {:#X} {:?}",
+            shader_create_info.module.as_raw(),
+            pipeline_data_create_info._pipeline_compute_shader_file
+        );
 
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
+            _pipeline_data_name: pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .clone(),
             _compute_shader_create_info: shader_create_info,
             _pipeline: pipelines[0],
             _pipeline_layout: pipeline_layout,
@@ -740,7 +855,7 @@ pub fn create_ray_tracing_pipeline_data(
     ray_tracing: &RayTracing,
     ray_tracing_properties: &vk::PhysicalDeviceRayTracingPropertiesNV,
     pipeline_data_create_info: &PipelineDataCreateInfo,
-    descriptor_data: &DescriptorData
+    descriptor_data: &DescriptorData,
 ) -> PipelineData {
     let shader_groups = vec![
         // ray generation
@@ -769,7 +884,7 @@ pub fn create_ray_tracing_pipeline_data(
             any_hit_shader: vk::SHADER_UNUSED_NV,
             intersection_shader: vk::SHADER_UNUSED_NV,
             ..Default::default()
-        }
+        },
     ];
     let shader_group_count: u32 = shader_groups.len() as u32;
 
@@ -779,65 +894,91 @@ pub fn create_ray_tracing_pipeline_data(
             debug_utils,
             &pipeline_data_create_info._pipeline_ray_generation_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
-            vk::ShaderStageFlags::RAYGEN_KHR
+            vk::ShaderStageFlags::RAYGEN_KHR,
         ),
         create_shader_stage_create_info(
             device,
             debug_utils,
             &pipeline_data_create_info._pipeline_ray_closet_hit_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
-            vk::ShaderStageFlags::CLOSEST_HIT_KHR
+            vk::ShaderStageFlags::CLOSEST_HIT_KHR,
         ),
         create_shader_stage_create_info(
             device,
             debug_utils,
             &pipeline_data_create_info._pipeline_ray_miss_shader_file,
             &pipeline_data_create_info._pipeline_shader_defines,
-            vk::ShaderStageFlags::MISS_KHR
-        )
+            vk::ShaderStageFlags::MISS_KHR,
+        ),
     ];
-    let descriptor_set_layouts = [ descriptor_data._descriptor_set_layout, ];
+    let descriptor_set_layouts = [descriptor_data._descriptor_set_layout];
     let pipeline_layout = create_pipeline_layout(
         device,
         debug_utils,
-        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+        pipeline_data_create_info
+            ._pipeline_data_create_info_name
+            .as_str(),
         &pipeline_data_create_info._push_constant_data_list,
-        &descriptor_set_layouts
+        &descriptor_set_layouts,
     );
-    let pipeline_create_info = [
-        vk::RayTracingPipelineCreateInfoNV {
-            stage_count: shader_create_infos.len() as u32,
-            p_stages: shader_create_infos.as_ptr(),
-            group_count: shader_group_count,
-            p_groups: shader_groups.as_ptr(),
-            max_recursion_depth: 1,
-            layout: pipeline_layout,
-            ..Default::default()
-        }
-    ];
+    let pipeline_create_info = [vk::RayTracingPipelineCreateInfoNV {
+        stage_count: shader_create_infos.len() as u32,
+        p_stages: shader_create_infos.as_ptr(),
+        group_count: shader_group_count,
+        p_groups: shader_groups.as_ptr(),
+        max_recursion_depth: 1,
+        layout: pipeline_layout,
+        ..Default::default()
+    }];
 
     unsafe {
-        let pipeline = ray_tracing.create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None).expect("create_ray_tracing_pipelines failed!")[0];
+        let pipeline = ray_tracing
+            .create_ray_tracing_pipelines(vk::PipelineCache::null(), &pipeline_create_info, None)
+            .expect("create_ray_tracing_pipelines failed!")[0];
         debug_utils::set_object_debug_info(
             device,
             debug_utils,
-            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .as_str(),
             vk::ObjectType::PIPELINE,
-            pipeline.as_raw()
+            pipeline.as_raw(),
         );
 
-        log::trace!("    create_ray_tracing_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipeline);
-        log::trace!("    shader defines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::trace!(
+            "    create_ray_tracing_pipeline_data: {} ({:?})",
+            pipeline_data_create_info._pipeline_data_create_info_name,
+            pipeline
+        );
+        log::trace!(
+            "    shader defines: {:?}",
+            pipeline_data_create_info._pipeline_shader_defines
+        );
         for shader_create_info in shader_create_infos {
-            log::trace!("    ray generation shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_generation_shader_file);
-            log::trace!("    ray closet-hit shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_closet_hit_shader_file);
-            log::trace!("    ray miss shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_miss_shader_file);
+            log::trace!(
+                "    ray generation shader: {:#X} {:?}",
+                shader_create_info.module.as_raw(),
+                pipeline_data_create_info._pipeline_ray_generation_shader_file
+            );
+            log::trace!(
+                "    ray closet-hit shader: {:#X} {:?}",
+                shader_create_info.module.as_raw(),
+                pipeline_data_create_info._pipeline_ray_closet_hit_shader_file
+            );
+            log::trace!(
+                "    ray miss shader: {:#X} {:?}",
+                shader_create_info.module.as_raw(),
+                pipeline_data_create_info._pipeline_ray_miss_shader_file
+            );
         }
 
         // create shader binding table
-        let table_size = (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
+        let table_size =
+            (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
         let mut table_data: Vec<u8> = vec![0u8; table_size as usize];
-        ray_tracing.get_ray_tracing_shader_group_handles(pipeline, 0, shader_group_count, &mut table_data).expect("get_ray_tracing_shader_group_handles failed!");
+        ray_tracing
+            .get_ray_tracing_shader_group_handles(pipeline, 0, shader_group_count, &mut table_data)
+            .expect("get_ray_tracing_shader_group_handles failed!");
 
         let shader_binding_table = buffer::create_buffer_data_with_uploads(
             device,
@@ -845,16 +986,20 @@ pub fn create_ray_tracing_pipeline_data(
             command_queue,
             device_memory_properties,
             debug_utils,
-            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .as_str(),
             vk::BufferUsageFlags::TRANSFER_SRC,
-            &table_data
+            &table_data,
         );
 
         log::info!(">>> TEST CODE: create_ray_tracing_pipeline_data");
         log::info!("    create_ray_tracing_pipeline_data.");
         log::info!("    CHECK :: do i need present_queue or graphics queue ??");
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
+            _pipeline_data_name: pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,
             _pipeline: pipeline,
             _pipeline_layout: pipeline_layout,
@@ -869,7 +1014,12 @@ pub fn create_ray_tracing_pipeline_data(
 }
 
 pub fn destroy_pipeline_data(device: &Device, pipeline_data: &mut PipelineData) {
-    log::debug!("    destroy_pipeline_data: {}, pipeline: {:?}, pipeline_layout: {:?}", pipeline_data._pipeline_data_name,pipeline_data._pipeline, pipeline_data._pipeline_layout);
+    log::debug!(
+        "    destroy_pipeline_data: {}, pipeline: {:?}, pipeline_layout: {:?}",
+        pipeline_data._pipeline_data_name,
+        pipeline_data._pipeline,
+        pipeline_data._pipeline_layout
+    );
     unsafe {
         device.destroy_pipeline(pipeline_data._pipeline, None);
         device.destroy_pipeline_layout(pipeline_data._pipeline_layout, None);

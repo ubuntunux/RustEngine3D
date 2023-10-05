@@ -544,7 +544,7 @@ impl AtmosphereModel {
             );
         } else {
             let num_iterations: f32 = (self._num_precomputed_wavelengths as f32 + 2.0) / 3.0;
-            let dlambda: f32 = (K_LAMBDA_MAX - K_LAMBDA_MIN) as f32 / (3.0 * num_iterations);
+            let dlambda: f32 = (K_LAMBDA_MAX - K_LAMBDA_MIN) / (3.0 * num_iterations);
 
             let coeff = |l: f32, component: usize| -> f32 {
                 let x: f32 = cie_color_matching_function_table_value(l, 1);
@@ -555,9 +555,9 @@ impl AtmosphereModel {
 
             for i in 0..num_iterations as i32 {
                 let lambdas: [f32; 3] = [
-                    K_LAMBDA_MIN as f32 + (3.0 * i as f32 + 0.5) * dlambda,
-                    K_LAMBDA_MIN as f32 + (3.0 * i as f32 + 1.5) * dlambda,
-                    K_LAMBDA_MIN as f32 + (3.0 * i as f32 + 2.5) * dlambda
+                    K_LAMBDA_MIN + (3.0 * i as f32 + 0.5) * dlambda,
+                    K_LAMBDA_MIN + (3.0 * i as f32 + 1.5) * dlambda,
+                    K_LAMBDA_MIN + (3.0 * i as f32 + 2.5) * dlambda
                 ];
 
                 let luminance_from_radiance = Matrix3::from_columns(&[
@@ -784,13 +784,13 @@ impl Atmosphere {
             if self._use_constant_solar_spectrum {
                 solar_irradiance.push(K_CONSTANT_SOLAR_IRRADIANCE);
             } else {
-                solar_irradiance.push(K_SOLAR_IRRADIANCE[(i as usize - K_LAMBDA_MIN as usize) / 10]);
+                solar_irradiance.push(K_SOLAR_IRRADIANCE[(i - K_LAMBDA_MIN as usize) / 10]);
             }
             rayleigh_scattering.push(K_RAYLEIGH * l.powf(-4.0));
             mie_scattering.push(mie * K_MIE_SINGLE_SCATTERING_ALBEDO);
             mie_extinction.push(mie);
             if self._use_ozone {
-                absorption_extinction.push(K_MAX_OZONE_NUMBER_DENSITY * K_OZONE_CROSS_SECTION[(i as usize - K_LAMBDA_MIN as usize) / 10])
+                absorption_extinction.push(K_MAX_OZONE_NUMBER_DENSITY * K_OZONE_CROSS_SECTION[(i - K_LAMBDA_MIN as usize) / 10])
             } else {
                 absorption_extinction.push(0.0);
             }

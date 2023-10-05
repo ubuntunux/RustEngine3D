@@ -1,6 +1,6 @@
 
-use crate::renderer::material_instance::MaterialInstanceData;
-use crate::renderer::mesh::MeshData;
+use crate::scene::material_instance::MaterialInstanceData;
+use crate::scene::mesh::MeshData;
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]

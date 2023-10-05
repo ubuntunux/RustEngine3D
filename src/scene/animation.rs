@@ -1,14 +1,14 @@
 use std::collections::HashMap;
 
-use serde::{ Serialize, Deserialize };
-use nalgebra::{ Vector3, Vector4, Quaternion, Matrix4 };
+use nalgebra::{Matrix4, Quaternion, Vector3, Vector4};
 use nalgebra_glm as glm;
+use serde::{Deserialize, Serialize};
 
-use crate::renderer::mesh::MeshData;
-use crate::renderer::transform_object::{ TransformObjectData };
+use crate::constants;
+use crate::scene::mesh::MeshData;
+use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
 use crate::utilities::system::RcRefCell;
-use crate::constants;
 
 #[derive(Clone, Debug)]
 pub struct BoneData {
@@ -87,8 +87,8 @@ pub struct SkeletonDataCreateInfo {
     pub _name: String,
     pub _transform: Matrix4<f32>,
     pub _hierarchy: SkeletonHierarchyTree, // bone names map as hierarchy
-    pub _bone_names: Vec<String>, // bone name list ordered by index
-    pub _inv_bind_matrices: Vec<Matrix4<f32>>,  // inverse matrix of bone
+    pub _bone_names: Vec<String>,          // bone name list ordered by index
+    pub _inv_bind_matrices: Vec<Matrix4<f32>>, // inverse matrix of bone
 }
 
 #[derive(Clone, Debug)]
@@ -148,7 +148,12 @@ impl Default for SkeletonHierarchyTree {
 }
 
 impl BoneData {
-    pub fn create_bone(name: &String, index: usize, depth: u32, inv_bind_matrix: &Matrix4<f32>) -> BoneData {
+    pub fn create_bone(
+        name: &String,
+        index: usize,
+        depth: u32,
+        inv_bind_matrix: &Matrix4<f32>,
+    ) -> BoneData {
         BoneData {
             _name: name.clone(),
             _transform: TransformObjectData::new_transform_object_data(),
@@ -173,27 +178,44 @@ impl BoneData {
 }
 
 impl SkeletonData {
-    pub fn create_skeleton_data(index: usize, skeleton_data_create_info: &SkeletonDataCreateInfo) -> SkeletonData {
+    pub fn create_skeleton_data(
+        index: usize,
+        skeleton_data_create_info: &SkeletonDataCreateInfo,
+    ) -> SkeletonData {
         let mut skeleton_data = SkeletonData {
             _name: skeleton_data_create_info._name.clone(),
             _index: index,
             _bone_names: skeleton_data_create_info._bone_names.clone(),
-            _bones: skeleton_data_create_info._bone_names
+            _bones: skeleton_data_create_info
+                ._bone_names
                 .iter()
                 .enumerate()
                 .map(|(index, bone_name)| {
-                BoneData::create_bone(bone_name, index, 0, &Matrix4::identity())
-            }).collect(),
+                    BoneData::create_bone(bone_name, index, 0, &Matrix4::identity())
+                })
+                .collect(),
             _hierarchy: Vec::new(),
         };
-        skeleton_data.build_bone(&skeleton_data_create_info._hierarchy, &skeleton_data_create_info._inv_bind_matrices, std::ptr::null_mut(), 0);
+        skeleton_data.build_bone(
+            &skeleton_data_create_info._hierarchy,
+            &skeleton_data_create_info._inv_bind_matrices,
+            std::ptr::null_mut(),
+            0,
+        );
         skeleton_data
     }
 
-    pub fn build_bone(&mut self, hierarchy: &SkeletonHierarchyTree, inv_bind_matrices: &Vec<Matrix4<f32>>, parent_bone: *mut BoneData, depth: u32) {
+    pub fn build_bone(
+        &mut self,
+        hierarchy: &SkeletonHierarchyTree,
+        inv_bind_matrices: &Vec<Matrix4<f32>>,
+        parent_bone: *mut BoneData,
+        depth: u32,
+    ) {
         for (bone_name, child_hierarchy) in hierarchy._children.iter() {
             if let Some(index) = self._bone_names.iter().position(|key| key == bone_name) {
-                self._bones[index] = BoneData::create_bone(bone_name, index, depth, &inv_bind_matrices[index]);
+                self._bones[index] =
+                    BoneData::create_bone(bone_name, index, depth, &inv_bind_matrices[index]);
                 let bone: *mut BoneData = &mut self._bones[index];
                 if parent_bone.is_null() {
                     // add root
@@ -210,13 +232,12 @@ impl SkeletonData {
     }
 }
 
-
 impl AnimationData {
     pub fn create_animation_data(
         name: &String,
         index: usize,
         skeleton: *const SkeletonData,
-        animation_node_create_infos: &Vec<AnimationNodeCreateInfo>
+        animation_node_create_infos: &Vec<AnimationNodeCreateInfo>,
     ) -> AnimationData {
         let mut animation_data = AnimationData {
             _name: name.clone(),
@@ -231,7 +252,10 @@ impl AnimationData {
 
         unsafe {
             for (i, animation_node_create_info) in animation_node_create_infos.iter().enumerate() {
-                let animation_node = AnimationNodeData::create_animation_node_data(&(*animation_data._skeleton)._bones[i], animation_node_create_info);
+                let animation_node = AnimationNodeData::create_animation_node_data(
+                    &(*animation_data._skeleton)._bones[i],
+                    animation_node_create_info,
+                );
                 let frame_count = animation_node._frame_times.len();
                 if animation_data._frame_count < frame_count {
                     animation_data._frame_count = frame_count;
@@ -253,7 +277,7 @@ impl AnimationData {
     }
 
     pub fn get_bone_count(&self) -> usize {
-        return self._nodes.len()
+        return self._nodes.len();
     }
 
     pub fn get_time_to_frame(&self, current_frame: f32, current_time: f32) -> f32 {
@@ -266,7 +290,10 @@ impl AnimationData {
             }
 
             loop {
-                if (0 == frame && current_time <= self._frame_times[frame]) || (self._frame_times[frame] <= current_time && current_time <= self._frame_times[frame + 1]) {
+                if (0 == frame && current_time <= self._frame_times[frame])
+                    || (self._frame_times[frame] <= current_time
+                        && current_time <= self._frame_times[frame + 1])
+                {
                     break;
                 }
                 frame = (frame + 1) % last_index;
@@ -293,21 +320,32 @@ impl AnimationData {
                 let node = &self._nodes[index];
                 node.update_animation_node(frame, &mut animation_transforms[index]);
                 animation_transforms[index] = &(*parent_matrix) * &animation_transforms[index];
-                self.update_hierarchical_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
-                animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
+                self.update_hierarchical_animation_transform(
+                    frame,
+                    *bone,
+                    &animation_transforms[index],
+                    animation_transforms,
+                );
+                animation_transforms[index] =
+                    &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
             }
         }
     }
 
-    pub fn update_animation_transforms(&self, frame: f32, animation_transforms: &mut [Matrix4<f32>]) {
+    pub fn update_animation_transforms(
+        &self,
+        frame: f32,
+        animation_transforms: &mut [Matrix4<f32>],
+    ) {
         unsafe {
             if (*self._root_node)._hierarchically_accumulated_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {
                     node.update_animation_node(frame, &mut animation_transforms[index]);
-                    // Why multipication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
+                    // Why multiplication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
                     // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
                     if false == node._combined_inv_bind_matrix {
-                        animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
+                        animation_transforms[index] =
+                            &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
                     }
                 }
             } else {
@@ -315,8 +353,14 @@ impl AnimationData {
                     let index: usize = (**bone)._index;
                     let node = &self._nodes[index];
                     node.update_animation_node(frame, &mut animation_transforms[index]);
-                    self.update_hierarchical_animation_transform(frame, *bone, &animation_transforms[index], animation_transforms);
-                    animation_transforms[index] = &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
+                    self.update_hierarchical_animation_transform(
+                        frame,
+                        *bone,
+                        &animation_transforms[index],
+                        animation_transforms,
+                    );
+                    animation_transforms[index] =
+                        &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
                 }
             }
         }
@@ -324,12 +368,16 @@ impl AnimationData {
 }
 
 impl AnimationNodeData {
-    pub fn create_animation_node_data(bone: *const BoneData, animation_node_create_info: &AnimationNodeCreateInfo) -> AnimationNodeData {
+    pub fn create_animation_node_data(
+        bone: *const BoneData,
+        animation_node_create_info: &AnimationNodeCreateInfo,
+    ) -> AnimationNodeData {
         AnimationNodeData {
             _name: animation_node_create_info._name.clone(),
-            _hierarchically_accumulated_matrix: animation_node_create_info._hierarchically_accumulated_matrix,
+            _hierarchically_accumulated_matrix: animation_node_create_info
+                ._hierarchically_accumulated_matrix,
             _combined_inv_bind_matrix: animation_node_create_info._combined_inv_bind_matrix,
-            _target: animation_node_create_info._target.clone(),  // bone name
+            _target: animation_node_create_info._target.clone(), // bone name
             _frame_times: animation_node_create_info._times.clone(),
             _locations: animation_node_create_info._locations.clone(),
             _rotations: animation_node_create_info._rotations.clone(),
@@ -348,8 +396,10 @@ impl AnimationNodeData {
             let frame: usize = (frame as usize) % self._frame_count;
             let next_frame: usize = (frame + 1) % self._frame_count;
             if frame < self._frame_count {
-                let rotation = glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
-                let location = glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
+                let rotation =
+                    glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
+                let location =
+                    glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
                 let scale = glm::lerp(&self._scales[frame], &self._scales[next_frame], rate);
                 transform.copy_from(&math::quaternion_to_matrix(&rotation));
                 math::matrix_scale(transform, scale.x, scale.y, scale.z);

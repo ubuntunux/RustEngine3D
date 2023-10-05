@@ -1,6 +1,12 @@
-use serde::{ Serialize, Deserialize };
+#![allow(deprecated)]
+#![allow(deprecated)]
+#![allow(deprecated)]
+#![allow(deprecated)]
+#![allow(deprecated)]
+
 use nalgebra;
-use nalgebra::{Vector3, Vector4, Matrix4};
+use nalgebra::{Matrix4, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -10,12 +16,15 @@ pub struct BoundingBox {
     pub _max: Vector3<f32>,
     pub _center: Vector3<f32>,
     pub _size: Vector3<f32>,
-    pub _radius: f32
+    pub _radius: f32,
 }
 
 impl Default for BoundingBox {
     fn default() -> BoundingBox {
-        BoundingBox::create_bounding_box(&Vector3::new(-1.0, -1.0, -1.0), &Vector3::new(1.0, 1.0, 1.0))
+        BoundingBox::create_bounding_box(
+            &Vector3::new(-1.0, -1.0, -1.0),
+            &Vector3::new(1.0, 1.0, 1.0),
+        )
     }
 }
 
@@ -26,18 +35,24 @@ impl BoundingBox {
             _max: max.clone(),
             _center: max * 0.5 + min * 0.5,
             _size: max - min,
-            _radius: (max * 0.5 - min * 0.5).norm()
+            _radius: (max * 0.5 - min * 0.5).norm(),
         }
     }
 }
 
+//noinspection RsDeprecation
 pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
     if 0 == positions.len() {
         return BoundingBox::default();
     }
 
-    let mut bound_min = Vector3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX) * 0.5;
-    let mut bound_max = Vector3::new(std::f32::MIN, std::f32::MIN, std::f32::MIN) * 0.5;
+    #[allow(deprecated)]
+    #[allow(deprecated)]
+    #[allow(deprecated)]
+    #[allow(deprecated)]
+    #[allow(deprecated)]
+    let mut bound_min = Vector3::new(f32::MAX, f32::MAX, f32::MAX) * 0.5;
+    let mut bound_max = Vector3::new(f32::MIN, f32::MIN, f32::MIN) * 0.5;
     for position in positions.iter() {
         bound_min[0] = bound_min[0].min(position[0]);
         bound_min[1] = bound_min[1].min(position[1]);
@@ -61,13 +76,22 @@ pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
 
 impl BoundingBox {
     pub fn update_with_matrix(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
-        let bound_min: Vector4<f32> = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
-        let bound_max: Vector4<f32> = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
-        self._min = Vector3::new(bound_min.x.min(bound_max.x), bound_min.y.min(bound_max.y), bound_min.z.min(bound_max.z));
-        self._max = Vector3::new(bound_min.x.max(bound_max.x), bound_min.y.max(bound_max.y), bound_min.z.max(bound_max.z));
+        let bound_min: Vector4<f32> =
+            matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
+        let bound_max: Vector4<f32> =
+            matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
+        self._min = Vector3::new(
+            bound_min.x.min(bound_max.x),
+            bound_min.y.min(bound_max.y),
+            bound_min.z.min(bound_max.z),
+        );
+        self._max = Vector3::new(
+            bound_min.x.max(bound_max.x),
+            bound_min.y.max(bound_max.y),
+            bound_min.z.max(bound_max.z),
+        );
         self._center = &self._min * 0.5 + &self._max * 0.5;
         self._size = &self._max - &self._min;
         self._radius = (&self._max * 0.5 - &self._min * 0.5).norm();
     }
 }
-

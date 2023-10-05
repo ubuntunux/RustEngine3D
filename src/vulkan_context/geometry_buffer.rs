@@ -1,16 +1,16 @@
-use std::mem;
 use std::collections::HashMap;
+use std::mem;
 
-use ash::{ vk, Device };
 use ash::extensions::ext::DebugUtils;
-use nalgebra::{ Vector2, Vector3, Vector4 };
-use serde::{ Serialize, Deserialize };
+use ash::{vk, Device};
+use nalgebra::{Vector2, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
 
-use crate::renderer::mesh::{ MeshDataCreateInfo };
-use crate::vulkan_context::buffer;
-use crate::vulkan_context::vulkan_context::{ get_color32, get_format_size };
+use crate::scene::mesh::MeshDataCreateInfo;
+use crate::utilities::bounding_box::{calc_bounding_box, BoundingBox};
 use crate::utilities::math;
-use crate::utilities::bounding_box::{ BoundingBox, calc_bounding_box };
+use crate::vulkan_context::buffer;
+use crate::vulkan_context::vulkan_context::{get_color32, get_format_size};
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
@@ -20,7 +20,7 @@ pub struct VertexData {
     pub _normal: Vector3<f32>,
     pub _tangent: Vector3<f32>,
     pub _color: u32,
-    pub _texcoord: Vector2<f32>
+    pub _texcoord: Vector2<f32>,
 }
 
 impl Default for VertexData {
@@ -30,7 +30,7 @@ impl Default for VertexData {
             _normal: Vector3::new(0.0, 1.0, 0.0),
             _tangent: Vector3::new(0.0, 0.0, 0.0),
             _color: get_color32(255, 255, 255, 255),
-            _texcoord: Vector2::new(0.0, 0.0)
+            _texcoord: Vector2::new(0.0, 0.0),
         }
     }
 }
@@ -45,7 +45,7 @@ pub struct SkeletalVertexData {
     pub _color: u32,
     pub _texcoord: Vector2<f32>,
     pub _bone_indices: Vector4<u32>,
-    pub _bone_weights: Vector4<f32>
+    pub _bone_weights: Vector4<f32>,
 }
 
 impl Default for SkeletalVertexData {
@@ -57,7 +57,7 @@ impl Default for SkeletalVertexData {
             _color: get_color32(255, 255, 255, 255),
             _texcoord: Vector2::new(0.0, 0.0),
             _bone_indices: Vector4::new(0, 0, 0, 0),
-            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0)
+            _bone_weights: Vector4::new(0.0, 0.0, 0.0, 0.0),
         }
     }
 }
@@ -68,7 +68,7 @@ pub struct GeometryCreateInfo {
     pub _vertex_data_list: Vec<VertexData>,
     pub _skeletal_vertex_data_list: Vec<SkeletalVertexData>,
     pub _indices: Vec<u32>,
-    pub _bounding_box: BoundingBox
+    pub _bounding_box: BoundingBox,
 }
 
 impl Default for GeometryCreateInfo {
@@ -77,7 +77,7 @@ impl Default for GeometryCreateInfo {
             _vertex_data_list: Vec::new(),
             _skeletal_vertex_data_list: Vec::new(),
             _indices: Vec::new(),
-            _bounding_box: BoundingBox::default()
+            _bounding_box: BoundingBox::default(),
         }
     }
 }
@@ -88,13 +88,13 @@ pub struct GeometryData {
     pub _vertex_buffer_data: buffer::BufferData,
     pub _index_buffer_data: buffer::BufferData,
     pub _vertex_index_count: u32,
-    pub _geometry_bounding_box: BoundingBox
+    pub _geometry_bounding_box: BoundingBox,
 }
 
 pub fn add_vertex_input_attribute_description(
     vertex_input_attribute_descriptions: &mut Vec<vk::VertexInputAttributeDescription>,
     binding: u32,
-    format: vk::Format
+    format: vk::Format,
 ) {
     let location: u32 = vertex_input_attribute_descriptions.len() as u32;
     let offset: u32 = if 0 == location {
@@ -127,13 +127,34 @@ impl VertexData {
 
 impl VertexDataBase for VertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions =
+            Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::POSITION);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::NORMAL);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TANGENT);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::COLOR);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TEXCOORD);
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            VertexData::POSITION,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            VertexData::NORMAL,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            VertexData::TANGENT,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            VertexData::COLOR,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            VertexData::TEXCOORD,
+        );
         vertex_input_attribute_descriptions
     }
 
@@ -141,7 +162,7 @@ impl VertexDataBase for VertexData {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
             stride: mem::size_of::<VertexData>() as u32,
-            input_rate: vk::VertexInputRate::VERTEX
+            input_rate: vk::VertexInputRate::VERTEX,
         }]
     }
 }
@@ -158,15 +179,44 @@ impl SkeletalVertexData {
 
 impl VertexDataBase for SkeletalVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions =
+            Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::POSITION);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::NORMAL);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::TANGENT);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::COLOR);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::TEXCOORD);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::BONE_INDICES);
-        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, SkeletalVertexData::BONE_WEIGHTS);
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::POSITION,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::NORMAL,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::TANGENT,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::COLOR,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::TEXCOORD,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::BONE_INDICES,
+        );
+        add_vertex_input_attribute_description(
+            &mut vertex_input_attribute_descriptions,
+            binding,
+            SkeletalVertexData::BONE_WEIGHTS,
+        );
         vertex_input_attribute_descriptions
     }
 
@@ -174,7 +224,7 @@ impl VertexDataBase for SkeletalVertexData {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
             stride: mem::size_of::<SkeletalVertexData>() as u32,
-            input_rate: vk::VertexInputRate::VERTEX
+            input_rate: vk::VertexInputRate::VERTEX,
         }]
     }
 }
@@ -186,11 +236,12 @@ pub fn create_geometry_data(
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
     debug_utils: &DebugUtils,
     geometry_name: &String,
-    geometry_create_info: &GeometryCreateInfo
+    geometry_create_info: &GeometryCreateInfo,
 ) -> GeometryData {
     log::trace!("create_geometry_data: {:?}", geometry_name);
 
-    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_data_list.is_empty() {
+    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_data_list.is_empty()
+    {
         buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
@@ -222,7 +273,7 @@ pub fn create_geometry_data(
         debug_utils,
         geometry_name.as_str(),
         vk::BufferUsageFlags::INDEX_BUFFER,
-        &geometry_create_info._indices
+        &geometry_create_info._indices,
     );
 
     GeometryData {
@@ -230,7 +281,7 @@ pub fn create_geometry_data(
         _vertex_buffer_data: vertex_buffer_data,
         _index_buffer_data: index_buffer_data,
         _vertex_index_count: geometry_create_info._indices.len() as u32,
-        _geometry_bounding_box: geometry_create_info._bounding_box.clone()
+        _geometry_bounding_box: geometry_create_info._bounding_box.clone(),
     }
 }
 
@@ -274,7 +325,7 @@ pub fn compute_tangent(
     positions: &Vec<Vector3<f32>>,
     normals: &Vec<Vector3<f32>>,
     texcoords: &Vec<Vector2<f32>>,
-    indices: &Vec<u32>
+    indices: &Vec<u32>,
 ) -> Vec<Vector3<f32>> {
     let vertex_count = positions.len();
     let index_count = indices.len();
@@ -295,7 +346,8 @@ pub fn compute_tangent(
         if 0.0 != r {
             r = 1.0 / r;
         }
-        let tangent_sq: Vector3<f32> = ((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r;
+        let tangent_sq: Vector3<f32> =
+            ((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r;
         let result_tangent = if 0.0 == tangent_sq.dot(&tangent_sq) {
             let avg_normal: Vector3<f32> = (&normals[i0] + &normals[i1] + &normals[i2]).normalize();
             avg_normal.cross(&math::get_world_up())
@@ -309,36 +361,43 @@ pub fn compute_tangent(
     let vertex_count_indices: Vec<usize> = (0..vertex_count).collect();
     let tangents: Vec<Vector3<f32>> = vertex_count_indices
         .iter()
-        .map(|index| {
-            tangent_map.get(index).unwrap().clone()
-        }).collect();
+        .map(|index| tangent_map.get(index).unwrap().clone())
+        .collect();
     tangents
 }
 
 pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
-    let positions: Vec<Vector3<f32>> = vec![(-1.0, 1.0, 0.0), (1.0, 1.0, 0.0), (1.0, -1.0, 0.0), (-1.0, -1.0, 0.0)]
-        .iter()
-        .map(|(x, y, z)| {
-            Vector3::new(*x, *y, *z)
-        }).collect();
+    let positions: Vec<Vector3<f32>> = vec![
+        (-1.0, 1.0, 0.0),
+        (1.0, 1.0, 0.0),
+        (1.0, -1.0, 0.0),
+        (-1.0, -1.0, 0.0),
+    ]
+    .iter()
+    .map(|(x, y, z)| Vector3::new(*x, *y, *z))
+    .collect();
     let vertex_count = positions.len();
     let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count];
     let vertex_color = get_color32(255, 255, 255, 255);
-    let texcoords: Vec<Vector2<f32>> = vec![Vector2::new(0.0, 0.0), Vector2::new(1.0, 0.0), Vector2::new(1.0, 1.0), Vector2::new(0.0, 1.0)];
+    let texcoords: Vec<Vector2<f32>> = vec![
+        Vector2::new(0.0, 0.0),
+        Vector2::new(1.0, 0.0),
+        Vector2::new(1.0, 1.0),
+        Vector2::new(0.0, 1.0),
+    ];
     let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
     let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
     let vertex_data_list = positions
         .iter()
         .enumerate()
-        .map(|(index, __position)| {
-            VertexData {
-                _position: positions[index].clone() as Vector3<f32>,
-                _normal: normals[index].clone() as Vector3<f32>,
-                _tangent: tangents[index].clone() as Vector3<f32>,
-                _color: vertex_color,
-                _texcoord: texcoords[index].clone() as Vector2<f32>,
-            }
-        }).collect();
+        .map(|(index, __position)| VertexData {
+            _position: positions[index].clone() as Vector3<f32>,
+            _normal: normals[index].clone() as Vector3<f32>,
+            _tangent: tangents[index].clone() as Vector3<f32>,
+            _color: vertex_color,
+            _texcoord: texcoords[index].clone() as Vector2<f32>,
+        })
+        .collect();
 
     let geometry_create_infos = vec![GeometryCreateInfo {
         _vertex_data_list: vertex_data_list,
@@ -356,49 +415,111 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
 }
 
 pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
-    let positions: Vec<Vector3<f32>> =
-        vec![(-0.5, 0.5, -0.5), (-0.5, -0.5, -0.5), (0.5, -0.5, -0.5), (0.5, 0.5, -0.5),
-             (-0.5, 0.5, 0.5), (-0.5, -0.5, 0.5), (-0.5, -0.5, -0.5), (-0.5, 0.5, -0.5),
-             (0.5, 0.5, 0.5), (0.5, -0.5, 0.5), (-0.5, -0.5, 0.5), (-0.5, 0.5, 0.5),
-             (0.5, 0.5, -0.5), (0.5, -0.5, -0.5), (0.5, -0.5, 0.5), (0.5, 0.5, 0.5),
-             (-0.5, -0.5, -0.5), (-0.5, -0.5, 0.5), (0.5, -0.5, 0.5), (0.5, -0.5, -0.5),
-             (-0.5, 0.5, 0.5), (-0.5, 0.5, -0.5), (0.5, 0.5, -0.5), (0.5, 0.5, 0.5)]
-            .iter()
-            .map(|(x, y, z)| { Vector3::new(*x, *y, *z) }).collect();
-    let normals: Vec<Vector3<f32>> =
-        vec![(0.0, 0.0, -1.0), (0.0, 0.0, -1.0), (0.0, 0.0, -1.0), (0.0, 0.0, -1.0),
-             (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0), (-1.0, 0.0, 0.0),
-             (0.0, 0.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0), (0.0, 0.0, 1.0),
-             (1.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.0), (1.0, 0.0, 0.0),
-             (0.0, -1.0, 0.0), (0.0, -1.0, 0.0), (0.0, -1.0, 0.0), (0.0, -1.0, 0.0),
-             (0.0, 1.0, 0.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.0), (0.0, 1.0, 0.0)]
-            .iter()
-            .map(|(x, y, z)| { Vector3::new(*x, *y, *z) }).collect();
-    let texcoords: Vec<Vector2<f32>> =
-        vec![(0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0),
-             (0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0),
-             (0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0),
-             (0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0),
-             (0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0),
-             (0.0, 0.0), (0.0, 1.0), (1.0, 1.0), (1.0, 0.0)]
-            .iter()
-            .map(|(x, y)| Vector2::new(*x, *y)).collect();
+    let positions: Vec<Vector3<f32>> = vec![
+        (-0.5, 0.5, -0.5),
+        (-0.5, -0.5, -0.5),
+        (0.5, -0.5, -0.5),
+        (0.5, 0.5, -0.5),
+        (-0.5, 0.5, 0.5),
+        (-0.5, -0.5, 0.5),
+        (-0.5, -0.5, -0.5),
+        (-0.5, 0.5, -0.5),
+        (0.5, 0.5, 0.5),
+        (0.5, -0.5, 0.5),
+        (-0.5, -0.5, 0.5),
+        (-0.5, 0.5, 0.5),
+        (0.5, 0.5, -0.5),
+        (0.5, -0.5, -0.5),
+        (0.5, -0.5, 0.5),
+        (0.5, 0.5, 0.5),
+        (-0.5, -0.5, -0.5),
+        (-0.5, -0.5, 0.5),
+        (0.5, -0.5, 0.5),
+        (0.5, -0.5, -0.5),
+        (-0.5, 0.5, 0.5),
+        (-0.5, 0.5, -0.5),
+        (0.5, 0.5, -0.5),
+        (0.5, 0.5, 0.5),
+    ]
+    .iter()
+    .map(|(x, y, z)| Vector3::new(*x, *y, *z))
+    .collect();
+    let normals: Vec<Vector3<f32>> = vec![
+        (0.0, 0.0, -1.0),
+        (0.0, 0.0, -1.0),
+        (0.0, 0.0, -1.0),
+        (0.0, 0.0, -1.0),
+        (-1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (-1.0, 0.0, 0.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 0.0, 1.0),
+        (0.0, 0.0, 1.0),
+        (1.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (1.0, 0.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, -1.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 1.0, 0.0),
+        (0.0, 1.0, 0.0),
+    ]
+    .iter()
+    .map(|(x, y, z)| Vector3::new(*x, *y, *z))
+    .collect();
+    let texcoords: Vec<Vector2<f32>> = vec![
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+        (0.0, 0.0),
+        (0.0, 1.0),
+        (1.0, 1.0),
+        (1.0, 0.0),
+    ]
+    .iter()
+    .map(|(x, y)| Vector2::new(*x, *y))
+    .collect();
     let vertex_color = get_color32(255, 255, 255, 255);
-    let indices: Vec<u32> = vec![ 0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18, 17, 16, 19, 18, 20, 22, 21, 20, 23, 22 ];
+    let indices: Vec<u32> = vec![
+        0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18,
+        17, 16, 19, 18, 20, 22, 21, 20, 23, 22,
+    ];
     let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
     let vertex_data_list = positions
         .iter()
         .enumerate()
-        .map(|(index, __position)| {
-            VertexData {
-                _position: positions[index].clone() as Vector3<f32>,
-                _normal: normals[index].clone() as Vector3<f32>,
-                _tangent: tangents[index].clone() as Vector3<f32>,
-                _color: vertex_color,
-                _texcoord: texcoords[index].clone() as Vector2<f32>,
-                ..Default::default()
-            }
-        }).collect();
+        .map(|(index, __position)| VertexData {
+            _position: positions[index].clone() as Vector3<f32>,
+            _normal: normals[index].clone() as Vector3<f32>,
+            _tangent: tangents[index].clone() as Vector3<f32>,
+            _color: vertex_color,
+            _texcoord: texcoords[index].clone() as Vector2<f32>,
+            ..Default::default()
+        })
+        .collect();
 
     let geometry_create_infos = vec![GeometryCreateInfo {
         _vertex_data_list: vertex_data_list,
@@ -462,16 +583,15 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
     let vertex_data_list = positions
         .iter()
         .enumerate()
-        .map(|(index, __position)| {
-            VertexData {
-                _position: positions[index].clone() as Vector3<f32>,
-                _normal: normals[index].clone() as Vector3<f32>,
-                _tangent: tangents[index].clone() as Vector3<f32>,
-                _color: vertex_color,
-                _texcoord: texcoords[index].clone() as Vector2<f32>,
-                ..Default::default()
-            }
-        }).collect();
+        .map(|(index, __position)| VertexData {
+            _position: positions[index].clone() as Vector3<f32>,
+            _normal: normals[index].clone() as Vector3<f32>,
+            _tangent: tangents[index].clone() as Vector3<f32>,
+            _color: vertex_color,
+            _texcoord: texcoords[index].clone() as Vector2<f32>,
+            ..Default::default()
+        })
+        .collect();
 
     let geometry_create_infos = vec![GeometryCreateInfo {
         _vertex_data_list: vertex_data_list,

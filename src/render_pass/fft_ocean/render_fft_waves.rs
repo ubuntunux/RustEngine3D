@@ -1,36 +1,30 @@
 use std::path::PathBuf;
 
-use ash::vk;
 use crate::utilities::system::enum_to_string;
-use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
-use crate::vulkan_context::geometry_buffer::{ VertexDataBase, VertexData };
+use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
+use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
+use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
-    RenderPassDataCreateInfo,
-    PipelineDataCreateInfo,
-    PipelinePushConstantData,
-    ImageAttachmentDescription,
-    DepthStencilStateCreateInfo,
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
+    PipelinePushConstantData, RenderPassDataCreateInfo,
 };
-use crate::vulkan_context::descriptor::{
-    DescriptorDataCreateInfo,
-    DescriptorResourceType,
-};
-use crate::vulkan_context::vulkan_context::{ self, BlendMode };
+use crate::vulkan_context::vulkan_context::{self, BlendMode};
+use ash::vk;
 
-use crate::renderer::fft_ocean::PushConstant_FFT_Ocean;
+use crate::scene::fft_ocean::PushConstant_FFT_Ocean;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let render_target = renderer_data.get_render_target(RenderTargetType::FFT_B);
-    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers).map(|index| {
-        RenderTargetInfo {
+    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers)
+        .map(|index| RenderTargetInfo {
             _texture_data: render_target,
             _target_layer: index,
             _target_mip_level: 0,
             _clear_value: None,
-        }
-    }).collect();
+        })
+        .collect();
 
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
@@ -40,31 +34,31 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
-        color_attachment_descriptions.push(
-            ImageAttachmentDescription {
-                _attachment_image_format: *format,
-                _attachment_image_samples: sample_count,
-                _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
-                _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                _attachment_initial_layout: vk::ImageLayout::GENERAL,
-                _attachment_final_layout: vk::ImageLayout::GENERAL,
-                _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                ..Default::default()
-            }
-        );
+    for format in framebuffer_data_create_info
+        ._framebuffer_color_attachment_formats
+        .iter()
+    {
+        color_attachment_descriptions.push(ImageAttachmentDescription {
+            _attachment_image_format: *format,
+            _attachment_image_samples: sample_count,
+            _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
+            _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+            _attachment_initial_layout: vk::ImageLayout::GENERAL,
+            _attachment_final_layout: vk::ImageLayout::GENERAL,
+            _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            ..Default::default()
+        });
     }
-    let subpass_dependencies = vec![
-        vk::SubpassDependency {
-            src_subpass: vk::SUBPASS_EXTERNAL,
-            dst_subpass: 0,
-            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            src_access_mask: vk::AccessFlags::empty(),
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dependency_flags: vk::DependencyFlags::BY_REGION,
-        }
-    ];
+    let subpass_dependencies = vec![vk::SubpassDependency {
+        src_subpass: vk::SUBPASS_EXTERNAL,
+        dst_subpass: 0,
+        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        src_access_mask: vk::AccessFlags::empty(),
+        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
+            | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+        dependency_flags: vk::DependencyFlags::BY_REGION,
+    }];
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("render_fft_x"),
@@ -77,16 +71,18 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
-            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_data_list: vec![
-                PipelinePushConstantData {
-                    _stage_flags: vk::ShaderStageFlags::ALL,
-                    _offset: 0,
-                    _push_constant: Box::new(PushConstant_FFT_Ocean::default())
-                }
+            _pipeline_color_blend_modes: vec![
+                vulkan_context::get_color_blend_mode(BlendMode::None);
+                color_attachment_descriptions.len()
             ],
+            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+            _vertex_input_attribute_descriptions:
+                VertexData::create_vertex_input_attribute_descriptions(),
+            _push_constant_data_list: vec![PipelinePushConstantData {
+                _stage_flags: vk::ShaderStageFlags::ALL,
+                _offset: 0,
+                _push_constant: Box::new(PushConstant_FFT_Ocean::default()),
+            }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
@@ -115,17 +111,19 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_sample_count: sample_count,
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+            _pipeline_color_blend_modes: vec![
+                vulkan_context::get_color_blend_mode(BlendMode::None);
+                color_attachment_descriptions.len()
+            ],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-            _push_constant_data_list: vec![
-                PipelinePushConstantData {
-                    _stage_flags: vk::ShaderStageFlags::ALL,
-                    _offset: 0,
-                    _push_constant: Box::new(PushConstant_FFT_Ocean::default())
-                }
-            ],
+            _vertex_input_attribute_descriptions:
+                VertexData::create_vertex_input_attribute_descriptions(),
+            _push_constant_data_list: vec![PipelinePushConstantData {
+                _stage_flags: vk::ShaderStageFlags::ALL,
+                _offset: 0,
+                _push_constant: Box::new(PushConstant_FFT_Ocean::default()),
+            }],
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 0,
@@ -143,10 +141,10 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 },
             ],
             ..Default::default()
-        }
+        },
     ];
 
-    RenderPassDataCreateInfo  {
+    RenderPassDataCreateInfo {
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,

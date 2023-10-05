@@ -1,12 +1,5 @@
 // https://docs.rs/nalgebra-glm/0.9.0/nalgebra_glm/
-use nalgebra::{
-    Vector2,
-    Vector3,
-    Vector4,
-    Matrix4,
-    Quaternion,
-    UnitQuaternion,
-};
+use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4};
 use nalgebra_glm as glm;
 
 pub const HALF_PI: f32 = std::f32::consts::PI * 0.5;
@@ -27,10 +20,12 @@ pub fn radical_inverse_base2(bits: u32) -> f32 {
     (bits as f32) * 2.3283064365386963e-10
 }
 
-
 // Returns a single 2D point in a Hammersley sequence of length "numSamples", using base 1 and base 2
 pub fn hammersley_2d(sample_idx: u32, num_samples: u32) -> Vector2<f32> {
-    Vector2::new((sample_idx as f32) / (num_samples as f32), radical_inverse_base2(sample_idx))
+    Vector2::new(
+        (sample_idx as f32) / (num_samples as f32),
+        radical_inverse_base2(sample_idx),
+    )
 }
 
 pub fn get_world_right() -> Vector3<f32> {
@@ -100,7 +95,10 @@ pub fn make_normalize_xz(vec: &Vector3<f32>) -> Vector3<f32> {
 pub fn make_normalize_xz_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
     let distance = (vec.x * vec.x + vec.z * vec.z).sqrt();
     if 0.0 < distance {
-        return (Vector3::new(vec.x / distance, 0.0, vec.z / distance), distance);
+        return (
+            Vector3::new(vec.x / distance, 0.0, vec.z / distance),
+            distance,
+        );
     }
     (Vector3::zeros(), 0.0)
 }
@@ -119,14 +117,23 @@ pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
     let cb = pitch.cos();
     let sb = pitch.sin();
     Matrix4::from_columns(&[
-        Vector4::new(ch*ca, sa, -sh*ca, 0.0),
-        Vector4::new(sh*sb - ch*sa*cb, ca*cb, sh*sa*cb + ch*sb, 0.0),
-        Vector4::new(ch*sa*sb + sh*cb, -ca*sb, -sh*sa*sb + ch*cb, 0.0),
+        Vector4::new(ch * ca, sa, -sh * ca, 0.0),
+        Vector4::new(sh * sb - ch * sa * cb, ca * cb, sh * sa * cb + ch * sb, 0.0),
+        Vector4::new(
+            ch * sa * sb + sh * cb,
+            -ca * sb,
+            -sh * sa * sb + ch * cb,
+            0.0,
+        ),
         Vector4::new(0.0, 0.0, 0.0, 1.0),
     ])
 }
 
-pub fn make_srt_transform(translation: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
+pub fn make_srt_transform(
+    translation: &Vector3<f32>,
+    rotation: &Vector3<f32>,
+    scale: &Vector3<f32>,
+) -> Matrix4<f32> {
     let rotation_matrix = make_rotation_matrix(rotation.x, rotation.y, rotation.z);
     Matrix4::from_columns(&[
         rotation_matrix.column(0) * scale[0],
@@ -136,7 +143,11 @@ pub fn make_srt_transform(translation: &Vector3<f32>, rotation: &Vector3<f32>, s
     ])
 }
 
-pub fn combinate_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
+pub fn combinate_matrix(
+    translation: &Vector3<f32>,
+    rotation_matrix: &Matrix4<f32>,
+    scale: &Vector3<f32>,
+) -> Matrix4<f32> {
     Matrix4::from_columns(&[
         rotation_matrix.column(0) * scale[0],
         rotation_matrix.column(1) * scale[1],
@@ -145,7 +156,11 @@ pub fn combinate_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f3
     ])
 }
 
-pub fn inverse_transform_matrix(translation: &Vector3<f32>, rotation_matrix: &Matrix4<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
+pub fn inverse_transform_matrix(
+    translation: &Vector3<f32>,
+    rotation_matrix: &Matrix4<f32>,
+    scale: &Vector3<f32>,
+) -> Matrix4<f32> {
     let mut inv_rotation_matrix = rotation_matrix.clone();
     let column0 = inv_rotation_matrix.column(0) / scale[0];
     let column1 = inv_rotation_matrix.column(1) / scale[1];
@@ -176,26 +191,57 @@ pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> 
         Vector4::new(s.x, s.y, s.z, 0.0),
         Vector4::new(u.x, u.y, u.z, 0.0),
         Vector4::new(f.x, f.y, f.z, 0.0),
-        Vector4::new(-s.dot(eye), -u.dot(eye), -f.dot(eye), 1.0)
+        Vector4::new(-s.dot(eye), -u.dot(eye), -f.dot(eye), 1.0),
     ])
 }
 
-pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Matrix4<f32> {
+pub fn orthogonal(
+    left: f32,
+    right: f32,
+    bottom: f32,
+    top: f32,
+    near: f32,
+    far: f32,
+) -> Matrix4<f32> {
     Matrix4::new(
-        2.0 / (right - left), 0.0, 0.0, -(right + left) / (right - left),
-        0.0, 2.0 / (bottom - top), 0.0, -(bottom + top) / (bottom - top),
-        0.0, 0.0, 1.0 / (near - far), -far / (near - far),
-        0.0, 0.0, 0.0, 1.0
+        2.0 / (right - left),
+        0.0,
+        0.0,
+        -(right + left) / (right - left),
+        0.0,
+        2.0 / (bottom - top),
+        0.0,
+        -(bottom + top) / (bottom - top),
+        0.0,
+        0.0,
+        1.0 / (near - far),
+        -far / (near - far),
+        0.0,
+        0.0,
+        0.0,
+        1.0,
     )
 }
 
 pub fn perspective(aspect: f32, fov: f32, near: f32, far: f32) -> Matrix4<f32> {
     let fov_half_tan: f32 = degree_to_radian(fov * 0.5).tan();
     Matrix4::new(
-        1.0 / (fov_half_tan * aspect), 0.0, 0.0, 0.0,
-        0.0, -1.0 / fov_half_tan, 0.0, 0.0,
-        0.0, 0.0, near / (near - far), -(near * far) / (near - far),
-        0.0, 0.0, 1.0,  0.0
+        1.0 / (fov_half_tan * aspect),
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        -1.0 / fov_half_tan,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        near / (near - far),
+        -(near * far) / (near - far),
+        0.0,
+        0.0,
+        1.0,
+        0.0,
     )
 }
 
@@ -297,7 +343,7 @@ pub fn vector_multiply_quaternion(vector, quaternion):
 pub fn matrix_decompose_pitch_yaw_roll(matrix: &Matrix4<f32>) -> Vector3<f32> {
     let mut euler: Vector3<f32> = Vector3::zeros();
     euler.x = (-matrix.m23).asin(); // Pitch
-    // Not at poles
+                                    // Not at poles
     if 0.0001 < euler.x.cos() {
         euler.y = matrix.m13.atan2(matrix.m33); // Yaw
         euler.z = matrix.m21.atan2(matrix.m22); // Roll
@@ -396,10 +442,8 @@ pub fn quaternion_to_matrix(quat: &Quaternion<f32>) -> Matrix4<f32> {
 
 pub fn make_translate_matrix(position: &Vector3<f32>) -> Matrix4<f32> {
     Matrix4::new(
-        1.0, 0.0, 0.0, position.x,
-        0.0, 1.0, 0.0, position.y,
-        0.0, 0.0, 1.0, position.z,
-        0.0, 0.0, 0.0, 1.0
+        1.0, 0.0, 0.0, position.x, 0.0, 1.0, 0.0, position.y, 0.0, 0.0, 1.0, position.z, 0.0, 0.0,
+        0.0, 1.0,
     )
 }
 
@@ -417,19 +461,13 @@ pub fn matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
 
 pub fn make_scale_matrix(scale: &Vector3<f32>) -> Matrix4<f32> {
     Matrix4::new(
-        scale.x, 0.0, 0.0, 0.0,
-        0.0, scale.y, 0.0, 0.0,
-        0.0, 0.0, scale.z, 0.0,
-        0.0, 0.0, 0.0, 1.0
+        scale.x, 0.0, 0.0, 0.0, 0.0, scale.y, 0.0, 0.0, 0.0, 0.0, scale.z, 0.0, 0.0, 0.0, 0.0, 1.0,
     )
 }
 
 pub fn set_scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.copy_from_slice(&[
-        x, 0.0, 0.0, 0.0,
-        0.0, y, 0.0, 0.0,
-        0.0, 0.0, z, 0.0,
-        0.0, 0.0, 0.0, 1.0
+        x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
 }
 
@@ -449,10 +487,7 @@ pub fn get_rotation_matrix_x(radian: f32) -> Matrix4<f32> {
     let cos_t = radian.cos();
     let sin_t = radian.sin();
     Matrix4::new(
-        1.0, 0.0, 0.0, 0.0,
-        0.0, cos_t, -sin_t, 0.0,
-        0.0, sin_t, cos_t, 0.0,
-        0.0, 0.0, 0.0, 1.0
+        1.0, 0.0, 0.0, 0.0, 0.0, cos_t, -sin_t, 0.0, 0.0, sin_t, cos_t, 0.0, 0.0, 0.0, 0.0, 1.0,
     )
 }
 
@@ -460,10 +495,7 @@ pub fn get_rotation_matrix_y(radian: f32) -> Matrix4<f32> {
     let cos_t = radian.cos();
     let sin_t = radian.sin();
     Matrix4::new(
-        cos_t, 0.0, sin_t, 0.0,
-        0.0, 1.0, 0.0, 0.0,
-        -sin_t, 0.0, cos_t, 0.0,
-        0.0, 0.0, 0.0, 1.0
+        cos_t, 0.0, sin_t, 0.0, 0.0, 1.0, 0.0, 0.0, -sin_t, 0.0, cos_t, 0.0, 0.0, 0.0, 0.0, 1.0,
     )
 }
 
@@ -471,10 +503,7 @@ pub fn get_rotation_matrix_z(radian: f32) -> Matrix4<f32> {
     let cos_t = radian.cos();
     let sin_t = radian.sin();
     Matrix4::new(
-        cos_t, -sin_t, 0.0, 0.0,
-        sin_t, cos_t, 0.0, 0.0,
-        0.0, 0.0, 1.0, 0.0,
-        0.0, 0.0, 0.0, 1.0
+        cos_t, -sin_t, 0.0, 0.0, sin_t, cos_t, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0,
     )
 }
 
@@ -593,7 +622,11 @@ pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {
     triangulated_list
 }
 
-pub fn convert_to_screen_texcoord(view_projection: &Matrix4<f32>, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
+pub fn convert_to_screen_texcoord(
+    view_projection: &Matrix4<f32>,
+    world_pos: &Vector3<f32>,
+    clamp: bool,
+) -> Vector2<f32> {
     let ndc = view_projection * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
     let mut texcoord = Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, 0.5 - ndc.y / ndc.w * 0.5);
     if clamp {

@@ -1,7 +1,7 @@
 use nalgebra::{Vector3, Vector4, Matrix4};
 use serde::{ Serialize, Deserialize };
 
-use crate::renderer::transform_object::TransformObjectData;
+use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math::orthogonal;
 use crate::constants;
 

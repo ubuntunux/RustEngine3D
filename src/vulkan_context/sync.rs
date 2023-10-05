@@ -1,10 +1,7 @@
-use ash::{
-    vk,
-    Device,
-};
+use ash::{vk, Device};
 
 use crate::constants;
-use crate::vulkan_context::vulkan_context::{ FrameArray };
+use crate::vulkan_context::vulkan_context::FrameArray;
 
 pub fn create_semaphores(device: &Device) -> FrameArray<vk::Semaphore> {
     unsafe {
@@ -12,7 +9,9 @@ pub fn create_semaphores(device: &Device) -> FrameArray<vk::Semaphore> {
         let semaphores = constants::SWAPCHAIN_IMAGE_INDICES
             .iter()
             .map(|_| {
-                device.create_semaphore(&semaphore_create_info, None).expect("vkCreateSemaphore failed!")
+                device
+                    .create_semaphore(&semaphore_create_info, None)
+                    .expect("vkCreateSemaphore failed!")
             })
             .collect();
         log::debug!("create_semaphores: {:?}", semaphores);
@@ -38,7 +37,9 @@ pub fn create_fences(device: &Device) -> FrameArray<vk::Fence> {
         let fences = constants::FRAME_INDICES
             .iter()
             .map(|_| {
-                device.create_fence(&fence_create_info, None).expect("vkCreateSemaphore failed!")
+                device
+                    .create_fence(&fence_create_info, None)
+                    .expect("vkCreateSemaphore failed!")
             })
             .collect();
         log::debug!("create_fences: {:?}", fences);

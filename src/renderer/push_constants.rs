@@ -1,10 +1,10 @@
-use std::fmt::Debug;
-use std::collections::HashMap;
-use ash::{ vk };
-use nalgebra::{ Vector2, Vector3, Vector4 };
-use serde::{ Serialize, Deserialize };
-use serde_json;
 use crate::utilities::json::convert_json_value_to_push_constant_parameter;
+use ash::vk;
+use nalgebra::{Vector2, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
+use serde_json;
+use std::collections::HashMap;
+use std::fmt::Debug;
 
 pub enum PushConstantParameter {
     None,
@@ -24,7 +24,10 @@ pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName 
         panic!("Not implemented.")
     }
 
-    fn update_material_parameters(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) {
+    fn update_material_parameters(
+        &mut self,
+        _material_parameters: &serde_json::Map<String, serde_json::Value>,
+    ) {
         // ex)
         // if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
         //     self._color = value;
@@ -36,7 +39,10 @@ pub trait PushConstantClone {
     fn clone_box(&self) -> Box<dyn PushConstant>;
 }
 
-impl<T> PushConstantClone for T where T: 'static + PushConstant + Clone, {
+impl<T> PushConstantClone for T
+where
+    T: 'static + PushConstant + Clone,
+{
     fn clone_box(&self) -> Box<dyn PushConstant> {
         Box::new(self.clone())
     }
@@ -77,7 +83,7 @@ pub struct PushConstant_RenderObject {
     pub _bone_count: u32,
     pub _reserved0: u32,
     pub _reserved1: u32,
-    pub _color: Vector4<f32>
+    pub _color: Vector4<f32>,
 }
 
 impl Default for PushConstant_RenderObject {
@@ -87,7 +93,7 @@ impl Default for PushConstant_RenderObject {
             _bone_count: 0,
             _reserved0: 0,
             _reserved1: 0,
-            _color: Vector4::new(1.0, 1.0, 1.0, 1.0)
+            _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
         }
     }
 }
@@ -113,8 +119,13 @@ impl PushConstant for PushConstant_RenderObject {
         }
     }
 
-    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
-        if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
+    fn update_material_parameters(
+        &mut self,
+        material_parameters: &serde_json::Map<String, serde_json::Value>,
+    ) {
+        if let PushConstantParameter::Float4(value) =
+            convert_json_value_to_push_constant_parameter(material_parameters, "_color")
+        {
             self._color = value;
         }
     }
@@ -147,8 +158,7 @@ impl PushConstantName for PushConstant_BloomHighlight {
     }
 }
 
-impl PushConstant for PushConstant_BloomHighlight {
-}
+impl PushConstant for PushConstant_BloomHighlight {}
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -175,8 +185,7 @@ impl PushConstantName for PushConstant_GaussianBlur {
     }
 }
 
-impl PushConstant for PushConstant_GaussianBlur {
-}
+impl PushConstant for PushConstant_GaussianBlur {}
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -205,8 +214,7 @@ impl PushConstantName for PushConstant_RenderCopy {
     }
 }
 
-impl PushConstant for PushConstant_RenderCopy {
-}
+impl PushConstant for PushConstant_RenderCopy {}
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -224,14 +232,13 @@ impl PushConstantName for PushConstant_BlendCubeMap {
     }
 }
 
-impl PushConstant for PushConstant_BlendCubeMap {
-}
+impl PushConstant for PushConstant_BlendCubeMap {}
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Default)]
 pub struct PushConstant_RenderColor {
-    pub _color: Vector4<f32>
+    pub _color: Vector4<f32>,
 }
 
 impl PushConstantName for PushConstant_RenderColor {
@@ -240,8 +247,7 @@ impl PushConstantName for PushConstant_RenderColor {
     }
 }
 
-impl PushConstant for PushConstant_RenderColor {
-}
+impl PushConstant for PushConstant_RenderColor {}
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -270,5 +276,4 @@ impl PushConstantName for PushConstant_RenderDebug {
     }
 }
 
-impl PushConstant for PushConstant_RenderDebug {
-}
+impl PushConstant for PushConstant_RenderDebug {}

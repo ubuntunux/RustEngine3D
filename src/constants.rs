@@ -1,5 +1,5 @@
-use std;
 use ash::vk;
+use std;
 
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
@@ -8,30 +8,38 @@ pub const DEPTH_FORMATS: [vk::Format; 5] = [
     vk::Format::D32_SFLOAT_S8_UINT,
     vk::Format::D24_UNORM_S8_UINT,
     vk::Format::D16_UNORM_S8_UINT,
-    vk::Format::D16_UNORM
+    vk::Format::D16_UNORM,
 ];
 pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D32_SFLOAT_S8_UINT,
     vk::Format::D24_UNORM_S8_UINT,
-    vk::Format::D16_UNORM_S8_UINT
+    vk::Format::D16_UNORM_S8_UINT,
 ];
 pub const CUBE_LAYER_COUNT: usize = 6;
-pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] = ["right", "left", "top", "bottom", "front", "back"];
-pub const INVALID_QUEUE_INDEX: u32 = std::u32::MAX;
-pub const WHOLE_LAYERS: u32 = std::u32::MAX;
-pub const WHOLE_MIP_LEVELS: u32 = std::u32::MAX;
+pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] =
+    ["right", "left", "top", "bottom", "front", "back"];
+pub const INVALID_QUEUE_INDEX: u32 = u32::MAX;
+pub const WHOLE_LAYERS: u32 = u32::MAX;
+pub const WHOLE_MIP_LEVELS: u32 = u32::MAX;
 pub const SWAPCHAIN_IMAGE_COUNT: usize = 3;
 pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2];
 pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
-    vk::SurfaceFormatKHR { format: vk::Format::R8G8B8A8_SRGB, color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR },
-    vk::SurfaceFormatKHR { format: vk::Format::B8G8R8A8_SRGB, color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR },
+    vk::SurfaceFormatKHR {
+        format: vk::Format::R8G8B8A8_SRGB,
+        color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
+    },
+    vk::SurfaceFormatKHR {
+        format: vk::Format::B8G8R8A8_SRGB,
+        color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
+    },
 ];
 pub const MAX_FRAME_COUNT: usize = 2;
 pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
 
 // application configs - default values
 pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
-pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::empty();
+pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT =
+    vk::DebugUtilsMessageSeverityFlagsEXT::empty();
 pub static mut REQUIRED_INSTANCE_LAYERS: Vec<String> = Vec::new();
 pub static mut REQUIRED_DEVICE_EXTENSIONS: Vec<String> = Vec::new();
 pub static mut USE_RAY_TRACING: bool = false;

@@ -1,42 +1,44 @@
 use std::collections::HashMap;
-use std::fs::{ self, File };
+use std::fs::{self, File};
 use std::io::prelude::*;
-use std::path::{ Path, PathBuf };
+use std::path::{Path, PathBuf};
 use std::time::SystemTime;
 
-use ash::{ vk };
+use ash::vk;
 use bincode;
-use byteorder::{ LittleEndian, ReadBytesExt };
-use image::{ self, GenericImageView, };
-use nalgebra::{ Vector2, Vector3 };
-use serde_json::{ self, Value };
-use serde::{ Serialize, Deserialize };
+use byteorder::{LittleEndian, ReadBytesExt};
+use image::{self, GenericImageView};
+use nalgebra::{Vector2, Vector3};
+use serde::{Deserialize, Serialize};
+use serde_json::{self, Value};
 
-use crate::application::audio_manager::{
-    AudioData,
-    AudioBankData,
-    AudioBankCreateInfo
-};
+use crate::audio::audio_manager::{AudioBankCreateInfo, AudioBankData, AudioData};
+use crate::scene::scene_manager::SceneDataCreateInfo;
 use crate::constants;
-use crate::application::scene_manager::SceneDataCreateInfo;
-use crate::effect::effect_data::{ EffectData, EffectDataCreateInfo, EmitterDataCreateInfo, EmitterData };
-use crate::renderer::font::{ self, FontDataCreateInfo, FontData };
-use crate::renderer::mesh::{ MeshData, MeshDataCreateInfo };
-use crate::renderer::model::ModelData;
-use crate::renderer::material::{ self, MaterialData };
-use crate::renderer::material_instance::{ PipelineBindingDataCreateInfo, MaterialInstanceData };
+use crate::effect::effect_data::{
+    EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo,
+};
+use crate::scene::font::{self, FontData, FontDataCreateInfo};
+use crate::scene::material::{self, MaterialData};
+use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
+use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
+use crate::scene::model::ModelData;
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::font_loader;
 use crate::resource::collada_loader::Collada;
-use crate::resource::obj_loader::WaveFrontOBJ;
+use crate::resource::font_loader;
 use crate::resource::gltf_loader::GLTF;
+use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
-use crate::vulkan_context::descriptor::{ self, DescriptorData, DescriptorResourceType, DescriptorResourceInfo };
-use crate::vulkan_context::framebuffer::{self, FramebufferData };
-use crate::vulkan_context::geometry_buffer::{ self, GeometryData };
-use crate::vulkan_context::render_pass::{ self, RenderPassDataCreateInfo, PipelineDataCreateInfo, RenderPassData, RenderPassPipelineData };
-use crate::vulkan_context::texture::{ TextureData, TextureCreateInfo };
-use crate::utilities::system::{ self, RcRefCell, newRcRefCell, ptr_as_ref, ptr_as_mut };
+use crate::utilities::system::{self, newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::vulkan_context::descriptor::{
+    self, DescriptorData, DescriptorResourceInfo, DescriptorResourceType,
+};
+use crate::vulkan_context::framebuffer::{self, FramebufferData};
+use crate::vulkan_context::geometry_buffer::{self, GeometryData};
+use crate::vulkan_context::render_pass::{
+    self, PipelineDataCreateInfo, RenderPassData, RenderPassDataCreateInfo, RenderPassPipelineData,
+};
+use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
@@ -107,7 +109,7 @@ pub struct MetaData {
     pub _resource_modify_time: SystemTime,
     pub _source_file_path: PathBuf,
     pub _source_modify_time: SystemTime,
-    pub _source_changed: bool
+    pub _source_changed: bool,
 }
 
 impl Default for MetaData {
@@ -120,7 +122,7 @@ impl Default for MetaData {
             _resource_modify_time: SystemTime::now(),
             _source_file_path: PathBuf::new(),
             _source_modify_time: SystemTime::now(),
-            _source_changed: false
+            _source_changed: false,
         }
     }
 }
@@ -145,7 +147,7 @@ pub type ResourceInfoMap = HashMap<String, ResourceInfo>;
 pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
 pub type EffectDataMap = ResourceDataMap<EffectData>;
 pub type FramebufferDataListMap = ResourceDataMap<FramebufferData>;
-pub type MaterialDataMap = ResourceDataMap<material::MaterialData>;
+pub type MaterialDataMap = ResourceDataMap<MaterialData>;
 pub type MaterialInstanceDataMap = ResourceDataMap<MaterialInstanceData>;
 pub type FontDataMap = ResourceDataMap<FontData>;
 pub type MeshDataMap = ResourceDataMap<MeshData>;
@@ -154,10 +156,9 @@ pub type TextureDataMap = ResourceDataMap<TextureData>;
 pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
 pub type RenderPassDataCreateInfoMap = HashMap<String, RenderPassDataCreateInfo>;
 pub type SceneDataCreateInfoMap = ResourceDataMap<SceneDataCreateInfo>;
-pub type DescriptorDataMap = ResourceDataMap<descriptor::DescriptorData>;
+pub type DescriptorDataMap = ResourceDataMap<DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
-
 
 pub trait ProjectResourcesBase {
     fn initialize_project_resources(&mut self, engine_resources: &EngineResources);
@@ -165,7 +166,11 @@ pub trait ProjectResourcesBase {
     fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
     fn load_graphics_data_list(&mut self, renderer_context: &RendererContext);
     fn unload_graphics_data_list(&mut self, renderer_context: &RendererContext);
-    fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext, render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap);
+    fn load_render_pass_data_create_infos(
+        &mut self,
+        renderer_context: &RendererContext,
+        render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap,
+    );
     fn regist_resource(&mut self);
     fn unregist_resource(&mut self);
     fn has_audio_data(&self, resource_name: &str) -> bool;
@@ -205,9 +210,8 @@ pub struct EngineResources {
     pub _scene_data_create_infos_map: SceneDataCreateInfoMap,
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
-    pub _descriptor_data_map: DescriptorDataMap
+    pub _descriptor_data_map: DescriptorDataMap,
 }
-
 
 fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
     let contents = fs::read_dir(dir).unwrap();
@@ -217,7 +221,9 @@ fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut 
             walk_directory_recursive(&content, extensions, out_contents);
         } else {
             let ext = content.extension();
-            if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
+            if extensions.is_empty()
+                || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap()))
+            {
                 out_contents.push(PathBuf::from(content));
             }
         }
@@ -230,22 +236,32 @@ pub fn walk_directory(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
     out_contents
 }
 
-pub fn get_resource_data_must<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str) -> &'a RcRefCell<T> {
+pub fn get_resource_data_must<'a, T>(
+    resource_data_map: &'a ResourceDataMap<T>,
+    resource_name: &str,
+) -> &'a RcRefCell<T> {
     resource_data_map.get(resource_name).unwrap()
 }
 
-pub fn get_resource_data<'a, T>(resource_data_map: &'a ResourceDataMap<T>, resource_name: &str, default_resource_name: &str) -> &'a RcRefCell<T> {
+pub fn get_resource_data<'a, T>(
+    resource_data_map: &'a ResourceDataMap<T>,
+    resource_name: &str,
+    default_resource_name: &str,
+) -> &'a RcRefCell<T> {
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
         None => {
             log::error!("not found texture: {}", resource_name);
             resource_data_map.get(default_resource_name).unwrap()
-        },
+        }
         _ => maybe_data.unwrap(),
     }
 }
 
-pub fn get_resource_name_from_file_path(resource_dircetory: &PathBuf, resource_file_path: &PathBuf) -> String {
+pub fn get_resource_name_from_file_path(
+    resource_dircetory: &PathBuf,
+    resource_file_path: &PathBuf,
+) -> String {
     let mut resource_name = PathBuf::from(resource_file_path.parent().unwrap());
     resource_name.push(resource_file_path.file_stem().unwrap());
 
@@ -257,16 +273,29 @@ pub fn get_resource_name_from_file_path(resource_dircetory: &PathBuf, resource_f
     }
     resource_root_path.push(resource_dircetory);
 
-    let resource_name = String::from(system::get_relative_path(&resource_root_path, &resource_name).to_str().unwrap());
+    let resource_name = String::from(
+        system::get_relative_path(&resource_root_path, &resource_name)
+            .to_str()
+            .unwrap(),
+    );
     resource_name.replace("\\", "/")
 }
 
-pub fn get_unique_resource_name<T>(resource_map: &HashMap<String, T>, resource_dircetory: &PathBuf, resource_file_path: &PathBuf) -> String {
+pub fn get_unique_resource_name<T>(
+    resource_map: &HashMap<String, T>,
+    resource_dircetory: &PathBuf,
+    resource_file_path: &PathBuf,
+) -> String {
     let resource_name = get_resource_name_from_file_path(resource_dircetory, resource_file_path);
     system::generate_unique_name(resource_map, &resource_name)
 }
 
-pub fn get_resource_file_path(resource_root_path: &str, resource_dircetory: &str, resource_name: &String, resource_ext: &str) -> PathBuf {
+pub fn get_resource_file_path(
+    resource_root_path: &str,
+    resource_dircetory: &str,
+    resource_name: &String,
+    resource_ext: &str,
+) -> PathBuf {
     let mut resource_file_path: PathBuf = PathBuf::from(resource_root_path);
     resource_file_path.push(resource_dircetory);
     resource_file_path.push(resource_name);
@@ -298,26 +327,34 @@ impl MetaData {
                 _is_engine_resource: resource_file_path.starts_with(ENGINE_RESOURCE_PATH),
                 _meta_file_path: meta_file_path.clone(),
                 _resource_version: 0,
-                _resource_file_path:  resource_file_path.clone(),
-                _resource_modify_time: fs::metadata(&resource_file_path).unwrap().modified().unwrap(),
+                _resource_file_path: resource_file_path.clone(),
+                _resource_modify_time: fs::metadata(&resource_file_path)
+                    .unwrap()
+                    .modified()
+                    .unwrap(),
                 _source_file_path: source_file_path.clone(),
                 _source_modify_time: fs::metadata(&source_file_path).unwrap().modified().unwrap(),
-                _source_changed: false
+                _source_changed: false,
             }
         };
 
         if write_to_file {
             let mut write_meta_file = File::create(&meta_file_path).expect("Failed to create file");
-            let mut write_meta_contents: String = serde_json::to_string(&meta_data).expect("Failed to serialize.");
+            let mut write_meta_contents: String =
+                serde_json::to_string(&meta_data).expect("Failed to serialize.");
             write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
-            write_meta_file.write(write_meta_contents.as_bytes()).expect("Failed to write");
+            write_meta_file
+                .write(write_meta_contents.as_bytes())
+                .expect("Failed to write");
         }
         meta_data
     }
 }
 
 impl EngineResources {
-    pub fn create_engine_resources(project_resources: *const dyn ProjectResourcesBase) -> Box<EngineResources> {
+    pub fn create_engine_resources(
+        project_resources: *const dyn ProjectResourcesBase,
+    ) -> Box<EngineResources> {
         let mut engine_resource = EngineResources {
             _project_resources: project_resources,
             _relative_resource_file_path_map: HashMap::new(),
@@ -350,7 +387,8 @@ impl EngineResources {
     }
 
     pub fn preinitialize_engine_resources(&mut self) {
-        let resource_list_file_path: PathBuf = PathBuf::from(PROJECT_RESOURCE_PATH).join("resources.txt");
+        let resource_list_file_path: PathBuf =
+            PathBuf::from(PROJECT_RESOURCE_PATH).join("resources.txt");
 
         #[cfg(not(target_os = "android"))]
         {
@@ -359,7 +397,8 @@ impl EngineResources {
 
             // create resources.txt file
             let project_resource_files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
-            let mut write_file = fs::File::create(&resource_list_file_path).expect("Failed to create file");
+            let mut write_file =
+                File::create(&resource_list_file_path).expect("Failed to create file");
             for file_path in project_resource_files {
                 if let Some(filename) = file_path.file_name() {
                     if "empty" == filename {
@@ -368,7 +407,9 @@ impl EngineResources {
                 }
 
                 if resource_list_file_path != file_path {
-                    write_file.write(format!("{}\n", file_path.to_str().unwrap()).as_bytes()).expect("Failed to write");
+                    write_file
+                        .write(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
+                        .expect("Failed to write");
                 }
             }
         }
@@ -385,13 +426,25 @@ impl EngineResources {
             let mut relative_resource_file_path = resource_file_path.clone();
             let is_engine_resource = relative_resource_file_path.starts_with(ENGINE_RESOURCE_PATH);
             if is_engine_resource {
-                relative_resource_file_path = relative_resource_file_path.strip_prefix(ENGINE_RESOURCE_PATH).unwrap().to_path_buf();
+                relative_resource_file_path = relative_resource_file_path
+                    .strip_prefix(ENGINE_RESOURCE_PATH)
+                    .unwrap()
+                    .to_path_buf();
             } else {
-                relative_resource_file_path = relative_resource_file_path.strip_prefix(PROJECT_RESOURCE_PATH).unwrap().to_path_buf();
+                relative_resource_file_path = relative_resource_file_path
+                    .strip_prefix(PROJECT_RESOURCE_PATH)
+                    .unwrap()
+                    .to_path_buf();
             }
 
-            if self._relative_resource_file_path_map.get(&relative_resource_file_path).is_none() || false == is_engine_resource {
-                self._relative_resource_file_path_map.insert(relative_resource_file_path.clone(), resource_file_path);
+            if self
+                ._relative_resource_file_path_map
+                .get(&relative_resource_file_path)
+                .is_none()
+                || false == is_engine_resource
+            {
+                self._relative_resource_file_path_map
+                    .insert(relative_resource_file_path.clone(), resource_file_path);
             }
         }
     }
@@ -405,13 +458,16 @@ impl EngineResources {
         let mut engine_resource_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_path.is_dir() {
             let engine_font_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_DIRECTORY);
-            let engine_font_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
-            let engine_shader_cache_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_font_texture_path =
+                PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_path =
+                PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
             let engine_resource_files = walk_directory(&engine_resource_path, &[]);
             for file_path in engine_resource_files.iter() {
-                if false == file_path.starts_with(&engine_font_path) &&
-                    false == file_path.starts_with(&engine_font_texture_path) &&
-                    false == file_path.starts_with(&engine_shader_cache_path) {
+                if false == file_path.starts_with(&engine_font_path)
+                    && false == file_path.starts_with(&engine_font_texture_path)
+                    && false == file_path.starts_with(&engine_shader_cache_path)
+                {
                     engine_resource_file_map.insert(file_path.clone(), file_path.clone());
                 }
             }
@@ -420,14 +476,18 @@ impl EngineResources {
         // build engine_resource_source_file_map
         let mut engine_resource_source_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_source_path.is_dir() {
-            let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
-            let engine_font_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
-            let engine_shader_cache_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_font_source_path =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
+            let engine_font_texture_source_path =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_source_path =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
             let engine_resource_source_files = walk_directory(&engine_resource_source_path, &[]);
             for file_path in engine_resource_source_files.iter() {
-                if false == file_path.starts_with(&engine_font_source_path) &&
-                    false == file_path.starts_with(&engine_font_texture_source_path) &&
-                    false == file_path.starts_with(&engine_shader_cache_source_path) {
+                if false == file_path.starts_with(&engine_font_source_path)
+                    && false == file_path.starts_with(&engine_font_texture_source_path)
+                    && false == file_path.starts_with(&engine_shader_cache_source_path)
+                {
                     engine_resource_source_file_map.insert(file_path.clone(), file_path.clone());
                 }
             }
@@ -435,13 +495,21 @@ impl EngineResources {
 
         // remove unnecessary engine resource files
         for (_, file_path) in engine_resource_file_map.iter() {
-            let relative_file_path: PathBuf = file_path.strip_prefix(ENGINE_RESOURCE_PATH).unwrap().to_path_buf();
-            let engine_source_file_path: PathBuf = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(relative_file_path);
+            let relative_file_path: PathBuf = file_path
+                .strip_prefix(ENGINE_RESOURCE_PATH)
+                .unwrap()
+                .to_path_buf();
+            let engine_source_file_path: PathBuf =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(relative_file_path);
             if false == engine_source_file_path.is_file() {
                 fs::remove_file(&file_path).expect("failed to remove file");
             } else {
-                let modified_time: SystemTime = fs::metadata(file_path).unwrap().modified().unwrap();
-                let source_modified_time: SystemTime = fs::metadata(engine_source_file_path).unwrap().modified().unwrap();
+                let modified_time: SystemTime =
+                    fs::metadata(file_path).unwrap().modified().unwrap();
+                let source_modified_time: SystemTime = fs::metadata(engine_source_file_path)
+                    .unwrap()
+                    .modified()
+                    .unwrap();
                 if modified_time < source_modified_time {
                     fs::remove_file(&file_path).expect("failed to remove file");
                 }
@@ -450,11 +518,20 @@ impl EngineResources {
 
         // copy engine resource source file -> engine resource file
         for (_, source_file_path) in engine_resource_source_file_map.iter() {
-            let relative_source_file_path: PathBuf = source_file_path.strip_prefix(ENGINE_RESOURCE_SOURCE_PATH).unwrap().to_path_buf();
-            let engine_file_path: PathBuf = PathBuf::from(ENGINE_RESOURCE_PATH).join(relative_source_file_path);
+            let relative_source_file_path: PathBuf = source_file_path
+                .strip_prefix(ENGINE_RESOURCE_SOURCE_PATH)
+                .unwrap()
+                .to_path_buf();
+            let engine_file_path: PathBuf =
+                PathBuf::from(ENGINE_RESOURCE_PATH).join(relative_source_file_path);
             if false == engine_file_path.is_file() {
                 let dir = engine_file_path.parent().unwrap();
-                log::info!("dir: {:?}, source_file_path: {:?}, engine_file_path: {:?}", dir, source_file_path, engine_file_path);
+                log::info!(
+                    "dir: {:?}, source_file_path: {:?}, engine_file_path: {:?}",
+                    dir,
+                    source_file_path,
+                    engine_file_path
+                );
                 if false == dir.is_dir() {
                     fs::create_dir_all(dir).expect("Failed to create directories.");
                 }
@@ -465,7 +542,8 @@ impl EngineResources {
 
     pub fn initialize_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("initialize_engine_resources");
-        self.get_project_resources_mut().initialize_project_resources(self);
+        self.get_project_resources_mut()
+            .initialize_project_resources(self);
 
         // load engine resources
         let is_reload: bool = false;
@@ -483,7 +561,8 @@ impl EngineResources {
         self.load_scene_data_list(renderer_context);
 
         // load project resources
-        self.get_project_resources_mut().load_project_resources(renderer_context);
+        self.get_project_resources_mut()
+            .load_project_resources(renderer_context);
         log::info!("Done - initialize_engine_resources");
     }
 
@@ -492,7 +571,8 @@ impl EngineResources {
         let is_reload: bool = false;
 
         // destroy project resource
-        self.get_project_resources_mut().destroy_project_resources(renderer_context);
+        self.get_project_resources_mut()
+            .destroy_project_resources(renderer_context);
 
         // destroy engine resources
         self.unload_scene_data_list(renderer_context);
@@ -549,7 +629,9 @@ impl EngineResources {
         for (relative_filepath, resource_filename) in self._relative_resource_file_path_map.iter() {
             if relative_filepath.starts_with(directory) {
                 let ext = resource_filename.extension();
-                if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
+                if extensions.is_empty()
+                    || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap()))
+                {
                     out_engine_resources.push(PathBuf::from(resource_filename));
                 }
             }
@@ -564,16 +646,19 @@ impl EngineResources {
         let audio_bank_directory = PathBuf::from(AUDIO_BANK_DIRECTORY);
 
         // load audio data_list
-        let audio_data_files: Vec<PathBuf> = self.collect_resources(&audio_directory, &EXT_AUDIO_SOURCE);
+        let audio_data_files: Vec<PathBuf> =
+            self.collect_resources(&audio_directory, &EXT_AUDIO_SOURCE);
         for audio_data_file in audio_data_files.iter() {
-            let audio_data_name = get_unique_resource_name(&self._audio_data_map, &audio_directory, &audio_data_file);
+            let audio_data_name =
+                get_unique_resource_name(&self._audio_data_map, &audio_directory, &audio_data_file);
             let meta_data = MetaData::new(&audio_data_file, &audio_data_file);
             let audio_resource_info = ResourceInfo {
                 _resource_name: audio_data_name.clone(),
                 _resource_data: ResourceData::None,
                 _meta_data: meta_data,
             };
-            self._audio_data_map.insert(audio_data_name, audio_resource_info);
+            self._audio_data_map
+                .insert(audio_data_name, audio_resource_info);
         }
 
         // create default audio bank data
@@ -585,26 +670,42 @@ impl EngineResources {
             #[cfg(not(target_os = "android"))]
             if false == default_audio_bank_file_path.is_file() {
                 let mut default_audio_bank_data_create_info = AudioBankCreateInfo::default();
-                default_audio_bank_data_create_info._audio_names.push(DEFAULT_AUDIO_NAME.to_string());
-                log::info!("default_audio_bank_file_path: {:?}", default_audio_bank_file_path);
-                let mut write_file = File::create(&default_audio_bank_file_path).expect("Failed to create file");
-                let mut write_contents: String = serde_json::to_string(&default_audio_bank_data_create_info).expect("Failed to serialize.");
+                default_audio_bank_data_create_info
+                    ._audio_names
+                    .push(DEFAULT_AUDIO_NAME.to_string());
+                log::info!(
+                    "default_audio_bank_file_path: {:?}",
+                    default_audio_bank_file_path
+                );
+                let mut write_file =
+                    File::create(&default_audio_bank_file_path).expect("Failed to create file");
+                let mut write_contents: String =
+                    serde_json::to_string(&default_audio_bank_data_create_info)
+                        .expect("Failed to serialize.");
                 write_contents = write_contents.replace(",\"", ",\n\"");
-                write_file.write(write_contents.as_bytes()).expect("Failed to write");
+                write_file
+                    .write(write_contents.as_bytes())
+                    .expect("Failed to write");
             }
         }
 
         // load audio bank data_list
-        let audio_bank_data_files: Vec<PathBuf> = self.collect_resources(&audio_bank_directory, &[EXT_AUDIO_BANK]);
+        let audio_bank_data_files: Vec<PathBuf> =
+            self.collect_resources(&audio_bank_directory, &[EXT_AUDIO_BANK]);
         for audio_bank_data_file in audio_bank_data_files {
-            let audio_bank_data_name = get_unique_resource_name(&self._audio_bank_data_map, &audio_bank_directory, &audio_bank_data_file);
+            let audio_bank_data_name = get_unique_resource_name(
+                &self._audio_bank_data_map,
+                &audio_bank_directory,
+                &audio_bank_data_file,
+            );
             let meta_data = MetaData::new(&audio_bank_data_file, &audio_bank_data_file);
             let audio_resource_info = ResourceInfo {
                 _resource_name: audio_bank_data_name.clone(),
                 _resource_data: ResourceData::None,
                 _meta_data: meta_data,
             };
-            self._audio_bank_data_map.insert(audio_bank_data_name.clone(), audio_resource_info);
+            self._audio_bank_data_map
+                .insert(audio_bank_data_name.clone(), audio_resource_info);
         }
     }
 
@@ -625,12 +726,16 @@ impl EngineResources {
                         // load audio data
                         let audio_data = AudioData {
                             _audio_name: resource_info._resource_name.clone(),
-                            _sound_chunk: sdl2::mixer::Chunk::from_file(&resource_info._meta_data._resource_file_path).unwrap(),
+                            _sound_chunk: sdl2::mixer::Chunk::from_file(
+                                &resource_info._meta_data._resource_file_path,
+                            )
+                            .unwrap(),
                         };
-                        resource_info._resource_data = ResourceData::Audio(newRcRefCell(audio_data));
+                        resource_info._resource_data =
+                            ResourceData::Audio(newRcRefCell(audio_data));
                     }
-                },
-                _ => ()
+                }
+                _ => (),
             }
             return &resource_info._resource_data;
         }
@@ -648,11 +753,15 @@ impl EngineResources {
                 ResourceData::None => {
                     if resource_info._meta_data._resource_file_path.is_file() {
                         // load audio bank data
-                        let loaded_contents = system::load(&resource_info._meta_data._resource_file_path);
-                        let audio_bank_create_info: AudioBankCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+                        let loaded_contents =
+                            system::load(&resource_info._meta_data._resource_file_path);
+                        let audio_bank_create_info: AudioBankCreateInfo =
+                            serde_json::from_reader(loaded_contents)
+                                .expect("Failed to deserialize.");
                         let mut audio_data_list: Vec<RcRefCell<AudioData>> = Vec::new();
                         for audio_name in audio_bank_create_info._audio_names.iter() {
-                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
+                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name)
+                            {
                                 audio_data_list.push(audio_data.clone());
                             }
                         }
@@ -660,10 +769,11 @@ impl EngineResources {
                             _audio_bank_name: resource_info._resource_name.clone(),
                             _audio_data_list: audio_data_list,
                         };
-                        resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
+                        resource_info._resource_data =
+                            ResourceData::AudioBank(newRcRefCell(audio_bank_data));
                     }
-                },
-                _ => ()
+                }
+                _ => (),
             }
             return &resource_info._resource_data;
         }
@@ -685,49 +795,67 @@ impl EngineResources {
                     _enable: true,
                     _emitter_data_name: String::from("emitter"),
                     _emitter_lifetime: -1.0,
-                    _scale_min: Vector3::new(0.5,0.5,0.5),
-                    _scale_max: Vector3::new(1.0,1.0,1.0),
+                    _scale_min: Vector3::new(0.5, 0.5, 0.5),
+                    _scale_max: Vector3::new(1.0, 1.0, 1.0),
                     _max_particle_count: 1000,
                     _spawn_count: 10,
                     _spawn_term: 0.0,
                     _particle_lifetime_min: 1.0,
                     _particle_lifetime_max: 3.0,
-                    _velocity_min: Vector3::new(-1.0,15.0,-1.0),
-                    _velocity_max: Vector3::new(1.0,15.0,1.0),
-                    _force_min: Vector3::new(0.0,-7.0,0.0),
-                    _force_max: Vector3::new(0.0,-8.0,0.0),
+                    _velocity_min: Vector3::new(-1.0, 15.0, -1.0),
+                    _velocity_max: Vector3::new(1.0, 15.0, 1.0),
+                    _force_min: Vector3::new(0.0, -7.0, 0.0),
+                    _force_max: Vector3::new(0.0, -8.0, 0.0),
                     _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
                     _mesh_name: String::from(DEFAULT_MESH_NAME),
                     ..Default::default()
                 }],
                 ..Default::default()
             };
-            let mut write_file = File::create(&default_effect_file_path).expect("Failed to create file");
-            let mut write_contents: String = serde_json::to_string(&default_effect_data_create_info).expect("Failed to serialize.");
+            let mut write_file =
+                File::create(&default_effect_file_path).expect("Failed to create file");
+            let mut write_contents: String =
+                serde_json::to_string(&default_effect_data_create_info)
+                    .expect("Failed to serialize.");
             write_contents = write_contents.replace(",\"", ",\n\"");
-            write_file.write(write_contents.as_bytes()).expect("Failed to write");
+            write_file
+                .write(write_contents.as_bytes())
+                .expect("Failed to write");
         }
 
-        let effect_files: Vec<PathBuf> = self.collect_resources(&Path::new(EFFECT_DIRECTORY), &[EXT_EFFECT]);
+        let effect_files: Vec<PathBuf> =
+            self.collect_resources(&Path::new(EFFECT_DIRECTORY), &[EXT_EFFECT]);
         for effect_file in effect_files {
-            let effect_data_name = get_unique_resource_name(&self._effect_data_map, &PathBuf::from(EFFECT_DIRECTORY), &effect_file);
+            let effect_data_name = get_unique_resource_name(
+                &self._effect_data_map,
+                &PathBuf::from(EFFECT_DIRECTORY),
+                &effect_file,
+            );
             let loaded_contents = system::load(&effect_file);
-            let effect_data_create_info: EffectDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let emitter_data_list = effect_data_create_info._emitter_data_create_infos.iter().map(|emitter_data_create_info| {
-                let material_instance_data = self.get_material_instance_data(&emitter_data_create_info._material_instance_name);
-                let mesh_data = self.get_mesh_data(&emitter_data_create_info._mesh_name);
-                EmitterData::create_emitter_data(
-                    emitter_data_create_info,
-                    material_instance_data.clone(),
-                    mesh_data.clone()
-                )
-            }).collect();
+            let effect_data_create_info: EffectDataCreateInfo =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let emitter_data_list = effect_data_create_info
+                ._emitter_data_create_infos
+                .iter()
+                .map(|emitter_data_create_info| {
+                    let material_instance_data = self.get_material_instance_data(
+                        &emitter_data_create_info._material_instance_name,
+                    );
+                    let mesh_data = self.get_mesh_data(&emitter_data_create_info._mesh_name);
+                    EmitterData::create_emitter_data(
+                        emitter_data_create_info,
+                        material_instance_data.clone(),
+                        mesh_data.clone(),
+                    )
+                })
+                .collect();
             let effect_data = EffectData::create_effect_data(
                 &effect_data_name,
                 &effect_data_create_info,
-                emitter_data_list
+                emitter_data_list,
             );
-            self._effect_data_map.insert(effect_data_name.clone(), newRcRefCell(effect_data));
+            self._effect_data_map
+                .insert(effect_data_name.clone(), newRcRefCell(effect_data));
         }
     }
 
@@ -755,19 +883,21 @@ impl EngineResources {
         font_data_name: &String,
         font_source_file: &PathBuf,
         range_min: u32,
-        range_max: u32
+        range_max: u32,
     ) -> FontDataCreateInfo {
         let mut font_file_path: PathBuf = resource_root_path.clone();
         font_file_path.push(font_directory);
         font_file_path.push(font_data_name);
         font_file_path.set_extension(EXT_FONT);
-        fs::create_dir_all(font_file_path.parent().unwrap()).expect("Failed to create directories.");
+        fs::create_dir_all(font_file_path.parent().unwrap())
+            .expect("Failed to create directories.");
 
         let mut font_texture_file_path: PathBuf = resource_root_path.clone();
         font_texture_file_path.push(font_texture_directory);
         font_texture_file_path.push(&font_data_name);
         font_texture_file_path.set_extension(EXT_FONT_TEXTURE);
-        fs::create_dir_all(font_texture_file_path.parent().unwrap()).expect("Failed to create directories.");
+        fs::create_dir_all(font_texture_file_path.parent().unwrap())
+            .expect("Failed to create directories.");
 
         let mut write_file = File::create(&font_file_path).expect("Failed to create file");
         let font_data_create_info = font_loader::get_font_data_create_info(
@@ -777,10 +907,13 @@ impl EngineResources {
             &font_data_name,
             &font_texture_file_path,
             range_min,
-            range_max
+            range_max,
         );
-        let write_contents: String = serde_json::to_string(&font_data_create_info).expect("Failed to serialize.");
-        write_file.write(write_contents.as_bytes()).expect("Failed to write");
+        let write_contents: String =
+            serde_json::to_string(&font_data_create_info).expect("Failed to serialize.");
+        write_file
+            .write(write_contents.as_bytes())
+            .expect("Failed to write");
         font_data_create_info
     }
 
@@ -788,7 +921,7 @@ impl EngineResources {
         log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
-        //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
+                                                                          //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
 
         let font_directory = PathBuf::from(FONT_DIRECTORY);
         let font_texture_directory = PathBuf::from(FONT_TEXTURE_DIRECTORY);
@@ -800,7 +933,8 @@ impl EngineResources {
         }
 
         let font_source_directory = PathBuf::from(FONT_SOURCE_DIRECTORY);
-        let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
+        let font_source_files: Vec<PathBuf> =
+            self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
         for font_source_file in font_source_files {
             let is_engine_resource = font_source_file.starts_with(ENGINE_RESOURCE_PATH);
             let resource_root_path: PathBuf;
@@ -809,32 +943,38 @@ impl EngineResources {
             } else {
                 resource_root_path = PathBuf::from(PROJECT_RESOURCE_PATH);
             }
-            for (unicode_block_key, (range_min, range_max))  in unicode_blocks.iter() {
-                let font_name = get_unique_resource_name(&self._font_data_map, &font_source_directory, &font_source_file);
+            for (unicode_block_key, (range_min, range_max)) in unicode_blocks.iter() {
+                let font_name = get_unique_resource_name(
+                    &self._font_data_map,
+                    &font_source_directory,
+                    &font_source_file,
+                );
                 let font_data_name = format!("{}_{}", font_name, unicode_block_key);
                 let font_texture_name = format!("fonts/{}_{}", font_name, unicode_block_key);
 
                 // Gets FontDataCreateInfo and also creates font texture files if needed.
                 #[cfg(target_os = "android")]
-                    let check_font_texture_file_exists = false;
+                let check_font_texture_file_exists = false;
                 #[cfg(not(target_os = "android"))]
-                    let check_font_texture_file_exists = true;
+                let check_font_texture_file_exists = true;
                 let maybe_font_file = font_file_map.get(&font_data_name);
-                let font_data_create_info: FontDataCreateInfo =
-                    if check_font_texture_file_exists && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name)) {
-                        self.get_font_data_create_info(
-                            &resource_root_path,
-                            &font_directory,
-                            &font_texture_directory,
-                            &font_data_name,
-                            &font_source_file,
-                            *range_min,
-                            *range_max
-                        )
-                    } else {
-                        let loaded_contents = system::load(maybe_font_file.unwrap());
-                        serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
-                    };
+                let font_data_create_info: FontDataCreateInfo = if check_font_texture_file_exists
+                    && (maybe_font_file.is_none()
+                        || false == self.has_texture_data(&font_texture_name))
+                {
+                    self.get_font_data_create_info(
+                        &resource_root_path,
+                        &font_directory,
+                        &font_texture_directory,
+                        &font_data_name,
+                        &font_source_file,
+                        *range_min,
+                        *range_max,
+                    )
+                } else {
+                    let loaded_contents = system::load(maybe_font_file.unwrap());
+                    serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
+                };
 
                 // regist font texture
                 if false == self.has_texture_data(&font_texture_name) {
@@ -864,7 +1004,8 @@ impl EngineResources {
                         _enable_anisotropy: false,
                         ..Default::default()
                     };
-                    let texture_data = newRcRefCell(renderer_context.create_texture(&texture_create_info));
+                    let texture_data =
+                        newRcRefCell(renderer_context.create_texture(&texture_create_info));
                     self.regist_texture_data(font_texture_name.clone(), texture_data);
                 };
                 let texture_data = self.get_texture_data(&font_texture_name);
@@ -877,8 +1018,10 @@ impl EngineResources {
                     _text_count: font_data_create_info._text_count,
                     _count_of_side: font_data_create_info._count_of_side,
                     _font_size: Vector2::new(
-                        (texture_data.borrow()._image_width / font_data_create_info._count_of_side) as f32,
-                        (texture_data.borrow()._image_height / font_data_create_info._count_of_side) as f32
+                        (texture_data.borrow()._image_width / font_data_create_info._count_of_side)
+                            as f32,
+                        (texture_data.borrow()._image_height / font_data_create_info._count_of_side)
+                            as f32,
                     ),
                     _texture: texture_data.clone(),
                 });
@@ -909,16 +1052,19 @@ impl EngineResources {
         let model_directory = PathBuf::from(MODEL_DIRECTORY);
         let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
-            let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
+            let model_name =
+                get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
             let loaded_contents = system::load(&model_file);
-            let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let contents =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let model_create_info = match contents {
                 Value::Object(model_create_info) => model_create_info,
-                _ => panic!("model parsing error.")
+                _ => panic!("model parsing error."),
             };
-            let material_instance_names = match model_create_info.get("material_instances").unwrap() {
+            let material_instance_names = match model_create_info.get("material_instances").unwrap()
+            {
                 Value::Array(material_instance_names) => material_instance_names,
-                _ => panic!("model material_instance_names parsing error.")
+                _ => panic!("model material_instance_names parsing error."),
             };
             let material_instance_count = material_instance_names.len();
             let mesh_name = match model_create_info.get("mesh").unwrap() {
@@ -927,20 +1073,29 @@ impl EngineResources {
             };
             let mesh_data = self.get_mesh_data(mesh_name.as_str());
             let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
-            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> = (0..geometry_data_count).map(|index| {
-                if index < material_instance_count {
-                    match &material_instance_names[index] {
-                        Value::String(material_instance_name) => {
-                            self.get_material_instance_data(&material_instance_name).clone()
-                        },
-                        _ => panic!("failed to parsing material_instance_names"),
+            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> = (0
+                ..geometry_data_count)
+                .map(|index| {
+                    if index < material_instance_count {
+                        match &material_instance_names[index] {
+                            Value::String(material_instance_name) => self
+                                .get_material_instance_data(&material_instance_name)
+                                .clone(),
+                            _ => panic!("failed to parsing material_instance_names"),
+                        }
+                    } else {
+                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME)
+                            .clone()
                     }
-                } else {
-                    self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
-                }
-            }).collect();
-            let model_data = ModelData::new_model_data(&model_name, mesh_data.clone(), material_instance_data_list);
-            self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
+                })
+                .collect();
+            let model_data = ModelData::new_model_data(
+                &model_name,
+                mesh_data.clone(),
+                material_instance_data_list,
+            );
+            self._model_data_map
+                .insert(model_name.clone(), newRcRefCell(model_data));
         }
     }
 
@@ -967,78 +1122,115 @@ impl EngineResources {
         mesh_data_create_info: MeshDataCreateInfo,
     ) {
         let mut geometry_data_list: Vec<RcRefCell<GeometryData>> = Vec::new();
-        for (i, geometry_create_info) in mesh_data_create_info._geometry_create_infos.iter().enumerate() {
+        for (i, geometry_create_info) in mesh_data_create_info
+            ._geometry_create_infos
+            .iter()
+            .enumerate()
+        {
             let geomtery_name: String = format!("{}_{}", mesh_name, i);
-            let geometry_data = renderer_context.create_geometry_buffer(&geomtery_name, geometry_create_info);
+            let geometry_data =
+                renderer_context.create_geometry_buffer(&geomtery_name, geometry_create_info);
             geometry_data_list.push(newRcRefCell(geometry_data));
         }
 
-        let mesh_data = newRcRefCell(MeshData::create_mesh_data(&mesh_name, mesh_data_create_info, geometry_data_list));
-        self._mesh_data_map.insert(mesh_name.clone(), mesh_data.clone());
+        let mesh_data = newRcRefCell(MeshData::create_mesh_data(
+            &mesh_name,
+            mesh_data_create_info,
+            geometry_data_list,
+        ));
+        self._mesh_data_map
+            .insert(mesh_name.clone(), mesh_data.clone());
     }
 
     pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_mesh_data_list");
-        self.regist_mesh_data(renderer_context, &String::from("quad"), geometry_buffer::quad_mesh_create_info());
-        self.regist_mesh_data(renderer_context, &String::from("cube"), geometry_buffer::cube_mesh_create_info());
+        self.regist_mesh_data(
+            renderer_context,
+            &String::from("quad"),
+            geometry_buffer::quad_mesh_create_info(),
+        );
+        self.regist_mesh_data(
+            renderer_context,
+            &String::from("cube"),
+            geometry_buffer::cube_mesh_create_info(),
+        );
         let mesh_directory = PathBuf::from(MESH_DIRECTORY);
         let mesh_source_directory = PathBuf::from(MESH_SOURCE_DIRECTORY);
-        let resource_ext = if USE_JSON_FOR_MESH { EXT_JSON } else { EXT_MESH };
+        let resource_ext = if USE_JSON_FOR_MESH {
+            EXT_JSON
+        } else {
+            EXT_MESH
+        };
         let mesh_files = self.collect_resources(mesh_directory.as_path(), &[resource_ext]);
         let mut mesh_file_map: HashMap<String, PathBuf> = HashMap::new();
         for mesh_file in mesh_files.iter() {
             let mesh_name = get_resource_name_from_file_path(&mesh_directory, &mesh_file);
             mesh_file_map.insert(mesh_name, mesh_file.clone());
         }
-        let mesh_source_files = self.collect_resources(mesh_source_directory.as_path(), &EXT_MESH_SOURCE);
+        let mesh_source_files =
+            self.collect_resources(mesh_source_directory.as_path(), &EXT_MESH_SOURCE);
         for mesh_source_file in mesh_source_files {
-            let mesh_name = get_unique_resource_name(&self._mesh_data_map, &mesh_source_directory, &mesh_source_file);
-            let src_file_ext: String = String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
-            let mesh_data_create_info = match (LOAD_FROM_EXTERNAL_FOR_MESH, mesh_file_map.get(&mesh_name)) {
-                (false, Some(mesh_file)) => {
-                    // Load mesh
-                    let loaded_contents = system::load(mesh_file);
-                    if USE_JSON_FOR_MESH {
-                        serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
-                    } else {
-                        bincode::deserialize_from(loaded_contents).unwrap()
-                    }
-                },
-                _ => {
-                    // Convert to mesh from source
-                    let mesh_data_create_info = match src_file_ext.as_str() {
-                        EXT_OBJ => WaveFrontOBJ::get_mesh_data_create_infos(&mesh_source_file),
-                        EXT_COLLADA => Collada::get_mesh_data_create_infos(&mesh_source_file),
-                        EXT_GLTF_BINARY => GLTF::get_mesh_data_create_infos(&mesh_source_file),
-                        EXT_GLTF => GLTF::get_mesh_data_create_infos(&mesh_source_file),
-                        _ => panic!("error")
-                    };
-
-                    // Save mesh
-                    if false == LOAD_FROM_EXTERNAL_FOR_MESH {
-                        let mut mesh_file_path: PathBuf;
-                        if mesh_source_file.starts_with(ENGINE_RESOURCE_PATH) {
-                            mesh_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
-                        } else {
-                            mesh_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
-                        }
-                        mesh_file_path.push(&mesh_directory);
-                        mesh_file_path.push(&mesh_name);
-                        mesh_file_path.set_extension(resource_ext);
-                        fs::create_dir_all(mesh_file_path.parent().unwrap()).expect("Failed to create directories.");
-                        let mut write_file = File::create(mesh_file_path).expect("Failed to create file");
+            let mesh_name = get_unique_resource_name(
+                &self._mesh_data_map,
+                &mesh_source_directory,
+                &mesh_source_file,
+            );
+            let src_file_ext: String =
+                String::from(mesh_source_file.extension().unwrap().to_str().unwrap());
+            let mesh_data_create_info =
+                match (LOAD_FROM_EXTERNAL_FOR_MESH, mesh_file_map.get(&mesh_name)) {
+                    (false, Some(mesh_file)) => {
+                        // Load mesh
+                        let loaded_contents = system::load(mesh_file);
                         if USE_JSON_FOR_MESH {
-                            let write_contents: String = serde_json::to_string(&mesh_data_create_info).expect("Failed to serialize.");
-                            write_file.write(write_contents.as_bytes()).expect("Failed to write");
+                            serde_json::from_reader(loaded_contents)
+                                .expect("Failed to deserialize.")
                         } else {
-                            let write_contents: Vec<u8> = bincode::serialize(&mesh_data_create_info).unwrap();
-                            write_file.write(&write_contents).expect("Failed to write");
+                            bincode::deserialize_from(loaded_contents).unwrap()
                         }
                     }
+                    _ => {
+                        // Convert to mesh from source
+                        let mesh_data_create_info = match src_file_ext.as_str() {
+                            EXT_OBJ => WaveFrontOBJ::get_mesh_data_create_infos(&mesh_source_file),
+                            EXT_COLLADA => Collada::get_mesh_data_create_infos(&mesh_source_file),
+                            EXT_GLTF_BINARY => GLTF::get_mesh_data_create_infos(&mesh_source_file),
+                            EXT_GLTF => GLTF::get_mesh_data_create_infos(&mesh_source_file),
+                            _ => panic!("error"),
+                        };
 
-                    mesh_data_create_info
-                },
-            };
+                        // Save mesh
+                        if false == LOAD_FROM_EXTERNAL_FOR_MESH {
+                            let mut mesh_file_path: PathBuf;
+                            if mesh_source_file.starts_with(ENGINE_RESOURCE_PATH) {
+                                mesh_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
+                            } else {
+                                mesh_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+                            }
+                            mesh_file_path.push(&mesh_directory);
+                            mesh_file_path.push(&mesh_name);
+                            mesh_file_path.set_extension(resource_ext);
+                            fs::create_dir_all(mesh_file_path.parent().unwrap())
+                                .expect("Failed to create directories.");
+                            let mut write_file =
+                                File::create(mesh_file_path).expect("Failed to create file");
+                            if USE_JSON_FOR_MESH {
+                                let write_contents: String =
+                                    serde_json::to_string(&mesh_data_create_info)
+                                        .expect("Failed to serialize.");
+                                write_file
+                                    .write(write_contents.as_bytes())
+                                    .expect("Failed to write");
+                            } else {
+                                let write_contents: Vec<u8> =
+                                    bincode::serialize(&mesh_data_create_info).unwrap();
+                                write_file.write(&write_contents).expect("Failed to write");
+                            }
+                        }
+
+                        mesh_data_create_info
+                    }
+                };
             self.regist_mesh_data(renderer_context, &mesh_name, mesh_data_create_info);
         }
     }
@@ -1073,16 +1265,34 @@ impl EngineResources {
         let (image_width, image_height) = dynamic_image.dimensions();
         let image_layer = 1;
         let (image_data_raw, image_format): (Vec<u8>, vk::Format) = match dynamic_image {
-            image::DynamicImage::ImageRgba8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageRgb8(_) => (dynamic_image .to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageLuma8(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R8G8B8A8_UNORM),
-            image::DynamicImage::ImageRgb16(_) => (dynamic_image.to_rgba8().into_raw(), vk::Format::R16G16B16A16_UNORM),
+            image::DynamicImage::ImageRgba8(_) => (
+                dynamic_image.to_rgba8().into_raw(),
+                vk::Format::R8G8B8A8_UNORM,
+            ),
+            image::DynamicImage::ImageRgb8(_) => (
+                dynamic_image.to_rgba8().into_raw(),
+                vk::Format::R8G8B8A8_UNORM,
+            ),
+            image::DynamicImage::ImageLuma8(_) => (
+                dynamic_image.to_rgba8().into_raw(),
+                vk::Format::R8G8B8A8_UNORM,
+            ),
+            image::DynamicImage::ImageRgb16(_) => (
+                dynamic_image.to_rgba8().into_raw(),
+                vk::Format::R16G16B16A16_UNORM,
+            ),
             _ => {
                 log::error!("Unkown format: {:?}", texture_file);
                 (Vec::new(), vk::Format::UNDEFINED)
             }
         };
-        (image_width, image_height, image_layer, image_data_raw, image_format)
+        (
+            image_width,
+            image_height,
+            image_layer,
+            image_data_raw,
+            image_format,
+        )
     }
 
     pub fn load_image_data_list(texture_files: &Vec<PathBuf>) -> LoadImageInfoType {
@@ -1091,31 +1301,47 @@ impl EngineResources {
         let mut image_format: vk::Format = vk::Format::UNDEFINED;
         let mut image_data_list: Vec<Vec<u8>> = Vec::new();
         for texture_file in texture_files.iter() {
-            let (width, height, _layer, image_data, format): LoadImageInfoType = EngineResources::load_image_data(texture_file);
+            let (width, height, _layer, image_data, format): LoadImageInfoType =
+                EngineResources::load_image_data(texture_file);
             image_width = width;
             image_height = height;
             image_format = format;
             image_data_list.push(image_data.clone());
         }
         let image_data_list = image_data_list.concat();
-        (image_width, image_height, texture_files.len() as u32, image_data_list, image_format)
+        (
+            image_width,
+            image_height,
+            texture_files.len() as u32,
+            image_data_list,
+            image_format,
+        )
     }
 
-    pub fn regist_texture_data(&mut self, texture_data_name: String, texture_data: RcRefCell<TextureData>) {
-        self._texture_data_map.insert(texture_data_name, texture_data);
+    pub fn regist_texture_data(
+        &mut self,
+        texture_data_name: String,
+        texture_data: RcRefCell<TextureData>,
+    ) {
+        self._texture_data_map
+            .insert(texture_data_name, texture_data);
     }
 
     pub fn load_texture_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_texture_data_list");
-        let default_texture_data_list: Vec<TextureData> = texture_generator::generate_textures(renderer_context);
+        let default_texture_data_list: Vec<TextureData> =
+            texture_generator::generate_textures(renderer_context);
         for texture_data in default_texture_data_list {
-            self.regist_texture_data(texture_data._texture_data_name.clone(), newRcRefCell(texture_data));
+            self.regist_texture_data(
+                texture_data._texture_data_name.clone(),
+                newRcRefCell(texture_data),
+            );
         }
 
         let texture_directory = PathBuf::from(TEXTURE_DIRECTORY);
         let texture_source_directory = PathBuf::from(TEXTURE_SOURCE_DIRECTORY);
         let mut combined_textures_name_map: HashMap<PathBuf, String> = HashMap::new();
-        let mut combined_texture_files_map: HashMap<String, Vec::<PathBuf>> = HashMap::new();
+        let mut combined_texture_files_map: HashMap<String, Vec<PathBuf>> = HashMap::new();
         let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
 
         // generate necessary texture data_list
@@ -1127,18 +1353,25 @@ impl EngineResources {
         }
 
         // combined texture list
-        let combined_texture_files = self.collect_resources(texture_source_directory.as_path(), &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE]);
+        let combined_texture_files = self.collect_resources(
+            texture_source_directory.as_path(),
+            &[EXT_TEXTURE_2D_ARRAY, EXT_TEXTURE_3D, EXT_TEXTURE_CUBE],
+        );
         for texture_src_file in combined_texture_files.iter() {
             let directory = texture_src_file.parent().unwrap();
-            let texture_data_name = get_resource_name_from_file_path(&texture_source_directory, &texture_src_file);
+            let texture_data_name =
+                get_resource_name_from_file_path(&texture_source_directory, &texture_src_file);
             let loaded_contents = system::load(texture_src_file);
-            let contents = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let contents =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let ext = texture_src_file.extension().unwrap();
             let mut texture_file_names: Vec<String> = Vec::new();
             let image_view_type = if EXT_TEXTURE_CUBE == ext {
                 if let Value::Object(texture_cube_faces) = contents {
                     for face in constants::CUBE_TEXTURE_FACES.iter() {
-                        if let Value::String(face_texture_name) = texture_cube_faces.get(*face).unwrap() {
+                        if let Value::String(face_texture_name) =
+                            texture_cube_faces.get(*face).unwrap()
+                        {
                             texture_file_names.push(face_texture_name.clone());
                         }
                     }
@@ -1176,24 +1409,38 @@ impl EngineResources {
         }
 
         // load texture from external files
-        let texture_src_files = self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
+        let texture_src_files =
+            self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
         for texture_src_file in texture_src_files.iter() {
             let combined_texture_name = combined_textures_name_map.get(texture_src_file);
             let texture_data_name: String = match combined_texture_name {
                 Some(combined_texture_name) => combined_texture_name.clone(),
-                _ => get_resource_name_from_file_path(&texture_source_directory, &texture_src_file)
+                _ => get_resource_name_from_file_path(&texture_source_directory, &texture_src_file),
             };
 
-            let existing_resource_data: Option<&RcRefCell<TextureData>> = self._texture_data_map.get(&texture_data_name);
+            let existing_resource_data: Option<&RcRefCell<TextureData>> =
+                self._texture_data_map.get(&texture_data_name);
             if existing_resource_data.is_none() {
-                let (image_view_type, (image_width, image_height, image_layers, image_data, image_format)): (vk::ImageViewType, LoadImageInfoType) =
-                    if combined_texture_name.is_some() {
-                        let combined_texture_files = combined_texture_files_map.get(texture_data_name.as_str()).unwrap();
-                        let image_view_type = combined_texture_types_map.get(texture_data_name.as_str()).unwrap();
-                        (*image_view_type, EngineResources::load_image_data_list(&combined_texture_files))
-                    } else {
-                        (vk::ImageViewType::TYPE_2D, EngineResources::load_image_data(texture_src_file))
-                    };
+                let (
+                    image_view_type,
+                    (image_width, image_height, image_layers, image_data, image_format),
+                ): (vk::ImageViewType, LoadImageInfoType) = if combined_texture_name.is_some() {
+                    let combined_texture_files = combined_texture_files_map
+                        .get(texture_data_name.as_str())
+                        .unwrap();
+                    let image_view_type = combined_texture_types_map
+                        .get(texture_data_name.as_str())
+                        .unwrap();
+                    (
+                        *image_view_type,
+                        EngineResources::load_image_data_list(&combined_texture_files),
+                    )
+                } else {
+                    (
+                        vk::ImageViewType::TYPE_2D,
+                        EngineResources::load_image_data(texture_src_file),
+                    )
+                };
                 if vk::Format::UNDEFINED != image_format {
                     let texture_create_info = TextureCreateInfo {
                         _texture_name: texture_data_name.clone(),
@@ -1208,7 +1455,8 @@ impl EngineResources {
                         ..Default::default()
                     };
                     let texture_data = renderer_context.create_texture(&texture_create_info);
-                    self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
+                    self._texture_data_map
+                        .insert(texture_data_name, newRcRefCell(texture_data));
                 }
             }
         }
@@ -1216,20 +1464,33 @@ impl EngineResources {
         // read binary texture data
         let texture_files = self.collect_resources(texture_directory.as_path(), &EXT_TEXTURE);
         for texture_file in texture_files.iter() {
-            let texture_data_name = get_resource_name_from_file_path(&texture_directory, texture_file);
+            let texture_data_name =
+                get_resource_name_from_file_path(&texture_directory, texture_file);
             let mut loaded_contents = system::load(&texture_file);
-            let image_view_type: vk::ImageViewType = vk::ImageViewType::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let image_view_type: vk::ImageViewType =
+                vk::ImageViewType::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap());
             let image_width: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
             let image_height: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
             let image_depth: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
-            let image_format: vk::Format = vk::Format::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
-            let enable_mipmap: bool = if 0 != loaded_contents.read_i32::<LittleEndian>().unwrap() { true } else { false };
-            let min_filter: vk::Filter = vk::Filter::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
-            let mag_filter: vk::Filter = vk::Filter::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
-            let wrap: vk::SamplerAddressMode = vk::SamplerAddressMode::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap() as i32);
+            let image_format: vk::Format =
+                vk::Format::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap());
+            let enable_mipmap: bool = if 0 != loaded_contents.read_i32::<LittleEndian>().unwrap() {
+                true
+            } else {
+                false
+            };
+            let min_filter: vk::Filter =
+                vk::Filter::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap());
+            let mag_filter: vk::Filter =
+                vk::Filter::from_raw(loaded_contents.read_i32::<LittleEndian>().unwrap());
+            let wrap: vk::SamplerAddressMode = vk::SamplerAddressMode::from_raw(
+                loaded_contents.read_i32::<LittleEndian>().unwrap(),
+            );
             let data_bytes: i32 = loaded_contents.read_i32::<LittleEndian>().unwrap();
             let mut image_data: Vec<u8> = Vec::new();
-            loaded_contents.read_to_end(&mut image_data).expect("Failed to read data_list.");
+            loaded_contents
+                .read_to_end(&mut image_data)
+                .expect("Failed to read data_list.");
             assert_eq!(data_bytes as usize, image_data.len());
 
             let texture_create_info = TextureCreateInfo {
@@ -1248,7 +1509,8 @@ impl EngineResources {
                 ..Default::default()
             };
             let texture_data = renderer_context.create_texture(&texture_create_info);
-            self._texture_data_map.insert(texture_data_name, newRcRefCell(texture_data));
+            self._texture_data_map
+                .insert(texture_data_name, newRcRefCell(texture_data));
         }
     }
 
@@ -1272,17 +1534,29 @@ impl EngineResources {
         log::info!("    load_framebuffer_data_list");
         for render_pass_data in self._render_pass_data_map.values() {
             let render_pass_data = render_pass_data.borrow();
-            for (_key, render_pass_data_create_info) in self._render_pass_data_create_info_map.iter() {
-                if render_pass_data_create_info._render_pass_create_info_name == render_pass_data._render_pass_data_name {
-                    if render_pass_data_create_info._render_pass_framebuffer_create_info.is_valid() {
+            for (_key, render_pass_data_create_info) in
+                self._render_pass_data_create_info_map.iter()
+            {
+                if render_pass_data_create_info._render_pass_create_info_name
+                    == render_pass_data._render_pass_data_name
+                {
+                    if render_pass_data_create_info
+                        ._render_pass_framebuffer_create_info
+                        .is_valid()
+                    {
                         let framebuffer_data = framebuffer::create_framebuffer_data(
                             renderer_context.get_device(),
                             renderer_context.get_debug_utils(),
                             render_pass_data._render_pass,
                             render_pass_data._render_pass_data_name.as_str(),
-                            render_pass_data_create_info._render_pass_framebuffer_create_info.clone(),
+                            render_pass_data_create_info
+                                ._render_pass_framebuffer_create_info
+                                .clone(),
                         );
-                        self._framebuffer_data_list_map.insert(render_pass_data._render_pass_data_name.clone(), newRcRefCell(framebuffer_data));
+                        self._framebuffer_data_list_map.insert(
+                            render_pass_data._render_pass_data_name.clone(),
+                            newRcRefCell(framebuffer_data),
+                        );
                         break;
                     }
                 }
@@ -1292,7 +1566,10 @@ impl EngineResources {
 
     pub fn unload_framebuffer_data_list(&mut self, renderer_context: &RendererContext) {
         for framebuffer_data in self._framebuffer_data_list_map.values() {
-            framebuffer::destroy_framebuffer_data(renderer_context.get_device(), &framebuffer_data.borrow());
+            framebuffer::destroy_framebuffer_data(
+                renderer_context.get_device(),
+                &framebuffer_data.borrow(),
+            );
         }
         self._framebuffer_data_list_map.clear();
     }
@@ -1310,13 +1587,18 @@ impl EngineResources {
         let render_pass_data_create_infos = renderer_context.get_render_pass_data_create_infos();
         for render_pass_data_create_info in render_pass_data_create_infos.iter() {
             self._render_pass_data_create_info_map.insert(
-                render_pass_data_create_info._render_pass_create_info_name.clone(),
-                render_pass_data_create_info.clone()
+                render_pass_data_create_info
+                    ._render_pass_create_info_name
+                    .clone(),
+                render_pass_data_create_info.clone(),
             );
         }
 
         let project_resources = ptr_as_mut(self._project_resources);
-        project_resources.load_render_pass_data_create_infos(renderer_context, &mut self._render_pass_data_create_info_map);
+        project_resources.load_render_pass_data_create_infos(
+            renderer_context,
+            &mut self._render_pass_data_create_info_map,
+        );
     }
 
     pub fn unload_render_pass_data_create_infos(&mut self, _renderer_context: &RendererContext) {
@@ -1330,23 +1612,34 @@ impl EngineResources {
         let render_pass_data_create_info_map = ptr_as_ref(&self._render_pass_data_create_info_map);
         for (_key, render_pass_data_create_info) in render_pass_data_create_info_map.iter() {
             let mut descriptor_data_list: Vec<RcRefCell<DescriptorData>> = Vec::new();
-            for pipeline_data_create_info in render_pass_data_create_info._pipeline_data_create_infos.iter() {
-                descriptor_data_list.push(
-                    self.get_descriptor_data(renderer_context, &render_pass_data_create_info._render_pass_create_info_name, pipeline_data_create_info)
-                );
+            for pipeline_data_create_info in render_pass_data_create_info
+                ._pipeline_data_create_infos
+                .iter()
+            {
+                descriptor_data_list.push(self.get_descriptor_data(
+                    renderer_context,
+                    &render_pass_data_create_info._render_pass_create_info_name,
+                    pipeline_data_create_info,
+                ));
             }
             let default_render_pass_data = render_pass::create_render_pass_data(
                 renderer_context,
                 render_pass_data_create_info,
-                &descriptor_data_list
+                &descriptor_data_list,
             );
-            self._render_pass_data_map.insert(default_render_pass_data.get_render_pass_data_name().clone(), newRcRefCell(default_render_pass_data));
+            self._render_pass_data_map.insert(
+                default_render_pass_data.get_render_pass_data_name().clone(),
+                newRcRefCell(default_render_pass_data),
+            );
         }
     }
 
     pub fn unload_render_pass_data_list(&mut self, renderer_context: &RendererContext) {
         for render_pass_data in self._render_pass_data_map.values() {
-            render_pass::destroy_render_pass_data(renderer_context.get_device(), &(*render_pass_data).borrow());
+            render_pass::destroy_render_pass_data(
+                renderer_context.get_device(),
+                &(*render_pass_data).borrow(),
+            );
         }
         self._render_pass_data_map.clear()
     }
@@ -1363,7 +1656,11 @@ impl EngineResources {
         self.get_render_pass_data(DEFAULT_RENDER_PASS_NAME)
     }
 
-    pub fn get_render_pass_pipeline_data(&self, render_pass_data_name: &str, pipeline_data_name: &str) -> RenderPassPipelineData {
+    pub fn get_render_pass_pipeline_data(
+        &self,
+        render_pass_data_name: &str,
+        pipeline_data_name: &str,
+    ) -> RenderPassPipelineData {
         let render_pass_data_refcell = self.get_render_pass_data(render_pass_data_name);
         let render_pass_data = render_pass_data_refcell.borrow();
         let pipeline_data = render_pass_data.get_pipeline_data(pipeline_data_name);
@@ -1379,39 +1676,62 @@ impl EngineResources {
         let material_directory = PathBuf::from(MATERIAL_DIRECTORY);
         let material_files = self.collect_resources(&material_directory.as_path(), &[EXT_MATERIAL]);
         for material_file in material_files {
-            let material_name = get_unique_resource_name(&self._material_data_map, &material_directory, &material_file);
+            let material_name = get_unique_resource_name(
+                &self._material_data_map,
+                &material_directory,
+                &material_file,
+            );
             let loaded_contents = system::load(material_file);
-            let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let contents: Value =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let material_create_info = match contents {
                 Value::Object(material_create_info) => material_create_info,
                 _ => panic!("material parsing error"),
             };
-            let pipeline_create_infos = material_create_info.get("pipelines").unwrap().as_array().unwrap();
-            let render_pass_pipeline_data_list: Vec<Option<RenderPassPipelineData>> = pipeline_create_infos.iter().map(|pipeline_create_info| {
-                let render_pass_data_name = match pipeline_create_info.get("render_pass").unwrap() {
-                    Value::String(render_pass_data_name) => render_pass_data_name,
-                    _ => panic!("failed to parsing render_pass"),
-                };
-                let pipeline_data_name = match pipeline_create_info.get("pipeline").unwrap() {
-                    Value::String(pipeline_data_name) => pipeline_data_name,
-                    _ => panic!("failed to parsing pipeline"),
-                };
+            let pipeline_create_infos = material_create_info
+                .get("pipelines")
+                .unwrap()
+                .as_array()
+                .unwrap();
+            let render_pass_pipeline_data_list: Vec<Option<RenderPassPipelineData>> =
+                pipeline_create_infos
+                    .iter()
+                    .map(|pipeline_create_info| {
+                        let render_pass_data_name =
+                            match pipeline_create_info.get("render_pass").unwrap() {
+                                Value::String(render_pass_data_name) => render_pass_data_name,
+                                _ => panic!("failed to parsing render_pass"),
+                            };
+                        let pipeline_data_name = match pipeline_create_info.get("pipeline").unwrap()
+                        {
+                            Value::String(pipeline_data_name) => pipeline_data_name,
+                            _ => panic!("failed to parsing pipeline"),
+                        };
 
-                if self.has_render_pass_data(render_pass_data_name.as_str()) {
-                    Some(self.get_render_pass_pipeline_data(render_pass_data_name.as_str(), pipeline_data_name.as_str()))
-                } else {
-                    None
-                }
-            }).collect();
+                        if self.has_render_pass_data(render_pass_data_name.as_str()) {
+                            Some(self.get_render_pass_pipeline_data(
+                                render_pass_data_name.as_str(),
+                                pipeline_data_name.as_str(),
+                            ))
+                        } else {
+                            None
+                        }
+                    })
+                    .collect();
 
-            let empty_object: serde_json::Map<String, serde_json::Value> = serde_json::Map::new();
+            let empty_object: serde_json::Map<String, Value> = serde_json::Map::new();
             let material_parameters = match material_create_info.get("material_parameters") {
                 Some(Value::Object(material_parameters)) => material_parameters,
                 _ => &empty_object,
             };
 
-            let material_data = MaterialData::create_material(&material_name, &render_pass_pipeline_data_list, material_parameters);
-            self._material_data_map.insert(material_name.clone(), newRcRefCell(material_data));
+            let material_data = MaterialData::create_material(
+                &material_name,
+                &render_pass_pipeline_data_list,
+                material_parameters,
+            );
+            self._material_data_map
+                .insert(material_name.clone(), newRcRefCell(material_data));
         }
     }
 
@@ -1431,31 +1751,46 @@ impl EngineResources {
     }
 
     // MaterialInstance_data_list
-    pub fn load_material_instance_data_list(&mut self, renderer_context: &RendererContext, is_reload: bool) {
+    pub fn load_material_instance_data_list(
+        &mut self,
+        renderer_context: &RendererContext,
+        is_reload: bool,
+    ) {
         log::info!("    load_material_instance_data_list");
         let material_instance_directory = PathBuf::from(MATERIAL_INSTANCE_DIRECTORY);
-        let material_instance_files = self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
+        let material_instance_files =
+            self.collect_resources(&material_instance_directory, &[EXT_MATERIAL_INSTANCE]);
         for material_instance_file in material_instance_files.iter() {
             let material_instance_name = if is_reload {
-                get_resource_name_from_file_path(&material_instance_directory, &material_instance_file)
+                get_resource_name_from_file_path(
+                    &material_instance_directory,
+                    &material_instance_file,
+                )
             } else {
-                get_unique_resource_name(&self._material_instance_data_map, &material_instance_directory, &material_instance_file)
+                get_unique_resource_name(
+                    &self._material_instance_data_map,
+                    &material_instance_directory,
+                    &material_instance_file,
+                )
             };
             let loaded_contents = system::load(material_instance_file);
-            let contents: Value = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let contents: Value =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let material_instance_create_info = match contents {
                 Value::Object(material_instance_create_info) => material_instance_create_info,
                 _ => panic!("material instance parsing error"),
             };
-            let material_data_name = match material_instance_create_info.get("material_name").unwrap() {
-                Value::String(material_data_name) => material_data_name,
-                _ => panic!("material name parsing error")
-            };
+            let material_data_name =
+                match material_instance_create_info.get("material_name").unwrap() {
+                    Value::String(material_data_name) => material_data_name,
+                    _ => panic!("material name parsing error"),
+                };
 
-            let mut material_parameters: serde_json::Map<String, serde_json::Value> = match material_instance_create_info.get("material_parameters") {
-                Some(Value::Object(material_parameters)) => material_parameters.clone(),
-                _ => serde_json::Map::new(),
-            };
+            let mut material_parameters: serde_json::Map<String, Value> =
+                match material_instance_create_info.get("material_parameters") {
+                    Some(Value::Object(material_parameters)) => material_parameters.clone(),
+                    _ => serde_json::Map::new(),
+                };
 
             let material_data = self.get_material_data(material_data_name.as_str()).clone();
             let default_material_parameters = &material_data.borrow()._material_parameters;
@@ -1534,22 +1869,29 @@ impl EngineResources {
                 &material_instance_name,
                 &material_data,
                 &material_parameters,
-                pipeline_bind_create_infos
+                pipeline_bind_create_infos,
             );
 
             if is_reload && self.has_material_instance_data(&material_instance_name) {
                 // replace material_instance_data
-                let exists_material_instance_data: &mut MaterialInstanceData = &mut self.get_material_instance_data(&material_instance_name).borrow_mut();
+                let exists_material_instance_data: &mut MaterialInstanceData = &mut self
+                    .get_material_instance_data(&material_instance_name)
+                    .borrow_mut();
                 *exists_material_instance_data = material_instance_data;
             } else {
-                self._material_instance_data_map.insert(material_instance_name.clone(), newRcRefCell(material_instance_data));
+                self._material_instance_data_map.insert(
+                    material_instance_name.clone(),
+                    newRcRefCell(material_instance_data),
+                );
             }
         }
     }
 
     pub fn unload_material_instance_data_list(&mut self, is_reload: bool) {
         for material_instance_data in self._material_instance_data_map.values() {
-            (*material_instance_data).borrow().destroy_material_instance();
+            (*material_instance_data)
+                .borrow()
+                .destroy_material_instance();
         }
 
         if false == is_reload {
@@ -1561,7 +1903,10 @@ impl EngineResources {
         self._material_instance_data_map.contains_key(resource_name)
     }
 
-    pub fn get_material_instance_data(&self, resource_name: &str) -> &RcRefCell<MaterialInstanceData> {
+    pub fn get_material_instance_data(
+        &self,
+        resource_name: &str,
+    ) -> &RcRefCell<MaterialInstanceData> {
         get_resource_data_must(&self._material_instance_data_map, resource_name)
     }
 
@@ -1570,26 +1915,30 @@ impl EngineResources {
         &mut self,
         renderer_context: &RendererContext,
         render_pass_name: &String,
-        pipeline_data_create_info: &PipelineDataCreateInfo
+        pipeline_data_create_info: &PipelineDataCreateInfo,
     ) -> RcRefCell<DescriptorData> {
-        let descriptor_name: String = format!("{}{}", render_pass_name, pipeline_data_create_info._pipeline_data_create_info_name);
+        let descriptor_name: String = format!(
+            "{}{}",
+            render_pass_name, pipeline_data_create_info._pipeline_data_create_info_name
+        );
         let descriptor_data_create_infos = &pipeline_data_create_info._descriptor_data_create_infos;
         // TODO: Let's set an appropriate max_descriptor_pool_count according to the render pass
-        let max_descriptor_pool_count: u32 = unsafe { (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32 };
+        let max_descriptor_pool_count: u32 = unsafe {
+            (constants::MAX_DESCRIPTOR_POOL_ALLOC_COUNT * constants::SWAPCHAIN_IMAGE_COUNT) as u32
+        };
         let maybe_descriptor_data = self._descriptor_data_map.get(&descriptor_name);
         match maybe_descriptor_data {
             Some(descriptor_data) => descriptor_data.clone(),
             None => {
-                let descriptor_data = newRcRefCell(
-                    descriptor::create_descriptor_data(
-                        renderer_context.get_device(),
-                        renderer_context.get_debug_utils(),
-                        descriptor_name.as_str(),
-                        descriptor_data_create_infos,
-                        max_descriptor_pool_count
-                    )
-                );
-                self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
+                let descriptor_data = newRcRefCell(descriptor::create_descriptor_data(
+                    renderer_context.get_device(),
+                    renderer_context.get_debug_utils(),
+                    descriptor_name.as_str(),
+                    descriptor_data_create_infos,
+                    max_descriptor_pool_count,
+                ));
+                self._descriptor_data_map
+                    .insert(descriptor_name, descriptor_data.clone());
                 descriptor_data
             }
         }
@@ -1597,7 +1946,10 @@ impl EngineResources {
 
     pub fn unload_descriptor_data_list(&mut self, renderer_context: &RendererContext) {
         for descriptor_data in self._descriptor_data_map.values() {
-            descriptor::destroy_descriptor_data(renderer_context.get_device(), &(*descriptor_data).borrow());
+            descriptor::destroy_descriptor_data(
+                renderer_context.get_device(),
+                &(*descriptor_data).borrow(),
+            );
         }
         self._descriptor_data_map.clear();
     }
@@ -1608,10 +1960,18 @@ impl EngineResources {
         let scene_directory = PathBuf::from(SCENE_DIRECTORY);
         let scene_data_files: Vec<PathBuf> = self.collect_resources(&scene_directory, &[EXT_SCENE]);
         for scene_data_file in scene_data_files {
-            let scene_data_name = get_unique_resource_name(&self._scene_data_create_infos_map, &scene_directory, &scene_data_file);
+            let scene_data_name = get_unique_resource_name(
+                &self._scene_data_create_infos_map,
+                &scene_directory,
+                &scene_data_file,
+            );
             let loaded_contents = system::load(&scene_data_file);
-            let scene_data_create_info: SceneDataCreateInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            self._scene_data_create_infos_map.insert(scene_data_name.clone(), newRcRefCell(scene_data_create_info));
+            let scene_data_create_info: SceneDataCreateInfo =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            self._scene_data_create_infos_map.insert(
+                scene_data_name.clone(),
+                newRcRefCell(scene_data_create_info),
+            );
         }
     }
 
@@ -1619,24 +1979,38 @@ impl EngineResources {
         self._scene_data_create_infos_map.clear();
     }
 
-    pub fn save_scene_data(&mut self, scene_data_name: &str, scene_data_create_info: &SceneDataCreateInfo) {
+    pub fn save_scene_data(
+        &mut self,
+        scene_data_name: &str,
+        scene_data_create_info: &SceneDataCreateInfo,
+    ) {
         let mut scene_data_filepath = PathBuf::from(PROJECT_RESOURCE_PATH);
         scene_data_filepath.push(SCENE_DIRECTORY);
         scene_data_filepath.push(scene_data_name);
         scene_data_filepath.set_extension(EXT_SCENE);
         let mut write_file = File::create(&scene_data_filepath).expect("Failed to create file");
-        let mut write_contents: String = serde_json::to_string(&scene_data_create_info).expect("Failed to serialize.");
+        let mut write_contents: String =
+            serde_json::to_string(&scene_data_create_info).expect("Failed to serialize.");
         write_contents = write_contents.replace(",\"", ",\n\"");
-        write_file.write(write_contents.as_bytes()).expect("Failed to write");
+        write_file
+            .write(write_contents.as_bytes())
+            .expect("Failed to write");
 
-        self._scene_data_create_infos_map.insert(String::from(scene_data_name), newRcRefCell(scene_data_create_info.clone()));
+        self._scene_data_create_infos_map.insert(
+            String::from(scene_data_name),
+            newRcRefCell(scene_data_create_info.clone()),
+        );
     }
 
     pub fn has_scene_data(&self, resource_name: &str) -> bool {
-        self._scene_data_create_infos_map.get(resource_name).is_some()
+        self._scene_data_create_infos_map
+            .get(resource_name)
+            .is_some()
     }
 
     pub fn get_scene_data(&self, resource_name: &str) -> &RcRefCell<SceneDataCreateInfo> {
-        self._scene_data_create_infos_map.get(resource_name).unwrap()
+        self._scene_data_create_infos_map
+            .get(resource_name)
+            .unwrap()
     }
 }

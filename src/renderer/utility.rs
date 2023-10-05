@@ -1,23 +1,22 @@
-use ash::{ vk, Device };
 use ash::extensions::ext::DebugUtils;
 use ash::vk::BaseOutStructure;
+use ash::{vk, Device};
 
 use crate::constants;
-use crate::renderer::material_instance::{ PipelineBindingData };
-use crate::vulkan_context::descriptor::{
-    self,
-    DescriptorResourceInfo,
-};
-use crate::vulkan_context::framebuffer::{ self, FramebufferData, RenderTargetInfo };
+use crate::scene::material_instance::PipelineBindingData;
+use crate::vulkan_context::descriptor::{self, DescriptorResourceInfo};
+use crate::vulkan_context::framebuffer::{self, FramebufferData, RenderTargetInfo};
+use crate::vulkan_context::render_pass::RenderPassData;
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
-use crate::vulkan_context::render_pass::RenderPassData;
 
 pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
     vec![a; constants::SWAPCHAIN_IMAGE_COUNT]
 }
 
-pub fn create_descriptor_image_info_swapchain_array(image_info: vk::DescriptorImageInfo) -> SwapchainArray<DescriptorResourceInfo> {
+pub fn create_descriptor_image_info_swapchain_array(
+    image_info: vk::DescriptorImageInfo,
+) -> SwapchainArray<DescriptorResourceInfo> {
     vec![DescriptorResourceInfo::DescriptorImageInfo(image_info); constants::SWAPCHAIN_IMAGE_COUNT]
 }
 
@@ -34,7 +33,11 @@ pub fn create_framebuffer(
         device,
         debug_utils,
         render_pass_data._render_pass,
-        format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
+        format!(
+            "{}_{}",
+            render_pass_data._render_pass_data_name, render_target._texture_data_name
+        )
+        .as_str(),
         framebuffer::create_framebuffer_data_create_info(
             &[RenderTargetInfo {
                 _texture_data: render_target,
@@ -43,7 +46,7 @@ pub fn create_framebuffer(
                 _clear_value: clear_value,
             }],
             &[],
-            &[]
+            &[],
         ),
     )
 }
@@ -61,8 +64,16 @@ pub fn create_framebuffers(
         device,
         debug_utils,
         render_pass_data._render_pass,
-        format!("{}_{}", render_pass_data._render_pass_data_name, framebuffer_name).as_str(),
-        framebuffer::create_framebuffer_data_create_info(color_render_targets, depth_render_targets, resolve_render_targets),
+        format!(
+            "{}_{}",
+            render_pass_data._render_pass_data_name, framebuffer_name
+        )
+        .as_str(),
+        framebuffer::create_framebuffer_data_create_info(
+            color_render_targets,
+            depth_render_targets,
+            resolve_render_targets,
+        ),
     )
 }
 
@@ -74,25 +85,25 @@ pub fn create_framebuffer_2d_array(
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
 ) -> FramebufferData {
-    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers).map(|layer|
-        RenderTargetInfo {
+    let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers)
+        .map(|layer| RenderTargetInfo {
             _texture_data: render_target,
             _target_layer: layer,
             _target_mip_level: render_target_miplevel,
             _clear_value: clear_value,
-        }
-    ).collect();
+        })
+        .collect();
 
     framebuffer::create_framebuffer_data(
         device,
         debug_utils,
         render_pass_data._render_pass,
-        format!("{}_{}", render_pass_data._render_pass_data_name, render_target._texture_data_name).as_str(),
-        framebuffer::create_framebuffer_data_create_info(
-            &render_target_infos,
-            &[],
-            &[]
-        ),
+        format!(
+            "{}_{}",
+            render_pass_data._render_pass_data_name, render_target._texture_data_name
+        )
+        .as_str(),
+        framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[]),
     )
 }
 
@@ -100,31 +111,42 @@ pub fn create_descriptor_sets(
     device: &Device,
     debug_utils: &DebugUtils,
     pipeline_binding_data: &PipelineBindingData,
-    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)]
+    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
 ) -> SwapchainArray<vk::DescriptorSet> {
     let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
     let descriptor_data = &pipeline_data._descriptor_data;
-    let descriptor_binding_indices: Vec<u32> = descriptor_data._descriptor_data_create_infos.iter().map(|descriptor_data_create_info| {
-        descriptor_data_create_info._descriptor_binding_index
-    }).collect();
-    let mut new_descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+    let descriptor_binding_indices: Vec<u32> = descriptor_data
+        ._descriptor_data_create_infos
+        .iter()
+        .map(|descriptor_data_create_info| descriptor_data_create_info._descriptor_binding_index)
+        .collect();
+    let mut new_descriptor_resource_infos_list = pipeline_binding_data
+        ._descriptor_resource_infos_list
+        .clone();
     for (descriptor_binding_index, descriptor_resource_infos) in descriptor_resource_infos_list {
         for (index, binding_index) in descriptor_binding_indices.iter().enumerate() {
             if (*binding_index) as usize == (*descriptor_binding_index) {
                 for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                    new_descriptor_resource_infos_list[*swapchain_index][index] = descriptor_resource_infos[*swapchain_index].clone();
+                    new_descriptor_resource_infos_list[*swapchain_index][index] =
+                        descriptor_resource_infos[*swapchain_index].clone();
                 }
             }
         }
     }
-    let descriptor_sets = descriptor::create_descriptor_sets(device, debug_utils, pipeline_data._pipeline_data_name.as_str(), descriptor_data);
-    let _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> = descriptor::create_write_descriptor_sets_with_update(
+    let descriptor_sets = descriptor::create_descriptor_sets(
         device,
-        &descriptor_sets,
-        &descriptor_binding_indices,
-        &descriptor_data._descriptor_set_layout_bindings,
-        &new_descriptor_resource_infos_list,
+        debug_utils,
+        pipeline_data._pipeline_data_name.as_str(),
+        descriptor_data,
     );
+    let _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> =
+        descriptor::create_write_descriptor_sets_with_update(
+            device,
+            &descriptor_sets,
+            &descriptor_binding_indices,
+            &descriptor_data._descriptor_set_layout_bindings,
+            &new_descriptor_resource_infos_list,
+        );
     descriptor_sets
 }
 
@@ -145,13 +167,13 @@ pub fn create_framebuffer_and_descriptor_sets(
         render_target,
         render_target_layer,
         render_target_miplevel,
-        clear_value
+        clear_value,
     );
     let descriptor_sets = create_descriptor_sets(
         device,
         debug_utils,
         pipeline_binding_data,
-        descriptor_resource_infos_list
+        descriptor_resource_infos_list,
     );
     (framebuffer_data, descriptor_sets)
 }
@@ -179,7 +201,7 @@ pub fn create_framebuffers_and_descriptor_sets(
         device,
         debug_utils,
         pipeline_binding_data,
-        descriptor_resource_infos_list
+        descriptor_resource_infos_list,
     );
     (framebuffer_data, descriptor_sets)
 }
@@ -187,7 +209,7 @@ pub fn create_framebuffers_and_descriptor_sets(
 pub fn find_exactly_matching_memory_type_index(
     memory_requirements: &vk::MemoryRequirements,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    flags: vk::MemoryPropertyFlags
+    flags: vk::MemoryPropertyFlags,
 ) -> Option<u32> {
     let memory_type_bits = memory_requirements.memory_type_bits;
 
@@ -206,7 +228,7 @@ pub fn find_exactly_matching_memory_type_index(
 pub fn find_memory_type_index(
     memory_requirements: &vk::MemoryRequirements,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    flags: vk::MemoryPropertyFlags
+    flags: vk::MemoryPropertyFlags,
 ) -> Option<u32> {
     let memory_type_bits = memory_requirements.memory_type_bits;
     for (index, ref memory_type) in memory_properties.memory_types.iter().enumerate() {

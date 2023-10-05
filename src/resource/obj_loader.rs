@@ -1,23 +1,15 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 use std::io::Read;
+use std::path::PathBuf;
 
-use nalgebra::{
-    self,
-    Vector2,
-    Vector3
-};
+use nalgebra::{self, Vector2, Vector3};
 
 use crate::constants;
-use crate::renderer::mesh::{ MeshDataCreateInfo };
-use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::geometry_buffer::{
-    self,
-    GeometryCreateInfo,
-    VertexData,
-};
+use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system;
+use crate::vulkan_context::geometry_buffer::{self, GeometryCreateInfo, VertexData};
+use crate::vulkan_context::vulkan_context;
 
 type Point3 = [u32; 3];
 
@@ -33,7 +25,7 @@ pub struct WaveFrontOBJ {
     pub positions: Vec<Vector3<f32>>,
     pub normals: Vec<Vector3<f32>>,
     pub texcoords: Vec<Vector2<f32>>,
-    pub filename: PathBuf
+    pub filename: PathBuf,
 }
 
 impl WaveFrontOBJ {
@@ -53,7 +45,9 @@ impl WaveFrontOBJ {
         let mut pre_fix: &str = "";
         let mut load_contents = system::load(filename);
         let mut contents: String = String::new();
-        load_contents.read_to_string(&mut contents).expect("failed to parse");
+        load_contents
+            .read_to_string(&mut contents)
+            .expect("failed to parse");
         let lines = contents.lines();
         for content in lines {
             // is comment?
@@ -61,7 +55,11 @@ impl WaveFrontOBJ {
                 continue;
             }
 
-            let values: Vec<&str> = content.split(" ").into_iter().filter(|x| { false == x.is_empty() }).collect();
+            let values: Vec<&str> = content
+                .split(" ")
+                .into_iter()
+                .filter(|x| false == x.is_empty())
+                .collect();
             if values.len() < 2 {
                 continue;
             }
@@ -111,7 +109,11 @@ impl WaveFrontOBJ {
                 let texcoord_y = values[1].parse::<f32>().unwrap();
                 self.texcoords.push(Vector2::new(
                     values[0].parse::<f32>().unwrap(),
-                    if invert_texcoord_y { 1.0 - texcoord_y } else { texcoord_y },
+                    if invert_texcoord_y {
+                        1.0 - texcoord_y
+                    } else {
+                        texcoord_y
+                    },
                 ));
             } else if "usemtl" == pre_fix || "usemat" == pre_fix {
                 // material name
@@ -130,7 +132,13 @@ impl WaveFrontOBJ {
                     let indices: Vec<u32> = indices
                         .split("/")
                         .into_iter()
-                        .map(|x| if x.is_empty() { 0 } else { x.trim().parse::<u32>().unwrap() - 1 })
+                        .map(|x| {
+                            if x.is_empty() {
+                                0
+                            } else {
+                                x.trim().parse::<u32>().unwrap() - 1
+                            }
+                        })
                         .collect();
                     // insert vertex, texcoord, normal index
                     let len_index = indices.len();
@@ -192,8 +200,8 @@ impl WaveFrontOBJ {
             let mut indices: Vec<u32> = Vec::new();
             let mut index_map: HashMap<(u32, u32, u32), u32> = HashMap::new();
 
-            let mut bound_min: Vector3<f32> = Vector3::new(std::f32::MAX, std::f32::MAX, std::f32::MAX);
-            let mut bound_max: Vector3<f32> = Vector3::new(std::f32::MIN, std::f32::MIN, std::f32::MIN);
+            let mut bound_min: Vector3<f32> = Vector3::new(f32::MAX, f32::MAX, f32::MAX);
+            let mut bound_max: Vector3<f32> = Vector3::new(f32::MIN, f32::MIN, f32::MIN);
             for mesh_indices in mesh.indices.iter() {
                 // exclude material
                 let (postion_indices, normal_indices, texcoord_indices) = mesh_indices;
@@ -205,9 +213,14 @@ impl WaveFrontOBJ {
                             let index: u32 = index_map.len() as u32;
                             indices.push(index);
                             index_map.insert(index_key, index);
-                            positions.push(self.positions[postion_indices[i] as usize].clone() as Vector3<f32>);
-                            normals.push(self.normals[normal_indices[i] as usize].clone() as Vector3<f32>);
-                            texcoords.push(self.texcoords[texcoord_indices[i] as usize].clone() as Vector2<f32>);
+                            positions
+                                .push(self.positions[postion_indices[i] as usize].clone()
+                                    as Vector3<f32>);
+                            normals
+                                .push(self.normals[normal_indices[i] as usize].clone()
+                                    as Vector3<f32>);
+                            texcoords.push(self.texcoords[texcoord_indices[i] as usize].clone()
+                                as Vector2<f32>);
                             // bounding box
                             let position: &Vector3<f32> = positions.last().unwrap();
                             for j in 0..3 {
@@ -224,7 +237,11 @@ impl WaveFrontOBJ {
             }
 
             if 0 == positions.len() {
-                log::error!("%s has a empty mesh. {} {}", self.filename.to_str().unwrap(), mesh.name);
+                log::error!(
+                    "%s has a empty mesh. {} {}",
+                    self.filename.to_str().unwrap(),
+                    mesh.name
+                );
                 continue;
             }
 
@@ -241,20 +258,20 @@ impl WaveFrontOBJ {
                 }
             }
 
-            let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
+            let tangents =
+                geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
             let vertex_data_list: Vec<VertexData> = positions
                 .iter()
                 .enumerate()
-                .map(|(index, position)| {
-                    VertexData {
-                        _position: position.clone() as Vector3<f32>,
-                        _normal: normals[index].clone() as Vector3<f32>,
-                        _tangent: tangents[index].clone() as Vector3<f32>,
-                        _color: vertex_color,
-                        _texcoord: texcoords[index].clone() as Vector2<f32>,
-                    }
-                }).collect();
+                .map(|(index, position)| VertexData {
+                    _position: position.clone() as Vector3<f32>,
+                    _normal: normals[index].clone() as Vector3<f32>,
+                    _tangent: tangents[index].clone() as Vector3<f32>,
+                    _color: vertex_color,
+                    _texcoord: texcoords[index].clone() as Vector2<f32>,
+                })
+                .collect();
 
             geometry_data_list.push(GeometryCreateInfo {
                 _vertex_data_list: vertex_data_list,
@@ -264,7 +281,7 @@ impl WaveFrontOBJ {
                     _max: bound_max,
                     _center: &bound_max * 0.5 + &bound_min * 0.5,
                     _size: &bound_max - &bound_min,
-                    _radius: (&bound_max * 0.5 - &bound_min * 0.5).norm()
+                    _radius: (&bound_max * 0.5 - &bound_min * 0.5).norm(),
                 },
                 ..Default::default()
             });

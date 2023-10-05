@@ -1,5 +1,5 @@
-use crate::renderer::render_object::RenderObjectData;
-use crate::renderer::material_instance::MaterialInstanceData;
+use crate::scene::render_object::RenderObjectData;
+use crate::scene::material_instance::MaterialInstanceData;
 use crate::vulkan_context::geometry_buffer::GeometryData;
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 use crate::utilities::system::RcRefCell;

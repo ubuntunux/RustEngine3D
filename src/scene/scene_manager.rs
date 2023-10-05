@@ -9,13 +9,13 @@ use crate::application::application::EngineApplication;
 use crate::constants::MAX_TRANSFORM_COUNT;
 use crate::effect::effect_manager::EffectManager;
 use crate::effect::effect_data::{ EffectCreateInfo, EffectInstance };
+use crate::scene::camera::{ CameraCreateInfo, CameraObjectData};
+use crate::scene::light::{ DirectionalLightCreateInfo, DirectionalLightData, LightConstants };
+use crate::scene::render_element::{ RenderElementData };
+use crate::scene::render_object::{ RenderObjectCreateInfo, RenderObjectData };
 use crate::renderer::renderer_context::RendererContext;
-use crate::renderer::camera::{ CameraCreateInfo, CameraObjectData};
-use crate::renderer::light::{ DirectionalLightCreateInfo, DirectionalLightData, LightConstants };
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_data::{RendererData, RenderObjectType};
-use crate::renderer::render_element::{ RenderElementData };
-use crate::renderer::render_object::{ RenderObjectCreateInfo, RenderObjectData };
 use crate::resource::resource::{EngineResources};
 use crate::utilities::system::{self, RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
 use crate::utilities::bounding_box::BoundingBox;
@@ -103,12 +103,12 @@ impl SceneManager {
             ..Default::default()
         };
         let light_probe_cameras = vec![
-            system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera0"), &light_probe_camera_create_info)),
-            system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera1"), &light_probe_camera_create_info)),
-            system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera2"), &light_probe_camera_create_info)),
-            system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera3"), &light_probe_camera_create_info)),
-            system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera4"), &light_probe_camera_create_info)),
-            system::newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera5"), &light_probe_camera_create_info))
+            newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera0"), &light_probe_camera_create_info)),
+            newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera1"), &light_probe_camera_create_info)),
+            newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera2"), &light_probe_camera_create_info)),
+            newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera3"), &light_probe_camera_create_info)),
+            newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera4"), &light_probe_camera_create_info)),
+            newRcRefCell(CameraObjectData::create_camera_object_data(&String::from("light_probe_camera5"), &light_probe_camera_create_info))
         ];
         let default_light = DirectionalLightData::create_light_data(&String::from("default_light"), &DirectionalLightCreateInfo::default());
         let capture_height_map = unsafe {
@@ -135,8 +135,8 @@ impl SceneManager {
             _scene_name: String::new(),
             _sea_height: 0.0,
             _main_camera: Rc::new(default_camera),
-            _main_light: system::newRcRefCell(default_light),
-            _capture_height_map: system::newRcRefCell(capture_height_map),
+            _main_light: newRcRefCell(default_light),
+            _capture_height_map: newRcRefCell(capture_height_map),
             _light_probe_cameras: light_probe_cameras,
             _camera_object_map: HashMap::new(),
             _directional_light_object_map: HashMap::new(),

@@ -105,7 +105,7 @@ impl Default for FFTOcean {
         let simulation_scale = 1.0;
         FFTOcean {
             _name: String::from("ocean"),
-            _height: std::f32::MIN,
+            _height: f32::MIN,
             _wind: WIND,
             _omega: OMEGA,
             _amplitude: AMPLITUDE,
@@ -155,13 +155,13 @@ fn frandom(seed_data: i32) -> f64 {
 fn bit_reverse(i: i32, n: i32) -> i32 {
     let mut sum: i32 = 0;
     let mut w: i32 = 1;
-    let mut m: i32 = (n / 2) as i32;
+    let mut m: i32 = (n / 2);
     while 0 != m {
         if (i & m) > (m - 1) {
             sum += w;
         }
         w *= 2;
-        m = (m / 2) as i32;
+        m = (m / 2);
     }
     sum
 }
@@ -247,8 +247,8 @@ impl FFTOcean {
         }
 
         self._total_slope_variance = 0.0;
-        for y in 0..FFT_SIZE as i32 {
-            for x in 0..FFT_SIZE as i32 {
+        for y in 0..FFT_SIZE {
+            for x in 0..FFT_SIZE {
                 let offset = 4 * (x + y * FFT_SIZE) as usize;
                 let i: f32 = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= x { x - FFT_SIZE } else { x }) as f32;
                 let j: f32 = 2.0 * std::f32::consts::PI * (if (FFT_SIZE / 2) <= y { y - FFT_SIZE } else { y }) as f32;
@@ -446,8 +446,8 @@ impl FFTOcean {
                     if i == 0 {
                         i1 = j * inputs * 2 + k;
                         i2 = j * inputs * 2 + inputs + k;
-                        j1 = bit_reverse(i1 as i32, FFT_SIZE as i32);
-                        j2 = bit_reverse(i2 as i32, FFT_SIZE as i32);
+                        j1 = bit_reverse(i1, FFT_SIZE);
+                        j2 = bit_reverse(i2, FFT_SIZE);
                     } else {
                         i1 = j * inputs * 2 + k;
                         i2 = j * inputs * 2 + inputs + k;
@@ -455,7 +455,7 @@ impl FFTOcean {
                         j2 = i2;
                     }
 
-                    let (wr, wi) = compute_weight(FFT_SIZE as i32, (k * blocks) as f64);
+                    let (wr, wi) = compute_weight(FFT_SIZE, (k * blocks) as f64);
 
                     let offset1 = 4 * (i1 as usize + (i * FFT_SIZE) as usize);
                     butterfly_data[offset1 + 0] = ((j1 as f64 + 0.5) / FFT_SIZE as f64) as f32;

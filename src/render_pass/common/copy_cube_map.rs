@@ -1,20 +1,15 @@
 use std::path::PathBuf;
 
-use ash::vk;
 use crate::utilities::system::enum_to_string;
+use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
 use crate::vulkan_context::render_pass::{
-    RenderPassDataCreateInfo,
-    PipelineDataCreateInfo,
-    PipelinePushConstantData
+    PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo,
 };
-use crate::vulkan_context::descriptor::{
-    DescriptorDataCreateInfo,
-    DescriptorResourceType,
-};
+use ash::vk;
 
 use crate::renderer::push_constants::PushConstant_BlendCubeMap;
-use crate::renderer::renderer_data::RendererData;
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer_data::RendererData;
 
 pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("copy_cube_map");
@@ -54,18 +49,66 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_compute_shader_file: PathBuf::from("common/copy_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
             _descriptor_data_create_infos: vec![
-                DescriptorDataCreateInfo { _descriptor_binding_index: 0, _descriptor_image_layer: 0, ..input.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 1, _descriptor_image_layer: 1, ..input.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 2, _descriptor_image_layer: 2, ..input.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 3, _descriptor_image_layer: 3, ..input.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 4, _descriptor_image_layer: 4, ..input.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 5, _descriptor_image_layer: 5, ..input.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 6, _descriptor_image_layer: 0, ..output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 7, _descriptor_image_layer: 1, ..output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 8, _descriptor_image_layer: 2, ..output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 9, _descriptor_image_layer: 3, ..output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 10, _descriptor_image_layer: 4, ..output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 11, _descriptor_image_layer: 5, ..output.clone() },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 0,
+                    _descriptor_image_layer: 0,
+                    ..input.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_image_layer: 1,
+                    ..input.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 2,
+                    _descriptor_image_layer: 2,
+                    ..input.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 3,
+                    _descriptor_image_layer: 3,
+                    ..input.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 4,
+                    _descriptor_image_layer: 4,
+                    ..input.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 5,
+                    _descriptor_image_layer: 5,
+                    ..input.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 6,
+                    _descriptor_image_layer: 0,
+                    ..output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 7,
+                    _descriptor_image_layer: 1,
+                    ..output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 8,
+                    _descriptor_image_layer: 2,
+                    ..output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 9,
+                    _descriptor_image_layer: 3,
+                    ..output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 10,
+                    _descriptor_image_layer: 4,
+                    ..output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 11,
+                    _descriptor_image_layer: 5,
+                    ..output.clone()
+                },
             ],
             ..Default::default()
         },
@@ -73,35 +116,105 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
             _pipeline_data_create_info_name: String::from("blend"),
             _pipeline_compute_shader_file: PathBuf::from("common/blend_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _push_constant_data_list: vec![
-                PipelinePushConstantData {
-                    _stage_flags: vk::ShaderStageFlags::ALL,
-                    _offset: 0,
-                    _push_constant: Box::new(PushConstant_BlendCubeMap::default())
-                }
-            ],
+            _push_constant_data_list: vec![PipelinePushConstantData {
+                _stage_flags: vk::ShaderStageFlags::ALL,
+                _offset: 0,
+                _push_constant: Box::new(PushConstant_BlendCubeMap::default()),
+            }],
             _descriptor_data_create_infos: vec![
-                DescriptorDataCreateInfo { _descriptor_binding_index: 0, _descriptor_image_layer: 0, ..blend_input_0.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 1, _descriptor_image_layer: 1, ..blend_input_0.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 2, _descriptor_image_layer: 2, ..blend_input_0.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 3, _descriptor_image_layer: 3, ..blend_input_0.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 4, _descriptor_image_layer: 4, ..blend_input_0.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 5, _descriptor_image_layer: 5, ..blend_input_0.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 6, _descriptor_image_layer: 0, ..blend_input_1.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 7, _descriptor_image_layer: 1, ..blend_input_1.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 8, _descriptor_image_layer: 2, ..blend_input_1.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 9, _descriptor_image_layer: 3, ..blend_input_1.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 10, _descriptor_image_layer: 4, ..blend_input_1.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 11, _descriptor_image_layer: 5, ..blend_input_1.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 12, _descriptor_image_layer: 0, ..blend_output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 13, _descriptor_image_layer: 1, ..blend_output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 14, _descriptor_image_layer: 2, ..blend_output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 15, _descriptor_image_layer: 3, ..blend_output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 16, _descriptor_image_layer: 4, ..blend_output.clone() },
-                DescriptorDataCreateInfo { _descriptor_binding_index: 17, _descriptor_image_layer: 5, ..blend_output.clone() },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 0,
+                    _descriptor_image_layer: 0,
+                    ..blend_input_0.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 1,
+                    _descriptor_image_layer: 1,
+                    ..blend_input_0.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 2,
+                    _descriptor_image_layer: 2,
+                    ..blend_input_0.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 3,
+                    _descriptor_image_layer: 3,
+                    ..blend_input_0.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 4,
+                    _descriptor_image_layer: 4,
+                    ..blend_input_0.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 5,
+                    _descriptor_image_layer: 5,
+                    ..blend_input_0.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 6,
+                    _descriptor_image_layer: 0,
+                    ..blend_input_1.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 7,
+                    _descriptor_image_layer: 1,
+                    ..blend_input_1.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 8,
+                    _descriptor_image_layer: 2,
+                    ..blend_input_1.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 9,
+                    _descriptor_image_layer: 3,
+                    ..blend_input_1.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 10,
+                    _descriptor_image_layer: 4,
+                    ..blend_input_1.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 11,
+                    _descriptor_image_layer: 5,
+                    ..blend_input_1.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 12,
+                    _descriptor_image_layer: 0,
+                    ..blend_output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 13,
+                    _descriptor_image_layer: 1,
+                    ..blend_output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 14,
+                    _descriptor_image_layer: 2,
+                    ..blend_output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 15,
+                    _descriptor_image_layer: 3,
+                    ..blend_output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 16,
+                    _descriptor_image_layer: 4,
+                    ..blend_output.clone()
+                },
+                DescriptorDataCreateInfo {
+                    _descriptor_binding_index: 17,
+                    _descriptor_image_layer: 5,
+                    ..blend_output.clone()
+                },
             ],
             ..Default::default()
-        }
+        },
     ];
 
     RenderPassDataCreateInfo {

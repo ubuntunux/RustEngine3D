@@ -1,13 +1,13 @@
 use std::cmp::max;
 
-use ash::{vk, Device};
-use ash::vk::Handle;
 use ash::extensions::ext::DebugUtils;
+use ash::vk::Handle;
+use ash::{vk, Device};
 
 use crate::constants;
 use crate::vulkan_context::debug_utils;
-use crate::vulkan_context::vulkan_context::{self, SwapchainArray};
 use crate::vulkan_context::texture::TextureData;
+use crate::vulkan_context::vulkan_context::{self, SwapchainArray};
 
 #[derive(Clone)]
 pub struct FramebufferDataCreateInfo {
@@ -37,7 +37,7 @@ impl Default for FramebufferDataCreateInfo {
             _framebuffer_depth_attachment_formats: Vec::<vk::Format>::new(),
             _framebuffer_resolve_attachment_formats: Vec::<vk::Format>::new(),
             _framebuffer_image_views: SwapchainArray::<Vec<vk::ImageView>>::new(),
-            _framebuffer_clear_values: Vec::<vk::ClearValue>::new()
+            _framebuffer_clear_values: Vec::<vk::ClearValue>::new(),
         }
     }
 }
@@ -69,25 +69,28 @@ pub fn create_framebuffer_data_create_info(
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
 ) -> FramebufferDataCreateInfo {
-    let (mut width, mut height, mut _layers, sample_count, target_layer, target_mip_level) = if false == color_render_targets.is_empty() {
-        ( color_render_targets[0]._texture_data._image_width,
-          color_render_targets[0]._texture_data._image_height,
-          color_render_targets[0]._texture_data._image_layers,
-          color_render_targets[0]._texture_data._image_sample_count,
-          color_render_targets[0]._target_layer,
-          color_render_targets[0]._target_mip_level,
-        )
-    } else if false == depth_render_targets.is_empty() {
-        ( depth_render_targets[0]._texture_data._image_width,
-          depth_render_targets[0]._texture_data._image_height,
-          depth_render_targets[0]._texture_data._image_layers,
-          depth_render_targets[0]._texture_data._image_sample_count,
-          depth_render_targets[0]._target_layer,
-          depth_render_targets[0]._target_mip_level,
-        )
-    } else {
-        panic!("create_framebuffer_data error");
-    };
+    let (mut width, mut height, mut _layers, sample_count, target_layer, target_mip_level) =
+        if false == color_render_targets.is_empty() {
+            (
+                color_render_targets[0]._texture_data._image_width,
+                color_render_targets[0]._texture_data._image_height,
+                color_render_targets[0]._texture_data._image_layers,
+                color_render_targets[0]._texture_data._image_sample_count,
+                color_render_targets[0]._target_layer,
+                color_render_targets[0]._target_mip_level,
+            )
+        } else if false == depth_render_targets.is_empty() {
+            (
+                depth_render_targets[0]._texture_data._image_width,
+                depth_render_targets[0]._texture_data._image_height,
+                depth_render_targets[0]._texture_data._image_layers,
+                depth_render_targets[0]._texture_data._image_sample_count,
+                depth_render_targets[0]._target_layer,
+                depth_render_targets[0]._target_mip_level,
+            )
+        } else {
+            panic!("create_framebuffer_data error");
+        };
 
     if constants::WHOLE_MIP_LEVELS != target_mip_level {
         width = max(1, width >> target_mip_level);
@@ -106,21 +109,33 @@ pub fn create_framebuffer_data_create_info(
     let mut resolve_attachment_formats = Vec::new();
     let mut clear_values: Vec<vk::ClearValue> = Vec::new();
     for render_target in color_render_targets.iter() {
-        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._target_layer, render_target._target_mip_level));
+        rendertarget_views.push(
+            render_target
+                ._texture_data
+                .get_sub_image_view(render_target._target_layer, render_target._target_mip_level),
+        );
         color_attachment_formats.push(render_target._texture_data._image_format);
         if let Some(clear_value) = render_target._clear_value {
             clear_values.push(clear_value);
         }
     }
     for render_target in depth_render_targets.iter() {
-        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._target_layer, render_target._target_mip_level));
+        rendertarget_views.push(
+            render_target
+                ._texture_data
+                .get_sub_image_view(render_target._target_layer, render_target._target_mip_level),
+        );
         depth_attachment_formats.push(render_target._texture_data._image_format);
         if let Some(clear_value) = render_target._clear_value {
             clear_values.push(clear_value);
         }
     }
     for render_target in resolve_render_targets.iter() {
-        rendertarget_views.push(render_target._texture_data.get_sub_image_view(render_target._target_layer, render_target._target_mip_level));
+        rendertarget_views.push(
+            render_target
+                ._texture_data
+                .get_sub_image_view(render_target._target_layer, render_target._target_mip_level),
+        );
         resolve_attachment_formats.push(render_target._texture_data._image_format);
     }
 
@@ -139,19 +154,19 @@ pub fn create_framebuffer_data_create_info(
     }
 }
 
-
 pub fn create_framebuffer_data(
     device: &Device,
     debug_utils: &DebugUtils,
     render_pass: vk::RenderPass,
     framebuffer_name: &str,
-    framebuffer_data_create_info: FramebufferDataCreateInfo
+    framebuffer_data_create_info: FramebufferDataCreateInfo,
 ) -> FramebufferData {
     let layers = framebuffer_data_create_info._framebuffer_layers;
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {
         vk::FramebufferCreateInfo {
             render_pass,
-            attachment_count: framebuffer_data_create_info._framebuffer_image_views[index].len() as u32,
+            attachment_count: framebuffer_data_create_info._framebuffer_image_views[index].len()
+                as u32,
             p_attachments: framebuffer_data_create_info._framebuffer_image_views[index].as_ptr(),
             width: framebuffer_data_create_info._framebuffer_width,
             height: framebuffer_data_create_info._framebuffer_height,
@@ -164,41 +179,47 @@ pub fn create_framebuffer_data(
         let framebuffers: Vec<vk::Framebuffer> = constants::SWAPCHAIN_IMAGE_INDICES
             .iter()
             .map(|index| {
-                let framebuffer = device.create_framebuffer(&get_framebuffer_create_info(*index), None).expect("vkCreateFramebuffer failed!");
+                let framebuffer = device
+                    .create_framebuffer(&get_framebuffer_create_info(*index), None)
+                    .expect("vkCreateFramebuffer failed!");
                 debug_utils::set_object_debug_info(
                     device,
                     debug_utils,
                     framebuffer_name,
                     vk::ObjectType::FRAMEBUFFER,
-                    framebuffer.as_raw()
+                    framebuffer.as_raw(),
                 );
                 framebuffer
-            }).collect();
+            })
+            .collect();
 
         let render_pass_begin_infos: Vec<vk::RenderPassBeginInfo> = framebuffers
             .iter()
-            .map(|framebuffer| {
-                vk::RenderPassBeginInfo {
-                    render_pass,
-                    framebuffer: *framebuffer,
-                    render_area: vulkan_context::create_rect_2d(
-                        0,
-                        0,
-                        framebuffer_data_create_info._framebuffer_width,
-                        framebuffer_data_create_info._framebuffer_height
-                    ),
-                    clear_value_count: framebuffer_data_create_info._framebuffer_clear_values.len() as u32,
-                    p_clear_values: framebuffer_data_create_info._framebuffer_clear_values.as_ptr(),
-                    ..Default::default()
-                }
-            }).collect();
+            .map(|framebuffer| vk::RenderPassBeginInfo {
+                render_pass,
+                framebuffer: *framebuffer,
+                render_area: vulkan_context::create_rect_2d(
+                    0,
+                    0,
+                    framebuffer_data_create_info._framebuffer_width,
+                    framebuffer_data_create_info._framebuffer_height,
+                ),
+                clear_value_count: framebuffer_data_create_info._framebuffer_clear_values.len()
+                    as u32,
+                p_clear_values: framebuffer_data_create_info
+                    ._framebuffer_clear_values
+                    .as_ptr(),
+                ..Default::default()
+            })
+            .collect();
 
-        log::debug!("create_framebuffer_data: {:?} {} {} {} {:?}",
-                   framebuffer_name,
-                   framebuffer_data_create_info._framebuffer_width,
-                   framebuffer_data_create_info._framebuffer_height,
-                   framebuffer_data_create_info._framebuffer_layers,
-                   framebuffers
+        log::debug!(
+            "create_framebuffer_data: {:?} {} {} {} {:?}",
+            framebuffer_name,
+            framebuffer_data_create_info._framebuffer_width,
+            framebuffer_data_create_info._framebuffer_height,
+            framebuffer_data_create_info._framebuffer_layers,
+            framebuffers
         );
 
         FramebufferData {
@@ -211,7 +232,11 @@ pub fn create_framebuffer_data(
 }
 
 pub fn destroy_framebuffer_data(device: &Device, framebuffer_data: &FramebufferData) {
-    log::debug!("destroy_framebuffer_data: {:?} {:?}", framebuffer_data._framebuffer_name, framebuffer_data._framebuffers);
+    log::debug!(
+        "destroy_framebuffer_data: {:?} {:?}",
+        framebuffer_data._framebuffer_name,
+        framebuffer_data._framebuffers
+    );
     unsafe {
         for framebuffer in framebuffer_data._framebuffers.iter() {
             device.destroy_framebuffer(*framebuffer, None);

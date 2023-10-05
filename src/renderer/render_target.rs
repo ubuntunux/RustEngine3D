@@ -1,9 +1,9 @@
-use ash::vk;
 use crate::constants;
-use crate::renderer::fft_ocean;
-use crate::renderer::precomputed_atmosphere;
+use crate::scene::fft_ocean;
+use crate::scene::precomputed_atmosphere;
 use crate::renderer::renderer_context::RendererContext;
 use crate::vulkan_context::texture::TextureCreateInfo;
+use ash::vk;
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -101,23 +101,47 @@ impl std::str::FromStr for RenderTargetType {
             "FFT_B" => Ok(RenderTargetType::FFT_B),
             "FFT_SLOPE_VARIANCE" => Ok(RenderTargetType::FFT_SLOPE_VARIANCE),
             "PRECOMPUTED_ATMOSPHERE_COLOR" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
-            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED),
-            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV),
-            "PRECOMPUTED_ATMOSPHERE_INSCATTER" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER),
-            "PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE),
-            "PRECOMPUTED_ATMOSPHERE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING),
-            "PRECOMPUTED_ATMOSPHERE_IRRADIANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE),
-            "PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
-            "PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE),
-            "PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING),
-            "PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING),
-            "PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY),
+            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED)
+            }
+            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV)
+            }
+            "PRECOMPUTED_ATMOSPHERE_INSCATTER" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER)
+            }
+            "PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE)
+            }
+            "PRECOMPUTED_ATMOSPHERE_SCATTERING" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING)
+            }
+            "PRECOMPUTED_ATMOSPHERE_IRRADIANCE" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE)
+            }
+            "PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING)
+            }
+            "PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE)
+            }
+            "PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING)
+            }
+            "PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING)
+            }
+            "PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY" => {
+                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY)
+            }
             _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
         }
     }
 }
 
-pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec<TextureCreateInfo<u8>> {
+pub fn get_render_target_create_infos(
+    renderer_context: &RendererContext,
+) -> Vec<TextureCreateInfo<u8>> {
     let swapchain_data = &renderer_context._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
@@ -469,7 +493,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING.to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING
+                .to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
@@ -488,7 +513,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING.to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING
+                .to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
@@ -498,7 +524,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING.to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING
+                .to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
@@ -508,7 +535,8 @@ pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY.to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY
+                .to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,

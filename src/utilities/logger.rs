@@ -1,9 +1,9 @@
-use env_logger;
-#[cfg(not(target_os = "android"))]
-use std::io::Write;
 #[cfg(not(target_os = "android"))]
 use chrono::Local;
+use env_logger;
 use log::LevelFilter;
+#[cfg(not(target_os = "android"))]
+use std::io::Write;
 
 #[cfg(target_os = "android")]
 pub fn initialize_logger(log_level: LevelFilter) {
@@ -22,13 +22,14 @@ pub fn initialize_logger(log_level: LevelFilter) {
 pub fn initialize_logger(log_level: LevelFilter) {
     env_logger::Builder::new()
         .format(|buffer, record| {
-            writeln!(buffer,
-                     "{} [{}] {} ({} line:{})",
-                     Local::now().format("%Y-%m-%dT%H:%M:%S"),
-                     record.level(),
-                     record.args(),
-                     record.file().unwrap(),
-                     record.line().unwrap(),
+            writeln!(
+                buffer,
+                "{} [{}] {} ({} line:{})",
+                Local::now().format("%Y-%m-%dT%H:%M:%S"),
+                record.level(),
+                record.args(),
+                record.file().unwrap(),
+                record.line().unwrap(),
             )
         })
         .filter(None, log_level)

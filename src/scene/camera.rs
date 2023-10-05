@@ -9,7 +9,7 @@ use serde::{ Serialize, Deserialize };
 
 use crate::constants;
 use crate::utilities::math;
-use crate::renderer::transform_object::TransformObjectData;
+use crate::scene::transform_object::TransformObjectData;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]

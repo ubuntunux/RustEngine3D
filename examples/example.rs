@@ -4,19 +4,16 @@ use nalgebra::Vector2;
 use ash::vk;
 use winit::event::VirtualKeyCode;
 
-use rust_engine_3d::constants;
 use rust_engine_3d::application::application::{
-    self,
-    ProjectApplicationBase,
-    EngineApplication,
-    WindowMode
+    self, EngineApplication, ProjectApplicationBase, WindowMode,
 };
-use rust_engine_3d::application::audio_manager::AudioManager;
-use rust_engine_3d::application::scene_manager::SceneManager;
+use rust_engine_3d::audio::audio_manager::AudioManager;
+use rust_engine_3d::scene::scene_manager::SceneManager;
+use rust_engine_3d::constants;
 use rust_engine_3d::effect::effect_manager::EffectManager;
 use rust_engine_3d::renderer::renderer_data::RendererData;
-use rust_engine_3d::renderer::ui::ProjectUIManagerBase;
-use rust_engine_3d::utilities::system::{ptr_as_ref, ptr_as_mut};
+use rust_engine_3d::scene::ui::ProjectUIManagerBase;
+use rust_engine_3d::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 pub struct ProjectApplication {
     pub _engine_application: *const EngineApplication,
@@ -27,9 +24,7 @@ pub struct ProjectApplication {
     pub _project_scene_manager: Box<SceneManager>,
     pub _project_ui_manager: Box<ProjectUIManager>,
     pub _game_client: Box<GameClient>,
-    pub _is_game_mode: bool
+    pub _is_game_mode: bool,
 }
 
-fn main() {
-
-}
+fn main() {}

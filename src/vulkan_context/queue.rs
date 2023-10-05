@@ -1,13 +1,7 @@
 use std::collections::HashMap;
 
-use ash::{
-    vk,
-    Device,
-    Instance,
-};
-use ash::extensions::khr::{
-    Surface,
-};
+use ash::extensions::khr::Surface;
+use ash::{vk, Device, Instance};
 
 use crate::constants;
 
@@ -17,7 +11,7 @@ pub struct QueueFamilyIndices {
     pub _present_queue_index: u32,
     pub _compute_queue_index: u32,
     pub _transfer_queue_index: u32,
-    pub _sparse_binding_queue_index: u32
+    pub _sparse_binding_queue_index: u32,
 }
 
 #[derive(Debug, Clone)]
@@ -26,7 +20,7 @@ pub struct QueueFamilyDataList {
     pub _present_queue: vk::Queue,
     pub _queue_family_index_list: Vec<u32>,
     pub _queue_family_count: u32,
-    pub _queue_family_indices: QueueFamilyIndices
+    pub _queue_family_indices: QueueFamilyIndices,
 }
 
 fn select_queue_family(
@@ -34,7 +28,7 @@ fn select_queue_family(
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     queue_family_properties: &Vec<vk::QueueFamilyProperties>,
-    queue_flags: vk::QueueFlags
+    queue_flags: vk::QueueFlags,
 ) -> Vec<u32> {
     unsafe {
         queue_family_properties
@@ -61,7 +55,7 @@ fn select_presentation_queue_family(
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
-    queue_family_properties: &Vec<vk::QueueFamilyProperties>
+    queue_family_properties: &Vec<vk::QueueFamilyProperties>,
 ) -> Vec<u32> {
     unsafe {
         queue_family_properties
@@ -85,10 +79,11 @@ fn select_presentation_queue_family(
 
 pub fn get_queue_families(
     instance: &Instance,
-    physical_device: vk::PhysicalDevice
+    physical_device: vk::PhysicalDevice,
 ) -> Vec<vk::QueueFamilyProperties> {
     unsafe {
-        let queue_family_properties: Vec<vk::QueueFamilyProperties> = instance.get_physical_device_queue_family_properties(physical_device);
+        let queue_family_properties: Vec<vk::QueueFamilyProperties> =
+            instance.get_physical_device_queue_family_properties(physical_device);
         let family_count = queue_family_properties.len();
         assert!(0 < family_count, "Zero queue family count!");
         log::info!("Found {} queue families.", family_count);
@@ -101,27 +96,56 @@ pub fn get_queue_family_indices(
     surface_interface: &Surface,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
-    is_concurrent_mode: bool
+    is_concurrent_mode: bool,
 ) -> QueueFamilyIndices {
     let queue_families = get_queue_families(&instance, physical_device);
-    let presentation_queue_family_indices = select_presentation_queue_family(surface_interface, surface, physical_device, &queue_families);
-    let graphics_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::GRAPHICS);
-    let compute_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::COMPUTE);
-    let transfer_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::TRANSFER);
-    let sparse_binding_queue_family_indices = select_queue_family(surface_interface, surface, physical_device, &queue_families, vk::QueueFlags::SPARSE_BINDING);
+    let presentation_queue_family_indices = select_presentation_queue_family(
+        surface_interface,
+        surface,
+        physical_device,
+        &queue_families,
+    );
+    let graphics_queue_family_indices = select_queue_family(
+        surface_interface,
+        surface,
+        physical_device,
+        &queue_families,
+        vk::QueueFlags::GRAPHICS,
+    );
+    let compute_queue_family_indices = select_queue_family(
+        surface_interface,
+        surface,
+        physical_device,
+        &queue_families,
+        vk::QueueFlags::COMPUTE,
+    );
+    let transfer_queue_family_indices = select_queue_family(
+        surface_interface,
+        surface,
+        physical_device,
+        &queue_families,
+        vk::QueueFlags::TRANSFER,
+    );
+    let sparse_binding_queue_family_indices = select_queue_family(
+        surface_interface,
+        surface,
+        physical_device,
+        &queue_families,
+        vk::QueueFlags::SPARSE_BINDING,
+    );
     let default_index = graphics_queue_family_indices[0];
     let fn_get_queue_family_index = |indices: &Vec<u32>| -> u32 {
         if false == indices.is_empty() {
-            if is_concurrent_mode && indices.contains(&default_index) {
-                return default_index;
+            return if is_concurrent_mode && indices.contains(&default_index) {
+                default_index
             } else if false {
-                return *indices
+                *indices
                     .iter()
                     .filter(|&&x| x != default_index)
                     .next()
-                    .unwrap();
+                    .unwrap()
             } else {
-                return default_index;
+                default_index
             }
         }
         constants::INVALID_QUEUE_INDEX
@@ -132,19 +156,43 @@ pub fn get_queue_family_indices(
         _present_queue_index: fn_get_queue_family_index(&presentation_queue_family_indices),
         _compute_queue_index: fn_get_queue_family_index(&compute_queue_family_indices),
         _transfer_queue_index: fn_get_queue_family_index(&transfer_queue_family_indices),
-        _sparse_binding_queue_index: fn_get_queue_family_index(&sparse_binding_queue_family_indices)
+        _sparse_binding_queue_index: fn_get_queue_family_index(
+            &sparse_binding_queue_family_indices,
+        ),
     };
 
-    log::info!("Graphics Queue Index : {}", queue_family_indices._graphics_queue_index);
-    log::info!("Presentation Queue Index : {} / {:?}", queue_family_indices._present_queue_index, presentation_queue_family_indices);
-    log::info!("Computer Queue Index : {} / {:?}", queue_family_indices._compute_queue_index, compute_queue_family_indices);
-    log::info!("Transfer Queue Index : {} / {:?}", queue_family_indices._transfer_queue_index, transfer_queue_family_indices);
-    log::info!("Sparse Binding Queue Index : {} / {:?}", queue_family_indices._sparse_binding_queue_index, sparse_binding_queue_family_indices);
+    log::info!(
+        "Graphics Queue Index : {}",
+        queue_family_indices._graphics_queue_index
+    );
+    log::info!(
+        "Presentation Queue Index : {} / {:?}",
+        queue_family_indices._present_queue_index,
+        presentation_queue_family_indices
+    );
+    log::info!(
+        "Computer Queue Index : {} / {:?}",
+        queue_family_indices._compute_queue_index,
+        compute_queue_family_indices
+    );
+    log::info!(
+        "Transfer Queue Index : {} / {:?}",
+        queue_family_indices._transfer_queue_index,
+        transfer_queue_family_indices
+    );
+    log::info!(
+        "Sparse Binding Queue Index : {} / {:?}",
+        queue_family_indices._sparse_binding_queue_index,
+        sparse_binding_queue_family_indices
+    );
 
     queue_family_indices
 }
 
-pub fn create_queues(device: &Device, queue_family_index_set: &Vec<u32>) -> HashMap<u32, vk::Queue> {
+pub fn create_queues(
+    device: &Device,
+    queue_family_index_set: &Vec<u32>,
+) -> HashMap<u32, vk::Queue> {
     unsafe {
         let mut queue_map = HashMap::new();
         for queue_family_index in queue_family_index_set.iter() {

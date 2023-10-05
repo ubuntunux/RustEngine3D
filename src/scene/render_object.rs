@@ -4,10 +4,10 @@ use nalgebra::{
 };
 use serde::{ Serialize, Deserialize };
 
-use crate::renderer::mesh::MeshData;
-use crate::renderer::model::ModelData;
-use crate::renderer::animation::{AnimationData, AnimationPlayArgs, AnimationPlayInfo};
-use crate::renderer::transform_object::TransformObjectData;
+use crate::scene::mesh::MeshData;
+use crate::scene::model::ModelData;
+use crate::scene::animation::{AnimationData, AnimationPlayArgs, AnimationPlayInfo};
+use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::system::{RcRefCell, ptr_as_ref};
 use crate::utilities::bounding_box::BoundingBox;
 use crate::vulkan_context::render_pass::PipelinePushConstantData;

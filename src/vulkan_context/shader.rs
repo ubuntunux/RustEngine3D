@@ -1,19 +1,23 @@
 use std::fs;
 use std::io::Read;
-use std::path::PathBuf;
 use std::os::raw::c_char;
+use std::path::PathBuf;
 #[cfg(not(target_os = "android"))]
 use std::process;
 
-use regex::Regex;
-use ash::{vk, Device};
+use crate::resource::resource;
+use crate::utilities::system;
+use crate::vulkan_context::debug_utils;
 use ash::extensions::ext::DebugUtils;
 use ash::vk::Handle;
-use crate::utilities::system;
-use crate::resource::resource;
-use crate::vulkan_context::debug_utils;
+use ash::{vk, Device};
+use regex::Regex;
 
-pub fn spirv_file_path_with_defines(is_engine_resource: bool, shader_filename: &PathBuf, shader_defines: &[String]) -> PathBuf {
+pub fn spirv_file_path_with_defines(
+    is_engine_resource: bool,
+    shader_filename: &PathBuf,
+    shader_defines: &[String],
+) -> PathBuf {
     let ext = shader_filename.extension().unwrap();
     let mut just_filename = PathBuf::new();
     just_filename.push(shader_filename.parent().unwrap());
@@ -71,11 +75,13 @@ pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
 
 pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
     let (is_engine_resource, shader_file_path) = get_shader_file_path(shader_filename);
-    let spirv_file_path: PathBuf = spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
+    let spirv_file_path: PathBuf =
+        spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
 
     // collect include files
     let re_include = Regex::new("\\#include\\s+[\"|<](.+?)[\"|>]").unwrap();
-    let shader_file_contents: String = fs::read_to_string(&shader_file_path).expect("Something went wrong reading the file");
+    let shader_file_contents: String =
+        fs::read_to_string(&shader_file_path).expect("Something went wrong reading the file");
     let mut included_files: Vec<PathBuf> = Vec::new();
     let shader_file_lines = shader_file_contents.split("\n");
     let shader_file_dir = shader_filename.parent().unwrap().to_path_buf();
@@ -93,7 +99,10 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
         let spirv_file_modified_time = fs::metadata(&spirv_file_path).unwrap().modified().unwrap();
         let mut recent_modified_time = fs::metadata(&shader_file_path).unwrap().modified().unwrap();
         for included_file_path in included_files.iter() {
-            let included_file_modified_time = fs::metadata(included_file_path).unwrap().modified().unwrap();
+            let included_file_modified_time = fs::metadata(included_file_path)
+                .unwrap()
+                .modified()
+                .unwrap();
             if recent_modified_time < included_file_modified_time {
                 recent_modified_time = included_file_modified_time;
             }
@@ -106,9 +115,14 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
     // compile glsl -> spirv
     #[cfg(not(target_os = "android"))]
     if need_to_compile {
-        log::info!("        compile shader: {:?} -> {:?}", shader_file_path, spirv_file_path);
+        log::info!(
+            "        compile shader: {:?} -> {:?}",
+            shader_file_path,
+            spirv_file_path
+        );
 
-        fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
+        fs::create_dir_all(spirv_file_path.parent().unwrap())
+            .expect("Failed to create directories.");
 
         if false == shader_file_path.is_file() {
             panic!("compileGLSL: {:?} does not exist.", shader_file_path);
@@ -146,7 +160,7 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
                 if msg.trim() != shader_file_path.to_str().unwrap() {
                     log::error!("{}", msg);
                 }
-            },
+            }
             Err(e) => panic!("failed to execute glslangValidator. {:?}", e),
         }
     }
@@ -170,7 +184,7 @@ pub fn create_shader_stage_create_info(
     debug_utils: &DebugUtils,
     shader_filename: &PathBuf,
     shader_defines: &[String],
-    stage_flag: vk::ShaderStageFlags
+    stage_flag: vk::ShaderStageFlags,
 ) -> vk::PipelineShaderStageCreateInfo {
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
     let code_buffer = compile_glsl(shader_filename, shader_defines);
@@ -180,17 +194,24 @@ pub fn create_shader_stage_create_info(
         ..Default::default()
     };
     unsafe {
-        let shader_module = device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
+        let shader_module = device
+            .create_shader_module(&shader_module_create_info, None)
+            .expect("vkCreateShaderModule failed!");
         let shader_module_name: PathBuf = get_shader_module_name(&shader_filename, &shader_defines);
         debug_utils::set_object_debug_info(
             device,
             debug_utils,
             shader_module_name.to_str().unwrap(),
             vk::ObjectType::SHADER_MODULE,
-            shader_module.as_raw()
+            shader_module.as_raw(),
         );
 
-        log::trace!("    create_shader_module: {:#X} {:?}: {:?}", shader_module.as_raw(), stage_flag, shader_filename);
+        log::trace!(
+            "    create_shader_module: {:#X} {:?}: {:?}",
+            shader_module.as_raw(),
+            stage_flag,
+            shader_filename
+        );
         let main: *const c_char = "main\0".as_ptr() as *const c_char;
         vk::PipelineShaderStageCreateInfo {
             stage: stage_flag,
@@ -201,9 +222,16 @@ pub fn create_shader_stage_create_info(
     }
 }
 
-pub fn destroy_shader_stage_create_info(device: &Device, shader_stage_create_info: &vk::PipelineShaderStageCreateInfo) {
+pub fn destroy_shader_stage_create_info(
+    device: &Device,
+    shader_stage_create_info: &vk::PipelineShaderStageCreateInfo,
+) {
     if 0 != shader_stage_create_info.module.as_raw() {
-        log::debug!("    destroy_shader_module : stage {:?}, module {:?}", shader_stage_create_info.stage, shader_stage_create_info.module);
+        log::debug!(
+            "    destroy_shader_module : stage {:?}, module {:?}",
+            shader_stage_create_info.stage,
+            shader_stage_create_info.module
+        );
         unsafe {
             device.destroy_shader_module(shader_stage_create_info.module, None);
         }

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use ash::{vk, Device};
 use ash::extensions::ext::DebugUtils;
-use crate::renderer::material::MaterialData;
+use crate::scene::material::MaterialData;
 use crate::vulkan_context::descriptor::{ DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 use crate::vulkan_context::render_pass::{

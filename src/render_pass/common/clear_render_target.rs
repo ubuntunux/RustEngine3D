@@ -1,26 +1,23 @@
 use std::path::PathBuf;
 
-use ash::{
-    vk,
-};
+use ash::vk;
 
-use crate::vulkan_context::framebuffer::{ self, FramebufferDataCreateInfo, RenderTargetInfo };
-use crate::vulkan_context::geometry_buffer::{ VertexDataBase, VertexData };
+use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
+use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
     RenderPassDataCreateInfo,
-    PipelineDataCreateInfo,
-    ImageAttachmentDescription,
-    DepthStencilStateCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{
-    self,
-    BlendMode,
-};
+use crate::vulkan_context::vulkan_context::{self, BlendMode};
 
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
-pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_target_formats: &[vk::Format], depth_format: vk::Format) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(
+    renderer_data: &RendererData,
+    render_target_formats: &[vk::Format],
+    depth_format: vk::Format,
+) -> FramebufferDataCreateInfo {
     let mut color_render_targets = Vec::new();
     for render_target_format in render_target_formats.iter() {
         let render_target_type = match *render_target_format {
@@ -28,7 +25,9 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_tar
             vk::Format::R16G16_SFLOAT => RenderTargetType::SceneVelocity,
             vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
             vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,
-            vk::Format::R32G32B32A32_SFLOAT => RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+            vk::Format::R32G32B32A32_SFLOAT => {
+                RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING
+            }
             _ => panic!("Not implemented."),
         };
         color_render_targets.push(RenderTargetInfo {
@@ -56,11 +55,15 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData, render_tar
     framebuffer::create_framebuffer_data_create_info(
         &color_render_targets,
         &depth_render_target,
-        &[]
+        &[],
     )
 }
 
-pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_target_formats: &[vk::Format], depth_format: vk::Format) -> RenderPassDataCreateInfo {
+pub fn get_render_pass_data_create_info(
+    renderer_data: &RendererData,
+    render_target_formats: &[vk::Format],
+    depth_format: vk::Format,
+) -> RenderPassDataCreateInfo {
     let use_depth_target: bool = vk::Format::UNDEFINED != depth_format;
     let mut render_pass_name = String::from("clear");
     for render_target_format in render_target_formats.iter() {
@@ -69,40 +72,44 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
     if use_depth_target {
         render_pass_name.push_str(&format!("_{:?}", depth_format));
     }
-    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, render_target_formats, depth_format);
+    let framebuffer_data_create_info =
+        get_framebuffer_data_create_info(renderer_data, render_target_formats, depth_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for (i, format) in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter().enumerate() {
+    for (i, format) in framebuffer_data_create_info
+        ._framebuffer_color_attachment_formats
+        .iter()
+        .enumerate()
+    {
         assert_eq!(render_target_formats[i], *format);
-        color_attachment_descriptions.push(
-            ImageAttachmentDescription {
+        color_attachment_descriptions.push(ImageAttachmentDescription {
+            _attachment_image_format: *format,
+            _attachment_image_samples: sample_count,
+            _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
+            _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+            _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
+            _attachment_final_layout: vk::ImageLayout::GENERAL,
+            _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            ..Default::default()
+        });
+    }
+    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
+    if use_depth_target {
+        for format in framebuffer_data_create_info
+            ._framebuffer_depth_attachment_formats
+            .iter()
+        {
+            assert_eq!(depth_format, *format);
+            depth_attachment_descriptions.push(ImageAttachmentDescription {
                 _attachment_image_format: *format,
                 _attachment_image_samples: sample_count,
                 _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
                 _attachment_store_operation: vk::AttachmentStoreOp::STORE,
                 _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
                 _attachment_final_layout: vk::ImageLayout::GENERAL,
-                _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 ..Default::default()
-            }
-        );
-    }
-    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    if use_depth_target {
-        for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
-            assert_eq!(depth_format, *format);
-            depth_attachment_descriptions.push(
-                ImageAttachmentDescription {
-                    _attachment_image_format: *format,
-                    _attachment_image_samples: sample_count,
-                    _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
-                    _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-                    _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
-                    _attachment_final_layout: vk::ImageLayout::GENERAL,
-                    _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                    ..Default::default()
-                }
-            );
+            });
         }
     }
     let subpass_dependencies = vec![
@@ -112,7 +119,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
             src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             src_access_mask: vk::AccessFlags::MEMORY_READ,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
+                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
         vk::SubpassDependency {
@@ -120,32 +128,36 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData, render_tar
             dst_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
+                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dst_access_mask: vk::AccessFlags::MEMORY_READ,
             dependency_flags: vk::DependencyFlags::BY_REGION,
-        }
+        },
     ];
-    let pipeline_data_create_infos = vec![
-        PipelineDataCreateInfo {
-            _pipeline_data_create_info_name: String::from("clear"),
-            _pipeline_vertex_shader_file: PathBuf::from("common/render_quad.vert"),
-            _pipeline_fragment_shader_file: PathBuf::from("common/clear_color.frag"),
-            _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-            _pipeline_shader_defines: vec![
-                format!("ColorAttachmentCount={:?}", color_attachment_descriptions.len() as i32),
-            ],
-            _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
-            _pipeline_sample_count: sample_count,
-            _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
-            _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
-                _depth_write_enable: false,
-                ..Default::default()
-            },
-            _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+    let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
+        _pipeline_data_create_info_name: String::from("clear"),
+        _pipeline_vertex_shader_file: PathBuf::from("common/render_quad.vert"),
+        _pipeline_fragment_shader_file: PathBuf::from("common/clear_color.frag"),
+        _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
+        _pipeline_shader_defines: vec![format!(
+            "ColorAttachmentCount={:?}",
+            color_attachment_descriptions.len() as i32
+        )],
+        _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
+        _pipeline_sample_count: sample_count,
+        _pipeline_color_blend_modes: vec![
+            vulkan_context::get_color_blend_mode(BlendMode::None);
+            color_attachment_descriptions.len()
+        ],
+        _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
+            _depth_write_enable: false,
             ..Default::default()
-        }
-    ];
+        },
+        _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+        _vertex_input_attribute_descriptions:
+            VertexData::create_vertex_input_attribute_descriptions(),
+        ..Default::default()
+    }];
 
     RenderPassDataCreateInfo {
         _render_pass_create_info_name: render_pass_name.clone(),

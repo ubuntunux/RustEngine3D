@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 
-use nalgebra::{ Vector2 };
-use sdl2::Sdl;
-use sdl2::controller::{Axis, Button, GameController};
-use winit::event::{VirtualKeyCode};
 use crate::constants::JOYSTICK_SENSOR_DEAD_ZONE;
+use nalgebra::Vector2;
+use sdl2::controller::{Axis, Button, GameController};
+use sdl2::Sdl;
+use winit::event::VirtualKeyCode;
 
 pub type KeyMap = HashMap<VirtualKeyCode, bool>;
 
@@ -13,7 +13,7 @@ pub enum ButtonState {
     None,
     Pressed,
     Hold,
-    Released
+    Released,
 }
 
 #[derive(Clone, Debug)]
@@ -47,7 +47,7 @@ pub struct MouseInputData {
     pub _btn_r_hold: bool,
     pub _btn_l_released: bool,
     pub _btn_m_released: bool,
-    pub _btn_r_released: bool
+    pub _btn_r_released: bool,
 }
 
 impl Default for MouseInputData {
@@ -127,7 +127,13 @@ impl MouseMoveData {
     }
 
     pub fn clamp_mouse_pos(pos: i32, limit_pos: i32) -> i32 {
-        if pos < 0 { 0 } else if limit_pos <= pos { limit_pos - 1 } else { pos }
+        if pos < 0 {
+            0
+        } else if limit_pos <= pos {
+            limit_pos - 1
+        } else {
+            pos
+        }
     }
 
     pub fn update_mouse_pos(&mut self, position: &(i32, i32), window_size: &Vector2<i32>) {
@@ -140,8 +146,10 @@ impl MouseMoveData {
     pub fn update_mouse_move(&mut self, delta: &(i32, i32), window_size: &Vector2<i32>) {
         self._mouse_pos_delta.x += delta.0;
         self._mouse_pos_delta.y += delta.1;
-        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.x);
-        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.y);
+        self._mouse_pos.x =
+            MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.x);
+        self._mouse_pos.y =
+            MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.y);
     }
 
     pub fn update_scroll_move(&mut self, delta: &(i32, i32)) {
@@ -187,7 +195,7 @@ impl KeyboardInputData {
     pub fn get_key_hold(&self, key: VirtualKeyCode) -> bool {
         match self._key_hold_map.get(&key) {
             Some(a) => *a,
-            _ => false
+            _ => false,
         }
     }
 
@@ -210,7 +218,7 @@ impl KeyboardInputData {
     pub fn get_key_pressed(&self, key: VirtualKeyCode) -> bool {
         match self._key_pressed_map.get(&key) {
             Some(a) => *a,
-            _ => false
+            _ => false,
         }
     }
 
@@ -228,7 +236,7 @@ impl KeyboardInputData {
     pub fn get_key_released(&self, key: VirtualKeyCode) -> bool {
         match self._key_released_map.get(&key) {
             Some(a) => *a,
-            _ => false
+            _ => false,
         }
     }
 
@@ -248,31 +256,31 @@ impl JoystickInputData {
         let game_controller_subsystem = sdl.game_controller().expect("failed to game_controller.");
         let available_joystick_count = game_controller_subsystem
             .num_joysticks()
-            .map_err(|e| format!("can't enumerate joysticks: {}", e)).expect("failed to get num joysticks.");
+            .map_err(|e| format!("can't enumerate joysticks: {}", e))
+            .expect("failed to get num joysticks.");
         log::info!("{} joysticks available", available_joystick_count);
 
-        let joystick: Option<GameController> = (0..available_joystick_count)
-            .find_map(|id| {
-                if false == game_controller_subsystem.is_game_controller(id) {
-                    log::info!("{} is not a game controller", id);
-                    return None;
-                }
+        let joystick: Option<GameController> = (0..available_joystick_count).find_map(|id| {
+            if false == game_controller_subsystem.is_game_controller(id) {
+                log::info!("{} is not a game controller", id);
+                return None;
+            }
 
-                log::info!("Attempting to open controller {}", id);
+            log::info!("Attempting to open controller {}", id);
 
-                match game_controller_subsystem.open(id) {
-                    Ok(c) => {
-                        // We managed to find and open a game controller,
-                        // exit the loop
-                        log::info!("Success: opened \"{}\"", c.name());
-                        Some(c)
-                    }
-                    Err(e) => {
-                        log::info!("failed: {:?}", e);
-                        None
-                    }
+            match game_controller_subsystem.open(id) {
+                Ok(c) => {
+                    // We managed to find and open a game controller,
+                    // exit the loop
+                    log::info!("Success: opened \"{}\"", c.name());
+                    Some(c)
                 }
-            });
+                Err(e) => {
+                    log::info!("failed: {:?}", e);
+                    None
+                }
+            }
+        });
 
         if let Some(joystick_controller) = &joystick {
             log::info!("Controller mapping: {}", joystick_controller.mapping());
@@ -298,15 +306,15 @@ impl JoystickInputData {
             _btn_back: ButtonState::None,
             _btn_start: ButtonState::None,
             _btn_guide: ButtonState::None,
-            _game_controller: joystick
+            _game_controller: joystick,
         })
     }
 
     pub fn reset_button_state(button: &mut ButtonState) {
         match button {
-            ButtonState::Pressed => { *button = ButtonState::Hold },
-            ButtonState::Released => { *button = ButtonState::None },
-            _ => ()
+            ButtonState::Pressed => *button = ButtonState::Hold,
+            ButtonState::Released => *button = ButtonState::None,
+            _ => (),
         }
     }
 
@@ -332,8 +340,17 @@ impl JoystickInputData {
         self._game_controller.is_some()
     }
 
-    pub fn set_rumble(&mut self, low_frequency_rumble: u16, high_frequency_rumble: u16, duration_ms: u32) {
-        self._game_controller.as_mut().unwrap().set_rumble(low_frequency_rumble, high_frequency_rumble, duration_ms).expect("")
+    pub fn set_rumble(
+        &mut self,
+        low_frequency_rumble: u16,
+        high_frequency_rumble: u16,
+        duration_ms: u32,
+    ) {
+        self._game_controller
+            .as_mut()
+            .unwrap()
+            .set_rumble(low_frequency_rumble, high_frequency_rumble, duration_ms)
+            .expect("")
     }
 
     pub fn update_controller_axis_motion(&mut self, axis: Axis, value: i16) {
@@ -342,11 +359,11 @@ impl JoystickInputData {
                 Axis::TriggerLeft => {
                     self._btn_left_trigger = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
                     self.set_rumble(self._btn_left_trigger, self._btn_right_trigger, 15000);
-                },
+                }
                 Axis::TriggerRight => {
                     self._btn_right_trigger = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
                     self.set_rumble(self._btn_left_trigger, self._btn_right_trigger, 15000);
-                },
+                }
                 Axis::LeftX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
                         // Axis motion is an absolin the range [-32768, 32767]. Let's simulate a very rough dead zone to ignore spurious events.
@@ -354,21 +371,21 @@ impl JoystickInputData {
                     } else {
                         self._stick_left_direction.x = 0;
                     }
-                },
+                }
                 Axis::LeftY => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
                         self._stick_left_direction.y = value;
                     } else {
                         self._stick_left_direction.y = 0;
                     }
-                },
+                }
                 Axis::RightX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
                         self._stick_right_direction.x = value;
                     } else {
                         self._stick_right_direction.x = 0;
                     }
-                },
+                }
                 Axis::RightY => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
                         self._stick_right_direction.y = value;
@@ -382,21 +399,21 @@ impl JoystickInputData {
 
     pub fn update_controller_button_state(&mut self, button: Button, button_state: ButtonState) {
         match button {
-            Button::A => { self._btn_a = button_state },
-            Button::B => { self._btn_b = button_state },
-            Button::X => { self._btn_x = button_state },
-            Button::Y => { self._btn_y = button_state },
-            Button::Back => { self._btn_back = button_state },
-            Button::Guide => { self._btn_guide = button_state },
-            Button::Start => { self._btn_start = button_state },
-            Button::LeftStick => { self._btn_left_stick = button_state },
-            Button::RightStick => { self._btn_right_stick = button_state },
-            Button::LeftShoulder => { self._btn_left_bumper = button_state },
-            Button::RightShoulder => { self._btn_right_bumper = button_state },
-            Button::DPadUp => { self._btn_up = button_state },
-            Button::DPadDown => { self._btn_down = button_state },
-            Button::DPadLeft => { self._btn_left = button_state },
-            Button::DPadRight => { self._btn_right = button_state }
+            Button::A => self._btn_a = button_state,
+            Button::B => self._btn_b = button_state,
+            Button::X => self._btn_x = button_state,
+            Button::Y => self._btn_y = button_state,
+            Button::Back => self._btn_back = button_state,
+            Button::Guide => self._btn_guide = button_state,
+            Button::Start => self._btn_start = button_state,
+            Button::LeftStick => self._btn_left_stick = button_state,
+            Button::RightStick => self._btn_right_stick = button_state,
+            Button::LeftShoulder => self._btn_left_bumper = button_state,
+            Button::RightShoulder => self._btn_right_bumper = button_state,
+            Button::DPadUp => self._btn_up = button_state,
+            Button::DPadDown => self._btn_down = button_state,
+            Button::DPadLeft => self._btn_left = button_state,
+            Button::DPadRight => self._btn_right = button_state,
             _ => {}
         }
     }

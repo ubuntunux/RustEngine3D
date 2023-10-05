@@ -84,7 +84,7 @@ impl AudioInstance {
 
         newRcRefCell(AudioInstance {
             _audio_data: audio_data.clone(),
-            _channel: sdl2::mixer::Channel::all().play(chunk, audio_loop),
+            _channel: Channel::all().play(chunk, audio_loop),
         })
     }
 }
