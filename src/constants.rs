@@ -1,5 +1,4 @@
 use ash::vk;
-use std;
 
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);

@@ -138,15 +138,9 @@ pub fn get_queue_family_indices(
         if false == indices.is_empty() {
             return if is_concurrent_mode && indices.contains(&default_index) {
                 default_index
-            } else if false {
-                *indices
-                    .iter()
-                    .filter(|&&x| x != default_index)
-                    .next()
-                    .unwrap()
             } else {
                 default_index
-            }
+            };
         }
         constants::INVALID_QUEUE_INDEX
     };

@@ -213,6 +213,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
     }
 }
 
+//noinspection ALL,RsConstantConditionIf
 pub fn run_commands_once<F: FnOnce(&Device, vk::CommandBuffer)>(
     device: &Device,
     command_pool: vk::CommandPool,

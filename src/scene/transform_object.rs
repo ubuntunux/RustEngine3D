@@ -1,19 +1,10 @@
-use nalgebra::{
-    linalg,
-    Vector3,
-    Matrix4,
-    Quaternion,
-};
+use nalgebra::{linalg, Matrix4, Quaternion, Vector3};
 
-use crate::utilities::system::{ptr_as_ref};
 use crate::utilities::math::{
-    TWO_PI,
-    make_rotation_matrix,
-    combinate_matrix,
-    extract_location,
-    extract_scale,
-    matrix_decompose_pitch_yaw_roll
+    combinate_matrix, extract_location, extract_scale, make_rotation_matrix,
+    matrix_decompose_pitch_yaw_roll, TWO_PI,
 };
+use crate::utilities::system::ptr_as_ref;
 
 #[derive(Debug, Clone)]
 pub struct TransformObjectData {
@@ -35,7 +26,7 @@ pub struct TransformObjectData {
     pub _prev_fianl_quaternion: Quaternion<f32>,
     pub _quaternion_matrix: Matrix4<f32>,
     pub _euler_matrix: Matrix4<f32>,
-    pub _rotation_matrix : Matrix4<f32>,
+    pub _rotation_matrix: Matrix4<f32>,
     pub _matrix: Matrix4<f32>,
     pub _inverse_matrix: Matrix4<f32>,
     pub _matrix_store: Matrix4<f32>,
@@ -63,7 +54,7 @@ impl TransformObjectData {
             _prev_fianl_quaternion: Quaternion::identity(),
             _quaternion_matrix: Matrix4::identity(),
             _euler_matrix: Matrix4::identity(),
-            _rotation_matrix : Matrix4::identity(),
+            _rotation_matrix: Matrix4::identity(),
             _matrix: Matrix4::identity(),
             _inverse_matrix: Matrix4::identity(),
             _matrix_store: Matrix4::identity(),
@@ -72,8 +63,12 @@ impl TransformObjectData {
             _prev_inverse_matrix: Matrix4::identity(),
         }
     }
-    pub fn get_matrix(&self) -> &Matrix4<f32> { &self._matrix }
-    pub fn get_prev_matrix(&self) -> &Matrix4<f32> { &self._prev_matrix }
+    pub fn get_matrix(&self) -> &Matrix4<f32> {
+        &self._matrix
+    }
+    pub fn get_prev_matrix(&self) -> &Matrix4<f32> {
+        &self._prev_matrix
+    }
     pub fn get_inverse_matrix(&self) -> &Matrix4<f32> {
         &self._inverse_matrix
     }
@@ -86,11 +81,21 @@ impl TransformObjectData {
     pub fn get_front(&self) -> &Vector3<f32> {
         ptr_as_ref(self._rotation_matrix.column(2).as_ptr() as *const Vector3<f32>)
     }
-    pub fn get_position(&self) -> &Vector3<f32> { &self._position }
-    pub fn set_position(&mut self, position: &Vector3<f32>) { self._position.copy_from(position); }
-    pub fn set_position_x(&mut self, pos_x: f32) { self._position.x = pos_x; }
-    pub fn set_position_y(&mut self, pos_y: f32) { self._position.y = pos_y; }
-    pub fn set_position_z(&mut self, pos_z: f32) { self._position.z = pos_z; }
+    pub fn get_position(&self) -> &Vector3<f32> {
+        &self._position
+    }
+    pub fn set_position(&mut self, position: &Vector3<f32>) {
+        self._position.copy_from(position);
+    }
+    pub fn set_position_x(&mut self, pos_x: f32) {
+        self._position.x = pos_x;
+    }
+    pub fn set_position_y(&mut self, pos_y: f32) {
+        self._position.y = pos_y;
+    }
+    pub fn set_position_z(&mut self, pos_z: f32) {
+        self._position.z = pos_z;
+    }
     pub fn get_prev_position(&self) -> &Vector3<f32> {
         ptr_as_ref(self._prev_matrix.column(3).as_ptr() as *const Vector3<f32>)
     }
@@ -139,7 +144,9 @@ impl TransformObjectData {
     pub fn set_yaw(&mut self, rotation: f32) {
         self._rotation.y = rotation % TWO_PI;
     }
-    pub fn set_roll(&mut self, rotation: f32) { self._rotation.z = rotation % TWO_PI; }
+    pub fn set_roll(&mut self, rotation: f32) {
+        self._rotation.z = rotation % TWO_PI;
+    }
     pub fn get_scale(&self) -> &Vector3<f32> {
         &self._scale
     }
@@ -162,33 +169,41 @@ impl TransformObjectData {
         let updated = updated_position || updated_rotation || updated_scale;
         if updated {
             if updated_rotation {
-                self._rotation_matrix = make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
-//          look at algorithm
-//             let sin_pitch = self._rotation._x.sin();
-//             let cos_pitch = self._rotation._x.cos();
-//             let sin_yaw = self._rotation._y.sin();
-//             let cos_yaw = self._rotation._y.cos();
-//             let front = Vector3::new(cos_pitch * sin_yaw, -sin_pitch, cos_pitch * cos_yaw).normalize();
-//             let left = Vector3::new(0.0, 1.0, 0.0).cross(&front);
-//             let up = front.cross(&left);
-//             let rotation_matrix = Matrix4::from_columns(&[
-//                 Vector4::new(left.x, left.y, left.z, 0.0),
-//                 Vector4::new(up.x, up.y, up.z, 0.0),
-//                 Vector4::new(front.x, front.y, front.z, 0.0),
-//                 Vector4::new(0.0, 0.0, 0.0, 1.0),
-//             ]);
+                self._rotation_matrix =
+                    make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
+                //          look at algorithm
+                //             let sin_pitch = self._rotation._x.sin();
+                //             let cos_pitch = self._rotation._x.cos();
+                //             let sin_yaw = self._rotation._y.sin();
+                //             let cos_yaw = self._rotation._y.cos();
+                //             let front = Vector3::new(cos_pitch * sin_yaw, -sin_pitch, cos_pitch * cos_yaw).normalize();
+                //             let left = Vector3::new(0.0, 1.0, 0.0).cross(&front);
+                //             let up = front.cross(&left);
+                //             let rotation_matrix = Matrix4::from_columns(&[
+                //                 Vector4::new(left.x, left.y, left.z, 0.0),
+                //                 Vector4::new(up.x, up.y, up.z, 0.0),
+                //                 Vector4::new(front.x, front.y, front.z, 0.0),
+                //                 Vector4::new(0.0, 0.0, 0.0, 1.0),
+                //             ]);
 
                 unsafe {
-                    let left: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
-                    let up: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
-                    let front: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
+                    let left: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
+                    let up: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
+                    let front: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
                     left.normalize_mut();
                     up.normalize_mut();
                     front.normalize_mut();
                 }
             }
 
-            self._matrix.copy_from(&combinate_matrix(&self._position, &self._rotation_matrix, &self._scale));
+            self._matrix.copy_from(&combinate_matrix(
+                &self._position,
+                &self._rotation_matrix,
+                &self._scale,
+            ));
             //self._inverse_matrix.copy_from(&inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale));
             linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
             self._updated = true;
@@ -199,7 +214,8 @@ impl TransformObjectData {
     pub fn update_transform_object(&mut self) -> bool {
         if self._prev_updated {
             self._prev_matrix.copy_from(&self._matrix_store);
-            self._prev_inverse_matrix.copy_from(&self._inverse_matrix_store);
+            self._prev_inverse_matrix
+                .copy_from(&self._inverse_matrix_store);
             self._prev_updated = false;
         }
 

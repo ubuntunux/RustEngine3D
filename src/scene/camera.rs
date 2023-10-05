@@ -1,15 +1,10 @@
 use nalgebra::linalg;
-use nalgebra::{
-    Vector2,
-    Vector3,
-    Vector4,
-    Matrix4,
-};
-use serde::{ Serialize, Deserialize };
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
 
 use crate::constants;
-use crate::utilities::math;
 use crate::scene::transform_object::TransformObjectData;
+use crate::utilities::math;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
@@ -82,7 +77,10 @@ pub struct CameraObjectData {
 }
 
 impl CameraObjectData {
-    pub fn create_camera_object_data(name: &String, camera_create_info: &CameraCreateInfo) -> CameraObjectData {
+    pub fn create_camera_object_data(
+        name: &String,
+        camera_create_info: &CameraCreateInfo,
+    ) -> CameraObjectData {
         log::debug!("create_camera_object_data: {:?}", name);
         let mut camera_object_data = CameraObjectData {
             _name: name.clone(),
@@ -125,19 +123,34 @@ impl CameraObjectData {
         };
 
         // initialize
-        camera_object_data.set_aspect(camera_create_info.window_size.x, camera_create_info.window_size.y);
-        camera_object_data._transform_object.set_position(&camera_create_info.position);
-        camera_object_data._transform_object.set_rotation(&camera_create_info.rotation);
-        camera_object_data._transform_object.update_transform_object();
-        camera_object_data._jitter_mode_uniform2x = [Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0), Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0)];
+        camera_object_data.set_aspect(
+            camera_create_info.window_size.x,
+            camera_create_info.window_size.y,
+        );
+        camera_object_data
+            ._transform_object
+            .set_position(&camera_create_info.position);
+        camera_object_data
+            ._transform_object
+            .set_rotation(&camera_create_info.rotation);
+        camera_object_data
+            ._transform_object
+            .update_transform_object();
+        camera_object_data._jitter_mode_uniform2x = [
+            Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0),
+            Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0),
+        ];
         for i in 0..4 {
-            camera_object_data._jitter_mode_hammersley4x[i] = math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
+            camera_object_data._jitter_mode_hammersley4x[i] =
+                math::hammersley_2d(i as u32, 4) * 2.0 - Vector2::new(1.0, 1.0);
         }
         for i in 0..8 {
-            camera_object_data._jitter_mode_hammersley8x[i] = math::hammersley_2d(i as u32, 8) * 2.0 - Vector2::new(1.0, 1.0);
+            camera_object_data._jitter_mode_hammersley8x[i] =
+                math::hammersley_2d(i as u32, 8) * 2.0 - Vector2::new(1.0, 1.0);
         }
         for i in 0..16 {
-            camera_object_data._jitter_mode_hammersley16x[i] = math::hammersley_2d(i as u32, 16) * 2.0 - Vector2::new(1.0, 1.0);
+            camera_object_data._jitter_mode_hammersley16x[i] =
+                math::hammersley_2d(i as u32, 16) * 2.0 - Vector2::new(1.0, 1.0);
         }
         camera_object_data
     }
@@ -153,9 +166,15 @@ impl CameraObjectData {
     pub fn get_camera_position(&self) -> &Vector3<f32> {
         &self._transform_object.get_position()
     }
-    pub fn get_camera_position_prev(&self) -> &Vector3<f32> { &self._transform_object.get_prev_position() }
+    pub fn get_camera_position_prev(&self) -> &Vector3<f32> {
+        &self._transform_object.get_prev_position()
+    }
     pub fn set_aspect(&mut self, window_width: i32, window_height: i32) {
-        let aspect: f32 = if 0 != window_height { window_width as f32 / window_height as f32 } else { 1.0 };
+        let aspect: f32 = if 0 != window_height {
+            window_width as f32 / window_height as f32
+        } else {
+            1.0
+        };
         self._window_size.x = window_width;
         self._window_size.y = window_height;
         self._aspect = aspect;
@@ -163,7 +182,8 @@ impl CameraObjectData {
     }
 
     pub fn convert_world_to_screen(&self, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
-        let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
+        let mut screen_pos =
+            math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
         screen_pos.x *= self._window_size.x as f32;
         screen_pos.y *= self._window_size.y as f32;
         screen_pos
@@ -175,7 +195,7 @@ impl CameraObjectData {
             (screen_pos.x as f32 / self._window_size.x as f32) * 2.0 - 1.0,
             (screen_pos.y as f32 / self._window_size.y as f32) * 2.0 - 1.0,
             DEPTH,
-            1.0
+            1.0,
         );
         let mut world_pos: Vector4<f32> = &self._inv_view_projection * ndc;
         world_pos.x /= world_pos.w;
@@ -190,7 +210,7 @@ impl CameraObjectData {
             (screen_pos.x as f32 / self._window_size.x as f32) * 2.0 - 1.0,
             (screen_pos.y as f32 / self._window_size.y as f32) * 2.0 - 1.0,
             DEPTH,
-            1.0
+            1.0,
         );
         let mut world_pos: Vector4<f32> = &self._inv_view_origin_projection * ndc;
         world_pos.x /= world_pos.w;
@@ -209,33 +229,46 @@ impl CameraObjectData {
 
     pub fn update_view_frustum_planes(&mut self) {
         // Left
-        self._view_frustum_planes[0].x = self._view_origin_projection.m41 + self._view_origin_projection.m11;
-        self._view_frustum_planes[0].y = self._view_origin_projection.m42 + self._view_origin_projection.m12;
-        self._view_frustum_planes[0].z = self._view_origin_projection.m43 + self._view_origin_projection.m13;
+        self._view_frustum_planes[0].x =
+            self._view_origin_projection.m41 + self._view_origin_projection.m11;
+        self._view_frustum_planes[0].y =
+            self._view_origin_projection.m42 + self._view_origin_projection.m12;
+        self._view_frustum_planes[0].z =
+            self._view_origin_projection.m43 + self._view_origin_projection.m13;
         self._view_frustum_planes[0] = -self._view_frustum_planes[0].normalize();
 
         // Right
-        self._view_frustum_planes[1].x = self._view_origin_projection.m41 - self._view_origin_projection.m11;
-        self._view_frustum_planes[1].y = self._view_origin_projection.m42 - self._view_origin_projection.m12;
-        self._view_frustum_planes[1].z = self._view_origin_projection.m43 - self._view_origin_projection.m13;
+        self._view_frustum_planes[1].x =
+            self._view_origin_projection.m41 - self._view_origin_projection.m11;
+        self._view_frustum_planes[1].y =
+            self._view_origin_projection.m42 - self._view_origin_projection.m12;
+        self._view_frustum_planes[1].z =
+            self._view_origin_projection.m43 - self._view_origin_projection.m13;
         self._view_frustum_planes[1] = -self._view_frustum_planes[1].normalize();
 
         // Bottom
-        self._view_frustum_planes[2].x = self._view_origin_projection.m41 - self._view_origin_projection.m21;
-        self._view_frustum_planes[2].y = self._view_origin_projection.m42 - self._view_origin_projection.m22;
-        self._view_frustum_planes[2].z = self._view_origin_projection.m43 - self._view_origin_projection.m23;
+        self._view_frustum_planes[2].x =
+            self._view_origin_projection.m41 - self._view_origin_projection.m21;
+        self._view_frustum_planes[2].y =
+            self._view_origin_projection.m42 - self._view_origin_projection.m22;
+        self._view_frustum_planes[2].z =
+            self._view_origin_projection.m43 - self._view_origin_projection.m23;
         self._view_frustum_planes[2] = -self._view_frustum_planes[2].normalize();
 
         // Top
-        self._view_frustum_planes[3].x = self._view_origin_projection.m41 + self._view_origin_projection.m21;
-        self._view_frustum_planes[3].y = self._view_origin_projection.m42 + self._view_origin_projection.m22;
-        self._view_frustum_planes[3].z = self._view_origin_projection.m43 + self._view_origin_projection.m23;
+        self._view_frustum_planes[3].x =
+            self._view_origin_projection.m41 + self._view_origin_projection.m21;
+        self._view_frustum_planes[3].y =
+            self._view_origin_projection.m42 + self._view_origin_projection.m22;
+        self._view_frustum_planes[3].z =
+            self._view_origin_projection.m43 + self._view_origin_projection.m23;
         self._view_frustum_planes[3] = -self._view_frustum_planes[3].normalize();
     }
 
     pub fn update_camera_object_data(&mut self) {
         if self._enable_jitter {
-            self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
+            self._jitter_frame =
+                (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
             // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
             self._jitter_prev = self._jitter.into();
             self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
@@ -246,8 +279,10 @@ impl CameraObjectData {
         }
 
         // copy prev matrices
-        self._view_origin_projection_prev.copy_from(&self._view_origin_projection);
-        self._view_origin_projection_prev_jitter.copy_from(&self._view_origin_projection_jitter);
+        self._view_origin_projection_prev
+            .copy_from(&self._view_origin_projection);
+        self._view_origin_projection_prev_jitter
+            .copy_from(&self._view_origin_projection_jitter);
 
         // update matrices
         let updated = self._transform_object.update_transform_object() || self._updated_projection;
@@ -258,7 +293,8 @@ impl CameraObjectData {
             self._view = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
             self._inv_view = self._transform_object.get_matrix().clone() as Matrix4<f32>;
             self._view_origin = self._view.clone() as Matrix4<f32>;
-            self._view_origin.set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
+            self._view_origin
+                .set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
             self._inv_view_origin = self._view_origin.transpose();
             self._view_projection = &self._projection * &self._view;
             self._inv_view_projection = &self._inv_view * &self._inv_projection;
@@ -272,10 +308,16 @@ impl CameraObjectData {
         if self._enable_jitter {
             self._projection_jitter.column_mut(2)[0] = self._jitter[0];
             self._projection_jitter.column_mut(2)[1] = self._jitter[1];
-            linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
+            linalg::try_invert_to(
+                self._projection_jitter.into(),
+                &mut self._inv_projection_jitter,
+            );
             self._view_projection_jitter = &self._projection_jitter * &self._view;
             self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
-            linalg::try_invert_to(self._view_origin_projection_jitter.into(), &mut self._inv_view_origin_projection_jitter);
+            linalg::try_invert_to(
+                self._view_origin_projection_jitter.into(),
+                &mut self._inv_view_origin_projection_jitter,
+            );
         } else if updated {
             self._view_projection_jitter = self._view_projection.into();
             self._view_origin_projection_jitter = self._view_origin_projection.into();

@@ -13,22 +13,22 @@ use serde::{Deserialize, Serialize};
 use serde_json::{self, Value};
 
 use crate::audio::audio_manager::{AudioBankCreateInfo, AudioBankData, AudioData};
-use crate::scene::scene_manager::SceneDataCreateInfo;
 use crate::constants;
 use crate::effect::effect_data::{
     EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo,
 };
-use crate::scene::font::{self, FontData, FontDataCreateInfo};
-use crate::scene::material::{self, MaterialData};
-use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
-use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
-use crate::scene::model::ModelData;
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::collada_loader::Collada;
 use crate::resource::font_loader;
 use crate::resource::gltf_loader::GLTF;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
+use crate::scene::font::{self, FontData, FontDataCreateInfo};
+use crate::scene::material::MaterialData;
+use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
+use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
+use crate::scene::model::ModelData;
+use crate::scene::scene_manager::SceneDataCreateInfo;
 use crate::utilities::system::{self, newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::descriptor::{
     self, DescriptorData, DescriptorResourceInfo, DescriptorResourceType,
@@ -1142,6 +1142,12 @@ impl EngineResources {
             .insert(mesh_name.clone(), mesh_data.clone());
     }
 
+    //noinspection RsConstantConditionIf
+    //noinspection RsConstantConditionIf
+    //noinspection RsConstantConditionIf
+    //noinspection ALL
+    //noinspection ALL
+    //noinspection ALL
     pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_mesh_data_list");
         self.regist_mesh_data(

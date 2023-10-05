@@ -38,6 +38,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     }
 }
 
+//noinspection ALL,RsConstantConditionIf
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_font");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);

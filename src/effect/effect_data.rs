@@ -2,10 +2,10 @@ use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::effect::effect_manager::EffectManager;
+use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::scene::transform_object::TransformObjectData;
-use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};

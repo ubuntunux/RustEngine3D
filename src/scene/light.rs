@@ -1,9 +1,9 @@
-use nalgebra::{Vector3, Vector4, Matrix4};
-use serde::{ Serialize, Deserialize };
+use nalgebra::{Matrix4, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
 
+use crate::constants;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math::orthogonal;
-use crate::constants;
 
 // scene_constants.glsl - struct LIGHT_CONSTANTS
 #[repr(C)]
@@ -57,8 +57,8 @@ impl Default for DirectionalLightCreateInfo {
                     constants::SHADOW_DISTANCE,
                     constants::SHADOW_DISTANCE,
                     -constants::SHADOW_DEPTH,
-                    constants::SHADOW_DEPTH
-                )
+                    constants::SHADOW_DEPTH,
+                ),
             }
         }
     }
@@ -76,7 +76,10 @@ pub struct DirectionalLightData {
 }
 
 impl DirectionalLightData {
-    pub fn create_light_data(light_name: &String, light_create_info: &DirectionalLightCreateInfo) -> DirectionalLightData {
+    pub fn create_light_data(
+        light_name: &String,
+        light_create_info: &DirectionalLightCreateInfo,
+    ) -> DirectionalLightData {
         log::debug!("create_light_data: {}", light_name);
         let mut light_data = DirectionalLightData {
             _light_name: light_name.clone(),
@@ -87,19 +90,35 @@ impl DirectionalLightData {
             _need_to_redraw_shadow: true,
             _shadow_update_distance: light_create_info._shadow_update_distance,
         };
-        light_data._transform_object.set_position(&light_create_info._position);
-        light_data._transform_object.set_rotation(&light_create_info._rotation);
+        light_data
+            ._transform_object
+            .set_position(&light_create_info._position);
+        light_data
+            ._transform_object
+            .set_rotation(&light_create_info._rotation);
         light_data.update_shadow_orthogonal(&light_create_info._shadow_dimensions);
         light_data.update_light_data(&Vector3::zeros());
         light_data
     }
 
-    pub fn get_light_constants(&self) -> &LightConstants { &self._light_constants }
-    pub fn get_light_position(&self) -> &Vector3<f32> { self._transform_object.get_position() }
-    pub fn get_light_direction(&self) -> &Vector3<f32> { self._transform_object.get_front() }
-    pub fn get_light_color(&self) -> &Vector3<f32> { &self._light_constants._light_color }
-    pub fn get_light_shadow_samples(&self) -> i32 { self._light_constants._shadow_samples }
-    pub fn get_shadow_view_projection(&self) -> &Matrix4<f32> { &self._light_constants._shadow_view_projection }
+    pub fn get_light_constants(&self) -> &LightConstants {
+        &self._light_constants
+    }
+    pub fn get_light_position(&self) -> &Vector3<f32> {
+        self._transform_object.get_position()
+    }
+    pub fn get_light_direction(&self) -> &Vector3<f32> {
+        self._transform_object.get_front()
+    }
+    pub fn get_light_color(&self) -> &Vector3<f32> {
+        &self._light_constants._light_color
+    }
+    pub fn get_light_shadow_samples(&self) -> i32 {
+        self._light_constants._shadow_samples
+    }
+    pub fn get_shadow_view_projection(&self) -> &Matrix4<f32> {
+        &self._light_constants._shadow_view_projection
+    }
     pub fn get_need_to_redraw_shadow_and_reset(&mut self) -> bool {
         let need_to_redraw_shadow = self._need_to_redraw_shadow;
         self._need_to_redraw_shadow = false;
@@ -123,8 +142,10 @@ impl DirectionalLightData {
 
         let updated_transform = self._transform_object.update_transform_object();
         if self._updated_light_data || updated_transform {
-            self._light_constants._shadow_view_projection = &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
-            self._light_constants._light_direction = self.get_light_direction().clone() as Vector3<f32>;
+            self._light_constants._shadow_view_projection =
+                &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
+            self._light_constants._light_direction =
+                self.get_light_direction().clone() as Vector3<f32>;
             self._need_to_redraw_shadow = true;
         }
         self._updated_light_data = false;

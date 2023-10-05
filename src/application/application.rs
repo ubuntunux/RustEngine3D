@@ -13,15 +13,15 @@ use winit::event::{
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
-use crate::audio::audio_manager::AudioManager;
 use crate::application::input::{self, ButtonState};
-use crate::scene::scene_manager::{ProjectSceneManagerBase, SceneManager};
+use crate::audio::audio_manager::AudioManager;
 use crate::effect::effect_manager::EffectManager;
-use crate::scene::debug_line::DebugLineManager;
-use crate::scene::font::FontManager;
-use crate::scene::ui::{ProjectUIManagerBase, UIManager};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::{EngineResources, ProjectResourcesBase};
+use crate::scene::debug_line::DebugLineManager;
+use crate::scene::font::FontManager;
+use crate::scene::scene_manager::{ProjectSceneManagerBase, SceneManager};
+use crate::scene::ui::{ProjectUIManagerBase, UIManager};
 use crate::utilities::logger;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 

@@ -33,6 +33,8 @@ pub struct GLTF {
     pub filename: PathBuf,
 }
 
+//noinspection RsConstantConditionIf
+//noinspection ALL
 pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::buffer::View) {
     if SHOW_GLTF_LOG {
         log::info!("{} Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
@@ -49,6 +51,8 @@ pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::bu
     }
 }
 
+//noinspection RsConstantConditionIf
+//noinspection ALL
 pub fn parsing_index_buffer(
     primitive: &gltf::Primitive,
     buffers: &Vec<gltf::buffer::Data>,
@@ -322,6 +326,8 @@ pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHi
     }
 }
 
+//noinspection RsConstantConditionIf
+//noinspection ALL
 pub fn parsing_skins(
     nodes: gltf::iter::Nodes,
     skin: &gltf::Skin,
@@ -380,6 +386,8 @@ pub fn parsing_skins(
     panic!("not found armature node");
 }
 
+//noinspection RsConstantConditionIf
+//noinspection ALL
 pub fn parsing_animation(
     animations: gltf::iter::Animations,
     skin: &gltf::Skin,
@@ -508,6 +516,8 @@ pub fn parsing_animation(
         .push(animation_node_data_list);
 }
 
+//noinspection RsConstantConditionIf
+//noinspection ALL
 pub fn precompute_animation(
     frame_index: usize,
     parent_transform: &Matrix4<f32>,
@@ -555,6 +565,8 @@ pub fn precompute_animation(
     }
 }
 
+//noinspection RsConstantConditionIf
+//noinspection ALL
 pub fn parsing_meshes(
     node: &gltf::Node,
     buffers: &Vec<gltf::buffer::Data>,
@@ -663,6 +675,10 @@ pub fn parsing_meshes(
 }
 
 impl GLTF {
+    //noinspection RsConstantConditionIf
+    //noinspection RsConstantConditionIf
+    //noinspection ALL
+    //noinspection ALL
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         if SHOW_GLTF_LOG {
             log::info!("GLTF: {:?}", filename);

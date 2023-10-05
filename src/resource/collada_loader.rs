@@ -1093,6 +1093,10 @@ impl Collada {
         skeleton_data_list
     }
 
+    //noinspection RsConstantConditionIf
+    //noinspection RsConstantConditionIf
+    //noinspection ALL
+    //noinspection ALL
     pub fn precompute_animation(
         animations: &mut Vec<ColladaAnimation>,
         children_hierarchy: &SkeletonHierarchyTree,
@@ -1139,6 +1143,8 @@ impl Collada {
         }
     }
 
+    //noinspection RsConstantConditionIf
+    //noinspection ALL
     pub fn get_animation_data(
         &mut self,
         skeleton_data_list: &Vec<SkeletonDataCreateInfo>,

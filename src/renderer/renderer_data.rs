@@ -8,16 +8,9 @@ use ash::extensions::ext::DebugUtils;
 use ash::{vk, Device};
 use nalgebra::{Matrix4, Vector2};
 
-use crate::scene::scene_manager::SceneManager;
 use crate::constants;
 use crate::effect::effect_manager::EffectManager;
 use crate::render_pass::render_pass;
-use crate::scene::camera::CameraObjectData;
-use crate::scene::debug_line::DebugLineManager;
-use crate::scene::fft_ocean::FFTOcean;
-use crate::scene::font::{FontManager, RenderTextInfo};
-use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
-use crate::scene::precomputed_atmosphere::{Atmosphere, PushConstant_PrecomputedAtmosphere};
 use crate::renderer::push_constants::{
     PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy,
     PushConstant_RenderDebug,
@@ -27,13 +20,20 @@ use crate::renderer::render_context::{
     RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SSAO,
     RenderContext_SceneColorDownSampling, RenderContext_TAA, RenderContext_TAA_Simple,
 };
-use crate::scene::render_element::RenderElementData;
-use crate::scene::ui::UIManager;
 use crate::renderer::render_target::{self, RenderTargetType};
 use crate::renderer::renderer_context::{RendererContext, RendererDataBase};
 use crate::renderer::shader_buffer_data::{self, ShaderBufferDataMap, ShaderBufferDataType};
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
+use crate::scene::camera::CameraObjectData;
+use crate::scene::debug_line::DebugLineManager;
+use crate::scene::fft_ocean::FFTOcean;
+use crate::scene::font::{FontManager, RenderTextInfo};
+use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
+use crate::scene::precomputed_atmosphere::{Atmosphere, PushConstant_PrecomputedAtmosphere};
+use crate::scene::render_element::RenderElementData;
+use crate::scene::scene_manager::SceneManager;
+use crate::scene::ui::UIManager;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
@@ -423,6 +423,8 @@ impl RendererDataBase for RendererData {
         self._render_context_ssr.update();
     }
 
+    //noinspection RsConstantConditionIf
+    //noinspection ALL
     fn render_scene(
         &mut self,
         command_buffer: vk::CommandBuffer,
@@ -1317,6 +1319,8 @@ impl RendererData {
         }
     }
 
+    //noinspection RsConstantConditionIf
+    //noinspection ALL
     pub fn render_light_probe(
         &self,
         renderer_context: &RendererContext,

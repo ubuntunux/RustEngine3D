@@ -10,12 +10,12 @@ use crate::constants::{
     MAX_EMITTER_COUNT, MAX_PARTICLE_COUNT, PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE,
 };
 use crate::effect::effect_data::*;
-use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::resource::resource::EngineResources;
+use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::render_pass::{PipelineData, RenderPassData};

@@ -1,15 +1,12 @@
-use serde::{ Serialize, Deserialize };
-use nalgebra::{ Vector3 };
+use nalgebra::Vector3;
+use serde::{Deserialize, Serialize};
 
 use crate::scene::animation::{
-    AnimationNodeCreateInfo,
-    AnimationData,
-    SkeletonDataCreateInfo,
-    SkeletonData,
+    AnimationData, AnimationNodeCreateInfo, SkeletonData, SkeletonDataCreateInfo,
 };
-use crate::vulkan_context::geometry_buffer::{ GeometryData, GeometryCreateInfo };
-use crate::utilities::system::{ RcRefCell };
-use crate::utilities::bounding_box::{ BoundingBox };
+use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::system::RcRefCell;
+use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, GeometryData};
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
@@ -65,34 +62,44 @@ impl MeshDataCreateInfo {
     }
 }
 
-
 impl MeshData {
     pub fn create_mesh_data(
         mesh_name: &String,
         mesh_data_create_info: MeshDataCreateInfo,
-        geometry_data_list: Vec<RcRefCell<GeometryData>>
+        geometry_data_list: Vec<RcRefCell<GeometryData>>,
     ) -> MeshData {
         log::debug!("create_mesh_data: {}", mesh_name);
         let mut mesh_data = MeshData {
             _name: mesh_name.clone(),
             _bound_box: mesh_data_create_info._bound_box,
-            _skeleton_data_list: mesh_data_create_info._skeleton_create_infos
+            _skeleton_data_list: mesh_data_create_info
+                ._skeleton_create_infos
                 .iter()
                 .enumerate()
                 .map(|(i, skeleton_create_info)| {
                     SkeletonData::create_skeleton_data(i, skeleton_create_info)
-                }).collect(),
+                })
+                .collect(),
             _animation_data_list: Vec::new(),
             _geometry_data_list: geometry_data_list,
         };
 
-        for (i, animation_node_create_info) in mesh_data_create_info._animation_node_create_infos.iter().enumerate() {
-            mesh_data._animation_data_list.push(AnimationData::create_animation_data(
-                &format!("{}_{}", mesh_data._name, mesh_data._skeleton_data_list[i]._name),
-                i,
-                &mesh_data._skeleton_data_list[i],
-                animation_node_create_info,
-            ));
+        for (i, animation_node_create_info) in mesh_data_create_info
+            ._animation_node_create_infos
+            .iter()
+            .enumerate()
+        {
+            mesh_data
+                ._animation_data_list
+                .push(AnimationData::create_animation_data(
+                    &format!(
+                        "{}_{}",
+                        mesh_data._name, mesh_data._skeleton_data_list[i]._name
+                    ),
+                    i,
+                    &mesh_data._skeleton_data_list[i],
+                    animation_node_create_info,
+                ));
         }
 
         mesh_data
@@ -118,6 +125,5 @@ impl MeshData {
         &self._geometry_data_list[index]
     }
 
-    pub fn update_mesh_data(&self) {
-    }
+    pub fn update_mesh_data(&self) {}
 }

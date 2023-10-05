@@ -229,11 +229,7 @@ pub fn upload_buffer_data<T: Copy>(device: &Device, buffer_data: &BufferData, up
                 vk::MemoryMapFlags::empty(),
             )
             .unwrap();
-        let mut slice = Align::new(
-            buffer_ptr,
-            mem::align_of::<T>() as u64,
-            upload_data_size,
-        );
+        let mut slice = Align::new(buffer_ptr, mem::align_of::<T>() as u64, upload_data_size);
         slice.copy_from_slice(upload_data);
         device.unmap_memory(buffer_data._buffer_memory);
     }
@@ -281,11 +277,7 @@ pub fn upload_buffer_data_offset<T: Copy>(
                 vk::MemoryMapFlags::empty(),
             )
             .unwrap();
-        let mut slice = Align::new(
-            buffer_ptr,
-            mem::align_of::<T>() as u64,
-            upload_data_size,
-        );
+        let mut slice = Align::new(buffer_ptr, mem::align_of::<T>() as u64, upload_data_size);
         slice.copy_from_slice(upload_data);
         device.unmap_memory(buffer_data._buffer_memory);
     }

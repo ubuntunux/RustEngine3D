@@ -150,10 +150,7 @@ impl TextureData {
     }
 
     pub fn get_default_image_size(&self) -> (u32, u32) {
-        (
-            max(1, self._image_width),
-            max(1, self._image_height),
-        )
+        (max(1, self._image_width), max(1, self._image_height))
     }
 
     // Image view type

@@ -1,4 +1,3 @@
-
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::utilities::system::RcRefCell;
@@ -21,7 +20,7 @@ impl ModelData {
     pub fn new_model_data(
         model_name: &String,
         mesh_data: RcRefCell<MeshData>,
-        material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>
+        material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
     ) -> ModelData {
         log::debug!("new_model_data: {}", model_name);
         ModelData {
@@ -31,8 +30,7 @@ impl ModelData {
         }
     }
 
-    pub fn destroy_model_data(&self) {
-    }
+    pub fn destroy_model_data(&self) {}
 
     pub fn get_mesh_data(&self) -> &RcRefCell<MeshData> {
         &self._mesh_data
@@ -46,7 +44,10 @@ impl ModelData {
         &self._material_instance_data_list
     }
 
-    pub fn set_material_instance_data_list(&mut self, material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>) {
+    pub fn set_material_instance_data_list(
+        &mut self,
+        material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
+    ) {
         self._material_instance_data_list = material_instance_data_list;
     }
 
@@ -54,6 +55,5 @@ impl ModelData {
         &self._material_instance_data_list[index]
     }
 
-    pub fn update_model_data(&self) {
-    }
+    pub fn update_model_data(&self) {}
 }

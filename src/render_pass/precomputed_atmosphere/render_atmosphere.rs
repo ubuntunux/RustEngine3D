@@ -11,13 +11,13 @@ use crate::vulkan_context::render_pass::{
 use crate::vulkan_context::vulkan_context::{self, BlendMode};
 use ash::vk;
 
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer_data::RendererData;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::scene::precomputed_atmosphere::{
     Luminance, PushConstant_PrecomputedAtmosphere, DEFAULT_LUMINANCE_TYPE,
     DEFAULT_USE_COMBINED_TEXTURES, USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES,
 };
-use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::renderer_data::RendererData;
-use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let render_target0 =
@@ -41,6 +41,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
 
+//noinspection ALL,RsConstantConditionIf
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_atmosphere");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
