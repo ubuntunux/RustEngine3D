@@ -85,7 +85,7 @@ impl DirectionalLightData {
             _light_name: light_name.clone(),
             _light_constants: light_create_info._light_constants.clone(),
             _light_shadow_projection: Matrix4::identity(),
-            _transform_object: TransformObjectData::new_transform_object_data(),
+            _transform_object: TransformObjectData::create_transform_object_data(),
             _updated_light_data: true,
             _need_to_redraw_shadow: true,
             _shadow_update_distance: light_create_info._shadow_update_distance,

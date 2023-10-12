@@ -185,7 +185,7 @@ pub struct UIComponentData {
     pub _size_hint_x: Option<f32>,
     pub _size_hint_y: Option<f32>,
     pub _padding: Vector4<f32>,
-    pub _margine: Vector4<f32>,
+    pub _margin: Vector4<f32>,
     pub _texcoord: Vector4<f32>,
     pub _draggable: bool,
     pub _touchable: bool,
@@ -220,7 +220,7 @@ pub struct UIComponentInstance {
     pub _transform: TransformObjectData,
     pub _world_to_local_matrix: Matrix4<f32>,
     pub _local_to_world_matrix: Matrix4<f32>,
-    pub _spaces: Vector4<f32>, // margine + border + padding
+    pub _spaces: Vector4<f32>, // margin + border + padding
     pub _contents_area: Vector4<f32>,
     pub _contents_area_size: Vector2<f32>, // ui_size - spaces
     pub _text_contents_size: Vector2<f32>, // just text contents size
@@ -296,7 +296,7 @@ impl Default for UIComponentData {
             _size_hint_x: None,
             _size_hint_y: None,
             _padding: Vector4::zeros(),
-            _margine: Vector4::zeros(),
+            _margin: Vector4::zeros(),
             _round: 0.0,
             _border: 0.0,
             _border_color: get_color32(0, 0, 0, 255),
@@ -332,7 +332,7 @@ impl UIComponentInstance {
             _changed_render_data: true,
             _changed_text: false,
             _render_ui_index: u32::MAX,
-            _transform: TransformObjectData::new_transform_object_data(),
+            _transform: TransformObjectData::create_transform_object_data(),
             _world_to_local_matrix: Matrix4::identity(),
             _local_to_world_matrix: Matrix4::identity(),
             _spaces: Vector4::zeros(),
@@ -627,47 +627,47 @@ impl UIComponentInstance {
             self.set_changed_layout(true);
         }
     }
-    pub fn set_margine(&mut self, margine: f32) {
-        self.set_margines(Vector4::new(margine, margine, margine, margine));
+    pub fn set_margin(&mut self, margin: f32) {
+        self.set_margins(Vector4::new(margin, margin, margin, margin));
     }
-    pub fn set_margines(&mut self, margine: Vector4<f32>) {
-        if margine != self._ui_component_data._margine {
-            self._ui_component_data._margine = margine;
+    pub fn set_margins(&mut self, margin: Vector4<f32>) {
+        if margin != self._ui_component_data._margin {
+            self._ui_component_data._margin = margin;
             self.set_changed_layout(true);
         }
     }
-    fn set_margine_inner(&mut self, index: usize, margine: f32) {
-        if margine != self._ui_component_data._margine[index] {
-            self._ui_component_data._margine[index] = margine;
+    fn set_margin_inner(&mut self, index: usize, margin: f32) {
+        if margin != self._ui_component_data._margin[index] {
+            self._ui_component_data._margin[index] = margin;
             self.set_changed_layout(true);
         }
     }
-    pub fn get_margine(&self) -> &Vector4<f32> {
-        &self._ui_component_data._margine
+    pub fn get_margin(&self) -> &Vector4<f32> {
+        &self._ui_component_data._margin
     }
-    pub fn get_margine_left(&self) -> f32 {
-        self._ui_component_data._margine.x
+    pub fn get_margin_left(&self) -> f32 {
+        self._ui_component_data._margin.x
     }
-    pub fn get_margine_top(&self) -> f32 {
-        self._ui_component_data._margine.y
+    pub fn get_margin_top(&self) -> f32 {
+        self._ui_component_data._margin.y
     }
-    pub fn get_margine_right(&self) -> f32 {
-        self._ui_component_data._margine.z
+    pub fn get_margin_right(&self) -> f32 {
+        self._ui_component_data._margin.z
     }
-    pub fn get_margine_bottom(&self) -> f32 {
-        self._ui_component_data._margine.w
+    pub fn get_margin_bottom(&self) -> f32 {
+        self._ui_component_data._margin.w
     }
-    pub fn set_margine_left(&mut self, margine: f32) {
-        self.set_margine_inner(UI_INDEX_LEFT, margine);
+    pub fn set_margin_left(&mut self, margin: f32) {
+        self.set_margin_inner(UI_INDEX_LEFT, margin);
     }
-    pub fn set_margine_top(&mut self, margine: f32) {
-        self.set_margine_inner(UI_INDEX_TOP, margine);
+    pub fn set_margin_top(&mut self, margin: f32) {
+        self.set_margin_inner(UI_INDEX_TOP, margin);
     }
-    pub fn set_margine_right(&mut self, margine: f32) {
-        self.set_margine_inner(UI_INDEX_RIGHT, margine);
+    pub fn set_margin_right(&mut self, margin: f32) {
+        self.set_margin_inner(UI_INDEX_RIGHT, margin);
     }
-    pub fn set_margine_bottom(&mut self, margine: f32) {
-        self.set_margine_inner(UI_INDEX_BOTTOM, margine);
+    pub fn set_margin_bottom(&mut self, margin: f32) {
+        self.set_margin_inner(UI_INDEX_BOTTOM, margin);
     }
 
     pub fn set_padding(&mut self, padding: f32) {
@@ -1239,7 +1239,7 @@ impl UIComponentInstance {
             inherit_changed_layout = true;
 
             let border = self.get_border();
-            let spaces = self.get_margine()
+            let spaces = self.get_margin()
                 + self.get_padding()
                 + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
@@ -1399,10 +1399,10 @@ impl UIComponentInstance {
         self._ui_area.z = self._ui_area.x + self._ui_size.x;
         self._ui_area.w = self._ui_area.y + self._ui_size.y;
 
-        self._render_area.x = self._ui_area.x + self.get_margine_left();
-        self._render_area.y = self._ui_area.y + self.get_margine_top();
-        self._render_area.z = self._ui_area.z - self.get_margine_right();
-        self._render_area.w = self._ui_area.w - self.get_margine_bottom();
+        self._render_area.x = self._ui_area.x + self.get_margin_left();
+        self._render_area.y = self._ui_area.y + self.get_margin_top();
+        self._render_area.z = self._ui_area.z - self.get_margin_right();
+        self._render_area.w = self._ui_area.w - self.get_margin_bottom();
 
         self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x);
         self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y);

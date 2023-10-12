@@ -109,7 +109,7 @@ impl CameraObjectData {
             _inv_view_origin_projection_jitter: Matrix4::identity(),
             _view_origin_projection_prev_jitter: Matrix4::identity(),
             _view_frustum_planes: [Vector3::zeros(); 4],
-            _transform_object: TransformObjectData::new_transform_object_data(),
+            _transform_object: TransformObjectData::create_transform_object_data(),
             _jitter_mode_uniform2x: [Vector2::zeros(); 2],
             _jitter_mode_hammersley4x: [Vector2::zeros(); 4],
             _jitter_mode_hammersley8x: [Vector2::zeros(); 8],

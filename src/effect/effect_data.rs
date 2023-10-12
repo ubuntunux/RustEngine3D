@@ -346,7 +346,7 @@ impl EffectInstance {
             _is_culled_from_view: false,
             _elapsed_time: 0.0,
             _bound_box: BoundingBox::default(),
-            _effect_transform: TransformObjectData::new_transform_object_data(),
+            _effect_transform: TransformObjectData::create_transform_object_data(),
             _effect_data: effect_data.clone(),
             _emitters: emitters,
         });
@@ -435,7 +435,7 @@ impl EmitterInstance {
             _allocated_particle_count: 0,
             _need_to_upload_static_constant_buffer: false,
             _emitter_world_transform: Matrix4::identity(),
-            _emitter_transform: TransformObjectData::new_transform_object_data(),
+            _emitter_transform: TransformObjectData::create_transform_object_data(),
             _emitter_data: emitter_data,
         }
     }

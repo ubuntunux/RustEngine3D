@@ -156,7 +156,7 @@ impl BoneData {
     ) -> BoneData {
         BoneData {
             _name: name.clone(),
-            _transform: TransformObjectData::new_transform_object_data(),
+            _transform: TransformObjectData::create_transform_object_data(),
             _inv_bind_matrix: inv_bind_matrix.clone() as Matrix4<f32>,
             _parent: std::ptr::null_mut(),
             _children: Vec::new(),

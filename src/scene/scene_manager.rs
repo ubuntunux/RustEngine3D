@@ -597,13 +597,13 @@ impl SceneManager {
 
         self.initialize_light_probe_cameras();
 
-        let project_engine_resources = ptr_as_ref(self._engine_resources);
+        let engine_resources = ptr_as_ref(self._engine_resources);
 
-        if false == project_engine_resources.has_scene_data(scene_data_name) {
+        if false == engine_resources.has_scene_data(scene_data_name) {
             self.create_default_scene_data(scene_data_name);
         }
 
-        let scene_data_create_info = project_engine_resources
+        let scene_data_create_info = engine_resources
             .get_scene_data(scene_data_name)
             .borrow();
 

@@ -164,33 +164,7 @@ pub trait ProjectResourcesBase {
     fn initialize_project_resources(&mut self, engine_resources: &EngineResources);
     fn load_project_resources(&mut self, renderer_context: &RendererContext);
     fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
-    fn load_graphics_data_list(&mut self, renderer_context: &RendererContext);
-    fn unload_graphics_data_list(&mut self, renderer_context: &RendererContext);
-    fn load_render_pass_data_create_infos(
-        &mut self,
-        renderer_context: &RendererContext,
-        render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap,
-    );
-    fn regist_resource(&mut self);
-    fn unregist_resource(&mut self);
-    fn has_audio_data(&self, resource_name: &str) -> bool;
-    fn get_audio_data(&self, resource_name: &str) -> &ResourceData;
-    fn has_audio_bank_data(&self, resource_name: &str) -> bool;
-    fn get_audio_bank_data(&self, resource_name: &str) -> &ResourceData;
-    fn has_effect_data(&self, resource_name: &str) -> bool;
-    fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData>;
-    fn get_default_font_data(&self) -> &RcRefCell<FontData>;
-    fn get_font_data(&self, resource_name: &str) -> &RcRefCell<FontData>;
-    fn has_model_data(&self, resource_name: &str) -> bool;
-    fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData>;
-    fn has_mesh_data(&self, resource_name: &str) -> bool;
-    fn get_mesh_data(&self, resource_name: &str) -> &RcRefCell<MeshData>;
-    fn has_texture_data(&self, resource_name: &str) -> bool;
-    fn get_texture_data(&self, resource_name: &str) -> &RcRefCell<TextureData>;
-    fn has_material_data(&self, resource_name: &str) -> bool;
-    fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData>;
-    fn has_material_instance_data(&self, resource_name: &str) -> bool;
-    fn get_material_instance_data(&self, resource_name: &str) -> &RcRefCell<MaterialInstanceData>;
+    fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext, render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap);
 }
 
 #[derive(Clone)]

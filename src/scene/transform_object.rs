@@ -36,7 +36,7 @@ pub struct TransformObjectData {
 }
 
 impl TransformObjectData {
-    pub fn new_transform_object_data() -> TransformObjectData {
+    pub fn create_transform_object_data() -> TransformObjectData {
         TransformObjectData {
             _updated: true,
             _prev_updated: true,
