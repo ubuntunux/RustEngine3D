@@ -1,7 +1,7 @@
 use std::cmp::max;
 
+use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
 use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
@@ -9,7 +9,7 @@ use crate::constants;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
-use crate::resource::resource::{EngineResources, DEFAULT_FONT_NAME};
+use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
 use crate::utilities::system::{newRcRefCell, RcRefCell};
 use crate::vulkan_context::buffer::{self, BufferData};
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;

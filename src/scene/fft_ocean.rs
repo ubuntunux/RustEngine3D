@@ -1,6 +1,8 @@
 use std::cmp::max;
 use std::num::Wrapping;
 
+use ash::{Device, vk};
+
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_context::RendererContext;
@@ -13,7 +15,6 @@ use crate::vulkan_context::framebuffer::{self, FramebufferData};
 use crate::vulkan_context::geometry_buffer::{self, GeometryData};
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::vulkan_context::{Layers, MipLevels, SwapchainArray};
-use ash::{vk, Device};
 
 const CM: f64 = 0.23;
 const KM: f64 = 370.0;
@@ -189,7 +190,7 @@ impl FFTOcean {
         self._height = sea_height
     }
 
-    pub fn regist_fft_ocean_textures(
+    pub fn register_fft_ocean_textures(
         &mut self,
         renderer_context: &RendererContext,
         engine_resources: &mut EngineResources,
@@ -207,7 +208,7 @@ impl FFTOcean {
                 GRID_VERTEX_COUNT,
                 false,
             );
-            engine_resources.regist_mesh_data(
+            engine_resources.register_mesh_data(
                 &renderer_context,
                 &String::from("fft_grid"),
                 fft_grid,
@@ -228,7 +229,7 @@ impl FFTOcean {
                 _texture_initial_data_list: spectrum12_data.clone(),
                 ..Default::default()
             });
-            engine_resources.regist_texture_data(
+            engine_resources.register_texture_data(
                 texture_spectrum_1_2._texture_data_name.clone(),
                 newRcRefCell(texture_spectrum_1_2),
             );
@@ -245,7 +246,7 @@ impl FFTOcean {
                 _texture_initial_data_list: spectrum34_data.clone(),
                 ..Default::default()
             });
-            engine_resources.regist_texture_data(
+            engine_resources.register_texture_data(
                 texture_spectrum_3_4._texture_data_name.clone(),
                 newRcRefCell(texture_spectrum_3_4),
             );
@@ -263,7 +264,7 @@ impl FFTOcean {
                 _texture_initial_data_list: butterfly_data.clone(),
                 ..Default::default()
             });
-            engine_resources.regist_texture_data(
+            engine_resources.register_texture_data(
                 texture_butterfly._texture_data_name.clone(),
                 newRcRefCell(texture_butterfly),
             );

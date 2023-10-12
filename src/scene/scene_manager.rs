@@ -11,7 +11,7 @@ use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_context::RendererContext;
-use crate::renderer::renderer_data::{RenderObjectType, RendererData};
+use crate::renderer::renderer_data::{RendererData, RenderObjectType};
 use crate::resource::resource::EngineResources;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, LightConstants};

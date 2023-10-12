@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::fmt;
 
-use sdl2::mixer::{Channel, Chunk, InitFlag, Sdl2MixerContext, AUDIO_S16LSB, DEFAULT_CHANNELS};
 use sdl2::{self, AudioSubsystem, Sdl};
+use sdl2::mixer::{AUDIO_S16LSB, Channel, Chunk, DEFAULT_CHANNELS, InitFlag, Sdl2MixerContext};
 use serde::{Deserialize, Serialize};
 
 use crate::constants::{DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT};
@@ -166,7 +166,7 @@ impl AudioManager {
         ptr_as_mut(self._engine_resources)
     }
 
-    fn regist_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>) {
+    fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>) {
         match audio_instance.borrow()._channel {
             Ok(channel) => {
                 channel.set_volume(self._volume);
@@ -184,7 +184,7 @@ impl AudioManager {
         audio_loop: AudioLoop,
     ) -> RcRefCell<AudioInstance> {
         let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop);
-        self.regist_audio_instance(&audio_instance);
+        self.register_audio_instance(&audio_instance);
         audio_instance
     }
 

@@ -1,9 +1,10 @@
+use ash::vk;
+
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::fft_ocean;
 use crate::scene::precomputed_atmosphere;
 use crate::vulkan_context::texture::TextureCreateInfo;
-use ash::vk;
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]

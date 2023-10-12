@@ -1,5 +1,5 @@
+use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
 
 use crate::vulkan_context::texture;
 

@@ -1,5 +1,5 @@
-use std::cmp::Ordering::{Greater, Less};
 use std::cmp::{max, min};
+use std::cmp::Ordering::{Greater, Less};
 #[allow(dead_code)]
 use std::collections::HashMap;
 

@@ -1,6 +1,10 @@
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 
+use ash::{Device, vk};
+use ash::extensions::ext::DebugUtils;
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+
 use crate::constants;
 use crate::effect::effect_manager::{
     GpuParticleCountBufferData, GpuParticleDynamicConstants, GpuParticleStaticConstants,
@@ -12,9 +16,6 @@ use crate::scene::font::FontInstanceData;
 use crate::scene::light::LightConstants;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
-use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
 
@@ -269,7 +270,7 @@ impl std::str::FromStr for ShaderBufferDataType {
     }
 }
 
-pub fn regist_shader_buffer_data(
+pub fn register_shader_buffer_data(
     debug_utils: &DebugUtils,
     shdaer_buffer_create_info: &mut RegistShaderBufferCreateInfo,
 ) {
@@ -297,7 +298,7 @@ pub fn regist_shader_buffer_data(
     }
 }
 
-pub fn regist_shader_buffer_data_list(
+pub fn register_shader_buffer_data_list(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     debug_utils: &DebugUtils,
@@ -317,7 +318,7 @@ pub fn regist_shader_buffer_data_list(
         _is_device_local: false,
     };
 
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::SceneConstants,
@@ -325,7 +326,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::ViewConstants,
@@ -333,7 +334,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightConstants,
@@ -341,7 +342,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::SSAOConstants,
@@ -349,7 +350,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::AtmosphereConstants,
@@ -357,7 +358,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants0,
@@ -365,7 +366,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants1,
@@ -373,7 +374,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants2,
@@ -381,7 +382,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants3,
@@ -389,7 +390,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants4,
@@ -397,7 +398,7 @@ pub fn regist_shader_buffer_data_list(
             ..uniform_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants5,
@@ -419,7 +420,7 @@ pub fn regist_shader_buffer_data_list(
         _has_staging_buffer: true,
         _is_device_local: false,
     };
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
@@ -427,7 +428,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::DebugLineInstanceDataBuffer,
@@ -436,7 +437,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::FontInstanceDataBuffer,
@@ -445,7 +446,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::UIRenderDataBuffer,
@@ -454,7 +455,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleStaticConstants,
@@ -463,7 +464,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleDynamicConstants,
@@ -472,7 +473,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
@@ -481,7 +482,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBuffer,
@@ -494,7 +495,7 @@ pub fn regist_shader_buffer_data_list(
             ..storage_buffer_create_info
         },
     );
-    regist_shader_buffer_data(
+    register_shader_buffer_data(
         debug_utils,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,

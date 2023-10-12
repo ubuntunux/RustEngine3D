@@ -1,8 +1,8 @@
 use std::os::raw::c_void;
 use std::rc::Rc;
 
+use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
 use bitflags::bitflags;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};

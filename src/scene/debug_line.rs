@@ -1,5 +1,5 @@
+use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 

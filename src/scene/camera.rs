@@ -1,5 +1,5 @@
-use nalgebra::linalg;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use nalgebra::linalg;
 use serde::{Deserialize, Serialize};
 
 use crate::constants;

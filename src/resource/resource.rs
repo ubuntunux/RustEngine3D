@@ -590,11 +590,11 @@ impl EngineResources {
         // nothing..
     }
 
-    pub fn regist_resource(&mut self) {
+    pub fn register_resource(&mut self) {
         // nothing..
     }
 
-    pub fn unregist_resource(&mut self) {
+    pub fn unregister_resource(&mut self) {
         // nothing..
     }
 
@@ -980,7 +980,7 @@ impl EngineResources {
                     };
                     let texture_data =
                         newRcRefCell(renderer_context.create_texture(&texture_create_info));
-                    self.regist_texture_data(font_texture_name.clone(), texture_data);
+                    self.register_texture_data(font_texture_name.clone(), texture_data);
                 };
                 let texture_data = self.get_texture_data(&font_texture_name);
 
@@ -1089,7 +1089,7 @@ impl EngineResources {
     }
 
     // Mesh Loader
-    pub fn regist_mesh_data(
+    pub fn register_mesh_data(
         &mut self,
         renderer_context: &RendererContext,
         mesh_name: &String,
@@ -1124,12 +1124,12 @@ impl EngineResources {
     //noinspection ALL
     pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_mesh_data_list");
-        self.regist_mesh_data(
+        self.register_mesh_data(
             renderer_context,
             &String::from("quad"),
             geometry_buffer::quad_mesh_create_info(),
         );
-        self.regist_mesh_data(
+        self.register_mesh_data(
             renderer_context,
             &String::from("cube"),
             geometry_buffer::cube_mesh_create_info(),
@@ -1211,7 +1211,7 @@ impl EngineResources {
                         mesh_data_create_info
                     }
                 };
-            self.regist_mesh_data(renderer_context, &mesh_name, mesh_data_create_info);
+            self.register_mesh_data(renderer_context, &mesh_name, mesh_data_create_info);
         }
     }
 
@@ -1298,7 +1298,7 @@ impl EngineResources {
         )
     }
 
-    pub fn regist_texture_data(
+    pub fn register_texture_data(
         &mut self,
         texture_data_name: String,
         texture_data: RcRefCell<TextureData>,
@@ -1312,7 +1312,7 @@ impl EngineResources {
         let default_texture_data_list: Vec<TextureData> =
             texture_generator::generate_textures(renderer_context);
         for texture_data in default_texture_data_list {
-            self.regist_texture_data(
+            self.register_texture_data(
                 texture_data._texture_data_name.clone(),
                 newRcRefCell(texture_data),
             );

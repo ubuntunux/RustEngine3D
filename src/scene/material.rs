@@ -1,8 +1,9 @@
+use serde_json;
+
 use crate::vulkan_context::render_pass::{
     get_render_pass_pipeline_data_name, PipelinePushConstantData, RenderPassPipelineData,
     RenderPassPipelineDataMap,
 };
-use serde_json;
 
 #[derive(Clone, Debug)]
 pub struct MaterialData {

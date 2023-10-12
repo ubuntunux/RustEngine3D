@@ -4,8 +4,8 @@ use std::num::Wrapping;
 use std::str::FromStr;
 use std::vec::Vec;
 
+use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
 use nalgebra::{Matrix4, Vector2};
 
 use crate::constants;
@@ -17,8 +17,8 @@ use crate::renderer::push_constants::{
 };
 use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
-    RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SSAO,
-    RenderContext_SceneColorDownSampling, RenderContext_TAA, RenderContext_TAA_Simple,
+    RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SceneColorDownSampling,
+    RenderContext_SSAO, RenderContext_TAA, RenderContext_TAA_Simple,
 };
 use crate::renderer::render_target::{self, RenderTargetType};
 use crate::renderer::renderer_context::{RendererContext, RendererDataBase};
@@ -101,7 +101,7 @@ impl RendererDataBase for RendererData {
         self._engine_resources = engine_resources;
         self._effect_manager = effect_manager;
 
-        shader_buffer_data::regist_shader_buffer_data_list(
+        shader_buffer_data::register_shader_buffer_data_list(
             renderer_context.get_device(),
             renderer_context.get_device_memory_properties(),
             renderer_context.get_debug_utils(),
@@ -111,7 +111,7 @@ impl RendererDataBase for RendererData {
         self.create_render_targets(renderer_context);
         if unsafe { constants::RENDER_OCEAN } {
             self.get_fft_ocean_mut()
-                .regist_fft_ocean_textures(renderer_context, self.get_engine_resources_mut());
+                .register_fft_ocean_textures(renderer_context, self.get_engine_resources_mut());
         }
     }
 

@@ -1,5 +1,10 @@
 use std::collections::HashMap;
 
+use ash::{Device, vk};
+use ash::extensions::ext::DebugUtils;
+use nalgebra::{Vector3, Vector4};
+use rand;
+
 use crate::constants;
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
@@ -13,10 +18,6 @@ use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::{
     self, CubeMapArray, Layers, MipLevels, SwapchainArray,
 };
-use ash::extensions::ext::DebugUtils;
-use ash::{vk, Device};
-use nalgebra::{Vector3, Vector4};
-use rand;
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]

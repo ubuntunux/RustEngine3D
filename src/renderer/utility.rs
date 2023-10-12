@@ -1,6 +1,6 @@
+use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
 use ash::vk::BaseOutStructure;
-use ash::{vk, Device};
 
 use crate::constants;
 use crate::scene::material_instance::PipelineBindingData;

@@ -1,17 +1,18 @@
-use ash::extensions::ext::DebugUtils;
-use ash::extensions::khr::{Surface, Swapchain};
-use ash::extensions::nv::RayTracing;
-use ash::prelude::VkResult;
-use ash::vk::CommandBuffer;
-use ash::{vk, Device, Entry, Instance};
-use nalgebra::Vector2;
-use raw_window_handle::{HasRawWindowHandle, RawDisplayHandle};
 use std::borrow::Cow;
 use std::cell::Ref;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::rc::Rc;
 use std::vec::Vec;
+
+use ash::{Device, Entry, Instance, vk};
+use ash::extensions::ext::DebugUtils;
+use ash::extensions::khr::{Surface, Swapchain};
+use ash::extensions::nv::RayTracing;
+use ash::prelude::VkResult;
+use ash::vk::CommandBuffer;
+use nalgebra::Vector2;
+use raw_window_handle::{HasRawWindowHandle, RawDisplayHandle};
 use winit;
 use winit::window::Window;
 
@@ -28,6 +29,7 @@ use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui::UIManager;
 use crate::utilities::system;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
+use crate::vulkan_context::{buffer, command_buffer, device, queue, sync, texture};
 use crate::vulkan_context::buffer::ShaderBufferData;
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::descriptor::{self, DescriptorResourceInfo};
@@ -38,7 +40,6 @@ use crate::vulkan_context::render_pass::{PipelineData, RenderPassData, RenderPas
 use crate::vulkan_context::swapchain::{self, SwapchainData};
 use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 use crate::vulkan_context::vulkan_context::{FrameArray, RenderFeatures, SwapchainArray};
-use crate::vulkan_context::{buffer, command_buffer, device, queue, sync, texture};
 
 pub unsafe extern "system" fn vulkan_debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
