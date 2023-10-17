@@ -337,6 +337,8 @@ impl SceneManager {
         &self,
         object_name: &str,
     ) -> Option<&RcRefCell<RenderObjectData>> {
+        log::info!("object_name: {:?}", object_name);
+        log::info!("_skeletal_render_object_map: {:?}", self._skeletal_render_object_map.keys());
         self._skeletal_render_object_map.get(object_name)
     }
 
