@@ -271,7 +271,7 @@ impl EffectManager {
             }
         }
 
-        // unregist effect
+        // unregister effect
         if false == self._dead_effect_ids.is_empty() {
             for dead_effect_id in self._dead_effect_ids.iter() {
                 self._effects.remove(dead_effect_id);

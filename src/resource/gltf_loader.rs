@@ -11,8 +11,8 @@ use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::system;
-use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, SkeletalVertexData, VertexData};
 use crate::vulkan_context::{geometry_buffer, vulkan_context};
+use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, SkeletalVertexData, VertexData};
 
 pub const SHOW_GLTF_LOG: bool = false;
 
@@ -537,7 +537,7 @@ pub fn precompute_animation(
         );
 
     // combine animation matrix with inv_bind_matrix
-    if constants::COMBINED_INVERSE_BIND_MATRIX {
+    if constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX {
         let combined_transform = transform * &inv_bind_matrices[bone_index];
         animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
         animation_node_data._rotations[frame_index] = math::extract_quaternion(&combined_transform);
@@ -699,7 +699,7 @@ impl GLTF {
                 &mut mesh_data_create_info,
             );
 
-            if constants::HIERACHICALLY_ACCUMULATED_MATRIX {
+            if constants::HIERARCHICALLY_ACCUMULATED_MATRIX {
                 let n = mesh_data_create_info._animation_node_create_infos.len();
                 let animation_node_data_list =
                     &mut mesh_data_create_info._animation_node_create_infos[n - 1];

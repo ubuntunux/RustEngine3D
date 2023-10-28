@@ -125,8 +125,8 @@ impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
             _name: String::new(),
-            _hierarchically_accumulated_matrix: constants::HIERACHICALLY_ACCUMULATED_MATRIX,
-            _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
+            _hierarchically_accumulated_matrix: constants::HIERARCHICALLY_ACCUMULATED_MATRIX,
+            _combined_inv_bind_matrix: constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX,
             _target: String::new(),
             _times: Vec::new(),
             _locations: Vec::new(),

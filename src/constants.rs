@@ -70,8 +70,11 @@ pub const SSAO_RADIUS: f32 = 2.0;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = true;
 pub const MAX_TRANSFORM_COUNT: usize = 65536; // must match with scene_constants.glsl
-pub const HIERACHICALLY_ACCUMULATED_MATRIX: bool = true; // precompute bone animation matrix with ancestor bone matrices.
-pub const COMBINED_INVERSE_BIND_MATRIX: bool = true && HIERACHICALLY_ACCUMULATED_MATRIX; // combine animation matrix with inv_bind_matrix.
+pub const HIERARCHICALLY_ACCUMULATED_MATRIX: bool = true;
+// precompute bone animation matrix with ancestor bone matrices.
+pub const COMBINED_INVERSE_BIND_MATRIX: bool = true;
+// combine animation matrix with inv_bind_matrix.
+pub const ENABLE_COMBINED_INVERSE_BIND_MATRIX: bool = COMBINED_INVERSE_BIND_MATRIX && HIERARCHICALLY_ACCUMULATED_MATRIX;
 pub const CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED: bool = true;
 
 // render option

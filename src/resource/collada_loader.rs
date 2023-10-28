@@ -1111,11 +1111,11 @@ impl Collada {
                     // just Transpose child bones, no swap y-z.
                     let mut child_transform: Matrix4<f32> =
                         animations[i]._outputs[frame].transpose();
-                    if constants::HIERACHICALLY_ACCUMULATED_MATRIX {
+                    if constants::HIERARCHICALLY_ACCUMULATED_MATRIX {
                         child_transform = parent_matrix * child_transform;
                     }
 
-                    if constants::COMBINED_INVERSE_BIND_MATRIX {
+                    if constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX {
                         let child_bone_index = bone_names
                             .iter()
                             .position(|bone_name| *bone_name == animations[i]._target)
@@ -1169,7 +1169,7 @@ impl Collada {
                         // only root bone adjust convert_matrix for swap Y-Z Axis
                         let transform: Matrix4<f32> =
                             animations[i]._outputs[frame].clone() as Matrix4<f32>;
-                        if constants::COMBINED_INVERSE_BIND_MATRIX {
+                        if constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX {
                             let bone_index = bone_names
                                 .iter()
                                 .position(|bone_name| *bone_name == animations[i]._target)
@@ -1201,8 +1201,8 @@ impl Collada {
                         let animation_node_data = AnimationNodeCreateInfo {
                             _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
                             _hierarchically_accumulated_matrix:
-                                constants::HIERACHICALLY_ACCUMULATED_MATRIX,
-                            _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
+                            constants::HIERARCHICALLY_ACCUMULATED_MATRIX,
+                            _combined_inv_bind_matrix: constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX,
                             _target: animation_node._target.clone(),
                             _times: animation_node._inputs.clone(),
                             _locations: animation_node
