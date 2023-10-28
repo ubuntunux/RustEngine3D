@@ -4,7 +4,7 @@ use std::rc::Rc;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
-use crate::application::application::EngineApplication;
+use crate::core::engine_core::EngineCore;
 use crate::constants;
 use crate::constants::MAX_TRANSFORM_COUNT;
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
@@ -774,7 +774,7 @@ impl SceneManager {
 
     pub fn update_scene_manager(
         &mut self,
-        engine_application: &EngineApplication,
+        engine_core: &EngineCore,
         delta_time: f64,
     ) {
         let main_camera = ptr_as_mut(self.get_main_camera());
@@ -827,8 +827,8 @@ impl SceneManager {
         }
 
         // debug text
-        let time_data = &engine_application._time_data;
-        let font_manager = engine_application.get_font_manager_mut();
+        let time_data = &engine_core._time_data;
+        let font_manager = engine_core.get_font_manager_mut();
         font_manager.log(format!(
             "{:.2}fps / {:.3}ms",
             time_data._average_fps, time_data._average_frame_time

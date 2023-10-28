@@ -13,15 +13,15 @@ use winit::event::{
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
-use crate::application::input::{self, ButtonState};
+use crate::core::input::{self, ButtonState};
 use crate::audio::audio_manager::AudioManager;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::resource::{EngineResources, ProjectResourcesBase};
+use crate::resource::resource::{EngineResources, ApplicationResourcesBase};
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::{ProjectSceneManagerBase, SceneManager};
-use crate::scene::ui::{ProjectUIManagerBase, UIManager};
+use crate::scene::ui::{ApplicationUIManagerBase, UIManager};
 use crate::utilities::logger;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
@@ -92,18 +92,18 @@ impl TimeData {
     }
 }
 
-pub trait ProjectApplicationBase {
-    fn initialize_project_application(
+pub trait ApplicationBase {
+    fn initialize_application(
         &mut self,
-        engine_application: &EngineApplication,
+        engine_core: &EngineCore,
         window_size: &Vector2<i32>,
     );
-    fn terminate_project_application(&mut self);
+    fn terminate_application(&mut self);
     fn update_event(&mut self);
-    fn update_project_application(&mut self, delta_time: f64);
+    fn update_application(&mut self, delta_time: f64);
 }
 
-pub struct EngineApplication {
+pub struct EngineCore {
     pub _display_handle: RawDisplayHandle,
     pub _window: *const Window,
     pub _window_size: Vector2<i32>,
@@ -123,15 +123,15 @@ pub struct EngineApplication {
     pub _renderer_context: Box<RendererContext>,
     pub _ui_manager: Box<UIManager>,
     pub _scene_manager: Box<SceneManager>,
-    pub _project_application: *const dyn ProjectApplicationBase,
+    pub _application: *const dyn ApplicationBase,
 }
 
-impl EngineApplication {
-    pub fn get_project_application(&self) -> &dyn ProjectApplicationBase {
-        ptr_as_ref(self._project_application)
+impl EngineCore {
+    pub fn get_application(&self) -> &dyn ApplicationBase {
+        ptr_as_ref(self._application)
     }
-    pub fn get_project_application_mut(&self) -> &mut dyn ProjectApplicationBase {
-        ptr_as_mut(self._project_application)
+    pub fn get_application_mut(&self) -> &mut dyn ApplicationBase {
+        ptr_as_mut(self._application)
     }
     pub fn get_scene_manager(&self) -> &SceneManager {
         self._scene_manager.as_ref()
@@ -184,27 +184,27 @@ impl EngineApplication {
     pub fn get_ui_manager_mut(&self) -> &mut UIManager {
         ptr_as_mut(self._ui_manager.as_ref())
     }
-    pub fn create_project_application(
+    pub fn create_application(
         app_name: &str,
         app_version: u32,
         display_handle: RawDisplayHandle,
         window: &Window,
         sdl: &Sdl,
-        project_application: *const dyn ProjectApplicationBase,
-        project_resources: *const dyn ProjectResourcesBase,
+        application: *const dyn ApplicationBase,
+        application_resources: *const dyn ApplicationResourcesBase,
         project_scene_manager: *const dyn ProjectSceneManagerBase,
-        project_ui_manager: *const dyn ProjectUIManagerBase,
+        application_ui_manager: *const dyn ApplicationUIManagerBase,
         elapsed_time: f64,
-    ) -> Box<EngineApplication> {
+    ) -> Box<EngineCore> {
         // create managers
         let window_size: Vector2<i32> = Vector2::new(
             window.inner_size().width as i32,
             window.inner_size().height as i32,
         );
-        let engine_resources = EngineResources::create_engine_resources(project_resources);
+        let engine_resources = EngineResources::create_engine_resources(application_resources);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
-        let ui_manager = UIManager::create_ui_manager(project_ui_manager);
+        let ui_manager = UIManager::create_ui_manager(application_ui_manager);
         let renderer_context = RendererContext::create_renderer_context(
             app_name,
             app_version,
@@ -220,7 +220,7 @@ impl EngineApplication {
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
         let joystick_input_data = input::JoystickInputData::create_joystick_input_data(sdl);
-        let engine_application_ptr = Box::new(EngineApplication {
+        let engine_core_ptr = Box::new(EngineCore {
             _display_handle: display_handle,
             _window: window,
             _window_size: window_size.into(),
@@ -240,60 +240,60 @@ impl EngineApplication {
             _engine_resources: engine_resources,
             _effect_manager: effect_manager,
             _scene_manager: scene_manager,
-            _project_application: project_application,
+            _application: application,
         });
 
         // initialize managers
-        let engine_application = engine_application_ptr.as_ref();
-        engine_application
+        let engine_core = engine_core_ptr.as_ref();
+        engine_core
             .get_renderer_context_mut()
             .initialize_renderer_context(
-                engine_application.get_engine_resources(),
-                engine_application.get_effect_manager(),
+                engine_core.get_engine_resources(),
+                engine_core.get_effect_manager(),
             );
-        engine_application
+        engine_core
             .get_engine_resources_mut()
-            .initialize_engine_resources(engine_application.get_renderer_context());
-        engine_application
+            .initialize_engine_resources(engine_core.get_renderer_context());
+        engine_core
             .get_debug_line_manager_mut()
-            .initialize_debug_line_manager(engine_application.get_renderer_context());
-        engine_application
+            .initialize_debug_line_manager(engine_core.get_renderer_context());
+        engine_core
             .get_font_manager_mut()
             .initialize_font_manager(
-                engine_application.get_renderer_context(),
-                engine_application.get_engine_resources(),
+                engine_core.get_renderer_context(),
+                engine_core.get_engine_resources(),
             );
-        engine_application
+        engine_core
             .get_ui_manager_mut()
             .initialize_ui_manager(
-                engine_application.get_renderer_context(),
-                engine_application.get_engine_resources(),
+                engine_core.get_renderer_context(),
+                engine_core.get_engine_resources(),
             );
-        engine_application
+        engine_core
             .get_audio_manager_mut()
             .initialize_audio_manager();
-        engine_application
+        engine_core
             .get_effect_manager_mut()
             .initialize_effect_manager();
 
         // initialize graphics data
-        engine_application
+        engine_core
             .get_renderer_context()
             .prepare_framebuffer_and_descriptors();
 
         // initialize application
-        engine_application
-            .get_project_application_mut()
-            .initialize_project_application(&engine_application, &window_size);
-        engine_application_ptr
+        engine_core
+            .get_application_mut()
+            .initialize_application(&engine_core, &window_size);
+        engine_core_ptr
     }
 
     pub fn terminate_application(&mut self) {
         let renderer_context = self.get_renderer_context();
 
         // destroy managers
-        self.get_project_application_mut()
-            .terminate_project_application();
+        self.get_application_mut()
+            .terminate_application();
         self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
         self.get_ui_manager_mut()
@@ -442,8 +442,8 @@ impl EngineApplication {
         // update timer
         self._time_data.update_time_data(current_time);
 
-        // update project_application event
-        self.get_project_application_mut().update_event();
+        // update application event
+        self.get_application_mut().update_event();
 
         let elapsed_time = self._time_data._elapsed_time;
         let delta_time = self._time_data._delta_time;
@@ -472,7 +472,7 @@ impl EngineApplication {
         } else {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
-                self.update_project_application(delta_time);
+                self.update_application(delta_time);
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
                 debug_line_manager.update_debug_line();
@@ -502,9 +502,9 @@ impl EngineApplication {
         return true;
     }
 
-    pub fn update_project_application(&self, delta_time: f64) {
-        self.get_project_application_mut()
-            .update_project_application(delta_time);
+    pub fn update_application(&self, delta_time: f64) {
+        self.get_application_mut()
+            .update_application(delta_time);
     }
 }
 
@@ -514,10 +514,10 @@ pub fn run_application(
     initial_window_size: Vector2<i32>,
     window_mode: WindowMode,
     log_level: LevelFilter,
-    project_application: *const dyn ProjectApplicationBase,
-    project_resources: *const dyn ProjectResourcesBase,
+    application: *const dyn ApplicationBase,
+    application_resources: *const dyn ApplicationResourcesBase,
     project_scene_manager: *const dyn ProjectSceneManagerBase,
-    project_ui_manager: *const dyn ProjectUIManagerBase,
+    application_ui_manager: *const dyn ApplicationUIManagerBase,
 ) {
     logger::initialize_logger(log_level);
 
@@ -565,7 +565,7 @@ pub fn run_application(
         }
     }
 
-    let mut maybe_engine_application: Option<Box<EngineApplication>> = None;
+    let mut maybe_engine_core: Option<Box<EngineCore>> = None;
 
     // main loop
     #[cfg(target_os = "android")]
@@ -577,33 +577,33 @@ pub fn run_application(
     event_loop.run(move |event, __window_target, control_flow| {
         let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
-            if maybe_engine_application.is_some() {
+            if maybe_engine_core.is_some() {
                 // clear up
-                let engine_application = maybe_engine_application.as_mut().unwrap().as_mut();
-                engine_application.terminate_application();
+                let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
+                engine_core.terminate_application();
             }
 
-            let engine_application = EngineApplication::create_project_application(
+            let engine_core = EngineCore::create_application(
                 app_name.as_str(),
                 app_version,
                 display_handle,
                 &window,
                 &sdl,
-                project_application,
-                project_resources,
+                application,
+                application_resources,
                 project_scene_manager,
-                project_ui_manager,
+                application_ui_manager,
                 current_time,
             );
 
             // set managers
-            maybe_engine_application = Some(engine_application);
+            maybe_engine_core = Some(engine_core);
             run_application = true;
             need_initialize = false;
             initialize_done = true;
         }
 
-        let engine_application = maybe_engine_application.as_mut().unwrap().as_mut();
+        let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
 
         // winit event
         match event {
@@ -625,23 +625,23 @@ pub fn run_application(
             Event::NewEvents(_) => {
                 // reset input states on new frame
                 if run_application {
-                    engine_application.clear_and_update_input_data_list();
+                    engine_core.clear_and_update_input_data_list();
 
                     // sdl event
                     for event in sdl.event_pump().unwrap().poll_iter() {
                         match event {
                             event::Event::ControllerAxisMotion { axis, value, .. } => {
-                                engine_application
+                                engine_core
                                     ._joystick_input_data
                                     .update_controller_axis_motion(axis, value);
                             }
                             event::Event::ControllerButtonDown { button, .. } => {
-                                engine_application
+                                engine_core
                                     ._joystick_input_data
                                     .update_controller_button_state(button, ButtonState::Pressed);
                             }
                             event::Event::ControllerButtonUp { button, .. } => {
-                                engine_application
+                                engine_core
                                     ._joystick_input_data
                                     .update_controller_button_state(button, ButtonState::Released);
                             }
@@ -654,7 +654,7 @@ pub fn run_application(
             Event::MainEventsCleared => {
                 if run_application {
                     // update main event
-                    let result = engine_application.update_event(current_time);
+                    let result = engine_core.update_event(current_time);
                     if false == result {
                         *control_flow = ControlFlow::Exit;
                         run_application = false;
@@ -666,7 +666,7 @@ pub fn run_application(
                 event,
             } => match event {
                 DeviceEvent::MouseMotion { delta } => {
-                    engine_application.update_mouse_motion(&delta);
+                    engine_core.update_mouse_motion(&delta);
                 }
                 _ => {}
             },
@@ -679,40 +679,40 @@ pub fn run_application(
                         initialize_done
                     );
                     if initialize_done {
-                        engine_application.resized_window(size);
+                        engine_core.resized_window(size);
                     }
                 }
                 WindowEvent::MouseInput { button, state, .. } => {
-                    engine_application.update_mouse_input(button, state);
+                    engine_core.update_mouse_input(button, state);
                 }
                 WindowEvent::CursorMoved { position, .. } => {
-                    engine_application.update_cursor_moved(position);
+                    engine_core.update_cursor_moved(position);
                 }
                 WindowEvent::MouseWheel {
                     delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y),
                     ..
                 } => {
-                    engine_application.update_mouse_wheel(scroll_x, scroll_y);
+                    engine_core.update_mouse_wheel(scroll_x, scroll_y);
                 }
                 WindowEvent::CursorEntered {
                     device_id: _device_id,
                     ..
                 } => {
-                    engine_application.update_cursor_entered();
+                    engine_core.update_cursor_entered();
                 }
                 WindowEvent::CursorLeft {
                     device_id: _device_id,
                     ..
                 } => {
-                    engine_application.update_cursor_mode();
+                    engine_core.update_cursor_mode();
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
-                        engine_application.update_keyboard_input(&input);
+                        engine_core.update_keyboard_input(&input);
                     }
                 }
                 WindowEvent::Touch(touch) => {
-                    engine_application.update_touch(&touch);
+                    engine_core.update_touch(&touch);
                 }
                 _ => (),
             },

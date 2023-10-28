@@ -7,8 +7,8 @@ use bitflags::bitflags;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
-use crate::application::application::{EngineApplication, TimeData};
-use crate::application::input::{KeyboardInputData, MouseInputData, MouseMoveData};
+use crate::core::engine_core::{EngineCore, TimeData};
+use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
 use crate::constants;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
@@ -254,18 +254,18 @@ pub struct WidgetDefault {
     pub _widgets: Vec<Rc<dyn Widget>>,
 }
 
-pub trait ProjectUIManagerBase {
+pub trait ApplicationUIManagerBase {
     fn get_ui_manager(&self) -> &UIManager;
     fn get_ui_manager_mut(&self) -> &mut UIManager;
     fn get_root_widget(&self) -> &dyn Widget;
     fn get_root_widget_mut(&self) -> &mut dyn Widget;
-    fn initialize_project_ui_manager(&mut self, ui_manager: &UIManager);
+    fn initialize_application_ui_manager(&mut self, ui_manager: &UIManager);
     fn build_ui(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources);
-    fn update_ui_manager(&mut self, engine_application: &EngineApplication, delta_time: f64);
+    fn update_ui_manager(&mut self, engine_core: &EngineCore, delta_time: f64);
 }
 
 pub struct UIManager {
-    pub _project_ui_manager: *const dyn ProjectUIManagerBase,
+    pub _application_ui_manager: *const dyn ApplicationUIManagerBase,
     pub _root: Rc<dyn Widget>,
     pub _window_size: Vector2<i32>,
     pub _ui_mesh_vertex_buffer: BufferData,
@@ -1728,11 +1728,11 @@ impl UIManager {
         self._root.as_ref()
     }
     pub fn create_ui_manager(
-        project_ui_manager: *const dyn ProjectUIManagerBase,
+        application_ui_manager: *const dyn ApplicationUIManagerBase,
     ) -> Box<UIManager> {
         log::info!("create_ui_manager");
         let mut ui_manager = UIManager {
-            _project_ui_manager: project_ui_manager,
+            _application_ui_manager: application_ui_manager,
             _root: UIManager::create_widget("root", UIWidgetTypes::Default),
             _window_size: Vector2::zeros(),
             _ui_mesh_vertex_buffer: BufferData::default(),
@@ -1769,9 +1769,9 @@ impl UIManager {
             renderer_context.get_device_memory_properties(),
         );
         self.create_ui_graphics_data(engine_resources);
-        self.get_project_ui_manager_mut()
-            .initialize_project_ui_manager(&self);
-        self.get_project_ui_manager_mut()
+        self.get_application_ui_manager_mut()
+            .initialize_application_ui_manager(&self);
+        self.get_application_ui_manager_mut()
             .build_ui(renderer_context, engine_resources);
     }
 
@@ -1787,12 +1787,12 @@ impl UIManager {
         self._default_render_ui_material = None;
     }
 
-    pub fn get_project_ui_manager(&self) -> &dyn ProjectUIManagerBase {
-        ptr_as_ref(self._project_ui_manager)
+    pub fn get_application_ui_manager(&self) -> &dyn ApplicationUIManagerBase {
+        ptr_as_ref(self._application_ui_manager)
     }
 
-    pub fn get_project_ui_manager_mut(&self) -> &mut dyn ProjectUIManagerBase {
-        ptr_as_mut(self._project_ui_manager)
+    pub fn get_application_ui_manager_mut(&self) -> &mut dyn ApplicationUIManagerBase {
+        ptr_as_mut(self._application_ui_manager)
     }
 
     #[allow(dropping_references)]

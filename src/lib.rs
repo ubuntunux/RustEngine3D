@@ -1,4 +1,4 @@
-pub mod application;
+pub mod core;
 pub mod audio;
 pub mod constants;
 pub mod effect;

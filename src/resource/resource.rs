@@ -160,16 +160,16 @@ pub type DescriptorDataMap = ResourceDataMap<DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 
-pub trait ProjectResourcesBase {
-    fn initialize_project_resources(&mut self, engine_resources: &EngineResources);
-    fn load_project_resources(&mut self, renderer_context: &RendererContext);
-    fn destroy_project_resources(&mut self, renderer_context: &RendererContext);
+pub trait ApplicationResourcesBase {
+    fn initialize_application_resources(&mut self, engine_resources: &EngineResources);
+    fn load_application_resources(&mut self, renderer_context: &RendererContext);
+    fn destroy_application_resources(&mut self, renderer_context: &RendererContext);
     fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext, render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap);
 }
 
 #[derive(Clone)]
 pub struct EngineResources {
-    pub _project_resources: *const dyn ProjectResourcesBase,
+    pub _application_resources: *const dyn ApplicationResourcesBase,
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _audio_data_map: ResourceInfoMap,
     pub _audio_bank_data_map: ResourceInfoMap,
@@ -281,7 +281,7 @@ pub fn make_engine_resource_file_path(file_name: &str) -> PathBuf {
     PathBuf::from(ENGINE_RESOURCE_PATH).join(file_name)
 }
 
-pub fn make_project_resource_file_path(file_name: &str) -> PathBuf {
+pub fn make_application_resource_file_path(file_name: &str) -> PathBuf {
     PathBuf::from(PROJECT_RESOURCE_PATH).join(file_name)
 }
 
@@ -327,10 +327,10 @@ impl MetaData {
 
 impl EngineResources {
     pub fn create_engine_resources(
-        project_resources: *const dyn ProjectResourcesBase,
+        application_resources: *const dyn ApplicationResourcesBase,
     ) -> Box<EngineResources> {
         let mut engine_resource = EngineResources {
-            _project_resources: project_resources,
+            _application_resources: application_resources,
             _relative_resource_file_path_map: HashMap::new(),
             _audio_data_map: ResourceInfoMap::new(),
             _audio_bank_data_map: ResourceInfoMap::new(),
@@ -352,12 +352,12 @@ impl EngineResources {
         Box::new(engine_resource)
     }
 
-    pub fn get_project_resources(&self) -> &dyn ProjectResourcesBase {
-        ptr_as_ref(self._project_resources)
+    pub fn get_application_resources(&self) -> &dyn ApplicationResourcesBase {
+        ptr_as_ref(self._application_resources)
     }
 
-    pub fn get_project_resources_mut(&self) -> &mut dyn ProjectResourcesBase {
-        ptr_as_mut(self._project_resources)
+    pub fn get_application_resources_mut(&self) -> &mut dyn ApplicationResourcesBase {
+        ptr_as_mut(self._application_resources)
     }
 
     pub fn preinitialize_engine_resources(&mut self) {
@@ -370,10 +370,10 @@ impl EngineResources {
             self.update_engine_resources();
 
             // create resources.txt file
-            let project_resource_files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
+            let application_resource_files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
             let mut write_file =
                 File::create(&resource_list_file_path).expect("Failed to create file");
-            for file_path in project_resource_files {
+            for file_path in application_resource_files {
                 if let Some(filename) = file_path.file_name() {
                     if "empty" == filename {
                         continue;
@@ -516,8 +516,8 @@ impl EngineResources {
 
     pub fn initialize_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("initialize_engine_resources");
-        self.get_project_resources_mut()
-            .initialize_project_resources(self);
+        self.get_application_resources_mut()
+            .initialize_application_resources(self);
 
         // load engine resources
         let is_reload: bool = false;
@@ -535,8 +535,8 @@ impl EngineResources {
         self.load_scene_data_list(renderer_context);
 
         // load project resources
-        self.get_project_resources_mut()
-            .load_project_resources(renderer_context);
+        self.get_application_resources_mut()
+            .load_application_resources(renderer_context);
         log::info!("Done - initialize_engine_resources");
     }
 
@@ -545,8 +545,8 @@ impl EngineResources {
         let is_reload: bool = false;
 
         // destroy project resource
-        self.get_project_resources_mut()
-            .destroy_project_resources(renderer_context);
+        self.get_application_resources_mut()
+            .destroy_application_resources(renderer_context);
 
         // destroy engine resources
         self.unload_scene_data_list(renderer_context);
@@ -1574,8 +1574,8 @@ impl EngineResources {
             );
         }
 
-        let project_resources = ptr_as_mut(self._project_resources);
-        project_resources.load_render_pass_data_create_infos(
+        let application_resources = ptr_as_mut(self._application_resources);
+        application_resources.load_render_pass_data_create_infos(
             renderer_context,
             &mut self._render_pass_data_create_info_map,
         );
