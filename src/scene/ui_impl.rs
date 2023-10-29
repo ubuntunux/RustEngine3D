@@ -6,7 +6,7 @@ use ash::extensions::ext::DebugUtils;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
-use crate::core::engine_core::TimeData;
+use crate::core::engine_core::{EngineCore, TimeData};
 use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
@@ -1490,12 +1490,9 @@ impl UIManager {
     pub fn get_root_ptr(&self) -> *const dyn Widget {
         self._root.as_ref()
     }
-    pub fn create_ui_manager(
-        application_ui_manager: *const dyn ApplicationUIManagerBase,
-    ) -> Box<UIManager> {
+    pub fn create_ui_manager() -> Box<UIManager> {
         log::info!("create_ui_manager");
         let mut ui_manager = UIManager {
-            _application_ui_manager: application_ui_manager,
             _root: UIManager::create_widget("root", UIWidgetTypes::Default),
             _window_size: Vector2::zeros(),
             _ui_mesh_vertex_buffer: BufferData::default(),
@@ -1506,6 +1503,7 @@ impl UIManager {
             _render_ui_count: 0,
             _render_ui_group: Vec::new(),
             _default_render_ui_material: None,
+            _ui_world_axis: None,
         };
         ui_manager
             ._ui_render_data_list
@@ -1532,10 +1530,13 @@ impl UIManager {
             renderer_context.get_device_memory_properties(),
         );
         self.create_ui_graphics_data(engine_resources);
-        self.get_application_ui_manager_mut()
-            .initialize_application_ui_manager(&self);
-        self.get_application_ui_manager_mut()
-            .build_ui(renderer_context, engine_resources);
+
+        // create widgets
+        let root_widget_mut = ptr_as_mut(self.get_root_ptr());
+        self._ui_world_axis = Some(UIWorldAxis::create_ui_world_axis(
+            engine_resources,
+            root_widget_mut,
+        ));
     }
 
     pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources) {
@@ -1549,15 +1550,6 @@ impl UIManager {
     pub fn destroy_ui_graphics_data(&mut self) {
         self._default_render_ui_material = None;
     }
-
-    pub fn get_application_ui_manager(&self) -> &dyn ApplicationUIManagerBase {
-        ptr_as_ref(self._application_ui_manager)
-    }
-
-    pub fn get_application_ui_manager_mut(&self) -> &mut dyn ApplicationUIManagerBase {
-        ptr_as_mut(self._application_ui_manager)
-    }
-
     #[allow(dropping_references)]
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
@@ -1724,6 +1716,7 @@ impl UIManager {
     pub fn update_ui_manager(
         &mut self,
         delta_time: f64,
+        engine_core: &EngineCore,
         window_size: &Vector2<i32>,
         time_data: &TimeData,
         keyboard_input_data: &KeyboardInputData,
@@ -1731,6 +1724,53 @@ impl UIManager {
         mouse_input_data: &MouseInputData,
         _engine_resources: &EngineResources,
     ) {
+        let main_camera = engine_core.get_scene_manager().get_main_camera();
+        let window_height: f32 = main_camera._window_size.y as f32;
+        let size: f32 = window_height * 0.05;
+        let border: f32 = 20.0;
+        let start_pos_x: f32 = size * 2.0 + border;
+        let start_pos_y: f32 = window_height - (size * 2.0 + border);
+        let camera_up = main_camera._transform_object.get_up();
+        let camera_right = main_camera._transform_object.get_right();
+        let axis_x: Vector2<f32> = Vector2::new(camera_right.x, -camera_up.x) * size;
+        let axis_y: Vector2<f32> = Vector2::new(camera_right.y, -camera_up.y) * size;
+        let axis_z: Vector2<f32> = Vector2::new(camera_right.z, -camera_up.z) * size;
+
+        let ui_world_axis = self._ui_world_axis.as_mut().unwrap();
+        let ui_component_x =
+            ptr_as_mut(ui_world_axis._widget_axis_x.as_ref()).get_ui_component_mut();
+        ui_component_x.set_pos_x(start_pos_x + axis_x.x);
+        ui_component_x.set_pos_y(start_pos_y + axis_x.y);
+
+        let ui_component_y =
+            ptr_as_mut(ui_world_axis._widget_axis_y.as_ref()).get_ui_component_mut();
+        ui_component_y.set_pos_x(start_pos_x + axis_y.x);
+        ui_component_y.set_pos_y(start_pos_y + axis_y.y);
+
+        let ui_component_z =
+            ptr_as_mut(ui_world_axis._widget_axis_z.as_ref()).get_ui_component_mut();
+        ui_component_z.set_pos_x(start_pos_x + axis_z.x);
+        ui_component_z.set_pos_y(start_pos_y + axis_z.y);
+
+        let debug_line_manager = engine_core.get_debug_line_manager_mut();
+        debug_line_manager.add_debug_line_2d(
+            &Vector2::new(start_pos_x, start_pos_y),
+            &Vector2::new(start_pos_x + axis_x.x, start_pos_y + axis_x.y),
+            get_color32(255, 0, 0, 255),
+        );
+
+        debug_line_manager.add_debug_line_2d(
+            &Vector2::new(start_pos_x, start_pos_y),
+            &Vector2::new(start_pos_x + axis_y.x, start_pos_y + axis_y.y),
+            get_color32(0, 255, 0, 255),
+        );
+
+        debug_line_manager.add_debug_line_2d(
+            &Vector2::new(start_pos_x, start_pos_y),
+            &Vector2::new(start_pos_x + axis_z.x, start_pos_y + axis_z.y),
+            get_color32(0, 0, 255, 255),
+        );
+
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         if *window_size != self._window_size {
@@ -1829,5 +1869,51 @@ impl UIManager {
         }
         self._render_ui_count = render_ui_count;
         self._render_ui_group = render_ui_group;
+    }
+}
+
+impl UIWorldAxis {
+    pub fn create_ui_world_axis(
+        _engine_resources: &EngineResources,
+        root_widget: &mut dyn Widget,
+    ) -> UIWorldAxis {
+        let widget_axis_x = UIManager::create_widget("ui_axis_x", UIWidgetTypes::Default);
+        let ui_component_axis_x = ptr_as_mut(widget_axis_x.as_ref()).get_ui_component_mut();
+        ui_component_axis_x.set_text("X");
+        ui_component_axis_x.set_size(10.0, 10.0);
+        ui_component_axis_x.set_font_size(20.0);
+        ui_component_axis_x.set_color(get_color32(255, 255, 255, 0));
+        ui_component_axis_x.set_font_color(get_color32(255, 0, 0, 255));
+        ui_component_axis_x.set_halign(HorizontalAlign::CENTER);
+        ui_component_axis_x.set_valign(VerticalAlign::CENTER);
+        root_widget.add_widget(&widget_axis_x);
+
+        let widget_axis_y = UIManager::create_widget("ui_axis_y", UIWidgetTypes::Default);
+        let ui_component_axis_y = ptr_as_mut(widget_axis_y.as_ref()).get_ui_component_mut();
+        ui_component_axis_y.set_text("Y");
+        ui_component_axis_y.set_size(10.0, 10.0);
+        ui_component_axis_y.set_font_size(20.0);
+        ui_component_axis_y.set_color(get_color32(255, 255, 255, 0));
+        ui_component_axis_y.set_font_color(get_color32(0, 255, 0, 255));
+        ui_component_axis_y.set_halign(HorizontalAlign::CENTER);
+        ui_component_axis_y.set_valign(VerticalAlign::CENTER);
+        root_widget.add_widget(&widget_axis_y);
+
+        let widget_axis_z = UIManager::create_widget("ui_axis_z", UIWidgetTypes::Default);
+        let ui_component_axis_z = ptr_as_mut(widget_axis_z.as_ref()).get_ui_component_mut();
+        ui_component_axis_z.set_text("Z");
+        ui_component_axis_z.set_size(10.0, 10.0);
+        ui_component_axis_z.set_font_size(20.0);
+        ui_component_axis_z.set_color(get_color32(255, 255, 255, 0));
+        ui_component_axis_z.set_font_color(get_color32(0, 0, 255, 255));
+        ui_component_axis_z.set_halign(HorizontalAlign::CENTER);
+        ui_component_axis_z.set_valign(VerticalAlign::CENTER);
+        root_widget.add_widget(&widget_axis_z);
+
+        UIWorldAxis {
+            _widget_axis_x: widget_axis_x,
+            _widget_axis_y: widget_axis_y,
+            _widget_axis_z: widget_axis_z,
+        }
     }
 }

@@ -5,9 +5,6 @@ use bitflags::bitflags;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
-use crate::core::engine_core::EngineCore;
-use crate::renderer::renderer_context::RendererContext;
-use crate::resource::resource::EngineResources;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::transform_object::TransformObjectData;
@@ -222,18 +219,7 @@ pub struct WidgetDefault {
     pub _widgets: Vec<Rc<dyn Widget>>,
 }
 
-pub trait ApplicationUIManagerBase {
-    fn get_ui_manager(&self) -> &UIManager;
-    fn get_ui_manager_mut(&self) -> &mut UIManager;
-    fn get_root_widget(&self) -> &dyn Widget;
-    fn get_root_widget_mut(&self) -> &mut dyn Widget;
-    fn initialize_application_ui_manager(&mut self, ui_manager: &UIManager);
-    fn build_ui(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources);
-    fn update_ui_manager(&mut self, engine_core: &EngineCore, delta_time: f64);
-}
-
 pub struct UIManager {
-    pub _application_ui_manager: *const dyn ApplicationUIManagerBase,
     pub _root: Rc<dyn Widget>,
     pub _window_size: Vector2<i32>,
     pub _ui_mesh_vertex_buffer: BufferData,
@@ -244,4 +230,11 @@ pub struct UIManager {
     pub _render_ui_count: u32,
     pub _render_ui_group: Vec<UIRenderGroupData>,
     pub _default_render_ui_material: Option<RcRefCell<MaterialInstanceData>>,
+    pub _ui_world_axis: Option<UIWorldAxis>,
+}
+
+pub struct UIWorldAxis {
+    pub _widget_axis_x: Rc<dyn Widget>,
+    pub _widget_axis_y: Rc<dyn Widget>,
+    pub _widget_axis_z: Rc<dyn Widget>,
 }

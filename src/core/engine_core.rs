@@ -21,7 +21,7 @@ use crate::resource::resource::{EngineResources, ApplicationResourcesBase};
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::{ProjectSceneManagerBase, SceneManager};
-use crate::scene::ui::{ApplicationUIManagerBase, UIManager};
+use crate::scene::ui:: UIManager;
 use crate::utilities::logger;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
@@ -193,7 +193,6 @@ impl EngineCore {
         application: *const dyn ApplicationBase,
         application_resources: *const dyn ApplicationResourcesBase,
         project_scene_manager: *const dyn ProjectSceneManagerBase,
-        application_ui_manager: *const dyn ApplicationUIManagerBase,
         elapsed_time: f64,
     ) -> Box<EngineCore> {
         // create managers
@@ -204,7 +203,7 @@ impl EngineCore {
         let engine_resources = EngineResources::create_engine_resources(application_resources);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
-        let ui_manager = UIManager::create_ui_manager(application_ui_manager);
+        let ui_manager = UIManager::create_ui_manager();
         let renderer_context = RendererContext::create_renderer_context(
             app_name,
             app_version,
@@ -478,6 +477,7 @@ impl EngineCore {
                 font_manager.update_font_manager();
                 ui_manager.update_ui_manager(
                     delta_time,
+                    self,
                     &self._window_size,
                     &self._time_data,
                     &self._keyboard_input_data,
@@ -533,7 +533,6 @@ pub fn run_application(
     application: *const dyn ApplicationBase,
     application_resources: *const dyn ApplicationResourcesBase,
     project_scene_manager: *const dyn ProjectSceneManagerBase,
-    application_ui_manager: *const dyn ApplicationUIManagerBase,
 ) {
     logger::initialize_logger(log_level);
 
@@ -608,7 +607,6 @@ pub fn run_application(
                 application,
                 application_resources,
                 project_scene_manager,
-                application_ui_manager,
                 current_time,
             );
 

@@ -17,7 +17,6 @@ pub struct Application {
     pub _renderer_data: *const RendererData,
     pub _application_resources: Box<ApplicationResources>,
     pub _game_scene_manager: Box<SceneManager>,
-    pub _application_ui_manager: Box<GameUIManager>,
     pub _game_client: Box<GameClient>,
     pub _is_game_mode: bool,
 }
