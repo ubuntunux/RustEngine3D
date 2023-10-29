@@ -4,7 +4,6 @@ use std::rc::Rc;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
-use crate::core::engine_core::EngineCore;
 use crate::constants;
 use crate::constants::MAX_TRANSFORM_COUNT;
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
@@ -772,11 +771,7 @@ impl SceneManager {
 
     pub fn destroy_scene_manager(&mut self) {}
 
-    pub fn update_scene_manager(
-        &mut self,
-        engine_core: &EngineCore,
-        delta_time: f64,
-    ) {
+    pub fn update_scene_manager(&mut self,        delta_time: f64) {
         let main_camera = ptr_as_mut(self.get_main_camera());
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();
@@ -825,23 +820,5 @@ impl SceneManager {
                 &mut self._render_element_transform_matrices,
             );
         }
-
-        // debug text
-        let time_data = &engine_core._time_data;
-        let font_manager = engine_core.get_font_manager_mut();
-        font_manager.log(format!(
-            "{:.2}fps / {:.3}ms",
-            time_data._average_fps, time_data._average_frame_time
-        ));
-        font_manager.log(format!(
-            "StaticMesh: {:?}, Shadow: {:?}",
-            self._static_render_elements.len(),
-            self._static_shadow_render_elements.len()
-        ));
-        font_manager.log(format!(
-            "SkeletalMesh: {:?}, Shadow: {:?}",
-            self._skeletal_render_elements.len(),
-            self._skeletal_shadow_render_elements.len()
-        ));
     }
 }

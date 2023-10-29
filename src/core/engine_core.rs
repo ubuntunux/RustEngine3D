@@ -429,12 +429,10 @@ impl EngineCore {
         let font_manager = ptr_as_mut(self._font_manager.as_ref());
         let audio_manager = ptr_as_mut(self._audio_manager.as_ref());
         let effect_manager = ptr_as_mut(self._effect_manager.as_ref());
+        let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
         // exit
-        if self
-            ._keyboard_input_data
-            .get_key_pressed(VirtualKeyCode::Escape)
-        {
+        if self._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
             self.terminate_application();
             return false;
         }
@@ -473,6 +471,7 @@ impl EngineCore {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
                 self.update_application(delta_time);
+                scene_manager                    .update_scene_manager(delta_time);
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
                 debug_line_manager.update_debug_line();
@@ -486,7 +485,8 @@ impl EngineCore {
                     &self._mouse_input_data,
                     &renderer_context.get_engine_resources(),
                 );
-                let scene_manager = self.get_scene_manager();
+
+                // render scene
                 renderer_context.render_scene(
                     scene_manager,
                     debug_line_manager,
@@ -496,6 +496,22 @@ impl EngineCore {
                     delta_time,
                     elapsed_frame,
                 );
+
+                // debug text
+                font_manager.log(format!(
+                    "{:.2}fps / {:.3}ms",
+                    self._time_data._average_fps, self._time_data._average_frame_time
+                ));
+                font_manager.log(format!(
+                    "StaticMesh: {:?}, Shadow: {:?}",
+                    scene_manager._static_render_elements.len(),
+                    scene_manager._static_shadow_render_elements.len()
+                ));
+                font_manager.log(format!(
+                    "SkeletalMesh: {:?}, Shadow: {:?}",
+                    scene_manager._skeletal_render_elements.len(),
+                    scene_manager._skeletal_shadow_render_elements.len()
+                ));
             }
         }
 
