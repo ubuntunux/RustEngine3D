@@ -25,9 +25,6 @@ type DirectionalLightObjectMap = HashMap<String, RcRefCell<DirectionalLightData>
 type EffectIDMap = HashMap<String, i64>;
 type RenderObjectMap = HashMap<String, RcRefCell<RenderObjectData>>;
 
-pub trait ProjectSceneManagerBase {
-    // TODO
-}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
@@ -42,7 +39,6 @@ pub struct SceneDataCreateInfo {
 
 #[derive(Clone)]
 pub struct SceneManager {
-    pub _project_scene_manager: *const dyn ProjectSceneManagerBase,
     pub _engine_resources: *const EngineResources,
     pub _renderer_data: *const RendererData,
     pub _effect_manager: *const EffectManager,
@@ -114,9 +110,7 @@ impl SceneManager {
     pub fn get_render_element_transform_matrices(&self) -> &Vec<Matrix4<f32>> {
         &self._render_element_transform_matrices
     }
-    pub fn create_scene_manager(
-        project_scene_manager: *const dyn ProjectSceneManagerBase,
-    ) -> Box<SceneManager> {
+    pub fn create_scene_manager() -> Box<SceneManager> {
         let default_camera = CameraObjectData::create_camera_object_data(
             &String::from("default_camera"),
             &CameraCreateInfo::default(),
@@ -176,7 +170,6 @@ impl SceneManager {
             )
         };
         Box::new(SceneManager {
-            _project_scene_manager: project_scene_manager,
             _engine_resources: std::ptr::null(),
             _renderer_data: std::ptr::null(),
             _effect_manager: std::ptr::null(),
@@ -203,13 +196,11 @@ impl SceneManager {
 
     pub fn initialize_scene_manager(
         &mut self,
-        project_scene_manager: *const dyn ProjectSceneManagerBase,
         renderer_context: &RendererContext,
         effect_manager: &EffectManager,
         engine_resources: &EngineResources,
         window_size: &Vector2<i32>,
     ) {
-        self._project_scene_manager = project_scene_manager;
         self._renderer_data = renderer_context.get_renderer_data();
         self._effect_manager = effect_manager;
         self._engine_resources = engine_resources;

@@ -20,7 +20,7 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::{EngineResources, ApplicationResourcesBase};
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
-use crate::scene::scene_manager::{ProjectSceneManagerBase, SceneManager};
+use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui:: UIManager;
 use crate::utilities::logger;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
@@ -192,7 +192,6 @@ impl EngineCore {
         sdl: &Sdl,
         application: *const dyn ApplicationBase,
         application_resources: *const dyn ApplicationResourcesBase,
-        project_scene_manager: *const dyn ProjectSceneManagerBase,
         elapsed_time: f64,
     ) -> Box<EngineCore> {
         // create managers
@@ -214,7 +213,7 @@ impl EngineCore {
         );
         let effect_manager = EffectManager::create_effect_manager();
         let audio_manager = AudioManager::create_audio_manager(&sdl, engine_resources.as_ref());
-        let scene_manager = SceneManager::create_scene_manager(project_scene_manager);
+        let scene_manager = SceneManager::create_scene_manager();
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
@@ -252,7 +251,7 @@ impl EngineCore {
             );
         engine_core
             .get_engine_resources_mut()
-            .initialize_engine_resources(engine_core.get_renderer_context());
+            .load_engine_resources(engine_core.get_renderer_context());
         engine_core
             .get_debug_line_manager_mut()
             .initialize_debug_line_manager(engine_core.get_renderer_context());
@@ -531,8 +530,7 @@ pub fn run_application(
     window_mode: WindowMode,
     log_level: LevelFilter,
     application: *const dyn ApplicationBase,
-    application_resources: *const dyn ApplicationResourcesBase,
-    project_scene_manager: *const dyn ProjectSceneManagerBase,
+    application_resources: *const dyn ApplicationResourcesBase
 ) {
     logger::initialize_logger(log_level);
 
@@ -593,7 +591,6 @@ pub fn run_application(
         let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
             if maybe_engine_core.is_some() {
-                // clear up
                 let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
                 engine_core.terminate_application();
             }
@@ -606,7 +603,6 @@ pub fn run_application(
                 &sdl,
                 application,
                 application_resources,
-                project_scene_manager,
                 current_time,
             );
 

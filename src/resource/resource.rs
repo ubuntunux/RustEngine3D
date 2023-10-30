@@ -514,12 +514,11 @@ impl EngineResources {
         }
     }
 
-    pub fn initialize_engine_resources(&mut self, renderer_context: &RendererContext) {
-        log::info!("initialize_engine_resources");
+    pub fn load_engine_resources(&mut self, renderer_context: &RendererContext) {
         self.get_application_resources_mut()
             .initialize_application_resources(self);
 
-        // load engine resources
+        log::info!("load_engine_resources");
         let is_reload: bool = false;
         self.load_texture_data_list(renderer_context);
         self.load_font_data_list(renderer_context);
@@ -537,7 +536,6 @@ impl EngineResources {
         // load project resources
         self.get_application_resources_mut()
             .load_application_resources(renderer_context);
-        log::info!("Done - initialize_engine_resources");
     }
 
     pub fn destroy_engine_resources(&mut self, renderer_context: &RendererContext) {
