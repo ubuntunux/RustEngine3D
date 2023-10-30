@@ -471,7 +471,7 @@ impl EngineCore {
             // update & render, If the resized event has not yet occurred, the window size may be 0.
             if 0 < self._window_size.x && 0 < self._window_size.y {
                 self.update_application(delta_time);
-                scene_manager                    .update_scene_manager(delta_time);
+                scene_manager.update_scene_manager(delta_time);
                 audio_manager.update_audio_manager();
                 effect_manager.update_effects(delta_time);
                 debug_line_manager.update_debug_line();
