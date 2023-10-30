@@ -27,7 +27,7 @@ pub fn spirv_file_path_with_defines(
     if is_engine_resource {
         spirv_file_path.push(resource::ENGINE_RESOURCE_PATH);
     } else {
-        spirv_file_path.push(resource::PROJECT_RESOURCE_PATH)
+        spirv_file_path.push(resource::APPLICATION_RESOURCE_PATH)
     }
     spirv_file_path.push(resource::SHADER_CACHE_DIRECTORY);
     spirv_file_path.push(just_filename);
@@ -63,7 +63,7 @@ pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
     let engine_shader_file_path: PathBuf = PathBuf::from(resource::ENGINE_RESOURCE_PATH)
         .join(resource::SHADER_DIRECTORY)
         .join(shader_filename);
-    let project_shader_file_path: PathBuf = PathBuf::from(resource::PROJECT_RESOURCE_PATH)
+    let project_shader_file_path: PathBuf = PathBuf::from(resource::APPLICATION_RESOURCE_PATH)
         .join(resource::SHADER_DIRECTORY)
         .join(shader_filename);
     return if engine_shader_file_path.is_file() && false == project_shader_file_path.is_file() {

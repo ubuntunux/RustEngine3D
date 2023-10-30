@@ -15,7 +15,6 @@ pub struct Application {
     pub _audio_manager: *const AudioManager,
     pub _effect_manager: *const EffectManager,
     pub _renderer_data: *const RendererData,
-    pub _application_resources: Box<ApplicationResources>,
     pub _game_scene_manager: Box<SceneManager>,
     pub _game_client: Box<GameClient>,
     pub _is_game_mode: bool,

@@ -17,7 +17,7 @@ use crate::core::input::{self, ButtonState};
 use crate::audio::audio_manager::AudioManager;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::resource::{EngineResources, ApplicationResourcesBase};
+use crate::resource::resource::{EngineResources, CallbackLoadRenderPassCreateInfo};
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::SceneManager;
@@ -99,6 +99,7 @@ pub trait ApplicationBase {
         window_size: &Vector2<i32>,
     );
     fn terminate_application(&mut self);
+    fn get_render_pass_create_info_callback(&self) -> *const CallbackLoadRenderPassCreateInfo;
     fn update_event(&mut self);
     fn update_application(&mut self, delta_time: f64);
 }
@@ -185,21 +186,22 @@ impl EngineCore {
         ptr_as_mut(self._ui_manager.as_ref())
     }
     pub fn create_application(
+        elapsed_time: f64,
         app_name: &str,
         app_version: u32,
         display_handle: RawDisplayHandle,
         window: &Window,
         sdl: &Sdl,
-        application: *const dyn ApplicationBase,
-        application_resources: *const dyn ApplicationResourcesBase,
-        elapsed_time: f64,
+        application: *const dyn ApplicationBase
     ) -> Box<EngineCore> {
-        // create managers
         let window_size: Vector2<i32> = Vector2::new(
             window.inner_size().width as i32,
             window.inner_size().height as i32,
         );
-        let engine_resources = EngineResources::create_engine_resources(application_resources);
+
+        // create managers
+        let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo = ptr_as_ref(application).get_render_pass_create_info_callback();
+        let engine_resources = EngineResources::create_engine_resources(callback_load_render_pass_create_info);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
@@ -529,8 +531,7 @@ pub fn run_application(
     initial_window_size: Vector2<i32>,
     window_mode: WindowMode,
     log_level: LevelFilter,
-    application: *const dyn ApplicationBase,
-    application_resources: *const dyn ApplicationResourcesBase
+    application: *const dyn ApplicationBase
 ) {
     logger::initialize_logger(log_level);
 
@@ -596,14 +597,13 @@ pub fn run_application(
             }
 
             let engine_core = EngineCore::create_application(
+                current_time,
                 app_name.as_str(),
                 app_version,
                 display_handle,
                 &window,
                 &sdl,
                 application,
-                application_resources,
-                current_time,
             );
 
             // set managers

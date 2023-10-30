@@ -43,7 +43,7 @@ use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 const USE_JSON_FOR_MESH: bool = false;
 const LOAD_FROM_EXTERNAL_FOR_MESH: bool = true;
 
-pub const PROJECT_RESOURCE_PATH: &str = "resources";
+pub const APPLICATION_RESOURCE_PATH: &str = "resources";
 pub const ENGINE_RESOURCE_PATH: &str = "resources/engine_resources";
 pub const ENGINE_RESOURCE_SOURCE_PATH: &str = "RustEngine3D/engine_resources";
 
@@ -98,6 +98,11 @@ pub const DEFAULT_MODEL_NAME: &str = "quad";
 pub const DEFAULT_TEXTURE_NAME: &str = "common/default";
 pub const DEFAULT_MATERIAL_INSTANCE_NAME: &str = "default";
 pub const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
+
+pub type CallbackLoadRenderPassCreateInfo = fn(
+    renderer_context: &RendererContext,
+    render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap
+);
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
@@ -160,16 +165,9 @@ pub type DescriptorDataMap = ResourceDataMap<DescriptorData>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 
-pub trait ApplicationResourcesBase {
-    fn initialize_application_resources(&mut self, engine_resources: &EngineResources);
-    fn load_application_resources(&mut self, renderer_context: &RendererContext);
-    fn destroy_application_resources(&mut self, renderer_context: &RendererContext);
-    fn load_render_pass_data_create_infos(&mut self, renderer_context: &RendererContext, render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap);
-}
 
 #[derive(Clone)]
 pub struct EngineResources {
-    pub _application_resources: *const dyn ApplicationResourcesBase,
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _audio_data_map: ResourceInfoMap,
     pub _audio_bank_data_map: ResourceInfoMap,
@@ -185,6 +183,7 @@ pub struct EngineResources {
     pub _material_data_map: MaterialDataMap,
     pub _material_instance_data_map: MaterialInstanceDataMap,
     pub _descriptor_data_map: DescriptorDataMap,
+    pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
 }
 
 fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
@@ -243,7 +242,7 @@ pub fn get_resource_name_from_file_path(
     if resource_file_path.starts_with(ENGINE_RESOURCE_PATH) {
         resource_root_path = PathBuf::from(ENGINE_RESOURCE_PATH);
     } else {
-        resource_root_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+        resource_root_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
     }
     resource_root_path.push(resource_dircetory);
 
@@ -282,7 +281,7 @@ pub fn make_engine_resource_file_path(file_name: &str) -> PathBuf {
 }
 
 pub fn make_application_resource_file_path(file_name: &str) -> PathBuf {
-    PathBuf::from(PROJECT_RESOURCE_PATH).join(file_name)
+    PathBuf::from(APPLICATION_RESOURCE_PATH).join(file_name)
 }
 
 impl MetaData {
@@ -327,10 +326,9 @@ impl MetaData {
 
 impl EngineResources {
     pub fn create_engine_resources(
-        application_resources: *const dyn ApplicationResourcesBase,
+        callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo
     ) -> Box<EngineResources> {
         let mut engine_resource = EngineResources {
-            _application_resources: application_resources,
             _relative_resource_file_path_map: HashMap::new(),
             _audio_data_map: ResourceInfoMap::new(),
             _audio_bank_data_map: ResourceInfoMap::new(),
@@ -346,23 +344,16 @@ impl EngineResources {
             _material_data_map: MaterialDataMap::new(),
             _material_instance_data_map: MaterialInstanceDataMap::new(),
             _descriptor_data_map: DescriptorDataMap::new(),
+            _callback_load_render_pass_create_infos: callback_load_render_pass_create_info,
         };
 
         engine_resource.preinitialize_engine_resources();
         Box::new(engine_resource)
     }
 
-    pub fn get_application_resources(&self) -> &dyn ApplicationResourcesBase {
-        ptr_as_ref(self._application_resources)
-    }
-
-    pub fn get_application_resources_mut(&self) -> &mut dyn ApplicationResourcesBase {
-        ptr_as_mut(self._application_resources)
-    }
-
     pub fn preinitialize_engine_resources(&mut self) {
         let resource_list_file_path: PathBuf =
-            PathBuf::from(PROJECT_RESOURCE_PATH).join("resources.txt");
+            PathBuf::from(APPLICATION_RESOURCE_PATH).join("resources.txt");
 
         #[cfg(not(target_os = "android"))]
         {
@@ -370,7 +361,7 @@ impl EngineResources {
             self.update_engine_resources();
 
             // create resources.txt file
-            let application_resource_files = walk_directory(&Path::new(PROJECT_RESOURCE_PATH), &[]);
+            let application_resource_files = walk_directory(&Path::new(APPLICATION_RESOURCE_PATH), &[]);
             let mut write_file =
                 File::create(&resource_list_file_path).expect("Failed to create file");
             for file_path in application_resource_files {
@@ -406,7 +397,7 @@ impl EngineResources {
                     .to_path_buf();
             } else {
                 relative_resource_file_path = relative_resource_file_path
-                    .strip_prefix(PROJECT_RESOURCE_PATH)
+                    .strip_prefix(APPLICATION_RESOURCE_PATH)
                     .unwrap()
                     .to_path_buf();
             }
@@ -515,9 +506,6 @@ impl EngineResources {
     }
 
     pub fn load_engine_resources(&mut self, renderer_context: &RendererContext) {
-        self.get_application_resources_mut()
-            .initialize_application_resources(self);
-
         log::info!("load_engine_resources");
         let is_reload: bool = false;
         self.load_texture_data_list(renderer_context);
@@ -532,21 +520,11 @@ impl EngineResources {
         self.load_audio_data_list();
         self.load_effect_data_list();
         self.load_scene_data_list(renderer_context);
-
-        // load project resources
-        self.get_application_resources_mut()
-            .load_application_resources(renderer_context);
     }
 
     pub fn destroy_engine_resources(&mut self, renderer_context: &RendererContext) {
         log::info!("destroy_engine_resources");
         let is_reload: bool = false;
-
-        // destroy project resource
-        self.get_application_resources_mut()
-            .destroy_application_resources(renderer_context);
-
-        // destroy engine resources
         self.unload_scene_data_list(renderer_context);
         self.unload_effect_data_list();
         self.unload_audio_data_list();
@@ -913,7 +891,7 @@ impl EngineResources {
             if is_engine_resource {
                 resource_root_path = PathBuf::from(ENGINE_RESOURCE_PATH);
             } else {
-                resource_root_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+                resource_root_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
             }
             for (unicode_block_key, (range_min, range_max)) in unicode_blocks.iter() {
                 let font_name = get_unique_resource_name(
@@ -954,7 +932,7 @@ impl EngineResources {
                     if is_engine_resource {
                         font_texture_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
                     } else {
-                        font_texture_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+                        font_texture_file_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
                     }
                     font_texture_file_path.push(&font_texture_directory);
                     font_texture_file_path.push(&font_data_name);
@@ -1114,12 +1092,6 @@ impl EngineResources {
             .insert(mesh_name.clone(), mesh_data.clone());
     }
 
-    //noinspection RsConstantConditionIf
-    //noinspection RsConstantConditionIf
-    //noinspection RsConstantConditionIf
-    //noinspection ALL
-    //noinspection ALL
-    //noinspection ALL
     pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext) {
         log::info!("    load_mesh_data_list");
         self.register_mesh_data(
@@ -1183,7 +1155,7 @@ impl EngineResources {
                             if mesh_source_file.starts_with(ENGINE_RESOURCE_PATH) {
                                 mesh_file_path = PathBuf::from(ENGINE_RESOURCE_PATH);
                             } else {
-                                mesh_file_path = PathBuf::from(PROJECT_RESOURCE_PATH);
+                                mesh_file_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
                             }
                             mesh_file_path.push(&mesh_directory);
                             mesh_file_path.push(&mesh_name);
@@ -1572,11 +1544,14 @@ impl EngineResources {
             );
         }
 
-        let application_resources = ptr_as_mut(self._application_resources);
-        application_resources.load_render_pass_data_create_infos(
-            renderer_context,
-            &mut self._render_pass_data_create_info_map,
-        );
+        {
+            unsafe {
+                (*self._callback_load_render_pass_create_infos)(
+                    renderer_context,
+                    &mut self._render_pass_data_create_info_map
+                );
+            }
+        }
     }
 
     pub fn unload_render_pass_data_create_infos(&mut self, _renderer_context: &RendererContext) {
@@ -1962,7 +1937,7 @@ impl EngineResources {
         scene_data_name: &str,
         scene_data_create_info: &SceneDataCreateInfo,
     ) {
-        let mut scene_data_filepath = PathBuf::from(PROJECT_RESOURCE_PATH);
+        let mut scene_data_filepath = PathBuf::from(APPLICATION_RESOURCE_PATH);
         scene_data_filepath.push(SCENE_DIRECTORY);
         scene_data_filepath.push(scene_data_name);
         scene_data_filepath.set_extension(EXT_SCENE);
