@@ -207,6 +207,11 @@ impl TransformObjectData {
             //self._inverse_matrix.copy_from(&inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale));
             linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
             self._updated = true;
+
+            // update prev transform
+            if updated_position { self._prev_position.clone_from(&self._position); }
+            if updated_rotation { self._prev_rotation.clone_from(&self._rotation); }
+            if updated_scale { self._prev_scale.clone_from(&self._scale); }
         }
         updated
     }
