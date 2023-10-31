@@ -259,7 +259,6 @@ impl EffectManager {
     }
 
     pub fn update_effects(&mut self, delta_time: f64) {
-        // update effects
         for (effect_id, effect) in self._effects.iter() {
             let mut effect = effect.borrow_mut();
             if effect._is_alive || effect._update_first_time {
@@ -493,21 +492,16 @@ impl EffectManager {
             }
 
             // fill gpu particle allocated emitter index
-            for gpu_particle_offset in
-                process_gpu_particle_count..(process_gpu_particle_count + available_particle_count)
-            {
-                self._gpu_particle_emitter_indices[gpu_particle_offset as usize] =
-                    process_emitter_count;
+            for gpu_particle_offset in                process_gpu_particle_count..(process_gpu_particle_count + available_particle_count)            {
+                self._gpu_particle_emitter_indices[gpu_particle_offset as usize] =                    process_emitter_count;
             }
-
-            //
             process_gpu_particle_count += available_particle_count;
             process_emitter_count += 1;
         }
-
         self._allocated_emitter_count = process_emitter_count;
         self._allocated_particle_count = process_gpu_particle_count;
 
+        // process and render effects
         {
             let gpu_particle_static_constants_buffer = renderer_data
                 .get_shader_buffer_data(&ShaderBufferDataType::GpuParticleStaticConstants);
@@ -540,11 +534,6 @@ impl EffectManager {
                     &self._gpu_particle_emitter_indices[0..process_gpu_particle_count as usize],
                 );
             }
-
-            //
-            let material_instance_data = &engine_resources
-                .get_material_instance_data("effect/process_gpu_particle")
-                .borrow();
 
             // barrier for compute gpu particle count pipeline
             let gpu_particle_static_constants_buffer_data =
@@ -588,6 +577,9 @@ impl EffectManager {
             );
 
             // compute gpu particle count
+            let material_instance_data = &engine_resources
+                .get_material_instance_data("effect/process_gpu_particle")
+                .borrow();
             let pipeline_binding_data: &PipelineBindingData = material_instance_data
                 .get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
             let dispatch_count = process_emitter_count;
