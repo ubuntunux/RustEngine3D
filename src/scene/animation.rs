@@ -437,7 +437,7 @@ impl Default for AnimationPlayArgs {
             _loop: true,
             _start_time: 0.0,
             _end_time: None,
-            _blend_time: 0.5,
+            _blend_time: 0.1,
             _force: false,
             _reset: true,
         }
