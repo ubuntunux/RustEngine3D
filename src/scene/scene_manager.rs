@@ -506,8 +506,7 @@ impl SceneManager {
 
                 if RenderObjectType::Skeletal == render_object_type {
                     // prev animation buffer
-                    let prev_animation_buffer: &Vec<Matrix4<f32>> =
-                        render_object_data.get_prev_animation_buffer(0);
+                    let prev_animation_buffer: &Vec<Matrix4<f32>> =                         render_object_data.get_prev_animation_buffer();
                     assert_eq!(bone_count, prev_animation_buffer.len());
                     let next_transform_offset: usize = transform_offset + bone_count;
                     render_element_transform_matrices[transform_offset..next_transform_offset]
@@ -515,8 +514,7 @@ impl SceneManager {
                     transform_offset = next_transform_offset;
 
                     // current animation buffer
-                    let animation_buffer: &Vec<Matrix4<f32>> =
-                        render_object_data.get_animation_buffer(0);
+                    let animation_buffer: &Vec<Matrix4<f32>> =                          render_object_data.get_animation_buffer();
                     assert_eq!(bone_count, animation_buffer.len());
                     let next_transform_offset: usize = transform_offset + bone_count;
                     render_element_transform_matrices[transform_offset..next_transform_offset]

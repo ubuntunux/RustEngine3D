@@ -69,54 +69,47 @@ impl RenderObjectData {
 
         let mesh_data = model_data.borrow()._mesh_data.clone();
         let bound_box = mesh_data.borrow()._bound_box.clone();
-        let has_animation_data = mesh_data.borrow().has_animation_data();
         let geometry_bound_boxes = mesh_data
             .borrow()
             ._geometry_data_list
             .iter()
             .map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone())
             .collect();
+
         let mut render_object_data = RenderObjectData {
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
-            _mesh_data: mesh_data,
+            _mesh_data: mesh_data.clone(),
             _bound_box: bound_box,
             _geometry_bound_boxes: geometry_bound_boxes,
             _transform_object: transform_object_data,
             _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_info: None,
-            _bone_count: 0,
+            _bone_count: 0
         };
 
-        render_object_data.initialize_animation_play_info(has_animation_data);
+        if  mesh_data.borrow().has_animation_data() {
+            render_object_data.initialize_animation_play_info();
+        }
         render_object_data
     }
 
-    pub fn initialize_animation_play_info(&mut self, has_animation_data: bool) {
-        if has_animation_data {
-            let mut bone_count = 0usize;
-            let mut animation_play_info = AnimationPlayInfo::default();
-            for animation in self._mesh_data.borrow_mut()._animation_data_list.iter_mut() {
-                assert!(0 == bone_count || bone_count == animation.get_bone_count());
-                bone_count = animation.get_bone_count();
-                let mut animation_buffers: Vec<Matrix4<f32>> =
-                    vec![Matrix4::identity(); bone_count];
-                animation.update_animation_transforms(0.0, &mut animation_buffers);
-                animation_play_info
-                    ._animation_buffers
-                    .push(animation_buffers.clone());
-                animation_play_info
-                    ._prev_animation_buffers
-                    .push(animation_buffers.clone());
-                animation_play_info
-                    ._blend_animation_buffers
-                    .push(animation_buffers.clone())
-            }
-            animation_play_info._animation_mesh = Some(self._mesh_data.clone());
-
-            self._animation_play_info = Some(animation_play_info);
-            self._bone_count = bone_count;
-        }
+    pub fn initialize_animation_play_info(&mut self) {
+        let animation_data_list = &self._mesh_data.borrow()._animation_data_list;
+        assert!(false == animation_data_list.is_empty());
+        let first_animation = animation_data_list.first();
+        assert!(false == first_animation.is_none());
+        let bone_count = animation_data_list[0].get_bone_count();
+        assert!(0 < bone_count);
+        self._animation_play_info = Some(AnimationPlayInfo {
+            _animation_count: animation_data_list.len(),
+            _animation_buffer: vec![Matrix4::identity(); bone_count],
+            _prev_animation_buffer: vec![Matrix4::identity(); bone_count],
+            _blend_animation_buffer: vec![Matrix4::identity(); bone_count],
+            _animation_mesh: Some(self._mesh_data.clone()),
+            ..Default::default()
+        });
+        self._bone_count = bone_count;
     }
 
     pub fn get_mesh_data(&self) -> &RcRefCell<MeshData> {
@@ -146,37 +139,31 @@ impl RenderObjectData {
         self._bone_count
     }
 
-    pub fn set_animation(
-        &mut self,
-        animation_mesh: &RcRefCell<MeshData>,
-        animation_args: &AnimationPlayArgs,
-    ) {
+    pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
         let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
-        // if animation_args._force || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr()
-        {
+        if animation_args._force_animation_setting || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
             animation_play_info._animation_mesh = Some(animation_mesh.clone());
             animation_play_info.set_animation_play_info(animation_args);
-            std::mem::swap(
-                &mut animation_play_info._prev_animation_buffers,
-                &mut animation_play_info._animation_buffers,
-            );
+            if 0.0 < animation_play_info._animation_blend_time {
+                animation_play_info._blend_animation_buffer.clone_from(&animation_play_info._animation_buffer);
+            }
         }
     }
 
-    pub fn get_prev_animation_buffer(&self, index: usize) -> &Vec<Matrix4<f32>> {
+    pub fn get_prev_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
         &self
             ._animation_play_info
             .as_ref()
             .unwrap()
-            ._prev_animation_buffers[index]
+            ._prev_animation_buffer
     }
 
-    pub fn get_animation_buffer(&self, index: usize) -> &Vec<Matrix4<f32>> {
+    pub fn get_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
         &self
             ._animation_play_info
             .as_ref()
             .unwrap()
-            ._animation_buffers[index]
+            ._animation_buffer
     }
 
     pub fn update_bound_box(&mut self, transform_matrix: &Matrix4<f32>) {
@@ -208,9 +195,8 @@ impl RenderObjectData {
             let transform_matrix = ptr_as_ref(self._transform_object.get_matrix());
             if self.has_animation_play_info() {
                 let animation_play_info = ptr_as_ref(self._animation_play_info.as_ref().unwrap());
-                self.update_bound_box(
-                    &(transform_matrix * animation_play_info._animation_buffers[0][0]),
-                );
+                let root_bone_index = 0;
+                self.update_bound_box(&(transform_matrix * animation_play_info._animation_buffer[root_bone_index]));
             } else {
                 self.update_bound_box(transform_matrix);
             }
@@ -218,88 +204,74 @@ impl RenderObjectData {
 
         // update animation
         if self.has_animation_play_info() {
-            let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
             let mut blend_ratio: f32 = 1.0;
+            let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
             let animation_data_list: &Vec<AnimationData> = &animation_play_info
                 ._animation_mesh
                 .as_ref()
                 .unwrap()
                 .borrow()
                 ._animation_data_list;
-            for (i, animation) in animation_data_list.iter().enumerate() {
-                // update animation frame only first animation
-                if 0 == i {
-                    if 1 < animation._frame_count {
-                        animation_play_info._animation_play_time +=
-                            animation_play_info._animation_speed * delta_time;
-
-                        let mut animation_end_time = animation._animation_length;
-                        if let Some(custom_end_time) = animation_play_info._animation_end_time {
-                            if custom_end_time < animation_end_time {
-                                animation_end_time = custom_end_time;
-                            }
-                        }
-
-                        if animation_play_info._animation_loop {
-                            if animation_end_time < animation_play_info._animation_play_time {
-                                animation_play_info._animation_play_time =
-                                    animation_play_info._animation_play_time % animation_end_time;
-                            }
-                        } else {
-                            if animation_end_time <= animation_play_info._animation_play_time {
-                                animation_play_info._animation_play_time = animation_end_time;
-                                animation_play_info._is_animation_end = true;
-                            }
-                        }
-                        animation_play_info._animation_frame = animation.get_time_to_frame(
-                            animation_play_info._animation_frame,
-                            animation_play_info._animation_play_time,
-                        );
-                    } else {
-                        animation_play_info._animation_frame = 0.0;
+            let animation_index = animation_play_info._animation_index.max(animation_data_list.len() - 1);
+            let animation_data = &animation_data_list[animation_index];
+            // update animation time
+            if 1 < animation_data._frame_count {
+                animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
+                let mut animation_end_time = animation_data._animation_length;
+                if let Some(custom_end_time) = animation_play_info._animation_end_time {
+                    if custom_end_time < animation_end_time {
+                        animation_end_time = custom_end_time;
                     }
-
-                    if animation_play_info._animation_elapsed_time
-                        < animation_play_info._animation_blend_time
-                    {
-                        blend_ratio = animation_play_info._animation_elapsed_time
-                            / animation_play_info._animation_blend_time;
-                    }
-                    animation_play_info._animation_elapsed_time += delta_time;
                 }
 
-                // swap
+                if animation_play_info._animation_loop {
+                    if animation_end_time < animation_play_info._animation_play_time {
+                        animation_play_info._animation_play_time = animation_play_info._animation_play_time % animation_end_time;
+                    }
+                } else {
+                    if animation_end_time <= animation_play_info._animation_play_time {
+                        animation_play_info._animation_play_time = animation_end_time;
+                        animation_play_info._is_animation_end = true;
+                    }
+                }
+                animation_play_info._animation_frame = animation_data.get_time_to_frame(
+                    animation_play_info._animation_frame,
+                    animation_play_info._animation_play_time,
+                );
+            } else {
+                animation_play_info._animation_frame = 0.0;
+            }
+
+            // blend ratio
+            if animation_play_info._animation_elapsed_time < animation_play_info._animation_blend_time
+            {
+                blend_ratio = animation_play_info._animation_elapsed_time / animation_play_info._animation_blend_time;
+            }
+            animation_play_info._animation_elapsed_time += delta_time;
+
+            // update animation buffers
+            if animation_play_info._last_animation_frame != animation_play_info._animation_frame {
+                animation_play_info._last_animation_frame = animation_play_info._animation_frame;
+
                 std::mem::swap(
-                    &mut animation_play_info._prev_animation_buffers[i],
-                    &mut animation_play_info._animation_buffers[i],
+                    &mut animation_play_info._prev_animation_buffer,
+                    &mut animation_play_info._animation_buffer
                 );
 
-                // update animation buffers
-                if animation_play_info._last_animation_frame != animation_play_info._animation_frame
-                {
-                    animation_play_info._last_animation_frame =
-                        animation_play_info._animation_frame;
-                    animation.update_animation_transforms(
-                        animation_play_info._animation_frame,
-                        &mut animation_play_info._animation_buffers[i],
-                    );
+                animation_data.update_animation_transforms(
+                    animation_play_info._animation_frame,
+                    &mut animation_play_info._animation_buffer,
+                );
 
-                    if blend_ratio < 1.0 {
-                        for (buffer_index, animation_buffer) in animation_play_info
-                            ._animation_buffers[i]
-                            .iter_mut()
-                            .enumerate()
-                        {
-                            let blend_animation_buffer =
-                                &animation_play_info._blend_animation_buffers[i][buffer_index];
-                            animation_buffer.copy_from(
-                                &((blend_animation_buffer * (1.0 - blend_ratio))
-                                    + (&(*animation_buffer) * blend_ratio)),
-                            );
-                        }
+                if blend_ratio < 1.0 {
+                    for (bone_index, animation_buffer) in animation_play_info._animation_buffer.iter_mut().enumerate() {
+                        let blend_animation_buffer = &animation_play_info._blend_animation_buffer[bone_index];
+                        animation_buffer.copy_from(
+                            &((blend_animation_buffer * (1.0 - blend_ratio)) + (&(*animation_buffer) * blend_ratio)),
+                        );
                     }
                 }
-            }
-        }
+            } // end of update animation buffer
+        } // end of update animation
     }
 }

@@ -1,4 +1,5 @@
 pub mod animation;
+pub mod animation_impl;
 pub mod camera;
 pub mod debug_line;
 pub mod fft_ocean;
