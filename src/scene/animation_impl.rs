@@ -284,13 +284,11 @@ impl AnimationNodeData {
             let frame: usize = (frame as usize) % self._frame_count;
             let next_frame: usize = (frame + 1) % self._frame_count;
             if frame < self._frame_count {
-                let rotation =
-                    glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
-                let location =
-                    glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
+                let rotation = glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
+                let location = glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
                 let scale = glm::lerp(&self._scales[frame], &self._scales[next_frame], rate);
                 transform.copy_from(&math::quaternion_to_matrix(&rotation));
-                math::matrix_scale(transform, scale.x, scale.y, scale.z);
+                math::scale_matrix(transform, scale.x, scale.y, scale.z);
                 transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
             }
         }
@@ -302,7 +300,7 @@ impl Default for AnimationPlayInfo {
         AnimationPlayInfo {
             _last_animation_frame: 0.0,
             _animation_loop: true,
-            _animation_blend_time: 0.1,
+            _animation_blend_time: 1.0,
             _animation_elapsed_time: 0.0,
             _animation_speed: 1.0,
             _animation_frame: 0.0,

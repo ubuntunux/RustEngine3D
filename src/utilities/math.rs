@@ -143,6 +143,20 @@ pub fn make_srt_transform(
     ])
 }
 
+pub fn make_location_quat_scale_transform(
+    translation: &Vector3<f32>,
+    quat: &Quaternion<f32>,
+    scale: &Vector3<f32>,
+) -> Matrix4<f32> {
+    let rotation_matrix = quaternion_to_matrix(quat);
+    Matrix4::from_columns(&[
+        rotation_matrix.column(0) * scale[0],
+        rotation_matrix.column(1) * scale[1],
+        rotation_matrix.column(2) * scale[2],
+        Vector4::new(translation[0], translation[1], translation[2], 1.0),
+    ])
+}
+
 pub fn combinate_matrix(
     translation: &Vector3<f32>,
     rotation_matrix: &Matrix4<f32>,
@@ -453,25 +467,25 @@ pub fn set_matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.m34 = z;
 }
 
-pub fn matrix_translate(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+pub fn translate_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.m14 += x;
     m.m24 += y;
     m.m34 += z;
 }
 
-pub fn make_scale_matrix(scale: &Vector3<f32>) -> Matrix4<f32> {
+pub fn make_scale_matrix(x: f32, y: f32, z: f32) -> Matrix4<f32> {
     Matrix4::new(
-        scale.x, 0.0, 0.0, 0.0, 0.0, scale.y, 0.0, 0.0, 0.0, 0.0, scale.z, 0.0, 0.0, 0.0, 0.0, 1.0,
+        x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0,
     )
 }
 
-pub fn set_scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+pub fn set_matrix_scale(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.copy_from_slice(&[
         x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0,
     ]);
 }
 
-pub fn matrix_scale(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
+pub fn scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
     m.m11 *= x;
     m.m21 *= x;
     m.m31 *= x;

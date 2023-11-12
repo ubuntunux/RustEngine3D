@@ -371,7 +371,7 @@ impl ColladaNode {
                     .map(|x| parse_value::<f32>(x, 0.0))
                     .collect();
                 if 3 == translation.len() {
-                    math::matrix_translate(
+                    math::translate_matrix(
                         &mut self._matrix,
                         translation[0],
                         translation[1],
@@ -411,7 +411,7 @@ impl ColladaNode {
                     .map(|x| parse_value::<f32>(x, 1.0))
                     .collect();
                 if 3 == scale.len() {
-                    math::matrix_scale(&mut self._matrix, scale[0], scale[1], scale[2]);
+                    math::scale_matrix(&mut self._matrix, scale[0], scale[1], scale[2]);
                 } else {
                     panic!("{} node has a invalid scale.", self._name);
                 }
