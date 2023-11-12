@@ -244,7 +244,7 @@ impl RenderObjectData {
             );
 
             // blend animation
-            let blend_ratio: f32 = animation_play_info._animation_elapsed_time / animation_play_info._animation_blend_time;
+            let blend_ratio: f32 = animation_elapsed_time / animation_play_info._animation_blend_time;
             if blend_ratio < 1.0 {
                 for (bone_index, animation_buffer) in animation_play_info._animation_buffer.iter_mut().enumerate() {
                     let blend_animation_buffer = &animation_play_info._blend_animation_buffer[bone_index];
