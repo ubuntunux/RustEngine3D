@@ -1,13 +1,21 @@
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 
-use crate::scene::animation::{AnimationData, AnimationPlayArgs, AnimationPlayInfo};
+use crate::scene::animation::{AnimationPlayArgs, AnimationPlayInfo};
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::system::{ptr_as_ref, RcRefCell};
+use crate::utilities::system::{ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
+
+#[repr(i32)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+pub enum AnimationLayer {
+    BaseLayer,
+    AdditiveLayer,
+    LayerCount
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
@@ -38,7 +46,7 @@ pub struct RenderObjectData {
     pub _bound_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
-    pub _animation_play_info: Option<AnimationPlayInfo>,
+    pub _animation_play_infos: Vec<AnimationPlayInfo>,
     pub _bone_count: usize,
 }
 
@@ -84,7 +92,7 @@ impl RenderObjectData {
             _geometry_bound_boxes: geometry_bound_boxes,
             _transform_object: transform_object_data,
             _push_constant_data_list_group: push_constant_data_list_group,
-            _animation_play_info: None,
+            _animation_play_infos: Vec::new(),
             _bone_count: 0
         };
 
@@ -100,15 +108,24 @@ impl RenderObjectData {
         let first_animation = animation_data_list.first();
         assert!(false == first_animation.is_none());
         let bone_count = animation_data_list[0].get_bone_count();
+
+        // display bone names
+        // log::info!("-------------------");
+        // for bone in animation_data_list[0]._nodes.iter() {
+        //     log::info!("bone: {:?}", bone._name);
+        // }
+
         assert!(0 < bone_count);
-        self._animation_play_info = Some(AnimationPlayInfo {
-            _animation_count: animation_data_list.len(),
-            _animation_buffer: vec![Matrix4::identity(); bone_count],
-            _prev_animation_buffer: vec![Matrix4::identity(); bone_count],
-            _blend_animation_buffer: vec![Matrix4::identity(); bone_count],
-            _animation_mesh: Some(self._mesh_data.clone()),
-            ..Default::default()
-        });
+        for _i in 0..(AnimationLayer::LayerCount as i32) {
+            self._animation_play_infos.push(AnimationPlayInfo {
+                _animation_buffer: vec![Matrix4::identity(); bone_count],
+                _prev_animation_buffer: vec![Matrix4::identity(); bone_count],
+                _blend_animation_buffer: vec![Matrix4::identity(); bone_count],
+                _animation_mesh: Some(self._mesh_data.clone()),
+                ..Default::default()
+            });
+        }
+
         self._bone_count = bone_count;
     }
 
@@ -132,15 +149,15 @@ impl RenderObjectData {
     }
 
     pub fn has_animation_play_info(&self) -> bool {
-        self._animation_play_info.is_some()
+        !self._animation_play_infos.is_empty()
     }
 
     pub fn get_bone_count(&self) -> usize {
         self._bone_count
     }
 
-    pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs) {
-        let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
+    pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs, layer: AnimationLayer) {
+        let animation_play_info = &mut self._animation_play_infos[layer as usize];
         if animation_args._force_animation_setting || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
             animation_play_info._animation_mesh = Some(animation_mesh.clone());
             animation_play_info.set_animation_play_info(animation_args);
@@ -152,16 +169,14 @@ impl RenderObjectData {
 
     pub fn get_prev_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
         &self
-            ._animation_play_info
-            .as_ref()
+            ._animation_play_infos.first()
             .unwrap()
             ._prev_animation_buffer
     }
 
     pub fn get_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
         &self
-            ._animation_play_info
-            .as_ref()
+            ._animation_play_infos.first()
             .unwrap()
             ._animation_buffer
     }
@@ -177,8 +192,7 @@ impl RenderObjectData {
             .borrow()
             ._geometry_data_list
             .iter()
-            .enumerate()
-        {
+            .enumerate() {
             self._geometry_bound_boxes
                 .get_mut(i)
                 .unwrap()
@@ -189,88 +203,28 @@ impl RenderObjectData {
         }
     }
 
-    pub fn update_animation(&mut self, delta_time: f32) {
-        let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
-        let animation_data_list: &Vec<AnimationData> = &animation_play_info
-            ._animation_mesh
-            .as_ref()
-            .unwrap()
-            .borrow()
-            ._animation_data_list;
-        let animation_index = animation_play_info._animation_index.max(animation_data_list.len() - 1);
-        let animation_data = &animation_data_list[animation_index];
-        // update animation time
-        if 1 < animation_data._frame_count {
-            animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
-            let mut animation_end_time = animation_data._animation_length;
-            if let Some(custom_end_time) = animation_play_info._animation_end_time {
-                if custom_end_time < animation_end_time {
-                    animation_end_time = custom_end_time;
-                }
-            }
-
-            if animation_play_info._animation_loop {
-                if animation_end_time < animation_play_info._animation_play_time {
-                    animation_play_info._animation_play_time = animation_play_info._animation_play_time % animation_end_time;
-                }
-            } else {
-                if animation_end_time <= animation_play_info._animation_play_time {
-                    animation_play_info._animation_play_time = animation_end_time;
-                    animation_play_info._is_animation_end = true;
-                }
-            }
-            animation_play_info._animation_frame = animation_data.get_time_to_frame(
-                animation_play_info._animation_frame,
-                animation_play_info._animation_play_time,
-            );
-        } else {
-            animation_play_info._animation_frame = 0.0;
-        }
-        let animation_elapsed_time = animation_play_info._animation_elapsed_time;
-        animation_play_info._animation_elapsed_time += delta_time;
-
-        if animation_play_info._last_animation_frame != animation_play_info._animation_frame {
-            animation_play_info._last_animation_frame = animation_play_info._animation_frame;
-
-            std::mem::swap(
-                &mut animation_play_info._prev_animation_buffer,
-                &mut animation_play_info._animation_buffer
-            );
-
-            // update animation buffers
-            animation_data.update_animation_transforms(
-                animation_play_info._animation_frame,
-                &mut animation_play_info._animation_buffer,
-            );
-
-            // blend animation
-            let blend_ratio: f32 = animation_elapsed_time / animation_play_info._animation_blend_time;
-            if blend_ratio < 1.0 {
-                for (bone_index, animation_buffer) in animation_play_info._animation_buffer.iter_mut().enumerate() {
-                    let blend_animation_buffer = &animation_play_info._blend_animation_buffer[bone_index];
-                    animation_buffer.copy_from(
-                        &((blend_animation_buffer * (1.0 - blend_ratio)) + (&(*animation_buffer) * blend_ratio)),
-                    );
-                }
-            }
-        }
-    }
-
     pub fn update_render_object_data(&mut self, delta_time: f32) {
         let updated_transform = self._transform_object.update_transform_object();
         if updated_transform {
             let transform_matrix = ptr_as_ref(self._transform_object.get_matrix());
             if self.has_animation_play_info() {
-                let animation_play_info = ptr_as_ref(self._animation_play_info.as_ref().unwrap());
+                let base_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
                 let root_bone_index = 0;
-                self.update_bound_box(&(transform_matrix * animation_play_info._animation_buffer[root_bone_index]));
+                self.update_bound_box(&(transform_matrix * base_animation._animation_buffer[root_bone_index]));
             } else {
                 self.update_bound_box(transform_matrix);
             }
         }
 
         if self.has_animation_play_info() {
-            self.update_animation(delta_time);
+            for animation_play_info in self._animation_play_infos.iter_mut() {
+                animation_play_info.update_animation_play_info(delta_time);
+            }
+
+            // update additive animation
+            let additive_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::AdditiveLayer as usize]);
+            let base_animation = ptr_as_mut(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
+            base_animation.update_additive_animation(additive_animation);
         }
     }
 }

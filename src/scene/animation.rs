@@ -23,6 +23,7 @@ pub struct SkeletonData {
     pub _name: String,
     pub _index: usize,
     pub _bone_names: Vec<String>,
+    pub _bone_index_map: HashMap<String, usize>,
     pub _bones: Vec<BoneData>,
     pub _hierarchy: Vec<*mut BoneData>,
 }
@@ -90,6 +91,8 @@ pub struct SkeletonDataCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct AnimationPlayInfo {
+    pub _is_updated_animation: bool,
+    pub _is_animation_end: bool,
     pub _last_animation_frame: f32,
     pub _animation_loop: bool,
     pub _animation_blend_time: f32,
@@ -98,13 +101,12 @@ pub struct AnimationPlayInfo {
     pub _animation_frame: f32,
     pub _animation_play_time: f32,
     pub _animation_end_time: Option<f32>,
-    pub _is_animation_end: bool,
     pub _animation_buffer: Vec<Matrix4<f32>>,
     pub _prev_animation_buffer: Vec<Matrix4<f32>>,
     pub _blend_animation_buffer: Vec<Matrix4<f32>>,
     pub _animation_index: usize,
-    pub _animation_count: usize,
-    pub _animation_mesh: Option<RcRefCell<MeshData>>
+    pub _animation_mesh: Option<RcRefCell<MeshData>>,
+    pub _animation_blend_masks: HashMap<String, f32>
 }
 
 #[derive(Clone, Debug)]
@@ -116,4 +118,5 @@ pub struct AnimationPlayArgs {
     pub _animation_blend_time: f32,
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
+    pub _animation_blend_masks: HashMap<String, f32>
 }

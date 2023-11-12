@@ -74,16 +74,22 @@ impl SkeletonData {
             _name: skeleton_data_create_info._name.clone(),
             _index: index,
             _bone_names: skeleton_data_create_info._bone_names.clone(),
+            _bone_index_map: HashMap::new(),
             _bones: skeleton_data_create_info
                 ._bone_names
                 .iter()
                 .enumerate()
-                .map(|(index, bone_name)| {
-                    BoneData::create_bone(bone_name, index, 0, &Matrix4::identity())
+                .map(|(bone_index, bone_name)| {
+                    BoneData::create_bone(bone_name, bone_index, 0, &Matrix4::identity())
                 })
                 .collect(),
             _hierarchy: Vec::new(),
         };
+
+        for (bone_index, bone_name) in skeleton_data_create_info._bone_names.iter().enumerate() {
+            skeleton_data._bone_index_map.insert(bone_name.clone(), bone_index);
+        }
+
         skeleton_data.build_bone(
             &skeleton_data_create_info._hierarchy,
             &skeleton_data_create_info._inv_bind_matrices,
@@ -298,9 +304,10 @@ impl AnimationNodeData {
 impl Default for AnimationPlayInfo {
     fn default() -> AnimationPlayInfo {
         AnimationPlayInfo {
+            _is_updated_animation: false,
             _last_animation_frame: 0.0,
             _animation_loop: true,
-            _animation_blend_time: 1.0,
+            _animation_blend_time: 0.1,
             _animation_elapsed_time: 0.0,
             _animation_speed: 1.0,
             _animation_frame: 0.0,
@@ -311,8 +318,103 @@ impl Default for AnimationPlayInfo {
             _prev_animation_buffer: Vec::new(),
             _blend_animation_buffer: Vec::new(),
             _animation_index: 0,
-            _animation_count: 0,
             _animation_mesh: None,
+            _animation_blend_masks: HashMap::new()
+        }
+    }
+}
+
+impl AnimationPlayInfo {
+    pub fn update_animation_play_info(&mut self, delta_time: f32) {
+        // reset
+        self._is_updated_animation = false;
+        if self._is_animation_end {
+            return
+        }
+
+        let animation_data_list: &Vec<AnimationData> = &self
+            ._animation_mesh
+            .as_ref()
+            .unwrap()
+            .borrow()
+            ._animation_data_list;
+        let animation_index = self._animation_index.max(animation_data_list.len() - 1);
+        let animation_data = &animation_data_list[animation_index];
+
+        // update animation time
+        if 1 < animation_data._frame_count {
+            self._animation_play_time += self._animation_speed * delta_time;
+            let mut animation_end_time = animation_data._animation_length;
+            if let Some(custom_end_time) = self._animation_end_time {
+                if custom_end_time < animation_end_time {
+                    animation_end_time = custom_end_time;
+                }
+            }
+
+            if self._animation_loop {
+                if animation_end_time < self._animation_play_time {
+                    self._animation_play_time = self._animation_play_time % animation_end_time;
+                }
+            } else {
+                if animation_end_time <= self._animation_play_time {
+                    self._animation_play_time = animation_end_time;
+                    self._is_animation_end = true;
+                }
+            }
+            self._animation_frame = animation_data.get_time_to_frame(
+                self._animation_frame,
+                self._animation_play_time,
+            );
+        } else {
+            self._animation_frame = 0.0;
+        }
+        let animation_elapsed_time = self._animation_elapsed_time;
+        self._animation_elapsed_time += delta_time;
+
+        // update animation buffers
+        if self._last_animation_frame != self._animation_frame {
+            self._is_updated_animation = true;
+            self._last_animation_frame = self._animation_frame;
+
+            std::mem::swap(
+                &mut self._prev_animation_buffer,
+                &mut self._animation_buffer
+            );
+
+            animation_data.update_animation_transforms(
+                self._animation_frame,
+                &mut self._animation_buffer,
+            );
+
+            // blend animation
+            let blend_ratio: f32 = animation_elapsed_time / self._animation_blend_time;
+            if blend_ratio < 1.0 {
+                for (bone_index, animation_buffer) in self._animation_buffer.iter_mut().enumerate() {
+                    let blend_animation_buffer = &self._blend_animation_buffer[bone_index];
+                    animation_buffer.copy_from(
+                        &((blend_animation_buffer * (1.0 - blend_ratio)) + (&(*animation_buffer) * blend_ratio)),
+                    );
+                }
+            }
+        }
+    }
+
+    pub fn update_additive_animation(&mut self, additive_animation_play_info: &AnimationPlayInfo) {
+        if self._is_updated_animation && false == additive_animation_play_info._is_animation_end {
+            let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
+            let skeleton_data = mesh_data._skeleton_data_list.first().unwrap();
+            for (bone_name, blend_ratio) in additive_animation_play_info._animation_blend_masks.iter() {
+                let bone_index = skeleton_data._bone_index_map.get(bone_name);
+                if bone_index.is_some() {
+                    let blend_ratio = *blend_ratio;
+                    let bone_index = *bone_index.unwrap();
+                    let base_animation_buffer = &mut self._animation_buffer[bone_index];
+                    let additive_animation_buffer = &additive_animation_play_info._animation_buffer[bone_index];
+                    base_animation_buffer.copy_from(
+                        &(&*base_animation_buffer * (1.0 - blend_ratio) + additive_animation_buffer * blend_ratio),
+                    );
+                }
+            }
         }
     }
 }
@@ -324,9 +426,10 @@ impl Default for AnimationPlayArgs {
             _animation_loop: true,
             _animation_start_time: 0.0,
             _animation_end_time: None,
-            _animation_blend_time: 1.0,
+            _animation_blend_time: 0.1,
             _force_animation_setting: false,
             _reset_animation_time: true,
+            _animation_blend_masks: HashMap::new()
         }
     }
 }
@@ -338,10 +441,12 @@ impl AnimationPlayInfo {
         self._animation_blend_time = animation_args._animation_blend_time;
         self._animation_end_time = animation_args._animation_end_time;
         if animation_args._reset_animation_time {
+            self._is_updated_animation = true;
+            self._is_animation_end = false;
             self._animation_elapsed_time = 0.0;
             self._animation_play_time = animation_args._animation_start_time;
             self._animation_frame = 0.0;
-            self._is_animation_end = false;
+            self._animation_blend_masks = animation_args._animation_blend_masks.clone();
         }
     }
 }
