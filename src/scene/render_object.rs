@@ -189,6 +189,73 @@ impl RenderObjectData {
         }
     }
 
+    pub fn update_animation(&mut self, delta_time: f32) {
+        let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
+        let animation_data_list: &Vec<AnimationData> = &animation_play_info
+            ._animation_mesh
+            .as_ref()
+            .unwrap()
+            .borrow()
+            ._animation_data_list;
+        let animation_index = animation_play_info._animation_index.max(animation_data_list.len() - 1);
+        let animation_data = &animation_data_list[animation_index];
+        // update animation time
+        if 1 < animation_data._frame_count {
+            animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
+            let mut animation_end_time = animation_data._animation_length;
+            if let Some(custom_end_time) = animation_play_info._animation_end_time {
+                if custom_end_time < animation_end_time {
+                    animation_end_time = custom_end_time;
+                }
+            }
+
+            if animation_play_info._animation_loop {
+                if animation_end_time < animation_play_info._animation_play_time {
+                    animation_play_info._animation_play_time = animation_play_info._animation_play_time % animation_end_time;
+                }
+            } else {
+                if animation_end_time <= animation_play_info._animation_play_time {
+                    animation_play_info._animation_play_time = animation_end_time;
+                    animation_play_info._is_animation_end = true;
+                }
+            }
+            animation_play_info._animation_frame = animation_data.get_time_to_frame(
+                animation_play_info._animation_frame,
+                animation_play_info._animation_play_time,
+            );
+        } else {
+            animation_play_info._animation_frame = 0.0;
+        }
+        let animation_elapsed_time = animation_play_info._animation_elapsed_time;
+        animation_play_info._animation_elapsed_time += delta_time;
+
+        if animation_play_info._last_animation_frame != animation_play_info._animation_frame {
+            animation_play_info._last_animation_frame = animation_play_info._animation_frame;
+
+            std::mem::swap(
+                &mut animation_play_info._prev_animation_buffer,
+                &mut animation_play_info._animation_buffer
+            );
+
+            // update animation buffers
+            animation_data.update_animation_transforms(
+                animation_play_info._animation_frame,
+                &mut animation_play_info._animation_buffer,
+            );
+
+            // blend animation
+            let blend_ratio: f32 = animation_play_info._animation_elapsed_time / animation_play_info._animation_blend_time;
+            if blend_ratio < 1.0 {
+                for (bone_index, animation_buffer) in animation_play_info._animation_buffer.iter_mut().enumerate() {
+                    let blend_animation_buffer = &animation_play_info._blend_animation_buffer[bone_index];
+                    animation_buffer.copy_from(
+                        &((blend_animation_buffer * (1.0 - blend_ratio)) + (&(*animation_buffer) * blend_ratio)),
+                    );
+                }
+            }
+        }
+    }
+
     pub fn update_render_object_data(&mut self, delta_time: f32) {
         let updated_transform = self._transform_object.update_transform_object();
         if updated_transform {
@@ -202,76 +269,8 @@ impl RenderObjectData {
             }
         }
 
-        // update animation
         if self.has_animation_play_info() {
-            let mut blend_ratio: f32 = 1.0;
-            let animation_play_info = &mut self._animation_play_info.as_mut().unwrap();
-            let animation_data_list: &Vec<AnimationData> = &animation_play_info
-                ._animation_mesh
-                .as_ref()
-                .unwrap()
-                .borrow()
-                ._animation_data_list;
-            let animation_index = animation_play_info._animation_index.max(animation_data_list.len() - 1);
-            let animation_data = &animation_data_list[animation_index];
-            // update animation time
-            if 1 < animation_data._frame_count {
-                animation_play_info._animation_play_time += animation_play_info._animation_speed * delta_time;
-                let mut animation_end_time = animation_data._animation_length;
-                if let Some(custom_end_time) = animation_play_info._animation_end_time {
-                    if custom_end_time < animation_end_time {
-                        animation_end_time = custom_end_time;
-                    }
-                }
-
-                if animation_play_info._animation_loop {
-                    if animation_end_time < animation_play_info._animation_play_time {
-                        animation_play_info._animation_play_time = animation_play_info._animation_play_time % animation_end_time;
-                    }
-                } else {
-                    if animation_end_time <= animation_play_info._animation_play_time {
-                        animation_play_info._animation_play_time = animation_end_time;
-                        animation_play_info._is_animation_end = true;
-                    }
-                }
-                animation_play_info._animation_frame = animation_data.get_time_to_frame(
-                    animation_play_info._animation_frame,
-                    animation_play_info._animation_play_time,
-                );
-            } else {
-                animation_play_info._animation_frame = 0.0;
-            }
-
-            // blend ratio
-            if animation_play_info._animation_elapsed_time < animation_play_info._animation_blend_time
-            {
-                blend_ratio = animation_play_info._animation_elapsed_time / animation_play_info._animation_blend_time;
-            }
-            animation_play_info._animation_elapsed_time += delta_time;
-
-            // update animation buffers
-            if animation_play_info._last_animation_frame != animation_play_info._animation_frame {
-                animation_play_info._last_animation_frame = animation_play_info._animation_frame;
-
-                std::mem::swap(
-                    &mut animation_play_info._prev_animation_buffer,
-                    &mut animation_play_info._animation_buffer
-                );
-
-                animation_data.update_animation_transforms(
-                    animation_play_info._animation_frame,
-                    &mut animation_play_info._animation_buffer,
-                );
-
-                if blend_ratio < 1.0 {
-                    for (bone_index, animation_buffer) in animation_play_info._animation_buffer.iter_mut().enumerate() {
-                        let blend_animation_buffer = &animation_play_info._blend_animation_buffer[bone_index];
-                        animation_buffer.copy_from(
-                            &((blend_animation_buffer * (1.0 - blend_ratio)) + (&(*animation_buffer) * blend_ratio)),
-                        );
-                    }
-                }
-            } // end of update animation buffer
-        } // end of update animation
+            self.update_animation(delta_time);
+        }
     }
 }
