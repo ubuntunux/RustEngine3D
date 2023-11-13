@@ -423,8 +423,6 @@ impl RendererDataBase for RendererData {
         self._render_context_ssr.update();
     }
 
-    //noinspection RsConstantConditionIf
-    //noinspection ALL
     fn render_scene(
         &mut self,
         command_buffer: vk::CommandBuffer,
@@ -1319,8 +1317,6 @@ impl RendererData {
         }
     }
 
-    //noinspection RsConstantConditionIf
-    //noinspection ALL
     pub fn render_light_probe(
         &self,
         renderer_context: &RendererContext,

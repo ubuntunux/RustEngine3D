@@ -8,7 +8,6 @@ use rusttype::{Font, point, PositionedGlyph, Scale};
 use crate::scene::font::{self, FontDataCreateInfo};
 use crate::utilities::system;
 
-//noinspection ALL,RsConstantConditionIf
 pub fn get_font_data_create_info(
     font_source_file: &PathBuf,
     font_size: f32,

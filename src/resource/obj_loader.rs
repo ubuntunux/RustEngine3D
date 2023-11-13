@@ -182,8 +182,6 @@ impl WaveFrontOBJ {
         }
     }
 
-    //noinspection RsConstantConditionIf
-    //noinspection ALL
     fn generate_geometry_data_list(&mut self) -> Vec<GeometryCreateInfo> {
         // If texcoord is empty, add the default texcoord.
         if self.texcoords.len() < 1 {

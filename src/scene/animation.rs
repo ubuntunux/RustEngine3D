@@ -22,6 +22,7 @@ pub struct BoneData {
 pub struct SkeletonData {
     pub _name: String,
     pub _index: usize,
+    pub _transform: Matrix4<f32>,
     pub _bone_names: Vec<String>,
     pub _bone_index_map: HashMap<String, usize>,
     pub _bones: Vec<BoneData>,

@@ -183,8 +183,6 @@ impl DebugLineManager {
             });
     }
 
-    //noinspection RsConstantConditionIf
-    //noinspection ALL
     pub fn render_debug_line(
         &mut self,
         command_buffer: vk::CommandBuffer,

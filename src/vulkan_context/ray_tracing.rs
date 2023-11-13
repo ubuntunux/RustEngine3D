@@ -152,10 +152,6 @@ impl RayTracingData {
         }
     }
 
-    //noinspection RsBorrowChecker
-    //noinspection RsBorrowChecker
-    //noinspection RsBorrowChecker
-    //noinspection RsBorrowChecker
     pub fn initialize_ray_tracing_data(
         &mut self,
         device: &Device,

@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use nalgebra::{Matrix4, Vector4};
+use nalgebra::Matrix4;
 use nalgebra_glm as glm;
 
 use crate::constants;
@@ -13,8 +13,8 @@ impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
             _name: String::new(),
-            _hierarchically_accumulated_matrix: constants::HIERARCHICALLY_ACCUMULATED_MATRIX,
-            _combined_inv_bind_matrix: constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX,
+            _hierarchically_accumulated_matrix: constants::ENABLE_HIERARCHICALLY_ACCUMULATED_MATRIX,
+            _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
             _target: String::new(),
             _times: Vec::new(),
             _locations: Vec::new(),
@@ -73,6 +73,7 @@ impl SkeletonData {
         let mut skeleton_data = SkeletonData {
             _name: skeleton_data_create_info._name.clone(),
             _index: index,
+            _transform: skeleton_data_create_info._transform.clone_owned(),
             _bone_names: skeleton_data_create_info._bone_names.clone(),
             _bone_index_map: HashMap::new(),
             _bones: skeleton_data_create_info
@@ -212,16 +213,17 @@ impl AnimationData {
             for bone in (*parent_bone)._children.iter() {
                 let index: usize = (**bone)._index;
                 let node = &self._nodes[index];
-                node.update_animation_node(frame, &mut animation_transforms[index]);
-                animation_transforms[index] = &(*parent_matrix) * &animation_transforms[index];
+                let mut transform = node.calc_animation_matrix(frame);
+                if false == node._combined_inv_bind_matrix {
+                    transform = &transform* &(*node._bone)._inv_bind_matrix;
+                }
+                animation_transforms[index] = &(*parent_matrix) * &transform;
                 self.update_hierarchical_animation_transform(
                     frame,
                     *bone,
                     &animation_transforms[index],
                     animation_transforms,
                 );
-                animation_transforms[index] =
-                    &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
             }
         }
     }
@@ -234,27 +236,23 @@ impl AnimationData {
         unsafe {
             if (*self._root_node)._hierarchically_accumulated_matrix {
                 for (index, node) in self._nodes.iter().enumerate() {
-                    node.update_animation_node(frame, &mut animation_transforms[index]);
-                    // Why multiplication inv_bind_matrix? let's suppose to the bone is T pose. Since the vertices do not move,
-                    // the result must be an identity. Therefore, inv_bind_matrix is the inverse of T pose transform.
-                    if false == node._combined_inv_bind_matrix {
-                        animation_transforms[index] =
-                            &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
-                    }
+                    animation_transforms[index].copy_from(&node.calc_animation_matrix(frame));
                 }
             } else {
                 for bone in (*self._skeleton)._hierarchy.iter() {
                     let index: usize = (**bone)._index;
                     let node = &self._nodes[index];
-                    node.update_animation_node(frame, &mut animation_transforms[index]);
+                    let mut transform = node.calc_animation_matrix(frame);
+                    if false == node._combined_inv_bind_matrix {
+                        transform = &transform* &(*node._bone)._inv_bind_matrix;
+                    }
+                    animation_transforms[index]  = &(*self._skeleton)._transform * &transform;
                     self.update_hierarchical_animation_transform(
                         frame,
                         *bone,
                         &animation_transforms[index],
                         animation_transforms,
                     );
-                    animation_transforms[index] =
-                        &animation_transforms[index] * &(*node._bone)._inv_bind_matrix;
                 }
             }
         }
@@ -268,8 +266,7 @@ impl AnimationNodeData {
     ) -> AnimationNodeData {
         AnimationNodeData {
             _name: animation_node_create_info._name.clone(),
-            _hierarchically_accumulated_matrix: animation_node_create_info
-                ._hierarchically_accumulated_matrix,
+            _hierarchically_accumulated_matrix: animation_node_create_info                ._hierarchically_accumulated_matrix,
             _combined_inv_bind_matrix: animation_node_create_info._combined_inv_bind_matrix,
             _target: animation_node_create_info._target.clone(), // bone name
             _frame_times: animation_node_create_info._times.clone(),
@@ -284,7 +281,8 @@ impl AnimationNodeData {
         }
     }
 
-    pub fn update_animation_node(&self, frame: f32, transform: &mut Matrix4<f32>) {
+    pub fn calc_animation_matrix(&self, frame: f32) -> Matrix4<f32> {
+        let mut transform: Matrix4<f32> = Matrix4::identity();
         if (frame as usize) < self._frame_count {
             let rate = frame.fract();
             let frame: usize = (frame as usize) % self._frame_count;
@@ -294,10 +292,11 @@ impl AnimationNodeData {
                 let location = glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
                 let scale = glm::lerp(&self._scales[frame], &self._scales[next_frame], rate);
                 transform.copy_from(&math::quaternion_to_matrix(&rotation));
-                math::scale_matrix(transform, scale.x, scale.y, scale.z);
-                transform.set_column(3, &Vector4::new(location.x, location.y, location.z, 1.0));
+                math::scale_matrix(&mut transform, scale.x, scale.y, scale.z);
+                math::set_matrix_translate(&mut transform, location.x, location.y, location.z);
             }
         }
+        transform
     }
 }
 

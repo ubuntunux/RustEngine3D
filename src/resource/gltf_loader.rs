@@ -33,8 +33,6 @@ pub struct GLTF {
     pub filename: PathBuf,
 }
 
-//noinspection RsConstantConditionIf
-//noinspection ALL
 pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::buffer::View) {
     if SHOW_GLTF_LOG {
         log::info!("{} Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
@@ -51,8 +49,6 @@ pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::bu
     }
 }
 
-//noinspection RsConstantConditionIf
-//noinspection ALL
 pub fn parsing_index_buffer(
     primitive: &gltf::Primitive,
     buffers: &Vec<gltf::buffer::Data>,
@@ -326,8 +322,6 @@ pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHi
     }
 }
 
-//noinspection RsConstantConditionIf
-//noinspection ALL
 pub fn parsing_skins(
     nodes: gltf::iter::Nodes,
     skin: &gltf::Skin,
@@ -386,8 +380,6 @@ pub fn parsing_skins(
     panic!("not found armature node");
 }
 
-//noinspection RsConstantConditionIf
-//noinspection ALL
 pub fn parsing_animation(
     animations: gltf::iter::Animations,
     skin: &gltf::Skin,
@@ -516,8 +508,6 @@ pub fn parsing_animation(
         .push(animation_node_data_list);
 }
 
-//noinspection RsConstantConditionIf
-//noinspection ALL
 pub fn precompute_animation(
     frame_index: usize,
     parent_transform: &Matrix4<f32>,
@@ -529,15 +519,18 @@ pub fn precompute_animation(
 ) {
     // precompute bone animation matrix with ancestor bone matrices
     let animation_node_data = &mut animation_node_data_list[bone_index];
-    let transform: Matrix4<f32> = parent_transform
-        * math::combinate_matrix(
+    let mut transform: Matrix4<f32> = math::combinate_matrix(
             &animation_node_data._locations[frame_index],
             &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
             &animation_node_data._scales[frame_index],
         );
 
+    if constants::ENABLE_HIERARCHICALLY_ACCUMULATED_MATRIX {
+        transform = parent_transform * transform;
+    }
+
     // combine animation matrix with inv_bind_matrix
-    if constants::ENABLE_COMBINED_INVERSE_BIND_MATRIX {
+    if constants::COMBINED_INVERSE_BIND_MATRIX {
         let combined_transform = transform * &inv_bind_matrices[bone_index];
         animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
         animation_node_data._rotations[frame_index] = math::extract_quaternion(&combined_transform);
@@ -565,8 +558,6 @@ pub fn precompute_animation(
     }
 }
 
-//noinspection RsConstantConditionIf
-//noinspection ALL
 pub fn parsing_meshes(
     node: &gltf::Node,
     buffers: &Vec<gltf::buffer::Data>,
@@ -675,10 +666,6 @@ pub fn parsing_meshes(
 }
 
 impl GLTF {
-    //noinspection RsConstantConditionIf
-    //noinspection RsConstantConditionIf
-    //noinspection ALL
-    //noinspection ALL
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
         if SHOW_GLTF_LOG {
             log::info!("GLTF: {:?}", filename);
@@ -692,6 +679,7 @@ impl GLTF {
                 &buffers,
                 &mut mesh_data_create_info,
             );
+
             parsing_animation(
                 document.animations(),
                 &skin,
@@ -699,19 +687,15 @@ impl GLTF {
                 &mut mesh_data_create_info,
             );
 
-            if constants::HIERARCHICALLY_ACCUMULATED_MATRIX {
+            if constants::COMBINED_INVERSE_BIND_MATRIX {
                 let n = mesh_data_create_info._animation_node_create_infos.len();
-                let animation_node_data_list =
-                    &mut mesh_data_create_info._animation_node_create_infos[n - 1];
-                let skeleton_create_info =
-                    &mesh_data_create_info._skeleton_create_infos.last().unwrap();
+                let animation_node_data_list =                    &mut mesh_data_create_info._animation_node_create_infos[n - 1];
+                let skeleton_create_info =                    &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
-                let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
+                let parent_transform: Matrix4<f32> =   skeleton_create_info._transform.clone();
 
-                for (child_bone_name, child_hierarchy) in
-                    skeleton_create_info._hierarchy._children.iter()
-                {
+                for (child_bone_name, child_hierarchy) in                    skeleton_create_info._hierarchy._children.iter()                 {
                     let child_bone_index = bone_names
                         .iter()
                         .position(|bone_name| bone_name == child_bone_name)

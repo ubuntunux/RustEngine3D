@@ -40,7 +40,6 @@ impl BoundingBox {
     }
 }
 
-//noinspection RsDeprecation
 pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
     if 0 == positions.len() {
         return BoundingBox::default();

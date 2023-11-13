@@ -40,7 +40,6 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
 }
 
-//noinspection ALL,RsConstantConditionIf
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("compute_indirect_irradiance");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
