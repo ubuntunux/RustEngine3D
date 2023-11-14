@@ -246,7 +246,7 @@ impl AnimationData {
                     if false == node._combined_inv_bind_matrix {
                         transform = &transform* &(*node._bone)._inv_bind_matrix;
                     }
-                    animation_transforms[index]  = &(*self._skeleton)._transform * &transform;
+                    animation_transforms[index] = &(*self._skeleton)._transform * &transform;
                     self.update_hierarchical_animation_transform(
                         frame,
                         *bone,
@@ -291,9 +291,11 @@ impl AnimationNodeData {
                 let rotation = glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate);
                 let location = glm::lerp(&self._locations[frame], &self._locations[next_frame], rate);
                 let scale = glm::lerp(&self._scales[frame], &self._scales[next_frame], rate);
-                transform.copy_from(&math::quaternion_to_matrix(&rotation));
-                math::scale_matrix(&mut transform, scale.x, scale.y, scale.z);
-                math::set_matrix_translate(&mut transform, location.x, location.y, location.z);
+                transform = math::combinate_matrix(
+                    &location,
+                    &math::quaternion_to_matrix(&rotation),
+                    &scale,
+                );
             }
         }
         transform

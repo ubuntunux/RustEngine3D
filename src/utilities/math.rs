@@ -574,25 +574,12 @@ pub fn extract_location(matrix: &Matrix4<f32>) -> Vector3<f32> {
 }
 
 pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
-    let scale: Vector3<f32> = extract_scale(matrix);
-    let mut rotation = matrix.clone() as Matrix4<f32>;
-    rotation.m11 /= scale.x;
-    rotation.m21 /= scale.x;
-    rotation.m31 /= scale.x;
-    rotation.m41 = 0.0;
-    rotation.m12 /= scale.y;
-    rotation.m22 /= scale.y;
-    rotation.m32 /= scale.y;
-    rotation.m42 = 0.0;
-    rotation.m13 /= scale.z;
-    rotation.m23 /= scale.z;
-    rotation.m33 /= scale.z;
-    rotation.m43 = 0.0;
-    rotation.m14 = 0.0;
-    rotation.m24 = 0.0;
-    rotation.m34 = 0.0;
-    rotation.m44 = 1.0;
-    rotation
+    Matrix4::from_columns(&[
+        matrix.column(0).normalize(),
+        matrix.column(1).normalize(),
+        matrix.column(2).normalize(),
+        Vector4::new(0.0, 0.0, 0.0, 1.0),
+    ])
 }
 
 pub fn extract_location_and_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {

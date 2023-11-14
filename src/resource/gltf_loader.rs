@@ -1,7 +1,8 @@
 use std::path::PathBuf;
 
 use gltf;
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use nalgebra_glm as glm;
+use nalgebra::{Matrix, Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
 use crate::scene::animation::{
@@ -520,26 +521,19 @@ pub fn precompute_animation(
     // precompute bone animation matrix with ancestor bone matrices
     let animation_node_data = &mut animation_node_data_list[bone_index];
     let mut transform: Matrix4<f32> = math::combinate_matrix(
-            &animation_node_data._locations[frame_index],
-            &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
-            &animation_node_data._scales[frame_index],
-        );
+        &animation_node_data._locations[frame_index],
+        &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
+        &animation_node_data._scales[frame_index],
+    );
 
     if constants::ENABLE_HIERARCHICALLY_ACCUMULATED_MATRIX {
-        transform = parent_transform * transform;
+        transform = parent_transform * &transform;
     }
 
-    // combine animation matrix with inv_bind_matrix
-    if constants::COMBINED_INVERSE_BIND_MATRIX {
-        let combined_transform = transform * &inv_bind_matrices[bone_index];
-        animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
-        animation_node_data._rotations[frame_index] = math::extract_quaternion(&combined_transform);
-        animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
-    } else {
-        animation_node_data._locations[frame_index] = math::extract_location(&transform);
-        animation_node_data._rotations[frame_index] = math::extract_quaternion(&transform);
-        animation_node_data._scales[frame_index] = math::extract_scale(&transform);
-    }
+    let combined_transform = &transform * &inv_bind_matrices[bone_index];
+    animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
+    animation_node_data._rotations[frame_index] = math::extract_quaternion(&combined_transform);
+    animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
 
     for (child_bone_name, child_hierarchy) in hierarchy._children.iter() {
         let child_bone_index = bone_names
@@ -689,13 +683,12 @@ impl GLTF {
 
             if constants::COMBINED_INVERSE_BIND_MATRIX {
                 let n = mesh_data_create_info._animation_node_create_infos.len();
-                let animation_node_data_list =                    &mut mesh_data_create_info._animation_node_create_infos[n - 1];
-                let skeleton_create_info =                    &mesh_data_create_info._skeleton_create_infos.last().unwrap();
+                let animation_node_data_list = &mut mesh_data_create_info._animation_node_create_infos[n - 1];
+                let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
-                let parent_transform: Matrix4<f32> =   skeleton_create_info._transform.clone();
-
-                for (child_bone_name, child_hierarchy) in                    skeleton_create_info._hierarchy._children.iter()                 {
+                let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
+                for (child_bone_name, child_hierarchy) in skeleton_create_info._hierarchy._children.iter() {
                     let child_bone_index = bone_names
                         .iter()
                         .position(|bone_name| bone_name == child_bone_name)
