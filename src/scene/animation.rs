@@ -4,7 +4,7 @@ use nalgebra::{Matrix4, Quaternion, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::scene::mesh::MeshData;
-use crate::scene::transform_object::TransformObjectData;
+use crate::scene::transform_object::{SimpleTransform, TransformObjectData};
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
@@ -33,7 +33,6 @@ pub struct SkeletonData {
 #[serde(default)]
 pub struct AnimationNodeCreateInfo {
     pub _name: String,
-    pub _hierarchically_accumulated_matrix: bool,
     pub _combined_inv_bind_matrix: bool,
     pub _target: String,
     pub _times: Vec<f32>,
@@ -48,7 +47,6 @@ pub struct AnimationNodeCreateInfo {
 #[derive(Clone, Debug)]
 pub struct AnimationNodeData {
     pub _name: String,
-    pub _hierarchically_accumulated_matrix: bool,
     pub _combined_inv_bind_matrix: bool,
     pub _target: String,
     pub _frame_times: Vec<f32>,
@@ -90,21 +88,28 @@ pub struct SkeletonDataCreateInfo {
     pub _inv_bind_matrices: Vec<Matrix4<f32>>, // inverse matrix of bone
 }
 
+
+#[derive(Clone, Debug)]
+pub struct AnimationBuffer {
+    pub _prev_animation_buffer: Vec<Matrix4<f32>>,
+    pub _animation_buffer: Vec<Matrix4<f32>>
+}
+
+
 #[derive(Clone, Debug)]
 pub struct AnimationPlayInfo {
-    pub _is_updated_animation: bool,
     pub _is_animation_end: bool,
     pub _last_animation_frame: f32,
     pub _animation_loop: bool,
+    pub _animation_blend_ratio: f32,
     pub _animation_blend_time: f32,
     pub _animation_elapsed_time: f32,
     pub _animation_speed: f32,
     pub _animation_frame: f32,
     pub _animation_play_time: f32,
     pub _animation_end_time: Option<f32>,
-    pub _animation_buffer: Vec<Matrix4<f32>>,
-    pub _prev_animation_buffer: Vec<Matrix4<f32>>,
-    pub _blend_animation_buffer: Vec<Matrix4<f32>>,
+    pub _animation_transforms: Vec<SimpleTransform>,
+    pub _last_animation_transforms: Vec<SimpleTransform>,
     pub _animation_index: usize,
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
     pub _animation_blend_masks: HashMap<String, f32>

@@ -395,7 +395,7 @@ pub fn euler_to_quaternion(pitch: f32, yaw: f32, roll: f32) -> Quaternion<f32> {
 }
 
 pub fn matrix_to_quaternion(matrix: &Matrix4<f32>) -> Quaternion<f32> {
-    glm::to_quat(&matrix)
+    glm::to_quat(&matrix).normalize()
 
     // let tr = matrix.m11 + matrix.m22 + matrix.m33;
     // if tr > 0.0 {

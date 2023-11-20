@@ -1,8 +1,7 @@
 use std::path::PathBuf;
 
 use gltf;
-use nalgebra_glm as glm;
-use nalgebra::{Matrix, Matrix4, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
 use crate::scene::animation::{
@@ -511,7 +510,7 @@ pub fn parsing_animation(
 
 pub fn precompute_animation(
     frame_index: usize,
-    parent_transform: &Matrix4<f32>,
+    _parent_transform: &Matrix4<f32>,
     bone_index: usize,
     hierarchy: &SkeletonHierarchyTree,
     bone_names: &Vec<String>,
@@ -520,15 +519,11 @@ pub fn precompute_animation(
 ) {
     // precompute bone animation matrix with ancestor bone matrices
     let animation_node_data = &mut animation_node_data_list[bone_index];
-    let mut transform: Matrix4<f32> = math::combinate_matrix(
+    let transform: Matrix4<f32> = math::combinate_matrix(
         &animation_node_data._locations[frame_index],
         &math::quaternion_to_matrix(&animation_node_data._rotations[frame_index]),
         &animation_node_data._scales[frame_index],
     );
-
-    if constants::ENABLE_HIERARCHICALLY_ACCUMULATED_MATRIX {
-        transform = parent_transform * &transform;
-    }
 
     let combined_transform = &transform * &inv_bind_matrices[bone_index];
     animation_node_data._locations[frame_index] = math::extract_location(&combined_transform);
@@ -661,7 +656,7 @@ pub fn parsing_meshes(
 
 impl GLTF {
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
-        if SHOW_GLTF_LOG {
+        {
             log::info!("GLTF: {:?}", filename);
         }
         let (document, buffers, _images) = gltf::import(filename).unwrap();

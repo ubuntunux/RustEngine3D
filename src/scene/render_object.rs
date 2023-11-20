@@ -1,12 +1,12 @@
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 
-use crate::scene::animation::{AnimationPlayArgs, AnimationPlayInfo};
+use crate::scene::animation::{AnimationBuffer, AnimationData, AnimationPlayArgs, AnimationPlayInfo};
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::system::{ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 #[repr(i32)]
@@ -47,6 +47,7 @@ pub struct RenderObjectData {
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _transform_object: TransformObjectData,
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
+    pub _animation_buffer: Option<AnimationBuffer>,
     pub _bone_count: usize,
 }
 
@@ -93,6 +94,7 @@ impl RenderObjectData {
             _transform_object: transform_object_data,
             _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_infos: Vec::new(),
+            _animation_buffer: None,
             _bone_count: 0
         };
 
@@ -117,15 +119,11 @@ impl RenderObjectData {
 
         assert!(0 < bone_count);
         for _i in 0..(AnimationLayer::LayerCount as i32) {
-            self._animation_play_infos.push(AnimationPlayInfo {
-                _animation_buffer: vec![Matrix4::identity(); bone_count],
-                _prev_animation_buffer: vec![Matrix4::identity(); bone_count],
-                _blend_animation_buffer: vec![Matrix4::identity(); bone_count],
-                _animation_mesh: Some(self._mesh_data.clone()),
-                ..Default::default()
-            });
+            self._animation_play_infos.push(
+                AnimationPlayInfo::create_animation_play_info(&self._mesh_data, bone_count)
+            );
         }
-
+        self._animation_buffer = Some(AnimationBuffer::create_animation_buffer(bone_count));
         self._bone_count = bone_count;
     }
 
@@ -148,8 +146,8 @@ impl RenderObjectData {
         &self._transform_object
     }
 
-    pub fn has_animation_play_info(&self) -> bool {
-        !self._animation_play_infos.is_empty()
+    pub fn has_animation(&self) -> bool {
+        self._animation_buffer.is_some()
     }
 
     pub fn get_bone_count(&self) -> usize {
@@ -162,23 +160,17 @@ impl RenderObjectData {
             animation_play_info._animation_mesh = Some(animation_mesh.clone());
             animation_play_info.set_animation_play_info(animation_args);
             if 0.0 < animation_play_info._animation_blend_time {
-                animation_play_info._blend_animation_buffer.clone_from(&animation_play_info._animation_buffer);
+                animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
             }
         }
     }
 
     pub fn get_prev_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
-        &self
-            ._animation_play_infos.first()
-            .unwrap()
-            ._prev_animation_buffer
+        &self._animation_buffer.as_ref().unwrap()._prev_animation_buffer
     }
 
     pub fn get_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
-        &self
-            ._animation_play_infos.first()
-            .unwrap()
-            ._animation_buffer
+        &self._animation_buffer.as_ref().unwrap()._animation_buffer
     }
 
     pub fn update_bound_box(&mut self, transform_matrix: &Matrix4<f32>) {
@@ -207,24 +199,53 @@ impl RenderObjectData {
         let updated_transform = self._transform_object.update_transform_object();
         if updated_transform {
             let transform_matrix = ptr_as_ref(self._transform_object.get_matrix());
-            if self.has_animation_play_info() {
-                let base_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
+            if self.has_animation() {
                 let root_bone_index = 0;
-                self.update_bound_box(&(transform_matrix * base_animation._animation_buffer[root_bone_index]));
+                self.update_bound_box(&(transform_matrix * self._animation_buffer.as_ref().unwrap()._animation_buffer[root_bone_index]));
             } else {
                 self.update_bound_box(transform_matrix);
             }
         }
 
-        if self.has_animation_play_info() {
+        if self.has_animation() {
+            let mut updated = false;
             for animation_play_info in self._animation_play_infos.iter_mut() {
-                animation_play_info.update_animation_play_info(delta_time);
+                updated |= animation_play_info.update_animation_frame_time(delta_time);
             }
 
-            // update additive animation
-            let additive_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::AdditiveLayer as usize]);
-            let base_animation = ptr_as_mut(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
-            base_animation.update_additive_animation(additive_animation);
+            if updated {
+                let is_end_additive_animation = self._animation_play_infos[AnimationLayer::AdditiveLayer as usize]._is_animation_end;
+                for animation_play_info in self._animation_play_infos.iter_mut() {
+                    // update animation nodes
+                    let animation_data_list: &Vec<AnimationData> = &(*animation_play_info)._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
+                    let animation_data = &animation_data_list[animation_play_info._animation_index];
+                    for bone_node in animation_data._nodes.iter() {
+                        let bone_index = ptr_as_ref(bone_node._bone)._index;
+                        animation_play_info._animation_transforms[bone_index] = bone_node.calc_animation_transform(animation_play_info._animation_frame);
+                    }
+
+                    // blend last animation
+                    if animation_play_info._animation_blend_ratio < 1.0 {
+                        for (bone_index, animation_transform) in animation_play_info._animation_transforms.iter_mut().enumerate() {
+                            let last_animation_buffer = &animation_play_info._last_animation_transforms[bone_index];
+                            *animation_transform = last_animation_buffer.lerp(animation_transform, animation_play_info._animation_blend_ratio);
+                        }
+                    }
+                }
+
+                // update additive animation
+                if false == is_end_additive_animation {
+                    let additive_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::AdditiveLayer as usize]);
+                    let base_animation = ptr_as_mut(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
+                    base_animation.combine_additive_animation(additive_animation);
+                }
+
+                // transform to matrix
+                let base_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
+                let animation_buffer = self._animation_buffer.as_mut().unwrap();
+                animation_buffer.swap_animation_buffer();
+                animation_buffer.update_animation_buffer(base_animation);
+            }
         }
     }
 }

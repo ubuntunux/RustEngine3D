@@ -1,10 +1,42 @@
+use nalgebra_glm as glm;
 use nalgebra::{linalg, Matrix4, Quaternion, Vector3};
 
-use crate::utilities::math::{
-    combinate_matrix, extract_location, extract_scale, make_rotation_matrix,
-    matrix_decompose_pitch_yaw_roll, TWO_PI,
-};
+use crate::utilities::math;
 use crate::utilities::system::ptr_as_ref;
+
+#[derive(Debug, Clone)]
+pub struct SimpleTransform {
+    pub _position: Vector3<f32>,
+    pub _rotation: Quaternion<f32>,
+    pub _scale: Vector3<f32>
+}
+
+impl Default for SimpleTransform {
+    fn default() -> SimpleTransform {
+        SimpleTransform {
+            _position: Vector3::zeros(),
+            _rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
+            _scale: Vector3::new(1.0, 1.0, 1.0)
+        }
+    }
+}
+impl SimpleTransform {
+    pub fn lerp(&self, other: &SimpleTransform, t: f32) -> SimpleTransform {
+        SimpleTransform {
+            _position: glm::lerp(&self._position, &other._position, t),
+            _rotation: glm::quat_slerp(&self._rotation, &other._rotation, t),
+            _scale: glm::lerp(&self._scale, &other._scale, t),
+        }
+    }
+
+    pub fn to_matrix(&self) -> Matrix4<f32> {
+        math::combinate_matrix(
+            &self._position,
+            &math::quaternion_to_matrix(&self._rotation),
+            &self._scale,
+        )
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct TransformObjectData {
@@ -116,18 +148,18 @@ impl TransformObjectData {
     }
     pub fn set_rotation(&mut self, rotation: &Vector3<f32>) {
         self._rotation.copy_from(rotation);
-        self._rotation.x = self._rotation.x % TWO_PI;
-        self._rotation.y = self._rotation.y % TWO_PI;
-        self._rotation.z = self._rotation.z % TWO_PI;
+        self._rotation.x = self._rotation.x % math::TWO_PI;
+        self._rotation.y = self._rotation.y % math::TWO_PI;
+        self._rotation.z = self._rotation.z % math::TWO_PI;
     }
     pub fn rotation_pitch(&mut self, rotation_speed: f32) {
-        self._rotation.x = (self._rotation.x + rotation_speed) % TWO_PI;
+        self._rotation.x = (self._rotation.x + rotation_speed) % math::TWO_PI;
     }
     pub fn rotation_yaw(&mut self, rotation_speed: f32) {
-        self._rotation.y = (self._rotation.y + rotation_speed) % TWO_PI;
+        self._rotation.y = (self._rotation.y + rotation_speed) % math::TWO_PI;
     }
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
-        self._rotation.z = (self._rotation.z + rotation_speed) % TWO_PI;
+        self._rotation.z = (self._rotation.z + rotation_speed) % math::TWO_PI;
     }
     pub fn get_pitch(&self) -> f32 {
         self._rotation.x
@@ -139,13 +171,13 @@ impl TransformObjectData {
         self._rotation.z
     }
     pub fn set_pitch(&mut self, rotation: f32) {
-        self._rotation.x = rotation % TWO_PI;
+        self._rotation.x = rotation % math::TWO_PI;
     }
     pub fn set_yaw(&mut self, rotation: f32) {
-        self._rotation.y = rotation % TWO_PI;
+        self._rotation.y = rotation % math::TWO_PI;
     }
     pub fn set_roll(&mut self, rotation: f32) {
-        self._rotation.z = rotation % TWO_PI;
+        self._rotation.z = rotation % math::TWO_PI;
     }
     pub fn get_scale(&self) -> &Vector3<f32> {
         &self._scale
@@ -170,7 +202,7 @@ impl TransformObjectData {
         if updated {
             if updated_rotation {
                 self._rotation_matrix =
-                    make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
+                    math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
                 //          look at algorithm
                 //             let sin_pitch = self._rotation._x.sin();
                 //             let cos_pitch = self._rotation._x.cos();
@@ -199,11 +231,13 @@ impl TransformObjectData {
                 }
             }
 
-            self._matrix.copy_from(&combinate_matrix(
-                &self._position,
-                &self._rotation_matrix,
-                &self._scale,
-            ));
+            self._matrix.copy_from(
+                &math::combinate_matrix(
+                    &self._position,
+                    &self._rotation_matrix,
+                    &self._scale
+                )
+            );
             //self._inverse_matrix.copy_from(&inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale));
             linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
             self._updated = true;
@@ -236,8 +270,8 @@ impl TransformObjectData {
     }
 
     pub fn set_position_rotation_scale(&mut self, matrix: &Matrix4<f32>) {
-        self.set_position(&extract_location(matrix));
-        self.set_rotation(&matrix_decompose_pitch_yaw_roll(matrix));
-        self.set_scale(&extract_scale(matrix));
+        self.set_position(&math::extract_location(matrix));
+        self.set_rotation(&math::matrix_decompose_pitch_yaw_roll(matrix));
+        self.set_scale(&math::extract_scale(matrix));
     }
 }

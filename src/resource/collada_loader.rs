@@ -1096,18 +1096,15 @@ impl Collada {
         children_hierarchy: &SkeletonHierarchyTree,
         bone_names: &Vec<String>,
         inv_bind_matrices: &Vec<Matrix4<f32>>,
-        parent_matrix: &Matrix4<f32>,
+        _parent_matrix: &Matrix4<f32>,
         frame: usize,
     ) {
         for child in children_hierarchy._children.keys() {
             for i in 0..animations.len() {
                 if *child == animations[i]._target {
                     // just Transpose child bones, no swap y-z.
-                    let mut child_transform: Matrix4<f32> =
+                    let child_transform: Matrix4<f32> =
                         animations[i]._outputs[frame].transpose();
-                    if constants::ENABLE_HIERARCHICALLY_ACCUMULATED_MATRIX {
-                        child_transform = parent_matrix * child_transform;
-                    }
 
                     if constants::COMBINED_INVERSE_BIND_MATRIX {
                         let child_bone_index = bone_names
@@ -1192,7 +1189,6 @@ impl Collada {
                     if *bone_name == animation_node._target {
                         let animation_node_data = AnimationNodeCreateInfo {
                             _name: format!("{}_{}_{}", self._name, skeleton_data._name, bone_name),
-                            _hierarchically_accumulated_matrix: constants::ENABLE_HIERARCHICALLY_ACCUMULATED_MATRIX,
                             _combined_inv_bind_matrix: constants::COMBINED_INVERSE_BIND_MATRIX,
                             _target: animation_node._target.clone(),
                             _times: animation_node._inputs.clone(),
