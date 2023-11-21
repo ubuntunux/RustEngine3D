@@ -155,12 +155,14 @@ impl RenderObjectData {
     }
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs, layer: AnimationLayer) {
-        let animation_play_info = &mut self._animation_play_infos[layer as usize];
-        if animation_args._force_animation_setting || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
-            animation_play_info._animation_mesh = Some(animation_mesh.clone());
-            animation_play_info.set_animation_play_info(animation_args);
-            if 0.0 < animation_play_info._animation_blend_time {
-                animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
+        if self._bone_count == animation_mesh.borrow()._animation_data_list.first().unwrap().get_bone_count() {
+            let animation_play_info = &mut self._animation_play_infos[layer as usize];
+            if animation_args._force_animation_setting || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
+                animation_play_info._animation_mesh = Some(animation_mesh.clone());
+                animation_play_info.set_animation_play_info(animation_args);
+                if 0.0 < animation_play_info._animation_blend_time {
+                    animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
+                }
             }
         }
     }
