@@ -315,7 +315,7 @@ impl Default for AnimationPlayInfo {
             _last_animation_transforms: Vec::new(),
             _animation_index: 0,
             _animation_mesh: None,
-            _animation_blend_masks: HashMap::new()
+            _animation_blend_masks: std::ptr::null()
         }
     }
 }
@@ -385,7 +385,7 @@ impl AnimationPlayInfo {
     pub fn combine_additive_animation(&mut self, additive_animation_play_info: &AnimationPlayInfo) {
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
-        for (bone_name, blend_ratio) in additive_animation_play_info._animation_blend_masks.iter() {
+        for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_blend_masks).iter() {
             let bone_index = skeleton_data._bone_index_map.get(bone_name);
             if bone_index.is_some() {
                 let blend_ratio = *blend_ratio;
@@ -422,7 +422,7 @@ impl Default for AnimationPlayArgs {
             _animation_blend_time: 0.1,
             _force_animation_setting: false,
             _reset_animation_time: true,
-            _animation_blend_masks: HashMap::new()
+            _animation_blend_masks: std::ptr::null()
         }
     }
 }

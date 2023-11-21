@@ -112,7 +112,7 @@ pub struct AnimationPlayInfo {
     pub _last_animation_transforms: Vec<SimpleTransform>,
     pub _animation_index: usize,
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
-    pub _animation_blend_masks: HashMap<String, f32>
+    pub _animation_blend_masks: *const HashMap<String, f32>
 }
 
 #[derive(Clone, Debug)]
@@ -124,5 +124,5 @@ pub struct AnimationPlayArgs {
     pub _animation_blend_time: f32,
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
-    pub _animation_blend_masks: HashMap<String, f32>
+    pub _animation_blend_masks: *const HashMap<String, f32>
 }
