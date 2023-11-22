@@ -310,7 +310,7 @@ impl Default for AnimationPlayInfo {
             _animation_frame: 0.0,
             _animation_play_time: 0.0,
             _animation_end_time: None,
-            _is_animation_end: true,
+            _is_animation_end: false,
             _animation_transforms: Vec::new(),
             _last_animation_transforms: Vec::new(),
             _animation_index: 0,
