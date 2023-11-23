@@ -385,7 +385,11 @@ impl AnimationPlayInfo {
     pub fn combine_additive_animation(&mut self, additive_animation_play_info: &AnimationPlayInfo) {
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
-        if false == additive_animation_play_info._animation_blend_masks.is_null() {
+        if additive_animation_play_info._animation_blend_masks.is_null() {
+            for (bone_index, transform) in additive_animation_play_info._animation_transforms.iter().enumerate() {
+                self._animation_transforms[bone_index].clone_from(transform);
+            }
+        } else {
             for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_blend_masks).iter() {
                 let bone_index = skeleton_data._bone_index_map.get(bone_name);
                 if bone_index.is_some() {
