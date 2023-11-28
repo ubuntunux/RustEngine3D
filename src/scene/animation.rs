@@ -99,10 +99,13 @@ pub struct AnimationBuffer {
 #[derive(Clone, Debug)]
 pub struct AnimationPlayInfo {
     pub _is_animation_end: bool,
+    pub _is_last_animation_frame: bool,
     pub _last_animation_frame: f32,
     pub _animation_loop: bool,
     pub _animation_blend_ratio: f32,
     pub _animation_blend_time: f32,
+    pub _animation_fade_out_ratio: f32,
+    pub _animation_fade_out_time: f32,
     pub _animation_elapsed_time: f32,
     pub _animation_speed: f32,
     pub _animation_frame: f32,
@@ -122,6 +125,7 @@ pub struct AnimationPlayArgs {
     pub _animation_start_time: f32,
     pub _animation_end_time: Option<f32>,
     pub _animation_blend_time: f32,
+    pub _animation_fade_out_time: f32,
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
     pub _animation_blend_masks: *const HashMap<String, f32>

@@ -1,6 +1,6 @@
+use std::collections::HashMap;
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
-
 use crate::scene::animation::{AnimationBuffer, AnimationData, AnimationPlayArgs, AnimationPlayInfo};
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
@@ -154,9 +154,29 @@ impl RenderObjectData {
         self._bone_count
     }
 
+    pub fn get_animation_play_info(&self, layer: AnimationLayer) -> &AnimationPlayInfo {
+        &self._animation_play_infos[layer as usize]
+    }
+
+    pub fn get_animation_play_info_mut(&mut self, layer: AnimationLayer) -> &mut AnimationPlayInfo {
+        &mut self._animation_play_infos[layer as usize]
+    }
+
+    pub fn get_animation_blend_masks(&self, layer: AnimationLayer) -> *const HashMap<String, f32> {
+        self.get_animation_play_info(layer)._animation_blend_masks
+    }
+
+    pub fn set_animation_blend_masks(&mut self, animation_blend_masks: *const HashMap<String, f32>, layer: AnimationLayer) {
+        self.get_animation_play_info_mut(layer)._animation_blend_masks = animation_blend_masks;
+    }
+
+    pub fn clear_animation_blend_masks(&mut self, layer: AnimationLayer) {
+        self.get_animation_play_info_mut(layer)._animation_blend_masks = std::ptr::null();
+    }
+
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs, layer: AnimationLayer) {
         if self._bone_count == animation_mesh.borrow()._animation_data_list.first().unwrap().get_bone_count() {
-            let animation_play_info = &mut self._animation_play_infos[layer as usize];
+            let animation_play_info = &mut self.get_animation_play_info_mut(layer);
             if animation_args._force_animation_setting || animation_mesh.as_ptr() != animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() {
                 animation_play_info._animation_mesh = Some(animation_mesh.clone());
                 animation_play_info.set_animation_play_info(animation_args);
@@ -216,7 +236,7 @@ impl RenderObjectData {
             }
 
             if updated {
-                let is_end_additive_animation = self._animation_play_infos[AnimationLayer::AdditiveLayer as usize]._is_animation_end;
+                let is_end_additive_animation = self.get_animation_play_info(AnimationLayer::AdditiveLayer)._is_animation_end;
                 for animation_play_info in self._animation_play_infos.iter_mut() {
                     // update animation nodes
                     let animation_data_list: &Vec<AnimationData> = &(*animation_play_info)._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
@@ -237,13 +257,13 @@ impl RenderObjectData {
 
                 // update additive animation
                 if false == is_end_additive_animation {
-                    let additive_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::AdditiveLayer as usize]);
-                    let base_animation = ptr_as_mut(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
+                    let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::AdditiveLayer));
+                    let base_animation = ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
                     base_animation.combine_additive_animation(additive_animation);
                 }
 
                 // transform to matrix
-                let base_animation = ptr_as_ref(&self._animation_play_infos[AnimationLayer::BaseLayer as usize]);
+                let base_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::BaseLayer));
                 let animation_buffer = self._animation_buffer.as_mut().unwrap();
                 animation_buffer.swap_animation_buffer();
                 animation_buffer.update_animation_buffer(base_animation);

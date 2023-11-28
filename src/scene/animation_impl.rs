@@ -305,12 +305,15 @@ impl Default for AnimationPlayInfo {
             _animation_loop: true,
             _animation_blend_ratio: 0.0,
             _animation_blend_time: 0.1,
+            _animation_fade_out_ratio: 1.0,
+            _animation_fade_out_time: 0.0,
             _animation_elapsed_time: 0.0,
             _animation_speed: 1.0,
             _animation_frame: 0.0,
             _animation_play_time: 0.0,
             _animation_end_time: None,
             _is_animation_end: false,
+            _is_last_animation_frame: false,
             _animation_transforms: Vec::new(),
             _last_animation_transforms: Vec::new(),
             _animation_index: 0,
@@ -331,7 +334,8 @@ impl AnimationPlayInfo {
     }
 
     pub fn update_animation_frame_time(&mut self, delta_time: f32) -> bool {
-        if self._is_animation_end {
+        if self._is_last_animation_frame {
+            self._is_animation_end = true;
             return false;
         }
 
@@ -355,7 +359,7 @@ impl AnimationPlayInfo {
             } else {
                 if animation_end_time <= self._animation_play_time {
                     self._animation_play_time = animation_end_time;
-                    self._is_animation_end = true;
+                    self._is_last_animation_frame = true;
                 }
             }
 
@@ -363,14 +367,20 @@ impl AnimationPlayInfo {
                 self._animation_frame,
                 self._animation_play_time,
             );
+
+            if 0.0 == self._animation_blend_time {
+                self._animation_blend_ratio = 1.0;
+            } else {
+                self._animation_blend_ratio = 1f32.min(self._animation_elapsed_time / self._animation_blend_time);
+            }
+
+            if self._animation_loop || 0.0 == self._animation_fade_out_time {
+                self._animation_fade_out_ratio = 1.0;
+            } else {
+                self._animation_fade_out_ratio = 1f32.min(0f32.max((animation_end_time - self._animation_elapsed_time) / self._animation_fade_out_time));
+            }
         } else {
             self._animation_frame = 0.0;
-        }
-
-        if 0.0 == self._animation_blend_time || self._animation_blend_time <= self._animation_elapsed_time {
-            self._animation_blend_ratio = 1.0;
-        } else {
-            self._animation_blend_ratio = self._animation_elapsed_time / self._animation_blend_time;
         }
         self._animation_elapsed_time += delta_time;
 
@@ -386,14 +396,15 @@ impl AnimationPlayInfo {
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
         if additive_animation_play_info._animation_blend_masks.is_null() {
-            for (bone_index, transform) in additive_animation_play_info._animation_transforms.iter().enumerate() {
-                self._animation_transforms[bone_index].clone_from(transform);
+            for (bone_index, additive_animation_transform) in additive_animation_play_info._animation_transforms.iter().enumerate() {
+                self._animation_transforms[bone_index] =
+                    self._animation_transforms[bone_index].lerp(additive_animation_transform, additive_animation_play_info._animation_fade_out_ratio);
             }
         } else {
             for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_blend_masks).iter() {
                 let bone_index = skeleton_data._bone_index_map.get(bone_name);
                 if bone_index.is_some() {
-                    let blend_ratio = *blend_ratio;
+                    let blend_ratio = *blend_ratio * additive_animation_play_info._animation_fade_out_ratio;
                     let bone_index = *bone_index.unwrap();
                     let base_animation_transform = self._animation_transforms[bone_index].clone();
                     let additive_animation_transform = &additive_animation_play_info._animation_transforms[bone_index];
@@ -407,13 +418,15 @@ impl AnimationPlayInfo {
         self._animation_speed = animation_args._animation_speed;
         self._animation_loop = animation_args._animation_loop;
         self._animation_blend_time = animation_args._animation_blend_time;
+        self._animation_fade_out_time = animation_args._animation_fade_out_time;
         self._animation_end_time = animation_args._animation_end_time;
+        self._animation_blend_masks = animation_args._animation_blend_masks.clone();
         if animation_args._reset_animation_time {
             self._is_animation_end = false;
+            self._is_last_animation_frame = false;
             self._animation_elapsed_time = 0.0;
             self._animation_play_time = animation_args._animation_start_time;
             self._animation_frame = 0.0;
-            self._animation_blend_masks = animation_args._animation_blend_masks.clone();
         }
     }
 }
@@ -426,6 +439,7 @@ impl Default for AnimationPlayArgs {
             _animation_start_time: 0.0,
             _animation_end_time: None,
             _animation_blend_time: 0.1,
+            _animation_fade_out_time: 0.0,
             _force_animation_setting: false,
             _reset_animation_time: true,
             _animation_blend_masks: std::ptr::null()
