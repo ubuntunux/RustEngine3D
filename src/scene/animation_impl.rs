@@ -259,7 +259,6 @@ impl AnimationBuffer {
         let animation_transforms: &Vec<SimpleTransform> = &animation_play_info._animation_transforms;
         let animation_data_list: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
         let animation_data: &AnimationData = &animation_data_list[animation_play_info._animation_index];
-
         for bone_data in ptr_as_ref(animation_data._skeleton)._hierarchy.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
@@ -324,13 +323,17 @@ impl Default for AnimationPlayInfo {
 }
 
 impl AnimationPlayInfo {
-    pub fn create_animation_play_info(mesh_data: &RcRefCell<MeshData>, bone_count: usize) -> AnimationPlayInfo {
+    pub fn create_animation_play_info(mesh_data: Option<RcRefCell<MeshData>>, bone_count: usize) -> AnimationPlayInfo {
         AnimationPlayInfo {
             _animation_transforms: vec![SimpleTransform::default(); bone_count],
             _last_animation_transforms: vec![SimpleTransform::default(); bone_count],
-            _animation_mesh: Some(mesh_data.clone()),
+            _animation_mesh: mesh_data,
             ..Default::default()
         }
+    }
+
+    pub fn is_valid(&self) -> bool {
+        self._animation_mesh.is_some()
     }
 
     pub fn update_animation_frame_time(&mut self, delta_time: f32) -> bool {
@@ -414,10 +417,10 @@ impl AnimationPlayInfo {
         }
     }
 
-    pub fn set_animation_play_info(&mut self, animation_args: &AnimationPlayArgs) {
+    pub fn set_animation_play_info(&mut self, animation_args: &AnimationPlayArgs, enable_blend_animatioin: bool) {
         self._animation_speed = animation_args._animation_speed;
         self._animation_loop = animation_args._animation_loop;
-        self._animation_blend_time = animation_args._animation_blend_time;
+        self._animation_blend_time = if enable_blend_animatioin { animation_args._animation_blend_time } else { 0.0 };
         self._animation_fade_out_time = animation_args._animation_fade_out_time;
         self._animation_end_time = animation_args._animation_end_time;
         self._animation_blend_masks = animation_args._animation_blend_masks.clone();
