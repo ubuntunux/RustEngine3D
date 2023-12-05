@@ -100,7 +100,6 @@ pub struct AnimationBuffer {
 pub struct AnimationPlayInfo {
     pub _is_animation_end: bool,
     pub _is_last_animation_frame: bool,
-    pub _last_animation_frame: f32,
     pub _animation_loop: bool,
     pub _animation_blend_ratio: f32,
     pub _animation_blend_time: f32,
@@ -108,7 +107,9 @@ pub struct AnimationPlayInfo {
     pub _animation_fade_out_time: f32,
     pub _animation_elapsed_time: f32,
     pub _animation_speed: f32,
+    pub _prev_animation_frame: f32,
     pub _animation_frame: f32,
+    pub _prev_animation_play_time: f32,
     pub _animation_play_time: f32,
     pub _animation_end_time: Option<f32>,
     pub _animation_transforms: Vec<SimpleTransform>,

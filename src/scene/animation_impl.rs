@@ -300,7 +300,6 @@ impl AnimationBuffer {
 impl Default for AnimationPlayInfo {
     fn default() -> AnimationPlayInfo {
         AnimationPlayInfo {
-            _last_animation_frame: 0.0,
             _animation_loop: true,
             _animation_blend_ratio: 0.0,
             _animation_blend_time: 0.1,
@@ -308,7 +307,9 @@ impl Default for AnimationPlayInfo {
             _animation_fade_out_time: 0.0,
             _animation_elapsed_time: 0.0,
             _animation_speed: 1.0,
+            _prev_animation_frame: 0.0,
             _animation_frame: 0.0,
+            _prev_animation_play_time: 0.0,
             _animation_play_time: 0.0,
             _animation_end_time: None,
             _is_animation_end: false,
@@ -337,6 +338,9 @@ impl AnimationPlayInfo {
     }
 
     pub fn update_animation_frame_time(&mut self, delta_time: f32) -> bool {
+        self._prev_animation_frame = self._animation_frame;
+        self._prev_animation_play_time = self._animation_play_time;
+
         if self._is_last_animation_frame {
             self._is_animation_end = true;
             return false;
@@ -388,8 +392,7 @@ impl AnimationPlayInfo {
         self._animation_elapsed_time += delta_time;
 
         // update animation buffers
-        if self._last_animation_frame != self._animation_frame {
-            self._last_animation_frame = self._animation_frame;
+        if self._prev_animation_frame != self._animation_frame {
             return true;
         }
         return false;
@@ -428,7 +431,9 @@ impl AnimationPlayInfo {
             self._is_animation_end = false;
             self._is_last_animation_frame = false;
             self._animation_elapsed_time = 0.0;
+            self._prev_animation_play_time = animation_args._animation_start_time;
             self._animation_play_time = animation_args._animation_start_time;
+            self._prev_animation_frame = 0.0;
             self._animation_frame = 0.0;
         }
     }
