@@ -39,27 +39,37 @@ impl BoundingBox {
         }
     }
 
-    pub fn is_in_bound_box(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_bound_box(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x < pos.x && pos.x < self._max.x
             && self._min.y < pos.y && pos.y < self._max.y
             && self._min.z < pos.z && pos.z < self._max.z;
     }
 
-    pub fn is_in_bound_box_x(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_bound_box_x(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x < pos.x && pos.x < self._max.x;
     }
 
-    pub fn is_in_bound_box_y(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_bound_box_y(&self, pos: &Vector3<f32>) -> bool {
         return self._min.y < pos.y && pos.y < self._max.y;
     }
 
-    pub fn is_in_bound_box_z(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_bound_box_z(&self, pos: &Vector3<f32>) -> bool {
         return self._min.z < pos.z && pos.z < self._max.z;
     }
 
-    pub fn is_in_bound_box_xy(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_bound_box_xy(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x < pos.x && pos.x < self._max.x
             && self._min.y < pos.y && pos.y < self._max.y;
+    }
+
+    pub fn collide_bound_box_xz(&self, pos: &Vector3<f32>) -> bool {
+        return self._min.x < pos.x && pos.x < self._max.x
+            && self._min.z < pos.z && pos.z < self._max.z;
+    }
+
+    pub fn collide_bound_box_yz(&self, pos: &Vector3<f32>) -> bool {
+        return self._min.y < pos.y && pos.y < self._max.y
+            && self._min.z < pos.z && pos.z < self._max.z;
     }
 }
 
