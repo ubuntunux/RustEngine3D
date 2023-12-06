@@ -144,8 +144,7 @@ impl AudioManager {
     }
 
     pub fn initialize_audio_manager(&mut self) {
-        self._bgm =
-            self.create_audio_instance("music-for-a-game-by-kris-klavenes", AudioLoop::LOOP);
+        // self._bgm = self.create_audio_instance("default", AudioLoop::LOOP);
     }
 
     pub fn destroy_audio_manager(&mut self) {
