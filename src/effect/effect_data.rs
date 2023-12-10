@@ -481,23 +481,16 @@ impl EmitterInstance {
             if self._ready_to_destroy {
                 self._is_alive = false;
             } else {
-                let ready_to_destroy = false == self.is_infinite_emitter()
-                    && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime)
-                        < self._elapsed_time;
-                if ready_to_destroy {
+                if false == self.is_infinite_emitter()
+                    && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime) < self._elapsed_time {
                     self._ready_to_destroy = true;
                 } else {
-                    let updated_emitter_transform =
-                        self._emitter_transform.update_transform_object();
+                    let updated_emitter_transform = self._emitter_transform.update_transform_object();
                     if updated_effect_transform || updated_emitter_transform {
-                        self._emitter_world_transform =
-                            self.get_parent_effect().get_effect_world_transform()
-                                * &self._emitter_transform._matrix;
+                        self._emitter_world_transform = self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
                     }
 
-                    if self.is_infinite_emitter()
-                        || self._elapsed_time <= emitter_data._emitter_lifetime
-                    {
+                    if self.is_infinite_emitter() || self._elapsed_time <= emitter_data._emitter_lifetime {
                         if self._remained_spawn_term <= 0.0 {
                             // particle spawn
                             self._particle_spawn_count = self.get_emitter_data()._spawn_count;
