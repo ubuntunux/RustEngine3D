@@ -1023,19 +1023,17 @@ impl EngineResources {
             };
             let mesh_data = self.get_mesh_data(mesh_name.as_str());
             let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
-            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> = (0
-                ..geometry_data_count)
+            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> =
+                (0                ..geometry_data_count)
                 .map(|index| {
-                    if index < material_instance_count {
-                        match &material_instance_names[index] {
-                            Value::String(material_instance_name) => self
-                                .get_material_instance_data(&material_instance_name)
-                                .clone(),
+                    if 0 < material_instance_count {
+                        match &material_instance_names[index.min(material_instance_count - 1)] {
+                            Value::String(material_instance_name) =>
+                                self.get_material_instance_data(&material_instance_name)                                .clone(),
                             _ => panic!("failed to parsing material_instance_names"),
                         }
                     } else {
-                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME)
-                            .clone()
+                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME)                            .clone()
                     }
                 })
                 .collect();

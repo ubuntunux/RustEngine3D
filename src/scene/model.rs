@@ -23,6 +23,9 @@ impl ModelData {
         material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
     ) -> ModelData {
         log::debug!("new_model_data: {}", model_name);
+        for (i, x) in material_instance_data_list.iter().enumerate() {
+            log::info!("new_model_data [{:?}]{:?}: {:?}", i, model_name, x.borrow()._material_instance_data_name);
+        }
         ModelData {
             _model_data_name: model_name.clone(),
             _mesh_data: mesh_data,
@@ -42,13 +45,6 @@ impl ModelData {
 
     pub fn get_material_instance_data_list(&self) -> &Vec<RcRefCell<MaterialInstanceData>> {
         &self._material_instance_data_list
-    }
-
-    pub fn set_material_instance_data_list(
-        &mut self,
-        material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
-    ) {
-        self._material_instance_data_list = material_instance_data_list;
     }
 
     pub fn get_material_instance_data(&self, index: usize) -> &RcRefCell<MaterialInstanceData> {
