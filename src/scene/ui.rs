@@ -234,6 +234,7 @@ pub struct UIManager {
 }
 
 pub struct UIWorldAxis {
+    pub _visible: bool,
     pub _widget_axis_x: Rc<dyn Widget>,
     pub _widget_axis_y: Rc<dyn Widget>,
     pub _widget_axis_z: Rc<dyn Widget>,

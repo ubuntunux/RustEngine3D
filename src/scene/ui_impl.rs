@@ -11,6 +11,8 @@ use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::EngineResources;
+use crate::scene::camera::CameraObjectData;
+use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
@@ -1487,9 +1489,6 @@ impl UIRenderGroupData {
 }
 
 impl UIManager {
-    pub fn get_root_ptr(&self) -> *const dyn Widget {
-        self._root.as_ref()
-    }
     pub fn create_ui_manager() -> Box<UIManager> {
         log::info!("create_ui_manager");
         let mut ui_manager = UIManager {
@@ -1537,6 +1536,14 @@ impl UIManager {
             engine_resources,
             root_widget_mut,
         ));
+    }
+
+    pub fn get_root_ptr(&self) -> *const dyn Widget {
+        self._root.as_ref()
+    }
+
+    pub fn set_visible_world_axis(&mut self, visible: bool) {
+        self._ui_world_axis.as_mut().unwrap().set_visible(visible);
     }
 
     pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources) {
@@ -1724,52 +1731,10 @@ impl UIManager {
         mouse_input_data: &MouseInputData,
         _engine_resources: &EngineResources,
     ) {
+        // update world axis
         let main_camera = engine_core.get_scene_manager().get_main_camera();
-        let window_height: f32 = main_camera._window_size.y as f32;
-        let size: f32 = window_height * 0.05;
-        let border: f32 = 20.0;
-        let start_pos_x: f32 = size * 2.0 + border;
-        let start_pos_y: f32 = window_height - (size * 2.0 + border);
-        let camera_up = main_camera._transform_object.get_up();
-        let camera_right = main_camera._transform_object.get_right();
-        let axis_x: Vector2<f32> = Vector2::new(camera_right.x, -camera_up.x) * size;
-        let axis_y: Vector2<f32> = Vector2::new(camera_right.y, -camera_up.y) * size;
-        let axis_z: Vector2<f32> = Vector2::new(camera_right.z, -camera_up.z) * size;
-
-        let ui_world_axis = self._ui_world_axis.as_mut().unwrap();
-        let ui_component_x =
-            ptr_as_mut(ui_world_axis._widget_axis_x.as_ref()).get_ui_component_mut();
-        ui_component_x.set_pos_x(start_pos_x + axis_x.x);
-        ui_component_x.set_pos_y(start_pos_y + axis_x.y);
-
-        let ui_component_y =
-            ptr_as_mut(ui_world_axis._widget_axis_y.as_ref()).get_ui_component_mut();
-        ui_component_y.set_pos_x(start_pos_x + axis_y.x);
-        ui_component_y.set_pos_y(start_pos_y + axis_y.y);
-
-        let ui_component_z =
-            ptr_as_mut(ui_world_axis._widget_axis_z.as_ref()).get_ui_component_mut();
-        ui_component_z.set_pos_x(start_pos_x + axis_z.x);
-        ui_component_z.set_pos_y(start_pos_y + axis_z.y);
-
         let debug_line_manager = engine_core.get_debug_line_manager_mut();
-        debug_line_manager.add_debug_line_2d(
-            &Vector2::new(start_pos_x, start_pos_y),
-            &Vector2::new(start_pos_x + axis_x.x, start_pos_y + axis_x.y),
-            get_color32(255, 0, 0, 255),
-        );
-
-        debug_line_manager.add_debug_line_2d(
-            &Vector2::new(start_pos_x, start_pos_y),
-            &Vector2::new(start_pos_x + axis_y.x, start_pos_y + axis_y.y),
-            get_color32(0, 255, 0, 255),
-        );
-
-        debug_line_manager.add_debug_line_2d(
-            &Vector2::new(start_pos_x, start_pos_y),
-            &Vector2::new(start_pos_x + axis_z.x, start_pos_y + axis_z.y),
-            get_color32(0, 0, 255, 255),
-        );
+        self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera, debug_line_manager);
 
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
@@ -1810,9 +1775,7 @@ impl UIManager {
         let inherit_changed_layout: bool = false;
         let update_depth: u32 = 0;
 
-        if root_ui_component.get_changed_layout()
-            || root_ui_component.get_changed_deep_child_layout()
-        {
+        if root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout() {
             root_ui_component.update_layout_size(
                 inherit_changed_layout,
                 &contents_area_size,
@@ -1911,9 +1874,69 @@ impl UIWorldAxis {
         root_widget.add_widget(&widget_axis_z);
 
         UIWorldAxis {
+            _visible: true,
             _widget_axis_x: widget_axis_x,
             _widget_axis_y: widget_axis_y,
             _widget_axis_z: widget_axis_z,
         }
+    }
+
+    pub fn get_visible(&self) -> bool {
+        self._visible
+    }
+
+    pub fn set_visible(&mut self, visible: bool) {
+        self._visible = visible;
+        ptr_as_mut(self._widget_axis_x.as_ref()).get_ui_component_mut().set_visible(visible);
+        ptr_as_mut(self._widget_axis_y.as_ref()).get_ui_component_mut().set_visible(visible);
+        ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut().set_visible(visible);
+    }
+
+    pub fn update_world_axis(&mut self, main_camera: &CameraObjectData, debug_line_manager: &mut DebugLineManager) {
+        if false == self.get_visible() {
+            return
+        }
+
+        let window_height: f32 = main_camera._window_size.y as f32;
+        let size: f32 = window_height * 0.05;
+        let border: f32 = 20.0;
+        let start_pos_x: f32 = size * 2.0 + border;
+        let start_pos_y: f32 = window_height - (size * 2.0 + border);
+        let camera_up = main_camera._transform_object.get_up();
+        let camera_right = main_camera._transform_object.get_right();
+        let axis_x: Vector2<f32> = Vector2::new(camera_right.x, -camera_up.x) * size;
+        let axis_y: Vector2<f32> = Vector2::new(camera_right.y, -camera_up.y) * size;
+        let axis_z: Vector2<f32> = Vector2::new(camera_right.z, -camera_up.z) * size;
+
+        let ui_component_x = ptr_as_mut(self._widget_axis_x.as_ref()).get_ui_component_mut();
+        ui_component_x.set_center_x(start_pos_x + axis_x.x * 1.25);
+        ui_component_x.set_center_y(start_pos_y + axis_x.y * 1.25);
+
+        let ui_component_y = ptr_as_mut(self._widget_axis_y.as_ref()).get_ui_component_mut();
+        ui_component_y.set_center_x(start_pos_x + axis_y.x * 1.25);
+        ui_component_y.set_center_y(start_pos_y + axis_y.y * 1.25);
+
+        let ui_component_z = ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut();
+        ui_component_z.set_center_x(start_pos_x + axis_z.x * 1.25);
+        ui_component_z.set_center_y(start_pos_y + axis_z.y * 1.25);
+
+        // update debug line
+        debug_line_manager.add_debug_line_2d(
+            &Vector2::new(start_pos_x, start_pos_y),
+            &Vector2::new(start_pos_x + axis_x.x, start_pos_y + axis_x.y),
+            get_color32(255, 0, 0, 255),
+        );
+
+        debug_line_manager.add_debug_line_2d(
+            &Vector2::new(start_pos_x, start_pos_y),
+            &Vector2::new(start_pos_x + axis_y.x, start_pos_y + axis_y.y),
+            get_color32(0, 255, 0, 255),
+        );
+
+        debug_line_manager.add_debug_line_2d(
+            &Vector2::new(start_pos_x, start_pos_y),
+            &Vector2::new(start_pos_x + axis_z.x, start_pos_y + axis_z.y),
+            get_color32(0, 0, 255, 255),
+        );
     }
 }
