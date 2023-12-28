@@ -342,7 +342,7 @@ pub fn parsing_skins(
             if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
                 parent_transform.set_column(1, &(-parent_transform.column(1)));
                 for inverse_bind_matrix in inverse_bind_matrices.iter_mut() {
-                    inverse_bind_matrix.set_column(1, &(-inverse_bind_matrix.column(1)));
+                    inverse_bind_matrix.set_column(2, &(-inverse_bind_matrix.column(2)));
                 }
             }
 
@@ -580,7 +580,7 @@ pub fn parsing_meshes(
         );
 
         if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
-            parent_transform.set_column(1, &(-parent_transform.column(1)));
+            parent_transform.set_column(2, &(-parent_transform.column(2)));
         }
 
         if SHOW_GLTF_LOG {
@@ -656,9 +656,7 @@ pub fn parsing_meshes(
 
 impl GLTF {
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
-        {
-            log::info!("GLTF: {:?}", filename);
-        }
+        log::info!("GLTF: {:?}", filename);
         let (document, buffers, _images) = gltf::import(filename).unwrap();
         let mut mesh_data_create_info = MeshDataCreateInfo::default();
         for skin in document.skins() {
