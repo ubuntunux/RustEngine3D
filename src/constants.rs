@@ -86,5 +86,5 @@ pub static mut MAX_PARTICLE_COUNT: i32 = 262144;
 pub const PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE: i32 = 64;
 
 // audio
-pub const DEFAULT_AUDIO_VOLUME: i32 = 100;
+pub const DEFAULT_AUDIO_VOLUME: i32 = 10;
 pub const MAX_AUDIO_CHANNEL_COUNT: i32 = 128;
