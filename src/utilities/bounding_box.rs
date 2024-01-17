@@ -39,6 +39,10 @@ impl BoundingBox {
         }
     }
 
+    pub fn collide_in_radius(&self, pos: &Vector3<f32>) -> bool {
+        return (self._center - pos).magnitude() < self._radius;
+    }
+
     pub fn collide_bound_box(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x < pos.x && pos.x < self._max.x
             && self._min.y < pos.y && pos.y < self._max.y
@@ -78,10 +82,6 @@ pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
         return BoundingBox::default();
     }
 
-    #[allow(deprecated)]
-    #[allow(deprecated)]
-    #[allow(deprecated)]
-    #[allow(deprecated)]
     #[allow(deprecated)]
     let mut bound_min = Vector3::new(f32::MAX, f32::MAX, f32::MAX) * 0.5;
     let mut bound_max = Vector3::new(f32::MIN, f32::MIN, f32::MIN) * 0.5;
