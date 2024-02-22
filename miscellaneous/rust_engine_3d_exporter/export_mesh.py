@@ -76,9 +76,11 @@ class RustEngine3DExporter:
         self.asset_library = bpy.context.preferences.filepaths.asset_libraries.get(library_name)
         self.external_path = self.asset_library.path
         self.resource_path = os.path.split(self.external_path)[0]
+        log_dirname = '.'
         if self.asset_library:
             log_dirname = os.path.join(self.asset_library.path, '.log')
-            self.logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
+        self.logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
+        self.logger.info(f'>>> Begin Export Library: {library_name}')
 
     def export_material_instance(self, material):
         '''
@@ -154,6 +156,7 @@ class RustEngine3DExporter:
         bpy.ops.object.collection_instance_add(collection=collection.name)
 
     def export_selected_objects(self):
+        self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
         for asset in bpy.context.selected_objects:
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
                 self.export_collection(asset.instance_collection)
@@ -169,6 +172,7 @@ class RustEngine3DExporter:
             return data_to
 
     def export_blend(self, blend_file):
+        self.logger.info(f"export_blend: {blend_file}")
         data = self.load_blend_file(blend_file)
 
         for (i, collection) in enumerate(data.collections):
@@ -202,6 +206,9 @@ class RustEngine3DExporter:
                 if '.blend' == os.path.splitext(filename)[1].lower():
                     data = self.export_blend(os.path.join(dirpath, filename))
 
+    def done(self):
+        self.logger.info('>>> Done.\n')
+
 
 def run_export_resources():
     bpy.context.window.cursor_set('WAIT')
@@ -212,6 +219,7 @@ def run_export_resources():
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/characters/jack.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/characters/jack/jack.blend')
     #exporter.export_resources()
+    exporter.done()
 
     # scene = context.scene
     # objects = scene.objects
