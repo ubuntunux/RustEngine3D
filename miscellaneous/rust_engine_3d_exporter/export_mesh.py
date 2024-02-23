@@ -62,6 +62,7 @@ class AssetInfo:
         self.asset_library_name = tokens[0]
         self.asset_type_name = tokens[1]
         self.asset_relative_path = '/'.join(tokens[1:])
+        self.asset_namepath = os.path.join('/'.join(tokens[2:]), self.asset_name)
 
     def __str__(self):
         return str(self.__dict__)
@@ -82,16 +83,48 @@ class RustEngine3DExporter:
         self.logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
         self.logger.info(f'>>> Begin Export Library: {library_name}')
 
-    def export_material_instance(self, material):
-        '''
-        jack.matinst
-        
-        {
-"material_name": "common/render_skeletal_object",
-"material_parameters": {"textureBase": "characters/jack/jack_d", "textureMaterial": "common/default_m", "textureNormal": "common/default_n"}
- }
+    def export_material_instance(self, asset_info, mesh_collection, mesh_data):
+        material_instance_namepaths = []
+        material_slots_list = []
+        for child_object in mesh_data.objects:
+            if 'MESH' == child_object.type:
+                material_slots_list.append(child_object.material_slots)
 
-        '''
+        for child_object in mesh_collection.objects:
+            if 'MESH' == child_object.type:
+                texture_dirpath = os.path.join(self.resource_path, 'textures')
+                material_slots = material_slots_list.pop(0)
+                material_instance_slots = child_object.material_slots
+                for material_index in range(len(material_instance_slots)):
+                    material = material_slots[material_index].material
+                    material_instance = material_instance_slots[material_index].material
+                    material_asset_info = AssetInfo(material)
+                    material_instance_asset_info = AssetInfo(material_instance)
+                    material_instance_namepaths.append(material_instance_asset_info.asset_namepath)
+                    
+                    # export material instance
+                    material_parameters = {}
+                    material_instance_info = {
+                        'material_name': material_asset_info.asset_namepath,
+                        'material_parameters': material_parameters
+                    }
+                    
+                    for node in material_instance.node_tree.nodes:
+                        if node.label:
+                            if 'TEX_IMAGE' == node.type:
+                                image_relative_filepath = node.image.filepath.replace('//', '')
+                                image_filepath = os.path.abspath(os.path.join(self.resource_path, asset_info.asset_relative_path, image_relative_filepath))
+                                image_namepath = os.path.splitext(os.path.relpath(image_filepath, texture_dirpath))[0]
+                                material_parameters[node.label] = image_namepath
+                            elif 'RGB' == node.type:
+                                material_parameters[node.label] = list(node.outputs[0].default_value)
+                     
+                    # export material instance
+                    export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
+                    self.logger.info(f'export_material_instance: {export_filepath}')           
+                    with open(export_filepath, 'w') as f:
+                        f.write(json.dumps(material_instance_info, sort_keys=True, indent=4))
+        return material_instance_namepaths
 
     def export_meshes(self, collection, asset_info):
         export_filepath = asset_info.get_asset_filepath(self.external_path, '.gltf')
@@ -114,38 +147,32 @@ class RustEngine3DExporter:
 
     def export_models(self, collection, asset_info):
         if 0 < len(collection.children):
-            model_resource_filename = asset_info.get_asset_filepath(self.resource_path, '.model')
-
+            
+            material_instances = []      
+            model_info = {
+                "material_instances": material_instances, 
+                "mesh": ""
+            }
+            
             for mesh_collection in collection.children:
                 mesh_data = mesh_collection.override_library.reference
-                mesh_library_path = mesh_data.asset_data.catalog_simple_name
-
-                material_slots_list = []
-                for child_object in mesh_data.objects:
-                    if 'MESH' == child_object.type:
-                        material_slots_list.append(child_object.material_slots)
-
-                for child_object in mesh_collection.objects:
-                    if 'MESH' == child_object.type:
-                        material_slots = material_slots_list.pop(0)
-                        material_instance_slots = child_object.material_slots
-                        for material_index in range(len(material_instance_slots)):
-                            material = material_slots[material_index].material
-                            material_instance = material_instance_slots[material_index].material
-                            material_asset_info = AssetInfo(material)
-                            material_instance_asset_info = AssetInfo(material_instance)
-                            print(material_asset_info)
-                            print(material_instance_asset_info)
-                            for node in material_instance.node_tree.nodes:
-                                if 'TEX_IMAGE' == node.type:
-                                    image_relative_filepath = node.image.filepath.replace('//', '')
-                                    image_filepath = os.path.abspath(os.path.join(self.resource_path, asset_info.asset_relative_path, image_relative_filepath))
-                                    print(f'Type: {node.type}, Name: {node.name}, Label: {node.label}, Image: {image_filepath}')
+                mesh_asset_info = AssetInfo(mesh_data)
+                model_info['mesh'] = mesh_asset_info.asset_namepath
+                
+                # material instance
+                material_instance_namepaths = self.export_material_instance(asset_info, mesh_collection, mesh_data)
+                material_instances += material_instance_namepaths
+            
+            # export model
+            export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
+            self.logger.info(f'export_models: {export_model_filepath}')           
+            with open(export_model_filepath, 'w') as f:
+                f.write(json.dumps(model_info, sort_keys=True, indent=4))
 
 
     def export_collection(self, collection):
-        self.logger.info(f'export_collection: {collection.asset_data.catalog_simple_name}')
         asset_info = AssetInfo(collection)
+        self.logger.info(f'export_collection: {asset_info}')
 
         if 'meshes' == asset_info.asset_type_name:
             self.export_meshes(collection, asset_info)
