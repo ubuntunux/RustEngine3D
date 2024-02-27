@@ -48,7 +48,7 @@ impl Default for RenderContext_LightProbe {
     fn default() -> RenderContext_LightProbe {
         RenderContext_LightProbe {
             _next_refresh_time: 0.0,
-            _light_probe_refresh_term: 5.0,
+            _light_probe_refresh_term: 2.0,
             _light_probe_blend_time: 0.0,
             _light_probe_blend_term: 1.0,
             _light_probe_capture_count: 0,
