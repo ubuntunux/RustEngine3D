@@ -146,7 +146,9 @@ class RustEngine3DExporter:
         self.logger.info(f'export_meshes {collection.name}: {export_filepath}')
 
     def export_models(self, collection, asset_info):
+        print(1, collection.children)
         if 0 < len(collection.children):
+            print(2)
             
             material_instances = []      
             model_info = {
@@ -189,49 +191,59 @@ class RustEngine3DExporter:
                 self.export_collection(asset.instance_collection)
 
     def load_blend_file(self, blend_file):
+        if not os.path.exists(blend_file):
+            return None
+        
         with bpy.data.libraries.load(blend_file, assets_only=True, link=True) as (data_from, data_to):
             data_to.materials = data_from.materials
             data_to.meshes = data_from.meshes
             data_to.collections = data_from.collections
             data_to.actions = data_from.actions
             data_to.armatures = data_from.armatures
-            data_to.object = data_from.objects
+            data_to.objects = data_from.objects
+            self.logger.info(f'collections: {len(data_to.collections)}')
+            self.logger.info(f'meshes: {len(data_to.meshes)}')
+            self.logger.info(f'objects: {len(data_to.objects)}')
             return data_to
 
     def export_blend(self, blend_file):
         self.logger.info(f"export_blend: {blend_file}")
         data = self.load_blend_file(blend_file)
+        if data:
+            # export collections
+            for (i, collection) in enumerate(data.collections):
+                # create collection
+                empty = bpy.data.objects.new(collection.name, None)
+                empty.instance_type = 'COLLECTION'
+                empty.instance_collection = collection
+                bpy.context.scene.collection.objects.link(empty)
 
-        for (i, collection) in enumerate(data.collections):
-            # create collection
-            empty = bpy.data.objects.new(collection.name, None)
-            empty.instance_type = 'COLLECTION'
-            empty.instance_collection = collection
-            bpy.context.scene.collection.objects.link(empty)
+                # select collection
+                bpy.ops.object.select_all(action='DESELECT')
+                empty.select_set(True)sys.path
 
-            # TODO: select specify object
-            # bpy.ops.object.select_all()
-            bpy.ops.object.select_all(action='DESELECT')
-            empty.select_set(True)
+                # export collection
+                self.export_collection(collection)
 
-            # export
-            self.export_collection(collection)
+                # remove collection
+                bpy.context.scene.collection.objects.unlink(empty)
+                bpy.data.objects.remove(empty)
 
-            # remove collection
-            bpy.context.scene.collection.objects.unlink(empty)
-            bpy.data.objects.remove(empty)
-
-            # clean-up recursive unused data-blocks
-            #bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-
-        return data
+                # clean-up recursive unused data-blocks
+                bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+            
+            # export objects
+            for (i, object) in enumerate(data.objects):
+                self.logger.info(object.name)
+                # clean-up recursive unused data-blocks
+                #bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
     def export_resources(self):
         self.logger.info(f'>>> export_resource: {self.asset_library.path}')
         for dirpath, dirnames, filenames in os.walk(self.asset_library.path):
             for filename in filenames:
                 if '.blend' == os.path.splitext(filename)[1].lower():
-                    data = self.export_blend(os.path.join(dirpath, filename))
+                    self.export_blend(os.path.join(dirpath, filename))
 
     def done(self):
         self.logger.info('>>> Done.\n')
@@ -242,9 +254,10 @@ def run_export_resources():
 
     exporter = RustEngine3DExporter('StoneAge')
 
-    exporter.export_selected_objects()
+    #exporter.export_selected_objects()
+    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/environments/cactus.blend')
+    exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/environments/cactus.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/characters/jack.blend')
-    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/characters/jack/jack.blend')
     #exporter.export_resources()
     exporter.done()
 
