@@ -142,9 +142,10 @@ class RustEngine3DExporter:
             export_skins=True,
             export_animations=True,
             export_force_sampling=True,
-            export_optimize_animation_size=False,
             export_bake_animation=True,
-            export_optimize_animation_keep_anim_armature=True
+            export_optimize_animation_size=False,
+            export_optimize_animation_keep_anim_armature=True,
+            export_anim_single_armature=False
         )
         self.logger.info(f'export_meshes {collection.name}: {export_filepath}')
 
@@ -183,6 +184,7 @@ class RustEngine3DExporter:
             self.logger.error(f'asset_info.asset_type_name')
 
     def export_selected_objects(self):
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
         self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
         for asset in bpy.context.selected_objects:
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
@@ -206,7 +208,7 @@ class RustEngine3DExporter:
             self.logger.info(f'objects: {len(data_to.objects)}')
             return data_to
     
-    def export_library_asset(self, asset, asset_data):
+    def export_library_asset(self, asset, asset_data):        
         bpy.context.scene.collection.objects.link(asset)
                 
         # select collection
@@ -259,7 +261,7 @@ def run_export_resources():
     exporter.export_selected_objects()
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/environments/cactus.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/environments/cliff_grass.blend')
-    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/characters/jack.blend')
+    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/characters/jack.blend')
     #exporter.export_resources()
     exporter.done()
 
