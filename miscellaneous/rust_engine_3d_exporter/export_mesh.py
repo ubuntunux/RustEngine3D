@@ -58,6 +58,7 @@ class AssetInfo:
         self.asset_name = asset.name
 
         tokens = asset.asset_data.catalog_simple_name.split('-')
+        self.catalog_simple_name = asset.asset_data.catalog_simple_name
         self.asset_library_path = '/'.join(tokens)
         self.asset_library_name = tokens[0]
         self.asset_type_name = tokens[1]
@@ -141,15 +142,14 @@ class RustEngine3DExporter:
             export_skins=True,
             export_animations=True,
             export_force_sampling=True,
-            export_optimize_animation_size=False
+            export_optimize_animation_size=False,
+            export_bake_animation=True,
+            export_optimize_animation_keep_anim_armature=True
         )
         self.logger.info(f'export_meshes {collection.name}: {export_filepath}')
 
     def export_models(self, collection, asset_info):
-        print(1, collection.children)
         if 0 < len(collection.children):
-            print(2)
-            
             material_instances = []      
             model_info = {
                 "material_instances": material_instances, 
@@ -171,24 +171,24 @@ class RustEngine3DExporter:
             with open(export_model_filepath, 'w') as f:
                 f.write(json.dumps(model_info, sort_keys=True, indent=4))
 
-
-    def export_collection(self, collection):
-        asset_info = AssetInfo(collection)
-        self.logger.info(f'export_collection: {asset_info}')
+    def export_object(self, object):
+        asset_info = AssetInfo(object)
+        self.logger.info(f'export_object: {asset_info}')
 
         if 'meshes' == asset_info.asset_type_name:
-            self.export_meshes(collection, asset_info)
+            self.export_meshes(object, asset_info)
         elif 'models' == asset_info.asset_type_name:
-            self.export_models(collection, asset_info)
-
-    def spawn_asset(self, collection):
-        bpy.ops.object.collection_instance_add(collection=collection.name)
+            self.export_models(object, asset_info)
+        else:
+            self.logger.error(f'asset_info.asset_type_name')
 
     def export_selected_objects(self):
         self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
         for asset in bpy.context.selected_objects:
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
-                self.export_collection(asset.instance_collection)
+                self.export_object(asset.instance_collection)
+            elif 'MESH' == asset.type:
+                self.export_object(asset)
 
     def load_blend_file(self, blend_file):
         if not os.path.exists(blend_file):
@@ -205,6 +205,23 @@ class RustEngine3DExporter:
             self.logger.info(f'meshes: {len(data_to.meshes)}')
             self.logger.info(f'objects: {len(data_to.objects)}')
             return data_to
+    
+    def export_library_asset(self, asset, asset_data):
+        bpy.context.scene.collection.objects.link(asset)
+                
+        # select collection
+        bpy.ops.object.select_all(action='DESELECT')
+        asset.select_set(True)
+
+        # export collection
+        self.export_object(asset_data)
+
+        # remove collection
+        bpy.context.scene.collection.objects.unlink(asset)
+        bpy.data.objects.remove(asset)
+
+        # clean-up recursive unused data-blocks
+        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
     def export_blend(self, blend_file):
         self.logger.info(f"export_blend: {blend_file}")
@@ -216,27 +233,12 @@ class RustEngine3DExporter:
                 empty = bpy.data.objects.new(collection.name, None)
                 empty.instance_type = 'COLLECTION'
                 empty.instance_collection = collection
-                bpy.context.scene.collection.objects.link(empty)
-
-                # select collection
-                bpy.ops.object.select_all(action='DESELECT')
-                empty.select_set(True)sys.path
-
-                # export collection
-                self.export_collection(collection)
-
-                # remove collection
-                bpy.context.scene.collection.objects.unlink(empty)
-                bpy.data.objects.remove(empty)
-
-                # clean-up recursive unused data-blocks
-                bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+                self.export_library_asset(empty, collection)
             
             # export objects
             for (i, object) in enumerate(data.objects):
-                self.logger.info(object.name)
-                # clean-up recursive unused data-blocks
-                #bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
+                self.export_library_asset(object, object)
+                
 
     def export_resources(self):
         self.logger.info(f'>>> export_resource: {self.asset_library.path}')
@@ -254,9 +256,9 @@ def run_export_resources():
 
     exporter = RustEngine3DExporter('StoneAge')
 
-    #exporter.export_selected_objects()
+    exporter.export_selected_objects()
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/environments/cactus.blend')
-    exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/environments/cactus.blend')
+    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/environments/cliff_grass.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/characters/jack.blend')
     #exporter.export_resources()
     exporter.done()
