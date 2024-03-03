@@ -243,8 +243,8 @@ class RustEngine3DExporter:
                 self.export_library_asset(empty, collection)
             
             # export objects
-            for (i, object) in enumerate(data.objects):
-                self.export_library_asset(object, object)
+#            for (i, object) in enumerate(data.objects):
+#                self.export_library_asset(object, object)
                 
 
     def export_resources(self):
@@ -266,7 +266,8 @@ def run_export_resources():
     exporter.export_selected_objects()
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/environments/cactus.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/environments/cliff_grass.blend')
-    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/characters/jack.blend')
+    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/characters/jack/jack.blend')
+    #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/characters/jack.blend')
     #exporter.export_resources()
     exporter.done()
 
