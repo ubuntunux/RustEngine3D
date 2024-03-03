@@ -89,6 +89,7 @@ class RustEngine3DExporter:
         material_slots_list = []
         for child_object in mesh_data.objects:
             if 'MESH' == child_object.type:
+                print(f'child_object.material_slots: {len(child_object.material_slots)}')
                 material_slots_list.append(child_object.material_slots)
 
         for child_object in mesh_collection.objects:
@@ -127,7 +128,7 @@ class RustEngine3DExporter:
                         f.write(json.dumps(material_instance_info, sort_keys=True, indent=4))
         return material_instance_namepaths
 
-    def export_meshes(self, collection, asset_info):
+    def export_selected_meshes(self, asset_info):
         export_filepath = asset_info.get_asset_filepath(self.external_path, '.gltf')
         bpy.ops.export_scene.gltf(
             filepath=export_filepath,
@@ -145,18 +146,21 @@ class RustEngine3DExporter:
             export_bake_animation=True,
             export_optimize_animation_size=False,
             export_optimize_animation_keep_anim_armature=True,
-            export_anim_single_armature=False
+            export_anim_single_armature=False,
+            export_reset_pose_bones=True
         )
-        self.logger.info(f'export_meshes {collection.name}: {export_filepath}')
+        self.logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
 
     def export_models(self, collection, asset_info):
-        if 0 < len(collection.children):
+        self.logger.info(f'export_models asset type: {asset_info.asset_namepath}')
+        
+        if 0 < len(collection.children):            
             material_instances = []      
             model_info = {
                 "material_instances": material_instances, 
                 "mesh": ""
             }
-            
+        
             for mesh_collection in collection.children:
                 mesh_data = mesh_collection.override_library.reference
                 mesh_asset_info = AssetInfo(mesh_data)
@@ -165,32 +169,33 @@ class RustEngine3DExporter:
                 # material instance
                 material_instance_namepaths = self.export_material_instance(asset_info, mesh_collection, mesh_data)
                 material_instances += material_instance_namepaths
-            
+
             # export model
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
-            self.logger.info(f'export_models: {export_model_filepath}')           
             with open(export_model_filepath, 'w') as f:
                 f.write(json.dumps(model_info, sort_keys=True, indent=4))
+            self.logger.info(f'export_models: {export_model_filepath}')            
 
-    def export_object(self, object):
-        asset_info = AssetInfo(object)
+    def export_asset(self, asset):
+        asset_info = AssetInfo(asset)
         self.logger.info(f'export_object: {asset_info}')
 
         if 'meshes' == asset_info.asset_type_name:
-            self.export_meshes(object, asset_info)
+            self.export_selected_meshes(asset_info)
         elif 'models' == asset_info.asset_type_name:
-            self.export_models(object, asset_info)
+            self.export_models(asset, asset_info)
         else:
-            self.logger.error(f'asset_info.asset_type_name')
+            self.logger.error(f'error export_asset: {asset_info.asset_type_name}')
 
     def export_selected_objects(self):
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
         self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
         for asset in bpy.context.selected_objects:
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
-                self.export_object(asset.instance_collection)
-            elif 'MESH' == asset.type:
-                self.export_object(asset)
+                self.export_asset(asset.instance_collection)
+
+            else:
+                self.logger.error(f'error export_selected_objects: {asset.type}')
 
     def load_blend_file(self, blend_file):
         if not os.path.exists(blend_file):
@@ -215,8 +220,8 @@ class RustEngine3DExporter:
         bpy.ops.object.select_all(action='DESELECT')
         asset.select_set(True)
 
-        # export collection
-        self.export_object(asset_data)
+        # export asset data
+        self.export_asset(asset_data)
 
         # remove collection
         bpy.context.scene.collection.objects.unlink(asset)
