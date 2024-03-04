@@ -3,6 +3,7 @@ import datetime
 import os
 import time
 import json
+import math
 
 import importlib
 import logging
@@ -83,6 +84,21 @@ class RustEngine3DExporter:
             log_dirname = os.path.join(self.asset_library.path, '.log')
         self.logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
         self.logger.info(f'>>> Begin Export Library: {library_name}')
+    
+    def convert_asset_location(self, asset):
+        location = list(asset.location)
+        return [location[0], location[2], location[1]]
+    
+    def convert_asset_rotation(self, asset):
+        rotation_euler = list(asset.rotation_euler)
+        return [rotation_euler[0], rotation_euler[2], rotation_euler[1]]
+    
+    def convert_asset_scale(self, asset):
+        scale = list(asset.scale)
+        return [scale[0], scale[2], scale[1]]
+    
+    def convert_sun_color(self, asset):
+        return [asset.data.energy * x for x in list(asset.data.color)]
 
     def export_material_instance(self, asset_info, mesh_collection, mesh_data):
         material_instance_namepaths = []
@@ -151,17 +167,17 @@ class RustEngine3DExporter:
         )
         self.logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
 
-    def export_models(self, collection, asset_info):
-        self.logger.info(f'export_models asset type: {asset_info.asset_namepath}')
+    def export_models(self, asset, asset_info):
+        self.logger.info(f'export_models: {asset_info.asset_namepath}')
         
-        if 0 < len(collection.children):            
+        if 0 < len(asset.children):            
             material_instances = []      
             model_info = {
                 "material_instances": material_instances, 
                 "mesh": ""
             }
         
-            for mesh_collection in collection.children:
+            for mesh_collection in asset.children:
                 mesh_data = mesh_collection.override_library.reference
                 mesh_asset_info = AssetInfo(mesh_data)
                 model_info['mesh'] = mesh_asset_info.asset_namepath
@@ -174,7 +190,56 @@ class RustEngine3DExporter:
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             with open(export_model_filepath, 'w') as f:
                 f.write(json.dumps(model_info, sort_keys=True, indent=4))
-            self.logger.info(f'export_models: {export_model_filepath}')            
+            self.logger.info(f'export_models: {export_model_filepath}')
+    
+    def export_scenes(self, asset, asset_info):
+        self.logger.info(f'export_scenes: {asset_info.asset_namepath}')
+        
+        cameras = {}
+        directional_lights = {}
+        effects = {}
+        static_objects = {}
+        skeletal_objects = {}
+        
+        scene_data = {
+            "_cameras": cameras,
+            "_directional_lights": directional_lights,
+            "_effects": effects,
+            "_static_objects": static_objects,
+            "_skeletal_objects": skeletal_objects
+        }
+        
+        for child in asset.objects:
+            if 'LIGHT' == child.type:
+                directional_lights[child.name] = {
+                    "_rotation": self.convert_asset_rotation(child),
+                    "_light_direction": self.convert_asset_rotation(child),
+                    "_light_color": self.convert_sun_color(child)
+                }
+            elif 'CAMERA' == child.type:
+                cameras[child.name] = {
+                    'fov': math.degrees(child.data.angle),
+                    'position': self.convert_asset_location(child),
+                    'rotation': self.convert_asset_rotation(child)
+                }                
+            elif 'EMPTY' == child.type and 'COLLECTION' == child.instance_type:
+                child_asset_info = AssetInfo(child.instance_collection)
+                if 'models' == child_asset_info.asset_type_name:
+                    static_objects[child.name] = {
+                        "_model_data_name": child_asset_info.asset_namepath,
+                        "_position": self.convert_asset_location(child),
+                        "_rotation": self.convert_asset_rotation(child),
+                        "_scale": self.convert_asset_scale(child)
+                    }
+                else:
+                    self.logger.error(f'not implemented asset type {(child.name, child_asset_info.asset_type_name)}')
+            else:
+                self.logger.error(f'not implemented object type {(child.name, child.type)}')
+        
+        export_filepath = asset_info.get_asset_filepath(self.resource_path, ".scene")
+        self.logger.info(f'export_scenes: {export_filepath}')           
+        with open(export_filepath, 'w') as f:
+            f.write(json.dumps(scene_data, sort_keys=True, indent=4))
 
     def export_asset(self, asset):
         asset_info = AssetInfo(asset)
@@ -184,6 +249,8 @@ class RustEngine3DExporter:
             self.export_selected_meshes(asset_info)
         elif 'models' == asset_info.asset_type_name:
             self.export_models(asset, asset_info)
+        elif 'scenes' == asset_info.asset_type_name:
+            self.export_scenes(asset, asset_info)
         else:
             self.logger.error(f'error export_asset: {asset_info.asset_type_name}')
 
@@ -193,7 +260,6 @@ class RustEngine3DExporter:
         for asset in bpy.context.selected_objects:
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
                 self.export_asset(asset.instance_collection)
-
             else:
                 self.logger.error(f'error export_selected_objects: {asset.type}')
 
@@ -234,17 +300,13 @@ class RustEngine3DExporter:
         self.logger.info(f"export_blend: {blend_file}")
         data = self.load_blend_file(blend_file)
         if data:
-            # export collections
             for (i, collection) in enumerate(data.collections):
                 # create collection
                 empty = bpy.data.objects.new(collection.name, None)
                 empty.instance_type = 'COLLECTION'
                 empty.instance_collection = collection
+                # export
                 self.export_library_asset(empty, collection)
-            
-            # export objects
-#            for (i, object) in enumerate(data.objects):
-#                self.export_library_asset(object, object)
                 
 
     def export_resources(self):
