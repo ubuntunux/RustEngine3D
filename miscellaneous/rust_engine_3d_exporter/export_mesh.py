@@ -65,6 +65,7 @@ class AssetInfo:
         self.asset_type_name = tokens[1]
         self.asset_relative_path = '/'.join(tokens[1:])
         self.asset_namepath = os.path.join('/'.join(tokens[2:]), self.asset_name)
+        self.asset_fullpath = os.path.join(self.asset_relative_path, self.asset_name)
 
     def __str__(self):
         return str(self.__dict__)
@@ -238,6 +239,7 @@ class RustEngine3DExporter:
                         "_rotation": self.convert_asset_rotation(child),
                         "_scale": self.convert_asset_scale(child)
                     }
+                    # TODO - Skeletal Mesh
                 else:
                     self.logger.error(f'not implemented asset type {(child.name, child_asset_info.asset_type_name)}')
             else:
@@ -247,7 +249,64 @@ class RustEngine3DExporter:
         self.logger.info(f'export_scenes: {export_filepath}')           
         with open(export_filepath, 'w') as f:
             f.write(json.dumps(scene_data, sort_keys=True, indent=4))
+    
+    # game data
+    def set_game_data_asset_property(self, property_asset, key, game_data):
+        if property_asset and key in property_asset:
+            child_asset = property_asset.get(key, None)
+            if child_asset:
+                child_asset_info = AssetInfo(child_asset)
+                game_data[key] = child_asset_info.asset_namepath
+                
+    def get_game_data_block(self, asset, asset_info):
+        game_data = {}
+        property_asset = asset.objects[0] if asset.objects else None
+        if property_asset:
+            self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
+            game_data["_block_type"] = property_asset.get("_block_type", "Ground")
+            game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+        return game_data
+    
+    def get_game_data_character(self, asset, asset_info):
+        game_data = {}
+        property_asset = asset.objects[0] if asset.objects else None
+        if property_asset:
+            self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
+            self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
+            self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
+            self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
+            self.set_game_data_asset_property(property_asset, '_attack_animation_mesh', game_data)
+            game_data["_character_type"] = property_asset.get("_block_type", "UrsusArctos")
+            game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+        return game_data
+        
+    def export_game_data(self, asset, asset_info):
+        self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
+        tokens = asset_info.asset_library_path.split('/')
+        game_data = {}
+        game_data_ext = '.data'
+        if 2 < len(tokens):
+            game_data_type = tokens[2]
+            if 'blocks' == game_data_type:
+                game_data = self.get_game_data_block(asset, asset_info)
+            elif 'characters' == game_data_type:
+                game_data = self.get_game_data_character(asset, asset_info)
+            elif 'game_scenes':
+                game_data_ext = '.game_scene'
+            else:
+                self.logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
+                
+            if game_data:
+                self.logger.info(f'game_data: {game_data}')
+                export_filepath = asset_info.get_asset_filepath(self.resource_path, game_data_ext)
+                self.logger.info(f'export_game_data: {export_filepath}')
+                with open(export_filepath, 'w') as f:
+                    f.write(json.dumps(game_data, sort_keys=True, indent=4))
+        else:
+            self.logger.error(f'unknown game data: {asset_info.asset_fullpath}')
+            
 
+    # export asset
     def export_asset(self, asset):
         asset_info = AssetInfo(asset)
         self.logger.info(f'export_object: {asset_info}')
@@ -258,6 +317,8 @@ class RustEngine3DExporter:
             self.export_models(asset, asset_info)
         elif 'scenes' == asset_info.asset_type_name:
             self.export_scenes(asset, asset_info)
+        elif 'game_data' == asset_info.asset_type_name:
+            self.export_game_data(asset, asset_info)
         else:
             self.logger.error(f'error export_asset: {asset_info.asset_type_name}')
 
