@@ -283,9 +283,9 @@ class RustEngine3DExporter:
     def export_game_data(self, asset, asset_info):
         self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
         tokens = asset_info.asset_library_path.split('/')
-        game_data = {}
-        game_data_ext = '.data'
         if 2 < len(tokens):
+            game_data = {}
+            game_data_ext = '.data'
             game_data_type = tokens[2]
             if 'blocks' == game_data_type:
                 game_data = self.get_game_data_block(asset, asset_info)
@@ -302,8 +302,8 @@ class RustEngine3DExporter:
                 self.logger.info(f'export_game_data: {export_filepath}')
                 with open(export_filepath, 'w') as f:
                     f.write(json.dumps(game_data, sort_keys=True, indent=4))
-        else:
-            self.logger.error(f'unknown game data: {asset_info.asset_fullpath}')
+                return
+        self.logger.error(f'error export_game_data: {asset_info.asset_fullpath}')
             
 
     # export asset
