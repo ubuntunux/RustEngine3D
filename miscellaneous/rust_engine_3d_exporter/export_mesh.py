@@ -89,9 +89,13 @@ class RustEngine3DExporter:
         location = list(asset.location)
         return [location[0], location[2], location[1]]
     
-    def convert_asset_rotation(self, asset):
+    def convert_asset_rotation(self, asset, rx=0.0, ry=0.0, rz=0.0):
         rotation_euler = list(asset.rotation_euler)
-        return [rotation_euler[0], rotation_euler[2], rotation_euler[1]]
+        return [
+            math.radians(rx) - rotation_euler[0], 
+            math.radians(rz) - rotation_euler[2], 
+            math.radians(ry) - rotation_euler[1]
+        ]
     
     def convert_asset_scale(self, asset):
         scale = list(asset.scale)
@@ -211,16 +215,19 @@ class RustEngine3DExporter:
         
         for child in asset.objects:
             if 'LIGHT' == child.type:
+                light_rotation = self.convert_asset_rotation(child, rx=90.0)
                 directional_lights[child.name] = {
-                    "_rotation": self.convert_asset_rotation(child),
-                    "_light_direction": self.convert_asset_rotation(child),
-                    "_light_color": self.convert_sun_color(child)
+                    "_rotation": light_rotation,
+                    "_light_constants": {                    
+                        "_light_direction": light_rotation,
+                        "_light_color": self.convert_sun_color(child)
+                    }
                 }
             elif 'CAMERA' == child.type:
                 cameras[child.name] = {
-                    'fov': math.degrees(child.data.angle),
+                    #'fov': math.degrees(child.data.angle),
                     'position': self.convert_asset_location(child),
-                    'rotation': self.convert_asset_rotation(child)
+                    'rotation': self.convert_asset_rotation(child, rx=90.0)
                 }                
             elif 'EMPTY' == child.type and 'COLLECTION' == child.instance_type:
                 child_asset_info = AssetInfo(child.instance_collection)
