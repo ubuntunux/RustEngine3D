@@ -279,6 +279,54 @@ class RustEngine3DExporter:
             game_data["_character_type"] = property_asset.get("_block_type", "UrsusArctos")
             game_data["_max_hp"] = property_asset.get("_max_hp", "100")
         return game_data
+    
+    def get_game_data_scenes(self, asset, asset_info):
+        '''
+{
+    "_scene_data_name":"stage_dry_forest",
+    "_player":{
+        "player": {
+            "_character_data_name":"jack", 
+            "_position":[0.0,1.0,0.0], 
+            "_rotation":[0.0,0.0,0.0], 
+            "_scale":[0.25,0.25,0.25]
+        }
+    },
+    "_characters":{
+        "enemy00": {"_character_data_name":"jack", "_position":[2.0,1.0,0.0], "_rotation":[0.0,0.0,0.0], "_scale":[0.25,0.25,0.25]},
+        "enemy01": {"_character_data_name":"jack", "_position":[-2.0,1.0,0.0], "_rotation":[0.0,0.0,0.0], "_scale":[0.25,0.25,0.25]},
+        "enemy02": {"_character_data_name":"jack", "_position":[0.0,1.0,0.0], "_rotation":[0.0,0.0,0.0], "_scale":[1.0,1.0,1.0]}
+    },
+    "_blocks":{
+        "rock00":{"_block_data_name":"cliff_grass","_position":[2.0,10.0,0.0],"_rotation":[0.0,0.0,0.0],"_scale":[1.0,1.0,1.0]},
+        "rock01":{"_block_data_name":"cliff_grass","_position":[4.0,12.0,0.0],"_rotation":[0.0,0.0,0.0],"_scale":[1.0,1.0,1.0]}
+    },
+    "_start_point":[0.0,1.0,0.0]
+}
+        '''
+        player = {}
+        characters = {}
+        blocks = {}        
+        game_data = {
+            "_player": player,
+            "_characters": characters,
+            "_blocks": blocks,
+            "_start_point": [0, 0, 0]
+        }        
+        for child in asset.children:
+            if '_blocks' == child.name:
+                for block_asset in child.objects:
+                    block_asset_info = AssetInfo(block_asset.instance_collection)
+                    blocks[block_asset.name] = {                        
+                        "_block_data_name": block_asset_info.asset_namepath,
+                        "_position": self.convert_asset_location(block_asset),
+                        "_rotation": self.convert_asset_rotation(block_asset),
+                        "_scale": self.convert_asset_scale(block_asset)
+                    }
+            else:
+                self.logger.error(f'not implemented object type {child.name}')
+        self.logger.info(f'game_data: {game_data}')
+        
         
     def export_game_data(self, asset, asset_info):
         self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
@@ -293,6 +341,7 @@ class RustEngine3DExporter:
                 game_data = self.get_game_data_character(asset, asset_info)
             elif 'game_scenes':
                 game_data_ext = '.game_scene'
+                game_data = self.get_game_data_scenes(asset, asset_info)
             else:
                 self.logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
                 
