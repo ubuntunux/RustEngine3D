@@ -281,51 +281,53 @@ class RustEngine3DExporter:
         return game_data
     
     def get_game_data_scenes(self, asset, asset_info):
-        '''
-{
-    "_scene_data_name":"stage_dry_forest",
-    "_player":{
-        "player": {
-            "_character_data_name":"jack", 
-            "_position":[0.0,1.0,0.0], 
-            "_rotation":[0.0,0.0,0.0], 
-            "_scale":[0.25,0.25,0.25]
-        }
-    },
-    "_characters":{
-        "enemy00": {"_character_data_name":"jack", "_position":[2.0,1.0,0.0], "_rotation":[0.0,0.0,0.0], "_scale":[0.25,0.25,0.25]},
-        "enemy01": {"_character_data_name":"jack", "_position":[-2.0,1.0,0.0], "_rotation":[0.0,0.0,0.0], "_scale":[0.25,0.25,0.25]},
-        "enemy02": {"_character_data_name":"jack", "_position":[0.0,1.0,0.0], "_rotation":[0.0,0.0,0.0], "_scale":[1.0,1.0,1.0]}
-    },
-    "_blocks":{
-        "rock00":{"_block_data_name":"cliff_grass","_position":[2.0,10.0,0.0],"_rotation":[0.0,0.0,0.0],"_scale":[1.0,1.0,1.0]},
-        "rock01":{"_block_data_name":"cliff_grass","_position":[4.0,12.0,0.0],"_rotation":[0.0,0.0,0.0],"_scale":[1.0,1.0,1.0]}
-    },
-    "_start_point":[0.0,1.0,0.0]
-}
-        '''
         player = {}
         characters = {}
         blocks = {}        
         game_data = {
+            "_scene_data_name": "",
             "_player": player,
             "_characters": characters,
             "_blocks": blocks,
             "_start_point": [0, 0, 0]
         }        
-        for child in asset.children:
-            if '_blocks' == child.name:
-                for block_asset in child.objects:
-                    block_asset_info = AssetInfo(block_asset.instance_collection)
-                    blocks[block_asset.name] = {                        
-                        "_block_data_name": block_asset_info.asset_namepath,
-                        "_position": self.convert_asset_location(block_asset),
-                        "_rotation": self.convert_asset_rotation(block_asset),
-                        "_scale": self.convert_asset_scale(block_asset)
+        for child_asset in asset.children:
+            if '_scene' == child_asset.name:
+                for child_object in child_asset.objects:
+                    child_object_info = AssetInfo(child_object.instance_collection)
+                    game_data['_scene_data_name'] = child_object_info.asset_namepath
+            elif '_blocks' == child_asset.name:
+                for child_object in child_asset.objects:
+                    child_object_info = AssetInfo(child_object.instance_collection)
+                    blocks[child_object.name] = {
+                        "_block_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_position": self.convert_asset_location(child_object),
+                        "_rotation": self.convert_asset_rotation(child_object),
+                        "_scale": self.convert_asset_scale(child_object)
                     }
+            elif '_characters' == child_asset.name:
+                for child_object in child_asset.objects:
+                    child_object_info = AssetInfo(child_object.instance_collection)
+                    characters[child_object.name] = {
+                        "_character_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_position": self.convert_asset_location(child_object),
+                        "_rotation": self.convert_asset_rotation(child_object),
+                        "_scale": self.convert_asset_scale(child_object)
+                    }
+            elif '_player' == child_asset.name:
+                for child_object in child_asset.objects:
+                    child_object_info = AssetInfo(child_object.instance_collection)
+                    player[child_object.name] = {
+                        "_character_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_position": self.convert_asset_location(child_object),
+                        "_rotation": self.convert_asset_rotation(child_object),
+                        "_scale": self.convert_asset_scale(child_object)
+                    }
+            elif '_start_point' == child_asset.name:
+                game_data['_start_point'] = self.convert_asset_location(child_object)
             else:
-                self.logger.error(f'not implemented object type {child.name}')
-        self.logger.info(f'game_data: {game_data}')
+                self.logger.error(f'not implemented object type {child_asset.name}')
+        return game_data
         
         
     def export_game_data(self, asset, asset_info):
@@ -340,13 +342,11 @@ class RustEngine3DExporter:
             elif 'characters' == game_data_type:
                 game_data = self.get_game_data_character(asset, asset_info)
             elif 'game_scenes':
-                game_data_ext = '.game_scene'
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
                 self.logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
                 
             if game_data:
-                self.logger.info(f'game_data: {game_data}')
                 export_filepath = asset_info.get_asset_filepath(self.resource_path, game_data_ext)
                 self.logger.info(f'export_game_data: {export_filepath}')
                 with open(export_filepath, 'w') as f:
@@ -358,7 +358,7 @@ class RustEngine3DExporter:
     # export asset
     def export_asset(self, asset):
         asset_info = AssetInfo(asset)
-        self.logger.info(f'export_object: {asset_info}')
+        self.logger.info(f'export_object: {asset_info.asset_fullpath}')
 
         if 'meshes' == asset_info.asset_type_name:
             self.export_selected_meshes(asset_info)
