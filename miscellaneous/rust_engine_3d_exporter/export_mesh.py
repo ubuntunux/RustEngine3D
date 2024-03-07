@@ -324,7 +324,8 @@ class RustEngine3DExporter:
                         "_scale": self.convert_asset_scale(child_object)
                     }
             elif '_start_point' == child_asset.name:
-                game_data['_start_point'] = self.convert_asset_location(child_object)
+                for child_object in child_asset.objects:
+                    game_data['_start_point'] = self.convert_asset_location(child_object)
             else:
                 self.logger.error(f'not implemented object type {child_asset.name}')
         return game_data
