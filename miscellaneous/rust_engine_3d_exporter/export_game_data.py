@@ -441,6 +441,7 @@ class RustEngine3DExporter:
 def run_export_resources():
     bpy.context.window.cursor_set('WAIT')
 
+    #exporter = RustEngine3DExporter('engine_resources')
     exporter = RustEngine3DExporter('StoneAge')
 
     exporter.export_selected_objects()
@@ -451,75 +452,8 @@ def run_export_resources():
     #exporter.export_resources()
     exporter.done()
 
-    # scene = context.scene
-    # objects = scene.objects
-    # mesh_objects = [ob for ob in objects if ob.type == 'MESH']
-    #
-    # for mesh in mesh_objects:
-    #     for material in mesh.data.materials:
-    #         catalog = material.asset_data.catalog_simple_name.replace('-', '/')
-    #         relative_filepath = os.path.join(catalog, material.name)
-    #         print(relative_filepath)
-    #
-    #
-    # material_instance_data = {
-    #     "material_name": "common/render_static_object",
-    #     "material_parameters": {
-    #         "textureBase": "environments/desert_ground",
-    #         "textureMaterial": "common/default_m",
-    #         "textureNormal": "common/default_n"
-    #     }
-    # }
-    #
-    # model_data = {
-    #     "material_instances": [
-    #         "environments/cactus"
-    #     ],
-    #     "mesh": "environments/cactus"
-    # }
-
-
-    #    with open(resource_info.resource_filepath, 'w') as f:
-    #        f.write(json.dumps(game_scene_data, sort_keys=True, indent=4))
-
     bpy.context.window.cursor_set('DEFAULT')
     return {'FINISHED'}
 
 
 run_export_resources()
-
-''' 
-# model
->>> cactus = bpy.context.selected_objects[0]
->>> cactus.instance_collection.library.filepath
-'//../models/environments/cactus.blend'
-
->>> cactus.instance_collection.id_data.asset_data.catalog_simple_name
-'StoneAge-models-environments'
-
-
-# mesh
->>> mesh = cactus.instance_collection.objects[0]
->>> mesh.data.library.filepath
-'//../meshes/environments/cactus.blend'
-
-
-
-# material
->>> material = mesh.data.materials[0]
->>> material.library.filepath
-'//../materials/common/render_static_object.blend'
-
->>> material.asset_data.catalog_simple_name
-'materials-common'
-
-
-# material instance
->>> material_instance = mesh.material_slots[0].material
->>> material_instance.library.filepath
-'//../models/environments/desert_ground.blend'
-
->>> material_instance.asset_data.catalog_simple_name
-'StoneAge-material_instances-environments'
-
-'''
