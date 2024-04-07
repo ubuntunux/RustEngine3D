@@ -1424,7 +1424,7 @@ impl Widget for WidgetDefault {
     }
     fn remove_widget(&mut self, widget: *const dyn Widget) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
-            if child_widget.as_ref() as *const dyn Widget == widget {
+            if  std::ptr::addr_eq(child_widget.as_ref() as *const dyn Widget, widget) {
                 let widget_instance = ptr_as_mut(widget);
                 widget_instance.clear_parent();
                 widget_instance.clear_widgets();
