@@ -78,7 +78,7 @@ class RustEngine3DExporter:
     def __init__(self, library_name):
         self.library_name = library_name
         self.asset_library = bpy.context.preferences.filepaths.asset_libraries.get(library_name)
-        self.external_path = self.asset_library.path
+        self.external_path = os.path.normpath(self.asset_library.path)
         self.resource_path = os.path.split(self.external_path)[0]
         log_dirname = '.'
         if self.asset_library:
@@ -333,6 +333,9 @@ class RustEngine3DExporter:
         
     def export_game_data(self, asset, asset_info):
         self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
+        self.logger.info(f'library_name: {self.library_name}, external_path: {self.external_path}, resource_path: {self.resource_path}')
+        
+        
         tokens = asset_info.asset_library_path.split('/')
         if 2 < len(tokens):
             game_data = {}
