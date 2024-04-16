@@ -433,12 +433,13 @@ impl SceneManager {
             let mesh_data = model_data.get_mesh_data().borrow();
             let geometry_data_list = mesh_data.get_geometry_data_list();
             let material_instance_data_list = model_data.get_material_instance_data_list();
-            let is_render = false
-                == SceneManager::view_frustum_culling_geometry(
+            let is_render = render_object_data._render && false == SceneManager::view_frustum_culling_geometry(
                     camera,
                     &render_object_data._bound_box,
                 );
             let is_render_shadow =
+                render_object_data._render &&
+                render_object_data._render_shadow &&
                 false == SceneManager::shadow_culling(light, &render_object_data._bound_box);
 
             for index in 0..geometry_data_list.len() {
@@ -452,9 +453,7 @@ impl SceneManager {
                 let push_constant_data_list: *const Vec<PipelinePushConstantData> =
                     render_object_data.get_push_constant_data_list(index);
                 let render_something: bool = is_render || is_render_shadow;
-                if render_something
-                    && (transform_offset + required_transform_count) <= MAX_TRANSFORM_COUNT
-                {
+                if render_something && (transform_offset + required_transform_count) <= MAX_TRANSFORM_COUNT {
                     if is_render {
                         render_elements.push(RenderElementData {
                             _render_object: render_object_data_ref.clone(),
@@ -474,7 +473,7 @@ impl SceneManager {
                     }
                 } else {
                     // not visible
-                    return;
+                    continue;
                 }
 
                 // set transform_offset

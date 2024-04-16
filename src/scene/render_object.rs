@@ -39,6 +39,8 @@ impl Default for RenderObjectCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct RenderObjectData {
+    pub _render: bool,
+    pub _render_shadow: bool,
     pub _render_object_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _model_data: RcRefCell<ModelData>,
@@ -86,6 +88,8 @@ impl RenderObjectData {
             .collect();
 
         let mut render_object_data = RenderObjectData {
+            _render: true,
+            _render_shadow: true,
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
             _mesh_data: mesh_data.clone(),
@@ -102,6 +106,14 @@ impl RenderObjectData {
             render_object_data.initialize_animation_play_info();
         }
         render_object_data
+    }
+
+    pub fn set_render(&mut self, render: bool) {
+        self._render = render;
+    }
+
+    pub fn set_render_shadow(&mut self, render: bool) {
+        self._render_shadow = render;
     }
 
     pub fn debug_bone_names(&self) {

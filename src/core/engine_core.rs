@@ -378,15 +378,6 @@ impl EngineCore {
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
-    pub fn update_cursor_entered(&mut self) {
-        self.set_grab_mode(self._is_grab_mode_backup);
-    }
-
-    pub fn update_cursor_mode(&mut self) {
-        self._is_grab_mode_backup = self._is_grab_mode;
-        self.set_grab_mode(false);
-    }
-
     pub fn update_keyboard_input(&mut self, input: &KeyboardInput) {
         match input.virtual_keycode {
             Some(key) => {
@@ -566,7 +557,7 @@ pub fn run_application(
         }
     }
 
-    if WindowMode::FullScreenExclusiveMode == window_mode {
+    if WindowMode::FullScreenExclusiveMode == window_mode || WindowMode::FullScreenBorderlessMode == window_mode {
         // TODO: Choose monitor, video mode
         let first_monitor = event_loop.available_monitors().nth(0).unwrap();
         let video_mode = first_monitor.video_modes().nth(0).unwrap();
@@ -708,13 +699,13 @@ pub fn run_application(
                     device_id: _device_id,
                     ..
                 } => {
-                    engine_core.update_cursor_entered();
+                    engine_core.set_grab_mode(true);
                 }
                 WindowEvent::CursorLeft {
                     device_id: _device_id,
                     ..
                 } => {
-                    engine_core.update_cursor_mode();
+                    engine_core.set_grab_mode(false);
                 }
                 WindowEvent::KeyboardInput { input, .. } => {
                     if run_application {
