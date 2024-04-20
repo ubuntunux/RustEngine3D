@@ -338,6 +338,7 @@ impl AnimationPlayInfo {
     }
 
     pub fn update_animation_frame_time(&mut self, delta_time: f32) -> bool {
+        let anim_delta_time: f32 = self._animation_speed * delta_time;
         self._prev_animation_frame = self._animation_frame;
         self._prev_animation_play_time = self._animation_play_time;
 
@@ -351,7 +352,7 @@ impl AnimationPlayInfo {
 
         // update animation time
         if 1 < animation_data._frame_count {
-            self._animation_play_time += self._animation_speed * delta_time;
+            self._animation_play_time += anim_delta_time;
             let mut animation_end_time = animation_data._animation_length;
             if let Some(custom_end_time) = self._animation_end_time {
                 if custom_end_time < animation_end_time {
@@ -389,7 +390,7 @@ impl AnimationPlayInfo {
         } else {
             self._animation_frame = 0.0;
         }
-        self._animation_elapsed_time += delta_time;
+        self._animation_elapsed_time += anim_delta_time;
 
         // update animation buffers
         if self._prev_animation_frame != self._animation_frame {
