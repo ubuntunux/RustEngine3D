@@ -272,7 +272,9 @@ class RustEngine3DExporter:
         property_asset = asset.objects[0] if asset.objects else None
         if property_asset:
             self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
+            self.set_game_data_asset_property(property_asset, '_dead_animation_mesh', game_data)
             self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
+            self.set_game_data_asset_property(property_asset, '_hit_animation_mesh', game_data)
             self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
             self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
             self.set_game_data_asset_property(property_asset, '_attack_animation_mesh', game_data)
