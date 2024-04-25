@@ -104,6 +104,15 @@ class RustEngine3DExporter:
     
     def convert_sun_color(self, asset):
         return [asset.data.energy * x for x in list(asset.data.color)]
+    
+    def write_to_file(self, title, data, export_filepath):
+        self.logger.info(f'{title}: {export_filepath}')        
+        export_path = os.path.split(export_filepath)[0]
+        if not os.path.exists(export_path):
+            os.makedirs(export_path)
+            
+        with open(export_filepath, 'w') as f:
+            f.write(json.dumps(data, sort_keys=True, indent=4))
 
     def export_material_instance(self, asset_info, mesh_collection, mesh_data):
         material_instance_namepaths = []
@@ -118,9 +127,11 @@ class RustEngine3DExporter:
                 texture_dirpath = os.path.join(self.resource_path, 'textures')
                 material_slots = material_slots_list.pop(0)
                 material_instance_slots = child_object.material_slots
+                
                 for material_index in range(len(material_instance_slots)):
                     material = material_slots[material_index].material
                     material_instance = material_instance_slots[material_index].material
+                    
                     material_asset_info = AssetInfo(material)
                     material_instance_asset_info = AssetInfo(material_instance)
                     material_instance_namepaths.append(material_instance_asset_info.asset_namepath)
@@ -144,9 +155,7 @@ class RustEngine3DExporter:
                      
                     # export material instance
                     export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
-                    self.logger.info(f'export_material_instance: {export_filepath}')           
-                    with open(export_filepath, 'w') as f:
-                        f.write(json.dumps(material_instance_info, sort_keys=True, indent=4))
+                    self.write_to_file('export material_instance', material_instance_info, export_filepath)
         return material_instance_namepaths
 
     def export_selected_meshes(self, asset_info):
@@ -193,9 +202,7 @@ class RustEngine3DExporter:
 
             # export model
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
-            with open(export_model_filepath, 'w') as f:
-                f.write(json.dumps(model_info, sort_keys=True, indent=4))
-            self.logger.info(f'export_models: {export_model_filepath}')
+            self.write_to_file('export model', model_info, export_model_filepath)
     
     def export_scenes(self, asset, asset_info):
         self.logger.info(f'export_scenes: {asset_info.asset_namepath}')
@@ -246,10 +253,8 @@ class RustEngine3DExporter:
                 self.logger.error(f'not implemented object type {(child.name, child.type)}')
         
         export_filepath = asset_info.get_asset_filepath(self.resource_path, ".scene")
-        self.logger.info(f'export_scenes: {export_filepath}')           
-        with open(export_filepath, 'w') as f:
-            f.write(json.dumps(scene_data, sort_keys=True, indent=4))
-    
+        self.write_to_file('export scene', scene_data, export_filepath)
+        
     # game data
     def set_game_data_asset_property(self, property_asset, key, game_data):
         if property_asset and key in property_asset:
@@ -354,9 +359,7 @@ class RustEngine3DExporter:
                 
             if game_data:
                 export_filepath = asset_info.get_asset_filepath(self.resource_path, game_data_ext)
-                self.logger.info(f'export_game_data: {export_filepath}')
-                with open(export_filepath, 'w') as f:
-                    f.write(json.dumps(game_data, sort_keys=True, indent=4))
+                self.write_to_file('export game_data', game_data, export_filepath)
                 return
         self.logger.error(f'error export_game_data: {asset_info.asset_fullpath}')
             
