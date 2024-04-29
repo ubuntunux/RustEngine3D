@@ -5,7 +5,6 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 
-pub type BoxRefCell<T> = Box<RefCell<T>>;
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 
@@ -14,10 +13,6 @@ pub fn ptr_as_ref<T: ?Sized>(t: *const T) -> &'static T {
 }
 pub fn ptr_as_mut<T: ?Sized>(t: *const T) -> &'static mut T {
     unsafe { &mut *(t as *mut T) }
-}
-#[allow(non_snake_case)]
-pub fn newBoxRefCell<T>(t: T) -> BoxRefCell<T> {
-    Box::new(RefCell::new(t))
 }
 #[allow(non_snake_case)]
 pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {

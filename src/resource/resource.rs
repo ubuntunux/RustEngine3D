@@ -224,7 +224,7 @@ pub fn get_resource_data<'a, T>(
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
         None => {
-            log::error!("not found texture: {}", resource_name);
+            log::error!("not found resource: {}", resource_name);
             resource_data_map.get(default_resource_name).unwrap()
         }
         _ => maybe_data.unwrap(),
