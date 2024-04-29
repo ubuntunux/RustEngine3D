@@ -186,12 +186,12 @@ impl RendererContext {
             let surface_extensions =
                 ash_window::enumerate_required_extensions(display_handle).unwrap();
             let required_layer_names =
-                device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS);
+                device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS.clone());
             let required_instance_layers: Vec<*const c_char> = required_layer_names
                 .iter()
                 .map(|layer| layer.as_ptr())
                 .collect();
-            let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS
+            let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS.clone()
                 .iter()
                 .map(|str| CString::new(str.as_str()).unwrap())
                 .collect();
