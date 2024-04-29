@@ -265,26 +265,37 @@ class RustEngine3DExporter:
                 
     def get_game_data_block(self, asset, asset_info):
         game_data = {}
-        property_asset = asset.objects[0] if asset.objects else None
-        if property_asset:
-            self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
-            game_data["_block_type"] = property_asset.get("_block_type", "Ground")
-            game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+        for property_asset in asset.objects:
+            if property_asset.name == 'block_properties':
+                self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
+                game_data["_block_type"] = property_asset.get("_block_type", "Ground")
+                game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+                break
+        return game_data
+    
+    def get_game_data_food(self, asset, asset_info):
+        game_data = {}
+        for property_asset in asset.objects:
+            if property_asset.name == 'food_properties':
+                self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
+                game_data["_food_type"] = property_asset.get("_food_type", "Meat")
+                break
         return game_data
     
     def get_game_data_character(self, asset, asset_info):
         game_data = {}
-        property_asset = asset.objects[0] if asset.objects else None
-        if property_asset:
-            self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
-            self.set_game_data_asset_property(property_asset, '_dead_animation_mesh', game_data)
-            self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
-            self.set_game_data_asset_property(property_asset, '_hit_animation_mesh', game_data)
-            self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
-            self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
-            self.set_game_data_asset_property(property_asset, '_attack_animation_mesh', game_data)
-            game_data["_character_type"] = property_asset.get("_block_type", "UrsusArctos")
-            game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+        for property_asset in asset.objects:
+            if property_asset.name == 'character_properties':
+                self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
+                self.set_game_data_asset_property(property_asset, '_dead_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_hit_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_attack_animation_mesh', game_data)
+                game_data["_character_type"] = property_asset.get("_block_type", "UrsusArctos")
+                game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+                break
         return game_data
     
     def get_game_data_scenes(self, asset, asset_info):
@@ -342,7 +353,6 @@ class RustEngine3DExporter:
         self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
         self.logger.info(f'library_name: {self.library_name}, external_path: {self.external_path}, resource_path: {self.resource_path}')
         
-        
         tokens = asset_info.asset_library_path.split('/')
         if 2 < len(tokens):
             game_data = {}
@@ -352,6 +362,8 @@ class RustEngine3DExporter:
                 game_data = self.get_game_data_block(asset, asset_info)
             elif 'characters' == game_data_type:
                 game_data = self.get_game_data_character(asset, asset_info)
+            elif 'foods' == game_data_type:
+                game_data = self.get_game_data_food(asset, asset_info)
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
