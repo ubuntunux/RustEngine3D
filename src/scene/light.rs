@@ -66,6 +66,7 @@ impl Default for DirectionalLightCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct DirectionalLightData {
+    pub _object_id: i64,
     pub _light_name: String,
     pub _light_constants: LightConstants,
     pub _light_shadow_projection: Matrix4<f32>,
@@ -77,11 +78,13 @@ pub struct DirectionalLightData {
 
 impl DirectionalLightData {
     pub fn create_light_data(
+        object_id: i64,
         light_name: &String,
         light_create_info: &DirectionalLightCreateInfo,
     ) -> DirectionalLightData {
         log::debug!("create_light_data: {}", light_name);
         let mut light_data = DirectionalLightData {
+            _object_id: object_id,
             _light_name: light_name.clone(),
             _light_constants: light_create_info._light_constants.clone(),
             _light_shadow_projection: Matrix4::identity(),

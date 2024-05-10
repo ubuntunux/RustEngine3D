@@ -167,6 +167,10 @@ impl EffectManager {
     pub fn initialize_effect_manager(&mut self) {}
 
     pub fn destroy_effect_manager(&mut self) {
+        self.clear_effects();
+    }
+
+    pub fn clear_effects(&mut self) {
         self._effects.clear();
     }
 
@@ -216,6 +220,7 @@ impl EffectManager {
 
     pub fn create_effect(
         &mut self,
+        object_name: &str,
         effect_create_info: &EffectCreateInfo,
         effect_data: &RcRefCell<EffectData>,
     ) -> i64 {
@@ -223,6 +228,7 @@ impl EffectManager {
         let effect_instance = EffectInstance::create_effect_instance(
             self,
             effect_id,
+            &String::from(object_name),
             effect_create_info,
             effect_data,
         );

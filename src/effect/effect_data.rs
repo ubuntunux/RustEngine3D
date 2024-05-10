@@ -237,6 +237,7 @@ impl Default for EffectCreateInfo {
 pub struct EffectInstance {
     pub _effect_manager: *const EffectManager,
     pub _effect_id: i64,
+    pub _effect_name: String,
     pub _update_first_time: bool,
     pub _is_alive: bool,
     pub _is_culled_from_view: bool,
@@ -328,6 +329,7 @@ impl EffectInstance {
     pub fn create_effect_instance(
         effect_manager: *const EffectManager,
         effect_id: i64,
+        effect_name: &String,
         effect_create_info: &EffectCreateInfo,
         effect_data: &RcRefCell<EffectData>,
     ) -> RcRefCell<EffectInstance> {
@@ -341,6 +343,7 @@ impl EffectInstance {
         let effect_instance = newRcRefCell(EffectInstance {
             _effect_manager: effect_manager,
             _effect_id: effect_id,
+            _effect_name: effect_name.clone(),
             _update_first_time: true,
             _is_alive: false,
             _is_culled_from_view: false,
@@ -368,6 +371,9 @@ impl EffectInstance {
             emitter.initialize_emitter(parent_effect);
         }
     }
+
+    pub fn get_effect_id(&self) -> i64 { self._effect_id }
+    pub fn get_effect_name(&self) -> &String { &self._effect_name }
 
     pub fn get_effect_manager(&self) -> &EffectManager {
         ptr_as_ref(self._effect_manager)

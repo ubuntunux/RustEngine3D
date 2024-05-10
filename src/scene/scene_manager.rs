@@ -17,13 +17,12 @@ use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, Ligh
 use crate::scene::render_element::RenderElementData;
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::system::{self, newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
-type CameraObjectMap = HashMap<String, Rc<CameraObjectData>>;
-type DirectionalLightObjectMap = HashMap<String, RcRefCell<DirectionalLightData>>;
-type EffectIDMap = HashMap<String, i64>;
-type RenderObjectMap = HashMap<String, RcRefCell<RenderObjectData>>;
+type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
+type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLightData>>;
+type RenderObjectMap = HashMap<i64, RcRefCell<RenderObjectData>>;
 
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,13 +44,13 @@ pub struct SceneManager {
     pub _window_size: Vector2<i32>,
     pub _scene_name: String,
     pub _sea_height: f32,
-    pub _main_camera: Rc<CameraObjectData>,
-    pub _main_light: RcRefCell<DirectionalLightData>,
-    pub _capture_height_map: RcRefCell<DirectionalLightData>,
+    pub _main_camera: Option<Rc<CameraObjectData>>,
+    pub _main_light: Option<RcRefCell<DirectionalLightData>>,
+    pub _capture_height_map: Option<RcRefCell<DirectionalLightData>>,
     pub _light_probe_cameras: Vec<RcRefCell<CameraObjectData>>,
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
-    pub _effect_id_map: EffectIDMap,
+    pub _object_id_generator: i64,
     pub _static_render_object_map: RenderObjectMap,
     pub _skeletal_render_object_map: RenderObjectMap,
     pub _static_render_elements: Vec<RenderElementData>,
@@ -78,19 +77,19 @@ impl Default for SceneDataCreateInfo {
 
 impl SceneManager {
     pub fn get_main_camera(&self) -> &CameraObjectData {
-        self._main_camera.as_ref()
+        self._main_camera.as_ref().unwrap().as_ref()
     }
     pub fn get_main_camera_mut(&self) -> &mut CameraObjectData {
-        ptr_as_mut(self._main_camera.as_ref())
+        ptr_as_mut(self._main_camera.as_ref().unwrap().as_ref())
     }
     pub fn get_main_light(&self) -> &RcRefCell<DirectionalLightData> {
-        &self._main_light
+        &self._main_light.as_ref().unwrap()
     }
     pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
         &self._light_probe_cameras[index]
     }
     pub fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLightData> {
-        &self._capture_height_map
+        &self._capture_height_map.as_ref().unwrap()
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData> {
         &self._static_render_elements
@@ -111,78 +110,20 @@ impl SceneManager {
         &self._render_element_transform_matrices
     }
     pub fn create_scene_manager() -> Box<SceneManager> {
-        let default_camera = CameraObjectData::create_camera_object_data(
-            &String::from("default_camera"),
-            &CameraCreateInfo::default(),
-        );
-        let light_probe_camera_create_info = CameraCreateInfo {
-            fov: 90.0,
-            window_size: Vector2::new(
-                constants::LIGHT_PROBE_SIZE as i32,
-                constants::LIGHT_PROBE_SIZE as i32,
-            ),
-            enable_jitter: false,
-            ..Default::default()
-        };
-        let light_probe_cameras = vec![
-            newRcRefCell(CameraObjectData::create_camera_object_data(
-                &String::from("light_probe_camera0"),
-                &light_probe_camera_create_info,
-            )),
-            newRcRefCell(CameraObjectData::create_camera_object_data(
-                &String::from("light_probe_camera1"),
-                &light_probe_camera_create_info,
-            )),
-            newRcRefCell(CameraObjectData::create_camera_object_data(
-                &String::from("light_probe_camera2"),
-                &light_probe_camera_create_info,
-            )),
-            newRcRefCell(CameraObjectData::create_camera_object_data(
-                &String::from("light_probe_camera3"),
-                &light_probe_camera_create_info,
-            )),
-            newRcRefCell(CameraObjectData::create_camera_object_data(
-                &String::from("light_probe_camera4"),
-                &light_probe_camera_create_info,
-            )),
-            newRcRefCell(CameraObjectData::create_camera_object_data(
-                &String::from("light_probe_camera5"),
-                &light_probe_camera_create_info,
-            )),
-        ];
-        let default_light = DirectionalLightData::create_light_data(
-            &String::from("default_light"),
-            &DirectionalLightCreateInfo::default(),
-        );
-        let capture_height_map = unsafe {
-            DirectionalLightData::create_light_data(
-                &String::from("capture_height_map"),
-                &DirectionalLightCreateInfo {
-                    _rotation: Vector3::new(std::f32::consts::PI * 0.5, 0.0, 0.0),
-                    _shadow_dimensions: Vector4::new(
-                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                        -constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                        constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                    ),
-                    ..Default::default()
-                },
-            )
-        };
         Box::new(SceneManager {
             _engine_resources: std::ptr::null(),
             _renderer_data: std::ptr::null(),
             _effect_manager: std::ptr::null(),
-            _window_size: default_camera._window_size.into(),
+            _window_size: Vector2::new(1024, 768),
             _scene_name: String::new(),
             _sea_height: 0.0,
-            _main_camera: Rc::new(default_camera),
-            _main_light: newRcRefCell(default_light),
-            _capture_height_map: newRcRefCell(capture_height_map),
-            _light_probe_cameras: light_probe_cameras,
+            _main_camera: None,
+            _main_light: None,
+            _capture_height_map: None,
+            _light_probe_cameras: Vec::new(),
             _camera_object_map: HashMap::new(),
             _directional_light_object_map: HashMap::new(),
-            _effect_id_map: HashMap::default(),
+            _object_id_generator: 0,
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
             _static_render_elements: Vec::new(),
@@ -204,6 +145,80 @@ impl SceneManager {
         self._renderer_data = renderer_context.get_renderer_data();
         self._effect_manager = effect_manager;
         self._engine_resources = engine_resources;
+
+        let default_camera = CameraObjectData::create_camera_object_data(
+            self.generate_object_id(),
+            &String::from("default_camera"),
+            &CameraCreateInfo::default(),
+        );
+        let light_probe_camera_create_info = CameraCreateInfo {
+            fov: 90.0,
+            window_size: Vector2::new(
+                constants::LIGHT_PROBE_SIZE as i32,
+                constants::LIGHT_PROBE_SIZE as i32,
+            ),
+            enable_jitter: false,
+            ..Default::default()
+        };
+        let light_probe_cameras = vec![
+            newRcRefCell(CameraObjectData::create_camera_object_data(
+                self.generate_object_id(),
+                &String::from("light_probe_camera0"),
+                &light_probe_camera_create_info,
+            )),
+            newRcRefCell(CameraObjectData::create_camera_object_data(
+                self.generate_object_id(),
+                &String::from("light_probe_camera1"),
+                &light_probe_camera_create_info,
+            )),
+            newRcRefCell(CameraObjectData::create_camera_object_data(
+                self.generate_object_id(),
+                &String::from("light_probe_camera2"),
+                &light_probe_camera_create_info,
+            )),
+            newRcRefCell(CameraObjectData::create_camera_object_data(
+                self.generate_object_id(),
+                &String::from("light_probe_camera3"),
+                &light_probe_camera_create_info,
+            )),
+            newRcRefCell(CameraObjectData::create_camera_object_data(
+                self.generate_object_id(),
+                &String::from("light_probe_camera4"),
+                &light_probe_camera_create_info,
+            )),
+            newRcRefCell(CameraObjectData::create_camera_object_data(
+                self.generate_object_id(),
+                &String::from("light_probe_camera5"),
+                &light_probe_camera_create_info,
+            )),
+        ];
+        let default_light = DirectionalLightData::create_light_data(
+            self.generate_object_id(),
+            &String::from("default_light"),
+            &DirectionalLightCreateInfo::default(),
+        );
+        let capture_height_map = unsafe {
+            DirectionalLightData::create_light_data(
+                self.generate_object_id(),
+                &String::from("capture_height_map"),
+                &DirectionalLightCreateInfo {
+                    _rotation: Vector3::new(std::f32::consts::PI * 0.5, 0.0, 0.0),
+                    _shadow_dimensions: Vector4::new(
+                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
+                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
+                        -constants::CAPTURE_HEIGHT_MAP_DEPTH,
+                        constants::CAPTURE_HEIGHT_MAP_DEPTH,
+                    ),
+                    ..Default::default()
+                },
+            )
+        };
+
+        self._main_camera = Some(Rc::new(default_camera));
+        self._main_light = Some(newRcRefCell(default_light));
+        self._capture_height_map = Some(newRcRefCell(capture_height_map));
+        self._light_probe_cameras = light_probe_cameras;
+
         self.resized_window(window_size.x, window_size.y);
     }
     pub fn get_engine_resources(&self) -> &EngineResources {
@@ -230,18 +245,26 @@ impl SceneManager {
     pub fn get_sea_height(&self) -> f32 {
         self._sea_height
     }
+
+    pub fn generate_object_id(&mut self) -> i64 {
+        let _object_id_generator = self._object_id_generator;
+        self._object_id_generator += 1;
+        self._object_id_generator
+    }
+
+
     pub fn add_camera_object(
         &mut self,
         object_name: &str,
         camera_create_info: &CameraCreateInfo,
     ) -> Rc<CameraObjectData> {
-        let new_object_name = system::generate_unique_name(&self._camera_object_map, object_name);
+        let object_id = self.generate_object_id();
         let camera_object_data = Rc::new(CameraObjectData::create_camera_object_data(
-            &new_object_name,
+            object_id,
+            &String::from(object_name),
             camera_create_info,
         ));
-        self._camera_object_map
-            .insert(new_object_name, camera_object_data.clone());
+        self._camera_object_map.insert(object_id, camera_object_data.clone());
         camera_object_data
     }
     pub fn add_light_object(
@@ -249,14 +272,13 @@ impl SceneManager {
         object_name: &str,
         light_create_info: &DirectionalLightCreateInfo,
     ) -> RcRefCell<DirectionalLightData> {
-        let new_object_name =
-            system::generate_unique_name(&self._directional_light_object_map, object_name);
+        let object_id = self.generate_object_id();
         let light_object_data = newRcRefCell(DirectionalLightData::create_light_data(
-            &new_object_name,
+            object_id,
+            &String::from(object_name),
             light_create_info,
         ));
-        self._directional_light_object_map
-            .insert(new_object_name, light_object_data.clone());
+        self._directional_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
 
@@ -265,18 +287,17 @@ impl SceneManager {
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
     ) -> RcRefCell<RenderObjectData> {
+        let object_id = self.generate_object_id();
         let model_data = self
             .get_engine_resources()
             .get_model_data(&render_object_create_info._model_data_name);
-        let new_object_name =
-            system::generate_unique_name(&self._static_render_object_map, &object_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
-            &new_object_name,
+            object_id,
+            &String::from(object_name),
             &model_data,
             &render_object_create_info,
         ));
-        self._static_render_object_map
-            .insert(new_object_name, render_object_data.clone());
+        self._static_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
     }
 
@@ -285,53 +306,50 @@ impl SceneManager {
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
     ) -> RcRefCell<RenderObjectData> {
+        let object_id = self.generate_object_id();
         let model_data = self
             .get_engine_resources()
             .get_model_data(&render_object_create_info._model_data_name);
-        let new_object_name =
-            system::generate_unique_name(&self._skeletal_render_object_map, &object_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
-            &new_object_name,
+            object_id,
+            &String::from(object_name),
             model_data,
             &render_object_create_info,
         ));
-        self._skeletal_render_object_map
-            .insert(new_object_name, render_object_data.clone());
+        self._skeletal_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
     }
 
     pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> i64 {
-        let new_object_name = system::generate_unique_name(&self._effect_id_map, &object_name);
         let effect_data = self
             .get_engine_resources()
             .get_effect_data(&effect_create_info._effect_data_name);
         let effect_id = self
             .get_effect_manager_mut()
-            .create_effect(effect_create_info, &effect_data);
-        self._effect_id_map.insert(new_object_name, effect_id);
+            .create_effect(object_name, effect_create_info, &effect_data);
         effect_id
     }
 
     pub fn get_static_render_object(
         &self,
-        object_name: &str,
+        object_id: i64,
     ) -> Option<&RcRefCell<RenderObjectData>> {
-        self._static_render_object_map.get(object_name)
+        self._static_render_object_map.get(&object_id)
     }
 
-    pub fn remove_static_render_object(&mut self, object_name: &str) {
-        self._static_render_object_map.remove(object_name);
+    pub fn remove_static_render_object(&mut self, object_id: i64) {
+        self._static_render_object_map.remove(&object_id);
     }
 
     pub fn get_skeletal_render_object(
         &self,
-        object_name: &str,
+        object_id: i64,
     ) -> Option<&RcRefCell<RenderObjectData>> {
-        self._skeletal_render_object_map.get(object_name)
+        self._skeletal_render_object_map.get(&object_id)
     }
 
-    pub fn remove_skeletal_render_object(&mut self, object_name: &str) {
-        self._skeletal_render_object_map.remove(object_name);
+    pub fn remove_skeletal_render_object(&mut self, object_id: i64) {
+        self._skeletal_render_object_map.remove(&object_id);
     }
 
     pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>> {
@@ -609,7 +627,7 @@ impl SceneManager {
             };
             let camera_object = self.add_camera_object(object_name, &camera_create_info);
             if 0 == index {
-                self._main_camera = camera_object;
+                self._main_camera = Some(camera_object);
             }
         }
 
@@ -635,7 +653,7 @@ impl SceneManager {
             };
             let light_object = self.add_light_object(object_name, &light_create_info);
             if 0 == index {
-                self._main_light = light_object;
+                self._main_light = Some(light_object);
             }
         }
 
@@ -660,9 +678,9 @@ impl SceneManager {
     }
 
     pub fn close_scene_data(&mut self) {
+        self.get_effect_manager_mut().clear_effects();
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
-        self._effect_id_map.clear();
         self._static_render_object_map.clear();
         self._skeletal_render_object_map.clear();
         self._static_render_elements.clear();
@@ -708,12 +726,8 @@ impl SceneManager {
                 .insert(light._light_name.clone(), light_create_info);
         }
         // effects
-        for (effect_name, effect_id) in self._effect_id_map.iter() {
-            let effect = self
-                .get_effect_manager()
-                .get_effect(*effect_id)
-                .unwrap()
-                .borrow();
+        for (_effect_id, effect) in self.get_effect_manager().get_effects() {
+            let effect = effect.borrow();
             let effect_create_info = EffectCreateInfo {
                 _effect_position: effect._effect_transform.get_position().clone() as Vector3<f32>,
                 _effect_rotation: effect._effect_transform.get_rotation().clone() as Vector3<f32>,
@@ -722,7 +736,7 @@ impl SceneManager {
             };
             scene_data_create_info
                 ._effects
-                .insert(effect_name.clone(), effect_create_info);
+                .insert(effect.get_effect_name().clone(), effect_create_info);
         }
         // static objects
         for static_object in self._static_render_object_map.values() {
@@ -759,15 +773,15 @@ impl SceneManager {
 
     pub fn destroy_scene_manager(&mut self) {}
 
-    pub fn update_scene_manager(&mut self,        delta_time: f64) {
+    pub fn update_scene_manager(&mut self, delta_time: f64) {
         let main_camera = ptr_as_mut(self.get_main_camera());
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();
 
-        let mut main_light = self._main_light.borrow_mut();
+        let main_light = ptr_as_mut(self.get_main_light().as_ptr());
         main_light.update_light_data(camera_position);
 
-        let mut capture_height_map = self._capture_height_map.borrow_mut();
+        let capture_height_map = ptr_as_mut(self.get_capture_height_map().as_ptr());
         capture_height_map.update_light_data(camera_position);
 
         for (_key, render_object_data) in self._static_render_object_map.iter() {

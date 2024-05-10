@@ -39,6 +39,7 @@ impl Default for RenderObjectCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct RenderObjectData {
+    pub _object_id: i64,
     pub _render: bool,
     pub _render_shadow: bool,
     pub _render_object_name: String,
@@ -55,6 +56,7 @@ pub struct RenderObjectData {
 
 impl RenderObjectData {
     pub fn create_render_object_data(
+        object_id: i64,
         render_object_name: &String,
         model_data: &RcRefCell<ModelData>,
         render_object_create_data: &RenderObjectCreateInfo,
@@ -88,6 +90,7 @@ impl RenderObjectData {
             .collect();
 
         let mut render_object_data = RenderObjectData {
+            _object_id: object_id,
             _render: true,
             _render_shadow: true,
             _render_object_name: render_object_name.clone(),
