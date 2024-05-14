@@ -19,9 +19,10 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
+use crate::utilities::bounding_box::calc_bounding_box;
 use crate::utilities::system::{self, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::buffer::{self, BufferData};
-use crate::vulkan_context::geometry_buffer::{self, VertexDataBase};
+use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
 use crate::vulkan_context::render_pass::PipelineData;
 use crate::vulkan_context::vulkan_context::get_color32;
 
@@ -237,9 +238,7 @@ pub struct WidgetDefault {
 pub struct UIManager {
     pub _root: Rc<dyn Widget>,
     pub _window_size: Vector2<i32>,
-    pub _ui_mesh_vertex_buffer: BufferData,
-    pub _ui_mesh_index_buffer: BufferData,
-    pub _ui_mesh_index_count: u32,
+    pub _quad_mesh: GeometryData,
     pub _font_data: RcRefCell<FontData>,
     pub _ui_render_data_list: Vec<UIRenderData>,
     pub _render_ui_count: u32,
@@ -1727,9 +1726,7 @@ impl UIManager {
         let mut ui_manager = UIManager {
             _root: UIManager::create_widget("root", UIWidgetTypes::Default),
             _window_size: Vector2::zeros(),
-            _ui_mesh_vertex_buffer: BufferData::default(),
-            _ui_mesh_index_buffer: BufferData::default(),
-            _ui_mesh_index_count: 0,
+            _quad_mesh: GeometryData::default(),
             _font_data: system::newRcRefCell(FontData::default()),
             _ui_render_data_list: Vec::new(),
             _render_ui_count: 0,
@@ -1754,7 +1751,7 @@ impl UIManager {
         engine_resources: &EngineResources,
     ) {
         self._font_data = engine_resources.get_default_font_data().clone();
-        self.create_ui_vertex_data(
+        self._quad_mesh = self.create_ui_vertex_data(
             renderer_context.get_device(),
             renderer_context.get_debug_utils(),
             renderer_context.get_command_pool(),
@@ -1790,13 +1787,13 @@ impl UIManager {
     pub fn destroy_ui_graphics_data(&mut self) {
         self._default_render_ui_material = None;
     }
+
     #[allow(dropping_references)]
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
         ptr_as_mut(self._root.as_ref()).clear_widgets();
         drop(self._root.as_ref());
-        buffer::destroy_buffer_data(device, &self._ui_mesh_vertex_buffer);
-        buffer::destroy_buffer_data(device, &self._ui_mesh_index_buffer);
+        geometry_buffer::destroy_geometry_data(device, &self._quad_mesh);
     }
 
     pub fn create_ui_vertex_data(
@@ -1806,23 +1803,26 @@ impl UIManager {
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    ) {
+    ) -> GeometryData {
         log::debug!("create_ui_vertex_data");
+
         let positions: Vec<Vector3<f32>> = vec![
             Vector3::new(0.0, 0.0, 0.0),
             Vector3::new(1.0, 0.0, 0.0),
             Vector3::new(1.0, 1.0, 0.0),
             Vector3::new(0.0, 1.0, 0.0),
         ];
+
         let vertex_data_list = positions
             .iter()
             .map(|position| UIVertexData {
                 _position: (*position).clone() as Vector3<f32>,
             })
             .collect();
+
         let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
 
-        self._ui_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
+        let quad_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
             command_queue,
@@ -1833,7 +1833,7 @@ impl UIManager {
             &vertex_data_list,
         );
 
-        self._ui_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
+        let quad_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
             command_queue,
@@ -1843,7 +1843,14 @@ impl UIManager {
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices,
         );
-        self._ui_mesh_index_count = indices.len() as u32;
+
+        GeometryData {
+            _geometry_name: String::from("quad_mesh"),
+            _vertex_buffer_data: quad_mesh_vertex_buffer,
+            _index_buffer_data: quad_mesh_index_buffer,
+            _vertex_index_count: indices.len() as u32,
+            _geometry_bounding_box: calc_bounding_box(&positions),
+        }
     }
 
     pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> Rc<dyn Widget> {
@@ -1937,13 +1944,11 @@ impl UIManager {
                         &(*prev_pipeline_data),
                         &push_constant_data,
                     );
-                    renderer_context.draw_indexed(
+                    renderer_context.draw_elements_instanced(
                         command_buffer,
-                        &[self._ui_mesh_vertex_buffer._buffer],
+                        &self._quad_mesh,
                         &[],
-                        render_count,
-                        self._ui_mesh_index_buffer._buffer,
-                        self._ui_mesh_index_count,
+                        render_count
                     );
                     push_constant_data._instance_id_offset =
                         render_group_data._accumulated_render_count;

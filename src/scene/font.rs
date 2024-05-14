@@ -10,10 +10,11 @@ use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
 use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
+use crate::utilities::bounding_box::calc_bounding_box;
 use crate::utilities::system::{newRcRefCell, RcRefCell};
-use crate::vulkan_context::buffer::{self, BufferData};
+use crate::vulkan_context::buffer;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
-use crate::vulkan_context::geometry_buffer::{self, VertexDataBase};
+use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
@@ -179,9 +180,7 @@ pub struct FontManager {
     pub _show: bool,
     pub _logs: Vec<String>,
     pub _text_render_data: TextRenderData,
-    pub _font_mesh_vertex_buffer: BufferData,
-    pub _font_mesh_index_buffer: BufferData,
-    pub _font_mesh_index_count: u32,
+    pub _quad_mesh: GeometryData
 }
 
 impl FontVertexData {
@@ -348,9 +347,7 @@ impl FontManager {
             _show: true,
             _logs: Vec::new(),
             _text_render_data: TextRenderData::default(),
-            _font_mesh_vertex_buffer: BufferData::default(),
-            _font_mesh_index_buffer: BufferData::default(),
-            _font_mesh_index_count: 0,
+            _quad_mesh: GeometryData::default()
         })
     }
 
@@ -367,7 +364,7 @@ impl FontManager {
             engine_resources,
             &ascii_font_data,
         );
-        self.create_font_vertex_data(
+        self._quad_mesh = self.create_font_vertex_data(
             renderer_context.get_device(),
             renderer_context.get_debug_utils(),
             renderer_context.get_command_pool(),
@@ -397,8 +394,7 @@ impl FontManager {
     pub fn destroy_font_manager(&mut self, device: &Device) {
         log::info!("destroy_font_manager");
         self._text_render_data.destroy_text_render_data();
-        buffer::destroy_buffer_data(device, &self._font_mesh_vertex_buffer);
-        buffer::destroy_buffer_data(device, &self._font_mesh_index_buffer);
+        geometry_buffer::destroy_geometry_data(device, &self._quad_mesh);
     }
 
     pub fn create_font_vertex_data(
@@ -408,14 +404,16 @@ impl FontManager {
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    ) {
+    ) -> GeometryData {
         log::debug!("create_font_vertex_data");
+
         let positions: Vec<Vector3<f32>> = vec![
             Vector3::new(-0.5, -0.5, 0.0),
             Vector3::new(0.5, -0.5, 0.0),
             Vector3::new(0.5, 0.5, 0.0),
             Vector3::new(-0.5, 0.5, 0.0),
         ];
+
         let vertex_data_list = positions
             .iter()
             .map(|position| FontVertexData {
@@ -424,7 +422,7 @@ impl FontManager {
             .collect();
         let indices: Vec<u32> = vec![0, 3, 2, 2, 1, 0];
 
-        self._font_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
+        let font_mesh_vertex_buffer = buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
             command_queue,
@@ -435,7 +433,7 @@ impl FontManager {
             &vertex_data_list,
         );
 
-        self._font_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
+        let font_mesh_index_buffer = buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
             command_queue,
@@ -445,7 +443,14 @@ impl FontManager {
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices,
         );
-        self._font_mesh_index_count = indices.len() as u32;
+
+        GeometryData {
+            _geometry_name: String::from("font_mesh"),
+            _vertex_buffer_data: font_mesh_vertex_buffer,
+            _index_buffer_data: font_mesh_index_buffer,
+            _vertex_index_count: indices.len() as u32,
+            _geometry_bounding_box: calc_bounding_box(&positions),
+        }
     }
 
     pub fn clear_logs(&mut self) {
@@ -551,13 +556,11 @@ impl FontManager {
                 pipeline_data,
                 &push_constant_data,
             );
-            renderer_context.draw_indexed(
+            renderer_context.draw_elements_instanced(
                 command_buffer,
-                &[self._font_mesh_vertex_buffer._buffer],
+                &self._quad_mesh,
                 &[],
-                text_count,
-                self._font_mesh_index_buffer._buffer,
-                self._font_mesh_index_count,
+                text_count
             );
             renderer_context.end_render_pass(command_buffer);
         }

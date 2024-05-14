@@ -1,9 +1,4 @@
-#![allow(deprecated)]
-#![allow(deprecated)]
-#![allow(deprecated)]
-#![allow(deprecated)]
-#![allow(deprecated)]
-
+use std::ops::Index;
 use nalgebra;
 use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
@@ -83,7 +78,7 @@ impl BoundingBox {
     }
 }
 
-pub fn calc_bounding_box(positions: &Vec<Vector3<f32>>) -> BoundingBox {
+pub fn calc_bounding_box<T: Index<usize, Output = f32>>(positions: &Vec<T>) -> BoundingBox {
     if 0 == positions.len() {
         return BoundingBox::default();
     }

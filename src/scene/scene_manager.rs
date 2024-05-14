@@ -17,6 +17,7 @@ use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, Ligh
 use crate::scene::render_element::RenderElementData;
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::bounding_box::BoundingBox;
+use crate::utilities::math::combinate_matrix;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -59,6 +60,7 @@ pub struct SceneManager {
     pub _skeletal_shadow_render_elements: Vec<RenderElementData>,
     pub _render_element_transform_count: usize,
     pub _render_element_transform_matrices: Vec<Matrix4<f32>>,
+    pub _bound_boxes: Vec<Matrix4<f32>>
 }
 
 // Implementation
@@ -109,6 +111,12 @@ impl SceneManager {
     pub fn get_render_element_transform_matrices(&self) -> &Vec<Matrix4<f32>> {
         &self._render_element_transform_matrices
     }
+    pub fn get_bound_box_count(&self) -> usize {
+        self._bound_boxes.len()
+    }
+    pub fn get_bound_boxes(&self) -> &Vec<Matrix4<f32>> {
+        &self._bound_boxes
+    }
     pub fn create_scene_manager() -> Box<SceneManager> {
         Box::new(SceneManager {
             _engine_resources: std::ptr::null(),
@@ -132,6 +140,7 @@ impl SceneManager {
             _skeletal_shadow_render_elements: Vec::new(),
             _render_element_transform_count: 0,
             _render_element_transform_matrices: vec![Matrix4::identity(); MAX_TRANSFORM_COUNT],
+            _bound_boxes: Vec::new()
         })
     }
 
@@ -441,10 +450,8 @@ impl SceneManager {
         render_shadow_elements: &mut Vec<RenderElementData>,
         render_element_transform_offset: &mut usize,
         render_element_transform_matrices: &mut Vec<Matrix4<f32>>,
+        bound_boxes: &mut Vec<Matrix4<f32>>
     ) {
-        render_elements.clear();
-        render_shadow_elements.clear();
-
         for (_key, render_object_data_ref) in render_object_map.iter() {
             let render_object_data = render_object_data_ref.borrow();
             let model_data = ptr_as_ref(render_object_data.get_model_data().as_ptr());
@@ -459,6 +466,14 @@ impl SceneManager {
                 render_object_data._render &&
                 render_object_data._render_shadow &&
                 false == SceneManager::shadow_culling(light, &render_object_data._bound_box);
+
+            if is_render {
+                bound_boxes.push(combinate_matrix(
+                    &render_object_data._bound_box._center,
+                    &Matrix4::identity(),
+                    &render_object_data._bound_box._size
+                ));
+            }
 
             for index in 0..geometry_data_list.len() {
                 let mut transform_offset = *render_element_transform_offset;
@@ -523,7 +538,7 @@ impl SceneManager {
 
                 if RenderObjectType::Skeletal == render_object_type {
                     // prev animation buffer
-                    let prev_animation_buffer: &Vec<Matrix4<f32>> =                         render_object_data.get_prev_animation_buffer();
+                    let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
                     assert_eq!(bone_count, prev_animation_buffer.len());
                     let next_transform_offset: usize = transform_offset + bone_count;
                     render_element_transform_matrices[transform_offset..next_transform_offset]
@@ -531,7 +546,7 @@ impl SceneManager {
                     transform_offset = next_transform_offset;
 
                     // current animation buffer
-                    let animation_buffer: &Vec<Matrix4<f32>> =                          render_object_data.get_animation_buffer();
+                    let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
                     assert_eq!(bone_count, animation_buffer.len());
                     let next_transform_offset: usize = transform_offset + bone_count;
                     render_element_transform_matrices[transform_offset..next_transform_offset]
@@ -798,7 +813,12 @@ impl SceneManager {
 
         // gather render elements
         {
+            self._static_render_elements.clear();
+            self._static_shadow_render_elements.clear();
+            self._skeletal_render_elements.clear();
+            self._skeletal_shadow_render_elements.clear();
             self._render_element_transform_count = 0;
+            self._bound_boxes.clear();
 
             SceneManager::gather_render_elements(
                 RenderObjectType::Static,
@@ -809,6 +829,7 @@ impl SceneManager {
                 &mut self._static_shadow_render_elements,
                 &mut self._render_element_transform_count,
                 &mut self._render_element_transform_matrices,
+                &mut self._bound_boxes
             );
 
             SceneManager::gather_render_elements(
@@ -820,6 +841,7 @@ impl SceneManager {
                 &mut self._skeletal_shadow_render_elements,
                 &mut self._render_element_transform_count,
                 &mut self._render_element_transform_matrices,
+                &mut self._bound_boxes
             );
         }
     }

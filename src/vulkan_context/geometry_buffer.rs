@@ -82,7 +82,7 @@ impl Default for GeometryCreateInfo {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct GeometryData {
     pub _geometry_name: String,
     pub _vertex_buffer_data: buffer::BufferData,
