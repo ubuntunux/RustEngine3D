@@ -969,7 +969,6 @@ impl RendererDataBase for RendererData {
             );
 
             let debug_texture_data = self.get_render_target(self._debug_render_target);
-            //let debug_texture_data = engine_resources.get_texture_data("fft_ocean/butterfly").borrow();
             let descriptor_index = match debug_texture_data.get_image_view_type() {
                 vk::ImageViewType::TYPE_2D => 1,
                 vk::ImageViewType::TYPE_2D_ARRAY => 2,

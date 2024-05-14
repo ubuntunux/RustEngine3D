@@ -207,10 +207,7 @@ impl DebugLineManager {
                 .get_material_instance_data("common/render_debug_line")
                 .borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-            let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
-            let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
             let render_debug_line_descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
-            let none_framebuffer_data = None;
 
             // upload storage buffer
             let debug_line_count = constants::MAX_DEBUG_LINE_INSTANCE_COUNT
@@ -225,28 +222,17 @@ impl DebugLineManager {
             self._debug_line_instance_data_list.clear();
 
             // render
-            renderer_context.begin_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                render_pass_data,
-                pipeline_data,
-                none_framebuffer_data,
-            );
-            renderer_context.bind_descriptor_sets(
+            renderer_context.render_render_pass_pipeline_instanced(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
-                render_debug_line_descriptor_sets,
-            );
-
-            renderer_context.draw_elements_instanced(
-                command_buffer,
                 &self._debug_line_geometry_data,
                 &[],
                 debug_line_count,
+                None,
+                render_debug_line_descriptor_sets,
+                None,
             );
-
-            renderer_context.end_render_pass(command_buffer);
         }
     }
 

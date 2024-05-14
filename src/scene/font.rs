@@ -503,9 +503,6 @@ impl FontManager {
                 .get_material_instance_data("ui/render_font")
                 .borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-            let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
-            let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-            let none_framebuffer_data = None;
             let render_font_descriptor_sets =
                 Some(&self._text_render_data._render_font_descriptor_sets);
             let font_width_ratio = font_data._font_size.x / font_data._font_size.y;
@@ -538,31 +535,17 @@ impl FontManager {
             );
 
             // render text
-            renderer_context.begin_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                render_pass_data,
-                pipeline_data,
-                none_framebuffer_data,
-            );
-            renderer_context.bind_descriptor_sets(
+            renderer_context.render_render_pass_pipeline_instanced(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
-                render_font_descriptor_sets,
-            );
-            renderer_context.upload_push_constant_data(
-                command_buffer,
-                pipeline_data,
-                &push_constant_data,
-            );
-            renderer_context.draw_elements_instanced(
-                command_buffer,
                 &self._quad_mesh,
                 &[],
-                text_count
+                text_count,
+                None,
+                render_font_descriptor_sets,
+                Some(&push_constant_data),
             );
-            renderer_context.end_render_pass(command_buffer);
         }
     }
 
