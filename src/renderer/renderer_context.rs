@@ -764,6 +764,31 @@ impl RendererContext {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&dyn PushConstant>,
     ) {
+        self.render_render_pass_pipeline_instanced(
+            command_buffer,
+            swapchain_index,
+            pipeline_binding_data,
+            geometry_data,
+            &[],
+            1,
+            custom_framebuffer_data,
+            custom_descriptor_sets,
+            push_constant_data,
+        );
+    }
+
+    pub fn render_render_pass_pipeline_instanced(
+        &self,
+        command_buffer: CommandBuffer,
+        swapchain_index: u32,
+        pipeline_binding_data: &PipelineBindingData,
+        geometry_data: &GeometryData,
+        instance_buffers: &[vk::Buffer],
+        instance_count: u32,
+        custom_framebuffer_data: Option<&FramebufferData>,
+        custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
+        push_constant_data: Option<&dyn PushConstant>,
+    ) {
         let render_pass_data = &pipeline_binding_data.get_render_pass_data().borrow();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         self.begin_render_pass_pipeline(
@@ -782,7 +807,7 @@ impl RendererContext {
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(command_buffer, pipeline_data, push_constant_data);
         }
-        self.draw_elements(command_buffer, geometry_data);
+        self.draw_elements_instanced(command_buffer, geometry_data, instance_buffers, instance_count);
         self.end_render_pass(command_buffer);
     }
 
