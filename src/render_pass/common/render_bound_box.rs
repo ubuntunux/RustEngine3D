@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
-use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
+use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
     DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
     PipelinePushConstantData, RenderPassDataCreateInfo,
@@ -14,13 +14,12 @@ use ash::vk;
 use crate::renderer::push_constants::PushConstant_RenderObject;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
-use crate::renderer::renderer_data::{RenderMode, RenderObjectType};
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColor),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: None,
@@ -35,14 +34,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     )
 }
 
-pub fn get_render_pass_data_create_info(
-    renderer_data: &RendererData,
-    render_object_type: RenderObjectType,
-) -> RenderPassDataCreateInfo {
-    let render_pass_name = match render_object_type {
-        RenderObjectType::Static => String::from("render_pass_static_forward"),
-        RenderObjectType::Skeletal => String::from("render_pass_skeletal_forward"),
-    };
+pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
+    let render_pass_name = String::from("render_bound_box");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -101,14 +94,10 @@ pub fn get_render_pass_data_create_info(
     ];
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
-        _pipeline_data_create_info_name: String::from("render_object"),
-        _pipeline_vertex_shader_file: PathBuf::from("common/render_object.vert"),
-        _pipeline_fragment_shader_file: PathBuf::from("common/render_object.frag"),
+        _pipeline_data_create_info_name: String::from("render_bound_box"),
+        _pipeline_vertex_shader_file: PathBuf::from("common/render_bound_box.vert"),
+        _pipeline_fragment_shader_file: PathBuf::from("common/render_bound_box.frag"),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-        _pipeline_shader_defines: vec![
-            format!("RenderMode={:?}", RenderMode::Forward as i32),
-            format!("RenderObjectType={:?}", render_object_type as i32),
-        ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::BACK,
@@ -118,18 +107,8 @@ pub fn get_render_pass_data_create_info(
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
-        _vertex_input_bind_descriptions: match render_object_type {
-            RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::get_vertex_input_binding_descriptions()
-            }
-        },
-        _vertex_input_attribute_descriptions: match render_object_type {
-            RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::create_vertex_input_attribute_descriptions()
-            }
-        },
+        _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
+        _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
         _push_constant_data_list: vec![PipelinePushConstantData {
             _stage_flags: vk::ShaderStageFlags::ALL,
             _offset: 0,

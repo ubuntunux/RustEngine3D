@@ -32,7 +32,7 @@ use crate::scene::font::{FontManager, RenderTextInfo};
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::precomputed_atmosphere::{Atmosphere, PushConstant_PrecomputedAtmosphere};
 use crate::scene::render_element::RenderElementData;
-use crate::scene::scene_manager::SceneManager;
+use crate::scene::scene_manager::{BoundBoxInstanceData, SceneManager};
 use crate::scene::ui::UIManager;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
@@ -449,6 +449,8 @@ impl RendererDataBase for RendererData {
         let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
         let render_capture_height_map: bool =
             capture_height_map.get_need_to_redraw_shadow_and_reset();
+        let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
+        let cube_geometry_data: Ref<GeometryData> = cube_mesh.get_default_geometry_data().borrow();
         let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
         let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
         let static_render_elements = scene_manager.get_static_render_elements();
@@ -891,18 +893,22 @@ impl RendererDataBase for RendererData {
             );
         }
 
-        // Render UI
-        {
-            let _label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(
+        // Render Bound Box
+        if unsafe { constants::RENDER_BOUND_BOX } {
+            let bound_box_matrices = scene_manager.get_bound_boxes();
+            let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
-                "render_ui",
+                "render_bound_box",
             );
-            ui_manager.render_ui(
+
+            self.render_bound_box(
                 command_buffer,
                 swapchain_index,
                 &renderer_context,
                 &engine_resources,
+                &cube_geometry_data,
+                &bound_box_matrices
             );
         }
 
@@ -913,7 +919,23 @@ impl RendererDataBase for RendererData {
                 command_buffer,
                 "render_debug_line",
             );
+
             debug_line_manager.render_debug_line(
+                command_buffer,
+                swapchain_index,
+                &renderer_context,
+                &engine_resources,
+            );
+        }
+
+        // Render UI
+        {
+            let _label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_ui",
+            );
+            ui_manager.render_ui(
                 command_buffer,
                 swapchain_index,
                 &renderer_context,
@@ -1750,6 +1772,46 @@ impl RendererData {
             self,
             &engine_resources,
         );
+    }
+
+    pub fn render_bound_box(
+        &self,
+        command_buffer: vk::CommandBuffer,
+        swapchain_index: u32,
+        renderer_context: &RendererContext,
+        engine_resources: &EngineResources,
+        geometry_data: &GeometryData,
+        bound_box_matrices: &Vec<BoundBoxInstanceData>
+    ) {
+        let instance_count = constants::MAX_BOUND_BOX_INSTANCE_COUNT.min(bound_box_matrices.len()) as u32;
+        if 0 < instance_count {
+            let material_instance_data = engine_resources
+                .get_material_instance_data("common/render_bound_box")
+                .borrow();
+            let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
+            let descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
+
+            // upload storage buffer
+            renderer_context.upload_shader_buffer_data_list(
+                command_buffer,
+                swapchain_index,
+                renderer_context.get_shader_buffer_data_from_str("BoundBoxInstanceDataBuffer"),
+                &bound_box_matrices,
+            );
+
+            // render
+            renderer_context.render_render_pass_pipeline_instanced(
+                command_buffer,
+                swapchain_index,
+                pipeline_binding_data,
+                geometry_data,
+                &[],
+                instance_count,
+                None,
+                descriptor_sets,
+                None,
+            );
+        }
     }
 
     pub fn render_taa(

@@ -14,6 +14,7 @@ use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineInstanceData;
 use crate::scene::font::FontInstanceData;
 use crate::scene::light::LightConstants;
+use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
 
@@ -34,6 +35,7 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants4,
     LightProbeViewConstants5,
     TransformMatrices,
+    BoundBoxInstanceDataBuffer,
     DebugLineInstanceDataBuffer,
     FontInstanceDataBuffer,
     UIRenderDataBuffer,
@@ -252,6 +254,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
             "TransformMatrices" => Ok(ShaderBufferDataType::TransformMatrices),
+            "BoundBoxInstanceDataBuffer" => Ok(ShaderBufferDataType::BoundBoxInstanceDataBuffer),
             "DebugLineInstanceDataBuffer" => Ok(ShaderBufferDataType::DebugLineInstanceDataBuffer),
             "FontInstanceDataBuffer" => Ok(ShaderBufferDataType::FontInstanceDataBuffer),
             "UIRenderDataBuffer" => Ok(ShaderBufferDataType::UIRenderDataBuffer),
@@ -425,6 +428,15 @@ pub fn register_shader_buffer_data_list(
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
             _shader_buffer_data_stride: std::mem::size_of::<TransformMatrices>(),
+            ..storage_buffer_create_info
+        },
+    );
+    register_shader_buffer_data(
+        debug_utils,
+        &mut RegistShaderBufferCreateInfo {
+            _shader_buffer_data_type: ShaderBufferDataType::BoundBoxInstanceDataBuffer,
+            _shader_buffer_data_stride: std::mem::size_of::<BoundBoxInstanceData>(),
+            _shader_buffer_data_count: constants::MAX_BOUND_BOX_INSTANCE_COUNT,
             ..storage_buffer_create_info
         },
     );

@@ -51,6 +51,7 @@ pub static mut METER_PER_UNIT: f32 = 1.0;
 pub static mut NEAR: f32 = 0.1;
 pub static mut FAR: f32 = 2000.0;
 pub static mut FOV: f32 = 60.0;
+pub static MAX_BOUND_BOX_INSTANCE_COUNT: usize = 1024; // must match with render_bound_box_common.glsl
 pub static MAX_DEBUG_LINE_INSTANCE_COUNT: usize = 1024; // must match with render_debug_line_common.glsl
 pub static MAX_FONT_INSTANCE_COUNT: usize = 1024; // must match with render_font_common.glsl
 pub static MAX_UI_INSTANCE_COUNT: usize = 1024; // must match with render_ui_common.glsl
@@ -75,7 +76,7 @@ pub const CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED: bool = true;
 
 // render option
 pub static mut RENDER_OCEAN: bool = true;
-pub static mut RENDER_BOUND_BOX: bool = true;
+pub static mut RENDER_BOUND_BOX: bool = false;
 
 // application
 pub const JOYSTICK_SENSOR_DEAD_ZONE: i16 = 10_000;

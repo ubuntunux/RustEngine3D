@@ -7,6 +7,7 @@ pub mod depth_prepass;
 pub mod downsampling;
 pub mod generate_max_z;
 pub mod render_bloom;
+pub mod render_bound_box;
 pub mod render_color;
 pub mod render_copy;
 pub mod render_debug;

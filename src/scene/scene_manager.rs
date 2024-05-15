@@ -26,6 +26,12 @@ type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLightData>>;
 type RenderObjectMap = HashMap<i64, RcRefCell<RenderObjectData>>;
 
 
+#[repr(C)]
+#[derive(Debug, Clone, Copy)]
+pub struct BoundBoxInstanceData {
+    pub _transform: Matrix4<f32>
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct SceneDataCreateInfo {
@@ -60,7 +66,7 @@ pub struct SceneManager {
     pub _skeletal_shadow_render_elements: Vec<RenderElementData>,
     pub _render_element_transform_count: usize,
     pub _render_element_transform_matrices: Vec<Matrix4<f32>>,
-    pub _bound_boxes: Vec<Matrix4<f32>>
+    pub _bound_boxes: Vec<BoundBoxInstanceData>
 }
 
 // Implementation
@@ -111,10 +117,7 @@ impl SceneManager {
     pub fn get_render_element_transform_matrices(&self) -> &Vec<Matrix4<f32>> {
         &self._render_element_transform_matrices
     }
-    pub fn get_bound_box_count(&self) -> usize {
-        self._bound_boxes.len()
-    }
-    pub fn get_bound_boxes(&self) -> &Vec<Matrix4<f32>> {
+    pub fn get_bound_boxes(&self) -> &Vec<BoundBoxInstanceData> {
         &self._bound_boxes
     }
     pub fn create_scene_manager() -> Box<SceneManager> {
@@ -450,7 +453,7 @@ impl SceneManager {
         render_shadow_elements: &mut Vec<RenderElementData>,
         render_element_transform_offset: &mut usize,
         render_element_transform_matrices: &mut Vec<Matrix4<f32>>,
-        bound_boxes: &mut Vec<Matrix4<f32>>
+        bound_boxes: &mut Vec<BoundBoxInstanceData>
     ) {
         for (_key, render_object_data_ref) in render_object_map.iter() {
             let render_object_data = render_object_data_ref.borrow();
@@ -468,11 +471,17 @@ impl SceneManager {
                 false == SceneManager::shadow_culling(light, &render_object_data._bound_box);
 
             if is_render {
-                bound_boxes.push(combinate_matrix(
+                let transform = combinate_matrix(
                     &render_object_data._bound_box._center,
                     &Matrix4::identity(),
                     &render_object_data._bound_box._size
-                ));
+                );
+
+                bound_boxes.push(
+                    BoundBoxInstanceData {
+                        _transform: transform
+                    }
+                );
             }
 
             for index in 0..geometry_data_list.len() {

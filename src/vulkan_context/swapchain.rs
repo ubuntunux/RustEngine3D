@@ -31,6 +31,10 @@ impl SwapchainData {
     pub fn get_swapchain_image_view(&self, swapchain_index: usize) -> vk::ImageView {
         self._swapchain_image_views[swapchain_index]
     }
+
+    pub fn get_swapchain_image_views(&self) -> &SwapchainArray<vk::ImageView> {
+        &self._swapchain_image_views
+    }
 }
 
 pub fn choose_swapchain_surface_format(
