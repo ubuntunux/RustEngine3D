@@ -109,11 +109,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
         _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
-        _push_constant_data_list: vec![PipelinePushConstantData {
-            _stage_flags: vk::ShaderStageFlags::ALL,
-            _offset: 0,
-            _push_constant: Box::new(PushConstant_RenderObject::default()),
-        }],
+        _push_constant_data_list: Vec::new(),
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 0,
@@ -133,104 +129,12 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 2,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::LightConstants),
-                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 3,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformMatrices),
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::BoundBoxInstanceDataBuffer),
                 _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
                     | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 4,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::AtmosphereConstants),
-                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 5,
-                _descriptor_name: enum_to_string(&RenderTargetType::Shadow),
-                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 6,
-                _descriptor_name: enum_to_string(&RenderTargetType::CaptureHeightMap),
-                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 7,
-                _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColor),
-                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 8,
-                _descriptor_name: String::from("transmittance_texture"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 9,
-                _descriptor_name: String::from("irradiance_texture"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 10,
-                _descriptor_name: String::from("scattering_texture"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 11,
-                _descriptor_name: enum_to_string(
-                    &RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
-                ),
-                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 12,
-                _descriptor_name: String::from("textureBase"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 13,
-                _descriptor_name: String::from("textureMaterial"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 14,
-                _descriptor_name: String::from("textureNormal"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
+            }
         ],
         ..Default::default()
     }];

@@ -80,6 +80,7 @@ pub fn get_render_pass_data_create_infos(
         common::downsampling::get_render_pass_data_create_info(renderer_data),
         common::generate_max_z::get_render_pass_data_create_info(renderer_data),
         common::render_bloom::get_render_pass_data_create_info(renderer_data),
+        common::render_bound_box::get_render_pass_data_create_info(renderer_data),
         common::render_copy::get_render_pass_data_create_info(renderer_data),
         common::render_color::get_render_pass_data_create_info(
             renderer_data,

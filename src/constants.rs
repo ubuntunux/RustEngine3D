@@ -76,7 +76,7 @@ pub const CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED: bool = true;
 
 // render option
 pub static mut RENDER_OCEAN: bool = true;
-pub static mut RENDER_BOUND_BOX: bool = false;
+pub static mut RENDER_BOUND_BOX: bool = true;
 
 // application
 pub const JOYSTICK_SENSOR_DEAD_ZONE: i16 = 10_000;

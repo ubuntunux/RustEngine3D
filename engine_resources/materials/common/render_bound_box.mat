@@ -1,0 +1,3 @@
+{"pipelines": [{"render_pass": "render_bound_box", "pipeline": "render_bound_box"}],
+ "material_parameters": { }
+}
