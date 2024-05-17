@@ -248,7 +248,8 @@ impl RenderObjectData {
         let updated_transform = self._transform_object.update_transform_object();
         if updated_transform {
             let transform_matrix = ptr_as_ref(self._transform_object.get_matrix());
-            if self.has_animation() {
+            const UPDATE_BOUND_BOX_WITH_ANIMATION: bool = false;
+            if UPDATE_BOUND_BOX_WITH_ANIMATION && self.has_animation() {
                 let root_bone_index = 0;
                 self.update_bound_box(&(transform_matrix * self._animation_buffer.as_ref().unwrap()._animation_buffer[root_bone_index]));
             } else {
