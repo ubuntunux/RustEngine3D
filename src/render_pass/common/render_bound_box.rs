@@ -6,12 +6,11 @@ use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, Render
 use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
     DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
-    PipelinePushConstantData, RenderPassDataCreateInfo,
+    RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context::{self, BlendMode};
 use ash::vk;
 
-use crate::renderer::push_constants::PushConstant_RenderObject;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
@@ -100,13 +99,19 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        _pipeline_cull_mode: vk::CullModeFlags::BACK,
+        _pipeline_polygon_mode: vk::PolygonMode::LINE,
+        _pipeline_cull_mode: vk::CullModeFlags::NONE,
+        _pipeline_line_width: 2.0,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
         _pipeline_color_blend_modes: vec![
             vulkan_context::get_color_blend_mode(BlendMode::None);
             color_attachment_descriptions.len()
         ],
-        _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
+        _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
+            _depth_test_enable: true,
+            _depth_write_enable: false,
+            ..Default::default()
+        },
         _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
         _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
         _push_constant_data_list: Vec::new(),

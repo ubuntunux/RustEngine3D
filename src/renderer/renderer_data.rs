@@ -874,25 +874,6 @@ impl RendererDataBase for RendererData {
             );
         }
 
-        // Render Final
-        {
-            let _label_render_final = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_final",
-            );
-            renderer_context.render_material_instance(
-                command_buffer,
-                swapchain_index,
-                "common/render_final",
-                DEFAULT_PIPELINE,
-                &quad_geometry_data,
-                None,
-                None,
-                None,
-            );
-        }
-
         // Render Bound Box
         if unsafe { constants::RENDER_BOUND_BOX } {
             let bound_box_matrices = scene_manager.get_bound_boxes();
@@ -909,6 +890,25 @@ impl RendererDataBase for RendererData {
                 &engine_resources,
                 &cube_geometry_data,
                 &bound_box_matrices
+            );
+        }
+
+        // Render Final
+        {
+            let _label_render_final = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_final",
+            );
+            renderer_context.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "common/render_final",
+                DEFAULT_PIPELINE,
+                &quad_geometry_data,
+                None,
+                None,
+                None,
             );
         }
 
