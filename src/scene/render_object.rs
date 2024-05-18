@@ -51,7 +51,7 @@ pub struct RenderObjectData {
     pub _transform_object: TransformObjectData,
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
     pub _animation_buffer: Option<AnimationBuffer>,
-    pub _bone_count: usize,
+    pub _bone_count: usize
 }
 
 impl RenderObjectData {
@@ -223,8 +223,7 @@ impl RenderObjectData {
     }
 
     pub fn update_bound_box(&mut self, transform_matrix: &Matrix4<f32>) {
-        self._bound_box
-            .update_with_matrix(&self._mesh_data.borrow()._bound_box, transform_matrix);
+        self._bound_box.update_with_matrix(&self._mesh_data.borrow()._bound_box, transform_matrix);
     }
 
     pub fn update_geometry_bound_boxes(&mut self, transform_matrix: &Matrix4<f32>) {
@@ -239,7 +238,7 @@ impl RenderObjectData {
                 .unwrap()
                 .update_with_matrix(
                     &geometry_data.borrow()._geometry_bounding_box,
-                    transform_matrix,
+                    transform_matrix
                 );
         }
     }

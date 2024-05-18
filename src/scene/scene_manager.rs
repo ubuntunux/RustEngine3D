@@ -17,7 +17,6 @@ use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, Ligh
 use crate::scene::render_element::RenderElementData;
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::bounding_box::BoundingBox;
-use crate::utilities::math::combinate_matrix;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -471,15 +470,9 @@ impl SceneManager {
                 false == SceneManager::shadow_culling(light, &render_object_data._bound_box);
 
             if is_render {
-                let transform = combinate_matrix(
-                    &render_object_data._bound_box._center,
-                    &Matrix4::identity(),
-                    &render_object_data._bound_box._size
-                );
-
                 bound_boxes.push(
                     BoundBoxInstanceData {
-                        _transform: transform
+                        _transform: render_object_data._bound_box._transform
                     }
                 );
             }

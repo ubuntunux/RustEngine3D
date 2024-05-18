@@ -12,7 +12,9 @@ layout(location = 4) in vec2 inTexCoord;
 layout(location = 0) out VERTEX_OUTPUT vs_output;
 
 void main() {
-    vec4 position = vec4(inPosition, 1.0);
+    // cube vertex 0.5 -> 1.0
+    vec4 position = vec4(inPosition * 2.0, 1.0);
+
     mat4 localMatrix = bound_box_instance_data[gl_InstanceIndex]._transform;
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
 

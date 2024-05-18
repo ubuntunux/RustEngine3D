@@ -619,8 +619,7 @@ pub fn parsing_meshes(
                 ),
                 1.0,
             );
-            let bounding_box: BoundingBox =
-                BoundingBox::create_bounding_box(&bound_min, &bound_max);
+            let bounding_box: BoundingBox = BoundingBox::create_bounding_box(&bound_min, &bound_max);
 
             // parsing vertex buffer
             let indices = parsing_index_buffer(&primitive, buffers);

@@ -276,13 +276,7 @@ impl WaveFrontOBJ {
             geometry_data_list.push(GeometryCreateInfo {
                 _vertex_data_list: vertex_data_list,
                 _indices: indices,
-                _bounding_box: BoundingBox {
-                    _min: bound_min,
-                    _max: bound_max,
-                    _center: &bound_max * 0.5 + &bound_min * 0.5,
-                    _size: &bound_max - &bound_min,
-                    _radius: (&bound_max * 0.5 - &bound_min * 0.5).norm(),
-                },
+                _bounding_box: BoundingBox::create_bounding_box(&bound_min, &bound_max),
                 ..Default::default()
             });
         }
