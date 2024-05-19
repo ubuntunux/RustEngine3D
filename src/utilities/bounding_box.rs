@@ -48,41 +48,56 @@ impl BoundingBox {
         return (self._center - pos).magnitude() < self._radius;
     }
 
-    pub fn collide_bound_box_2d(&self, bound_box: &BoundingBox) -> bool {
-        return self._min.x < bound_box._max.x && bound_box._min.x < self._max.x
-            && self._min.y < bound_box._max.y && bound_box._min.y < self._max.y
-            && self._min.z < bound_box._max.z && bound_box._min.z < self._max.z;
+    pub fn collide_bound_box(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
+        return self._min.x < max.x && min.x < self._max.x
+            && self._min.y < max.y && min.y < self._max.y
+            && self._min.z < max.z && min.z < self._max.z;
     }
 
-    pub fn collide_bound_box(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_bound_box_xy(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
+        return self._min.x < max.x && min.x < self._max.x
+            && self._min.y < max.y && min.y < self._max.y;
+    }
+
+    pub fn collide_bound_box_xz(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
+        return self._min.x < max.x && min.x < self._max.x
+            && self._min.z < max.z && min.z < self._max.z;
+    }
+
+    pub fn collide_bound_box_yz(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
+        return self._min.y < max.y && min.y < self._max.y
+            && self._min.z < max.z && min.z < self._max.z;
+    }
+
+    pub fn collide_point(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x <= pos.x && pos.x <= self._max.x
             && self._min.y <= pos.y && pos.y <= self._max.y
             && self._min.z <= pos.z && pos.z <= self._max.z;
     }
 
-    pub fn collide_bound_box_x(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_point_x(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x <= pos.x && pos.x <= self._max.x;
     }
 
-    pub fn collide_bound_box_y(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_point_y(&self, pos: &Vector3<f32>) -> bool {
         return self._min.y <= pos.y && pos.y <= self._max.y;
     }
 
-    pub fn collide_bound_box_z(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_point_z(&self, pos: &Vector3<f32>) -> bool {
         return self._min.z <= pos.z && pos.z <= self._max.z;
     }
 
-    pub fn collide_bound_box_xy(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_point_xy(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x <= pos.x && pos.x <= self._max.x
             && self._min.y <= pos.y && pos.y <= self._max.y;
     }
 
-    pub fn collide_bound_box_xz(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_point_xz(&self, pos: &Vector3<f32>) -> bool {
         return self._min.x <= pos.x && pos.x <= self._max.x
             && self._min.z <= pos.z && pos.z <= self._max.z;
     }
 
-    pub fn collide_bound_box_yz(&self, pos: &Vector3<f32>) -> bool {
+    pub fn collide_point_yz(&self, pos: &Vector3<f32>) -> bool {
         return self._min.y <= pos.y && pos.y <= self._max.y
             && self._min.z <= pos.z && pos.z <= self._max.z;
     }

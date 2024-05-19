@@ -108,6 +108,7 @@ impl RenderObjectData {
         if  mesh_data.borrow().has_animation_data() {
             render_object_data.initialize_animation_play_info();
         }
+        render_object_data.update_render_object_data(0.0);
         render_object_data
     }
 
