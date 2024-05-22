@@ -414,6 +414,8 @@ impl EngineCore {
     }
 
     pub fn update_event(&mut self, current_time: f64) -> bool {
+        //std::thread::sleep(time::Duration::from_millis(20));
+
         let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
         let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
         let debug_line_manager = ptr_as_mut(self._debug_line_manager.as_ref());
