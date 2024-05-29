@@ -152,11 +152,7 @@ pub struct RenderContext_SSAO {
     pub _ssao_kernel_size: i32,
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
-    pub _ssao_constants: SSAOConstants,
-    pub _ssao_blur_framebuffer_data0: FramebufferData,
-    pub _ssao_blur_framebuffer_data1: FramebufferData,
-    pub _ssao_blur_descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
-    pub _ssao_blur_descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
+    pub _ssao_constants: SSAOConstants
 }
 
 impl Default for RenderContext_SSAO {
@@ -181,11 +177,7 @@ impl Default for RenderContext_SSAO {
             _ssao_noise_dim: unsafe { constants::SSAO_NOISE_DIM },
             _ssao_constants: SSAOConstants {
                 _ssao_kernel_samples: random_normals,
-            },
-            _ssao_blur_framebuffer_data0: FramebufferData::default(),
-            _ssao_blur_framebuffer_data1: FramebufferData::default(),
-            _ssao_blur_descriptor_sets0: SwapchainArray::new(),
-            _ssao_blur_descriptor_sets1: SwapchainArray::new(),
+            }
         }
     }
 }
@@ -424,63 +416,14 @@ impl RenderContext_TAA {
 impl RenderContext_SSAO {
     pub fn initialize(
         &mut self,
-        device: &Device,
-        debug_utils: &DebugUtils,
-        engine_resources: &EngineResources,
-        render_target_ssao: &TextureData,
-        render_target_ssao_temp: &TextureData,
+        _device: &Device,
+        _debug_utils: &DebugUtils,
+        _engine_resources: &EngineResources,
+        _render_target_ssao: &TextureData
     ) {
-        let render_gaussian_blur_material_instance = engine_resources
-            .get_material_instance_data("common/render_ssao_blur")
-            .borrow();
-        let pipeline_binding_data = render_gaussian_blur_material_instance
-            .get_pipeline_binding_data("render_ssao_blur/render_ssao_blur");
-        let descriptor_binding_index: usize = 0;
-        let layer: u32 = 0;
-        let mip_level: u32 = 0;
-        let (ssao_blur_framebuffer_data0, ssao_blur_descriptor_sets0) =
-            utility::create_framebuffer_and_descriptor_sets(
-                device,
-                debug_utils,
-                pipeline_binding_data,
-                render_target_ssao_temp,
-                layer,
-                mip_level,
-                None,
-                &[(
-                    descriptor_binding_index,
-                    utility::create_descriptor_image_info_swapchain_array(
-                        render_target_ssao.get_sub_image_info(layer, mip_level),
-                    ),
-                )],
-            );
-        let (ssao_blur_framebuffer_data1, ssao_blur_descriptor_sets1) =
-            utility::create_framebuffer_and_descriptor_sets(
-                device,
-                debug_utils,
-                pipeline_binding_data,
-                render_target_ssao,
-                layer,
-                mip_level,
-                None,
-                &[(
-                    descriptor_binding_index,
-                    utility::create_descriptor_image_info_swapchain_array(
-                        render_target_ssao_temp.get_sub_image_info(layer, mip_level),
-                    ),
-                )],
-            );
-        self._ssao_blur_framebuffer_data0 = ssao_blur_framebuffer_data0;
-        self._ssao_blur_framebuffer_data1 = ssao_blur_framebuffer_data1;
-        self._ssao_blur_descriptor_sets0 = ssao_blur_descriptor_sets0;
-        self._ssao_blur_descriptor_sets1 = ssao_blur_descriptor_sets1;
     }
 
-    pub fn destroy(&mut self, device: &Device) {
-        framebuffer::destroy_framebuffer_data(device, &self._ssao_blur_framebuffer_data0);
-        framebuffer::destroy_framebuffer_data(device, &self._ssao_blur_framebuffer_data1);
-        self._ssao_blur_descriptor_sets0.clear();
-        self._ssao_blur_descriptor_sets1.clear();
+    pub fn destroy(&mut self, _device: &Device) {
     }
 }
 

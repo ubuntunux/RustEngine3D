@@ -167,7 +167,6 @@ pub fn get_render_pass_data_create_infos(
             RenderObjectType::Static,
         ),
         common::render_ssao::get_render_pass_data_create_info(renderer_data),
-        common::render_ssao_blur::get_render_pass_data_create_info(renderer_data),
         common::render_ssr::get_render_pass_data_create_info(renderer_data),
         common::render_taa_simple::get_render_pass_data_create_info(renderer_data),
         common::render_taa::get_render_pass_data_create_info(renderer_data),

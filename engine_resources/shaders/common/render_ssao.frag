@@ -34,7 +34,11 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out float outColor;
 
 void main() {
-    const vec2 texCoord = vs_output.texCoord;
+    const vec2 texture_size = textureSize(textureSceneDepth, 0);
+    const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
+    const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 1000.0);
+    const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
+    const vec2 texCoord = vs_output.texCoord + noise * 0.00125;
     const float device_depth = texture(textureSceneDepth, texCoord).x;
     if(0.0 == device_depth)
     {
@@ -43,17 +47,17 @@ void main() {
 
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
     const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
-    const vec2 texture_size = textureSize(textureSceneDepth, 0);
     const vec2 noise_size = textureSize(ssaoNoise, 0);
     const vec3 randomVec = normalize(vec3(texture(ssaoNoise, texCoord * texture_size / noise_size).xy, 0.0).xzy);
 
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     const vec3 bitangent = normalize(cross(normal, tangent));
     const mat3 tnb = mat3(tangent, normal, bitangent);
-    const float occlusion_distance_min = 0.1;
-    const float occlusion_distance_max = 2.0;
+    const float occlusion_distance_min = 0.05;
+    const float occlusion_distance_max = 5.0;
+    const float ssao_contrast = 0.3;
 
-    const int sample_count = 32;//SSAO_KERNEL_SIZE;
+    const int sample_count = SSAO_KERNEL_SIZE;
     float occlusion = 0.0;
     for (int i = 0; i < sample_count; ++i)
     {
@@ -88,5 +92,5 @@ void main() {
         occlusion += exp(-distance);
     }
 
-    outColor = saturate(exp(-occlusion * 0.5));
+    outColor = saturate(exp(-occlusion * ssao_contrast));
 }

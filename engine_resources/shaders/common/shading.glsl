@@ -30,9 +30,9 @@ float get_shadow_factor_func(
         return 1.0;
     }
 
-    //const float center_depth = textureLod(texture_shadow, shadow_proj.xy, 0.0).x;
+    const float shadow_noise_size = 0.25;
     const int timeIndex = int(mod(time, 1.0) * 1000.0);
-    const vec2 noise = (0.0 != time) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * 0.5 : vec2(0.0);
+    const vec2 noise = ((0.0 != time) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0)) * shadow_noise_size;
     float total_shadow_factor = 0.0;
     for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {

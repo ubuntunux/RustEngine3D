@@ -168,11 +168,7 @@ impl RendererDataBase for RendererData {
             self._render_target_data_map
                 .get(&RenderTargetType::SSAO)
                 .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::SSAOTemp)
-                .as_ref()
-                .unwrap(),
+                .unwrap()
         );
 
         // Hierarchical Min Z
@@ -2007,40 +2003,6 @@ impl RendererData {
             None,
             None,
             None,
-        );
-
-        // render ssao blur
-        let framebuffer_h = Some(&self._render_context_ssao._ssao_blur_framebuffer_data0);
-        let descriptor_sets_h = Some(&self._render_context_ssao._ssao_blur_descriptor_sets0);
-        let framebuffer_v = Some(&self._render_context_ssao._ssao_blur_framebuffer_data1);
-        let descriptor_sets_v = Some(&self._render_context_ssao._ssao_blur_descriptor_sets1);
-        let push_constants_blur_h = PushConstant_GaussianBlur {
-            _blur_scale: Vector2::new(1.0, 0.0),
-            ..Default::default()
-        };
-        let push_constants_blur_v = PushConstant_GaussianBlur {
-            _blur_scale: Vector2::new(0.0, 1.0),
-            ..Default::default()
-        };
-        renderer_context.render_material_instance(
-            command_buffer,
-            swapchain_index,
-            "common/render_ssao_blur",
-            DEFAULT_PIPELINE,
-            quad_geometry_data,
-            framebuffer_h,
-            descriptor_sets_h,
-            Some(&push_constants_blur_h),
-        );
-        renderer_context.render_material_instance(
-            command_buffer,
-            swapchain_index,
-            "common/render_ssao_blur",
-            DEFAULT_PIPELINE,
-            quad_geometry_data,
-            framebuffer_v,
-            descriptor_sets_v,
-            Some(&push_constants_blur_v),
         );
     }
 

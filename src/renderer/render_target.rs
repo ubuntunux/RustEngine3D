@@ -92,7 +92,6 @@ impl std::str::FromStr for RenderTargetType {
             "BloomTemp0" => Ok(RenderTargetType::BloomTemp0),
             "LightShaft" => Ok(RenderTargetType::LightShaft),
             "SSAO" => Ok(RenderTargetType::SSAO),
-            "SSAOTemp" => Ok(RenderTargetType::SSAOTemp),
             "Shadow" => Ok(RenderTargetType::Shadow),
             "CaptureHeightMap" => Ok(RenderTargetType::CaptureHeightMap),
             "SSR" => Ok(RenderTargetType::SSR),
@@ -365,16 +364,8 @@ pub fn get_render_target_create_infos(
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSAO.to_string(),
-            _texture_width: window_width / 2,
-            _texture_height: window_height / 2,
-            _texture_format: vk::Format::R16_SFLOAT,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            ..Default::default()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::SSAOTemp.to_string(),
-            _texture_width: window_width / 2,
-            _texture_height: window_height / 2,
+            _texture_width: window_width,
+            _texture_height: window_height,
             _texture_format: vk::Format::R16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
