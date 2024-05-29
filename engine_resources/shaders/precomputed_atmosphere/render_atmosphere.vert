@@ -3,6 +3,7 @@
 #extension GL_GOOGLE_include_directive : enable
 
 #include "../common/scene_constants.glsl"
+#include "../common/utility.glsl"
 #include "atmosphere_common.glsl"
 #include "render_atmosphere_common.glsl"
 
