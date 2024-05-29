@@ -36,7 +36,7 @@ layout(location = 0) out float outColor;
 void main() {
     const vec2 texture_size = textureSize(textureSceneDepth, 0);
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
-    const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 1000.0);
+    const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 128.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
     const vec2 texCoord = vs_output.texCoord + noise * 0.00125;
     const float device_depth = texture(textureSceneDepth, texCoord).x;
