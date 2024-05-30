@@ -143,8 +143,12 @@ pub fn get_render_target_create_infos(
     renderer_context: &RendererContext,
 ) -> Vec<TextureCreateInfo<u8>> {
     let swapchain_data = &renderer_context._swapchain_data;
-    let window_width = swapchain_data._swapchain_extent.width;
-    let window_height = swapchain_data._swapchain_extent.height;
+    let mut window_width = swapchain_data._swapchain_extent.width;
+    let mut window_height = swapchain_data._swapchain_extent.height;
+    if unsafe { constants::ENABLE_UPSCALE } {
+        window_width /= 2;
+        window_height /= 2;
+    }
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_context._render_features._msaa_samples);
     let hdr_texture_create_info = TextureCreateInfo {

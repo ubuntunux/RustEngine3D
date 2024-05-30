@@ -66,6 +66,7 @@ pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
 pub static mut CAPTURE_HEIGHT_MAP_DISTANCE: f32 = 100.0;
 pub static mut CAPTURE_HEIGHT_MAP_DEPTH: f32 = 100.0;
 pub static mut CAPTURE_HEIGHT_MAP_UPDATE_DISTANCE: f32 = 10.0;
+pub static mut ENABLE_UPSCALE: bool = false;
 pub const SSAO_KERNEL_SIZE: usize = 64; // must match with scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
