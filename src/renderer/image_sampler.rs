@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use ash::{Device, vk};
 use ash::extensions::ext::DebugUtils;
 
@@ -5,48 +7,103 @@ use crate::vulkan_context::texture;
 
 #[derive(Clone, Debug)]
 pub struct ImageSamplerData {
-    _point_clamp: vk::Sampler,
-    _linear_clamp: vk::Sampler,
+    _samplers: HashMap<String, vk::Sampler>
 }
 
 impl Default for ImageSamplerData {
     fn default() -> ImageSamplerData {
         ImageSamplerData {
-            _point_clamp: vk::Sampler::null(),
-            _linear_clamp: vk::Sampler::null(),
+            _samplers: HashMap::new()
         }
     }
 }
 
-// TODO: replace individual image samplers
-pub fn create_image_samplers(device: &Device, debug_utils: &DebugUtils) -> ImageSamplerData {
-    let point_clamp = texture::create_image_sampler(
-        device,
-        debug_utils,
-        "point_clamp",
-        0,
-        vk::Filter::NEAREST,
-        vk::Filter::NEAREST,
-        vk::SamplerAddressMode::CLAMP_TO_EDGE,
-        vk::FALSE,
-    );
-    let linear_clamp = texture::create_image_sampler(
-        device,
-        debug_utils,
-        "linear_clamp",
-        0,
-        vk::Filter::LINEAR,
-        vk::Filter::LINEAR,
-        vk::SamplerAddressMode::CLAMP_TO_EDGE,
-        vk::FALSE,
-    );
-    ImageSamplerData {
-        _point_clamp: point_clamp,
-        _linear_clamp: linear_clamp,
+impl ImageSamplerData {
+    fn create_image_sampler(
+        &mut self,
+        device: &Device,
+        debug_utils: &DebugUtils,
+        sampler_name: &str,
+        mip_levels: u32,
+        min_filter: vk::Filter,
+        mag_filter: vk::Filter,
+        sampler_address_mode: vk::SamplerAddressMode,
+        anisotropy_enable: vk::Bool32,
+    ) -> vk::Sampler {
+        let sampler = texture::create_image_sampler(
+            device,
+            debug_utils,
+            sampler_name,
+            mip_levels,
+            min_filter,
+            mag_filter,
+            sampler_address_mode,
+            anisotropy_enable,
+        );
+
+        self._samplers.insert(String::from(sampler_name), sampler);
+
+        sampler
+    }
+
+    pub fn initialize_image_samplers(&mut self, device: &Device, debug_utils: &DebugUtils) {
+        let mip_levels = 16; // log2(65536)
+        self.create_image_sampler(
+            device,
+            debug_utils,
+            "point_clamp",
+            mip_levels,
+            vk::Filter::NEAREST,
+            vk::Filter::NEAREST,
+            vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            vk::FALSE,
+        );
+        self.create_image_sampler(
+            device,
+            debug_utils,
+            "point_repeat",
+            mip_levels,
+            vk::Filter::NEAREST,
+            vk::Filter::NEAREST,
+            vk::SamplerAddressMode::REPEAT,
+            vk::FALSE,
+        );
+        self.create_image_sampler(
+            device,
+            debug_utils,
+            "linear_clamp",
+            mip_levels,
+            vk::Filter::LINEAR,
+            vk::Filter::LINEAR,
+            vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            vk::FALSE,
+        );
+        self.create_image_sampler(
+            device,
+            debug_utils,
+            "linear_repeat",
+            mip_levels,
+            vk::Filter::LINEAR,
+            vk::Filter::LINEAR,
+            vk::SamplerAddressMode::REPEAT,
+            vk::FALSE,
+        );
+    }
+
+    pub fn destroy_image_samplers(&mut self, device: &Device) {
+        for (_key, sampler) in self._samplers.iter() {
+            texture::destroy_image_sampler(device, *sampler);
+        }
+        self._samplers.clear();
+    }
+
+    pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
+        self._samplers.get(sampler_name).unwrap()
     }
 }
 
-pub fn destroy_image_samplers(device: &Device, image_sampler_data: &ImageSamplerData) {
-    texture::destroy_image_sampler(device, image_sampler_data._point_clamp);
-    texture::destroy_image_sampler(device, image_sampler_data._linear_clamp);
+pub fn create_image_samplers(device: &Device, debug_utils: &DebugUtils) -> ImageSamplerData {
+    let mut image_sampler_data = ImageSamplerData::default();
+    image_sampler_data.initialize_image_samplers(device, debug_utils);
+    image_sampler_data
 }

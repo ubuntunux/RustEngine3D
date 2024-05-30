@@ -299,44 +299,44 @@ pub fn create_render_pass_data(
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
     let mut default_pipeline_data_name: String = String::new();
     for i in 0..count {
-        let bind_point =
-            render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
-        let pipeline_data = if vk::PipelineBindPoint::GRAPHICS == bind_point {
-            create_graphics_pipeline_data(
-                device,
-                debug_utils,
-                render_pass,
-                &render_pass_data_create_info._pipeline_data_create_infos[i],
-                false
+        let pipeline_data = match render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point {
+             vk::PipelineBindPoint::GRAPHICS => {
+                create_graphics_pipeline_data(
+                    device,
+                    debug_utils,
+                    render_pass,
+                    &render_pass_data_create_info._pipeline_data_create_infos[i],
+                    false
                     == render_pass_data_create_info
-                        ._depth_attachment_descriptions
-                        .is_empty(),
-                &descriptor_data_list[i].borrow(),
-            )
-        } else if vk::PipelineBindPoint::COMPUTE == bind_point {
-            create_compute_pipeline_data(
-                device,
-                debug_utils,
-                &render_pass_data_create_info._pipeline_data_create_infos[i],
-                &descriptor_data_list[i].borrow(),
-            )
-        } else if vk::PipelineBindPoint::RAY_TRACING_KHR == bind_point
-            || vk::PipelineBindPoint::RAY_TRACING_NV == bind_point
-        {
-            create_ray_tracing_pipeline_data(
-                device,
-                renderer_context.get_command_pool(),
-                renderer_context.get_graphics_queue(),
-                renderer_context.get_device_memory_properties(),
-                debug_utils,
-                renderer_context.get_ray_tracing(),
-                renderer_context.get_ray_tracing_properties(),
-                &render_pass_data_create_info._pipeline_data_create_infos[i],
-                &descriptor_data_list[i].borrow(),
-            )
-        } else {
-            panic!("Request::from_raw can not be used Client-side.")
+                    ._depth_attachment_descriptions
+                    .is_empty(),
+                    &descriptor_data_list[i].borrow()
+                )
+            }
+            vk::PipelineBindPoint::COMPUTE => {
+                create_compute_pipeline_data(
+                    device,
+                    debug_utils,
+                    &render_pass_data_create_info._pipeline_data_create_infos[i],
+                    &descriptor_data_list[i].borrow()
+                )
+            }
+            vk::PipelineBindPoint::RAY_TRACING_KHR | vk::PipelineBindPoint::RAY_TRACING_NV => {
+                    create_ray_tracing_pipeline_data(
+                        device,
+                        renderer_context.get_command_pool(),
+                        renderer_context.get_graphics_queue(),
+                        renderer_context.get_device_memory_properties(),
+                        debug_utils,
+                        renderer_context.get_ray_tracing(),
+                        renderer_context.get_ray_tracing_properties(),
+                        &render_pass_data_create_info._pipeline_data_create_infos[i],
+                        &descriptor_data_list[i].borrow()
+                    )
+            }
+            _ => panic!("Request::from_raw can not be used Client-side.")
         };
+
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }

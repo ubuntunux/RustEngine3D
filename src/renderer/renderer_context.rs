@@ -449,8 +449,7 @@ impl RendererContext {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
-        self._image_samplers =
-            image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
+        self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
         self.get_renderer_data_mut().initialize_renderer_data(
             self,
             engine_resources,
@@ -467,6 +466,12 @@ impl RendererContext {
     }
     pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
         ptr_as_mut(self._engine_resources)
+    }
+    pub fn get_image_sampler_data(&self) -> &ImageSamplerData {
+        &self._image_samplers
+    }
+    pub fn get_image_sampler_data_mut(&self) -> &mut ImageSamplerData {
+        ptr_as_mut(&self._image_samplers)
     }
     pub fn get_renderer_data(&self) -> &RendererData {
         self._renderer_data.as_ref()
@@ -615,7 +620,7 @@ impl RendererContext {
         unsafe {
             self.destroy_framebuffer_and_descriptors();
             self.destroy_uniform_buffers();
-            image_sampler::destroy_image_samplers(self.get_device(), &self._image_samplers);
+            self.destroy_image_samplers();
             self.destroy_render_targets();
             sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
             sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
@@ -1500,6 +1505,10 @@ impl RendererContext {
             .get_shader_buffer_data_from_str(buffer_data_name)
     }
 
+    pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
+        self._image_samplers.get_sampler_from_str(sampler_name)
+    }
+
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
         self.get_renderer_data()
             .get_render_target_from_str(render_target_type_str)
@@ -1507,6 +1516,12 @@ impl RendererContext {
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
         self.get_renderer_data().get_render_pass_data_create_infos()
+    }
+
+    pub fn destroy_image_samplers(&self) {
+        log::info!("destroy_image_samplers");
+        self.get_image_sampler_data_mut()
+            .destroy_image_samplers(self.get_device());
     }
 
     pub fn create_render_targets(&self) {

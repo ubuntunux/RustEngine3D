@@ -133,6 +133,7 @@ pub struct AnimationPlayArgs {
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
     pub _animation_blend_masks: *const HashMap<String, f32>
+
 }
 
 // Implementations

@@ -13,6 +13,7 @@ use crate::vulkan_context::vulkan_context::SwapchainArray;
 pub enum DescriptorResourceInfo {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
     DescriptorImageInfo(vk::DescriptorImageInfo),
+    DescriptorSamplerInfo(vk::Sampler),
     WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV),
     InvalidDescriptorInfo,
 }
@@ -21,6 +22,8 @@ pub enum DescriptorResourceInfo {
 pub enum DescriptorResourceType {
     UniformBuffer,
     StorageBuffer,
+    Image, // todo
+    Sampler, // todo
     Texture,
     RenderTarget,
     StorageTexture,
@@ -93,12 +96,12 @@ pub fn write_descriptor_set_push_next<T: vk::ExtendsWriteDescriptorSet>(
     }
 }
 
-pub fn convert_resource_type_to_descriptor_type(
-    resource_type: &DescriptorResourceType,
-) -> vk::DescriptorType {
+pub fn convert_resource_type_to_descriptor_type(resource_type: &DescriptorResourceType) -> vk::DescriptorType {
     match resource_type {
         DescriptorResourceType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
         DescriptorResourceType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
+        DescriptorResourceType::Image => vk::DescriptorType::SAMPLED_IMAGE,
+        DescriptorResourceType::Sampler => vk::DescriptorType::SAMPLER,
         DescriptorResourceType::Texture => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         DescriptorResourceType::RenderTarget => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         DescriptorResourceType::StorageTexture => vk::DescriptorType::STORAGE_IMAGE,
@@ -212,7 +215,7 @@ pub fn create_descriptor_data(
             |descriptor_data_create_info| vk::DescriptorSetLayoutBinding {
                 binding: descriptor_data_create_info._descriptor_binding_index,
                 descriptor_type: convert_resource_type_to_descriptor_type(
-                    &descriptor_data_create_info._descriptor_resource_type,
+                    &descriptor_data_create_info._descriptor_resource_type
                 ),
                 descriptor_count: 1,
                 stage_flags: descriptor_data_create_info._descriptor_shader_stage,
@@ -339,9 +342,10 @@ pub fn create_write_descriptor_sets_with_update(
                         write_descriptor_set.p_image_info = image_info;
                         write_descriptor_set.descriptor_count = 1;
                     }
-                    DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
-                        write_descriptor_set_accel_struct,
-                    ) => {
+                    DescriptorResourceInfo::DescriptorSamplerInfo(_sampler) => {
+                        // todo: image sampler
+                    }
+                    DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(write_descriptor_set_accel_struct) => {
                         write_descriptor_set_push_next(
                             &mut write_descriptor_set,
                             *write_descriptor_set_accel_struct,
@@ -390,6 +394,9 @@ pub fn create_write_descriptor_set(
         DescriptorResourceInfo::DescriptorImageInfo(image_info) => {
             write_descriptor_set.p_image_info = image_info;
             write_descriptor_set.descriptor_count = 1;
+        }
+        DescriptorResourceInfo::DescriptorSamplerInfo(_sampler_info) => {
+            // todo image sampler
         }
         DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
             write_descriptor_set_accel_struct,

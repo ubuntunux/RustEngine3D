@@ -1763,7 +1763,11 @@ impl EngineResources {
                                 let uniform_buffer_data = renderer_context.get_shader_buffer_data_from_str(material_parameter_name.as_str());
                                 uniform_buffer_data._descriptor_buffer_infos[*swapchain_index].clone()
                             },
-                            DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
+                            DescriptorResourceType::Sampler => {
+                                let sampler = renderer_context.get_sampler_from_str(material_parameter_name.as_str());
+                                DescriptorResourceInfo::DescriptorSamplerInfo(*sampler)
+                            },
+                            DescriptorResourceType::Image | DescriptorResourceType::Texture | DescriptorResourceType::StorageTexture => {
                                 let texture_data = match maybe_material_parameter {
                                     Some(Value::String(value)) => self.get_texture_data(value),
                                     _ => self.get_texture_data(DEFAULT_TEXTURE_NAME),
@@ -1888,8 +1892,7 @@ impl EngineResources {
                     descriptor_data_create_infos,
                     max_descriptor_pool_count,
                 ));
-                self._descriptor_data_map
-                    .insert(descriptor_name, descriptor_data.clone());
+                self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
                 descriptor_data
             }
         }

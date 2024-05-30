@@ -1044,14 +1044,15 @@ fn create_texture_data_inner<T: Copy>(
             ),
             _ => (vk::ImageCreateFlags::empty(), 1, 1),
         };
-    let mip_levels = match texture_create_info._enable_mipmap {
-        true => calc_mip_levels(
+    let mip_levels = if texture_create_info._enable_mipmap {
+        calc_mip_levels(
             texture_create_info._texture_width,
             texture_create_info._texture_height,
             texture_depth,
             texture_create_info._max_mip_levels,
-        ),
-        _ => 1,
+        )
+    } else {
+        1
     };
 
     let is_depth_format = constants::DEPTH_FORMATS.contains(&texture_create_info._texture_format);
