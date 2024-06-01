@@ -247,7 +247,7 @@ impl<'a> RenderContext_Bloom<'a> {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         render_target_bloom0: &TextureData,
         render_target_bloom_temp0: &TextureData,
     ) {
@@ -333,17 +333,14 @@ impl<'a> RenderContext_Bloom<'a> {
         let render_bloom_framebuffer_data = engine_resources
             .get_framebuffer_data("render_bloom")
             .as_ptr();
-        let render_bloom_hightlight_pipeline_binding_data = render_bloom_material_instance
+        let render_bloom_highlight_pipeline_binding_data = render_bloom_material_instance
             .get_pipeline_binding_data("render_bloom/render_bloom_highlight");
 
-        self._bloom_blur_framebuffer_data_list
-            .push(render_bloom_framebuffer_data);
+        self._bloom_blur_framebuffer_data_list.push(render_bloom_framebuffer_data);
         for framebuffer_data in self._bloom_downsample_framebuffer_data_list.iter() {
-            self._bloom_blur_framebuffer_data_list
-                .push(framebuffer_data);
+            self._bloom_blur_framebuffer_data_list.push(framebuffer_data);
         }
-        self._bloom_blur_descriptor_sets
-            .push(&render_bloom_hightlight_pipeline_binding_data._descriptor_sets);
+        self._bloom_blur_descriptor_sets.push(&render_bloom_highlight_pipeline_binding_data._descriptor_sets);
         for descriptor_set in self._bloom_downsample_descriptor_sets.iter() {
             self._bloom_blur_descriptor_sets.push(descriptor_set);
         }
@@ -370,7 +367,7 @@ impl<'a> RenderContext_TAA<'a> {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         taa_render_target: &TextureData,
         taa_resolve_texture: &TextureData,
     ) {
@@ -410,11 +407,11 @@ impl<'a> RenderContext_TAA<'a> {
 }
 
 impl RenderContext_SSAO {
-    pub fn initialize(
+    pub fn initialize<'a>(
         &mut self,
         _device: &Device,
         _debug_utils_device: &ext::debug_utils::Device,
-        _engine_resources: &EngineResources,
+        _engine_resources: &EngineResources<'a>,
         _render_target_ssao: &TextureData
     ) {
     }
@@ -424,11 +421,11 @@ impl RenderContext_SSAO {
 }
 
 impl RenderContext_HierarchicalMinZ {
-    pub fn initialize(
+    pub fn initialize<'a>(
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         render_target_hierarchical_min_z: &TextureData,
     ) {
         let generate_max_z_material_instance = engine_resources
@@ -474,11 +471,11 @@ impl RenderContext_HierarchicalMinZ {
 }
 
 impl RenderContext_SceneColorDownSampling {
-    pub fn initialize(
+    pub fn initialize<'a>(
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         texture_scene_color: &TextureData,
     ) {
         let downsampling_material_instance = engine_resources
@@ -524,7 +521,7 @@ impl<'a> RenderContext_TAA_Simple<'a> {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         texture_ssr: &TextureData,
         texture_taa_resolved: &TextureData,
         texture_taa_resolved_prev: &TextureData,
@@ -605,11 +602,11 @@ impl<'a> RenderContext_TAA_Simple<'a> {
 }
 
 impl RenderContext_CompositeGBuffer {
-    pub fn initialize(
+    pub fn initialize<'a>(
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         texture_taa_resolved: &TextureData,
         texture_taa_resolved_prev: &TextureData,
     ) {
@@ -654,7 +651,7 @@ impl<'a> RenderContext_ClearRenderTargets<'a> {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         render_target_infos: &[(&TextureData, vk::ClearValue)],
     ) {
         let material_instance = engine_resources
@@ -730,7 +727,7 @@ impl<'a> RenderContext_LightProbe<'a> {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         light_probe_color: &TextureData,
         light_probe_color_only_sky: &TextureData,
         light_probe_color_only_sky_prev: &TextureData,

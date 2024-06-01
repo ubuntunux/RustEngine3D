@@ -44,11 +44,11 @@ pub struct MaterialInstanceData<'a> {
 }
 
 impl<'a> PipelineBindingData<'a> {
-    pub fn get_render_pass_data(&self) -> &RcRefCell<RenderPassData> {
+    pub fn get_render_pass_data(&self) -> &RcRefCell<RenderPassData<'a>> {
         &self._render_pass_pipeline_data._render_pass_data
     }
 
-    pub fn get_pipeline_data(&self) -> &RcRefCell<PipelineData> {
+    pub fn get_pipeline_data(&self) -> &RcRefCell<PipelineData<'a>> {
         &self._render_pass_pipeline_data._pipeline_data
     }
 
@@ -72,9 +72,9 @@ impl<'a> MaterialInstanceData<'a> {
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
         material_instance_data_name: &String,
-        material_data: &RcRefCell<MaterialData>,
+        material_data: &RcRefCell<MaterialData<'a>>,
         material_parameters: &serde_json::Map<String, serde_json::Value>,
-        pipeline_bind_create_infos: Vec<PipelineBindingDataCreateInfo>,
+        pipeline_bind_create_infos: Vec<PipelineBindingDataCreateInfo<'a>>,
     ) -> MaterialInstanceData<'a> {
         log::debug!("create_material_instance: {}", material_instance_data_name);
         log::trace!(
@@ -183,13 +183,13 @@ impl<'a> MaterialInstanceData<'a> {
         );
     }
 
-    pub fn get_default_pipeline_binding_data(&self) -> &PipelineBindingData {
+    pub fn get_default_pipeline_binding_data(&self) -> &PipelineBindingData<'a> {
         self._pipeline_binding_data_map
             .get(self._default_pipeline_binding_name.as_str())
             .unwrap()
     }
 
-    pub fn get_default_pipeline_binding_data_mut(&mut self) -> &mut PipelineBindingData {
+    pub fn get_default_pipeline_binding_data_mut(&mut self) -> &mut PipelineBindingData<'a> {
         self._pipeline_binding_data_map
             .get_mut(self._default_pipeline_binding_name.as_str())
             .unwrap()
@@ -198,7 +198,7 @@ impl<'a> MaterialInstanceData<'a> {
     pub fn get_pipeline_binding_data(
         &self,
         render_pass_pipeline_data_name: &str,
-    ) -> &PipelineBindingData {
+    ) -> &PipelineBindingData<'a> {
         self._pipeline_binding_data_map
             .get(render_pass_pipeline_data_name)
             .unwrap()
@@ -207,7 +207,7 @@ impl<'a> MaterialInstanceData<'a> {
     pub fn get_pipeline_binding_data_mut(
         &mut self,
         render_pass_pipeline_data_name: &str,
-    ) -> &mut PipelineBindingData {
+    ) -> &mut PipelineBindingData<'a> {
         self._pipeline_binding_data_map
             .get_mut(render_pass_pipeline_data_name)
             .unwrap()

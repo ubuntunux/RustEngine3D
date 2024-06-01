@@ -15,10 +15,10 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::resource::resource::EngineResources;
-use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
+use crate::scene::material_instance::PipelineBindingData;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
-use crate::vulkan_context::render_pass::{PipelineData, RenderPassData};
+use crate::vulkan_context::render_pass::PipelineData;
 
 // code coupling with effect_constants.glsl
 const GPU_PARTICLE_CONSTANT_FLAG_NONE: u32 = 0;
@@ -180,11 +180,11 @@ impl<'a> EffectManager<'a> {
         effect_id_generator
     }
 
-    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>> {
+    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance<'a>>> {
         self._effects.get(&effect_id)
     }
 
-    pub fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance>> {
+    pub fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance<'a>>> {
         &self._effects
     }
 
@@ -222,7 +222,7 @@ impl<'a> EffectManager<'a> {
         &mut self,
         object_name: &str,
         effect_create_info: &EffectCreateInfo,
-        effect_data: &RcRefCell<EffectData>,
+        effect_data: &RcRefCell<EffectData<'a>>,
     ) -> i64 {
         let effect_id = self.generate_effect_id();
         let effect_instance = EffectInstance::create_effect_instance(
@@ -236,7 +236,7 @@ impl<'a> EffectManager<'a> {
         effect_id
     }
 
-    pub fn allocate_emitter(&mut self, emitter: &mut EmitterInstance) {
+    pub fn allocate_emitter(&mut self, emitter: &mut EmitterInstance<'a>) {
         if false == emitter.is_valid_allocated() {
             let available_emitter_count: i32 =
                 unsafe { MAX_EMITTER_COUNT - self._allocated_emitter_count };
@@ -305,8 +305,8 @@ impl<'a> EffectManager<'a> {
         &mut self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
     ) {
         let material_instance_data = &engine_resources
             .get_material_instance_data("effect/process_gpu_particle")
@@ -358,7 +358,7 @@ impl<'a> EffectManager<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         let renderer_context = renderer_data.get_renderer_context();
         let allocated_emitter_count = self._allocated_emitter_count as isize;
@@ -721,8 +721,8 @@ impl<'a> EffectManager<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_data: &RendererData,
-        engine_resources: &EngineResources,
+        renderer_data: &RendererData<'a>,
+        engine_resources: &EngineResources<'a>,
     ) {
         if self._effect_render_group.is_empty() {
             return;
@@ -741,14 +741,11 @@ impl<'a> EffectManager<'a> {
         let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
         for emitter in self._effect_render_group.iter() {
             let emitter: &EmitterInstance = ptr_as_ref(*emitter);
-            let emitter_data: &EmitterData = emitter.get_emitter_data();
-            let material_instance_data: &MaterialInstanceData =
-                &emitter_data._material_instance_data.borrow();
-            let pipeline_binding_data: &PipelineBindingData =
-                material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
-            let render_pass_data: &RenderPassData =
-                &pipeline_binding_data.get_render_pass_data().borrow();
-            let pipeline_data: &PipelineData = &pipeline_binding_data.get_pipeline_data().borrow();
+            let emitter_data = emitter.get_emitter_data();
+            let material_instance_data = ptr_as_ref(emitter_data._material_instance_data.as_ptr());
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
+            let render_pass_data = ptr_as_ref(pipeline_binding_data.get_render_pass_data().as_ptr());
+            let pipeline_data = ptr_as_ref(pipeline_binding_data.get_pipeline_data().as_ptr());
 
             if prev_pipeline_data != pipeline_data {
                 if false == prev_pipeline_data.is_null() {
@@ -765,7 +762,7 @@ impl<'a> EffectManager<'a> {
             }
 
             if prev_pipeline_binding_data != pipeline_binding_data {
-                prev_pipeline_binding_data = pipeline_binding_data;
+                prev_pipeline_binding_data = (pipeline_binding_data as *const PipelineBindingData).clone();
                 renderer_context.bind_descriptor_sets(
                     command_buffer,
                     swapchain_index,

@@ -15,7 +15,7 @@ pub struct MaterialData<'a> {
 impl<'a> MaterialData<'a> {
     pub fn create_material(
         material_data_name: &String,
-        render_pass_pipeline_data_list: &Vec<Option<RenderPassPipelineData>>,
+        render_pass_pipeline_data_list: &Vec<Option<RenderPassPipelineData<'a>>>,
         material_parameters: &serde_json::Map<String, serde_json::Value>,
     ) -> MaterialData<'a> {
         log::debug!("create_material: {}", material_data_name);
@@ -109,7 +109,7 @@ impl<'a> MaterialData<'a> {
     pub fn get_render_pass_pipeline_data(
         &self,
         render_pass_pipeline_data_name: &str,
-    ) -> &RenderPassPipelineData {
+    ) -> &RenderPassPipelineData<'a> {
         self._render_pass_pipeline_data_map
             .get(render_pass_pipeline_data_name)
             .unwrap()

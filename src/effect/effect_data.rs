@@ -269,7 +269,7 @@ impl<'a> EffectData<'a> {
     pub fn create_effect_data(
         effect_data_name: &String,
         _effect_data_create_info: &EffectDataCreateInfo,
-        emitter_data_list: Vec<EmitterData>,
+        emitter_data_list: Vec<EmitterData<'a>>,
     ) -> EffectData<'a> {
         EffectData {
             _effect_data_name: effect_data_name.clone(),
@@ -283,7 +283,7 @@ impl<'a> EffectData<'a> {
 impl<'a> EmitterData<'a> {
     pub fn create_emitter_data(
         emitter_data_create_info: &EmitterDataCreateInfo,
-        material_instance: RcRefCell<MaterialInstanceData>,
+        material_instance: RcRefCell<MaterialInstanceData<'a>>,
         mesh_data: RcRefCell<MeshData>,
     ) -> EmitterData<'a> {
         EmitterData {
@@ -327,11 +327,11 @@ impl<'a> EmitterData<'a> {
 
 impl<'a> EffectInstance<'a> {
     pub fn create_effect_instance(
-        effect_manager: *const EffectManager,
+        effect_manager: *const EffectManager<'a>,
         effect_id: i64,
         effect_name: &String,
         effect_create_info: &EffectCreateInfo,
-        effect_data: &RcRefCell<EffectData>,
+        effect_data: &RcRefCell<EffectData<'a>>,
     ) -> RcRefCell<EffectInstance<'a>> {
         let emitters = effect_data
             .borrow()
@@ -375,11 +375,11 @@ impl<'a> EffectInstance<'a> {
     pub fn get_effect_id(&self) -> i64 { self._effect_id }
     pub fn get_effect_name(&self) -> &String { &self._effect_name }
 
-    pub fn get_effect_manager(&self) -> &EffectManager {
+    pub fn get_effect_manager(&self) -> &EffectManager<'a> {
         ptr_as_ref(self._effect_manager)
     }
 
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager)
     }
 
@@ -413,14 +413,16 @@ impl<'a> EffectInstance<'a> {
         let effect_manager = ptr_as_mut(self._effect_manager);
         let mut is_alive = false;
         for emitter in self._emitters.iter_mut() {
-            if emitter._is_alive {
+            let is_alive_now = emitter._is_alive.clone();
+            if is_alive_now {
                 emitter.update_emitter(delta_time, updated_effect_transform);
             }
 
-            if false == emitter._is_alive {
+            let is_alive_now = emitter._is_alive.clone();
+            if false == is_alive_now {
                 effect_manager.deallocate_emitter(emitter);
             }
-            is_alive |= emitter._is_alive;
+            is_alive |= is_alive_now;
         }
         self._is_alive = is_alive;
         self._elapsed_time += delta_time;
@@ -428,7 +430,7 @@ impl<'a> EffectInstance<'a> {
 }
 
 impl<'a> EmitterInstance<'a> {
-    pub fn create_emitter_instance(emitter_data: &EmitterData) -> EmitterInstance<'a> {
+    pub fn create_emitter_instance(emitter_data: &EmitterData<'a>) -> EmitterInstance<'a> {
         EmitterInstance {
             _parent_effect: std::ptr::null(),
             _is_alive: false,
@@ -446,15 +448,15 @@ impl<'a> EmitterInstance<'a> {
         }
     }
 
-    pub fn initialize_emitter(&mut self, parent_effect: *const EffectInstance) {
+    pub fn initialize_emitter(&mut self, parent_effect: *const EffectInstance<'a>) {
         self._parent_effect = parent_effect;
     }
 
-    pub fn get_parent_effect(&self) -> &EffectInstance {
+    pub fn get_parent_effect(&self) -> &EffectInstance<'a> {
         ptr_as_ref(self._parent_effect)
     }
 
-    pub fn get_parent_effect_mut(&self) -> &mut EffectInstance {
+    pub fn get_parent_effect_mut(&self) -> &mut EffectInstance<'a> {
         ptr_as_mut(self._parent_effect)
     }
 
@@ -466,7 +468,7 @@ impl<'a> EmitterInstance<'a> {
         self.get_emitter_data()._emitter_lifetime < 0.0
     }
 
-    pub fn get_emitter_data(&self) -> &EmitterData {
+    pub fn get_emitter_data(&self) -> &EmitterData<'a> {
         ptr_as_ref(self._emitter_data)
     }
 

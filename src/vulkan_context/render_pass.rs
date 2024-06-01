@@ -270,11 +270,11 @@ impl<'a> RenderPassData<'a> {
         self._render_pass
     }
 
-    pub fn get_default_pipeline_data(&self) -> &RcRefCell<PipelineData> {
+    pub fn get_default_pipeline_data(&self) -> &RcRefCell<PipelineData<'a>> {
         &self._default_pipeline_data
     }
 
-    pub fn get_pipeline_data(&self, pipeline_data_name: &str) -> &RcRefCell<PipelineData> {
+    pub fn get_pipeline_data(&self, pipeline_data_name: &str) -> &RcRefCell<PipelineData<'a>> {
         let maybe_pipeline_data = self._pipeline_data_map.get(pipeline_data_name);
         match maybe_pipeline_data {
             Some(pipeline_data) => pipeline_data,
@@ -284,7 +284,7 @@ impl<'a> RenderPassData<'a> {
 }
 
 pub fn create_render_pass_data<'a>(
-    renderer_context: &RendererContext,
+    renderer_context: &RendererContext<'a>,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
     descriptor_data_list: &Vec<RcRefCell<DescriptorData>>,
 ) -> RenderPassData<'a> {

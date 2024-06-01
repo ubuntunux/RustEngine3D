@@ -58,7 +58,7 @@ impl<'a> RenderObjectData<'a> {
     pub fn create_render_object_data(
         object_id: i64,
         render_object_name: &String,
-        model_data: &RcRefCell<ModelData>,
+        model_data: &RcRefCell<ModelData<'a>>,
         render_object_create_data: &RenderObjectCreateInfo,
     ) -> RenderObjectData<'a> {
         log::debug!("create_render_object_data: {}", render_object_name);
@@ -151,7 +151,7 @@ impl<'a> RenderObjectData<'a> {
         &self._mesh_data
     }
 
-    pub fn get_model_data(&self) -> &RcRefCell<ModelData> {
+    pub fn get_model_data(&self) -> &RcRefCell<ModelData<'a>> {
         &self._model_data
     }
 

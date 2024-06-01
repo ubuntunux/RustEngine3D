@@ -505,7 +505,7 @@ impl<'a> EngineResources<'a> {
         }
     }
 
-    pub fn load_engine_resources(&mut self, renderer_context: &RendererContext) {
+    pub fn load_engine_resources(&mut self, renderer_context: &'a RendererContext<'a>) {
         log::info!("load_engine_resources");
         let is_reload: bool = false;
         self.load_texture_data_list(renderer_context);
@@ -541,7 +541,7 @@ impl<'a> EngineResources<'a> {
     }
 
     // GraphicsDataList
-    pub fn load_graphics_data_list(&mut self, renderer_context: &RendererContext) {
+    pub fn load_graphics_data_list(&mut self, renderer_context: &'a RendererContext<'a>) {
         log::info!("load_graphics_data_list");
         let is_reload: bool = true;
         self.load_render_pass_data_create_infos(renderer_context);
@@ -551,7 +551,7 @@ impl<'a> EngineResources<'a> {
         self.load_material_instance_data_list(renderer_context, is_reload);
     }
 
-    pub fn unload_graphics_data_list(&mut self, renderer_context: &RendererContext) {
+    pub fn unload_graphics_data_list(&mut self, renderer_context: &'a RendererContext<'a>) {
         log::info!("unload_graphics_data_list");
         let is_reload: bool = true;
         self.unload_material_instance_data_list(is_reload);
@@ -820,7 +820,7 @@ impl<'a> EngineResources<'a> {
         self._effect_data_map.contains_key(resource_name)
     }
 
-    pub fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData> {
+    pub fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData<'a>> {
         get_resource_data(&self._effect_data_map, resource_name, DEFAULT_EFFECT_NAME)
     }
 
@@ -1058,14 +1058,14 @@ impl<'a> EngineResources<'a> {
         self._model_data_map.contains_key(resource_name)
     }
 
-    pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData> {
+    pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData<'a>> {
         get_resource_data(&self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
     }
 
     // Mesh Loader
     pub fn register_mesh_data(
         &mut self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         mesh_name: &String,
         mesh_data_create_info: MeshDataCreateInfo,
     ) {
@@ -1090,7 +1090,7 @@ impl<'a> EngineResources<'a> {
             .insert(mesh_name.clone(), mesh_data.clone());
     }
 
-    pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext) {
+    pub fn load_mesh_data_list(&mut self, renderer_context: &RendererContext<'a>) {
         log::info!("    load_mesh_data_list");
         self.register_mesh_data(
             renderer_context,
@@ -1526,7 +1526,7 @@ impl<'a> EngineResources<'a> {
         self._framebuffer_data_list_map.contains_key(resource_name)
     }
 
-    pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData> {
+    pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData<'a>> {
         get_resource_data_must(&self._framebuffer_data_list_map, resource_name)
     }
 
@@ -1557,7 +1557,7 @@ impl<'a> EngineResources<'a> {
     }
 
     // render pass data
-    pub fn load_render_pass_data_list(&mut self, renderer_context: &RendererContext) {
+    pub fn load_render_pass_data_list(&mut self, renderer_context: &RendererContext<'a>) {
         log::info!("    load_render_pass_data_list");
 
         let render_pass_data_create_info_map = ptr_as_ref(&self._render_pass_data_create_info_map);
@@ -1567,11 +1567,13 @@ impl<'a> EngineResources<'a> {
                 ._pipeline_data_create_infos
                 .iter()
             {
-                descriptor_data_list.push(self.get_descriptor_data(
-                    renderer_context,
-                    &render_pass_data_create_info._render_pass_create_info_name,
-                    pipeline_data_create_info,
-                ));
+                descriptor_data_list.push(
+                    self.get_descriptor_data(
+                        renderer_context,
+                        &render_pass_data_create_info._render_pass_create_info_name,
+                        pipeline_data_create_info,
+                    )
+                );
             }
             let default_render_pass_data = render_pass::create_render_pass_data(
                 renderer_context,
@@ -1599,11 +1601,11 @@ impl<'a> EngineResources<'a> {
         self._render_pass_data_map.contains_key(resource_name)
     }
 
-    pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData> {
+    pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData<'a>> {
         get_resource_data_must(&self._render_pass_data_map, resource_name)
     }
 
-    pub fn get_default_render_pass_data(&self) -> &RcRefCell<RenderPassData> {
+    pub fn get_default_render_pass_data(&self) -> &RcRefCell<RenderPassData<'a>> {
         self.get_render_pass_data(DEFAULT_RENDER_PASS_NAME)
     }
 
@@ -1611,7 +1613,7 @@ impl<'a> EngineResources<'a> {
         &self,
         render_pass_data_name: &str,
         pipeline_data_name: &str,
-    ) -> RenderPassPipelineData {
+    ) -> RenderPassPipelineData<'a> {
         let render_pass_data_refcell = self.get_render_pass_data(render_pass_data_name);
         let render_pass_data = render_pass_data_refcell.borrow();
         let pipeline_data = render_pass_data.get_pipeline_data(pipeline_data_name);
@@ -1644,7 +1646,7 @@ impl<'a> EngineResources<'a> {
                 .unwrap()
                 .as_array()
                 .unwrap();
-            let render_pass_pipeline_data_list: Vec<Option<RenderPassPipelineData>> =
+            let render_pass_pipeline_data_list: Vec<Option<RenderPassPipelineData<'a>>> =
                 pipeline_create_infos
                     .iter()
                     .map(|pipeline_create_info| {
@@ -1697,14 +1699,14 @@ impl<'a> EngineResources<'a> {
         self._material_data_map.contains_key(resource_name)
     }
 
-    pub fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData> {
+    pub fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData<'a>> {
         get_resource_data_must(&self._material_data_map, resource_name)
     }
 
     // MaterialInstance_data_list
     pub fn load_material_instance_data_list(
         &mut self,
-        renderer_context: &RendererContext,
+        renderer_context: &'a RendererContext<'a>,
         is_reload: bool,
     ) {
         log::info!("    load_material_instance_data_list");
@@ -1861,17 +1863,17 @@ impl<'a> EngineResources<'a> {
     pub fn get_material_instance_data(
         &self,
         resource_name: &str,
-    ) -> &RcRefCell<MaterialInstanceData> {
+    ) -> &RcRefCell<MaterialInstanceData<'a>> {
         get_resource_data_must(&self._material_instance_data_map, resource_name)
     }
 
     // Descriptor_data_list
     pub fn get_descriptor_data(
         &mut self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         render_pass_name: &String,
         pipeline_data_create_info: &PipelineDataCreateInfo,
-    ) -> RcRefCell<DescriptorData> {
+    ) -> RcRefCell<DescriptorData<'a>> {
         let descriptor_name: String = format!(
             "{}{}",
             render_pass_name, pipeline_data_create_info._pipeline_data_create_info_name

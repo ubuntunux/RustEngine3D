@@ -1124,7 +1124,7 @@ impl<'a> Atmosphere<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
     ) {
         // precompute constants
         let _label_precompute_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(
@@ -1274,7 +1274,7 @@ impl<'a> Atmosphere<'a> {
     pub fn prepare_framebuffer_and_descriptors(
         &mut self,
         renderer_data: &RendererData,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
@@ -1472,7 +1472,7 @@ impl<'a> Atmosphere<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         render_light_probe_mode: bool,
     ) {
         // Render Atmosphere

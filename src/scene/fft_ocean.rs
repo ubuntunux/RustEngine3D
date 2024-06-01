@@ -192,8 +192,8 @@ impl<'a> FFTOcean<'a> {
 
     pub fn register_fft_ocean_textures(
         &mut self,
-        renderer_context: &RendererContext,
-        engine_resources: &mut EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &mut EngineResources<'a>,
     ) {
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
@@ -337,7 +337,7 @@ impl<'a> FFTOcean<'a> {
     pub fn prepare_framebuffer_and_descriptors(
         &mut self,
         renderer_data: &RendererData,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
@@ -676,8 +676,8 @@ impl<'a> FFTOcean<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
     ) {
         // fft variance
         let _label_compute_slope_variance = ScopedDebugLabel::create_scoped_cmd_label(
@@ -730,8 +730,8 @@ impl<'a> FFTOcean<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
     ) {
         let _label_simulate_fft_waves = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
@@ -862,8 +862,8 @@ impl<'a> FFTOcean<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
     ) {
         let fft_grid_mesh = engine_resources.get_mesh_data("fft_grid").borrow();
         let fft_grid = fft_grid_mesh.get_default_geometry_data().borrow();

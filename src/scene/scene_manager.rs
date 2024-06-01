@@ -98,16 +98,16 @@ impl<'a> SceneManager<'a> {
     pub fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLightData> {
         &self._capture_height_map.as_ref().unwrap()
     }
-    pub fn get_static_render_elements(&self) -> &Vec<RenderElementData> {
+    pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_render_elements
     }
-    pub fn get_static_shadow_render_elements(&self) -> &Vec<RenderElementData> {
+    pub fn get_static_shadow_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_shadow_render_elements
     }
-    pub fn get_skeletal_render_elements(&self) -> &Vec<RenderElementData> {
+    pub fn get_skeletal_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._skeletal_render_elements
     }
-    pub fn get_skeletal_shadow_render_elements(&self) -> &Vec<RenderElementData> {
+    pub fn get_skeletal_shadow_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._skeletal_shadow_render_elements
     }
     pub fn get_render_element_transform_count(&self) -> usize {
@@ -148,9 +148,9 @@ impl<'a> SceneManager<'a> {
 
     pub fn initialize_scene_manager(
         &mut self,
-        renderer_context: &RendererContext,
-        effect_manager: &EffectManager,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        effect_manager: &EffectManager<'a>,
+        engine_resources: &EngineResources<'a>,
         window_size: &Vector2<i32>,
     ) {
         self._renderer_data = renderer_context.get_renderer_data();
@@ -232,25 +232,25 @@ impl<'a> SceneManager<'a> {
 
         self.resized_window(window_size.x, window_size.y);
     }
-    pub fn get_engine_resources(&self) -> &EngineResources {
+    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
         ptr_as_ref(self._engine_resources)
     }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
         ptr_as_mut(self._engine_resources)
     }
-    pub fn get_renderer_data(&self) -> &RendererData {
+    pub fn get_renderer_data(&self) -> &RendererData<'a> {
         ptr_as_ref(self._renderer_data)
     }
-    pub fn get_renderer_data_mut(&self) -> &mut RendererData {
+    pub fn get_renderer_data_mut(&self) -> &mut RendererData<'a> {
         ptr_as_mut(self._renderer_data)
     }
-    pub fn get_effect_manager(&self) -> &EffectManager {
+    pub fn get_effect_manager(&self) -> &EffectManager<'a> {
         ptr_as_ref(self._effect_manager)
     }
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager)
     }
-    pub fn set_effect_manager(&mut self, effect_manager: *const EffectManager) {
+    pub fn set_effect_manager(&mut self, effect_manager: *const EffectManager<'a>) {
         self._effect_manager = effect_manager;
     }
     pub fn get_sea_height(&self) -> f32 {
@@ -297,7 +297,7 @@ impl<'a> SceneManager<'a> {
         &mut self,
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
-    ) -> RcRefCell<RenderObjectData> {
+    ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
         let model_data = self
             .get_engine_resources()
@@ -316,7 +316,7 @@ impl<'a> SceneManager<'a> {
         &mut self,
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
-    ) -> RcRefCell<RenderObjectData> {
+    ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
         let model_data = self
             .get_engine_resources()
@@ -344,7 +344,7 @@ impl<'a> SceneManager<'a> {
     pub fn get_static_render_object(
         &self,
         object_id: i64,
-    ) -> Option<&RcRefCell<RenderObjectData>> {
+    ) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._static_render_object_map.get(&object_id)
     }
 
@@ -355,7 +355,7 @@ impl<'a> SceneManager<'a> {
     pub fn get_skeletal_render_object(
         &self,
         object_id: i64,
-    ) -> Option<&RcRefCell<RenderObjectData>> {
+    ) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._skeletal_render_object_map.get(&object_id)
     }
 
@@ -363,7 +363,7 @@ impl<'a> SceneManager<'a> {
         self._skeletal_render_object_map.remove(&object_id);
     }
 
-    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance>> {
+    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance<'a>>> {
         self.get_effect_manager().get_effect(effect_id)
     }
 
@@ -447,9 +447,9 @@ impl<'a> SceneManager<'a> {
         render_object_type: RenderObjectType,
         camera: &CameraObjectData,
         light: &DirectionalLightData,
-        render_object_map: &RenderObjectMap,
-        render_elements: &mut Vec<RenderElementData>,
-        render_shadow_elements: &mut Vec<RenderElementData>,
+        render_object_map: &RenderObjectMap<'a>,
+        render_elements: &mut Vec<RenderElementData<'a>>,
+        render_shadow_elements: &mut Vec<RenderElementData<'a>>,
         render_element_transform_offset: &mut usize,
         render_element_transform_matrices: &mut Vec<Matrix4<f32>>,
         bound_boxes: &mut Vec<BoundBoxInstanceData>

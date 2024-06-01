@@ -98,7 +98,7 @@ impl AudioInstance {
 impl<'a> AudioManager<'a> {
     pub fn create_audio_manager(
         sdl: &Sdl,
-        engine_resources: *const EngineResources,
+        engine_resources: *const EngineResources<'a>,
     ) -> Box<AudioManager<'a>> {
         log::info!("create_audio_manager");
         let audio_subsystem = sdl.audio().expect("failed to sdl.audio");
@@ -158,10 +158,10 @@ impl<'a> AudioManager<'a> {
         self._audio_instances.clear();
     }
 
-    pub fn get_engine_resources(&self) -> &EngineResources {
+    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
         ptr_as_ref(self._engine_resources)
     }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
         ptr_as_mut(self._engine_resources)
     }
 

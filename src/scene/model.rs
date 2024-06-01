@@ -20,7 +20,7 @@ impl<'a> ModelData<'a> {
     pub fn new_model_data(
         model_name: &String,
         mesh_data: RcRefCell<MeshData>,
-        material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
+        material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
     ) -> ModelData<'a> {
         log::debug!("new_model_data: {}", model_name);
         for (i, x) in material_instance_data_list.iter().enumerate() {
@@ -43,11 +43,11 @@ impl<'a> ModelData<'a> {
         self._material_instance_data_list.len()
     }
 
-    pub fn get_material_instance_data_list(&self) -> &Vec<RcRefCell<MaterialInstanceData>> {
+    pub fn get_material_instance_data_list(&self) -> &Vec<RcRefCell<MaterialInstanceData<'a>>> {
         &self._material_instance_data_list
     }
 
-    pub fn get_material_instance_data(&self, index: usize) -> &RcRefCell<MaterialInstanceData> {
+    pub fn get_material_instance_data(&self, index: usize) -> &RcRefCell<MaterialInstanceData<'a>> {
         &self._material_instance_data_list[index]
     }
 

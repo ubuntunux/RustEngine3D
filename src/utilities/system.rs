@@ -8,10 +8,10 @@ use std::rc::{Rc, Weak};
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 
-pub fn ptr_as_ref<T: ?Sized>(t: *const T) -> &'static T {
+pub fn ptr_as_ref<'a, T: ?Sized>(t: *const T) -> &'a T {
     unsafe { &*t }
 }
-pub fn ptr_as_mut<T: ?Sized>(t: *const T) -> &'static mut T {
+pub fn ptr_as_mut<'a, T: ?Sized>(t: *const T) -> &'a mut T {
     unsafe { &mut *(t as *mut T) }
 }
 #[allow(non_snake_case)]

@@ -133,31 +133,31 @@ impl<'a> EngineCore<'a> {
     pub fn get_application_mut(&self) -> &mut dyn ApplicationBase {
         ptr_as_mut(self._application)
     }
-    pub fn get_scene_manager(&self) -> &SceneManager {
+    pub fn get_scene_manager(&self) -> &SceneManager<'a> {
         self._scene_manager.as_ref()
     }
-    pub fn get_scene_manager_mut(&self) -> &mut SceneManager {
+    pub fn get_scene_manager_mut(&self) -> &mut SceneManager<'a> {
         ptr_as_mut(self._scene_manager.as_ref())
     }
     pub fn get_window(&self) -> &Window {
         ptr_as_ref(self._window)
     }
-    pub fn get_audio_manager(&self) -> &AudioManager {
+    pub fn get_audio_manager(&self) -> &AudioManager<'a> {
         self._audio_manager.as_ref()
     }
-    pub fn get_audio_manager_mut(&self) -> &mut AudioManager {
+    pub fn get_audio_manager_mut(&self) -> &mut AudioManager<'a> {
         ptr_as_mut(self._audio_manager.as_ref())
     }
-    pub fn get_effect_manager(&self) -> &EffectManager {
+    pub fn get_effect_manager(&self) -> &EffectManager<'a> {
         self._effect_manager.as_ref()
     }
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager.as_ref())
     }
-    pub fn get_engine_resources(&self) -> &EngineResources {
+    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
         self._engine_resources.as_ref()
     }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
         ptr_as_mut(self._engine_resources.as_ref())
     }
     pub fn get_debug_line_manager(&self) -> &DebugLineManager {
@@ -172,16 +172,16 @@ impl<'a> EngineCore<'a> {
     pub fn get_font_manager_mut(&self) -> &mut FontManager {
         ptr_as_mut(self._font_manager.as_ref())
     }
-    pub fn get_renderer_context(&self) -> &RendererContext {
+    pub fn get_renderer_context(&self) -> &RendererContext<'a> {
         self._renderer_context.as_ref()
     }
-    pub fn get_renderer_context_mut(&self) -> &mut RendererContext {
+    pub fn get_renderer_context_mut(&self) -> &mut RendererContext<'a> {
         ptr_as_mut(self._renderer_context.as_ref())
     }
-    pub fn get_ui_manager(&self) -> &UIManager {
+    pub fn get_ui_manager(&self) -> &UIManager<'a> {
         self._ui_manager.as_ref()
     }
-    pub fn get_ui_manager_mut(&self) -> &mut UIManager {
+    pub fn get_ui_manager_mut(&self) -> &mut UIManager<'a> {
         ptr_as_mut(self._ui_manager.as_ref())
     }
     pub fn create_application(
@@ -240,7 +240,7 @@ impl<'a> EngineCore<'a> {
         });
 
         // initialize managers
-        let engine_core = engine_core_ptr.as_ref();
+        let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
         engine_core
             .get_renderer_context_mut()
             .initialize_renderer_context(
@@ -414,6 +414,7 @@ impl<'a> EngineCore<'a> {
     pub fn update_event(&mut self, current_time: f64) -> bool {
         //std::thread::sleep(time::Duration::from_millis(20));
 
+        let engine_resource = ptr_as_ref(self._engine_resources.as_ref());
         let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
         let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
         let debug_line_manager = ptr_as_mut(self._debug_line_manager.as_ref());
@@ -450,8 +451,8 @@ impl<'a> EngineCore<'a> {
 
                 // recreate
                 font_manager.create_font_descriptor_sets(
-                    &renderer_context,
-                    &renderer_context.get_engine_resources(),
+                    renderer_context,
+                    engine_resource,
                 );
                 ui_manager.create_ui_graphics_data(&renderer_context.get_engine_resources());
                 renderer_context.set_need_recreate_swapchain(false);
@@ -582,7 +583,7 @@ pub fn run_application(
     let mut need_initialize: bool = true;
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
-    event_loop.run(move |event, window_target| {
+    event_loop.run(move |event, _window_target| {
         let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
             if maybe_engine_core.is_some() {

@@ -95,12 +95,12 @@ pub fn get_debug_message_level(
     }
 }
 
-pub trait RendererDataBase {
+pub trait RendererDataBase<'a> {
     fn initialize_renderer_data(
         &mut self,
-        renderer_context: &RendererContext,
-        engine_resources: *const EngineResources,
-        effect_manager: *const EffectManager,
+        renderer_context: *const RendererContext<'a>,
+        engine_resources: *const EngineResources<'a>,
+        effect_manager: *const EffectManager<'a>,
     );
     fn is_first_rendering(&self) -> bool;
     fn set_is_first_rendering(&mut self, is_first_rendering: bool);
@@ -108,7 +108,7 @@ pub trait RendererDataBase {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     );
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
     fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
@@ -123,7 +123,7 @@ pub trait RendererDataBase {
         command_buffer: CommandBuffer,
         frame_index: usize,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         scene_manager: &SceneManager,
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
@@ -174,7 +174,7 @@ impl<'a> RendererContext<'a> {
         app_version: u32,
         window_size: &Vector2<i32>,
         window: &Window,
-        engine_resources: *const EngineResources,
+        engine_resources: *const EngineResources<'a>,
     ) -> Box<RendererContext<'a>> {
         unsafe {
             log::info!(
@@ -423,8 +423,8 @@ impl<'a> RendererContext<'a> {
 
     pub fn initialize_renderer_context(
         &mut self,
-        engine_resources: *const EngineResources,
-        effect_manager: *const EffectManager,
+        engine_resources: *const EngineResources<'a>,
+        effect_manager: *const EffectManager<'a>,
     ) {
         self._swapchain_index = 0;
         self._frame_index = 0;
@@ -441,10 +441,10 @@ impl<'a> RendererContext<'a> {
             self.create_ray_tracing_test_data();
         }
     }
-    pub fn get_engine_resources(&self) -> &EngineResources {
+    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
         ptr_as_ref(self._engine_resources)
     }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
         ptr_as_mut(self._engine_resources)
     }
     pub fn get_image_sampler_data(&self) -> &ImageSamplerData {
@@ -453,10 +453,10 @@ impl<'a> RendererContext<'a> {
     pub fn get_image_sampler_data_mut(&self) -> &mut ImageSamplerData {
         ptr_as_mut(&self._image_samplers)
     }
-    pub fn get_renderer_data(&self) -> &RendererData {
+    pub fn get_renderer_data(&self) -> &RendererData<'a> {
         self._renderer_data.as_ref()
     }
-    pub fn get_renderer_data_mut(&self) -> &mut RendererData {
+    pub fn get_renderer_data_mut(&self) -> &mut RendererData<'a> {
         ptr_as_mut(self._renderer_data.as_ref())
     }
     pub fn get_need_recreate_swapchain(&self) -> bool {
@@ -488,13 +488,13 @@ impl<'a> RendererContext<'a> {
     }
 
     // TEST CODE
-    pub fn get_ray_tracing_test_data(&self) -> &RayTracingData {
+    pub fn get_ray_tracing_test_data(&self) -> &RayTracingData<'a> {
         &self._ray_tracing_test_data
     }
     pub fn create_ray_tracing_test_data(&mut self) {
         log::info!(">>> TEST CODE: create_ray_tracing_test_data");
-        self._ray_tracing_test_data = RayTracingData::create_ray_tracing_data();
-        self._ray_tracing_test_data.initialize_ray_tracing_data(
+        let mut ray_tracing_test_data = RayTracingData::create_ray_tracing_data();
+        ray_tracing_test_data.initialize_ray_tracing_data(
             self.get_device(),
             self.get_device_memory_properties(),
             self.get_debug_utils(),
@@ -502,6 +502,7 @@ impl<'a> RendererContext<'a> {
             self.get_command_pool(),
             self.get_graphics_queue(),
         );
+        self._ray_tracing_test_data = ray_tracing_test_data;
     }
 
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties {
@@ -659,8 +660,8 @@ impl<'a> RendererContext<'a> {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&dyn PushConstant>,
     ) {
-        let engine_resources = self.get_engine_resources();
-        let material_instance_data: Ref<MaterialInstanceData> = engine_resources
+        let engine_resources = ptr_as_ref(self._engine_resources);
+        let material_instance_data = engine_resources
             .get_material_instance_data(material_instance_name)
             .borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
@@ -1065,17 +1066,18 @@ impl<'a> RendererContext<'a> {
     pub fn resize_window(&mut self) {
         log::info!("<< res        self.device_wait_idle();izeWindow >>");
 
+        let render_context_ref = ptr_as_ref(self);
         let engine_resources = ptr_as_mut(self._engine_resources);
 
         // destroy swapchain & graphics engine_resources
         self.destroy_framebuffer_and_descriptors();
-        engine_resources.unload_graphics_data_list(self);
+        engine_resources.unload_graphics_data_list(render_context_ref);
         self.destroy_render_targets();
 
         // recreate swapchain & graphics engine_resources
         self.recreate_swapchain();
         self.create_render_targets();
-        engine_resources.load_graphics_data_list(self);
+        engine_resources.load_graphics_data_list(render_context_ref);
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);
     }

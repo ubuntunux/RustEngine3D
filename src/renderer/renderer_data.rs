@@ -90,28 +90,30 @@ pub struct RendererData<'a> {
     pub _atmosphere: Atmosphere<'a>,
 }
 
-impl<'a> RendererDataBase for RendererData<'a> {
+impl<'a> RendererDataBase<'a> for RendererData<'a> {
     fn initialize_renderer_data(
         &mut self,
-        renderer_context: &RendererContext,
-        engine_resources: *const EngineResources,
-        effect_manager: *const EffectManager,
+        renderer_context: *const RendererContext<'a>,
+        engine_resources: *const EngineResources<'a>,
+        effect_manager: *const EffectManager<'a>,
     ) {
         self._renderer_context = renderer_context;
         self._engine_resources = engine_resources;
         self._effect_manager = effect_manager;
 
+        let renderer_context_ref = ptr_as_ref(renderer_context);
+
         shader_buffer_data::register_shader_buffer_data_list(
-            renderer_context.get_device(),
-            renderer_context.get_device_memory_properties(),
-            renderer_context.get_debug_utils(),
+            renderer_context_ref.get_device(),
+            renderer_context_ref.get_device_memory_properties(),
+            renderer_context_ref.get_debug_utils(),
             &mut self._shader_buffer_data_map,
         );
 
-        self.create_render_targets(renderer_context);
+        self.create_render_targets(renderer_context_ref);
         if unsafe { constants::RENDER_OCEAN } {
             self.get_fft_ocean_mut()
-                .register_fft_ocean_textures(renderer_context, self.get_engine_resources_mut());
+                .register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
         }
     }
 
@@ -128,7 +130,7 @@ impl<'a> RendererDataBase for RendererData<'a> {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         // Bloom
         self._render_context_bloom.initialize(
@@ -424,7 +426,7 @@ impl<'a> RendererDataBase for RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         frame_index: usize,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         scene_manager: &SceneManager,
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
@@ -1073,34 +1075,34 @@ impl<'a> RendererData<'a> {
         }
     }
 
-    pub fn get_effect_manager(&self) -> &EffectManager {
+    pub fn get_effect_manager(&self) -> &EffectManager<'a> {
         ptr_as_ref(self._effect_manager)
     }
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager {
+    pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager)
     }
-    pub fn get_renderer_context(&self) -> &RendererContext {
+    pub fn get_renderer_context(&self) -> &RendererContext<'a> {
         ptr_as_ref(self._renderer_context)
     }
-    pub fn get_renderer_context_mut(&self) -> &mut RendererContext {
+    pub fn get_renderer_context_mut(&self) -> &mut RendererContext<'a> {
         ptr_as_mut(self._renderer_context)
     }
-    pub fn get_engine_resources(&self) -> &EngineResources {
+    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
         ptr_as_ref(self._engine_resources)
     }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources {
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
         ptr_as_mut(self._engine_resources)
     }
-    pub fn get_fft_ocean_mut(&self) -> &mut FFTOcean {
+    pub fn get_fft_ocean_mut(&self) -> &mut FFTOcean<'a> {
         ptr_as_mut(&self._fft_ocean)
     }
-    pub fn get_atmosphere_mut(&self) -> &mut Atmosphere {
+    pub fn get_atmosphere_mut(&self) -> &mut Atmosphere<'a> {
         ptr_as_mut(&self._atmosphere)
     }
     pub fn get_shader_buffer_data(
         &self,
         buffer_data_type: &ShaderBufferDataType,
-    ) -> &ShaderBufferData {
+    ) -> &ShaderBufferData<'a> {
         &self._shader_buffer_data_map.get(buffer_data_type).unwrap()
     }
 
@@ -1239,8 +1241,8 @@ impl<'a> RendererData<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
         _quad_geometry_data: &GeometryData,
     ) {
         let _label_clear_render_targets = ScopedDebugLabel::create_scoped_cmd_label(
@@ -1292,10 +1294,10 @@ impl<'a> RendererData<'a> {
 
     pub fn copy_cube_map(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         render_pass_pipeline_data_name: &str,
         mip_level_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
         image_width: u32,
@@ -1336,11 +1338,11 @@ impl<'a> RendererData<'a> {
 
     pub fn render_light_probe(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
         scene_manager: &SceneManager,
         main_camera: &CameraObjectData,
         static_render_elements: &Vec<RenderElementData>,
@@ -1577,7 +1579,7 @@ impl<'a> RendererData<'a> {
 
     pub fn render_solid_object(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         render_pass_name: &str,
@@ -1653,10 +1655,10 @@ impl<'a> RendererData<'a> {
     // TEST_CODE
     fn render_ray_tracing(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         // image barrier
         let scene_color = self.get_render_target(RenderTargetType::SceneColorCopy);
@@ -1759,7 +1761,7 @@ impl<'a> RendererData<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         self.get_effect_manager().render_effects(
             command_buffer,
@@ -1773,8 +1775,8 @@ impl<'a> RendererData<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
         geometry_data: &GeometryData,
         bound_box_matrices: &Vec<BoundBoxInstanceData>
     ) {
@@ -1811,7 +1813,7 @@ impl<'a> RendererData<'a> {
 
     pub fn render_taa(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -1854,8 +1856,8 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
+        renderer_context: &RendererContext<'a>,
+        engine_resources: &EngineResources<'a>,
     ) {
         let _label_render_bloom = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
@@ -1934,7 +1936,7 @@ impl<'a> RendererData<'a> {
 
     pub fn render_ssr(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -1982,7 +1984,7 @@ impl<'a> RendererData<'a> {
 
     pub fn render_ssao(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -2007,7 +2009,7 @@ impl<'a> RendererData<'a> {
 
     pub fn composite_gbuffer(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -2040,7 +2042,7 @@ impl<'a> RendererData<'a> {
 
     pub fn generate_max_z(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -2094,7 +2096,7 @@ impl<'a> RendererData<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
     ) {
         let _label_scene_color_downsampling = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
@@ -2139,7 +2141,7 @@ impl<'a> RendererData<'a> {
 
     pub fn render_pre_process(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
@@ -2182,11 +2184,11 @@ impl<'a> RendererData<'a> {
 
     pub fn render_post_process(
         &self,
-        renderer_context: &RendererContext,
+        renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        engine_resources: &EngineResources,
+        engine_resources: &EngineResources<'a>,
     ) {
         // TAA
         self.render_taa(
