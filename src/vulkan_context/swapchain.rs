@@ -1,9 +1,7 @@
 use std::cmp::{max, min};
 
-use ash::extensions::ext::DebugUtils;
-use ash::extensions::khr::{Surface, Swapchain};
+use ash::{ext, khr, vk, Device};
 use ash::vk::Handle;
-use ash::{vk, Device};
 
 use crate::constants;
 use crate::vulkan_context::debug_utils;
@@ -114,7 +112,7 @@ pub fn is_valid_swapchain_support(swapchain_support_details: &SwapchainSupportDe
 }
 
 pub fn query_swapchain_support(
-    surface_loader: &Surface,
+    surface_loader: &khr::surface::Instance,
     physical_device: vk::PhysicalDevice,
     surface: vk::SurfaceKHR,
 ) -> SwapchainSupportDetails {
@@ -138,8 +136,8 @@ pub fn query_swapchain_support(
 
 pub fn create_swapchain_data(
     device: &Device,
-    debug_utils: &DebugUtils,
-    swapchain_interface: &Swapchain,
+    debug_utils_device: &ext::debug_utils::Device,
+    swapchain_device: &khr::swapchain::Device,
     surface: vk::SurfaceKHR,
     swapchain_support_details: &SwapchainSupportDetails,
     queue_family_data_list: &queue::QueueFamilyDataList,
@@ -213,24 +211,23 @@ pub fn create_swapchain_data(
     }
 
     unsafe {
-        let swapchain = swapchain_interface
+        let swapchain = swapchain_device
             .create_swapchain(&swapchain_create_info, None)
             .expect("vkCreateSwapchainKHR failed!");
-        let swapchain_images: SwapchainArray<vk::Image> = swapchain_interface
+        let swapchain_images: SwapchainArray<vk::Image> = swapchain_device
             .get_swapchain_images(swapchain)
             .expect("vkGetSwapchainImagesKHR error!");
         for image in swapchain_images.iter() {
             debug_utils::set_object_debug_info(
-                device,
-                debug_utils,
+                debug_utils_device,
                 "swapchain",
                 vk::ObjectType::IMAGE,
-                image.as_raw(),
+                image.as_raw()
             );
         }
         let swapchain_image_views = create_swapchain_image_views(
             &device,
-            debug_utils,
+            debug_utils_device,
             &swapchain_images,
             swapchain_create_info.image_format,
         );
@@ -259,19 +256,19 @@ pub fn create_swapchain_data(
 
 pub fn destroy_swapchain_data(
     device: &Device,
-    swapchain_interface: &Swapchain,
+    swapchain_device: &khr::swapchain::Device,
     swapchain_data: &SwapchainData,
 ) {
     destroy_swapchain_image_views(device, &swapchain_data._swapchain_image_views);
     log::info!("destroy_swapchain_data");
     unsafe {
-        swapchain_interface.destroy_swapchain(swapchain_data._swapchain, None);
+        swapchain_device.destroy_swapchain(swapchain_data._swapchain, None);
     }
 }
 
 pub fn create_swapchain_image_views(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     swapchain_images: &SwapchainArray<vk::Image>,
     image_format: vk::Format,
 ) -> SwapchainArray<vk::ImageView> {
@@ -280,7 +277,7 @@ pub fn create_swapchain_image_views(
         .map(|image| {
             texture::create_image_view(
                 device,
-                debug_utils,
+                debug_utils_device,
                 "swapchain",
                 *image,
                 vk::ImageViewType::TYPE_2D,

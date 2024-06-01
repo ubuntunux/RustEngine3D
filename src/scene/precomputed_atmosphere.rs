@@ -639,7 +639,7 @@ pub struct AtmosphereModel {
 }
 
 #[derive(Clone)]
-pub struct Atmosphere {
+pub struct Atmosphere<'a> {
     pub _is_render_atmosphere: bool,
     pub _use_constant_solar_spectrum: bool,
     pub _use_ozone: bool,
@@ -672,10 +672,10 @@ pub struct Atmosphere {
     pub _noise_contrast: f32,
     pub _noise_coverage: f32,
     pub _noise_tiling: f32,
-    pub _compute_multiple_scattering_framebuffers: Layers<FramebufferData>,
-    pub _compute_single_scattering_framebuffers: Layers<FramebufferData>,
-    pub _compute_scattering_density_framebuffers: Layers<FramebufferData>,
-    pub _render_context_precomputed_atmosphere: RenderContext_TAA_Simple,
+    pub _compute_multiple_scattering_framebuffers: Layers<FramebufferData<'a>>,
+    pub _compute_single_scattering_framebuffers: Layers<FramebufferData<'a>>,
+    pub _compute_scattering_density_framebuffers: Layers<FramebufferData<'a>>,
+    pub _render_context_precomputed_atmosphere: RenderContext_TAA_Simple<'a>,
     pub _composite_atmosphere_descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
     pub _composite_atmosphere_descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
 }
@@ -1070,11 +1070,10 @@ impl AtmosphereModel {
     }
 }
 
-impl Atmosphere {
-    pub fn create_atmosphere(is_render_atmosphere: bool) -> Atmosphere {
+impl<'a> Atmosphere<'a> {
+    pub fn create_atmosphere(is_render_atmosphere: bool) -> Self {
         let luminance_type: Luminance = DEFAULT_LUMINANCE_TYPE;
-
-        Atmosphere {
+        Self {
             _is_render_atmosphere: is_render_atmosphere,
             _use_constant_solar_spectrum: false,
             _use_ozone: true,
@@ -1278,7 +1277,7 @@ impl Atmosphere {
         engine_resources: &EngineResources,
     ) {
         let device = renderer_data.get_renderer_context().get_device();
-        let debug_utils = renderer_data.get_renderer_context().get_debug_utils();
+        let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
         let material_instance = engine_resources
             .get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere")
             .borrow();
@@ -1286,7 +1285,7 @@ impl Atmosphere {
         // render precomputed atmosphere
         self._render_context_precomputed_atmosphere.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
             renderer_data
@@ -1307,7 +1306,7 @@ impl Atmosphere {
             .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV);
         self._composite_atmosphere_descriptor_sets0 = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             composite_atmosphere_pipeline_binding_data,
             &[(
                 composite_atmosphere_descriptor_binding_index,
@@ -1318,7 +1317,7 @@ impl Atmosphere {
         );
         self._composite_atmosphere_descriptor_sets1 = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             composite_atmosphere_pipeline_binding_data,
             &[(
                 composite_atmosphere_descriptor_binding_index,
@@ -1354,7 +1353,7 @@ impl Atmosphere {
                 self._compute_multiple_scattering_framebuffers
                     .push(utility::create_framebuffers(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         &compute_multiple_scattering_pipeline_binding_data
                             .get_render_pass_data()
                             .borrow(),
@@ -1408,7 +1407,7 @@ impl Atmosphere {
                 self._compute_single_scattering_framebuffers
                     .push(utility::create_framebuffers(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         &compute_single_scattering_pipeline_binding_data
                             .get_render_pass_data()
                             .borrow(),
@@ -1421,7 +1420,7 @@ impl Atmosphere {
                 self._compute_scattering_density_framebuffers
                     .push(utility::create_framebuffers(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         &compute_scattering_density_pipeline_binding_data
                             .get_render_pass_data()
                             .borrow(),

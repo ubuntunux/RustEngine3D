@@ -127,22 +127,22 @@ impl PushConstantName for PushConstant_RenderParticle {
 impl PushConstant for PushConstant_RenderParticle {}
 
 // interfaces
-pub struct EffectManager {
+pub struct EffectManager<'a> {
     pub _effect_id_generator: i64,
-    pub _effects: HashMap<i64, RcRefCell<EffectInstance>>,
+    pub _effects: HashMap<i64, RcRefCell<EffectInstance<'a>>>,
     pub _dead_effect_ids: Vec<i64>,
-    pub _allocated_emitters: Vec<*const EmitterInstance>,
+    pub _allocated_emitters: Vec<*const EmitterInstance<'a>>,
     pub _allocated_emitter_count: i32,
     pub _allocated_particle_count: i32,
-    pub _effect_render_group: Vec<*const EmitterInstance>,
+    pub _effect_render_group: Vec<*const EmitterInstance<'a>>,
     pub _gpu_particle_static_constants: Vec<GpuParticleStaticConstants>,
     pub _gpu_particle_dynamic_constants: Vec<GpuParticleDynamicConstants>,
     pub _gpu_particle_emitter_indices: Vec<i32>,
     pub _need_to_clear_gpu_particle_buffer: bool,
 }
 
-impl EffectManager {
-    pub fn create_effect_manager() -> Box<EffectManager> {
+impl<'a> EffectManager<'a> {
+    pub fn create_effect_manager() -> Box<EffectManager<'a>> {
         Box::new(EffectManager {
             _effect_id_generator: 0,
             _effects: HashMap::new(),

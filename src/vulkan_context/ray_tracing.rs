@@ -1,5 +1,5 @@
-use ash::extensions::ext::DebugUtils;
-use ash::extensions::nv::RayTracing;
+use ash::ext;
+use ash::nv;
 use ash::{vk, Device};
 use nalgebra::Vector3;
 
@@ -22,19 +22,18 @@ pub struct GeometryInstance {
 pub struct RayTracingCreateInfo {}
 
 #[derive(Debug, Clone)]
-pub struct RayTracingData {
+pub struct RayTracingData<'a> {
     pub _vertex_buffer_data: BufferData,
     pub _index_buffer_data: BufferData,
-    pub _geometry_buffer_data_list: Vec<vk::GeometryNV>,
+    pub _geometry_buffer_data_list: Vec<vk::GeometryNV<'a>>,
     pub _instance_buffer_data: BufferData,
     pub _instance_data: Vec<GeometryInstance>,
     pub _bottom_accel_structs: Vec<vk::AccelerationStructureNV>,
     pub _bottom_accel_struct_memories: Vec<vk::DeviceMemory>,
-    pub _bottom_write_descriptor_set_accel_structs:
-        Vec<vk::WriteDescriptorSetAccelerationStructureNV>,
+    pub _bottom_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
     pub _top_accel_structs: Vec<vk::AccelerationStructureNV>,
     pub _top_accel_struct_memories: Vec<vk::DeviceMemory>,
-    pub _top_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV>,
+    pub _top_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
     pub _scratch_buffer_data: BufferData,
 }
 
@@ -84,7 +83,7 @@ impl GeometryInstance {
 pub fn create_acceleration_structure(
     device: &Device,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    ray_tracing: &RayTracing,
+    ray_tracing: &nv::ray_tracing::Device,
     accel_create_info: &vk::AccelerationStructureCreateInfoNV,
 ) -> (Vec<vk::AccelerationStructureNV>, Vec<vk::DeviceMemory>) {
     unsafe {
@@ -134,9 +133,9 @@ pub fn create_acceleration_structure(
     }
 }
 
-impl RayTracingData {
-    pub fn create_ray_tracing_data() -> RayTracingData {
-        RayTracingData {
+impl<'a> RayTracingData<'a> {
+    pub fn create_ray_tracing_data() -> Self {
+        Self {
             _vertex_buffer_data: BufferData::default(),
             _index_buffer_data: BufferData::default(),
             _geometry_buffer_data_list: Vec::new(),
@@ -156,8 +155,8 @@ impl RayTracingData {
         &mut self,
         device: &Device,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-        debug_utils: &DebugUtils,
-        ray_tracing: &RayTracing,
+        debug_utils_device: &ext::debug_utils::Device,
+        ray_tracing: &nv::ray_tracing::Device,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
     ) {
@@ -180,7 +179,7 @@ impl RayTracingData {
                 command_pool,
                 command_queue,
                 device_memory_properties,
-                debug_utils,
+                debug_utils_device,
                 "raytracing_vertex_buffer",
                 vk::BufferUsageFlags::VERTEX_BUFFER,
                 &vertex_data_list,
@@ -193,7 +192,7 @@ impl RayTracingData {
                 command_pool,
                 command_queue,
                 device_memory_properties,
-                debug_utils,
+                debug_utils_device,
                 "raytracing_index_buffer",
                 vk::BufferUsageFlags::INDEX_BUFFER,
                 &indices,
@@ -292,7 +291,7 @@ impl RayTracingData {
                 command_pool,
                 command_queue,
                 device_memory_properties,
-                debug_utils,
+                debug_utils_device,
                 "raytracing_instance_buffer",
                 vk::BufferUsageFlags::RAY_TRACING_NV,
                 &self._instance_data,
@@ -349,7 +348,7 @@ impl RayTracingData {
             self._scratch_buffer_data = buffer::create_buffer_data(
                 device,
                 device_memory_properties,
-                debug_utils,
+                debug_utils_device,
                 "raytracing_scratch_buffer",
                 scratch_buffer_size,
                 vk::BufferUsageFlags::RAY_TRACING_NV,
@@ -367,7 +366,7 @@ impl RayTracingData {
         } // End - create_acceleration_structure_data_list
     }
 
-    pub fn destroy_ray_tracing_data(&mut self, device: &Device, ray_tracing: &RayTracing) {
+    pub fn destroy_ray_tracing_data(&mut self, device: &Device, ray_tracing: &nv::ray_tracing::Device) {
         log::info!("destroy_ray_tracing_data");
         buffer::destroy_buffer_data(device, &self._vertex_buffer_data);
         buffer::destroy_buffer_data(device, &self._index_buffer_data);
@@ -407,7 +406,7 @@ impl RayTracingData {
     pub fn build_ray_tracing(
         &self,
         device: &Device,
-        ray_tracing: &RayTracing,
+        ray_tracing: &nv::ray_tracing::Device,
         command_buffer: vk::CommandBuffer,
     ) {
         unsafe {

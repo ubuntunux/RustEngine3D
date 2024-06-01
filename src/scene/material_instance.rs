@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 
 use crate::scene::material::MaterialData;
 use crate::utilities::system::RcRefCell;
@@ -15,35 +15,35 @@ use crate::vulkan_context::render_pass::{
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 #[derive(Clone, Debug)]
-pub struct PipelineBindingDataCreateInfo {
-    pub _render_pass_pipeline_data: RenderPassPipelineData,
-    pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
+pub struct PipelineBindingDataCreateInfo<'a> {
+    pub _render_pass_pipeline_data: RenderPassPipelineData<'a>,
+    pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo<'a>>>,
     pub _push_constant_data_list: Vec<PipelinePushConstantData>,
 }
 
 #[derive(Clone, Debug)]
-pub struct PipelineBindingData {
-    pub _render_pass_pipeline_data: RenderPassPipelineData,
+pub struct PipelineBindingData<'a> {
+    pub _render_pass_pipeline_data: RenderPassPipelineData<'a>,
     pub _descriptor_sets: SwapchainArray<vk::DescriptorSet>,
-    pub _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>>,
+    pub _write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet<'a>>>,
     pub _descriptor_set_count: u32,
-    pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo>>,
+    pub _descriptor_resource_infos_list: SwapchainArray<Vec<DescriptorResourceInfo<'a>>>,
     pub _push_constant_data_list: Vec<PipelinePushConstantData>,
 }
 
-type PipelineBindingDataMap = HashMap<String, PipelineBindingData>;
+type PipelineBindingDataMap<'a> = HashMap<String, PipelineBindingData<'a>>;
 
 #[derive(Clone, Debug)]
-pub struct MaterialInstanceData {
+pub struct MaterialInstanceData<'a> {
     pub _material_instance_data_name: String,
-    pub _material_data: RcRefCell<MaterialData>,
+    pub _material_data: RcRefCell<MaterialData<'a>>,
     pub _material_parameters: serde_json::Map<String, serde_json::Value>,
     pub _render_pass_pipeline_data_names_map: HashMap<String, Vec<String>>,
-    pub _pipeline_binding_data_map: PipelineBindingDataMap,
+    pub _pipeline_binding_data_map: PipelineBindingDataMap<'a>,
     pub _default_pipeline_binding_name: String,
 }
 
-impl PipelineBindingData {
+impl<'a> PipelineBindingData<'a> {
     pub fn get_render_pass_data(&self) -> &RcRefCell<RenderPassData> {
         &self._render_pass_pipeline_data._render_pass_data
     }
@@ -67,15 +67,15 @@ impl PipelineBindingData {
     }
 }
 
-impl MaterialInstanceData {
+impl<'a> MaterialInstanceData<'a> {
     pub fn create_material_instance(
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         material_instance_data_name: &String,
         material_data: &RcRefCell<MaterialData>,
         material_parameters: &serde_json::Map<String, serde_json::Value>,
         pipeline_bind_create_infos: Vec<PipelineBindingDataCreateInfo>,
-    ) -> MaterialInstanceData {
+    ) -> MaterialInstanceData<'a> {
         log::debug!("create_material_instance: {}", material_instance_data_name);
         log::trace!(
             "    material_data: {}",
@@ -113,7 +113,7 @@ impl MaterialInstanceData {
                 ._descriptor_data;
             let descriptor_sets = create_descriptor_sets(
                 device,
-                debug_utils,
+                debug_utils_device,
                 render_pass_pipeline_data_name.as_str(),
                 descriptor_data,
             );

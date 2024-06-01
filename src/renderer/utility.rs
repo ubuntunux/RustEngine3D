@@ -1,5 +1,5 @@
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use ash::vk::BaseOutStructure;
 
 use crate::constants;
@@ -14,24 +14,24 @@ pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
     vec![a; constants::SWAPCHAIN_IMAGE_COUNT]
 }
 
-pub fn create_descriptor_image_info_swapchain_array(
+pub fn create_descriptor_image_info_swapchain_array<'a>(
     image_info: vk::DescriptorImageInfo,
-) -> SwapchainArray<DescriptorResourceInfo> {
+) -> SwapchainArray<DescriptorResourceInfo<'a>> {
     vec![DescriptorResourceInfo::DescriptorImageInfo(image_info); constants::SWAPCHAIN_IMAGE_COUNT]
 }
 
-pub fn create_framebuffer(
+pub fn create_framebuffer<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     render_pass_data: &RenderPassData,
     render_target: &TextureData,
     render_target_layer: u32,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
-) -> FramebufferData {
+) -> FramebufferData<'a> {
     framebuffer::create_framebuffer_data(
         device,
-        debug_utils,
+        debug_utils_device,
         render_pass_data._render_pass,
         format!(
             "{}_{}",
@@ -51,18 +51,18 @@ pub fn create_framebuffer(
     )
 }
 
-pub fn create_framebuffers(
+pub fn create_framebuffers<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     render_pass_data: &RenderPassData,
     framebuffer_name: &str,
     color_render_targets: &[RenderTargetInfo],
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
-) -> FramebufferData {
+) -> FramebufferData<'a> {
     framebuffer::create_framebuffer_data(
         device,
-        debug_utils,
+        debug_utils_device,
         render_pass_data._render_pass,
         format!(
             "{}_{}",
@@ -77,14 +77,14 @@ pub fn create_framebuffers(
     )
 }
 
-pub fn create_framebuffer_2d_array(
+pub fn create_framebuffer_2d_array<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     render_pass_data: &RenderPassData,
     render_target: &TextureData,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
-) -> FramebufferData {
+) -> FramebufferData<'a> {
     let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers)
         .map(|layer| RenderTargetInfo {
             _texture_data: render_target,
@@ -96,7 +96,7 @@ pub fn create_framebuffer_2d_array(
 
     framebuffer::create_framebuffer_data(
         device,
-        debug_utils,
+        debug_utils_device,
         render_pass_data._render_pass,
         format!(
             "{}_{}",
@@ -109,7 +109,7 @@ pub fn create_framebuffer_2d_array(
 
 pub fn create_descriptor_sets(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     pipeline_binding_data: &PipelineBindingData,
     descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
 ) -> SwapchainArray<vk::DescriptorSet> {
@@ -135,7 +135,7 @@ pub fn create_descriptor_sets(
     }
     let descriptor_sets = descriptor::create_descriptor_sets(
         device,
-        debug_utils,
+        debug_utils_device,
         pipeline_data._pipeline_data_name.as_str(),
         descriptor_data,
     );
@@ -150,19 +150,19 @@ pub fn create_descriptor_sets(
     descriptor_sets
 }
 
-pub fn create_framebuffer_and_descriptor_sets(
+pub fn create_framebuffer_and_descriptor_sets<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     pipeline_binding_data: &PipelineBindingData,
     render_target: &TextureData,
     render_target_layer: u32,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
     descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
-) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
+) -> (FramebufferData<'a>, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
-        debug_utils,
+        debug_utils_device,
         &pipeline_binding_data.get_render_pass_data().borrow(),
         render_target,
         render_target_layer,
@@ -171,26 +171,26 @@ pub fn create_framebuffer_and_descriptor_sets(
     );
     let descriptor_sets = create_descriptor_sets(
         device,
-        debug_utils,
+        debug_utils_device,
         pipeline_binding_data,
         descriptor_resource_infos_list,
     );
     (framebuffer_data, descriptor_sets)
 }
 
-pub fn create_framebuffers_and_descriptor_sets(
+pub fn create_framebuffers_and_descriptor_sets<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     pipeline_binding_data: &PipelineBindingData,
     framebuffer_name: &str,
     color_render_targets: &[RenderTargetInfo],
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
     descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
-) -> (FramebufferData, SwapchainArray<vk::DescriptorSet>) {
+) -> (FramebufferData<'a>, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffers(
         device,
-        debug_utils,
+        debug_utils_device,
         &pipeline_binding_data.get_render_pass_data().borrow(),
         framebuffer_name,
         color_render_targets,
@@ -199,7 +199,7 @@ pub fn create_framebuffers_and_descriptor_sets(
     );
     let descriptor_sets = create_descriptor_sets(
         device,
-        debug_utils,
+        debug_utils_device,
         pipeline_binding_data,
         descriptor_resource_infos_list,
     );

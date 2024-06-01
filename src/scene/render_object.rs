@@ -38,13 +38,13 @@ impl Default for RenderObjectCreateInfo {
 }
 
 #[derive(Clone, Debug)]
-pub struct RenderObjectData {
+pub struct RenderObjectData<'a> {
     pub _object_id: i64,
     pub _render: bool,
     pub _render_shadow: bool,
     pub _render_object_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
-    pub _model_data: RcRefCell<ModelData>,
+    pub _model_data: RcRefCell<ModelData<'a>>,
     pub _push_constant_data_list_group: Vec<Vec<PipelinePushConstantData>>,
     pub _bound_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
@@ -54,13 +54,13 @@ pub struct RenderObjectData {
     pub _bone_count: usize
 }
 
-impl RenderObjectData {
+impl<'a> RenderObjectData<'a> {
     pub fn create_render_object_data(
         object_id: i64,
         render_object_name: &String,
         model_data: &RcRefCell<ModelData>,
         render_object_create_data: &RenderObjectCreateInfo,
-    ) -> RenderObjectData {
+    ) -> RenderObjectData<'a> {
         log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::create_transform_object_data();
         transform_object_data.set_position(&render_object_create_data._position);

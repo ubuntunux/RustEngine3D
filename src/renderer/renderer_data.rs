@@ -5,7 +5,7 @@ use std::str::FromStr;
 use std::vec::Vec;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use nalgebra::{Matrix4, Vector2};
 
 use crate::constants;
@@ -65,10 +65,10 @@ pub enum RenderObjectType {
     Skeletal = 1,
 }
 
-pub struct RendererData {
-    pub _renderer_context: *const RendererContext,
-    pub _engine_resources: *const EngineResources,
-    pub _effect_manager: *const EffectManager,
+pub struct RendererData<'a> {
+    pub _renderer_context: *const RendererContext<'a>,
+    pub _engine_resources: *const EngineResources<'a>,
+    pub _effect_manager: *const EffectManager<'a>,
     pub _is_first_rendering: bool,
     pub _scene_constants: shader_buffer_data::SceneConstants,
     pub _view_constants: shader_buffer_data::ViewConstants,
@@ -76,21 +76,21 @@ pub struct RendererData {
     pub _debug_render_target_layer: u32,
     pub _debug_render_target_miplevel: u32,
     pub _render_target_data_map: RenderTargetDataMap,
-    pub _shader_buffer_data_map: ShaderBufferDataMap,
-    pub _render_context_bloom: RenderContext_Bloom,
+    pub _shader_buffer_data_map: ShaderBufferDataMap<'a>,
+    pub _render_context_bloom: RenderContext_Bloom<'a>,
     pub _render_context_ssao: RenderContext_SSAO,
-    pub _render_context_taa: RenderContext_TAA,
+    pub _render_context_taa: RenderContext_TAA<'a>,
     pub _render_context_hiz: RenderContext_HierarchicalMinZ,
     pub _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling,
-    pub _render_context_ssr: RenderContext_TAA_Simple,
+    pub _render_context_ssr: RenderContext_TAA_Simple<'a>,
     pub _render_context_composite_gbuffer: RenderContext_CompositeGBuffer,
-    pub _render_context_clear_render_targets: RenderContext_ClearRenderTargets,
-    pub _render_context_light_probe: RenderContext_LightProbe,
-    pub _fft_ocean: FFTOcean,
-    pub _atmosphere: Atmosphere,
+    pub _render_context_clear_render_targets: RenderContext_ClearRenderTargets<'a>,
+    pub _render_context_light_probe: RenderContext_LightProbe<'a>,
+    pub _fft_ocean: FFTOcean<'a>,
+    pub _atmosphere: Atmosphere<'a>,
 }
 
-impl RendererDataBase for RendererData {
+impl<'a> RendererDataBase for RendererData<'a> {
     fn initialize_renderer_data(
         &mut self,
         renderer_context: &RendererContext,
@@ -127,13 +127,13 @@ impl RendererDataBase for RendererData {
     fn prepare_framebuffer_and_descriptors(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
     ) {
         // Bloom
         self._render_context_bloom.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::Bloom0)
@@ -148,7 +148,7 @@ impl RendererDataBase for RendererData {
         // Temporal AA
         self._render_context_taa.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::SceneColorCopy)
@@ -163,7 +163,7 @@ impl RendererDataBase for RendererData {
         // SSAO
         self._render_context_ssao.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::SSAO)
@@ -174,7 +174,7 @@ impl RendererDataBase for RendererData {
         // Hierarchical Min Z
         self._render_context_hiz.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::HierarchicalMinZ)
@@ -185,7 +185,7 @@ impl RendererDataBase for RendererData {
         // SceneColor Downsampling
         self._render_context_scene_color_downsampling.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::SceneColor)
@@ -196,7 +196,7 @@ impl RendererDataBase for RendererData {
         // SSR
         self._render_context_ssr.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::SSR)
@@ -217,7 +217,7 @@ impl RendererDataBase for RendererData {
         // Composite GBuffer
         self._render_context_composite_gbuffer.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::SSRResolved)
@@ -232,7 +232,7 @@ impl RendererDataBase for RendererData {
         // RenderContext_LightProbe
         self._render_context_light_probe.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             self._render_target_data_map
                 .get(&RenderTargetType::LightProbeColor)
@@ -317,7 +317,7 @@ impl RendererDataBase for RendererData {
                 .get_top_level_descriptor_resource_info();
             let _render_ray_tracing_descriptor_sets = utility::create_descriptor_sets(
                 device,
-                debug_utils,
+                debug_utils_device,
                 render_ray_tracing_pipeline_binding_data,
                 &[(
                     0,
@@ -329,7 +329,7 @@ impl RendererDataBase for RendererData {
         // Last - Clear Render Targets
         self._render_context_clear_render_targets.initialize(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
             &[
                 (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -1044,8 +1044,8 @@ impl RendererDataBase for RendererData {
     }
 }
 
-impl RendererData {
-    pub fn create_renderer_data() -> RendererData {
+impl<'a> RendererData<'a> {
+    pub fn create_renderer_data() -> RendererData<'a> {
         RendererData {
             _renderer_context: std::ptr::null(),
             _engine_resources: std::ptr::null(),
@@ -1667,14 +1667,13 @@ impl RendererData {
             base_array_layer: 0,
             layer_count: 1,
         };
-        let barrier = vk::ImageMemoryBarrier::builder()
+        let barrier = vk::ImageMemoryBarrier::default()
             .src_access_mask(vk::AccessFlags::empty())
             .dst_access_mask(vk::AccessFlags::SHADER_WRITE)
             .old_layout(vk::ImageLayout::UNDEFINED)
             .new_layout(vk::ImageLayout::GENERAL)
             .image(scene_color._image)
-            .subresource_range(range)
-            .build();
+            .subresource_range(range);
 
         renderer_context.pipeline_barrier(
             command_buffer,

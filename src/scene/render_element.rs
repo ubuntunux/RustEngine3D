@@ -5,9 +5,9 @@ use crate::vulkan_context::geometry_buffer::GeometryData;
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 #[derive(Clone, Debug)]
-pub struct RenderElementData {
-    pub _render_object: RcRefCell<RenderObjectData>,
+pub struct RenderElementData<'a> {
+    pub _render_object: RcRefCell<RenderObjectData<'a>>,
     pub _geometry_data: RcRefCell<GeometryData>,
-    pub _material_instance_data: RcRefCell<MaterialInstanceData>,
+    pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>,
     pub _push_constant_data_list: *const Vec<PipelinePushConstantData>,
 }

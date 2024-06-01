@@ -2,15 +2,15 @@ use std::time;
 
 use log::{self, LevelFilter};
 use nalgebra::Vector2;
-use raw_window_handle::{HasRawDisplayHandle, RawDisplayHandle};
 use sdl2::event;
 use sdl2::Sdl;
 use winit::dpi;
 use winit::event::{
-    DeviceEvent, ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, Touch,
-    TouchPhase, VirtualKeyCode, WindowEvent,
+    DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, Touch,
+    TouchPhase, WindowEvent,
 };
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event_loop::EventLoop;
+use winit::keyboard::{ KeyCode, PhysicalKey };
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 use crate::core::input::{self, ButtonState};
@@ -104,8 +104,7 @@ pub trait ApplicationBase {
     fn update_application(&mut self, delta_time: f64);
 }
 
-pub struct EngineCore {
-    pub _display_handle: RawDisplayHandle,
+pub struct EngineCore<'a> {
     pub _window: *const Window,
     pub _window_size: Vector2<i32>,
     pub _is_grab_mode: bool,
@@ -116,18 +115,18 @@ pub struct EngineCore {
     pub _mouse_move_data: Box<input::MouseMoveData>,
     pub _mouse_input_data: Box<input::MouseInputData>,
     pub _joystick_input_data: Box<input::JoystickInputData>,
-    pub _audio_manager: Box<AudioManager>,
-    pub _effect_manager: Box<EffectManager>,
-    pub _engine_resources: Box<EngineResources>,
+    pub _audio_manager: Box<AudioManager<'a>>,
+    pub _effect_manager: Box<EffectManager<'a>>,
+    pub _engine_resources: Box<EngineResources<'a>>,
     pub _debug_line_manager: Box<DebugLineManager>,
     pub _font_manager: Box<FontManager>,
-    pub _renderer_context: Box<RendererContext>,
-    pub _ui_manager: Box<UIManager>,
-    pub _scene_manager: Box<SceneManager>,
+    pub _renderer_context: Box<RendererContext<'a>>,
+    pub _ui_manager: Box<UIManager<'a>>,
+    pub _scene_manager: Box<SceneManager<'a>>,
     pub _application: *const dyn ApplicationBase,
 }
 
-impl EngineCore {
+impl<'a> EngineCore<'a> {
     pub fn get_application(&self) -> &dyn ApplicationBase {
         ptr_as_ref(self._application)
     }
@@ -189,11 +188,10 @@ impl EngineCore {
         elapsed_time: f64,
         app_name: &str,
         app_version: u32,
-        display_handle: RawDisplayHandle,
         window: &Window,
         sdl: &Sdl,
         application: *const dyn ApplicationBase
-    ) -> Box<EngineCore> {
+    ) -> Box<EngineCore<'a>> {
         let window_size: Vector2<i32> = Vector2::new(
             window.inner_size().width as i32,
             window.inner_size().height as i32,
@@ -208,7 +206,6 @@ impl EngineCore {
         let renderer_context = RendererContext::create_renderer_context(
             app_name,
             app_version,
-            display_handle,
             &window_size,
             window,
             engine_resources.as_ref(),
@@ -221,7 +218,6 @@ impl EngineCore {
         let mouse_input_data = input::create_mouse_input_data();
         let joystick_input_data = input::JoystickInputData::create_joystick_input_data(sdl);
         let engine_core_ptr = Box::new(EngineCore {
-            _display_handle: display_handle,
             _window: window,
             _window_size: window_size.into(),
             _is_grab_mode: false,
@@ -378,16 +374,18 @@ impl EngineCore {
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
-    pub fn update_keyboard_input(&mut self, input: &KeyboardInput) {
-        match input.virtual_keycode {
-            Some(key) => {
+    pub fn update_keyboard_input(&mut self, input: &KeyEvent, _is_synthetic: bool) {
+        match input.physical_key {
+            PhysicalKey::Code(key) => {
                 if ElementState::Pressed == input.state {
                     self._keyboard_input_data.set_key_pressed(key);
                 } else {
                     self._keyboard_input_data.set_key_released(key);
                 }
             }
-            None => {}
+            _ => {
+                log::info!("Unknown key: {:?}", input.physical_key);
+            }
         }
     }
 
@@ -405,10 +403,10 @@ impl EngineCore {
             }
         } else if 1 == touch.id {
             if TouchPhase::Started == touch.phase {
-                self._keyboard_input_data.set_key_pressed(VirtualKeyCode::W);
+                self._keyboard_input_data.set_key_pressed(KeyCode::KeyW);
             } else if TouchPhase::Ended == touch.phase {
                 self._keyboard_input_data
-                    .set_key_released(VirtualKeyCode::W);
+                    .set_key_released(KeyCode::KeyW);
             }
         }
     }
@@ -425,7 +423,7 @@ impl EngineCore {
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
         // exit
-        if self._keyboard_input_data.get_key_pressed(VirtualKeyCode::Escape) {
+        if self._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
             self.terminate_application();
             return false;
         }
@@ -534,14 +532,17 @@ pub fn run_application(
     let sdl = sdl2::init().expect("failed to sdl2::init");
 
     let time_instance = time::Instant::now();
-    let event_loop = EventLoop::new();
-    let display_handle: RawDisplayHandle = event_loop.raw_display_handle();
+    let event_loop = EventLoop::new().unwrap();
     let window: Window = WindowBuilder::new()
         .with_title(app_name.clone())
-        .with_inner_size(dpi::Size::Physical(dpi::PhysicalSize {
-            width: initial_window_size.x as u32,
-            height: initial_window_size.y as u32,
-        }))
+        .with_inner_size(
+            dpi::Size::Physical(
+                dpi::PhysicalSize {
+                    width: initial_window_size.x as u32,
+                    height: initial_window_size.y as u32
+                }
+            )
+        )
         .build(&event_loop)
         .unwrap();
 
@@ -581,7 +582,7 @@ pub fn run_application(
     let mut need_initialize: bool = true;
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
-    event_loop.run(move |event, __window_target, control_flow| {
+    event_loop.run(move |event, window_target| {
         let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
             if maybe_engine_core.is_some() {
@@ -593,7 +594,6 @@ pub fn run_application(
                 current_time,
                 app_name.as_str(),
                 app_version,
-                display_handle,
                 &window,
                 &sdl,
                 application,
@@ -652,14 +652,10 @@ pub fn run_application(
                             _ => (),
                         }
                     }
-                }
-            }
-            Event::MainEventsCleared => {
-                if run_application {
+
                     // update main event
                     let result = engine_core.update_event(current_time);
                     if false == result {
-                        *control_flow = ControlFlow::Exit;
                         run_application = false;
                     }
                 }
@@ -709,9 +705,9 @@ pub fn run_application(
                 } => {
                     engine_core.set_grab_mode(false);
                 }
-                WindowEvent::KeyboardInput { input, .. } => {
+                WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     if run_application {
-                        engine_core.update_keyboard_input(&input);
+                        engine_core.update_keyboard_input(&event, is_synthetic);
                     }
                 }
                 WindowEvent::Touch(touch) => {
@@ -719,11 +715,12 @@ pub fn run_application(
                 }
                 _ => (),
             },
-            Event::RedrawEventsCleared => {}
-            Event::LoopDestroyed => {
-                log::trace!("Application destroyed");
+            Event::LoopExiting => {
+                log::info!("Application destroyed");
             }
-            _ => (),
+            _ => {
+                log::info!("Unknown event: {:?}", event);
+            }
         }
-    });
+    }).expect("TODO: panic message");
 }

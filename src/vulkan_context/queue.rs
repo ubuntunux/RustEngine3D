@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use ash::extensions::khr::Surface;
+use ash::khr;
 use ash::{vk, Device, Instance};
 
 use crate::constants;
@@ -24,7 +24,7 @@ pub struct QueueFamilyDataList {
 }
 
 fn select_queue_family(
-    surface_interface: &Surface,
+    surface_instance: &khr::surface::Instance,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     queue_family_properties: &Vec<vk::QueueFamilyProperties>,
@@ -36,7 +36,7 @@ fn select_queue_family(
             .enumerate()
             .filter_map(|(index, ref queue_family_property)| {
                 let has_specify_queue = queue_family_property.queue_flags.contains(queue_flags);
-                let surface_support = surface_interface.get_physical_device_surface_support(
+                let surface_support = surface_instance.get_physical_device_surface_support(
                     physical_device,
                     index as u32,
                     surface,
@@ -52,7 +52,7 @@ fn select_queue_family(
 }
 
 fn select_presentation_queue_family(
-    surface_interface: &Surface,
+    surface_instance: &khr::surface::Instance,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     queue_family_properties: &Vec<vk::QueueFamilyProperties>,
@@ -62,7 +62,7 @@ fn select_presentation_queue_family(
             .iter()
             .enumerate()
             .filter_map(|(index, ref __queue_family_property)| {
-                let surface_support = surface_interface.get_physical_device_surface_support(
+                let surface_support = surface_instance.get_physical_device_surface_support(
                     physical_device,
                     index as u32,
                     surface,
@@ -93,41 +93,41 @@ pub fn get_queue_families(
 
 pub fn get_queue_family_indices(
     instance: &Instance,
-    surface_interface: &Surface,
+    surface_instance: &khr::surface::Instance,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     is_concurrent_mode: bool,
 ) -> QueueFamilyIndices {
     let queue_families = get_queue_families(&instance, physical_device);
     let presentation_queue_family_indices = select_presentation_queue_family(
-        surface_interface,
+        surface_instance,
         surface,
         physical_device,
         &queue_families,
     );
     let graphics_queue_family_indices = select_queue_family(
-        surface_interface,
+        surface_instance,
         surface,
         physical_device,
         &queue_families,
         vk::QueueFlags::GRAPHICS,
     );
     let compute_queue_family_indices = select_queue_family(
-        surface_interface,
+        surface_instance,
         surface,
         physical_device,
         &queue_families,
         vk::QueueFlags::COMPUTE,
     );
     let transfer_queue_family_indices = select_queue_family(
-        surface_interface,
+        surface_instance,
         surface,
         physical_device,
         &queue_families,
         vk::QueueFlags::TRANSFER,
     );
     let sparse_binding_queue_family_indices = select_queue_family(
-        surface_interface,
+        surface_instance,
         surface,
         physical_device,
         &queue_families,

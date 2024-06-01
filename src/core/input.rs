@@ -4,9 +4,9 @@ use crate::constants::JOYSTICK_SENSOR_DEAD_ZONE;
 use nalgebra::Vector2;
 use sdl2::controller::{Axis, Button, GameController};
 use sdl2::Sdl;
-use winit::event::VirtualKeyCode;
+use winit::keyboard::KeyCode;
 
-pub type KeyMap = HashMap<VirtualKeyCode, bool>;
+pub type KeyMap = HashMap<KeyCode, bool>;
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum ButtonState {
@@ -192,14 +192,14 @@ impl KeyboardInputData {
         false == self._key_hold_map.is_empty()
     }
 
-    pub fn get_key_hold(&self, key: VirtualKeyCode) -> bool {
+    pub fn get_key_hold(&self, key: KeyCode) -> bool {
         match self._key_hold_map.get(&key) {
             Some(a) => *a,
             _ => false,
         }
     }
 
-    pub fn set_key_hold(&mut self, key: VirtualKeyCode, hold: bool) {
+    pub fn set_key_hold(&mut self, key: KeyCode, hold: bool) {
         if hold {
             self._key_hold_map.insert(key, hold);
         } else {
@@ -215,14 +215,14 @@ impl KeyboardInputData {
         false == self._key_pressed_map.is_empty()
     }
 
-    pub fn get_key_pressed(&self, key: VirtualKeyCode) -> bool {
+    pub fn get_key_pressed(&self, key: KeyCode) -> bool {
         match self._key_pressed_map.get(&key) {
             Some(a) => *a,
             _ => false,
         }
     }
 
-    pub fn set_key_pressed(&mut self, key: VirtualKeyCode) {
+    pub fn set_key_pressed(&mut self, key: KeyCode) {
         if false == self.get_key_hold(key) {
             self._key_pressed_map.insert(key, true);
             self.set_key_hold(key, true);
@@ -233,14 +233,14 @@ impl KeyboardInputData {
         self._key_pressed_map.clear();
     }
 
-    pub fn get_key_released(&self, key: VirtualKeyCode) -> bool {
+    pub fn get_key_released(&self, key: KeyCode) -> bool {
         match self._key_released_map.get(&key) {
             Some(a) => *a,
             _ => false,
         }
     }
 
-    pub fn set_key_released(&mut self, key: VirtualKeyCode) {
+    pub fn set_key_released(&mut self, key: KeyCode) {
         self._key_released_map.insert(key, true);
         self.set_key_hold(key, false);
     }

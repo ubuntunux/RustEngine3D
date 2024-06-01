@@ -6,14 +6,14 @@ use std::rc::Rc;
 use std::vec::Vec;
 
 use ash::{Device, Entry, Instance, vk};
-use ash::extensions::ext::DebugUtils;
-use ash::extensions::khr::{Surface, Swapchain};
-use ash::extensions::nv::RayTracing;
+use ash::ext;
+use ash::khr;
+use ash::nv;
 use ash::prelude::VkResult;
 use ash::vk::CommandBuffer;
 use nalgebra::Vector2;
-use raw_window_handle::{HasRawWindowHandle, RawDisplayHandle};
 use winit;
+use winit::raw_window_handle::HasDisplayHandle;
 use winit::window::Window;
 
 use crate::constants;
@@ -107,7 +107,7 @@ pub trait RendererDataBase {
     fn prepare_framebuffer_and_descriptors(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
     );
     fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
@@ -134,7 +134,7 @@ pub trait RendererDataBase {
     );
 }
 
-pub struct RendererContext {
+pub struct RendererContext<'a> {
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
@@ -145,11 +145,13 @@ pub struct RendererContext {
     pub _device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     pub _physical_device: vk::PhysicalDevice,
     pub _surface: vk::SurfaceKHR,
-    pub _surface_interface: Surface,
+    pub _surface_instance: khr::surface::Instance,
     pub _swapchain_data: SwapchainData,
     pub _swapchain_support_details: swapchain::SwapchainSupportDetails,
-    pub _swapchain_interface: Swapchain,
-    pub _debug_utils: Option<DebugUtils>,
+    pub _swapchain_device: khr::swapchain::Device,
+    pub _swapchain_instance: khr::swapchain::Instance,
+    pub _debug_utils_device: Option<ext::debug_utils::Device>,
+    pub _debug_utils_instance: Option<ext::debug_utils::Instance>,
     pub _debug_call_back: vk::DebugUtilsMessengerEXT,
     pub _image_available_semaphores: FrameArray<vk::Semaphore>,
     pub _render_finished_semaphores: FrameArray<vk::Semaphore>,
@@ -159,22 +161,21 @@ pub struct RendererContext {
     pub _command_buffers: SwapchainArray<CommandBuffer>,
     pub _render_features: RenderFeatures,
     pub _image_samplers: ImageSamplerData,
-    pub _ray_tracing: Rc<RayTracing>,
-    pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV,
-    pub _ray_tracing_test_data: RayTracingData,
-    pub _engine_resources: *const EngineResources,
-    pub _renderer_data: Box<RendererData>,
+    pub _ray_tracing: Rc<nv::ray_tracing::Device>,
+    pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV<'a>,
+    pub _ray_tracing_test_data: RayTracingData<'a>,
+    pub _engine_resources: *const EngineResources<'a>,
+    pub _renderer_data: Box<RendererData<'a>>,
 }
 
-impl RendererContext {
+impl<'a> RendererContext<'a> {
     pub fn create_renderer_context(
         app_name: &str,
         app_version: u32,
-        display_handle: RawDisplayHandle,
         window_size: &Vector2<i32>,
         window: &Window,
         engine_resources: *const EngineResources,
-    ) -> Box<RendererContext> {
+    ) -> Box<RendererContext<'a>> {
         unsafe {
             log::info!(
                 "create_renderer_context: {}, width: {}, height: {}",
@@ -184,7 +185,7 @@ impl RendererContext {
             );
             let entry = Entry::linked();
             let surface_extensions =
-                ash_window::enumerate_required_extensions(display_handle).unwrap();
+                ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap();
             let required_layer_names =
                 device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS.clone());
             let required_instance_layers: Vec<*const c_char> = required_layer_names
@@ -217,10 +218,9 @@ impl RendererContext {
             let surface = device::create_vk_surface(
                 &entry,
                 &instance,
-                display_handle,
-                window.raw_window_handle(),
+                window
             );
-            let surface_interface = Surface::new(&entry, &instance);
+            let surface_instance = khr::surface::Instance::new(&entry, &instance);
             let (
                 physical_device,
                 swapchain_support_details,
@@ -228,7 +228,7 @@ impl RendererContext {
                 has_ray_tracing_extensions,
             ) = device::select_physical_device(
                 &instance,
-                &surface_interface,
+                &surface_instance,
                 surface,
                 &device_extensions,
                 &device_extensions_for_ray_tracing,
@@ -238,33 +238,8 @@ impl RendererContext {
                 instance.get_physical_device_properties(physical_device);
             let device_memory_properties: vk::PhysicalDeviceMemoryProperties =
                 instance.get_physical_device_memory_properties(physical_device);
-            let device_name =
-                CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
+            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
             let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
-
-            // debug utils
-            let debug_call_back: vk::DebugUtilsMessengerEXT;
-            let debug_utils: Option<DebugUtils>;
-            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
-                let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
-                let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
-                    message_severity: debug_message_level,
-                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
-                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
-                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
-                    pfn_user_callback: Some(vulkan_debug_callback),
-                    ..Default::default()
-                };
-                debug_utils = Some(DebugUtils::new(&entry, &instance));
-                debug_call_back = debug_utils
-                    .as_ref()
-                    .unwrap()
-                    .create_debug_utils_messenger(&debug_info, None)
-                    .unwrap();
-            } else {
-                debug_utils = None;
-                debug_call_back = vk::DebugUtilsMessengerEXT::null();
-            }
 
             log::info!("PhysicalDeviceProperties");
             log::info!(
@@ -280,7 +255,7 @@ impl RendererContext {
                 vk::api_version_patch(device_properties.driver_version)
             );
             log::info!(
-                "    device: {:?} {:?} vecdor_id: {:?} device_id: {:?}",
+                "    device: {:?} {:?} vendor_id: {:?} device_id: {:?}",
                 device_name,
                 device_properties.device_type,
                 device_properties.vendor_id,
@@ -289,44 +264,18 @@ impl RendererContext {
             log::info!("    limits: {:?}", device_properties.limits);
 
             // ray tracing properties
-            let ray_tracing_properties = RayTracing::get_properties(&instance, physical_device);
-            log::info!("NV Ray Tracing Properties:");
-            log::info!(
-                "    has_ray_tracing_extensions: {}",
-                has_ray_tracing_extensions
-            );
-            log::info!(
-                "    shader_group_handle_size: {}",
-                ray_tracing_properties.shader_group_handle_size
-            );
-            log::info!(
-                "    max_recursion_depth: {}",
-                ray_tracing_properties.max_recursion_depth
-            );
-            log::info!(
-                "    max_shader_group_stride: {}",
-                ray_tracing_properties.max_shader_group_stride
-            );
-            log::info!(
-                "    shader_group_base_alignment: {}",
-                ray_tracing_properties.shader_group_base_alignment
-            );
-            log::info!(
-                "    max_geometry_count: {}",
-                ray_tracing_properties.max_geometry_count
-            );
-            log::info!(
-                "    max_instance_count: {}",
-                ray_tracing_properties.max_instance_count
-            );
-            log::info!(
-                "    max_triangle_count: {}",
-                ray_tracing_properties.max_triangle_count
-            );
-            log::info!(
-                "    max_descriptor_set_acceleration_structures: {}",
-                ray_tracing_properties.max_descriptor_set_acceleration_structures
-            );
+            let ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV = {
+                let mut props_rt = vk::PhysicalDeviceRayTracingPropertiesNV::default();
+                {
+                    let mut props = vk::PhysicalDeviceProperties2::default().push_next(&mut props_rt);
+                    instance.get_physical_device_properties2(physical_device, &mut props);
+                }
+                log::info!("NV Ray Tracing Properties:");
+                log::info!("    has_ray_tracing_extensions: {:?}", has_ray_tracing_extensions);
+                log::info!("    ray_tracing_properties: {:?}", props_rt);
+                props_rt
+            };
+
             if enable_ray_tracing {
                 for extension in device_extensions_for_ray_tracing.iter() {
                     device_extension_names_raw.push(extension.as_ptr());
@@ -336,7 +285,7 @@ impl RendererContext {
             let msaa_samples = device::get_max_usable_sample_count(&device_properties);
             let queue_family_indices = queue::get_queue_family_indices(
                 &instance,
-                &surface_interface,
+                &surface_instance,
                 surface,
                 physical_device,
                 constants::IS_CONCURRENT_MODE,
@@ -367,7 +316,35 @@ impl RendererContext {
                 &queue_family_index_set,
                 &device_extension_names_raw,
             );
-            let ray_tracing = Rc::new(RayTracing::new(&instance, &device));
+
+            // debug utils
+            let debug_call_back: vk::DebugUtilsMessengerEXT;
+            let debug_utils_device: Option<ext::debug_utils::Device>;
+            let debug_utils_instance: Option<ext::debug_utils::Instance>;
+            if vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL {
+                let debug_message_level = get_debug_message_level(constants::DEBUG_MESSAGE_LEVEL);
+                let debug_info = vk::DebugUtilsMessengerCreateInfoEXT {
+                    message_severity: debug_message_level,
+                    message_type: vk::DebugUtilsMessageTypeFlagsEXT::GENERAL
+                        | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION
+                        | vk::DebugUtilsMessageTypeFlagsEXT::PERFORMANCE,
+                    pfn_user_callback: Some(vulkan_debug_callback),
+                    ..Default::default()
+                };
+                debug_utils_device = Some(ext::debug_utils::Device::new(&instance, &device));
+                debug_utils_instance = Some(ext::debug_utils::Instance::new(&entry, &instance));
+                debug_call_back = debug_utils_instance
+                    .as_ref()
+                    .unwrap()
+                    .create_debug_utils_messenger(&debug_info, None)
+                    .unwrap();
+            } else {
+                debug_utils_device = None;
+                debug_utils_instance = None;
+                debug_call_back = vk::DebugUtilsMessengerEXT::null();
+            }
+
+            let ray_tracing = Rc::new(nv::ray_tracing::Device::new(&instance, &device));
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
             let queue_family_data_list = queue::QueueFamilyDataList {
@@ -383,11 +360,12 @@ impl RendererContext {
                 _queue_family_count: queue_map.len() as u32,
                 _queue_family_indices: queue_family_indices.clone(),
             };
-            let swapchain_interface = Swapchain::new(&instance, &device);
+            let swapchain_device = khr::swapchain::Device::new(&instance, &device);
+            let swapchain_instance = khr::swapchain::Instance::new(&entry, &instance);
             let swapchain_data: SwapchainData = swapchain::create_swapchain_data(
                 &device,
-                debug_utils.as_ref().unwrap(),
-                &swapchain_interface,
+                debug_utils_device.as_ref().unwrap(),
+                &swapchain_device,
                 surface,
                 &swapchain_support_details,
                 &queue_family_data_list,
@@ -418,11 +396,13 @@ impl RendererContext {
                 _device_memory_properties: device_memory_properties,
                 _physical_device: physical_device,
                 _surface: surface,
-                _surface_interface: surface_interface,
+                _surface_instance: surface_instance,
                 _swapchain_data: swapchain_data,
                 _swapchain_support_details: swapchain_support_details,
-                _swapchain_interface: swapchain_interface,
-                _debug_utils: debug_utils,
+                _swapchain_device: swapchain_device,
+                _swapchain_instance: swapchain_instance,
+                _debug_utils_device: debug_utils_device,
+                _debug_utils_instance: debug_utils_instance,
                 _debug_call_back: debug_call_back,
                 _image_available_semaphores: image_available_semaphores,
                 _render_finished_semaphores: render_finished_semaphores,
@@ -493,14 +473,14 @@ impl RendererContext {
         &self._device
     }
 
-    pub fn get_debug_utils(&self) -> &DebugUtils {
-        self._debug_utils.as_ref().unwrap()
+    pub fn get_debug_utils(&self) -> &ext::debug_utils::Device {
+        &self._debug_utils_device.as_ref().unwrap()
     }
 
     pub fn get_use_ray_tracing(&self) -> bool {
         self._render_features._use_ray_tracing
     }
-    pub fn get_ray_tracing(&self) -> &RayTracing {
+    pub fn get_ray_tracing(&self) -> &nv::ray_tracing::Device {
         &self._ray_tracing
     }
     pub fn get_ray_tracing_properties(&self) -> &vk::PhysicalDeviceRayTracingPropertiesNV {
@@ -513,8 +493,8 @@ impl RendererContext {
     }
     pub fn create_ray_tracing_test_data(&mut self) {
         log::info!(">>> TEST CODE: create_ray_tracing_test_data");
-        let mut t = RayTracingData::create_ray_tracing_data();
-        t.initialize_ray_tracing_data(
+        self._ray_tracing_test_data = RayTracingData::create_ray_tracing_data();
+        self._ray_tracing_test_data.initialize_ray_tracing_data(
             self.get_device(),
             self.get_device_memory_properties(),
             self.get_debug_utils(),
@@ -522,9 +502,7 @@ impl RendererContext {
             self.get_command_pool(),
             self.get_graphics_queue(),
         );
-        self._ray_tracing_test_data = t;
     }
-    //
 
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties {
         &self._device_properties
@@ -633,13 +611,13 @@ impl RendererContext {
             command_buffer::destroy_command_pool(&self._device, self._command_pool);
             swapchain::destroy_swapchain_data(
                 &self._device,
-                &self._swapchain_interface,
+                &self._swapchain_device,
                 &self._swapchain_data,
             );
             device::destroy_device(&self._device);
-            device::destroy_vk_surface(&self._surface_interface, self._surface);
-            if self._debug_utils.is_some() {
-                self.get_debug_utils()
+            device::destroy_vk_surface(&self._surface_instance, self._surface);
+            if self._debug_utils_instance.is_some() {
+                self._debug_utils_instance.as_ref().unwrap()
                     .destroy_debug_utils_messenger(self._debug_call_back, None);
             }
             device::destroy_vk_instance(&self._instance);
@@ -1111,19 +1089,19 @@ impl RendererContext {
         );
         swapchain::destroy_swapchain_data(
             &self._device,
-            &self._swapchain_interface,
+            &self._swapchain_device,
             &self._swapchain_data,
         );
 
         self._swapchain_support_details = swapchain::query_swapchain_support(
-            &self._surface_interface,
+            &self._surface_instance,
             self._physical_device,
             self._surface,
         );
         self._swapchain_data = swapchain::create_swapchain_data(
             &self._device,
             self.get_debug_utils(),
-            &self._swapchain_interface,
+            &self._swapchain_device,
             self._surface,
             &self._swapchain_support_details,
             &self._queue_family_data_list,
@@ -1203,7 +1181,7 @@ impl RendererContext {
             };
 
             let is_swapchain_suboptimal: VkResult<bool> = self
-                ._swapchain_interface
+                ._swapchain_device
                 .queue_present(self.get_present_queue(), &present_info);
             if let Err(present_error) = is_swapchain_suboptimal {
                 log::error!("present_error: {:?}", present_error);
@@ -1381,7 +1359,7 @@ impl RendererContext {
 
             // Begin Render
             let acquire_next_image_result: VkResult<(u32, bool)> =
-                self._swapchain_interface.acquire_next_image(
+                self._swapchain_device.acquire_next_image(
                     self._swapchain_data._swapchain,
                     u64::MAX,
                     image_available_semaphore,

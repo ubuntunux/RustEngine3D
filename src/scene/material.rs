@@ -6,18 +6,18 @@ use crate::vulkan_context::render_pass::{
 };
 
 #[derive(Clone, Debug)]
-pub struct MaterialData {
+pub struct MaterialData<'a> {
     pub _material_data_name: String,
-    pub _render_pass_pipeline_data_map: RenderPassPipelineDataMap,
+    pub _render_pass_pipeline_data_map: RenderPassPipelineDataMap<'a>,
     pub _material_parameters: serde_json::Map<String, serde_json::Value>,
 }
 
-impl MaterialData {
+impl<'a> MaterialData<'a> {
     pub fn create_material(
         material_data_name: &String,
         render_pass_pipeline_data_list: &Vec<Option<RenderPassPipelineData>>,
         material_parameters: &serde_json::Map<String, serde_json::Value>,
-    ) -> MaterialData {
+    ) -> MaterialData<'a> {
         log::debug!("create_material: {}", material_data_name);
 
         let mut check_push_consant_names: Vec<String> = Vec::new();

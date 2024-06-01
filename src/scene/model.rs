@@ -3,25 +3,25 @@ use crate::scene::mesh::MeshData;
 use crate::utilities::system::RcRefCell;
 
 #[derive(Clone, Debug)]
-pub struct ModelCreateInfo {
+pub struct ModelCreateInfo<'a> {
     pub _model_data_name: String,
     pub _mesh_data: MeshData,
-    pub _material_instance_data_list: Vec<MaterialInstanceData>,
+    pub _material_instance_data_list: Vec<MaterialInstanceData<'a>>,
 }
 
 #[derive(Clone, Debug)]
-pub struct ModelData {
+pub struct ModelData<'a> {
     pub _model_data_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
-    pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
+    pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
 }
 
-impl ModelData {
+impl<'a> ModelData<'a> {
     pub fn new_model_data(
         model_name: &String,
         mesh_data: RcRefCell<MeshData>,
         material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>>,
-    ) -> ModelData {
+    ) -> ModelData<'a> {
         log::debug!("new_model_data: {}", model_name);
         for (i, x) in material_instance_data_list.iter().enumerate() {
             log::info!("new_model_data [{:?}]{:?}: {:?}", i, model_name, x.borrow()._material_instance_data_name);

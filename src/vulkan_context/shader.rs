@@ -8,7 +8,7 @@ use std::process;
 use crate::resource::resource;
 use crate::utilities::system;
 use crate::vulkan_context::debug_utils;
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use ash::vk::Handle;
 use ash::{vk, Device};
 use regex::Regex;
@@ -179,13 +179,13 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
     buffer
 }
 
-pub fn create_shader_stage_create_info(
+pub fn create_shader_stage_create_info<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     shader_filename: &PathBuf,
     shader_defines: &[String],
     stage_flag: vk::ShaderStageFlags,
-) -> vk::PipelineShaderStageCreateInfo {
+) -> vk::PipelineShaderStageCreateInfo<'a> {
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
     let code_buffer = compile_glsl(shader_filename, shader_defines);
     let shader_module_create_info = vk::ShaderModuleCreateInfo {
@@ -199,8 +199,7 @@ pub fn create_shader_stage_create_info(
             .expect("vkCreateShaderModule failed!");
         let shader_module_name: PathBuf = get_shader_module_name(&shader_filename, &shader_defines);
         debug_utils::set_object_debug_info(
-            device,
-            debug_utils,
+            debug_utils_device,
             shader_module_name.to_str().unwrap(),
             vk::ObjectType::SHADER_MODULE,
             shader_module.as_raw(),

@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use nalgebra::{Vector3, Vector4};
 use rand;
 
@@ -21,32 +21,28 @@ use crate::vulkan_context::vulkan_context::{
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_LightProbe {
+pub struct RenderContext_LightProbe<'a> {
     pub _next_refresh_time: f64,
     pub _light_probe_refresh_term: f64,
     pub _light_probe_blend_time: f64,
     pub _light_probe_blend_term: f64,
     pub _light_probe_capture_count: u64,
-    pub _render_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData>,
+    pub _render_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData<'a>>,
     pub _render_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
-    pub _composite_atmosphere_framebuffer_data_list_only_sky: CubeMapArray<FramebufferData>,
-    pub _composite_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData>,
+    pub _composite_atmosphere_framebuffer_data_list_only_sky: CubeMapArray<FramebufferData<'a>>,
+    pub _composite_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData<'a>>,
     pub _composite_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
-    pub _only_sky_downsampling_descriptor_sets:
-        CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
-    pub _light_probe_downsampling_descriptor_sets:
-        CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
-    pub _light_probe_blend_from_only_sky_descriptor_sets:
-        MipLevels<SwapchainArray<vk::DescriptorSet>>,
-    pub _light_probe_blend_from_forward_descriptor_sets:
-        MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
+    pub _light_probe_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
+    pub _light_probe_blend_from_only_sky_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _light_probe_blend_from_forward_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _only_sky_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _light_probe_forward_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
 }
 
-impl Default for RenderContext_LightProbe {
-    fn default() -> RenderContext_LightProbe {
-        RenderContext_LightProbe {
+impl<'a> Default for RenderContext_LightProbe<'a> {
+    fn default() -> Self {
+        Self {
             _next_refresh_time: 0.0,
             _light_probe_refresh_term: 2.0,
             _light_probe_blend_time: 0.0,
@@ -69,13 +65,13 @@ impl Default for RenderContext_LightProbe {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_ClearRenderTargets {
-    pub _color_framebuffer_data_list: HashMap<String, Layers<MipLevels<FramebufferData>>>,
+pub struct RenderContext_ClearRenderTargets<'a> {
+    pub _color_framebuffer_data_list: HashMap<String, Layers<MipLevels<FramebufferData<'a>>>>,
 }
 
-impl Default for RenderContext_ClearRenderTargets {
-    fn default() -> RenderContext_ClearRenderTargets {
-        RenderContext_ClearRenderTargets {
+impl<'a> Default for RenderContext_ClearRenderTargets<'a> {
+    fn default() -> Self {
+        Self {
             _color_framebuffer_data_list: HashMap::new(),
         }
     }
@@ -117,19 +113,19 @@ impl Default for RenderContext_SceneColorDownSampling {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_Bloom {
-    pub _bloom_downsample_framebuffer_data_list: Vec<FramebufferData>,
+pub struct RenderContext_Bloom<'a> {
+    pub _bloom_downsample_framebuffer_data_list: Vec<FramebufferData<'a>>,
     pub _bloom_downsample_descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
-    pub _bloom_temp_framebuffer_data_list: Vec<FramebufferData>,
+    pub _bloom_temp_framebuffer_data_list: Vec<FramebufferData<'a>>,
     pub _bloom_temp_descriptor_sets: Vec<SwapchainArray<vk::DescriptorSet>>,
-    pub _bloom_blur_framebuffer_data_list: Vec<*const FramebufferData>,
+    pub _bloom_blur_framebuffer_data_list: Vec<*const FramebufferData<'a>>,
     pub _bloom_blur_descriptor_sets: Vec<*const SwapchainArray<vk::DescriptorSet>>,
     pub _bloom_push_constants: PushConstant_BloomHighlight,
 }
 
-impl Default for RenderContext_Bloom {
-    fn default() -> RenderContext_Bloom {
-        RenderContext_Bloom {
+impl<'a> Default for RenderContext_Bloom<'a> {
+    fn default() -> Self {
+        Self {
             _bloom_downsample_framebuffer_data_list: Vec::new(),
             _bloom_downsample_descriptor_sets: Vec::new(),
             _bloom_temp_framebuffer_data_list: Vec::new(),
@@ -184,17 +180,17 @@ impl Default for RenderContext_SSAO {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_TAA {
+pub struct RenderContext_TAA<'a> {
     pub _enable_taa: bool,
     pub _rendertarget_width: u32,
     pub _rendertarget_height: u32,
-    pub _taa_resolve_framebuffer_data: FramebufferData,
+    pub _taa_resolve_framebuffer_data: FramebufferData<'a>,
     pub _taa_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
-impl Default for RenderContext_TAA {
-    fn default() -> RenderContext_TAA {
-        RenderContext_TAA {
+impl<'a> Default for RenderContext_TAA<'a> {
+    fn default() -> Self {
+        Self {
             _enable_taa: true,
             _rendertarget_width: 1024,
             _rendertarget_height: 768,
@@ -224,18 +220,18 @@ impl Default for RenderContext_HierarchicalMinZ {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_TAA_Simple {
-    pub _framebuffer_data0: FramebufferData,
-    pub _framebuffer_data1: FramebufferData,
+pub struct RenderContext_TAA_Simple<'a> {
+    pub _framebuffer_data0: FramebufferData<'a>,
+    pub _framebuffer_data1: FramebufferData<'a>,
     pub _descriptor_sets0: SwapchainArray<vk::DescriptorSet>,
     pub _descriptor_sets1: SwapchainArray<vk::DescriptorSet>,
     pub _current_taa_resolved: RenderTargetType,
     pub _previous_taa_resolved: RenderTargetType,
 }
 
-impl Default for RenderContext_TAA_Simple {
-    fn default() -> RenderContext_TAA_Simple {
-        RenderContext_TAA_Simple {
+impl<'a> Default for RenderContext_TAA_Simple<'a> {
+    fn default() -> Self {
+        Self {
             _framebuffer_data0: FramebufferData::default(),
             _framebuffer_data1: FramebufferData::default(),
             _descriptor_sets0: SwapchainArray::new(),
@@ -246,11 +242,11 @@ impl Default for RenderContext_TAA_Simple {
     }
 }
 
-impl RenderContext_Bloom {
+impl<'a> RenderContext_Bloom<'a> {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         render_target_bloom0: &TextureData,
         render_target_bloom_temp0: &TextureData,
@@ -266,7 +262,7 @@ impl RenderContext_Bloom {
             let (bloom_framebuffer_data, bloom_descriptor_set) =
                 utility::create_framebuffer_and_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     pipeline_binding_data,
                     render_target_bloom0,
                     layer,
@@ -295,7 +291,7 @@ impl RenderContext_Bloom {
             let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) =
                 utility::create_framebuffer_and_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     pipeline_binding_data,
                     render_target_bloom_temp0,
                     layer,
@@ -311,7 +307,7 @@ impl RenderContext_Bloom {
             let (gaussian_blur_v_framebuffer_data, gaussian_blur_v_descriptor_sets) =
                 utility::create_framebuffer_and_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     pipeline_binding_data,
                     render_target_bloom0,
                     layer,
@@ -369,11 +365,11 @@ impl RenderContext_Bloom {
     }
 }
 
-impl RenderContext_TAA {
+impl<'a> RenderContext_TAA<'a> {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         taa_render_target: &TextureData,
         taa_resolve_texture: &TextureData,
@@ -388,7 +384,7 @@ impl RenderContext_TAA {
         let mip_level: u32 = 0;
         let (framebuffer_data, descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             taa_resolve_texture,
             layer,
@@ -417,7 +413,7 @@ impl RenderContext_SSAO {
     pub fn initialize(
         &mut self,
         _device: &Device,
-        _debug_utils: &DebugUtils,
+        _debug_utils_device: &ext::debug_utils::Device,
         _engine_resources: &EngineResources,
         _render_target_ssao: &TextureData
     ) {
@@ -431,7 +427,7 @@ impl RenderContext_HierarchicalMinZ {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         render_target_hierarchical_min_z: &TextureData,
     ) {
@@ -445,7 +441,7 @@ impl RenderContext_HierarchicalMinZ {
         for mip_level in 0..downsampling_count {
             let descriptor_sets = utility::create_descriptor_sets(
                 device,
-                debug_utils,
+                debug_utils_device,
                 pipeline_binding_data,
                 &[
                     (
@@ -481,7 +477,7 @@ impl RenderContext_SceneColorDownSampling {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         texture_scene_color: &TextureData,
     ) {
@@ -495,7 +491,7 @@ impl RenderContext_SceneColorDownSampling {
         for mip_level in 0..downsampling_count {
             let descriptor_sets = utility::create_descriptor_sets(
                 device,
-                debug_utils,
+                debug_utils_device,
                 pipeline_binding_data,
                 &[
                     (
@@ -523,11 +519,11 @@ impl RenderContext_SceneColorDownSampling {
     }
 }
 
-impl RenderContext_TAA_Simple {
+impl<'a> RenderContext_TAA_Simple<'a> {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         texture_ssr: &TextureData,
         texture_taa_resolved: &TextureData,
@@ -544,7 +540,7 @@ impl RenderContext_TAA_Simple {
         let mip_level: u32 = 0;
         let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             texture_taa_resolved,
             layer,
@@ -567,7 +563,7 @@ impl RenderContext_TAA_Simple {
         );
         let (framebuffer_data1, descriptor_sets1) = utility::create_framebuffer_and_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             texture_taa_resolved_prev,
             layer,
@@ -612,7 +608,7 @@ impl RenderContext_CompositeGBuffer {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         texture_taa_resolved: &TextureData,
         texture_taa_resolved_prev: &TextureData,
@@ -625,7 +621,7 @@ impl RenderContext_CompositeGBuffer {
         let descriptor_binding_index: usize = 12;
         self._descriptor_sets0 = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             &[(
                 descriptor_binding_index,
@@ -636,7 +632,7 @@ impl RenderContext_CompositeGBuffer {
         );
         self._descriptor_sets1 = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             &[(
                 descriptor_binding_index,
@@ -653,11 +649,11 @@ impl RenderContext_CompositeGBuffer {
     }
 }
 
-impl RenderContext_ClearRenderTargets {
+impl<'a> RenderContext_ClearRenderTargets<'a> {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         render_target_infos: &[(&TextureData, vk::ClearValue)],
     ) {
@@ -694,7 +690,7 @@ impl RenderContext_ClearRenderTargets {
                         .unwrap()
                         .push(utility::create_framebuffers(
                             device,
-                            debug_utils,
+                            debug_utils_device,
                             &pipeline_binding_data.get_render_pass_data().borrow(),
                             &render_target._texture_data_name,
                             &color_attachments,
@@ -729,11 +725,11 @@ impl RenderContext_ClearRenderTargets {
     }
 }
 
-impl RenderContext_LightProbe {
+impl<'a> RenderContext_LightProbe<'a> {
     pub fn initialize(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         light_probe_color: &TextureData,
         light_probe_color_only_sky: &TextureData,
@@ -780,7 +776,7 @@ impl RenderContext_LightProbe {
             self._render_atmosphere_framebuffer_data_list
                 .push(utility::create_framebuffers(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     &render_atmosphere_pipeline_binding_data
                         .get_render_pass_data()
                         .borrow(),
@@ -809,7 +805,7 @@ impl RenderContext_LightProbe {
             self._render_atmosphere_descriptor_sets
                 .push(utility::create_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     render_atmosphere_pipeline_binding_data,
                     &[
                         (
@@ -826,7 +822,7 @@ impl RenderContext_LightProbe {
             self._composite_atmosphere_framebuffer_data_list_only_sky
                 .push(utility::create_framebuffers(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     &composite_atmosphere_pipeline_binding_data
                         .get_render_pass_data()
                         .borrow(),
@@ -845,7 +841,7 @@ impl RenderContext_LightProbe {
             self._composite_atmosphere_framebuffer_data_list
                 .push(utility::create_framebuffers(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     &composite_atmosphere_pipeline_binding_data
                         .get_render_pass_data()
                         .borrow(),
@@ -876,7 +872,7 @@ impl RenderContext_LightProbe {
             self._composite_atmosphere_descriptor_sets
                 .push(utility::create_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     composite_atmosphere_pipeline_binding_data,
                     &[
                         (
@@ -907,7 +903,7 @@ impl RenderContext_LightProbe {
             for mip_level in 0..downsampling_count {
                 let descriptor_sets = utility::create_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     downsampling_pipeline_binding_data,
                     &[
                         (
@@ -938,7 +934,7 @@ impl RenderContext_LightProbe {
             for mip_level in 0..downsampling_count {
                 let descriptor_sets = utility::create_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     downsampling_pipeline_binding_data,
                     &[
                         (
@@ -1015,14 +1011,14 @@ impl RenderContext_LightProbe {
                 self._only_sky_copy_descriptor_sets
                     .push(utility::create_descriptor_sets(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         copy_cube_map_pipeline_binding_data,
                         &only_sky_copy_descriptor_resource_infos,
                     ));
                 self._light_probe_forward_copy_descriptor_sets.push(
                     utility::create_descriptor_sets(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         copy_cube_map_pipeline_binding_data,
                         &light_probe_forward_copy_descriptor_resource_infos,
                     ),
@@ -1076,7 +1072,7 @@ impl RenderContext_LightProbe {
                 self._light_probe_blend_from_only_sky_descriptor_sets.push(
                     utility::create_descriptor_sets(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         blend_cube_map_pipeline_binding_data,
                         &light_probe_blend_from_only_sky_descriptor_resource_infos,
                     ),
@@ -1084,7 +1080,7 @@ impl RenderContext_LightProbe {
                 self._light_probe_blend_from_forward_descriptor_sets.push(
                     utility::create_descriptor_sets(
                         device,
-                        debug_utils,
+                        debug_utils_device,
                         blend_cube_map_pipeline_binding_data,
                         &light_probe_blend_from_forward_descriptor_resource_infos,
                     ),

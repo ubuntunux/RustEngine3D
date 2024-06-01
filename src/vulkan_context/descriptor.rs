@@ -1,6 +1,6 @@
 use std::ffi::c_void;
 
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use ash::vk::Handle;
 use ash::{vk, Device};
 
@@ -10,11 +10,11 @@ use crate::vulkan_context::debug_utils;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
 #[derive(Debug, Clone)]
-pub enum DescriptorResourceInfo {
+pub enum DescriptorResourceInfo<'a> {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
     DescriptorImageInfo(vk::DescriptorImageInfo),
     DescriptorSamplerInfo(vk::Sampler),
-    WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV),
+    WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV<'a>),
     InvalidDescriptorInfo,
 }
 
@@ -62,18 +62,18 @@ impl DescriptorDataCreateInfo {
 }
 
 #[derive(Debug, Clone)]
-pub struct DescriptorData {
+pub struct DescriptorData<'a> {
     pub _descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
-    pub _descriptor_set_layout_bindings: Vec<vk::DescriptorSetLayoutBinding>,
+    pub _descriptor_set_layout_bindings: Vec<vk::DescriptorSetLayoutBinding<'a>>,
     pub _descriptor_pool_sizes: Vec<vk::DescriptorPoolSize>,
     pub _descriptor_pool: vk::DescriptorPool,
     pub _descriptor_set_layout: vk::DescriptorSetLayout,
     pub _max_descriptor_sets_count: u32,
 }
 
-impl Default for DescriptorData {
-    fn default() -> DescriptorData {
-        DescriptorData {
+impl<'a> Default for DescriptorData<'a> {
+    fn default() -> Self {
+        Self {
             _descriptor_data_create_infos: Vec::<DescriptorDataCreateInfo>::new(),
             _descriptor_set_layout_bindings: Vec::<vk::DescriptorSetLayoutBinding>::new(),
             _descriptor_pool_sizes: Vec::<vk::DescriptorPoolSize>::new(),
@@ -114,7 +114,7 @@ pub fn convert_resource_type_to_descriptor_type(resource_type: &DescriptorResour
 
 pub fn create_descriptor_pool(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     descriptor_name: &str,
     pool_sizes: &Vec<vk::DescriptorPoolSize>,
     max_descriptor_sets_count: u32,
@@ -132,9 +132,9 @@ pub fn create_descriptor_pool(
             let descriptor_pool: vk::DescriptorPool = device
                 .create_descriptor_pool(&pool_create_info, None)
                 .expect("vkCreateDescriptorPool failed!");
+
             debug_utils::set_object_debug_info(
-                device,
-                debug_utils,
+                debug_utils_device,
                 descriptor_name,
                 vk::ObjectType::DESCRIPTOR_POOL,
                 descriptor_pool.as_raw(),
@@ -159,7 +159,7 @@ pub fn destroy_descriptor_pool(device: &Device, descriptor_pool: vk::DescriptorP
 
 pub fn create_descriptor_set_layout(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     descriptor_name: &str,
     layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>,
 ) -> vk::DescriptorSetLayout {
@@ -173,8 +173,7 @@ pub fn create_descriptor_set_layout(
             .create_descriptor_set_layout(&layout_create_info, None)
             .expect("vkCreateDescriptorSetLayout failed!");
         debug_utils::set_object_debug_info(
-            device,
-            debug_utils,
+            debug_utils_device,
             descriptor_name,
             vk::ObjectType::DESCRIPTOR_SET_LAYOUT,
             descriptor_set_layout.as_raw(),
@@ -201,13 +200,13 @@ pub fn destroy_descriptor_set_layout(
     }
 }
 
-pub fn create_descriptor_data(
+pub fn create_descriptor_data<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     descriptor_name: &str,
     descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
     max_descriptor_sets_count: u32,
-) -> DescriptorData {
+) -> DescriptorData<'a> {
     log::trace!("create_descriptor_data");
     let descriptor_layout_bindings = descriptor_data_create_infos
         .iter()
@@ -234,13 +233,13 @@ pub fn create_descriptor_data(
         .collect();
     let descriptor_set_layout = create_descriptor_set_layout(
         device,
-        debug_utils,
+        debug_utils_device,
         descriptor_name,
         &descriptor_layout_bindings,
     );
     let descriptor_pool = create_descriptor_pool(
         device,
-        debug_utils,
+        debug_utils_device,
         descriptor_name,
         &descriptor_pool_sizes,
         max_descriptor_sets_count,
@@ -265,7 +264,7 @@ pub fn destroy_descriptor_data(device: &Device, descriptor_data: &DescriptorData
 
 pub fn create_descriptor_sets(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     pipeline_data_name: &str,
     descriptor_data: &DescriptorData,
 ) -> SwapchainArray<vk::DescriptorSet> {
@@ -284,8 +283,7 @@ pub fn create_descriptor_sets(
                 .expect("failed to allocate_descriptor_sets");
             for descriptor_set in descriptor_sets.iter() {
                 debug_utils::set_object_debug_info(
-                    device,
-                    debug_utils,
+                    debug_utils_device,
                     pipeline_data_name,
                     vk::ObjectType::DESCRIPTOR_SET,
                     descriptor_set.as_raw(),
@@ -312,13 +310,13 @@ pub fn destroy_descriptor_sets(
     }
 }
 
-pub fn create_write_descriptor_sets_with_update(
+pub fn create_write_descriptor_sets_with_update<'a>(
     device: &Device,
     descriptor_sets: &SwapchainArray<vk::DescriptorSet>,
     descriptor_bind_indices: &Vec<u32>,
     descriptor_set_layout_bindings: &Vec<vk::DescriptorSetLayoutBinding>,
     descriptor_resource_infos_list: &SwapchainArray<Vec<DescriptorResourceInfo>>,
-) -> SwapchainArray<Vec<vk::WriteDescriptorSet>> {
+) -> SwapchainArray<Vec<vk::WriteDescriptorSet<'a>>> {
     if descriptor_sets.is_empty() {
         return Vec::new();
     }
@@ -380,11 +378,11 @@ pub fn create_write_descriptor_sets_with_update(
         .collect()
 }
 
-pub fn create_write_descriptor_set(
+pub fn create_write_descriptor_set<'a>(
     write_descriptor_sets: &Vec<vk::WriteDescriptorSet>,
     descriptor_index: usize,
     descriptor_resource_info: &DescriptorResourceInfo,
-) -> vk::WriteDescriptorSet {
+) -> vk::WriteDescriptorSet<'a> {
     let mut write_descriptor_set = write_descriptor_sets[descriptor_index].clone();
     match descriptor_resource_info {
         DescriptorResourceInfo::DescriptorBufferInfo(buffer_info) => {

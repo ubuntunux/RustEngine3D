@@ -150,39 +150,39 @@ pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
 pub type ResourceInfoMap = HashMap<String, ResourceInfo>;
 
 pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
-pub type EffectDataMap = ResourceDataMap<EffectData>;
-pub type FramebufferDataListMap = ResourceDataMap<FramebufferData>;
-pub type MaterialDataMap = ResourceDataMap<MaterialData>;
-pub type MaterialInstanceDataMap = ResourceDataMap<MaterialInstanceData>;
+pub type EffectDataMap<'a> = ResourceDataMap<EffectData<'a>>;
+pub type FramebufferDataListMap<'a> = ResourceDataMap<FramebufferData<'a>>;
+pub type MaterialDataMap<'a> = ResourceDataMap<MaterialData<'a>>;
+pub type MaterialInstanceDataMap<'a> = ResourceDataMap<MaterialInstanceData<'a>>;
 pub type FontDataMap = ResourceDataMap<FontData>;
 pub type MeshDataMap = ResourceDataMap<MeshData>;
-pub type ModelDataMap = ResourceDataMap<ModelData>;
+pub type ModelDataMap<'a> = ResourceDataMap<ModelData<'a>>;
 pub type TextureDataMap = ResourceDataMap<TextureData>;
-pub type RenderPassDataMap = ResourceDataMap<RenderPassData>;
+pub type RenderPassDataMap<'a> = ResourceDataMap<RenderPassData<'a>>;
 pub type RenderPassDataCreateInfoMap = HashMap<String, RenderPassDataCreateInfo>;
 pub type SceneDataCreateInfoMap = ResourceDataMap<SceneDataCreateInfo>;
-pub type DescriptorDataMap = ResourceDataMap<DescriptorData>;
+pub type DescriptorDataMap<'a> = ResourceDataMap<DescriptorData<'a>>;
 pub type MetaDataMap = ResourceDataMap<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 
 
 #[derive(Clone)]
-pub struct EngineResources {
+pub struct EngineResources<'a> {
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _audio_data_map: ResourceInfoMap,
     pub _audio_bank_data_map: ResourceInfoMap,
-    pub _effect_data_map: EffectDataMap,
+    pub _effect_data_map: EffectDataMap<'a>,
     pub _font_data_map: FontDataMap,
     pub _mesh_data_map: MeshDataMap,
-    pub _model_data_map: ModelDataMap,
+    pub _model_data_map: ModelDataMap<'a>,
     pub _texture_data_map: TextureDataMap,
-    pub _framebuffer_data_list_map: FramebufferDataListMap,
-    pub _render_pass_data_map: RenderPassDataMap,
+    pub _framebuffer_data_list_map: FramebufferDataListMap<'a>,
+    pub _render_pass_data_map: RenderPassDataMap<'a>,
     pub _render_pass_data_create_info_map: RenderPassDataCreateInfoMap,
     pub _scene_data_create_infos_map: SceneDataCreateInfoMap,
-    pub _material_data_map: MaterialDataMap,
-    pub _material_instance_data_map: MaterialInstanceDataMap,
-    pub _descriptor_data_map: DescriptorDataMap,
+    pub _material_data_map: MaterialDataMap<'a>,
+    pub _material_instance_data_map: MaterialInstanceDataMap<'a>,
+    pub _descriptor_data_map: DescriptorDataMap<'a>,
     pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
 }
 
@@ -324,10 +324,10 @@ impl MetaData {
     }
 }
 
-impl EngineResources {
+impl<'a> EngineResources<'a> {
     pub fn create_engine_resources(
         callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo
-    ) -> Box<EngineResources> {
+    ) -> Box<EngineResources<'a>> {
         let mut engine_resource = EngineResources {
             _relative_resource_file_path_map: HashMap::new(),
             _audio_data_map: ResourceInfoMap::new(),

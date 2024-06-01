@@ -22,7 +22,7 @@ use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
 type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLightData>>;
-type RenderObjectMap = HashMap<i64, RcRefCell<RenderObjectData>>;
+type RenderObjectMap<'a> = HashMap<i64, RcRefCell<RenderObjectData<'a>>>;
 
 
 #[repr(C)]
@@ -43,10 +43,10 @@ pub struct SceneDataCreateInfo {
 }
 
 #[derive(Clone)]
-pub struct SceneManager {
-    pub _engine_resources: *const EngineResources,
-    pub _renderer_data: *const RendererData,
-    pub _effect_manager: *const EffectManager,
+pub struct SceneManager<'a> {
+    pub _engine_resources: *const EngineResources<'a>,
+    pub _renderer_data: *const RendererData<'a>,
+    pub _effect_manager: *const EffectManager<'a>,
     pub _window_size: Vector2<i32>,
     pub _scene_name: String,
     pub _sea_height: f32,
@@ -57,12 +57,12 @@ pub struct SceneManager {
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
     pub _object_id_generator: i64,
-    pub _static_render_object_map: RenderObjectMap,
-    pub _skeletal_render_object_map: RenderObjectMap,
-    pub _static_render_elements: Vec<RenderElementData>,
-    pub _static_shadow_render_elements: Vec<RenderElementData>,
-    pub _skeletal_render_elements: Vec<RenderElementData>,
-    pub _skeletal_shadow_render_elements: Vec<RenderElementData>,
+    pub _static_render_object_map: RenderObjectMap<'a>,
+    pub _skeletal_render_object_map: RenderObjectMap<'a>,
+    pub _static_render_elements: Vec<RenderElementData<'a>>,
+    pub _static_shadow_render_elements: Vec<RenderElementData<'a>>,
+    pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
+    pub _skeletal_shadow_render_elements: Vec<RenderElementData<'a>>,
     pub _render_element_transform_count: usize,
     pub _render_element_transform_matrices: Vec<Matrix4<f32>>,
     pub _bound_boxes: Vec<BoundBoxInstanceData>
@@ -82,7 +82,7 @@ impl Default for SceneDataCreateInfo {
     }
 }
 
-impl SceneManager {
+impl<'a> SceneManager<'a> {
     pub fn get_main_camera(&self) -> &CameraObjectData {
         self._main_camera.as_ref().unwrap().as_ref()
     }
@@ -119,7 +119,7 @@ impl SceneManager {
     pub fn get_bound_boxes(&self) -> &Vec<BoundBoxInstanceData> {
         &self._bound_boxes
     }
-    pub fn create_scene_manager() -> Box<SceneManager> {
+    pub fn create_scene_manager() -> Box<SceneManager<'a>> {
         Box::new(SceneManager {
             _engine_resources: std::ptr::null(),
             _renderer_data: std::ptr::null(),

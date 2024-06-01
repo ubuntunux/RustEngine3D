@@ -72,7 +72,7 @@ impl PushConstantName for PushConstant_FFT_Ocean {
 
 impl PushConstant for PushConstant_FFT_Ocean {}
 
-pub struct FFTOcean {
+pub struct FFTOcean<'a> {
     _name: String,
     _height: f32,
     _wind: f32,
@@ -88,13 +88,13 @@ pub struct FFTOcean {
     _caustic_index: u32,
     _theoretic_slope_variance: f64,
     _total_slope_variance: f64,
-    _fft_variance_framebuffers: Vec<FramebufferData>,
-    _fft_wave_x_fft_a_framebuffer: FramebufferData,
-    _fft_wave_x_fft_b_framebuffer: FramebufferData,
+    _fft_variance_framebuffers: Vec<FramebufferData<'a>>,
+    _fft_wave_x_fft_a_framebuffer: FramebufferData<'a>,
+    _fft_wave_x_fft_b_framebuffer: FramebufferData<'a>,
     _fft_wave_x_fft_a_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
     _fft_wave_x_fft_b_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
-    _fft_wave_y_fft_a_framebuffer: FramebufferData,
-    _fft_wave_y_fft_b_framebuffer: FramebufferData,
+    _fft_wave_y_fft_a_framebuffer: FramebufferData<'a>,
+    _fft_wave_y_fft_b_framebuffer: FramebufferData<'a>,
     _fft_wave_y_fft_a_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
     _fft_wave_y_fft_b_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
     _fft_a_generate_mips_descriptor_sets: Layers<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
@@ -103,10 +103,10 @@ pub struct FFTOcean {
     _render_fft_ocean_descriptor_sets: SwapchainArray<vk::DescriptorSet>,
 }
 
-impl Default for FFTOcean {
-    fn default() -> FFTOcean {
+impl<'a> Default for FFTOcean<'a> {
+    fn default() -> Self {
         let simulation_scale = 1.0;
-        FFTOcean {
+        Self {
             _name: String::from("ocean"),
             _height: f32::MIN,
             _wind: WIND,
@@ -181,7 +181,7 @@ fn compute_weight(n: i32, k: f64) -> (f64, f64) {
     )
 }
 
-impl FFTOcean {
+impl<'a> FFTOcean<'a> {
     pub fn get_height(&self) -> f32 {
         self._height
     }
@@ -340,7 +340,7 @@ impl FFTOcean {
         engine_resources: &EngineResources,
     ) {
         let device = renderer_data.get_renderer_context().get_device();
-        let debug_utils = renderer_data.get_renderer_context().get_debug_utils();
+        let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
         // fft Variance
         let material_instance = engine_resources
             .get_material_instance_data("fft_ocean/render_fft_ocean")
@@ -353,7 +353,7 @@ impl FFTOcean {
             self._fft_variance_framebuffers
                 .push(utility::create_framebuffer(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     &pipeline_binding_data.get_render_pass_data().borrow(),
                     render_target,
                     layer,
@@ -375,7 +375,7 @@ impl FFTOcean {
             material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
         self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(
             device,
-            debug_utils,
+            debug_utils_device,
             &pipeline_binding_data.get_render_pass_data().borrow(),
             texture_fft_a,
             mip_level,
@@ -383,7 +383,7 @@ impl FFTOcean {
         );
         self._fft_wave_x_fft_b_framebuffer = utility::create_framebuffer_2d_array(
             device,
-            debug_utils,
+            debug_utils_device,
             &pipeline_binding_data.get_render_pass_data().borrow(),
             texture_fft_b,
             mip_level,
@@ -392,7 +392,7 @@ impl FFTOcean {
         let fft_waves_descriptor_binding_index = 1;
         self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             &[(
                 fft_waves_descriptor_binding_index,
@@ -403,7 +403,7 @@ impl FFTOcean {
         );
         self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             &[(
                 fft_waves_descriptor_binding_index,
@@ -418,7 +418,7 @@ impl FFTOcean {
             material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_y");
         self._fft_wave_y_fft_a_framebuffer = utility::create_framebuffer_2d_array(
             device,
-            debug_utils,
+            debug_utils_device,
             &pipeline_binding_data.get_render_pass_data().borrow(),
             texture_fft_a,
             mip_level,
@@ -426,7 +426,7 @@ impl FFTOcean {
         );
         self._fft_wave_y_fft_b_framebuffer = utility::create_framebuffer_2d_array(
             device,
-            debug_utils,
+            debug_utils_device,
             &pipeline_binding_data.get_render_pass_data().borrow(),
             texture_fft_b,
             mip_level,
@@ -434,7 +434,7 @@ impl FFTOcean {
         );
         self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             &[(
                 fft_waves_descriptor_binding_index,
@@ -445,7 +445,7 @@ impl FFTOcean {
         );
         self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             pipeline_binding_data,
             &[(
                 fft_waves_descriptor_binding_index,
@@ -468,7 +468,7 @@ impl FFTOcean {
             for mip_level in 0..dispatch_count {
                 let descriptor_sets = utility::create_descriptor_sets(
                     device,
-                    debug_utils,
+                    debug_utils_device,
                     pipeline_binding_data,
                     &[
                         (

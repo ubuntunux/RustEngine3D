@@ -1,6 +1,6 @@
 use std::mem;
 
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use ash::util::Align;
 use ash::vk::Handle;
 use ash::{vk, Device};
@@ -19,11 +19,11 @@ pub struct BufferData {
 }
 
 #[derive(Debug, Clone)]
-pub struct ShaderBufferData {
+pub struct ShaderBufferData<'a> {
     pub _buffer_name: String,
     pub _buffers: SwapchainArray<BufferData>,
     pub _buffer_data_size: vk::DeviceSize,
-    pub _descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo>,
+    pub _descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo<'a>>,
     pub _staging_buffers: Option<SwapchainArray<BufferData>>,
     pub _is_single_index_buffer: bool,
 }
@@ -41,7 +41,7 @@ impl Default for BufferData {
 pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     device: &Device,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     buffer_name: &str,
     dst_buffer_type: vk::BufferUsageFlags,
     upload_data_list: &Vec<T>,
@@ -59,7 +59,7 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     let dst_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
-        debug_utils,
+        debug_utils_device,
         buffer_name,
         buffer_size,
         buffer_usage_flags,
@@ -74,7 +74,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     buffer_name: &str,
     dst_buffer_type: vk::BufferUsageFlags,
     upload_data_list: &Vec<T>,
@@ -96,7 +96,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     let staging_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
-        debug_utils,
+        debug_utils_device,
         buffer_name,
         buffer_size,
         staging_buffer_usage_flags,
@@ -110,7 +110,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     let dst_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
-        debug_utils,
+        debug_utils_device,
         buffer_name,
         buffer_size,
         buffer_usage_flags,
@@ -142,7 +142,7 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
 pub fn create_buffer_data(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     buffer_name: &str,
     buffer_size: vk::DeviceSize,
     buffer_usage_flags: vk::BufferUsageFlags,
@@ -176,8 +176,7 @@ pub fn create_buffer_data(
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
         debug_utils::set_object_debug_info(
-            device,
-            debug_utils,
+            debug_utils_device,
             buffer_name,
             vk::ObjectType::BUFFER,
             buffer.as_raw(),
@@ -334,17 +333,17 @@ pub fn copy_buffer_offset(
 }
 
 // ShaderBufferData
-pub fn create_shader_buffer_data(
+pub fn create_shader_buffer_data<'a>(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     buffer_name: &String,
     buffer_usage: vk::BufferUsageFlags,
     buffer_size: vk::DeviceSize,
     is_single_index_buffer: bool,
     has_staging_buffer: bool,
     is_device_local: bool,
-) -> ShaderBufferData {
+) -> ShaderBufferData<'a> {
     log::debug!("create_shader_buffer_data: {}", buffer_name);
 
     // create buffer
@@ -366,7 +365,7 @@ pub fn create_shader_buffer_data(
         let buffer = create_buffer_data(
             device,
             memory_properties,
-            debug_utils,
+            debug_utils_device,
             buffer_name.as_str(),
             buffer_size,
             buffer_usage_flags,
@@ -379,7 +378,7 @@ pub fn create_shader_buffer_data(
                 create_buffer_data(
                     device,
                     memory_properties,
-                    debug_utils,
+                    debug_utils_device,
                     buffer_name.as_str(),
                     buffer_size,
                     buffer_usage_flags,
@@ -398,7 +397,7 @@ pub fn create_shader_buffer_data(
             let buffer = create_buffer_data(
                 device,
                 memory_properties,
-                debug_utils,
+                debug_utils_device,
                 buffer_name,
                 buffer_size,
                 staging_buffer_usage_flags,
@@ -411,7 +410,7 @@ pub fn create_shader_buffer_data(
                     create_buffer_data(
                         device,
                         memory_properties,
-                        debug_utils,
+                        debug_utils_device,
                         buffer_name,
                         buffer_size,
                         staging_buffer_usage_flags,

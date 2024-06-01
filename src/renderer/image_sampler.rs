@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 
 use crate::vulkan_context::texture;
 
@@ -22,7 +22,7 @@ impl ImageSamplerData {
     fn create_image_sampler(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         sampler_name: &str,
         mip_levels: u32,
         min_filter: vk::Filter,
@@ -32,7 +32,7 @@ impl ImageSamplerData {
     ) -> vk::Sampler {
         let sampler = texture::create_image_sampler(
             device,
-            debug_utils,
+            debug_utils_device,
             sampler_name,
             mip_levels,
             min_filter,
@@ -46,11 +46,11 @@ impl ImageSamplerData {
         sampler
     }
 
-    pub fn initialize_image_samplers(&mut self, device: &Device, debug_utils: &DebugUtils) {
+    pub fn initialize_image_samplers(&mut self, device: &Device, debug_utils_device: &ext::debug_utils::Device) {
         let mip_levels = 16; // log2(65536)
         self.create_image_sampler(
             device,
-            debug_utils,
+            debug_utils_device,
             "point_clamp",
             mip_levels,
             vk::Filter::NEAREST,
@@ -60,7 +60,7 @@ impl ImageSamplerData {
         );
         self.create_image_sampler(
             device,
-            debug_utils,
+            debug_utils_device,
             "point_repeat",
             mip_levels,
             vk::Filter::NEAREST,
@@ -70,7 +70,7 @@ impl ImageSamplerData {
         );
         self.create_image_sampler(
             device,
-            debug_utils,
+            debug_utils_device,
             "linear_clamp",
             mip_levels,
             vk::Filter::LINEAR,
@@ -80,7 +80,7 @@ impl ImageSamplerData {
         );
         self.create_image_sampler(
             device,
-            debug_utils,
+            debug_utils_device,
             "linear_repeat",
             mip_levels,
             vk::Filter::LINEAR,
@@ -102,8 +102,8 @@ impl ImageSamplerData {
     }
 }
 
-pub fn create_image_samplers(device: &Device, debug_utils: &DebugUtils) -> ImageSamplerData {
+pub fn create_image_samplers(device: &Device, debug_utils_device: &ext::debug_utils::Device) -> ImageSamplerData {
     let mut image_sampler_data = ImageSamplerData::default();
-    image_sampler_data.initialize_image_samplers(device, debug_utils);
+    image_sampler_data.initialize_image_samplers(device, debug_utils_device);
     image_sampler_data
 }

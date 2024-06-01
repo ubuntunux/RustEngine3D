@@ -1,6 +1,6 @@
 use std::cmp::max;
 
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use ash::vk::Handle;
 use ash::{vk, Device};
 
@@ -51,11 +51,11 @@ pub struct RenderTargetInfo<'a> {
 }
 
 #[derive(Clone, Default)]
-pub struct FramebufferData {
+pub struct FramebufferData<'a> {
     pub _framebuffer_name: String,
     pub _framebuffer_info: FramebufferDataCreateInfo,
     pub _framebuffers: SwapchainArray<vk::Framebuffer>,
-    pub _render_pass_begin_infos: SwapchainArray<vk::RenderPassBeginInfo>,
+    pub _render_pass_begin_infos: SwapchainArray<vk::RenderPassBeginInfo<'a>>,
 }
 
 impl FramebufferDataCreateInfo {
@@ -154,13 +154,13 @@ pub fn create_framebuffer_data_create_info(
     }
 }
 
-pub fn create_framebuffer_data(
+pub fn create_framebuffer_data<'a>(
     device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     render_pass: vk::RenderPass,
     framebuffer_name: &str,
     framebuffer_data_create_info: FramebufferDataCreateInfo,
-) -> FramebufferData {
+) -> FramebufferData<'a> {
     let layers = framebuffer_data_create_info._framebuffer_layers;
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {
         vk::FramebufferCreateInfo {
@@ -183,8 +183,7 @@ pub fn create_framebuffer_data(
                     .create_framebuffer(&get_framebuffer_create_info(*index), None)
                     .expect("vkCreateFramebuffer failed!");
                 debug_utils::set_object_debug_info(
-                    device,
-                    debug_utils,
+                    debug_utils_device,
                     framebuffer_name,
                     vk::ObjectType::FRAMEBUFFER,
                     framebuffer.as_raw(),

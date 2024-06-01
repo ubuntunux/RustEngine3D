@@ -1,6 +1,5 @@
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use ash::vk;
-use ash::Device;
 use std::ffi::CString;
 use std::os::raw::c_char;
 
@@ -10,53 +9,53 @@ enum DebugLabelType {
     QueueDebugLabel(vk::Queue),
 }
 
-pub struct ScopedDebugLabel {
-    _debug_utils: *const DebugUtils,
+pub struct ScopedDebugLabel<'a> {
+    _debug_utils_device: *const ext::debug_utils::Device,
     _label_type: DebugLabelType,
     _label_text: CString,
-    _label: vk::DebugUtilsLabelEXT,
+    _label: vk::DebugUtilsLabelEXT<'a>,
 }
 
-impl Drop for ScopedDebugLabel {
+impl<'a> Drop for ScopedDebugLabel<'a> {
     fn drop(&mut self) {
         self.call_end_debug_utils_label();
     }
 }
 
-impl ScopedDebugLabel {
+impl<'a> ScopedDebugLabel<'a> {
     pub fn create_scoped_cmd_label(
-        debug_utils: *const DebugUtils,
+        debug_utils_device: *const ext::debug_utils::Device,
         command_buffer: vk::CommandBuffer,
         label_name: &str,
     ) -> ScopedDebugLabel {
         ScopedDebugLabel::create_scoped_label(
-            debug_utils,
+            debug_utils_device,
             label_name,
             DebugLabelType::CmdDebugLabel(command_buffer),
         )
     }
 
     pub fn create_scoped_queue_label(
-        debug_utils: *const DebugUtils,
+        debug_utils_device: *const ext::debug_utils::Device,
         command_queue: vk::Queue,
         label_name: &str,
     ) -> ScopedDebugLabel {
         ScopedDebugLabel::create_scoped_label(
-            debug_utils,
+            debug_utils_device,
             label_name,
             DebugLabelType::QueueDebugLabel(command_queue),
         )
     }
 
     fn create_scoped_label(
-        debug_utils: *const DebugUtils,
+        debug_utils_device: *const ext::debug_utils::Device,
         label_name: &str,
         label_type: DebugLabelType,
     ) -> ScopedDebugLabel {
         let label_text: CString = CString::new(label_name).unwrap();
         let label_name_ptr = label_text.as_ptr() as *const c_char;
         let label = ScopedDebugLabel {
-            _debug_utils: debug_utils,
+            _debug_utils_device: debug_utils_device,
             _label_type: label_type,
             _label_text: label_text,
             _label: vk::DebugUtilsLabelEXT {
@@ -73,10 +72,10 @@ impl ScopedDebugLabel {
         unsafe {
             match self._label_type {
                 DebugLabelType::CmdDebugLabel(command_buffer) => {
-                    (*self._debug_utils).cmd_begin_debug_utils_label(command_buffer, &self._label)
+                    (*self._debug_utils_device).cmd_begin_debug_utils_label(command_buffer, &self._label)
                 }
                 DebugLabelType::QueueDebugLabel(command_queue) => {
-                    (*self._debug_utils).queue_begin_debug_utils_label(command_queue, &self._label)
+                    (*self._debug_utils_device).queue_begin_debug_utils_label(command_queue, &self._label)
                 }
             }
         }
@@ -86,10 +85,10 @@ impl ScopedDebugLabel {
         unsafe {
             match self._label_type {
                 DebugLabelType::CmdDebugLabel(command_buffer) => {
-                    (*self._debug_utils).cmd_end_debug_utils_label(command_buffer)
+                    (*self._debug_utils_device).cmd_end_debug_utils_label(command_buffer)
                 }
                 DebugLabelType::QueueDebugLabel(command_queue) => {
-                    (*self._debug_utils).queue_end_debug_utils_label(command_queue)
+                    (*self._debug_utils_device).queue_end_debug_utils_label(command_queue)
                 }
             }
         }
@@ -97,8 +96,7 @@ impl ScopedDebugLabel {
 }
 
 pub fn set_object_debug_info(
-    device: &Device,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     object_name: &str,
     object_type: vk::ObjectType,
     object_handle: u64,
@@ -113,8 +111,8 @@ pub fn set_object_debug_info(
         ..Default::default()
     };
     unsafe {
-        debug_utils
-            .set_debug_utils_object_name(device.handle(), &object_name_info)
+        debug_utils_device
+            .set_debug_utils_object_name(&object_name_info)
             .expect("failed to set_debug_utils_object_name.");
     }
 }

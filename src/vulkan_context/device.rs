@@ -3,10 +3,10 @@ use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_char;
 use std::vec::Vec;
 
-use ash::extensions::ext::DebugUtils;
-use ash::extensions::khr::Surface;
+use ash::khr;
 use ash::{vk, Device, Entry, Instance};
-use raw_window_handle::{RawDisplayHandle, RawWindowHandle};
+use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
+use winit::window::Window;
 
 use crate::constants;
 use crate::renderer::utility::ptr_chain_iter;
@@ -167,7 +167,7 @@ pub fn create_vk_instance(
 
     let mut extension_names_raw = surface_extensions.to_vec();
     if unsafe { vk::DebugUtilsMessageSeverityFlagsEXT::empty() != constants::DEBUG_MESSAGE_LEVEL } {
-        extension_names_raw.push(DebugUtils::name().as_ptr());
+        extension_names_raw.push(vk::EXT_DEBUG_UTILS_NAME.as_ptr());
     }
 
     let require_extension_names = unsafe {
@@ -236,25 +236,30 @@ pub fn destroy_vk_instance(instance: &Instance) {
 pub fn create_vk_surface(
     entry: &Entry,
     instance: &Instance,
-    display_handle: RawDisplayHandle,
-    window_handle: RawWindowHandle,
+    window: &Window
 ) -> vk::SurfaceKHR {
     log::info!("create_vk_surface");
     unsafe {
-        ash_window::create_surface(entry, instance, display_handle, window_handle, None).unwrap()
+        ash_window::create_surface(
+            entry,
+            instance,
+            window.display_handle().unwrap().as_raw(),
+            window.window_handle().unwrap().as_raw(),
+            None
+        ).unwrap()
     }
 }
 
-pub fn destroy_vk_surface(surface_interface: &Surface, surface: vk::SurfaceKHR) {
+pub fn destroy_vk_surface(surface_instance: &khr::surface::Instance, surface: vk::SurfaceKHR) {
     log::info!("destroy_vk_surface");
     unsafe {
-        surface_interface.destroy_surface(surface, None);
+        surface_instance.destroy_surface(surface, None);
     }
 }
 
 pub fn is_device_suitable(
     instance: &Instance,
-    surface_interface: &Surface,
+    surface_instance: &khr::surface::Instance,
     surface: vk::SurfaceKHR,
     physical_device: vk::PhysicalDevice,
     device_extension_names: &Vec<CString>,
@@ -280,7 +285,7 @@ pub fn is_device_suitable(
             );
         let physical_device_features = instance.get_physical_device_features(physical_device);
         let swapchain_support_details =
-            swapchain::query_swapchain_support(surface_interface, physical_device, surface);
+            swapchain::query_swapchain_support(surface_instance, physical_device, surface);
         let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
         (
             has_extension && result,
@@ -293,7 +298,7 @@ pub fn is_device_suitable(
 
 pub fn select_physical_device(
     instance: &Instance,
-    surface_interface: &Surface,
+    surface_instance: &khr::surface::Instance,
     surface: vk::SurfaceKHR,
     device_extension_names: &Vec<CString>,
     ray_tracing_extension_names: &Vec<CString>,
@@ -313,7 +318,7 @@ pub fn select_physical_device(
             let (result, swapchain_support_details, physical_device_features, enable_ray_tracing) =
                 is_device_suitable(
                     instance,
-                    surface_interface,
+                    surface_instance,
                     surface,
                     physical_device,
                     device_extension_names,

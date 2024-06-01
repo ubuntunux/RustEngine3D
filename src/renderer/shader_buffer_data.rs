@@ -2,7 +2,7 @@ use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
@@ -18,7 +18,7 @@ use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
 
-pub type ShaderBufferDataMap = HashMap<ShaderBufferDataType, ShaderBufferData>;
+pub type ShaderBufferDataMap<'a> = HashMap<ShaderBufferDataType, ShaderBufferData<'a>>;
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, Debug)]
 pub enum ShaderBufferDataType {
@@ -151,17 +151,17 @@ pub struct AtmosphereConstants {
 }
 
 #[derive(Clone)]
-pub struct RegistShaderBufferCreateInfo {
+pub struct RegistShaderBufferCreateInfo<'a> {
     pub _device: *const Device,
     pub _memory_properties: *const vk::PhysicalDeviceMemoryProperties,
-    pub _shader_buffer_data_map: *mut ShaderBufferDataMap,
+    pub _shader_buffer_data_map: *mut ShaderBufferDataMap<'a>,
     pub _shader_buffer_data_type: ShaderBufferDataType,
     pub _buffer_usage: vk::BufferUsageFlags,
     pub _shader_buffer_data_stride: usize,
     pub _shader_buffer_data_count: usize,
     pub _is_single_index_buffer: bool,
     pub _has_staging_buffer: bool,
-    pub _is_device_local: bool,
+    pub _is_device_local: bool
 }
 
 // Interfaces
@@ -274,7 +274,7 @@ impl std::str::FromStr for ShaderBufferDataType {
 }
 
 pub fn register_shader_buffer_data(
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     shdaer_buffer_create_info: &mut RegistShaderBufferCreateInfo,
 ) {
     unsafe {
@@ -283,7 +283,7 @@ pub fn register_shader_buffer_data(
         let uniform_buffer_data = buffer::create_shader_buffer_data(
             &*shdaer_buffer_create_info._device,
             &*shdaer_buffer_create_info._memory_properties,
-            debug_utils,
+            debug_utils_device,
             &String::from(format!(
                 "{:?}",
                 shdaer_buffer_create_info._shader_buffer_data_type
@@ -304,7 +304,7 @@ pub fn register_shader_buffer_data(
 pub fn register_shader_buffer_data_list(
     device: &Device,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
-    debug_utils: &DebugUtils,
+    debug_utils_device: &ext::debug_utils::Device,
     shader_buffer_data_map: &mut ShaderBufferDataMap,
 ) {
     // Regist Uniform Buffer
@@ -322,7 +322,7 @@ pub fn register_shader_buffer_data_list(
     };
 
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::SceneConstants,
             _shader_buffer_data_stride: std::mem::size_of::<SceneConstants>(),
@@ -330,7 +330,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::ViewConstants,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -338,7 +338,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightConstants,
             _shader_buffer_data_stride: std::mem::size_of::<LightConstants>(),
@@ -346,7 +346,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::SSAOConstants,
             _shader_buffer_data_stride: std::mem::size_of::<SSAOConstants>(),
@@ -354,7 +354,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::AtmosphereConstants,
             _shader_buffer_data_stride: std::mem::size_of::<AtmosphereConstants>(),
@@ -362,7 +362,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants0,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -370,7 +370,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants1,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -378,7 +378,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants2,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -386,7 +386,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants3,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -394,7 +394,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants4,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -402,7 +402,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightProbeViewConstants5,
             _shader_buffer_data_stride: std::mem::size_of::<ViewConstants>(),
@@ -424,7 +424,7 @@ pub fn register_shader_buffer_data_list(
         _is_device_local: false,
     };
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
             _shader_buffer_data_stride: std::mem::size_of::<TransformMatrices>(),
@@ -432,7 +432,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::BoundBoxInstanceDataBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<BoundBoxInstanceData>(),
@@ -441,7 +441,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::DebugLineInstanceDataBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<DebugLineInstanceData>(),
@@ -450,7 +450,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::FontInstanceDataBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<FontInstanceData>(),
@@ -459,7 +459,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::UIRenderDataBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<UIRenderData>(),
@@ -468,7 +468,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleStaticConstants,
             _shader_buffer_data_stride: std::mem::size_of::<GpuParticleStaticConstants>(),
@@ -477,7 +477,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleDynamicConstants,
             _shader_buffer_data_stride: std::mem::size_of::<GpuParticleDynamicConstants>(),
@@ -486,7 +486,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<i32>(),
@@ -495,7 +495,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleCountBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<GpuParticleCountBufferData>(),
@@ -508,7 +508,7 @@ pub fn register_shader_buffer_data_list(
         },
     );
     register_shader_buffer_data(
-        debug_utils,
+        debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<GpuParticleUpdateBufferData>(),

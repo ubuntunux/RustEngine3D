@@ -5,7 +5,7 @@ use std::os::raw::c_void;
 use std::rc::Rc;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
@@ -117,9 +117,9 @@ pub struct UIVertexData {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct UIRenderGroupData {
+pub struct UIRenderGroupData<'a> {
     pub _accumulated_render_count: u32,
-    pub _material_instance: *const MaterialInstanceData,
+    pub _material_instance: *const MaterialInstanceData<'a>,
 }
 
 #[repr(C)]
@@ -138,7 +138,7 @@ pub struct UIRenderData {
     pub _reserved1: u32,
 }
 
-pub struct UIComponentData {
+pub struct UIComponentData<'a> {
     pub _layout_type: UILayoutType,
     pub _layout_orientation: Orientation,
     pub _pos: Vector2<f32>,
@@ -168,14 +168,14 @@ pub struct UIComponentData {
     pub _border_color: u32,
     pub _font_size: f32,
     pub _font_color: u32,
-    pub _material_instance: Option<RcRefCell<MaterialInstanceData>>,
+    pub _material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>,
 }
 
-pub struct UIComponentInstance {
-    pub _ui_component_data: UIComponentData,
+pub struct UIComponentInstance<'a> {
+    pub _ui_component_data: UIComponentData<'a>,
     pub _owner_widget: *const dyn Widget,
-    pub _parent: *const UIComponentInstance,
-    pub _children: Vec<*const UIComponentInstance>,
+    pub _parent: *const UIComponentInstance<'a>,
+    pub _children: Vec<*const UIComponentInstance<'a>>,
     pub _changed_layout: bool,
     pub _changed_child_layout: bool,
     pub _changed_deep_child_layout: bool,
@@ -227,23 +227,23 @@ pub trait Widget {
     fn clear_widgets(&mut self);
 }
 
-pub struct WidgetDefault {
+pub struct WidgetDefault<'a> {
     pub _ui_widget_name: String,
     pub _ui_widget_type: UIWidgetTypes,
-    pub _ui_component: UIComponentInstance,
+    pub _ui_component: UIComponentInstance<'a>,
     pub _parent: *const dyn Widget,
     pub _widgets: Vec<Rc<dyn Widget>>,
 }
 
-pub struct UIManager {
+pub struct UIManager<'a> {
     pub _root: Rc<dyn Widget>,
     pub _window_size: Vector2<i32>,
     pub _quad_mesh: GeometryData,
     pub _font_data: RcRefCell<FontData>,
     pub _ui_render_data_list: Vec<UIRenderData>,
     pub _render_ui_count: u32,
-    pub _render_ui_group: Vec<UIRenderGroupData>,
-    pub _default_render_ui_material: Option<RcRefCell<MaterialInstanceData>>,
+    pub _render_ui_group: Vec<UIRenderGroupData<'a>>,
+    pub _default_render_ui_material: Option<RcRefCell<MaterialInstanceData<'a>>>,
     pub _ui_world_axis: Option<UIWorldAxis>,
 }
 
@@ -295,9 +295,9 @@ impl Default for UIRenderData {
     }
 }
 
-impl Default for UIComponentData {
-    fn default() -> UIComponentData {
-        UIComponentData {
+impl<'a> Default for UIComponentData<'a> {
+    fn default() -> Self {
+        Self {
             _layout_type: UILayoutType::FloatLayout,
             _layout_orientation: Orientation::HORIZONTAL,
             _pos: Vector2::new(0.0, 0.0),
@@ -332,8 +332,8 @@ impl Default for UIComponentData {
     }
 }
 
-impl UIComponentInstance {
-    pub fn create_ui_component() -> UIComponentInstance {
+impl<'a> UIComponentInstance<'a> {
+    pub fn create_ui_component() -> UIComponentInstance<'a> {
         UIComponentInstance {
             _ui_component_data: UIComponentData::default(),
             _owner_widget: std::ptr::null() as *const WidgetDefault,
@@ -1592,7 +1592,7 @@ impl UIComponentInstance {
     }
 }
 
-impl WidgetDefault {
+impl<'a> WidgetDefault<'a> {
     fn create_widget(widget_name: &str) -> Rc<dyn Widget> {
         let widget = Rc::new(WidgetDefault {
             _ui_widget_name: String::from(widget_name),
@@ -1606,7 +1606,7 @@ impl WidgetDefault {
     }
 }
 
-impl Widget for WidgetDefault {
+impl<'a> Widget for WidgetDefault<'a> {
     fn get_ui_widget_name(&self) -> &String {
         &self._ui_widget_name
     }
@@ -1707,7 +1707,7 @@ impl VertexDataBase for UIVertexData {
     }
 }
 
-impl UIRenderGroupData {
+impl<'a> UIRenderGroupData<'a> {
     pub fn add_ui_render_group_data(
         render_ui_group: &mut Vec<UIRenderGroupData>,
         render_ui_count: u32,
@@ -1720,8 +1720,8 @@ impl UIRenderGroupData {
     }
 }
 
-impl UIManager {
-    pub fn create_ui_manager() -> Box<UIManager> {
+impl<'a> UIManager<'a> {
+    pub fn create_ui_manager() -> Box<UIManager<'a>> {
         log::info!("create_ui_manager");
         let mut ui_manager = UIManager {
             _root: UIManager::create_widget("root", UIWidgetTypes::Default),
@@ -1799,7 +1799,7 @@ impl UIManager {
     pub fn create_ui_vertex_data(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
@@ -1827,7 +1827,7 @@ impl UIManager {
             command_pool,
             command_queue,
             device_memory_properties,
-            debug_utils,
+            debug_utils_device,
             "ui_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &vertex_data_list,
@@ -1838,7 +1838,7 @@ impl UIManager {
             command_pool,
             command_queue,
             device_memory_properties,
-            debug_utils,
+            debug_utils_device,
             "ui_index_buffer",
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices,

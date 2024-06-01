@@ -38,8 +38,8 @@ pub struct AudioInstance {
     pub _channel: Result<Channel, String>,
 }
 
-pub struct AudioManager {
-    pub _engine_resources: *const EngineResources,
+pub struct AudioManager<'a> {
+    pub _engine_resources: *const EngineResources<'a>,
     pub _audio_instances: HashMap<i32, RcRefCell<AudioInstance>>,
     pub _bgm: Option<RcRefCell<AudioInstance>>,
     pub _audio_subsystem: AudioSubsystem,
@@ -95,11 +95,11 @@ impl AudioInstance {
     }
 }
 
-impl AudioManager {
+impl<'a> AudioManager<'a> {
     pub fn create_audio_manager(
         sdl: &Sdl,
         engine_resources: *const EngineResources,
-    ) -> Box<AudioManager> {
+    ) -> Box<AudioManager<'a>> {
         log::info!("create_audio_manager");
         let audio_subsystem = sdl.audio().expect("failed to sdl.audio");
         let frequency = 44_100;

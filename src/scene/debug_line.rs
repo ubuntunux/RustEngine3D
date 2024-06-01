@@ -1,5 +1,5 @@
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
@@ -105,7 +105,7 @@ impl DebugLineManager {
 
     pub fn create_debug_line_vertex_data(
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
@@ -128,7 +128,7 @@ impl DebugLineManager {
             command_pool,
             command_queue,
             device_memory_properties,
-            debug_utils,
+            debug_utils_device,
             "debug_line_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &vertex_data_list,
@@ -139,7 +139,7 @@ impl DebugLineManager {
             command_pool,
             command_queue,
             device_memory_properties,
-            debug_utils,
+            debug_utils_device,
             "debug_line_index_buffer",
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices,

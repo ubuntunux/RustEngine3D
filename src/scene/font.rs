@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use ash::{Device, vk};
-use ash::extensions::ext::DebugUtils;
+use ash::ext;
 use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
@@ -212,7 +212,7 @@ impl VertexDataBase for FontVertexData {
 impl TextRenderData {
     pub fn create_text_render_data(
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
         font_data: &RcRefCell<FontData>,
     ) -> TextRenderData {
@@ -226,7 +226,7 @@ impl TextRenderData {
         );
         text_render_data.create_texture_render_data_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             engine_resources,
         );
         text_render_data
@@ -235,7 +235,7 @@ impl TextRenderData {
     pub fn create_texture_render_data_descriptor_sets(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
     ) {
         let material_instance = engine_resources
@@ -253,7 +253,7 @@ impl TextRenderData {
         );
         self._render_font_descriptor_sets = utility::create_descriptor_sets(
             device,
-            debug_utils,
+            debug_utils_device,
             render_font_pipeline_binding_data,
             &[(
                 0,
@@ -400,7 +400,7 @@ impl FontManager {
     pub fn create_font_vertex_data(
         &mut self,
         device: &Device,
-        debug_utils: &DebugUtils,
+        debug_utils_device: &ext::debug_utils::Device,
         command_pool: vk::CommandPool,
         command_queue: vk::Queue,
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
@@ -427,7 +427,7 @@ impl FontManager {
             command_pool,
             command_queue,
             device_memory_properties,
-            debug_utils,
+            debug_utils_device,
             "font_vertex_buffer",
             vk::BufferUsageFlags::VERTEX_BUFFER,
             &vertex_data_list,
@@ -438,7 +438,7 @@ impl FontManager {
             command_pool,
             command_queue,
             device_memory_properties,
-            debug_utils,
+            debug_utils_device,
             "font_index_buffer",
             vk::BufferUsageFlags::INDEX_BUFFER,
             &indices,

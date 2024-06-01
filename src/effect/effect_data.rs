@@ -180,12 +180,12 @@ impl Default for EmitterDataCreateInfo {
     }
 }
 
-pub struct EffectData {
+pub struct EffectData<'a> {
     pub _effect_data_name: String,
-    pub _emitter_data_list: Vec<EmitterData>,
+    pub _emitter_data_list: Vec<EmitterData<'a>>,
 }
 
-pub struct EmitterData {
+pub struct EmitterData<'a> {
     pub _enable: bool,
     pub _emitter_data_name: String,
     pub _emitter_transform: Matrix4<f32>,
@@ -202,7 +202,7 @@ pub struct EmitterData {
     pub _align_mode: ParticleAlignMode,
     pub _blend_mode: ParticleBlendMode,
     pub _geometry_type: ParticleGeometryType,
-    pub _material_instance_data: RcRefCell<MaterialInstanceData>,
+    pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _rotation_min: Vector3<f32>,
     pub _rotation_max: Vector3<f32>,
@@ -234,8 +234,8 @@ impl Default for EffectCreateInfo {
     }
 }
 
-pub struct EffectInstance {
-    pub _effect_manager: *const EffectManager,
+pub struct EffectInstance<'a> {
+    pub _effect_manager: *const EffectManager<'a>,
     pub _effect_id: i64,
     pub _effect_name: String,
     pub _update_first_time: bool,
@@ -244,12 +244,12 @@ pub struct EffectInstance {
     pub _elapsed_time: f32,
     pub _bound_box: BoundingBox,
     pub _effect_transform: TransformObjectData,
-    pub _effect_data: RcRefCell<EffectData>,
-    pub _emitters: Vec<EmitterInstance>,
+    pub _effect_data: RcRefCell<EffectData<'a>>,
+    pub _emitters: Vec<EmitterInstance<'a>>,
 }
 
-pub struct EmitterInstance {
-    pub _parent_effect: *const EffectInstance,
+pub struct EmitterInstance<'a> {
+    pub _parent_effect: *const EffectInstance<'a>,
     pub _is_alive: bool,
     pub _ready_to_destroy: bool,
     pub _elapsed_time: f32,
@@ -261,16 +261,16 @@ pub struct EmitterInstance {
     pub _need_to_upload_static_constant_buffer: bool,
     pub _emitter_world_transform: Matrix4<f32>,
     pub _emitter_transform: TransformObjectData,
-    pub _emitter_data: *const EmitterData,
+    pub _emitter_data: *const EmitterData<'a>,
 }
 
 // interface
-impl EffectData {
+impl<'a> EffectData<'a> {
     pub fn create_effect_data(
         effect_data_name: &String,
         _effect_data_create_info: &EffectDataCreateInfo,
         emitter_data_list: Vec<EmitterData>,
-    ) -> EffectData {
+    ) -> EffectData<'a> {
         EffectData {
             _effect_data_name: effect_data_name.clone(),
             _emitter_data_list: emitter_data_list,
@@ -280,12 +280,12 @@ impl EffectData {
     pub fn destroy_effect_data(&mut self) {}
 }
 
-impl EmitterData {
+impl<'a> EmitterData<'a> {
     pub fn create_emitter_data(
         emitter_data_create_info: &EmitterDataCreateInfo,
         material_instance: RcRefCell<MaterialInstanceData>,
         mesh_data: RcRefCell<MeshData>,
-    ) -> EmitterData {
+    ) -> EmitterData<'a> {
         EmitterData {
             _enable: emitter_data_create_info._enable,
             _emitter_data_name: emitter_data_create_info._emitter_data_name.clone(),
@@ -325,14 +325,14 @@ impl EmitterData {
     }
 }
 
-impl EffectInstance {
+impl<'a> EffectInstance<'a> {
     pub fn create_effect_instance(
         effect_manager: *const EffectManager,
         effect_id: i64,
         effect_name: &String,
         effect_create_info: &EffectCreateInfo,
         effect_data: &RcRefCell<EffectData>,
-    ) -> RcRefCell<EffectInstance> {
+    ) -> RcRefCell<EffectInstance<'a>> {
         let emitters = effect_data
             .borrow()
             ._emitter_data_list
@@ -427,8 +427,8 @@ impl EffectInstance {
     }
 }
 
-impl EmitterInstance {
-    pub fn create_emitter_instance(emitter_data: &EmitterData) -> EmitterInstance {
+impl<'a> EmitterInstance<'a> {
+    pub fn create_emitter_instance(emitter_data: &EmitterData) -> EmitterInstance<'a> {
         EmitterInstance {
             _parent_effect: std::ptr::null(),
             _is_alive: false,
