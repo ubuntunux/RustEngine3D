@@ -28,7 +28,7 @@ use crate::vulkan_context::vulkan_context::get_color32;
 
 
 pub type CallbackTouchEvent<'a> = fn(
-    ui_component: &mut UIComponentInstance<'a>,
+    ui_component: &UIComponentInstance<'a>,
     touched_pos: &Vector2<f32>,
     touched_pos_delta: &Vector2<f32>,
 ) -> bool;
@@ -205,9 +205,9 @@ pub struct UIComponentInstance<'a> {
     pub _touch_corner_flags: UICornerFlags,
     pub _text: String,
     pub _render_text_count: u32,
-    pub _callback_touch_down: *const CallbackTouchEvent<'a>,
-    pub _callback_touch_move: *const CallbackTouchEvent<'a>,
-    pub _callback_touch_up: *const CallbackTouchEvent<'a>,
+    pub _callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>,
+    pub _callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>,
+    pub _callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>,
     pub _user_data: *const c_void,
 }
 
@@ -352,9 +352,9 @@ impl<'a> Default for UIComponentInstance<'a> {
             _text: String::new(),
             _text_counts: Vec::new(),
             _render_text_count: 0,
-            _callback_touch_down: std::ptr::null(),
-            _callback_touch_move: std::ptr::null(),
-            _callback_touch_up: std::ptr::null(),
+            _callback_touch_down: None,
+            _callback_touch_move: None,
+            _callback_touch_up: None,
             _user_data: std::ptr::null(),
         }
     }
@@ -412,9 +412,8 @@ impl<'a> UIComponentInstance<'a> {
                 self._touch_corner_flags.insert(UICornerFlags::BOTTOM);
             }
 
-            if false == self._callback_touch_down.is_null() {
-                touched =
-                    ptr_as_ref(self._callback_touch_down)(self, touched_pos, touched_pos_delta);
+            if self._callback_touch_down.is_some() {
+                touched = self._callback_touch_down.as_ref().unwrap()(ptr_as_mut(self), touched_pos, touched_pos_delta);
             }
             self._changed_render_data = true;
             self._touched = touched;
@@ -457,8 +456,8 @@ impl<'a> UIComponentInstance<'a> {
                     }
                 }
 
-                if false == self._callback_touch_move.is_null() {
-                    ptr_as_ref(self._callback_touch_move)(self, touched_pos, touched_pos_delta);
+                if self._callback_touch_move.is_some() {
+                    self._callback_touch_move.as_ref().unwrap()(ptr_as_mut(self), touched_pos, touched_pos_delta);
                 }
                 self._changed_render_data = true;
             }
@@ -479,8 +478,8 @@ impl<'a> UIComponentInstance<'a> {
                     }
                 }
 
-                if false == self._callback_touch_up.is_null() {
-                    ptr_as_ref(self._callback_touch_up)(self, touched_pos, touched_pos_delta);
+                if self._callback_touch_up.is_some() {
+                    self._callback_touch_up.as_ref().unwrap()(self, touched_pos, touched_pos_delta);
                 }
                 self._changed_render_data = true;
             }
@@ -840,13 +839,13 @@ impl<'a> UIComponentInstance<'a> {
             self._changed_render_data = true;
         }
     }
-    pub fn set_callback_touch_down(&mut self, callback_touch_down: *const CallbackTouchEvent<'a>) {
+    pub fn set_callback_touch_down(&mut self, callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>) {
         self._callback_touch_down = callback_touch_down;
     }
-    pub fn set_callback_touch_move(&mut self, callback_touch_move: *const CallbackTouchEvent<'a>) {
+    pub fn set_callback_touch_move(&mut self, callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>) {
         self._callback_touch_move = callback_touch_move;
     }
-    pub fn set_callback_touch_up(&mut self, callback_touch_up: *const CallbackTouchEvent<'a>) {
+    pub fn set_callback_touch_up(&mut self, callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>) {
         self._callback_touch_up = callback_touch_up;
     }
     pub fn get_user_data(&self) -> *const c_void {
