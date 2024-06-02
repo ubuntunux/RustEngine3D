@@ -286,7 +286,7 @@ impl<'a> RenderPassData<'a> {
 pub fn create_render_pass_data<'a>(
     renderer_context: &RendererContext<'a>,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
-    descriptor_data_list: &Vec<RcRefCell<DescriptorData>>,
+    descriptor_data_list: &Vec<RcRefCell<DescriptorData<'a>>>,
 ) -> RenderPassData<'a> {
     let device = renderer_context.get_device();
     let debug_utils_device = renderer_context.get_debug_utils();
@@ -562,7 +562,7 @@ pub fn create_graphics_pipeline_data<'a>(
     render_pass: vk::RenderPass,
     pipeline_data_create_info: &PipelineDataCreateInfo,
     has_depth_stencil_attachment: bool,
-    descriptor_data: &DescriptorData,
+    descriptor_data: &DescriptorData<'a>,
 ) -> PipelineData<'a> {
     let vertex_shader_create_info = create_shader_stage_create_info(
         device,
@@ -771,7 +771,7 @@ pub fn create_compute_pipeline_data<'a>(
     device: &Device,
     debug_utils_device: &ext::debug_utils::Device,
     pipeline_data_create_info: &PipelineDataCreateInfo,
-    descriptor_data: &DescriptorData,
+    descriptor_data: &DescriptorData<'a>,
 ) -> PipelineData<'a> {
     let shader_create_info = create_shader_stage_create_info(
         device,
@@ -853,7 +853,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
     ray_tracing: &nv::ray_tracing::Device,
     ray_tracing_properties: &vk::PhysicalDeviceRayTracingPropertiesNV,
     pipeline_data_create_info: &PipelineDataCreateInfo,
-    descriptor_data: &DescriptorData,
+    descriptor_data: &DescriptorData<'a>,
 ) -> PipelineData<'a> {
     let shader_groups = vec![
         // ray generation

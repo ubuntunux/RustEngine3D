@@ -47,10 +47,12 @@ pub fn get_extension_names(
 }
 
 pub fn get_instance_extension_supports(entry: &Entry) -> Vec<CString> {
-    let available_instance_extensions: Vec<vk::ExtensionProperties> = entry
-        .enumerate_instance_extension_properties(None)
-        .expect("vkEnumerateInstanceExtensionProperties error");
-    get_extension_names(&"Instance", &available_instance_extensions)
+    unsafe {
+        let available_instance_extensions: Vec<vk::ExtensionProperties> = entry
+            .enumerate_instance_extension_properties(None)
+            .expect("vkEnumerateInstanceExtensionProperties error");
+        get_extension_names(&"Instance", &available_instance_extensions)
+    }
 }
 
 pub fn get_device_extension_supports(

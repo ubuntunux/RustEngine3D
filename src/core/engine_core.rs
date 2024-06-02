@@ -92,10 +92,10 @@ impl TimeData {
     }
 }
 
-pub trait ApplicationBase {
+pub trait ApplicationBase<'a> {
     fn initialize_application(
-        &mut self,
-        engine_core: &EngineCore,
+        &'a mut self,
+        engine_core: &EngineCore<'a>,
         window_size: &Vector2<i32>,
     );
     fn terminate_application(&mut self);
@@ -123,14 +123,14 @@ pub struct EngineCore<'a> {
     pub _renderer_context: Box<RendererContext<'a>>,
     pub _ui_manager: Box<UIManager<'a>>,
     pub _scene_manager: Box<SceneManager<'a>>,
-    pub _application: *const dyn ApplicationBase,
+    pub _application: *const dyn ApplicationBase<'a>,
 }
 
 impl<'a> EngineCore<'a> {
-    pub fn get_application(&self) -> &dyn ApplicationBase {
+    pub fn get_application(&self) -> &dyn ApplicationBase<'a> {
         ptr_as_ref(self._application)
     }
-    pub fn get_application_mut(&self) -> &mut dyn ApplicationBase {
+    pub fn get_application_mut(&self) -> &mut dyn ApplicationBase<'a> {
         ptr_as_mut(self._application)
     }
     pub fn get_scene_manager(&self) -> &SceneManager<'a> {
@@ -190,7 +190,7 @@ impl<'a> EngineCore<'a> {
         app_version: u32,
         window: &Window,
         sdl: &Sdl,
-        application: *const dyn ApplicationBase
+        application: *const dyn ApplicationBase<'a>
     ) -> Box<EngineCore<'a>> {
         let window_size: Vector2<i32> = Vector2::new(
             window.inner_size().width as i32,
@@ -720,7 +720,7 @@ pub fn run_application(
                 log::info!("Application destroyed");
             }
             _ => {
-                log::info!("Unknown event: {:?}", event);
+                //log::info!("Unknown event: {:?}", event);
             }
         }
     }).expect("TODO: panic message");

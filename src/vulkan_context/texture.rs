@@ -826,7 +826,7 @@ pub fn create_image(
             ..Default::default()
         };
 
-        instance
+        let _image_format_properties = instance
             .get_physical_device_image_format_properties(
                 physical_device,
                 format,

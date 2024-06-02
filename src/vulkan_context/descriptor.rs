@@ -379,9 +379,9 @@ pub fn create_write_descriptor_sets_with_update<'a>(
 }
 
 pub fn create_write_descriptor_set<'a>(
-    write_descriptor_sets: &Vec<vk::WriteDescriptorSet>,
+    write_descriptor_sets: &Vec<vk::WriteDescriptorSet<'a>>,
     descriptor_index: usize,
-    descriptor_resource_info: &DescriptorResourceInfo,
+    descriptor_resource_info: &DescriptorResourceInfo<'a>,
 ) -> vk::WriteDescriptorSet<'a> {
     let mut write_descriptor_set = write_descriptor_sets[descriptor_index].clone();
     match descriptor_resource_info {

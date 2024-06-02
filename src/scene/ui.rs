@@ -173,7 +173,7 @@ pub struct UIComponentData<'a> {
 
 pub struct UIComponentInstance<'a> {
     pub _ui_component_data: UIComponentData<'a>,
-    pub _owner_widget: *const dyn Widget<'a>,
+    pub _owner_widget: Option<*const WidgetDefault<'a>>,
     pub _parent: *const UIComponentInstance<'a>,
     pub _children: Vec<*const UIComponentInstance<'a>>,
     pub _changed_layout: bool,
@@ -211,32 +211,16 @@ pub struct UIComponentInstance<'a> {
     pub _user_data: *const c_void,
 }
 
-pub trait Widget<'a> {
-    fn get_ui_widget_name(&self) -> &String;
-    fn get_ui_widget_type(&self) -> UIWidgetTypes;
-    fn has_cursor(&self) -> bool;
-    fn get_ui_component(&self) -> &UIComponentInstance<'a>;
-    fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance<'a>;
-    fn get_changed_layout(&self) -> bool;
-    fn clear_parent(&mut self);
-    fn has_parent(&self) -> bool;
-    fn get_parent(&self) -> &dyn Widget<'a>;
-    fn set_parent(&mut self, widget: *const dyn Widget<'a>);
-    fn add_widget(&mut self, widget: &Rc<dyn Widget<'a>>);
-    fn remove_widget(&mut self, widget: *const dyn Widget<'a>);
-    fn clear_widgets(&mut self);
-}
-
 pub struct WidgetDefault<'a> {
     pub _ui_widget_name: String,
     pub _ui_widget_type: UIWidgetTypes,
     pub _ui_component: UIComponentInstance<'a>,
-    pub _parent: *const dyn Widget<'a>,
-    pub _widgets: Vec<Rc<dyn Widget<'a>>>,
+    pub _parent: Option<*const WidgetDefault<'a>>,
+    pub _widgets: Vec<Rc<WidgetDefault<'a>>>,
 }
 
 pub struct UIManager<'a> {
-    pub _root: Rc<dyn Widget<'a>>,
+    pub _root: Rc<WidgetDefault<'a>>,
     pub _window_size: Vector2<i32>,
     pub _quad_mesh: GeometryData,
     pub _font_data: RcRefCell<FontData>,
@@ -249,9 +233,9 @@ pub struct UIManager<'a> {
 
 pub struct UIWorldAxis<'a> {
     pub _visible: bool,
-    pub _widget_axis_x: Rc<dyn Widget<'a>>,
-    pub _widget_axis_y: Rc<dyn Widget<'a>>,
-    pub _widget_axis_z: Rc<dyn Widget<'a>>,
+    pub _widget_axis_x: Rc<WidgetDefault<'a>>,
+    pub _widget_axis_y: Rc<WidgetDefault<'a>>,
+    pub _widget_axis_z: Rc<WidgetDefault<'a>>,
 }
 
 // Implementations
@@ -336,7 +320,7 @@ impl<'a> Default for UIComponentInstance<'a> {
     fn default() -> UIComponentInstance<'a> {
         UIComponentInstance {
             _ui_component_data: UIComponentData::default(),
-            _owner_widget: std::ptr::null() as *const WidgetDefault<'a>,
+            _owner_widget: None,
             _parent: std::ptr::null(),
             _children: Vec::new(),
             _changed_layout: true,
@@ -377,8 +361,8 @@ impl<'a> Default for UIComponentInstance<'a> {
 }
 
 impl<'a> UIComponentInstance<'a> {
-    pub fn get_owner_widget(&self) -> &dyn Widget<'a> {
-        ptr_as_ref(self._owner_widget)
+    pub fn get_owner_widget(&self) -> &WidgetDefault<'a> {
+        ptr_as_ref(self._owner_widget.unwrap())
     }
     pub fn has_parent(&self) -> bool {
         false == self._parent.is_null()
@@ -1146,8 +1130,8 @@ impl<'a> UIComponentInstance<'a> {
         &mut self,
         font_data: &FontData,
         render_ui_count: &mut u32,
-        render_ui_group: &mut Vec<UIRenderGroupData>,
-        prev_render_group_data: &mut UIRenderGroupData,
+        render_ui_group: &mut Vec<UIRenderGroupData<'a>>,
+        prev_render_group_data: &mut UIRenderGroupData<'a>,
         render_ui_instance_data_list: &mut [UIRenderData],
         mut need_to_collect_render_data: bool,
         mut opacity: f32,
@@ -1594,59 +1578,58 @@ impl<'a> UIComponentInstance<'a> {
     }
 }
 
+#[allow(dead_code)]
 impl<'a> WidgetDefault<'a> {
-    fn create_widget(widget_name: &'a str) -> Rc<dyn Widget<'a>> {
+    pub fn create_widget(widget_name: &str) -> Rc<WidgetDefault<'a>> {
         let widget = Rc::new(WidgetDefault {
             _ui_widget_name: String::from(widget_name),
             _ui_widget_type: UIWidgetTypes::Default,
             _ui_component: UIComponentInstance::default(),
-            _parent: std::ptr::null() as *const WidgetDefault<'a>,
+            _parent: None,
             _widgets: Vec::new(),
         });
-        ptr_as_mut(widget.as_ref())._ui_component._owner_widget = widget.as_ref();
+
+        ptr_as_mut(widget.as_ref())._ui_component._owner_widget = Some(widget.as_ref());
         widget
     }
-}
-
-impl<'a> Widget<'a> for WidgetDefault<'a> {
-    fn get_ui_widget_name(&self) -> &String {
+    pub fn get_ui_widget_name(&self) -> &String {
         &self._ui_widget_name
     }
-    fn get_ui_widget_type(&self) -> UIWidgetTypes {
+    pub fn get_ui_widget_type(&self) -> UIWidgetTypes {
         self._ui_widget_type
     }
-    fn has_cursor(&self) -> bool {
+    pub fn has_cursor(&self) -> bool {
         false
     }
-    fn get_ui_component(&self) -> &UIComponentInstance<'a> {
+    pub fn get_ui_component(&self) -> &UIComponentInstance<'a> {
         &self._ui_component
     }
-    fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance<'a> {
+    pub fn get_ui_component_mut(&mut self) -> &mut UIComponentInstance<'a> {
         &mut self._ui_component
     }
-    fn get_changed_layout(&self) -> bool {
+    pub fn get_changed_layout(&self) -> bool {
         self._ui_component._changed_layout
     }
-    fn clear_parent(&mut self) {
-        self._parent = std::ptr::null() as *const WidgetDefault<'a>;
+    pub fn clear_parent(&mut self) {
+        self._parent = None;
         self._ui_component._parent = std::ptr::null();
     }
-    fn has_parent(&self) -> bool {
-        false == self._parent.is_null()
+    pub fn has_parent(&self) -> bool {
+        self._parent.is_some()
     }
-    fn get_parent(&self) -> &'a dyn Widget<'a> {
-        ptr_as_ref(self._parent)
+    pub fn get_parent(&self) -> &'a WidgetDefault<'a> {
+        ptr_as_ref(self._parent.unwrap())
     }
-    fn set_parent(&mut self, widget: *const dyn Widget<'a>) {
+    pub fn set_parent(&mut self, widget: *const WidgetDefault<'a>) {
         if self.has_parent() {
-            ptr_as_mut(self._parent).remove_widget(self);
+            ptr_as_mut(self._parent.unwrap()).remove_widget(self);
         }
-        self._parent = widget;
+        self._parent = Some(widget);
         self._ui_component._parent = ptr_as_ref(widget).get_ui_component();
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
     }
-    fn add_widget(&mut self, widget: &Rc<dyn Widget<'a>>) {
+    pub fn add_widget(&mut self, widget: &Rc<WidgetDefault<'a>>) {
         let widget_instance = ptr_as_mut(widget.as_ref());
         widget_instance.set_parent(self);
         self._widgets.push(widget.clone());
@@ -1656,9 +1639,9 @@ impl<'a> Widget<'a> for WidgetDefault<'a> {
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
     }
-    fn remove_widget(&mut self, widget: *const dyn Widget<'a>) {
+    pub fn remove_widget(&mut self, widget: *const WidgetDefault<'a>) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
-            if  std::ptr::addr_eq(child_widget.as_ref() as *const dyn Widget<'a>, widget) {
+            if  std::ptr::addr_eq(child_widget.as_ref(), widget) {
                 let widget_instance = ptr_as_mut(widget);
                 widget_instance.clear_parent();
                 widget_instance.clear_widgets();
@@ -1670,11 +1653,11 @@ impl<'a> Widget<'a> for WidgetDefault<'a> {
             }
         }
     }
-    fn clear_widgets(&mut self) {
+    pub fn clear_widgets(&mut self) {
         for child_widget in self._widgets.iter() {
             ptr_as_mut(child_widget.as_ref()).clear_widgets();
         }
-        self._parent = std::ptr::null() as *const WidgetDefault;
+        self._parent = None;
         self._widgets.clear();
         self._ui_component._parent = std::ptr::null();
         self._ui_component._children.clear();
@@ -1711,10 +1694,10 @@ impl VertexDataBase for UIVertexData {
 
 impl<'a> UIRenderGroupData<'a> {
     pub fn add_ui_render_group_data(
-        render_ui_group: &mut Vec<UIRenderGroupData>,
+        render_ui_group: &mut Vec<UIRenderGroupData<'a>>,
         render_ui_count: u32,
-        prev_render_group_data: &mut UIRenderGroupData,
-        current_material_instance: *const MaterialInstanceData,
+        prev_render_group_data: &mut UIRenderGroupData<'a>,
+        current_material_instance: *const MaterialInstanceData<'a>,
     ) {
         prev_render_group_data._accumulated_render_count = render_ui_count;
         render_ui_group.push(*prev_render_group_data);
@@ -1770,7 +1753,7 @@ impl<'a> UIManager<'a> {
         ));
     }
 
-    pub fn get_root_ptr(&self) -> *const dyn Widget {
+    pub fn get_root_ptr(&self) -> *const WidgetDefault<'a> {
         self._root.as_ref()
     }
 
@@ -1778,7 +1761,7 @@ impl<'a> UIManager<'a> {
         self._ui_world_axis.as_mut().unwrap().set_visible(visible);
     }
 
-    pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources) {
+    pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources<'a>) {
         self._default_render_ui_material = Some(
             engine_resources
                 .get_material_instance_data("ui/render_ui")
@@ -1855,7 +1838,7 @@ impl<'a> UIManager<'a> {
         }
     }
 
-    pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> Rc<dyn Widget<'a>> {
+    pub fn create_widget(widget_name: &str, widget_type: UIWidgetTypes) -> Rc<WidgetDefault<'a>> {
         match widget_type {
             UIWidgetTypes::Default => WidgetDefault::create_widget(widget_name),
         }
@@ -1963,7 +1946,7 @@ impl<'a> UIManager<'a> {
     pub fn update_ui_manager(
         &mut self,
         delta_time: f64,
-        engine_core: &EngineCore,
+        engine_core: &EngineCore<'a>,
         window_size: &Vector2<i32>,
         time_data: &TimeData,
         keyboard_input_data: &KeyboardInputData,
@@ -2078,7 +2061,7 @@ impl<'a> UIManager<'a> {
 impl<'a> UIWorldAxis<'a> {
     pub fn create_ui_world_axis(
         _engine_resources: &EngineResources,
-        root_widget: &mut dyn Widget<'a>,
+        root_widget: &mut WidgetDefault<'a>,
     ) -> UIWorldAxis<'a> {
         let widget_axis_x = UIManager::create_widget("ui_axis_x", UIWidgetTypes::Default);
         let ui_component_axis_x = ptr_as_mut(widget_axis_x.as_ref()).get_ui_component_mut();
