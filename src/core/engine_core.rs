@@ -9,8 +9,9 @@ use winit::event::{
     DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, Touch,
     TouchPhase, WindowEvent,
 };
-use winit::event_loop::EventLoop;
+use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{ KeyCode, PhysicalKey };
+use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 use crate::core::input::{self, ButtonState};
@@ -411,7 +412,7 @@ impl<'a> EngineCore<'a> {
         }
     }
 
-    pub fn update_event(&mut self, current_time: f64) -> bool {
+    pub fn update_event_and_render_scene(&mut self, current_time: f64) {
         //std::thread::sleep(time::Duration::from_millis(20));
 
         let engine_resource = ptr_as_ref(self._engine_resources.as_ref());
@@ -422,12 +423,6 @@ impl<'a> EngineCore<'a> {
         let audio_manager = ptr_as_mut(self._audio_manager.as_ref());
         let effect_manager = ptr_as_mut(self._effect_manager.as_ref());
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
-
-        // exit
-        if self._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
-            self.terminate_application();
-            return false;
-        }
 
         // update timer
         self._time_data.update_time_data(current_time);
@@ -507,8 +502,6 @@ impl<'a> EngineCore<'a> {
                 ));
             }
         }
-
-        return true;
     }
 
     pub fn update_application(&self, delta_time: f64) {
@@ -533,7 +526,7 @@ pub fn run_application(
     let sdl = sdl2::init().expect("failed to sdl2::init");
 
     let time_instance = time::Instant::now();
-    let event_loop = EventLoop::new().unwrap();
+    let mut event_loop = EventLoop::new().unwrap();
     let window: Window = WindowBuilder::new()
         .with_title(app_name.clone())
         .with_inner_size(
@@ -583,7 +576,10 @@ pub fn run_application(
     let mut need_initialize: bool = true;
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
-    event_loop.run(move |event, _window_target| {
+    //event_loop.run(move |event, window_target| {
+    event_loop.run_on_demand(|event, window_target| {
+        window_target.set_control_flow(ControlFlow::Poll);
+
         let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
             if maybe_engine_core.is_some() {
@@ -631,7 +627,7 @@ pub fn run_application(
                 if run_application {
                     engine_core.clear_and_update_input_data_list();
 
-                    // sdl event
+                    // process sdl event
                     for event in sdl.event_pump().unwrap().poll_iter() {
                         match event {
                             event::Event::ControllerAxisMotion { axis, value, .. } => {
@@ -653,12 +649,6 @@ pub fn run_application(
                             _ => (),
                         }
                     }
-
-                    // update main event
-                    let result = engine_core.update_event(current_time);
-                    if false == result {
-                        run_application = false;
-                    }
                 }
             }
             Event::DeviceEvent {
@@ -671,7 +661,9 @@ pub fn run_application(
                 _ => {}
             },
             Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => {}
+                WindowEvent::CloseRequested => {
+                    run_application = false;
+                }
                 WindowEvent::Resized(size) => {
                     log::info!(
                         "WindowEvent::Resized: {:?}, initialize_done: {}",
@@ -710,6 +702,11 @@ pub fn run_application(
                     if run_application {
                         engine_core.update_keyboard_input(&event, is_synthetic);
                     }
+
+                    // exit
+                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
+                        run_application = false;
+                    }
                 }
                 WindowEvent::Touch(touch) => {
                     engine_core.update_touch(&touch);
@@ -718,10 +715,20 @@ pub fn run_application(
             },
             Event::LoopExiting => {
                 log::info!("Application destroyed");
-            }
+            },
+            Event::AboutToWait => {
+                // update application
+                if run_application {
+                    engine_core.update_event_and_render_scene(current_time);
+                } else {
+                    engine_core.terminate_application();
+                    window_target.exit();
+                }
+            },
             _ => {
                 //log::info!("Unknown event: {:?}", event);
             }
         }
+
     }).expect("TODO: panic message");
 }
