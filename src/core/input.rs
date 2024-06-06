@@ -79,10 +79,12 @@ pub struct JoystickInputData {
     pub _btn_b: ButtonState,
     pub _btn_x: ButtonState,
     pub _btn_y: ButtonState,
-    pub _btn_left_sholder: ButtonState,
-    pub _btn_left_trigger: u16,
-    pub _btn_right_sholder: ButtonState,
-    pub _btn_right_trigger: u16,
+    pub _btn_left_shoulder: ButtonState,
+    pub _btn_left_trigger: ButtonState,
+    pub _btn_left_trigger_value: u16,
+    pub _btn_right_shoulder: ButtonState,
+    pub _btn_right_trigger: ButtonState,
+    pub _btn_right_trigger_value: u16,
     pub _btn_back: ButtonState,
     pub _btn_start: ButtonState,
     pub _btn_guide: ButtonState,
@@ -299,10 +301,12 @@ impl JoystickInputData {
             _btn_b: ButtonState::None,
             _btn_x: ButtonState::None,
             _btn_y: ButtonState::None,
-            _btn_left_sholder: ButtonState::None,
-            _btn_left_trigger: 0,
-            _btn_right_sholder: ButtonState::None,
-            _btn_right_trigger: 0,
+            _btn_left_shoulder: ButtonState::None,
+            _btn_left_trigger: ButtonState::None,
+            _btn_left_trigger_value: 0,
+            _btn_right_shoulder: ButtonState::None,
+            _btn_right_trigger: ButtonState::None,
+            _btn_right_trigger_value: 0,
             _btn_back: ButtonState::None,
             _btn_start: ButtonState::None,
             _btn_guide: ButtonState::None,
@@ -329,8 +333,10 @@ impl JoystickInputData {
         JoystickInputData::reset_button_state(&mut self._btn_b);
         JoystickInputData::reset_button_state(&mut self._btn_x);
         JoystickInputData::reset_button_state(&mut self._btn_y);
-        JoystickInputData::reset_button_state(&mut self._btn_left_sholder);
-        JoystickInputData::reset_button_state(&mut self._btn_right_sholder);
+        JoystickInputData::reset_button_state(&mut self._btn_left_shoulder);
+        JoystickInputData::reset_button_state(&mut self._btn_right_shoulder);
+        JoystickInputData::reset_button_state(&mut self._btn_left_trigger);
+        JoystickInputData::reset_button_state(&mut self._btn_right_trigger);
         JoystickInputData::reset_button_state(&mut self._btn_back);
         JoystickInputData::reset_button_state(&mut self._btn_start);
         JoystickInputData::reset_button_state(&mut self._btn_guide);
@@ -355,14 +361,17 @@ impl JoystickInputData {
 
     pub fn update_controller_axis_motion(&mut self, axis: Axis, value: i16) {
         if self.has_game_controller() {
+            let prev_left_trigger_value = self._btn_left_trigger_value;
+            let prev_right_trigger_value = self._btn_right_trigger_value;
+
             match axis {
                 Axis::TriggerLeft => {
-                    self._btn_left_trigger = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
-                    self.set_rumble(self._btn_left_trigger, self._btn_right_trigger, 15000);
+                    self._btn_left_trigger_value = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
+                    self.set_rumble(self._btn_left_trigger_value, self._btn_right_trigger_value, 15000);
                 }
                 Axis::TriggerRight => {
-                    self._btn_right_trigger = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
-                    self.set_rumble(self._btn_left_trigger, self._btn_right_trigger, 15000);
+                    self._btn_right_trigger_value = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
+                    self.set_rumble(self._btn_left_trigger_value, self._btn_right_trigger_value, 15000);
                 }
                 Axis::LeftX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
@@ -395,6 +404,19 @@ impl JoystickInputData {
                 }
             }
             //_ => log::info!("unknown axis: {:?}, value: {:?}", axis, value)
+
+            // update trigger buttons
+            if prev_left_trigger_value == 0 && self._btn_left_trigger_value != 0 {
+                self._btn_left_trigger = ButtonState::Pressed;
+            } else if prev_left_trigger_value != 0 && self._btn_left_trigger_value == 0 {
+                self._btn_left_trigger = ButtonState::Released;
+            }
+
+            if prev_right_trigger_value == 0 && self._btn_right_trigger_value != 0 {
+                self._btn_right_trigger = ButtonState::Pressed;
+            } else if prev_right_trigger_value != 0 && self._btn_right_trigger_value == 0 {
+                self._btn_right_trigger = ButtonState::Released;
+            }
         }
     }
 
@@ -409,13 +431,13 @@ impl JoystickInputData {
             Button::Start => self._btn_start = button_state,
             Button::LeftStick => self._btn_left_stick = button_state,
             Button::RightStick => self._btn_right_stick = button_state,
-            Button::LeftShoulder => self._btn_left_sholder = button_state,
-            Button::RightShoulder => self._btn_right_sholder = button_state,
+            Button::LeftShoulder => self._btn_left_shoulder = button_state,
+            Button::RightShoulder => self._btn_right_shoulder = button_state,
             Button::DPadUp => self._btn_up = button_state,
             Button::DPadDown => self._btn_down = button_state,
             Button::DPadLeft => self._btn_left = button_state,
             Button::DPadRight => self._btn_right = button_state,
-            _ => log::info!("unknown button: {:?}", button)
+            _ => log::debug!("unknown button: {:?}", button)
         }
     }
 }
