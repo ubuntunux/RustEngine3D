@@ -101,6 +101,8 @@ pub struct AnimationBuffer {
 
 #[derive(Clone, Debug)]
 pub struct AnimationPlayInfo {
+    pub _is_animation_reset: bool,
+    pub _is_animation_start: bool,
     pub _is_animation_end: bool,
     pub _is_last_animation_frame: bool,
     pub _animation_loop: bool,
@@ -442,6 +444,8 @@ impl Default for AnimationPlayInfo {
             _prev_animation_play_time: 0.0,
             _animation_play_time: 0.0,
             _animation_end_time: None,
+            _is_animation_reset: false,
+            _is_animation_start: false,
             _is_animation_end: false,
             _is_last_animation_frame: false,
             _animation_transforms: Vec::new(),
@@ -471,6 +475,13 @@ impl AnimationPlayInfo {
         let anim_delta_time: f32 = self._animation_speed * delta_time;
         self._prev_animation_frame = self._animation_frame;
         self._prev_animation_play_time = self._animation_play_time;
+
+        if self._is_animation_reset {
+            self._is_animation_reset = false;
+            self._is_animation_start = true;
+        } else {
+            self._is_animation_start = false;
+        }
 
         if self._is_last_animation_frame {
             self._is_animation_end = true;
@@ -559,6 +570,8 @@ impl AnimationPlayInfo {
         self._animation_end_time = animation_args._animation_end_time;
         self._animation_blend_masks = animation_args._animation_blend_masks.clone();
         if animation_args._reset_animation_time {
+            self._is_animation_reset = true;
+            self._is_animation_start = true;
             self._is_animation_end = false;
             self._is_last_animation_frame = false;
             self._animation_elapsed_time = 0.0;

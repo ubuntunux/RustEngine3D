@@ -230,7 +230,7 @@ impl<'a> SceneManager<'a> {
         self._capture_height_map = Some(newRcRefCell(capture_height_map));
         self._light_probe_cameras = light_probe_cameras;
 
-        self.resized_window(window_size.x, window_size.y);
+        self.update_window_size(window_size.x, window_size.y);
     }
     pub fn get_engine_resources(&self) -> &EngineResources<'a> {
         ptr_as_ref(self._engine_resources)
@@ -562,7 +562,7 @@ impl<'a> SceneManager<'a> {
         }
     }
 
-    pub fn resized_window(&mut self, width: i32, height: i32) {
+    pub fn update_window_size(&mut self, width: i32, height: i32) {
         self._window_size.x = width;
         self._window_size.y = height;
         self.get_main_camera_mut().set_aspect(width, height);

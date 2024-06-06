@@ -1,6 +1,6 @@
 use std::time;
 
-use log::{self, LevelFilter};
+use log;
 use nalgebra::Vector2;
 use sdl2::event;
 use sdl2::Sdl;
@@ -23,7 +23,6 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui:: UIManager;
-use crate::utilities::logger;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -307,13 +306,11 @@ impl<'a> EngineCore<'a> {
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;
         self._window_size.y = size.height as i32;
-        self.get_scene_manager_mut()
-            .resized_window(size.width as i32, size.height as i32);
+        self.get_scene_manager_mut().update_window_size(size.width as i32, size.height as i32);
 
         let renderer_context = self.get_renderer_context_mut();
         let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
-        let need_recreate_swapchain =
-            swapchain_extent.width != size.width || swapchain_extent.height != size.height;
+        let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
         log::info!(
             "need_recreate_swapchain: {}, swapchain_extent: {:?}",
             need_recreate_swapchain,
@@ -513,38 +510,24 @@ impl<'a> EngineCore<'a> {
 pub fn run_application(
     app_name: String,
     app_version: u32,
-    initial_window_size: Vector2<i32>,
+    initial_window_size: Option<Vector2<u32>>,
     window_mode: WindowMode,
-    log_level: LevelFilter,
     application: *const dyn ApplicationBase
 ) {
-    logger::initialize_logger(log_level);
-
     log::info!("run_application");
 
+    // sdl2
     sdl2::hint::set("SDL_JOYSTICK_THREAD", "1");
     let sdl = sdl2::init().expect("failed to sdl2::init");
 
     let time_instance = time::Instant::now();
     let mut event_loop = EventLoop::new().unwrap();
-    let window: Window = WindowBuilder::new()
-        .with_title(app_name.clone())
-        .with_inner_size(
-            dpi::Size::Physical(
-                dpi::PhysicalSize {
-                    width: initial_window_size.x as u32,
-                    height: initial_window_size.y as u32
-                }
-            )
-        )
-        .build(&event_loop)
-        .unwrap();
 
-    log::info!("Window Mode: {:?}", window_mode);
+    // show display infos
     for (monitor_index, monitor) in event_loop.available_monitors().enumerate() {
-        log::info!("Monitor[{}]: {:?}", monitor_index, monitor.name());
+        log::debug!("Monitor[{}]: {:?}", monitor_index, monitor.name());
         for (video_index, video_mode) in monitor.video_modes().enumerate() {
-            log::info!(
+            log::debug!(
                 "    Video Mode[{}]: {:?}, {:?} bit, {:?} hz",
                 video_index,
                 video_mode.size(),
@@ -554,12 +537,40 @@ pub fn run_application(
         }
     }
 
+    // TODO: Choose monitor, video mode
+    let monitor_index = 0;
+    let video_index = 0;
+    let first_monitor = event_loop.available_monitors().nth(monitor_index).unwrap();
+    let first_video_mode = first_monitor.video_modes().nth(video_index).unwrap();
+    log::info!("Monitor[{}]: {:?}", monitor_index, first_monitor.name());
+    log::info!(
+        "Video Mode[{}]: {:?}, {:?} bit, {:?} hz",
+        video_index,
+        first_video_mode.size(),
+        first_video_mode.bit_depth(),
+        first_video_mode.refresh_rate_millihertz()
+    );
+    let window_size: dpi::PhysicalSize<u32> =
+        if let Some(window_size) = initial_window_size {
+            dpi::PhysicalSize {
+                width: window_size.x,
+                height: window_size.y
+            }
+        } else {
+            first_video_mode.size()
+        };
+
+    // create window
+    log::info!("Window Mode: {:?}", window_mode);
+    let window: Window = WindowBuilder::new()
+        .with_title(app_name.clone())
+        .with_inner_size(dpi::Size::Physical(window_size))
+        .build(&event_loop)
+        .unwrap();
+
     if WindowMode::FullScreenExclusiveMode == window_mode || WindowMode::FullScreenBorderlessMode == window_mode {
-        // TODO: Choose monitor, video mode
-        let first_monitor = event_loop.available_monitors().nth(0).unwrap();
-        let video_mode = first_monitor.video_modes().nth(0).unwrap();
         if WindowMode::FullScreenExclusiveMode == window_mode {
-            window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+            window.set_fullscreen(Some(Fullscreen::Exclusive(first_video_mode)));
         } else if WindowMode::FullScreenBorderlessMode == window_mode {
             window.set_fullscreen(Some(Fullscreen::Borderless(Some(first_monitor))));
         } else {
