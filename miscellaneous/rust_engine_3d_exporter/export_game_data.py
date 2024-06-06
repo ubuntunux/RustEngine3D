@@ -287,12 +287,16 @@ class RustEngine3DExporter:
         for property_asset in asset.objects:
             if property_asset.name == 'character_properties':
                 self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
-                self.set_game_data_asset_property(property_asset, '_dead_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_hit_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
                 self.set_game_data_asset_property(property_asset, '_attack_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_dead_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_hit_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_power_attack_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_roll_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_run_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_running_jump_animation_mesh', game_data)
+                self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
                 game_data["_character_type"] = property_asset.get("_block_type", "UrsusArctos")
                 game_data["_max_hp"] = property_asset.get("_max_hp", "100")
                 break
