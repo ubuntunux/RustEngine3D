@@ -79,9 +79,9 @@ pub struct JoystickInputData {
     pub _btn_b: ButtonState,
     pub _btn_x: ButtonState,
     pub _btn_y: ButtonState,
-    pub _btn_left_bumper: ButtonState,
+    pub _btn_left_sholder: ButtonState,
     pub _btn_left_trigger: u16,
-    pub _btn_right_bumper: ButtonState,
+    pub _btn_right_sholder: ButtonState,
     pub _btn_right_trigger: u16,
     pub _btn_back: ButtonState,
     pub _btn_start: ButtonState,
@@ -299,9 +299,9 @@ impl JoystickInputData {
             _btn_b: ButtonState::None,
             _btn_x: ButtonState::None,
             _btn_y: ButtonState::None,
-            _btn_left_bumper: ButtonState::None,
+            _btn_left_sholder: ButtonState::None,
             _btn_left_trigger: 0,
-            _btn_right_bumper: ButtonState::None,
+            _btn_right_sholder: ButtonState::None,
             _btn_right_trigger: 0,
             _btn_back: ButtonState::None,
             _btn_start: ButtonState::None,
@@ -329,8 +329,8 @@ impl JoystickInputData {
         JoystickInputData::reset_button_state(&mut self._btn_b);
         JoystickInputData::reset_button_state(&mut self._btn_x);
         JoystickInputData::reset_button_state(&mut self._btn_y);
-        JoystickInputData::reset_button_state(&mut self._btn_left_bumper);
-        JoystickInputData::reset_button_state(&mut self._btn_right_bumper);
+        JoystickInputData::reset_button_state(&mut self._btn_left_sholder);
+        JoystickInputData::reset_button_state(&mut self._btn_right_sholder);
         JoystickInputData::reset_button_state(&mut self._btn_back);
         JoystickInputData::reset_button_state(&mut self._btn_start);
         JoystickInputData::reset_button_state(&mut self._btn_guide);
@@ -394,6 +394,7 @@ impl JoystickInputData {
                     }
                 }
             }
+            //_ => log::info!("unknown axis: {:?}, value: {:?}", axis, value)
         }
     }
 
@@ -408,13 +409,13 @@ impl JoystickInputData {
             Button::Start => self._btn_start = button_state,
             Button::LeftStick => self._btn_left_stick = button_state,
             Button::RightStick => self._btn_right_stick = button_state,
-            Button::LeftShoulder => self._btn_left_bumper = button_state,
-            Button::RightShoulder => self._btn_right_bumper = button_state,
+            Button::LeftShoulder => self._btn_left_sholder = button_state,
+            Button::RightShoulder => self._btn_right_sholder = button_state,
             Button::DPadUp => self._btn_up = button_state,
             Button::DPadDown => self._btn_down = button_state,
             Button::DPadLeft => self._btn_left = button_state,
             Button::DPadRight => self._btn_right = button_state,
-            _ => {}
+            _ => log::info!("unknown button: {:?}", button)
         }
     }
 }

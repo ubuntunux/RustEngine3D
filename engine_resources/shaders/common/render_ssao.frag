@@ -36,9 +36,9 @@ layout(location = 0) out float outColor;
 void main() {
     const vec2 texture_size = textureSize(textureSceneDepth, 0);
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
-    const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 128.0);
+    const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
-    const vec2 texCoord = vs_output.texCoord + noise * 0.000625;
+    const vec2 texCoord = vs_output.texCoord;
     const float device_depth = texture(textureSceneDepth, texCoord).x;
     if(0.0 == device_depth)
     {
@@ -48,7 +48,7 @@ void main() {
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
     const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
     const vec2 noise_size = textureSize(ssaoNoise, 0);
-    const vec3 randomVec = normalize(vec3(texture(ssaoNoise, texCoord * texture_size / noise_size).xy, 0.0).xzy);
+    const vec3 randomVec = normalize(vec3(texture(ssaoNoise, texCoord).xy  * noise, 1.0).xzy);
 
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     const vec3 bitangent = normalize(cross(normal, tangent));

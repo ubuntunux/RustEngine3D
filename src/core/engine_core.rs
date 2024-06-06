@@ -704,9 +704,9 @@ pub fn run_application(
                     }
 
                     // exit
-                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
-                        run_application = false;
-                    }
+                    // if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
+                    //     run_application = false;
+                    // }
                 }
                 WindowEvent::Touch(touch) => {
                     engine_core.update_touch(&touch);

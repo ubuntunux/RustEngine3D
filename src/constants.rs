@@ -62,6 +62,7 @@ pub static mut SHADOW_DEPTH: f32 = 1000.0;
 pub static mut SHADOW_DEPTH_SLOPE_BIAS: f32 = -10.0;
 pub static mut SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
+pub static mut HALF_SIZE_SSAO: bool = false;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
 pub static mut CAPTURE_HEIGHT_MAP_DISTANCE: f32 = 100.0;
 pub static mut CAPTURE_HEIGHT_MAP_DEPTH: f32 = 100.0;
