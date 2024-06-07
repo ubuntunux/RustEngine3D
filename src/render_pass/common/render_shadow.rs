@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use ash::vk;
 
-use crate::constants::SHADOW_DEPTH_SLOPE_BIAS;
+use crate::constants::{SHADOW_DEPTH_BIAS, SHADOW_DEPTH_SLOPE_BIAS};
 use crate::renderer::push_constants::PushConstant_RenderObject;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData};
@@ -90,9 +90,9 @@ pub fn get_render_pass_data_create_info(
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::BACK,
-        _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-        _pipeline_depth_bias_constant_factor: 0.0,
-        _pipeline_depth_bias_clamp: 0.0,
+        _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
+        _pipeline_depth_bias_constant_factor: unsafe { SHADOW_DEPTH_BIAS },
+        _pipeline_depth_bias_clamp: -1000.0,
         _pipeline_depth_bias_slope_factor: unsafe { SHADOW_DEPTH_SLOPE_BIAS },
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
