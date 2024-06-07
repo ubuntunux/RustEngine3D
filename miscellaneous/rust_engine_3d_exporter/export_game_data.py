@@ -297,7 +297,7 @@ class RustEngine3DExporter:
                 self.set_game_data_asset_property(property_asset, '_run_animation_mesh', game_data)
                 self.set_game_data_asset_property(property_asset, '_running_jump_animation_mesh', game_data)
                 self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
-                game_data["_character_type"] = property_asset.get("_block_type", "UrsusArctos")
+                game_data["_character_type"] = property_asset.get("_character_type", "HomoSapiens")
                 game_data["_max_hp"] = property_asset.get("_max_hp", "100")
                 break
         return game_data
