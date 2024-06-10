@@ -75,6 +75,13 @@ pub struct AnimationData {
     pub _root_node: *const AnimationNodeData,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
+#[serde(default)]
+pub struct AnimationBlendMaskData {
+    pub _bone_blend_map: HashMap<String, f32>
+}
+
+
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
 pub struct SkeletonHierarchyTree {
@@ -121,7 +128,7 @@ pub struct AnimationPlayInfo {
     pub _last_animation_transforms: Vec<SimpleTransform>,
     pub _animation_index: usize,
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
-    pub _animation_blend_masks: *const HashMap<String, f32>
+    pub _animation_blend_masks: *const AnimationBlendMaskData
 }
 
 #[derive(Clone, Debug)]
@@ -134,7 +141,7 @@ pub struct AnimationPlayArgs {
     pub _animation_fade_out_time: f32,
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
-    pub _animation_blend_masks: *const HashMap<String, f32>
+    pub _animation_blend_masks: *const AnimationBlendMaskData
 
 }
 
@@ -549,14 +556,12 @@ impl AnimationPlayInfo {
                     self._animation_transforms[bone_index].lerp(additive_animation_transform, additive_animation_play_info._animation_fade_out_ratio);
             }
         } else {
-            for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_blend_masks).iter() {
-                let bone_index = skeleton_data._bone_index_map.get(bone_name);
-                if bone_index.is_some() {
+            for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_blend_masks)._bone_blend_map.iter() {
+                if let Some(bone_index) = skeleton_data._bone_index_map.get(bone_name) {
                     let blend_ratio = *blend_ratio * additive_animation_play_info._animation_fade_out_ratio;
-                    let bone_index = *bone_index.unwrap();
-                    let base_animation_transform = self._animation_transforms[bone_index].clone();
-                    let additive_animation_transform = &additive_animation_play_info._animation_transforms[bone_index];
-                    self._animation_transforms[bone_index] = base_animation_transform.lerp(additive_animation_transform, blend_ratio);
+                    let base_animation_transform = self._animation_transforms[*bone_index].clone();
+                    let additive_animation_transform = &additive_animation_play_info._animation_transforms[*bone_index];
+                    self._animation_transforms[*bone_index] = base_animation_transform.lerp(additive_animation_transform, blend_ratio);
                 }
             }
         }

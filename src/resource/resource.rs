@@ -23,6 +23,7 @@ use crate::resource::font_loader;
 use crate::resource::gltf_loader::GLTF;
 use crate::resource::obj_loader::WaveFrontOBJ;
 use crate::resource::texture_generator;
+use crate::scene::animation::AnimationBlendMaskData;
 use crate::scene::font::{self, FontData, FontDataCreateInfo};
 use crate::scene::material::MaterialData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
@@ -47,6 +48,7 @@ pub const APPLICATION_RESOURCE_PATH: &str = "resources";
 pub const ENGINE_RESOURCE_PATH: &str = "resources/engine_resources";
 pub const ENGINE_RESOURCE_SOURCE_PATH: &str = "RustEngine3D/engine_resources";
 
+pub const ANIMATION_BLEND_MASK_DIRECTORY: &str = "animation_blend_masks";
 pub const AUDIO_DIRECTORY: &str = "sounds";
 pub const AUDIO_BANK_DIRECTORY: &str = "sound_banks";
 pub const EFFECT_DIRECTORY: &str = "effects";
@@ -64,6 +66,7 @@ pub const SHADER_CACHE_DIRECTORY: &str = "shader_caches";
 pub const SHADER_DIRECTORY: &str = "shaders";
 pub const SCENE_DIRECTORY: &str = "scenes";
 
+pub const EXT_ANIMATION_BLEND_MASK: &str = "blend_mask";
 pub const EXT_AUDIO_SOURCE: [&str; 2] = ["wav", "mp3"];
 pub const EXT_AUDIO_BANK: &str = "bank";
 pub const EXT_EFFECT: &str = "effect";
@@ -88,6 +91,7 @@ pub const EXT_TEXTURE_3D: &str = "3d";
 pub const EXT_TEXTURE: [&str; 1] = ["texture"];
 pub const EXT_SCENE: &str = "scene";
 
+pub const DEFAULT_ANIMATION_BLEND_MASK_NAME: &str = "default";
 pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
 pub const DEFAULT_EFFECT_NAME: &str = "default";
@@ -149,6 +153,7 @@ pub struct ResourceInfo {
 pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
 pub type ResourceInfoMap = HashMap<String, ResourceInfo>;
 
+pub type AnimationBlendMaskDataMap = ResourceDataMap<AnimationBlendMaskData>;
 pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
 pub type EffectDataMap<'a> = ResourceDataMap<EffectData<'a>>;
 pub type FramebufferDataListMap<'a> = ResourceDataMap<FramebufferData<'a>>;
@@ -169,6 +174,7 @@ type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 #[derive(Clone)]
 pub struct EngineResources<'a> {
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
+    pub _animation_blend_mask_data_map: AnimationBlendMaskDataMap,
     pub _audio_data_map: ResourceInfoMap,
     pub _audio_bank_data_map: ResourceInfoMap,
     pub _effect_data_map: EffectDataMap<'a>,
@@ -330,6 +336,7 @@ impl<'a> EngineResources<'a> {
     ) -> Box<EngineResources<'a>> {
         let mut engine_resource = EngineResources {
             _relative_resource_file_path_map: HashMap::new(),
+            _animation_blend_mask_data_map: AnimationBlendMaskDataMap::new(),
             _audio_data_map: ResourceInfoMap::new(),
             _audio_bank_data_map: ResourceInfoMap::new(),
             _effect_data_map: EffectDataMap::new(),
@@ -517,6 +524,7 @@ impl<'a> EngineResources<'a> {
         self.load_material_instance_data_list(renderer_context, is_reload);
         self.load_mesh_data_list(renderer_context);
         self.load_model_data_list();
+        self.load_animation_blend_mask_data_list();
         self.load_audio_data_list();
         self.load_effect_data_list();
         self.load_scene_data_list(renderer_context);
@@ -528,6 +536,7 @@ impl<'a> EngineResources<'a> {
         self.unload_scene_data_list(renderer_context);
         self.unload_effect_data_list();
         self.unload_audio_data_list();
+        self.unload_animation_blend_mask_data_list();
         self.unload_model_data_list();
         self.unload_mesh_data_list(renderer_context);
         self.unload_material_instance_data_list(is_reload);
@@ -587,6 +596,33 @@ impl<'a> EngineResources<'a> {
             }
         }
         out_engine_resources
+    }
+
+    // AnimationBlendMaskData
+    pub fn load_animation_blend_mask_data_list(&mut self) {
+        log::info!("    load_animation_blend_mask_data_list");
+        let animation_blend_mask_directory = PathBuf::from(ANIMATION_BLEND_MASK_DIRECTORY);
+        let animation_blend_mask_files: Vec<PathBuf> = self.collect_resources(&animation_blend_mask_directory, &[EXT_ANIMATION_BLEND_MASK]);
+        for animation_blend_mask_file in animation_blend_mask_files {
+            let animation_blend_mask_name =
+                get_unique_resource_name(&self._animation_blend_mask_data_map, &animation_blend_mask_directory, &animation_blend_mask_file);
+            let loaded_contents = system::load(&animation_blend_mask_file);
+            let contents: AnimationBlendMaskData = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            self._animation_blend_mask_data_map
+                .insert(animation_blend_mask_name.clone(), newRcRefCell(contents));
+        }
+    }
+
+    pub fn unload_animation_blend_mask_data_list(&mut self) {
+        self._animation_blend_mask_data_map.clear();
+    }
+
+    pub fn has_animation_blend_mask_data(&self, resource_name: &str) -> bool {
+        self._animation_blend_mask_data_map.contains_key(resource_name)
+    }
+
+    pub fn get_animation_blend_mask_data(&self, resource_name: &str) -> &RcRefCell<AnimationBlendMaskData> {
+        get_resource_data(&self._animation_blend_mask_data_map, resource_name, DEFAULT_ANIMATION_BLEND_MASK_NAME)
     }
 
     // Audio Data
@@ -710,8 +746,7 @@ impl<'a> EngineResources<'a> {
                                 .expect("Failed to deserialize.");
                         let mut audio_data_list: Vec<RcRefCell<AudioData>> = Vec::new();
                         for audio_name in audio_bank_create_info._audio_names.iter() {
-                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name)
-                            {
+                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
                                 audio_data_list.push(audio_data.clone());
                             }
                         }
