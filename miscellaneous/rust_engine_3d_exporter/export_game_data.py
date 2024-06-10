@@ -113,6 +113,36 @@ class RustEngine3DExporter:
             
         with open(export_filepath, 'w') as f:
             f.write(json.dumps(data, sort_keys=True, indent=4))
+    
+    def export_animation_blend_masks(self, asset, asset_info):
+        self.logger.info(f'export_animation_blend_masks: {asset_info.asset_namepath}')
+        
+        for action in bpy.data.actions:
+            self.logger.info(f'acrtions: {action}')
+        
+        for child in asset.children:
+            for child_object in child.objects:
+                self.logger.info(f'child: {child, child_object.type}')
+        
+#        if 0 < len(asset.children):            
+#            material_instances = []      
+#            model_info = {
+#                "material_instances": material_instances, 
+#                "mesh": ""
+#            }
+#        
+#            for mesh_collection in asset.children:
+#                mesh_data = mesh_collection.override_library.reference
+#                mesh_asset_info = AssetInfo(mesh_data)
+#                model_info['mesh'] = mesh_asset_info.asset_namepath
+#                
+#                # material instance
+#                material_instance_namepaths = self.export_material_instance(asset_info, mesh_collection, mesh_data)
+#                material_instances += material_instance_namepaths
+
+#            # export model
+#            export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
+#            self.write_to_file('export model', model_info, export_model_filepath)
 
     def export_material_instance(self, asset_info, mesh_collection, mesh_data):
         material_instance_namepaths = []
@@ -296,11 +326,10 @@ class RustEngine3DExporter:
                 self.set_game_data_asset_property(property_asset, '_roll_animation_mesh', game_data)
                 self.set_game_data_asset_property(property_asset, '_run_animation_mesh', game_data)
                 self.set_game_data_asset_property(property_asset, '_running_jump_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_upper_animation_mask', game_data)
+                self.set_game_data_asset_property(property_asset, '_upper_animation_blend_mask', game_data)
                 self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
                 game_data["_character_type"] = property_asset.get("_character_type", "HomoSapiens")
                 game_data["_max_hp"] = property_asset.get("_max_hp", "100")
-                
         return game_data
     
     def get_game_data_scenes(self, asset, asset_info):
@@ -386,7 +415,9 @@ class RustEngine3DExporter:
         asset_info = AssetInfo(asset)
         self.logger.info(f'export_object: {asset_info.asset_fullpath}')
 
-        if 'meshes' == asset_info.asset_type_name:
+        if 'animation_blend_masks' == asset_info.asset_type_name:
+            self.export_animation_blend_masks(asset, asset_info)
+        elif 'meshes' == asset_info.asset_type_name:
             self.export_selected_meshes(asset_info)
         elif 'models' == asset_info.asset_type_name:
             self.export_models(asset, asset_info)
