@@ -1,6 +1,6 @@
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
-use crate::scene::animation::{AnimationBlendMaskData, AnimationBuffer, AnimationData, AnimationPlayArgs, AnimationPlayInfo};
+use crate::scene::animation::{AnimationLayerData, AnimationBuffer, AnimationData, AnimationPlayArgs, AnimationPlayInfo};
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
@@ -181,16 +181,16 @@ impl<'a> RenderObjectData<'a> {
         &mut self._animation_play_infos[layer as usize]
     }
 
-    pub fn get_animation_blend_masks(&self, layer: AnimationLayer) -> *const AnimationBlendMaskData {
-        self.get_animation_play_info(layer)._animation_blend_masks
+    pub fn get_animation_layers(&self, layer: AnimationLayer) -> *const AnimationLayerData {
+        self.get_animation_play_info(layer)._animation_layers
     }
 
-    pub fn set_animation_blend_masks(&mut self, animation_blend_masks: *const AnimationBlendMaskData, layer: AnimationLayer) {
-        self.get_animation_play_info_mut(layer)._animation_blend_masks = animation_blend_masks;
+    pub fn set_animation_layers(&mut self, animation_layers: *const AnimationLayerData, layer: AnimationLayer) {
+        self.get_animation_play_info_mut(layer)._animation_layers = animation_layers;
     }
 
-    pub fn clear_animation_blend_masks(&mut self, layer: AnimationLayer) {
-        self.get_animation_play_info_mut(layer)._animation_blend_masks = std::ptr::null();
+    pub fn clear_animation_layers(&mut self, layer: AnimationLayer) {
+        self.get_animation_play_info_mut(layer)._animation_layers = std::ptr::null();
     }
 
     pub fn set_animation_none(&mut self, layer: AnimationLayer) {

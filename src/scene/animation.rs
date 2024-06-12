@@ -77,7 +77,7 @@ pub struct AnimationData {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
-pub struct AnimationBlendMaskData {
+pub struct AnimationLayerData {
     pub _bone_blend_map: HashMap<String, f32>
 }
 
@@ -128,7 +128,7 @@ pub struct AnimationPlayInfo {
     pub _last_animation_transforms: Vec<SimpleTransform>,
     pub _animation_index: usize,
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
-    pub _animation_blend_masks: *const AnimationBlendMaskData
+    pub _animation_layers: *const AnimationLayerData
 }
 
 #[derive(Clone, Debug)]
@@ -141,7 +141,7 @@ pub struct AnimationPlayArgs {
     pub _animation_fade_out_time: f32,
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
-    pub _animation_blend_masks: *const AnimationBlendMaskData
+    pub _animation_layers: *const AnimationLayerData
 
 }
 
@@ -459,7 +459,7 @@ impl Default for AnimationPlayInfo {
             _last_animation_transforms: Vec::new(),
             _animation_index: 0,
             _animation_mesh: None,
-            _animation_blend_masks: std::ptr::null()
+            _animation_layers: std::ptr::null()
         }
     }
 }
@@ -550,18 +550,20 @@ impl AnimationPlayInfo {
     pub fn combine_additive_animation(&mut self, additive_animation_play_info: &AnimationPlayInfo) {
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
-        if additive_animation_play_info._animation_blend_masks.is_null() {
+        if additive_animation_play_info._animation_layers.is_null() {
             for (bone_index, additive_animation_transform) in additive_animation_play_info._animation_transforms.iter().enumerate() {
                 self._animation_transforms[bone_index] =
                     self._animation_transforms[bone_index].lerp(additive_animation_transform, additive_animation_play_info._animation_fade_out_ratio);
             }
         } else {
-            for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_blend_masks)._bone_blend_map.iter() {
-                if let Some(bone_index) = skeleton_data._bone_index_map.get(bone_name) {
-                    let blend_ratio = *blend_ratio * additive_animation_play_info._animation_fade_out_ratio;
-                    let base_animation_transform = self._animation_transforms[*bone_index].clone();
-                    let additive_animation_transform = &additive_animation_play_info._animation_transforms[*bone_index];
-                    self._animation_transforms[*bone_index] = base_animation_transform.lerp(additive_animation_transform, blend_ratio);
+            for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_layers)._bone_blend_map.iter() {
+                if 0.0 < *blend_ratio {
+                    if let Some(bone_index) = skeleton_data._bone_index_map.get(bone_name) {
+                        let blend_ratio = *blend_ratio * additive_animation_play_info._animation_fade_out_ratio;
+                        let base_animation_transform = self._animation_transforms[*bone_index].clone();
+                        let additive_animation_transform = &additive_animation_play_info._animation_transforms[*bone_index];
+                        self._animation_transforms[*bone_index] = base_animation_transform.lerp(additive_animation_transform, blend_ratio);
+                    }
                 }
             }
         }
@@ -573,7 +575,7 @@ impl AnimationPlayInfo {
         self._animation_blend_time = if enable_blend_animatioin { animation_args._animation_blend_time } else { 0.0 };
         self._animation_fade_out_time = animation_args._animation_fade_out_time;
         self._animation_end_time = animation_args._animation_end_time;
-        self._animation_blend_masks = animation_args._animation_blend_masks.clone();
+        self._animation_layers = animation_args._animation_layers.clone();
         if animation_args._reset_animation_time {
             self._is_animation_reset = true;
             self._is_animation_start = true;
@@ -599,7 +601,7 @@ impl Default for AnimationPlayArgs {
             _animation_fade_out_time: 0.0,
             _force_animation_setting: false,
             _reset_animation_time: true,
-            _animation_blend_masks: std::ptr::null()
+            _animation_layers: std::ptr::null()
         }
     }
 }
