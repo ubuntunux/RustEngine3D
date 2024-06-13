@@ -100,6 +100,7 @@ pub trait ApplicationBase<'a> {
     );
     fn terminate_application(&mut self);
     fn get_render_pass_create_info_callback(&self) -> *const CallbackLoadRenderPassCreateInfo;
+    fn focused(&mut self, focused: bool);
     fn update_event(&mut self);
     fn update_application(&mut self, delta_time: f64);
 }
@@ -697,18 +698,17 @@ pub fn run_application(
                 } => {
                     engine_core.update_mouse_wheel(scroll_x, scroll_y);
                 }
+                WindowEvent::Focused(focused) => {
+                    engine_core.get_application_mut().focused(focused);
+                }
                 WindowEvent::CursorEntered {
                     device_id: _device_id,
                     ..
-                } => {
-                    engine_core.set_grab_mode(true);
-                }
+                } => {}
                 WindowEvent::CursorLeft {
                     device_id: _device_id,
                     ..
-                } => {
-                    engine_core.set_grab_mode(false);
-                }
+                } => {}
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
                     if run_application {
                         engine_core.update_keyboard_input(&event, is_synthetic);
