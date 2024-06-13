@@ -12,7 +12,7 @@ use crate::vulkan_context::render_pass::PipelinePushConstantData;
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
 pub enum AnimationLayer {
     BaseLayer,
-    AdditiveLayer,
+    ActionLayer,
     LayerCount
 }
 
@@ -287,7 +287,7 @@ impl<'a> RenderObjectData<'a> {
 
                 // update additive animation
                 {
-                    let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::AdditiveLayer));
+                    let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::ActionLayer));
                     if additive_animation.is_valid() && false == additive_animation._is_animation_end {
                         let base_animation = ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
                         base_animation.combine_additive_animation(additive_animation);
