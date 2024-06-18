@@ -114,35 +114,22 @@ class RustEngine3DExporter:
         with open(export_filepath, 'w') as f:
             f.write(json.dumps(data, sort_keys=True, indent=4))
     
-    def export_animation_blend_masks(self, asset, asset_info):
-        self.logger.info(f'export_animation_blend_masks: {asset_info.asset_namepath}')
-        
-        for action in bpy.data.actions:
-            self.logger.info(f'acrtions: {action}')
+    def export_animation_layers(self, asset, asset_info):
+        bone_blend_map = {}        
         
         for child in asset.children:
-            for child_object in child.objects:
-                self.logger.info(f'child: {child, child_object.type}')
+            for child_object in [x for x in child.objects if 'ARMATURE' == x.type]:
+                for constraint in [x for x in child_object.constraints if 'ARMATURE' == x.type]:
+                    for target in constraint.targets:
+                        bone_blend_map[target.subtarget] = target.weight
         
-#        if 0 < len(asset.children):            
-#            material_instances = []      
-#            model_info = {
-#                "material_instances": material_instances, 
-#                "mesh": ""
-#            }
-#        
-#            for mesh_collection in asset.children:
-#                mesh_data = mesh_collection.override_library.reference
-#                mesh_asset_info = AssetInfo(mesh_data)
-#                model_info['mesh'] = mesh_asset_info.asset_namepath
-#                
-#                # material instance
-#                material_instance_namepaths = self.export_material_instance(asset_info, mesh_collection, mesh_data)
-#                material_instances += material_instance_namepaths
-
-#            # export model
-#            export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
-#            self.write_to_file('export model', model_info, export_model_filepath)
+        animation_layers = {
+            "_bone_blend_map": bone_blend_map
+        }
+        
+        # export animation_layers
+        export_filepath = asset_info.get_asset_filepath(self.resource_path, '.layer')
+        self.write_to_file('export animation_layers', animation_layers, export_filepath)
 
     def export_material_instance(self, asset_info, mesh_collection, mesh_data):
         material_instance_namepaths = []
@@ -286,56 +273,31 @@ class RustEngine3DExporter:
         self.write_to_file('export scene', scene_data, export_filepath)
         
     # game data
-    def set_game_data_asset_property(self, property_asset, key, game_data):
+    def set_game_data_asset_property(self, property_asset, key, game_data): 
         if property_asset and key in property_asset:
             child_asset = property_asset.get(key, None)
             if child_asset:
                 child_asset_info = AssetInfo(child_asset)
                 game_data[key] = child_asset_info.asset_namepath
-                
-    def get_game_data_block(self, asset, asset_info):
-        game_data = {}
-        for property_asset in asset.objects:
-            if property_asset.name == 'block_properties':
-                self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
-                game_data["_block_type"] = property_asset.get("_block_type", "Ground")
-                game_data["_max_hp"] = property_asset.get("_max_hp", "100")
-                break
-        return game_data
     
-    def get_game_data_food(self, asset, asset_info):
+    def get_game_data(self, asset, asset_info, property_asset_name):
         game_data = {}
         for property_asset in asset.objects:
-            if property_asset.name == 'food_properties':
-                self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
-                game_data["_food_type"] = property_asset.get("_food_type", "Meat")
-                break
-        return game_data
-    
-    def get_game_data_character(self, asset, asset_info):
-        game_data = {}
-        for property_asset in asset.objects:
-            if property_asset.name == 'character_properties':
-                self.set_game_data_asset_property(property_asset, '_model_data_name', game_data)
-                self.set_game_data_asset_property(property_asset, '_attack_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_dead_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_hit_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_idle_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_jump_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_power_attack_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_roll_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_run_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_running_jump_animation_mesh', game_data)
-                self.set_game_data_asset_property(property_asset, '_upper_animation_blend_mask', game_data)
-                self.set_game_data_asset_property(property_asset, '_walk_animation_mesh', game_data)
-                game_data["_character_type"] = property_asset.get("_character_type", "HomoSapiens")
-                game_data["_max_hp"] = property_asset.get("_max_hp", "100")
+            if property_asset.name == property_asset_name:
+                for key in property_asset.keys():
+                    property_type = type(property_asset[key])
+                    if property_type is int or property_type is float or property_type is str:
+                         game_data[key] = property_asset.get(key)
+                    elif property_type is bpy.types.Collection:
+                        self.set_game_data_asset_property(property_asset, key, game_data)
+                    else:
+                        self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
         return game_data
     
     def get_game_data_scenes(self, asset, asset_info):
         player = {}
         characters = {}
-        blocks = {}        
+        blocks = {}
         game_data = {
             "_scene_data_name": "",
             "_player": player,
@@ -393,11 +355,11 @@ class RustEngine3DExporter:
             game_data_ext = '.data'
             game_data_type = tokens[2]
             if 'blocks' == game_data_type:
-                game_data = self.get_game_data_block(asset, asset_info)
+                game_data = self.get_game_data(asset, asset_info, 'block_properties')
             elif 'characters' == game_data_type:
-                game_data = self.get_game_data_character(asset, asset_info)
+                game_data = self.get_game_data(asset, asset_info, 'character_properties')
             elif 'foods' == game_data_type:
-                game_data = self.get_game_data_food(asset, asset_info)
+                game_data = self.get_game_data(asset, asset_info, 'food_properties')
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
@@ -415,8 +377,8 @@ class RustEngine3DExporter:
         asset_info = AssetInfo(asset)
         self.logger.info(f'export_object: {asset_info.asset_fullpath}')
 
-        if 'animation_blend_masks' == asset_info.asset_type_name:
-            self.export_animation_blend_masks(asset, asset_info)
+        if 'animation_layers' == asset_info.asset_type_name:
+            self.export_animation_layers(asset, asset_info)
         elif 'meshes' == asset_info.asset_type_name:
             self.export_selected_meshes(asset_info)
         elif 'models' == asset_info.asset_type_name:
