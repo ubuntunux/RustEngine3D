@@ -394,6 +394,7 @@ class RustEngine3DExporter:
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
         self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
         for asset in bpy.context.selected_objects:
+            asset.location = [0, 0, 0]
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
                 self.export_asset(asset.instance_collection)
             else:
