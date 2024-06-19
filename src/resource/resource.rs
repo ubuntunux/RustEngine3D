@@ -192,26 +192,29 @@ pub struct EngineResources<'a> {
     pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
 }
 
-fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
+fn walk_directory_recursive(dir: &Path, include_extensions: &[&str], ignore_extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
     let contents = fs::read_dir(dir).unwrap();
     for content in contents {
         let content = content.unwrap().path();
         if content.is_dir() {
-            walk_directory_recursive(&content, extensions, out_contents);
+            walk_directory_recursive(&content, include_extensions, ignore_extensions, out_contents);
         } else {
             let ext = content.extension();
-            if extensions.is_empty()
-                || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap()))
-            {
-                out_contents.push(PathBuf::from(content));
+            if !ignore_extensions.is_empty() && ext.is_some() && ignore_extensions.contains(&ext.unwrap().to_str().unwrap()) {
+                continue;
             }
+            else if !include_extensions.is_empty() && ext.is_some() && !include_extensions.contains(&ext.unwrap().to_str().unwrap()) {
+                continue;
+            }
+
+            out_contents.push(PathBuf::from(content));
         }
     }
 }
 
-pub fn walk_directory(dir: &Path, extensions: &[&str]) -> Vec<PathBuf> {
+pub fn walk_directory(dir: &Path, include_extensions: &[&str], ignore_extensions: &[&str]) -> Vec<PathBuf> {
     let mut out_contents: Vec<PathBuf> = Vec::new();
-    walk_directory_recursive(dir, extensions, &mut out_contents);
+    walk_directory_recursive(dir, include_extensions, ignore_extensions, &mut out_contents);
     out_contents
 }
 
@@ -368,9 +371,10 @@ impl<'a> EngineResources<'a> {
             self.update_engine_resources();
 
             // create resources.txt file
-            let application_resource_files = walk_directory(&Path::new(APPLICATION_RESOURCE_PATH), &[]);
-            let mut write_file =
-                File::create(&resource_list_file_path).expect("Failed to create file");
+            let include_extensions: &[&str] = &[];
+            let ignore_extensions: &[&str] = &[ "log" ];
+            let application_resource_files = walk_directory(&Path::new(APPLICATION_RESOURCE_PATH), include_extensions, ignore_extensions);
+            let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
             for file_path in application_resource_files {
                 if let Some(filename) = file_path.file_name() {
                     if "empty" == filename {
@@ -430,11 +434,11 @@ impl<'a> EngineResources<'a> {
         let mut engine_resource_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_path.is_dir() {
             let engine_font_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_DIRECTORY);
-            let engine_font_texture_path =
-                PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
-            let engine_shader_cache_path =
-                PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
-            let engine_resource_files = walk_directory(&engine_resource_path, &[]);
+            let engine_font_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let include_extensions: &[&str] = &[];
+            let ignore_extensions: &[&str] = &[ "log" ];
+            let engine_resource_files = walk_directory(&engine_resource_path, include_extensions, ignore_extensions);
             for file_path in engine_resource_files.iter() {
                 if false == file_path.starts_with(&engine_font_path)
                     && false == file_path.starts_with(&engine_font_texture_path)
@@ -448,13 +452,12 @@ impl<'a> EngineResources<'a> {
         // build engine_resource_source_file_map
         let mut engine_resource_source_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_source_path.is_dir() {
-            let engine_font_source_path =
-                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
-            let engine_font_texture_source_path =
-                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
-            let engine_shader_cache_source_path =
-                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
-            let engine_resource_source_files = walk_directory(&engine_resource_source_path, &[]);
+            let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
+            let engine_font_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let include_extensions: &[&str] = &[];
+            let ignore_extensions: &[&str] = &[ "log" ];
+            let engine_resource_source_files = walk_directory(&engine_resource_source_path, include_extensions, ignore_extensions);
             for file_path in engine_resource_source_files.iter() {
                 if false == file_path.starts_with(&engine_font_source_path)
                     && false == file_path.starts_with(&engine_font_texture_source_path)
