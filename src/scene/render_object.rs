@@ -205,8 +205,7 @@ impl<'a> RenderObjectData<'a> {
             let prev_animation_mesh_ptr: *mut MeshData =
                 (if was_valid_animation { animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() } else { std::ptr::null() }) as *mut MeshData;
             if animation_args._force_animation_setting || animation_mesh.as_ptr() != prev_animation_mesh_ptr {
-                animation_play_info.set_animation_play_info(animation_args, was_valid_animation);
-                animation_play_info._animation_mesh = Some(animation_mesh.clone());
+                animation_play_info.set_animation_play_info(animation_mesh, animation_args, was_valid_animation);
                 if was_valid_animation && 0.0 < animation_play_info._animation_blend_time {
                     animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
                 }

@@ -478,6 +478,17 @@ impl AnimationPlayInfo {
         self._animation_mesh.is_some()
     }
 
+    pub fn check_animation_event_time(&self, event_time: f32) -> bool {
+        if self._prev_animation_play_time < event_time && event_time <= self._animation_play_time {
+            return true;
+        }
+        else if self._is_animation_end && self._animation_play_time < event_time {
+            // unreachable event time
+            return true
+        }
+        false
+    }
+
     pub fn update_animation_frame_time(&mut self, delta_time: f32) -> bool {
         let anim_delta_time: f32 = self._animation_speed * delta_time;
         self._prev_animation_frame = self._animation_frame;
@@ -569,7 +580,8 @@ impl AnimationPlayInfo {
         }
     }
 
-    pub fn set_animation_play_info(&mut self, animation_args: &AnimationPlayArgs, enable_blend_animatioin: bool) {
+    pub fn set_animation_play_info(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs, enable_blend_animatioin: bool) {
+        self._animation_mesh = Some(animation_mesh.clone());
         self._animation_speed = animation_args._animation_speed;
         self._animation_loop = animation_args._animation_loop;
         self._animation_blend_time = if enable_blend_animatioin { animation_args._animation_blend_time } else { 0.0 };
