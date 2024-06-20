@@ -28,7 +28,7 @@ use crate::scene::font::{self, FontData, FontDataCreateInfo};
 use crate::scene::material::MaterialData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingDataCreateInfo};
 use crate::scene::mesh::{MeshData, MeshDataCreateInfo};
-use crate::scene::model::ModelData;
+use crate::scene::model::{ModelData, ModelDataInfo};
 use crate::scene::scene_manager::SceneDataCreateInfo;
 use crate::utilities::system::{self, newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::descriptor::{
@@ -84,7 +84,7 @@ pub const EXT_MATERIAL: &str = "mat";
 pub const EXT_MATERIAL_INSTANCE: &str = "matinst";
 pub const EXT_MESH: &str = "mesh";
 pub const EXT_MODEL: &str = "model";
-pub const EXT_IMAGE_SOURCE: [&str; 4] = ["jpg", "png", "tga", "bmp"];
+pub const EXT_IMAGE_SOURCE: [&str; 5] = ["jpeg", "jpg", "png", "tga", "bmp"];
 pub const EXT_TEXTURE_CUBE: &str = "cube";
 pub const EXT_TEXTURE_2D_ARRAY: &str = "2darray";
 pub const EXT_TEXTURE_3D: &str = "3d";
@@ -1040,48 +1040,33 @@ impl<'a> EngineResources<'a> {
         let model_directory = PathBuf::from(MODEL_DIRECTORY);
         let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
-            let model_name =
-                get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
+            let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
             let loaded_contents = system::load(&model_file);
-            let contents =
-                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            let model_create_info = match contents {
-                Value::Object(model_create_info) => model_create_info,
-                _ => panic!("model parsing error."),
-            };
-            let material_instance_names = match model_create_info.get("material_instances").unwrap()
-            {
-                Value::Array(material_instance_names) => material_instance_names,
-                _ => panic!("model material_instance_names parsing error."),
-            };
-            let material_instance_count = material_instance_names.len();
-            let mesh_name = match model_create_info.get("mesh").unwrap() {
-                Value::String(mesh_name) => mesh_name,
-                _ => panic!("failed to parsing mesh_name"),
-            };
-            let mesh_data = self.get_mesh_data(mesh_name.as_str());
+            let model_data_info: ModelDataInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let material_instance_count = model_data_info._material_instances.len();
+            let mesh_data = self.get_mesh_data(model_data_info._mesh.as_str());
             let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
             let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> =
-                (0                ..geometry_data_count)
-                .map(|index| {
+                (0..geometry_data_count).map(|index| {
                     if 0 < material_instance_count {
-                        match &material_instance_names[index.min(material_instance_count - 1)] {
-                            Value::String(material_instance_name) =>
-                                self.get_material_instance_data(&material_instance_name)                                .clone(),
-                            _ => panic!("failed to parsing material_instance_names"),
-                        }
+                        let material_index = 0.max(index.min(material_instance_count - 1));
+                        self.get_material_instance_data(&model_data_info._material_instances[material_index]).clone()
                     } else {
-                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME)                            .clone()
+                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
                     }
                 })
                 .collect();
-            let model_data = ModelData::new_model_data(
+
+            let model_data = ModelData::create_model_data(
                 &model_name,
                 mesh_data.clone(),
                 material_instance_data_list,
+                &model_data_info._position,
+                &model_data_info._rotation,
+                &model_data_info._scale,
             );
-            self._model_data_map
-                .insert(model_name.clone(), newRcRefCell(model_data));
+
+            self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
         }
     }
 

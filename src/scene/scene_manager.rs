@@ -529,13 +529,11 @@ impl<'a> SceneManager<'a> {
                 }
 
                 // local matrix prev
-                render_element_transform_matrices[transform_offset]
-                    .copy_from(render_object_data._transform_object.get_prev_matrix());
+                render_element_transform_matrices[transform_offset].copy_from(&render_object_data._prev_transform);
                 transform_offset += local_matrix_prev_count;
 
                 // local matrix
-                render_element_transform_matrices[transform_offset]
-                    .copy_from(render_object_data._transform_object.get_matrix());
+                render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
                 transform_offset += local_matrix_count;
 
                 if RenderObjectType::Skeletal == render_object_type {

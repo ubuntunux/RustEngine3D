@@ -47,7 +47,10 @@ pub struct RenderObjectData<'a> {
     pub _push_constant_data_list_group: Vec<Vec<PipelinePushConstantData>>,
     pub _bound_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
+    pub _local_transform: Matrix4<f32>,
     pub _transform_object: TransformObjectData,
+    pub _prev_transform: Matrix4<f32>,
+    pub _final_transform: Matrix4<f32>,
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
     pub _animation_buffer: Option<AnimationBuffer>,
     pub _bone_count: usize
@@ -97,18 +100,30 @@ impl<'a> RenderObjectData<'a> {
             _mesh_data: mesh_data.clone(),
             _bound_box: bound_box,
             _geometry_bound_boxes: geometry_bound_boxes,
+            _local_transform: model_data.borrow()._local_transform.clone(),
             _transform_object: transform_object_data,
+            _prev_transform: Matrix4::identity(),
+            _final_transform: Matrix4::identity(),
             _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_infos: Vec::new(),
             _animation_buffer: None,
             _bone_count: 0
         };
 
-        if  mesh_data.borrow().has_animation_data() {
-            render_object_data.initialize_animation_play_info();
-        }
-        render_object_data.update_render_object_data(0.0);
+        render_object_data.initialize_render_object_data();
+
         render_object_data
+    }
+
+    pub fn initialize_render_object_data(&mut self) {
+        if  self._mesh_data.borrow().has_animation_data() {
+            self.initialize_animation_play_info();
+        }
+
+        self.update_render_object_data(0.0);
+
+        // for valid initial velocity
+        self._prev_transform = self._final_transform.clone();
     }
 
     pub fn set_render(&mut self, render: bool) {
@@ -221,8 +236,16 @@ impl<'a> RenderObjectData<'a> {
         &self._animation_buffer.as_ref().unwrap()._animation_buffer
     }
 
-    pub fn update_bound_box(&mut self, transform_matrix: &Matrix4<f32>) {
-        self._bound_box.update_with_matrix(&self._mesh_data.borrow()._bound_box, transform_matrix);
+    pub fn update_bound_box(&mut self, matrix: &Matrix4<f32>) {
+        let mesh_bound_box = &self._mesh_data.borrow()._bound_box;
+        const UPDATE_BOUND_BOX_WITH_ANIMATION: bool = false;
+        if UPDATE_BOUND_BOX_WITH_ANIMATION && self.has_animation() {
+            let root_bone_index = 0;
+            let animated_bound_box = matrix * &self._animation_buffer.as_ref().unwrap()._animation_buffer[root_bone_index];
+            self._bound_box.update_with_matrix(mesh_bound_box, &animated_bound_box);
+        } else {
+            self._bound_box.update_with_matrix(mesh_bound_box, matrix);
+        }
     }
 
     pub fn update_geometry_bound_boxes(&mut self, transform_matrix: &Matrix4<f32>) {
@@ -243,16 +266,13 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn update_render_object_data(&mut self, delta_time: f32) {
-        let updated_transform = self._transform_object.update_transform_object();
-        if updated_transform {
-            let transform_matrix = ptr_as_ref(self._transform_object.get_matrix());
-            const UPDATE_BOUND_BOX_WITH_ANIMATION: bool = false;
-            if UPDATE_BOUND_BOX_WITH_ANIMATION && self.has_animation() {
-                let root_bone_index = 0;
-                self.update_bound_box(&(transform_matrix * self._animation_buffer.as_ref().unwrap()._animation_buffer[root_bone_index]));
-            } else {
-                self.update_bound_box(transform_matrix);
-            }
+        self._prev_transform = self._final_transform.clone();
+        if self._transform_object.update_transform_object() {
+            self._final_transform = ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
+            self._bound_box.update_with_matrix(
+                &self._mesh_data.borrow()._bound_box,
+                &self._final_transform
+            );
         }
 
         if self.has_animation() {

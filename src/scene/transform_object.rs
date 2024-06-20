@@ -253,8 +253,7 @@ impl TransformObjectData {
     pub fn update_transform_object(&mut self) -> bool {
         if self._prev_updated {
             self._prev_matrix.copy_from(&self._matrix_store);
-            self._prev_inverse_matrix
-                .copy_from(&self._inverse_matrix_store);
+            self._prev_inverse_matrix.copy_from(&self._inverse_matrix_store);
             self._prev_updated = false;
         }
 

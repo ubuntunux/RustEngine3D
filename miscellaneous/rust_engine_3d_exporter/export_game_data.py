@@ -201,23 +201,36 @@ class RustEngine3DExporter:
     def export_models(self, asset, asset_info):
         self.logger.info(f'export_models: {asset_info.asset_namepath}')
         
-        if 0 < len(asset.children):            
-            material_instances = []      
-            model_info = {
-                "material_instances": material_instances, 
-                "mesh": ""
-            }
-        
-            for mesh_collection in asset.children:
-                mesh_data = mesh_collection.override_library.reference
-                mesh_asset_info = AssetInfo(mesh_data)
-                model_info['mesh'] = mesh_asset_info.asset_namepath
-                
-                # material instance
-                material_instance_namepaths = self.export_material_instance(asset_info, mesh_collection, mesh_data)
-                material_instances += material_instance_namepaths
+        if 0 < len(asset.children):
+            mesh_collection = asset.children[0]
+            
+            # mesh
+            mesh_data = mesh_collection.override_library.reference
+            mesh_asset_info = AssetInfo(mesh_data)
+            mesh_path = mesh_asset_info.asset_namepath
+            
+            # material instance
+            material_instances = self.export_material_instance(asset_info, mesh_collection, mesh_data)
+            
+            # local transform object
+            position = [0.0, 0.0, 0.0]
+            rotation = [0.0, 0.0, 0.0]
+            scale = [1.0, 1.0, 1.0]
+            for transform_object in asset.objects:
+                # is a valid parent transform?
+                if [True for child in transform_object.children if child.name in mesh_data.objects]:
+                    position = self.convert_asset_location(transform_object)
+                    rotation = self.convert_asset_rotation(transform_object)
+                    scale = self.convert_asset_scale(transform_object)
 
             # export model
+            model_info = {
+                "_mesh": mesh_path,
+                "_position": position,
+                "_rotation": rotation,
+                "_scale": scale,
+                "_material_instances": material_instances
+            }
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             self.write_to_file('export model', model_info, export_model_filepath)
     
