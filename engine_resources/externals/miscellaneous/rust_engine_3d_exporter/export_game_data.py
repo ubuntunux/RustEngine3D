@@ -4,6 +4,8 @@ import os
 import time
 import json
 import math
+import shutil
+import traceback
 
 import importlib
 import logging
@@ -105,6 +107,16 @@ class RustEngine3DExporter:
     def convert_sun_color(self, asset):
         return [asset.data.energy * x for x in list(asset.data.color)]
     
+    def copy_file(self, title, src_filepath, dst_filepath):
+        self.logger.info(f'{title}: {dst_filepath}')        
+        try:
+            dst_dirpath = os.path.split(dst_filepath)[0]
+            if not os.path.exists(dst_dirpath):
+                os.makedirs(dst_dirpath)
+            shutil.copy(src_filepath, dst_filepath)                                            
+        except:
+            self.logger.error(traceback.format_exc())
+    
     def write_to_file(self, title, data, export_filepath):
         self.logger.info(f'{title}: {export_filepath}')        
         export_path = os.path.split(export_filepath)[0]
@@ -163,10 +175,19 @@ class RustEngine3DExporter:
                     for node in material_instance.node_tree.nodes:
                         if node.label:
                             if 'TEX_IMAGE' == node.type:
+                                # gather texture parameter
                                 image_relative_filepath = node.image.filepath.replace('//', '')
                                 image_filepath = os.path.abspath(os.path.join(self.resource_path, asset_info.asset_relative_path, image_relative_filepath))
                                 image_namepath = os.path.splitext(os.path.relpath(image_filepath, texture_dirpath))[0]
                                 material_parameters[node.label] = image_namepath
+                                
+                                # export texture
+                                image_external_filepath = os.path.abspath(os.path.join(self.external_path, asset_info.asset_relative_path, image_relative_filepath))
+                                if os.path.exists(image_external_filepath):
+                                    src_modified_time = os.path.getmtime(image_external_filepath)
+                                    dst_modified_time = os.path.getmtime(image_filepath) if os.path.exists(image_filepath) else 0
+                                    if dst_modified_time < src_modifed_time:
+                                        self.copy_file('export texture', image_external_filepath, image_filepath)
                             elif 'RGB' == node.type:
                                 material_parameters[node.label] = list(node.outputs[0].default_value)
                      
@@ -176,27 +197,35 @@ class RustEngine3DExporter:
         return material_instance_namepaths
 
     def export_selected_meshes(self, asset_info):
-        export_filepath = asset_info.get_asset_filepath(self.external_path, '.gltf')
-        bpy.ops.export_scene.gltf(
-            filepath=export_filepath,
-            export_format='GLTF_SEPARATE',
-            use_selection=True,
-            export_yup=True,
-            export_texcoords=True,
-            export_normals=True,
-            export_tangents=True,
-            export_colors=True,
-            export_materials='NONE',
-            export_skins=True,
-            export_animations=True,
-            export_force_sampling=True,
-            export_bake_animation=True,
-            export_optimize_animation_size=False,
-            export_optimize_animation_keep_anim_armature=True,
-            export_anim_single_armature=False,
-            export_reset_pose_bones=True
-        )
-        self.logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
+        export_filepath = asset_info.get_asset_filepath(self.resource_path, '.gltf')
+        
+        try:
+            export_dirpath = os.path.split(export_filepath)[0]
+            if not os.path.exists(export_dirpath):
+                os.makedirs(export_dirpath)
+            
+            bpy.ops.export_scene.gltf(
+                filepath=export_filepath,
+                export_format='GLTF_SEPARATE',
+                use_selection=True,
+                export_yup=True,
+                export_texcoords=True,
+                export_normals=True,
+                export_tangents=True,
+                export_colors=True,
+                export_materials='NONE',
+                export_skins=True,
+                export_animations=True,
+                export_force_sampling=True,
+                export_bake_animation=True,
+                export_optimize_animation_size=False,
+                export_optimize_animation_keep_anim_armature=True,
+                export_anim_single_armature=False,
+                export_reset_pose_bones=True
+            )
+            self.logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
+        except:
+            self.logger.error(traceback.format_exc())
 
     def export_models(self, asset, asset_info):
         self.logger.info(f'export_models: {asset_info.asset_namepath}')

@@ -54,13 +54,13 @@ pub const AUDIO_BANK_DIRECTORY: &str = "sound_banks";
 pub const EFFECT_DIRECTORY: &str = "effects";
 pub const FONT_SOURCE_DIRECTORY: &str = "externals/fonts";
 pub const FONT_DIRECTORY: &str = "fonts";
-pub const FONT_TEXTURE_DIRECTORY: &str = "externals/textures/fonts";
+pub const FONT_TEXTURE_DIRECTORY: &str = "textures/fonts"; // "externals/textures/fonts";
 pub const MATERIAL_DIRECTORY: &str = "materials";
 pub const MATERIAL_INSTANCE_DIRECTORY: &str = "material_instances";
-pub const MESH_SOURCE_DIRECTORY: &str = "externals/meshes";
+pub const MESH_SOURCE_DIRECTORY: &str = "meshes"; // "externals/meshes";
 pub const MESH_DIRECTORY: &str = "meshes";
 pub const MODEL_DIRECTORY: &str = "models";
-pub const TEXTURE_SOURCE_DIRECTORY: &str = "externals/textures";
+pub const TEXTURE_SOURCE_DIRECTORY: &str = "textures"; // "externals/textures";
 pub const TEXTURE_DIRECTORY: &str = "textures";
 pub const SHADER_CACHE_DIRECTORY: &str = "shader_caches";
 pub const SHADER_DIRECTORY: &str = "shaders";
@@ -222,7 +222,10 @@ pub fn get_resource_data_must<'a, T>(
     resource_data_map: &'a ResourceDataMap<T>,
     resource_name: &str,
 ) -> &'a RcRefCell<T> {
-    resource_data_map.get(resource_name).unwrap()
+    if let Some(resource) = resource_data_map.get(resource_name) {
+        return resource
+    };
+    panic!("not found resource: {:?}", resource_name);
 }
 
 pub fn get_resource_data<'a, T>(
@@ -909,10 +912,10 @@ impl<'a> EngineResources<'a> {
         log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
-                                                                          //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
+        //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
 
+        // gather font files
         let font_directory = PathBuf::from(FONT_DIRECTORY);
-        let font_texture_directory = PathBuf::from(FONT_TEXTURE_DIRECTORY);
         let font_files = self.collect_resources(font_directory.as_path(), &[EXT_FONT]);
         let mut font_file_map: HashMap<String, PathBuf> = HashMap::new();
         for font_file in font_files.iter() {
@@ -920,9 +923,10 @@ impl<'a> EngineResources<'a> {
             font_file_map.insert(font_name, font_file.clone());
         }
 
+        // load font textures
+        let font_texture_directory = PathBuf::from(FONT_TEXTURE_DIRECTORY);
         let font_source_directory = PathBuf::from(FONT_SOURCE_DIRECTORY);
-        let font_source_files: Vec<PathBuf> =
-            self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
+        let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
         for font_source_file in font_source_files {
             let is_engine_resource = font_source_file.starts_with(ENGINE_RESOURCE_PATH);
             let resource_root_path: PathBuf;
@@ -1340,9 +1344,7 @@ impl<'a> EngineResources<'a> {
             let image_view_type = if EXT_TEXTURE_CUBE == ext {
                 if let Value::Object(texture_cube_faces) = contents {
                     for face in constants::CUBE_TEXTURE_FACES.iter() {
-                        if let Value::String(face_texture_name) =
-                            texture_cube_faces.get(*face).unwrap()
-                        {
+                        if let Value::String(face_texture_name) = texture_cube_faces.get(*face).unwrap() {
                             texture_file_names.push(face_texture_name.clone());
                         }
                     }
@@ -1380,8 +1382,7 @@ impl<'a> EngineResources<'a> {
         }
 
         // load texture from external files
-        let texture_src_files =
-            self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
+        let texture_src_files = self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
         for texture_src_file in texture_src_files.iter() {
             let combined_texture_name = combined_textures_name_map.get(texture_src_file);
             let texture_data_name: String = match combined_texture_name {

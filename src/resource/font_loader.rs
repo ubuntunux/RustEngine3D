@@ -17,6 +17,7 @@ pub fn get_font_data_create_info(
     range_min: u32,
     range_max: u32,
 ) -> FontDataCreateInfo {
+    log::info!("create font texture: {:?}", font_texture_file_path);
     let font_data = system::load(font_source_file);
     let font = Font::try_from_bytes(font_data.get_ref()).expect("Error constructing Font");
     let colour = (255, 255, 255);

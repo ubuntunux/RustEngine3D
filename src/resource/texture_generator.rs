@@ -12,6 +12,13 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 use crate::vulkan_context::vulkan_context;
 
+pub const DEFAULT_3D_TEXTURE: &str = "common/default_3d";
+pub const DEFAULT_2D_ARRAY_TEXTURE: &str = "common/default_2d_array";
+pub const DEFAULT_RANDOM_TEXTURE: &str = "common/random";
+pub const DEFAULT_RANDOM_NORMAL_TEXTURE: &str = "common/random_normal";
+pub const DEFAULT_CHECKER_TEXTURE: &str = "common/checker";
+pub const DEFAULT_CUBE_TEXTURE: &str = "common/color_cube";
+
 fn generate_flat_color_image_rgba8(
     texture_source_directory: &PathBuf,
     file_path: &str,
@@ -192,7 +199,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
 
     let default_3d_data = generate_3d_data(64);
     let texture_default_3d = renderer_context.create_texture(&TextureCreateInfo {
-        _texture_name: String::from("common/default_3d"),
+        _texture_name: String::from(DEFAULT_3D_TEXTURE),
         _texture_width: 64,
         _texture_height: 64,
         _texture_layers: 64,
@@ -207,7 +214,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
 
     let default_2d_array_data = generate_3d_data(64);
     let texture_default_2d_array = renderer_context.create_texture(&TextureCreateInfo {
-        _texture_name: String::from("common/default_2d_array"),
+        _texture_name: String::from(DEFAULT_2D_ARRAY_TEXTURE),
         _texture_width: 64,
         _texture_height: 64,
         _texture_layers: 64,
@@ -222,7 +229,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
 
     let random_data = generate_random_data(512, 512);
     let texture_random = renderer_context.create_texture(&TextureCreateInfo {
-        _texture_name: String::from("common/random"),
+        _texture_name: String::from(DEFAULT_RANDOM_TEXTURE),
         _texture_width: 512,
         _texture_height: 512,
         _texture_format: vk::Format::R32G32B32A32_SFLOAT,
@@ -236,7 +243,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
             constants::SSAO_NOISE_DIM as u32
         });
     let texture_random_normal = renderer_context.create_texture(&TextureCreateInfo {
-        _texture_name: String::from("common/random_normal"),
+        _texture_name: String::from(DEFAULT_RANDOM_NORMAL_TEXTURE),
         _texture_width: unsafe { constants::SSAO_NOISE_DIM as u32 },
         _texture_height: unsafe { constants::SSAO_NOISE_DIM as u32 },
         _texture_format: vk::Format::R32G32B32A32_SFLOAT,
@@ -244,7 +251,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         ..Default::default()
     });
     let texture_check = renderer_context.create_texture(&TextureCreateInfo {
-        _texture_name: String::from("common/checker"),
+        _texture_name: String::from(DEFAULT_CHECKER_TEXTURE),
         _texture_width: 2,
         _texture_height: 2,
         _texture_min_filter: vk::Filter::NEAREST,
@@ -253,7 +260,7 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         ..Default::default()
     });
     let texture_color_cube = renderer_context.create_texture(&TextureCreateInfo {
-        _texture_name: String::from("common/color_cube"),
+        _texture_name: String::from(DEFAULT_CUBE_TEXTURE),
         _texture_width: 1,
         _texture_height: 1,
         _texture_view_type: vk::ImageViewType::CUBE,
