@@ -182,12 +182,14 @@ class RustEngine3DExporter:
                                 material_parameters[node.label] = image_namepath
                                 
                                 # export texture
-                                image_external_filepath = os.path.abspath(os.path.join(self.external_path, asset_info.asset_relative_path, image_relative_filepath))
-                                if os.path.exists(image_external_filepath):
-                                    src_modified_time = os.path.getmtime(image_external_filepath)
-                                    dst_modified_time = os.path.getmtime(image_filepath) if os.path.exists(image_filepath) else 0
-                                    if dst_modified_time < src_modifed_time:
-                                        self.copy_file('export texture', image_external_filepath, image_filepath)
+                                EXPORT_TEXTURES = False
+                                if EXPORT_TEXTURES:
+                                    image_external_filepath = os.path.abspath(os.path.join(self.external_path, asset_info.asset_relative_path, image_relative_filepath))
+                                    if os.path.exists(image_external_filepath):
+                                        src_modified_time = os.path.getmtime(image_external_filepath)
+                                        dst_modified_time = os.path.getmtime(image_filepath) if os.path.exists(image_filepath) else 0
+                                        if dst_modified_time < src_modifed_time:
+                                            self.copy_file('export texture', image_external_filepath, image_filepath)
                             elif 'RGB' == node.type:
                                 material_parameters[node.label] = list(node.outputs[0].default_value)
                      
