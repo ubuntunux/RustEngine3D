@@ -1175,22 +1175,19 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             // add_ui_render_group_data
-            if 0 < render_ui_index {
-                let material_instance = match self.get_material_instance() {
-                    Some(material_instance) => {
-                        material_instance.as_ptr() as *const MaterialInstanceData
-                    }
-                    None => std::ptr::null(),
-                };
-
-                if prev_render_group_data._material_instance != material_instance {
-                    UIRenderGroupData::add_ui_render_group_data(
-                        render_ui_group,
-                        render_ui_index,
-                        prev_render_group_data,
-                        material_instance,
-                    );
+            let material_instance = match self.get_material_instance() {
+                Some(material_instance) => {
+                    material_instance.as_ptr() as *const MaterialInstanceData
                 }
+                None => std::ptr::null(),
+            };
+            if prev_render_group_data._material_instance != material_instance {
+                UIRenderGroupData::add_ui_render_group_data(
+                    render_ui_group,
+                    render_ui_index,
+                    prev_render_group_data,
+                    material_instance,
+                );
             }
 
             // collect font render data
