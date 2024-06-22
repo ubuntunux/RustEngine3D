@@ -145,6 +145,8 @@ pub struct UIComponentData<'a> {
     pub _size: Vector2<f32>,
     pub _halign: HorizontalAlign,
     pub _valign: VerticalAlign,
+    pub _center_hint_x: Option<f32>,
+    pub _center_hint_y: Option<f32>,
     pub _pos_hint_x: Option<f32>,
     pub _pos_hint_y: Option<f32>,
     pub _size_hint_x: Option<f32>,
@@ -288,6 +290,8 @@ impl<'a> Default for UIComponentData<'a> {
             _size: Vector2::new(100.0, 100.0),
             _halign: DEFAULT_HORIZONTAL_ALIGN,
             _valign: DEFAULT_VERTICAL_ALIGN,
+            _center_hint_x: None,
+            _center_hint_y: None,
             _pos_hint_x: None,
             _pos_hint_y: None,
             _size_hint_x: None,
@@ -419,7 +423,6 @@ impl<'a> UIComponentInstance<'a> {
             self._touched = touched;
         }
     }
-
     pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             if self.get_touchable() || self.get_draggable() {
@@ -463,7 +466,6 @@ impl<'a> UIComponentInstance<'a> {
             }
         }
     }
-
     pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             if self.get_touchable() || self.get_draggable() {
@@ -518,14 +520,16 @@ impl<'a> UIComponentInstance<'a> {
         self.set_pos_y(y);
     }
     pub fn set_pos_x(&mut self, x: f32) {
-        if x != self._ui_component_data._pos.x || self._ui_component_data._pos_hint_x.is_some() {
+        if x != self._ui_component_data._pos.x || self._ui_component_data._center_hint_x.is_some() || self._ui_component_data._pos_hint_x.is_some() {
+            self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = None;
             self._ui_component_data._pos.x = x;
             self.set_changed_layout(true);
         }
     }
     pub fn set_pos_y(&mut self, y: f32) {
-        if y != self._ui_component_data._pos.y || self._ui_component_data._pos_hint_y.is_some() {
+        if y != self._ui_component_data._pos.y || self._ui_component_data._center_hint_y.is_some() || self._ui_component_data._pos_hint_y.is_some() {
+            self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = None;
             self._ui_component_data._pos.y = y;
             self.set_changed_layout(true);
@@ -545,14 +549,16 @@ impl<'a> UIComponentInstance<'a> {
         self.set_center_y(y);
     }
     pub fn set_center_x(&mut self, x: f32) {
-        if x != self._ui_component_data._pos.x || self._ui_component_data._pos_hint_x.is_some() {
+        if x != self._ui_component_data._pos.x || self._ui_component_data._center_hint_x.is_some() || self._ui_component_data._pos_hint_x.is_some() {
+            self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = None;
             self._ui_component_data._pos.x = x - self._ui_component_data._size.x * 0.5;
             self.set_changed_layout(true);
         }
     }
     pub fn set_center_y(&mut self, y: f32) {
-        if y != self._ui_component_data._pos.y || self._ui_component_data._pos_hint_y.is_some() {
+        if y != self._ui_component_data._pos.y || self._ui_component_data._center_hint_y.is_some() || self._ui_component_data._pos_hint_y.is_some() {
+            self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = None;
             self._ui_component_data._pos.y = y - self._ui_component_data._size.y * 0.5;
             self.set_changed_layout(true);
@@ -566,13 +572,35 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn set_pos_hint_x(&mut self, pos_hint_x: Option<f32>) {
         if pos_hint_x != self._ui_component_data._pos_hint_x {
+            self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = pos_hint_x;
             self.set_changed_layout(true);
         }
     }
     pub fn set_pos_hint_y(&mut self, pos_hint_y: Option<f32>) {
         if pos_hint_y != self._ui_component_data._pos_hint_y {
+            self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = pos_hint_y;
+            self.set_changed_layout(true);
+        }
+    }
+    pub fn get_center_hint_x(&self) -> Option<f32> {
+        self._ui_component_data._center_hint_x
+    }
+    pub fn get_center_hint_y(&self) -> Option<f32> {
+        self._ui_component_data._center_hint_y
+    }
+    pub fn set_center_hint_x(&mut self, center_hint_x: Option<f32>) {
+        if center_hint_x != self._ui_component_data._center_hint_x {
+            self._ui_component_data._center_hint_x = center_hint_x;
+            self._ui_component_data._pos_hint_x = None;
+            self.set_changed_layout(true);
+        }
+    }
+    pub fn set_center_hint_y(&mut self, center_hint_y: Option<f32>) {
+        if center_hint_y != self._ui_component_data._center_hint_y {
+            self._ui_component_data._center_hint_y = center_hint_y;
+            self._ui_component_data._pos_hint_y = None;
             self.set_changed_layout(true);
         }
     }
@@ -590,9 +618,7 @@ impl<'a> UIComponentInstance<'a> {
         self.set_size_y(size_y);
     }
     pub fn set_size_x(&mut self, size_x: f32) {
-        if size_x != self._ui_component_data._size.x
-            || self._ui_component_data._size_hint_x.is_some()
-        {
+        if size_x != self._ui_component_data._size.x || self._ui_component_data._size_hint_x.is_some() {
             self._ui_component_data._size_hint_x = None;
             self._ui_component_data._size.x = size_x;
             self.set_changed_layout(true);
@@ -1234,9 +1260,7 @@ impl<'a> UIComponentInstance<'a> {
             inherit_changed_layout = true;
 
             let border = self.get_border();
-            let spaces = self.get_margin()
-                + self.get_padding()
-                + &Vector4::new(border, border, border, border);
+            let spaces = self.get_margin() + self.get_padding() + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
             let size_hint_y = self.get_size_hint_y();
             let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
@@ -1255,14 +1279,11 @@ impl<'a> UIComponentInstance<'a> {
 
             // expandable
             if self.get_expandable_x() {
-                ui_size.x = ui_size
-                    .x
-                    .max(self._text_contents_size.x + spaces.x + spaces.z);
+                ui_size.x = ui_size.x.max(self._text_contents_size.x + spaces.x + spaces.z);
             }
+
             if self.get_expandable_y() {
-                ui_size.y = ui_size
-                    .y
-                    .max(self._text_contents_size.y + spaces.y + spaces.w);
+                ui_size.y = ui_size.y.max(self._text_contents_size.y + spaces.y + spaces.w);
             }
 
             self._spaces.clone_from(&spaces);
@@ -1287,12 +1308,10 @@ impl<'a> UIComponentInstance<'a> {
                     match self.get_layout_orientation() {
                         Orientation::HORIZONTAL => {
                             required_contents_size.x += child_ui_instance._ui_size.x;
-                            required_contents_size.y =
-                                required_contents_size.y.max(child_ui_instance._ui_size.y);
+                            required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
                         }
                         Orientation::VERTICAL => {
-                            required_contents_size.x =
-                                required_contents_size.x.max(child_ui_instance._ui_size.x);
+                            required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
                             required_contents_size.y += child_ui_instance._ui_size.y;
                         }
                     }
@@ -1300,30 +1319,15 @@ impl<'a> UIComponentInstance<'a> {
                 self._required_contents_size = required_contents_size;
             }
 
-            // update eexpandable size
-            if self.get_expandable_x()
-                && self._contents_area_size.x < self._required_contents_size.x
-            {
-                self._contents_area_size.x = self
-                    ._contents_area_size
-                    .x
-                    .max(self._required_contents_size.x);
-                self._ui_size.x = self
-                    ._ui_size
-                    .x
-                    .max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
+            // update expandable size
+            if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
+                self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
+                self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
             }
-            if self.get_expandable_y()
-                && self._contents_area_size.y < self._required_contents_size.y
-            {
-                self._contents_area_size.y = self
-                    ._contents_area_size
-                    .y
-                    .max(self._required_contents_size.y);
-                self._ui_size.y = self
-                    ._ui_size
-                    .y
-                    .max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
+
+            if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
+                self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
+                self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
             }
         }
     }
@@ -1343,17 +1347,24 @@ impl<'a> UIComponentInstance<'a> {
     ) {
         match parent_layout_type {
             UILayoutType::FloatLayout => {
-                let pos_hint_x = self.get_pos_hint_x();
-                let pos_hint_y = self.get_pos_hint_y();
-                if pos_hint_x.is_some() {
+                if let Some(pos_hint_x) = self.get_pos_hint_x() {
+                    self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
+                } else if let Some(center_hint_x) = self.get_center_hint_x() {
                     self._ui_area.x =
-                        parent_contents_area.x + parent_contents_area_size.x * pos_hint_x.unwrap();
+                        parent_contents_area.x +
+                        parent_contents_area_size.x * center_hint_x +
+                        (required_contents_size.x - self._ui_size.x) * 0.5;
                 } else {
                     self._ui_area.x = parent_contents_area.x + self.get_pos_x();
                 }
-                if pos_hint_y.is_some() {
+
+                if let Some(pos_hint_y) = self.get_pos_hint_y() {
+                    self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
+                } else if let Some(center_hint_y) = self.get_center_hint_y() {
                     self._ui_area.y =
-                        parent_contents_area.y + parent_contents_area_size.y * pos_hint_y.unwrap();
+                        parent_contents_area.y +
+                        parent_contents_area_size.y * center_hint_y +
+                        (required_contents_size.y - self._ui_size.y) * 0.5;
                 } else {
                     self._ui_area.y = parent_contents_area.y + self.get_pos_y();
                 }
@@ -1361,29 +1372,27 @@ impl<'a> UIComponentInstance<'a> {
             UILayoutType::BoxLayout => match parent_layout_orientation {
                 Orientation::HORIZONTAL => {
                     self._ui_area.x = ui_area_pos.x;
+
                     match parent_valign {
                         VerticalAlign::TOP => self._ui_area.y = ui_area_pos.y,
                         VerticalAlign::CENTER => {
-                            self._ui_area.y =
-                                ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
+                            self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
                         }
                         VerticalAlign::BOTTOM => {
-                            self._ui_area.y =
-                                ui_area_pos.y + (required_contents_size.y - self._ui_size.y)
+                            self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y)
                         }
                     }
                 }
                 Orientation::VERTICAL => {
                     self._ui_area.y = ui_area_pos.y;
+
                     match parent_halign {
                         HorizontalAlign::LEFT => self._ui_area.x = ui_area_pos.x,
                         HorizontalAlign::CENTER => {
-                            self._ui_area.x =
-                                ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5
+                            self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5
                         }
                         HorizontalAlign::RIGHT => {
-                            self._ui_area.x =
-                                ui_area_pos.x + (required_contents_size.x - self._ui_size.x)
+                            self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x)
                         }
                     }
                 }
@@ -1615,6 +1624,9 @@ impl<'a> WidgetDefault<'a> {
     }
     pub fn get_parent(&self) -> &'a WidgetDefault<'a> {
         ptr_as_ref(self._parent.unwrap())
+    }
+    pub fn get_parent_mut(&self) -> &'a mut WidgetDefault<'a> {
+        ptr_as_mut(self._parent.unwrap())
     }
     pub fn set_parent(&mut self, widget: *const WidgetDefault<'a>) {
         if self.has_parent() {

@@ -516,14 +516,16 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             );
 
             let transform_matrix_count = scene_manager.get_render_element_transform_count();
-            let transform_matrices: &[Matrix4<f32>] =
-                &scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
-            self.upload_shader_buffer_data_list(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::TransformMatrices,
-                transform_matrices,
-            );
+            if 0 < transform_matrix_count {
+                let transform_matrices: &[Matrix4<f32>] =
+                    &scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
+                self.upload_shader_buffer_data_list(
+                    command_buffer,
+                    swapchain_index,
+                    &ShaderBufferDataType::TransformMatrices,
+                    transform_matrices,
+                );
+            }
         }
 
         if self._is_first_rendering {

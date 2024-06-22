@@ -1064,7 +1064,8 @@ impl<'a> RendererContext<'a> {
     }
 
     pub fn resize_window(&mut self) {
-        log::info!("<< res        self.device_wait_idle();izeWindow >>");
+        log::info!("<< resizeWindow >>");
+        self.device_wait_idle();
 
         let render_context_ref = ptr_as_ref(self);
         let engine_resources = ptr_as_mut(self._engine_resources);

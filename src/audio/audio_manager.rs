@@ -144,7 +144,7 @@ impl<'a> AudioManager<'a> {
     }
 
     pub fn initialize_audio_manager(&mut self) {
-        // self._bgm = self.create_audio_instance("default", AudioLoop::LOOP);
+        // example) self._bgm = self.create_audio_instance("default", AudioLoop::LOOP, None);
     }
 
     pub fn destroy_audio_manager(&mut self) {
@@ -165,10 +165,10 @@ impl<'a> AudioManager<'a> {
         ptr_as_mut(self._engine_resources)
     }
 
-    fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>) {
+    fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>, volume: Option<i32>) {
         match audio_instance.borrow()._channel {
             Ok(channel) => {
-                channel.set_volume(self._volume);
+                channel.set_volume(if volume.is_some() { volume.unwrap() } else { self._volume });
                 let Channel(channel_num) = channel;
                 self._audio_instances
                     .insert(channel_num, audio_instance.clone())
@@ -181,9 +181,10 @@ impl<'a> AudioManager<'a> {
         &mut self,
         audio_data: &RcRefCell<AudioData>,
         audio_loop: AudioLoop,
+        audio_volume: Option<i32>
     ) -> RcRefCell<AudioInstance> {
         let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop);
-        self.register_audio_instance(&audio_instance);
+        self.register_audio_instance(&audio_instance, audio_volume);
         audio_instance
     }
 
@@ -191,10 +192,11 @@ impl<'a> AudioManager<'a> {
         &mut self,
         audio_name: &str,
         audio_loop: AudioLoop,
+        audio_volume: Option<i32>
     ) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = ptr_as_mut(self._engine_resources);
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
-            return Some(self.create_audio_instance_inner(&audio_data, audio_loop));
+            return Some(self.create_audio_instance_inner(&audio_data, audio_loop, audio_volume));
         }
         None
     }
@@ -203,6 +205,7 @@ impl<'a> AudioManager<'a> {
         &mut self,
         audio_name_bank: &str,
         audio_loop: AudioLoop,
+        audio_volume: Option<i32>
     ) -> Option<RcRefCell<AudioInstance>> {
         if let ResourceData::AudioBank(audio_bank_data) = self
             .get_engine_resources_mut()
@@ -217,7 +220,7 @@ impl<'a> AudioManager<'a> {
                 };
                 let audio_data =
                     audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
-                return Some(self.create_audio_instance_inner(&audio_data, audio_loop));
+                return Some(self.create_audio_instance_inner(&audio_data, audio_loop, audio_volume));
             }
         }
         None
