@@ -61,11 +61,23 @@ pub fn parsing_index_buffer(
     let buffer_offset = view.offset();
     let buffer_length = view.length();
     let bytes: Vec<u8> = buffers[0].0[buffer_offset..(buffer_offset + buffer_length)].to_vec();
-    assert_eq!(gltf::accessor::DataType::U16, accessor.data_type());
-    let index_count = bytes.len() / 2;
+    let data_type = accessor.data_type();
+    let stride = match data_type {
+        gltf::accessor::DataType::U16 => 2,
+        gltf::accessor::DataType::U32 => 4,
+        _ => panic!("unimplemented type: {:?}", data_type)
+    };
+    let index_count = bytes.len() / stride;
     let mut indices: Vec<u32> = vec![0; index_count];
     for i in 0..index_count {
-        let index_value = (bytes[i * 2] as u32) | ((bytes[i * 2 + 1] as u32) << 8);
+        let base_index = i * stride;
+        let index_value =
+            match accessor.data_type() {
+                gltf::accessor::DataType::U16 => (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8),
+                gltf::accessor::DataType::U32 => (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8) | ((bytes[base_index + 2] as u32) << 16) | ((bytes[base_index + 3] as u32) << 24),
+                _ => panic!("unimplemented type: {:?}", accessor.data_type())
+            };
+
         let remainder = i % 3;
         let mut index_of_indices = i;
         if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
@@ -168,22 +180,54 @@ pub fn parsing_vertex_buffer(
             }
             gltf::Semantic::Colors(color_index) => {
                 if 0 == *color_index {
-                    assert_eq!(gltf::accessor::DataType::U16, accessor.data_type());
-                    assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
-                    let buffer_data: Vec<Vector4<u16>> = system::convert_vec(bytes);
-                    for (i, data) in buffer_data.iter().enumerate() {
-                        // U16 -> U8
-                        let color = vulkan_context::get_color32(
-                            (data.x >> 8) as u32,
-                            (data.y >> 8) as u32,
-                            (data.z >> 8) as u32,
-                            (data.w >> 8) as u32,
-                        );
-                        if is_skeletal_mesh {
-                            skeletal_vertex_data_list[i]._color = color;
-                        } else {
-                            vertex_data_list[i]._color = color;
+                    if gltf::accessor::Dimensions::Vec3 != accessor.dimensions() && gltf::accessor::Dimensions::Vec4 != accessor.dimensions() {
+                        panic!("unimplemented dimension: {:?}", accessor.dimensions());
+                    }
+
+                    if gltf::accessor::DataType::U16 == accessor.data_type() {
+                        let buffer_data: Vec<Vector4<u16>> = system::convert_vec(bytes);
+                        for (i, data) in buffer_data.iter().enumerate() {
+                            let mut linear_color: Vector4<u32> = Vector4::new(255, 255, 255, 255);
+                            if gltf::accessor::DataType::U16 == accessor.data_type() {
+                                linear_color.x = (data.x >> 8) as u32;
+                                linear_color.y = (data.y >> 8) as u32;
+                                linear_color.z = (data.z >> 8) as u32;
+                            }
+                            if gltf::accessor::Dimensions::Vec4 == accessor.dimensions() {
+                                linear_color.w = (data.w >> 8) as u32;
+                            }
+
+                            let color = vulkan_context::get_color32(linear_color.x, linear_color.y, linear_color.z, linear_color.w);
+                            if is_skeletal_mesh {
+                                skeletal_vertex_data_list[i]._color = color;
+                            } else {
+                                vertex_data_list[i]._color = color;
+                            }
                         }
+                    }
+                    else if gltf::accessor::DataType::F32 == accessor.data_type() {
+                        let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
+                        for (i, data) in buffer_data.iter().enumerate() {
+                            let mut linear_color: Vector4<u32> = Vector4::new(255, 255, 255, 255);
+                            if gltf::accessor::DataType::U16 == accessor.data_type() {
+                                linear_color.x = (data.x * 255.0) as u32;
+                                linear_color.y = (data.y * 255.0) as u32;
+                                linear_color.z = (data.z * 255.0) as u32;
+                            }
+                            if gltf::accessor::Dimensions::Vec4 == accessor.dimensions() {
+                                linear_color.w = (data.w * 255.0) as u32;
+                            }
+
+                            let color = vulkan_context::get_color32(linear_color.x, linear_color.y, linear_color.z, linear_color.w);
+                            if is_skeletal_mesh {
+                                skeletal_vertex_data_list[i]._color = color;
+                            } else {
+                                vertex_data_list[i]._color = color;
+                            }
+                        }
+                    }
+                    else {
+                        panic!("unimplemented data type: {:?}", accessor.data_type());
                     }
                 }
             }
