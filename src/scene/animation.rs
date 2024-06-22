@@ -479,7 +479,7 @@ impl AnimationPlayInfo {
     }
 
     pub fn check_animation_event_time(&self, event_time: f32) -> bool {
-        if self._prev_animation_play_time < event_time && event_time <= self._animation_play_time {
+        if self._prev_animation_play_time <= event_time && event_time < self._animation_play_time {
             return true;
         }
         else if self._is_animation_end && self._animation_play_time < event_time {

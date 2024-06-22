@@ -165,10 +165,16 @@ impl<'a> AudioManager<'a> {
         ptr_as_mut(self._engine_resources)
     }
 
-    fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>, volume: Option<i32>) {
+    fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>, volume: Option<f32>) {
         match audio_instance.borrow()._channel {
             Ok(channel) => {
-                channel.set_volume(if volume.is_some() { volume.unwrap() } else { self._volume });
+                channel.set_volume(
+                    if volume.is_some() {
+                        (self._volume as f32 * volume.unwrap()) as i32
+                    } else {
+                        self._volume
+                    }
+                );
                 let Channel(channel_num) = channel;
                 self._audio_instances
                     .insert(channel_num, audio_instance.clone())
@@ -181,7 +187,7 @@ impl<'a> AudioManager<'a> {
         &mut self,
         audio_data: &RcRefCell<AudioData>,
         audio_loop: AudioLoop,
-        audio_volume: Option<i32>
+        audio_volume: Option<f32>
     ) -> RcRefCell<AudioInstance> {
         let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop);
         self.register_audio_instance(&audio_instance, audio_volume);
@@ -192,7 +198,7 @@ impl<'a> AudioManager<'a> {
         &mut self,
         audio_name: &str,
         audio_loop: AudioLoop,
-        audio_volume: Option<i32>
+        audio_volume: Option<f32>
     ) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = ptr_as_mut(self._engine_resources);
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
@@ -205,7 +211,7 @@ impl<'a> AudioManager<'a> {
         &mut self,
         audio_name_bank: &str,
         audio_loop: AudioLoop,
-        audio_volume: Option<i32>
+        audio_volume: Option<f32>
     ) -> Option<RcRefCell<AudioInstance>> {
         if let ResourceData::AudioBank(audio_bank_data) = self
             .get_engine_resources_mut()
