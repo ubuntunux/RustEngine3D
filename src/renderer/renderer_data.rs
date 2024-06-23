@@ -1338,6 +1338,10 @@ impl<'a> RendererData<'a> {
         }
     }
 
+    pub fn reset_render_light_probe_time(&mut self) {
+        self._render_context_light_probe._next_refresh_time = 0.0;
+    }
+
     pub fn render_light_probe(
         &self,
         renderer_context: &RendererContext<'a>,

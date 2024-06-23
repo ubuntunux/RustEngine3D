@@ -5,7 +5,7 @@ use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
-use crate::constants::MAX_TRANSFORM_COUNT;
+use crate::constants::{MAX_FRAME_COUNT, MAX_TRANSFORM_COUNT};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
@@ -65,7 +65,8 @@ pub struct SceneManager<'a> {
     pub _skeletal_shadow_render_elements: Vec<RenderElementData<'a>>,
     pub _render_element_transform_count: usize,
     pub _render_element_transform_matrices: Vec<Matrix4<f32>>,
-    pub _bound_boxes: Vec<BoundBoxInstanceData>
+    pub _bound_boxes: Vec<BoundBoxInstanceData>,
+    pub _frame_count_for_refresh_light_probe: i32,
 }
 
 // Implementation
@@ -142,7 +143,8 @@ impl<'a> SceneManager<'a> {
             _skeletal_shadow_render_elements: Vec::new(),
             _render_element_transform_count: 0,
             _render_element_transform_matrices: vec![Matrix4::identity(); MAX_TRANSFORM_COUNT],
-            _bound_boxes: Vec::new()
+            _bound_boxes: Vec::new(),
+            _frame_count_for_refresh_light_probe: 0,
         })
     }
 
@@ -256,14 +258,11 @@ impl<'a> SceneManager<'a> {
     pub fn get_sea_height(&self) -> f32 {
         self._sea_height
     }
-
     pub fn generate_object_id(&mut self) -> i64 {
         let _object_id_generator = self._object_id_generator;
         self._object_id_generator += 1;
         self._object_id_generator
     }
-
-
     pub fn add_camera_object(
         &mut self,
         object_name: &str,
@@ -292,7 +291,6 @@ impl<'a> SceneManager<'a> {
         self._directional_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
-
     pub fn add_static_render_object(
         &mut self,
         object_name: &str,
@@ -311,7 +309,6 @@ impl<'a> SceneManager<'a> {
         self._static_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
     }
-
     pub fn add_skeletal_render_object(
         &mut self,
         object_name: &str,
@@ -633,9 +630,7 @@ impl<'a> SceneManager<'a> {
             .set_height(scene_data_create_info._sea_height);
 
         // cameras
-        for (index, (object_name, camera_create_info)) in
-            scene_data_create_info._cameras.iter().enumerate()
-        {
+        for (index, (object_name, camera_create_info)) in scene_data_create_info._cameras.iter().enumerate() {
             let camera_create_info = CameraCreateInfo {
                 window_size: self._window_size.into(),
                 ..camera_create_info.clone()
@@ -650,8 +645,7 @@ impl<'a> SceneManager<'a> {
         for (index, (object_name, light_create_info)) in scene_data_create_info
             ._directional_lights
             .iter()
-            .enumerate()
-        {
+            .enumerate() {
             let light_create_info = DirectionalLightCreateInfo {
                 _position: light_create_info._position.clone() as Vector3<f32>,
                 _rotation: light_create_info._rotation.clone() as Vector3<f32>,
@@ -678,18 +672,16 @@ impl<'a> SceneManager<'a> {
         }
 
         // static objects
-        for (object_name, render_object_create_info) in
-            scene_data_create_info._static_objects.iter()
-        {
+        for (object_name, render_object_create_info) in scene_data_create_info._static_objects.iter() {
             self.add_static_render_object(object_name, render_object_create_info);
         }
 
         // skeletal objects
-        for (object_name, render_object_create_info) in
-            scene_data_create_info._skeletal_objects.iter()
-        {
+        for (object_name, render_object_create_info) in scene_data_create_info._skeletal_objects.iter() {
             self.add_skeletal_render_object(object_name, render_object_create_info);
         }
+
+        self.reset_frame_count_for_refresh_light_probe();
     }
 
     pub fn close_scene_data(&mut self) {
@@ -788,7 +780,17 @@ impl<'a> SceneManager<'a> {
 
     pub fn destroy_scene_manager(&mut self) {}
 
+    pub fn reset_frame_count_for_refresh_light_probe(&mut self) {
+        self._frame_count_for_refresh_light_probe = MAX_FRAME_COUNT as i32;
+    }
+
     pub fn update_scene_manager(&mut self, delta_time: f64) {
+        // refresh environment map
+        if 0 <= self._frame_count_for_refresh_light_probe {
+            self.get_renderer_data_mut().reset_render_light_probe_time();
+            self._frame_count_for_refresh_light_probe -= 1;
+        }
+
         let main_camera = ptr_as_mut(self.get_main_camera());
         main_camera.update_camera_object_data();
         let camera_position = &main_camera.get_camera_position();
