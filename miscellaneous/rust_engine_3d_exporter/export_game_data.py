@@ -143,59 +143,53 @@ class RustEngine3DExporter:
         export_filepath = asset_info.get_asset_filepath(self.resource_path, '.layer')
         self.write_to_file('export animation_layers', animation_layers, export_filepath)
 
-    def export_material_instance(self, asset_info, mesh_collection, mesh_data):
+    def export_material_instance(self, asset_info, mesh_collection):
+        texture_dirpath = os.path.join(self.resource_path, 'textures')
         material_instance_namepaths = []
-        material_slots_list = []
-        for child_object in mesh_data.objects:
-            if 'MESH' == child_object.type:
-                print(f'child_object.material_slots: {len(child_object.material_slots)}')
-                material_slots_list.append(child_object.material_slots)
+        materials_list = [child.data.materials for child in mesh_collection.objects if 'MESH' == child.type]
+        material_instance_slots_list = [child.material_slots for child in mesh_collection.objects if 'MESH' == child.type]
+        for list_index in range(len(materials_list)):
+            materials = materials_list[list_index]
+            material_instance_slots = material_instance_slots_list[list_index]
+            for material_index in range(len(materials)):
+                material = materials[material_index]
+                material_instance = material_instance_slots[material_index].material
 
-        for child_object in mesh_collection.objects:
-            if 'MESH' == child_object.type:
-                texture_dirpath = os.path.join(self.resource_path, 'textures')
-                material_slots = material_slots_list.pop(0)
-                material_instance_slots = child_object.material_slots
-                
-                for material_index in range(len(material_instance_slots)):
-                    material = material_slots[material_index].material
-                    material_instance = material_instance_slots[material_index].material
-                    
-                    material_asset_info = AssetInfo(material)
-                    material_instance_asset_info = AssetInfo(material_instance)
-                    material_instance_namepaths.append(material_instance_asset_info.asset_namepath)
-                    
-                    # export material instance
-                    material_parameters = {}
-                    material_instance_info = {
-                        'material_name': material_asset_info.asset_namepath,
-                        'material_parameters': material_parameters
-                    }
-                    
-                    for node in material_instance.node_tree.nodes:
-                        if node.label:
-                            if 'TEX_IMAGE' == node.type:
-                                # gather texture parameter
-                                image_relative_filepath = node.image.filepath.replace('//', '')
-                                image_filepath = os.path.abspath(os.path.join(self.resource_path, asset_info.asset_relative_path, image_relative_filepath))
-                                image_namepath = os.path.splitext(os.path.relpath(image_filepath, texture_dirpath))[0]
-                                material_parameters[node.label] = image_namepath
-                                
-                                # export texture
-                                EXPORT_TEXTURES = False
-                                if EXPORT_TEXTURES:
-                                    image_external_filepath = os.path.abspath(os.path.join(self.external_path, asset_info.asset_relative_path, image_relative_filepath))
-                                    if os.path.exists(image_external_filepath):
-                                        src_modified_time = os.path.getmtime(image_external_filepath)
-                                        dst_modified_time = os.path.getmtime(image_filepath) if os.path.exists(image_filepath) else 0
-                                        if dst_modified_time < src_modifed_time:
-                                            self.copy_file('export texture', image_external_filepath, image_filepath)
-                            elif 'RGB' == node.type:
-                                material_parameters[node.label] = list(node.outputs[0].default_value)
-                     
-                    # export material instance
-                    export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
-                    self.write_to_file('export material_instance', material_instance_info, export_filepath)
+                material_asset_info = AssetInfo(material)
+                material_instance_asset_info = AssetInfo(material_instance)
+                material_instance_namepaths.append(material_instance_asset_info.asset_namepath)
+
+                # export material instance
+                material_parameters = {}
+                material_instance_info = {
+                    'material_name': material_asset_info.asset_namepath,
+                    'material_parameters': material_parameters
+                }
+
+                for node in material_instance.node_tree.nodes:
+                    if node.label:
+                        if 'TEX_IMAGE' == node.type:
+                            # gather texture parameter
+                            image_relative_filepath = node.image.filepath.replace('//', '')
+                            image_filepath = os.path.abspath(os.path.join(self.resource_path, asset_info.asset_relative_path, image_relative_filepath))
+                            image_namepath = os.path.splitext(os.path.relpath(image_filepath, texture_dirpath))[0]
+                            material_parameters[node.label] = image_namepath
+
+                            # export texture
+                            EXPORT_TEXTURES = False
+                            if EXPORT_TEXTURES:
+                                image_external_filepath = os.path.abspath(os.path.join(self.external_path, asset_info.asset_relative_path, image_relative_filepath))
+                                if os.path.exists(image_external_filepath):
+                                    src_modified_time = os.path.getmtime(image_external_filepath)
+                                    dst_modified_time = os.path.getmtime(image_filepath) if os.path.exists(image_filepath) else 0
+                                    if dst_modified_time < src_modifed_time:
+                                        self.copy_file('export texture', image_external_filepath, image_filepath)
+                        elif 'RGB' == node.type:
+                            material_parameters[node.label] = list(node.outputs[0].default_value)
+
+                # export material instance
+                export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
+                self.write_to_file('export material_instance', material_instance_info, export_filepath)
         return material_instance_namepaths
 
     def export_selected_meshes(self, asset_info):
@@ -241,7 +235,7 @@ class RustEngine3DExporter:
             mesh_path = mesh_asset_info.asset_namepath
             
             # material instance
-            material_instances = self.export_material_instance(asset_info, mesh_collection, mesh_data)
+            material_instances = self.export_material_instance(asset_info, mesh_collection)
             
             # local transform object
             position = [0.0, 0.0, 0.0]
