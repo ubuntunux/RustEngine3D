@@ -22,12 +22,12 @@ void main() {
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
 
+#if (RenderObjectType_Skeletal == RenderObjectType)
     const uint local_matrix_prev_offset = pushConstant._transform_matrix_offset;
     const uint local_matrix_offset = local_matrix_prev_offset + 1;
     const uint prev_bone_matrix_offset = local_matrix_offset + 1;
     const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_count;
 
-#if (RenderObjectType_Skeletal == RenderObjectType)
     if (0 < pushConstant._bone_count)
     {
         for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
@@ -43,22 +43,25 @@ void main() {
         }
         position /= position.w;
         prev_position /= prev_position.w;
+        vertex_normal = normalize(vertex_normal);
+        vertex_tangent = normalize(vertex_tangent);
     }
     else
     {
         position = vec4(inPosition, 1.0);
         prev_position = vec4(inPosition, 1.0);
-        vertex_normal = inNormal;
-        vertex_tangent = inTangent;
+        vertex_normal = normalize(inNormal);
+        vertex_tangent = normalize(inTangent);
     }
 #else
+    // RenderObjectType_Static
+    const uint local_matrix_prev_offset = pushConstant._transform_matrix_offset; // static mesh can't move
+    const uint local_matrix_offset = pushConstant._transform_matrix_offset;
     position = vec4(inPosition, 1.0);
     prev_position = vec4(inPosition, 1.0);
-    vertex_normal = inNormal;
-    vertex_tangent = inTangent;
+    vertex_normal = normalize(inNormal);
+    vertex_tangent = normalize(inTangent);
 #endif
-    vertex_normal = normalize(vertex_normal);
-    vertex_tangent = normalize(vertex_tangent);
 
     mat4 localMatrix = transform_matrices[local_matrix_offset];
     mat4 localMatrixPrev = transform_matrices[local_matrix_prev_offset];

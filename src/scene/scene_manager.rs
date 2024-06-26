@@ -479,9 +479,12 @@ impl<'a> SceneManager<'a> {
                 let local_matrix_count = 1usize;
                 let local_matrix_prev_count = 1usize;
                 let bone_count = render_object_data.get_bone_count();
-                // transform matrix offset: _localMatrixPrev + _localMatrix + prev_animation_bone_count + curr_animation_bone_count
-                let required_transform_count =
-                    local_matrix_count + local_matrix_prev_count + bone_count + bone_count;
+                let required_transform_count = match render_object_type {
+                    RenderObjectType::Static => local_matrix_prev_count,
+                    RenderObjectType::Skeletal =>
+                        // transform matrix offset: localMatrixPrev(1) + localMatrix(1) + prev_animation_bone_count + curr_animation_bone_count
+                        local_matrix_count + local_matrix_prev_count + bone_count + bone_count
+                };
                 let push_constant_data_list: *const Vec<PipelinePushConstantData> =
                     render_object_data.get_push_constant_data_list(index);
                 let render_something: bool = is_render || is_render_shadow;
@@ -525,31 +528,39 @@ impl<'a> SceneManager<'a> {
                         );
                 }
 
-                // local matrix prev
-                render_element_transform_matrices[transform_offset].copy_from(&render_object_data._prev_transform);
-                transform_offset += local_matrix_prev_count;
+                match render_object_type {
+                    RenderObjectType::Static => {
+                        // local matrix
+                        render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
+                        transform_offset += local_matrix_count;
+                    },
+                    RenderObjectType::Skeletal => {
+                        // local matrix prev
+                        render_element_transform_matrices[transform_offset].copy_from(&render_object_data._prev_transform);
+                        transform_offset += local_matrix_prev_count;
 
-                // local matrix
-                render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
-                transform_offset += local_matrix_count;
+                        // local matrix
+                        render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
+                        transform_offset += local_matrix_count;
 
-                if RenderObjectType::Skeletal == render_object_type {
-                    // prev animation buffer
-                    let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
-                    assert_eq!(bone_count, prev_animation_buffer.len());
-                    let next_transform_offset: usize = transform_offset + bone_count;
-                    render_element_transform_matrices[transform_offset..next_transform_offset]
-                        .copy_from_slice(prev_animation_buffer);
-                    transform_offset = next_transform_offset;
+                        // prev animation buffer
+                        let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
+                        assert_eq!(bone_count, prev_animation_buffer.len());
+                        let next_transform_offset: usize = transform_offset + bone_count;
+                        render_element_transform_matrices[transform_offset..next_transform_offset]
+                            .copy_from_slice(prev_animation_buffer);
+                        transform_offset = next_transform_offset;
 
-                    // current animation buffer
-                    let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
-                    assert_eq!(bone_count, animation_buffer.len());
-                    let next_transform_offset: usize = transform_offset + bone_count;
-                    render_element_transform_matrices[transform_offset..next_transform_offset]
-                        .copy_from_slice(animation_buffer);
-                    transform_offset = next_transform_offset;
-                }
+                        // current animation buffer
+                        let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
+                        assert_eq!(bone_count, animation_buffer.len());
+                        let next_transform_offset: usize = transform_offset + bone_count;
+                        render_element_transform_matrices[transform_offset..next_transform_offset]
+                            .copy_from_slice(animation_buffer);
+                        transform_offset = next_transform_offset;
+                    }
+                };
+
 
                 // set transform matrix index
                 *render_element_transform_offset = transform_offset;
