@@ -59,7 +59,6 @@ class ResourceType(Enum):
 class AssetInfo:
     def __init__(self, asset):
         self.asset_name = asset.name
-
         tokens = asset.asset_data.catalog_simple_name.split('-')
         self.catalog_simple_name = asset.asset_data.catalog_simple_name
         self.asset_library_path = '/'.join(tokens)
@@ -288,11 +287,12 @@ class RustEngine3DExporter:
                 }
             elif 'CAMERA' == child.type:
                 cameras[child.name] = {
-                    #'fov': math.degrees(child.data.angle),
+                    # 'fov': math.degrees(child.data.angle),
                     'position': self.convert_asset_location(child),
                     'rotation': self.convert_asset_rotation(child, rx=90.0)
                 }                
             elif 'EMPTY' == child.type and 'COLLECTION' == child.instance_type:
+                self.logger.info(f'child: {child.name, child.instance_collection.asset_data is None}')
                 child_asset_info = AssetInfo(child.instance_collection)
                 if 'models' == child_asset_info.asset_type_name:
                     static_objects[child.name] = {
