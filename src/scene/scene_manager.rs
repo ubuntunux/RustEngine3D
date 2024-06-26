@@ -485,34 +485,10 @@ impl<'a> SceneManager<'a> {
                         // transform matrix offset: localMatrixPrev(1) + localMatrix(1) + prev_animation_bone_count + curr_animation_bone_count
                         local_matrix_count + local_matrix_prev_count + bone_count + bone_count
                 };
-                let push_constant_data_list: *const Vec<PipelinePushConstantData> =
-                    render_object_data.get_push_constant_data_list(index);
-                let render_something: bool = is_render || is_render_shadow;
-                if render_something && (transform_offset + required_transform_count) <= MAX_TRANSFORM_COUNT {
-                    if is_render {
-                        render_elements.push(RenderElementData {
-                            _render_object: render_object_data_ref.clone(),
-                            _geometry_data: geometry_data_list[index].clone(),
-                            _material_instance_data: material_instance_data_list[index].clone(),
-                            _push_constant_data_list: push_constant_data_list.clone(),
-                        });
-                    }
-
-                    if is_render_shadow {
-                        render_shadow_elements.push(RenderElementData {
-                            _render_object: render_object_data_ref.clone(),
-                            _geometry_data: geometry_data_list[index].clone(),
-                            _material_instance_data: material_instance_data_list[index].clone(),
-                            _push_constant_data_list: push_constant_data_list.clone(),
-                        });
-                    }
-                } else {
-                    // not visible
-                    continue;
-                }
 
                 // set transform_offset
-                let push_constant_data_list_mut = ptr_as_mut(push_constant_data_list);
+                let push_constant_data_list_ptr: *const Vec<PipelinePushConstantData> = render_object_data.get_push_constant_data_list(index);
+                let push_constant_data_list_mut = ptr_as_mut(push_constant_data_list_ptr);
                 for push_constant_data_mut in push_constant_data_list_mut.iter_mut() {
                     push_constant_data_mut
                         ._push_constant
@@ -528,42 +504,65 @@ impl<'a> SceneManager<'a> {
                         );
                 }
 
-                match render_object_type {
-                    RenderObjectType::Static => {
-                        // local matrix
-                        render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
-                        transform_offset += local_matrix_count;
-                    },
-                    RenderObjectType::Skeletal => {
-                        // local matrix prev
-                        render_element_transform_matrices[transform_offset].copy_from(&render_object_data._prev_transform);
-                        transform_offset += local_matrix_prev_count;
-
-                        // local matrix
-                        render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
-                        transform_offset += local_matrix_count;
-
-                        // prev animation buffer
-                        let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
-                        assert_eq!(bone_count, prev_animation_buffer.len());
-                        let next_transform_offset: usize = transform_offset + bone_count;
-                        render_element_transform_matrices[transform_offset..next_transform_offset]
-                            .copy_from_slice(prev_animation_buffer);
-                        transform_offset = next_transform_offset;
-
-                        // current animation buffer
-                        let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
-                        assert_eq!(bone_count, animation_buffer.len());
-                        let next_transform_offset: usize = transform_offset + bone_count;
-                        render_element_transform_matrices[transform_offset..next_transform_offset]
-                            .copy_from_slice(animation_buffer);
-                        transform_offset = next_transform_offset;
+                let render_something: bool = is_render || is_render_shadow;
+                if render_something && (transform_offset + required_transform_count) <= MAX_TRANSFORM_COUNT {
+                    // add render element
+                    if is_render {
+                        render_elements.push(RenderElementData {
+                            _render_object: render_object_data_ref.clone(),
+                            _geometry_data: geometry_data_list[index].clone(),
+                            _material_instance_data: material_instance_data_list[index].clone(),
+                            _push_constant_data_list: push_constant_data_list_ptr.clone(),
+                        });
                     }
-                };
 
+                    // add render shadow element
+                    if is_render_shadow {
+                        render_shadow_elements.push(RenderElementData {
+                            _render_object: render_object_data_ref.clone(),
+                            _geometry_data: geometry_data_list[index].clone(),
+                            _material_instance_data: material_instance_data_list[index].clone(),
+                            _push_constant_data_list: push_constant_data_list_ptr.clone(),
+                        });
+                    }
 
-                // set transform matrix index
-                *render_element_transform_offset = transform_offset;
+                    // update render_element_transform_matrices
+                    match render_object_type {
+                        RenderObjectType::Static => {
+                            // local matrix
+                            render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
+                            transform_offset += local_matrix_count;
+                        },
+                        RenderObjectType::Skeletal => {
+                            // local matrix prev
+                            render_element_transform_matrices[transform_offset].copy_from(&render_object_data._prev_transform);
+                            transform_offset += local_matrix_prev_count;
+
+                            // local matrix
+                            render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
+                            transform_offset += local_matrix_count;
+
+                            // prev animation buffer
+                            let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
+                            assert_eq!(bone_count, prev_animation_buffer.len());
+                            let next_transform_offset: usize = transform_offset + bone_count;
+                            render_element_transform_matrices[transform_offset..next_transform_offset]
+                                .copy_from_slice(prev_animation_buffer);
+                            transform_offset = next_transform_offset;
+
+                            // current animation buffer
+                            let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
+                            assert_eq!(bone_count, animation_buffer.len());
+                            let next_transform_offset: usize = transform_offset + bone_count;
+                            render_element_transform_matrices[transform_offset..next_transform_offset]
+                                .copy_from_slice(animation_buffer);
+                            transform_offset = next_transform_offset;
+                        }
+                    };
+
+                    // set transform matrix index
+                    *render_element_transform_offset = transform_offset;
+                }
             }
         }
     }
