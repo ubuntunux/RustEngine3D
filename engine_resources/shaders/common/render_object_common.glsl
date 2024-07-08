@@ -18,8 +18,12 @@ layout(binding = 3) buffer TransformMatrices
 {
     mat4 transform_matrices[MAX_TRANSFORM_COUNT];
 };
+layout(binding = 4) buffer TransformOffsets
+{
+    ivec2 transform_offsets[MAX_TRANSFORM_COUNT];
+};
 #if (RenderMode_Forward == RenderMode)
-layout(binding = 4) uniform AtmosphereConstants
+layout(binding = 5) uniform AtmosphereConstants
 {
     ATMOSPHERE_CONSTANTS atmosphere_constants;
 };

@@ -11,8 +11,8 @@ layout(location = 2) in vec3 inTangent;
 layout(location = 3) in vec4 inColor;
 layout(location = 4) in vec2 inTexCoord;
 #if (RenderObjectType_Skeletal == RenderObjectType)
-layout (location = 5) in uvec4 inBoneIndices;
-layout (location = 6) in vec4 inBoneWeights;
+layout(location = 5) in uvec4 inBoneIndices;
+layout(location = 6) in vec4 inBoneWeights;
 #endif
 layout(location = 0) out VERTEX_OUTPUT vs_output;
 
@@ -22,8 +22,10 @@ void main() {
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
 
+    const uint transform_matrix_offset = pushConstant._transform_matrix_offset + gl_InstanceIndex;
+
 #if (RenderObjectType_Skeletal == RenderObjectType)
-    const uint local_matrix_prev_offset = pushConstant._transform_matrix_offset;
+    const uint local_matrix_prev_offset = transform_matrix_offset;
     const uint local_matrix_offset = local_matrix_prev_offset + 1;
     const uint prev_bone_matrix_offset = local_matrix_offset + 1;
     const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_count;
@@ -55,8 +57,8 @@ void main() {
     }
 #else
     // RenderObjectType_Static
-    const uint local_matrix_prev_offset = pushConstant._transform_matrix_offset; // static mesh can't move
-    const uint local_matrix_offset = pushConstant._transform_matrix_offset;
+    const uint local_matrix_prev_offset = transform_matrix_offset; // static mesh can't move
+    const uint local_matrix_offset = transform_matrix_offset;
     position = vec4(inPosition, 1.0);
     prev_position = vec4(inPosition, 1.0);
     vertex_normal = normalize(inNormal);

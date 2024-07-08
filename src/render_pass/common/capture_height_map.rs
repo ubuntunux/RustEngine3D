@@ -141,7 +141,15 @@ pub fn get_render_pass_data_create_info(
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 12,
+                _descriptor_binding_index: 4,
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformOffsets),
+                _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
+                    | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 13,
                 _descriptor_name: String::from("textureBase"),
                 _descriptor_resource_type: DescriptorResourceType::Texture,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,

@@ -176,6 +176,13 @@ impl<'a> RenderObjectData<'a> {
         &self._push_constant_data_list_group[model_index]
     }
 
+    pub fn get_push_constant_data_list_mut(
+        &mut self,
+        model_index: usize,
+    ) -> &mut Vec<PipelinePushConstantData> {
+        &mut self._push_constant_data_list_group[model_index]
+    }
+
     pub fn get_transform_object_data(&self) -> &TransformObjectData {
         &self._transform_object
     }

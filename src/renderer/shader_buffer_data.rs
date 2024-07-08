@@ -35,6 +35,7 @@ pub enum ShaderBufferDataType {
     LightProbeViewConstants4,
     LightProbeViewConstants5,
     TransformMatrices,
+    TransformOffsets,
     BoundBoxInstanceDataBuffer,
     DebugLineInstanceDataBuffer,
     FontInstanceDataBuffer,
@@ -116,8 +117,21 @@ pub struct TransformMatrices {
 impl Default for TransformMatrices {
     fn default() -> TransformMatrices {
         TransformMatrices {
-            _transform_matrices: [Matrix4::identity() as Matrix4<f32>;
-                constants::MAX_TRANSFORM_COUNT],
+            _transform_matrices: [Matrix4::identity(); constants::MAX_TRANSFORM_COUNT],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone)]
+pub struct TransformOffsets {
+    pub _transform_offsets: [Vector2<i32>; constants::MAX_TRANSFORM_COUNT],
+}
+
+impl Default for TransformOffsets {
+    fn default() -> TransformOffsets {
+        TransformOffsets {
+            _transform_offsets: [Vector2::zeros(); constants::MAX_TRANSFORM_COUNT],
         }
     }
 }
@@ -254,6 +268,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "LightProbeViewConstants4" => Ok(ShaderBufferDataType::LightProbeViewConstants4),
             "LightProbeViewConstants5" => Ok(ShaderBufferDataType::LightProbeViewConstants5),
             "TransformMatrices" => Ok(ShaderBufferDataType::TransformMatrices),
+            "TransformOffsets" => Ok(ShaderBufferDataType::TransformOffsets),
             "BoundBoxInstanceDataBuffer" => Ok(ShaderBufferDataType::BoundBoxInstanceDataBuffer),
             "DebugLineInstanceDataBuffer" => Ok(ShaderBufferDataType::DebugLineInstanceDataBuffer),
             "FontInstanceDataBuffer" => Ok(ShaderBufferDataType::FontInstanceDataBuffer),
@@ -428,6 +443,14 @@ pub fn register_shader_buffer_data_list(
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::TransformMatrices,
             _shader_buffer_data_stride: std::mem::size_of::<TransformMatrices>(),
+            ..storage_buffer_create_info
+        },
+    );
+    register_shader_buffer_data(
+        debug_utils_device,
+        &mut RegistShaderBufferCreateInfo {
+            _shader_buffer_data_type: ShaderBufferDataType::TransformOffsets,
+            _shader_buffer_data_stride: std::mem::size_of::<TransformOffsets>(),
             ..storage_buffer_create_info
         },
     );

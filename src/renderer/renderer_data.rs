@@ -525,6 +525,15 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                     &ShaderBufferDataType::TransformMatrices,
                     transform_matrices,
                 );
+
+                let transform_offsets: &[Vector2<i32>] =
+                    &scene_manager.get_render_element_transform_offsets()[..transform_matrix_count];
+                self.upload_shader_buffer_data_list(
+                    command_buffer,
+                    swapchain_index,
+                    &ShaderBufferDataType::TransformOffsets,
+                    transform_offsets,
+                );
             }
         }
 
@@ -1606,7 +1615,6 @@ impl<'a> RendererData<'a> {
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
                 let material_instance = render_element._material_instance_data.borrow();
-                let push_constant_data_list = ptr_as_ref(render_element._push_constant_data_list);
                 let render_pass_pipeline_data_names =
                     material_instance.get_render_pass_pipeline_data_names(render_pass_name);
                 for render_pass_pipeline_data_name in render_pass_pipeline_data_names.iter() {
@@ -1642,16 +1650,21 @@ impl<'a> RendererData<'a> {
                         );
                     }
 
-                    // update push constants
-                    for push_constant_data in push_constant_data_list.iter() {
+                    // upload push constants
+                    for push_constant_data in render_element._push_constant_data_list.iter() {
                         renderer_context.upload_push_constant_data(
                             command_buffer,
                             pipeline_data,
                             push_constant_data._push_constant.as_ref(),
                         );
                     }
-                    renderer_context
-                        .draw_elements(command_buffer, &render_element._geometry_data.borrow());
+
+                    renderer_context.draw_elements_instanced(
+                        command_buffer,
+                        &render_element._geometry_data.borrow(),
+                        &[],
+                        render_element._num_render_instances,
+                    )
                 }
             }
             renderer_context.end_render_pass(command_buffer);

@@ -10,18 +10,18 @@
 #endif
 
 #if (RenderMode_Forward == RenderMode)
-layout(binding = 5) uniform sampler2D textureShadow;
-layout(binding = 6) uniform sampler2D textureHeightMap;
-layout(binding = 7) uniform samplerCube texture_probe;
-layout(binding = 8) uniform sampler2D transmittance_texture;
-layout(binding = 9) uniform sampler2D irradiance_texture;
-layout(binding = 10) uniform sampler3D scattering_texture;
-layout(binding = 11) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 6) uniform sampler2D textureShadow;
+layout(binding = 7) uniform sampler2D textureHeightMap;
+layout(binding = 8) uniform samplerCube texture_probe;
+layout(binding = 9) uniform sampler2D transmittance_texture;
+layout(binding = 10) uniform sampler2D irradiance_texture;
+layout(binding = 11) uniform sampler3D scattering_texture;
+layout(binding = 12) uniform sampler3D single_mie_scattering_texture;
 #endif
-layout(binding = 12) uniform sampler2D textureBase;
+layout(binding = 13) uniform sampler2D textureBase;
 #if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
-layout(binding = 13) uniform sampler2D textureMaterial;
-layout(binding = 14) uniform sampler2D textureNormal;
+layout(binding = 14) uniform sampler2D textureMaterial;
+layout(binding = 15) uniform sampler2D textureNormal;
 #endif
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
