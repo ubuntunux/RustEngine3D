@@ -22,7 +22,12 @@ void main() {
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
 
-    const uint transform_matrix_offset = pushConstant._transform_matrix_offset + gl_InstanceIndex;
+    const uint transform_offset_index = pushConstant._transform_offset_index + gl_InstanceIndex;
+#if (RenderMode_Shadow == RenderMode)
+    const uint transform_matrix_offset = transform_offsets[transform_offset_index].y;
+#else
+    const uint transform_matrix_offset = transform_offsets[transform_offset_index].x;
+#endif
 
 #if (RenderObjectType_Skeletal == RenderObjectType)
     const uint local_matrix_prev_offset = transform_matrix_offset;

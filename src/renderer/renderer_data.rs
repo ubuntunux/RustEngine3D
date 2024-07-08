@@ -6,7 +6,7 @@ use std::vec::Vec;
 
 use ash::{Device, vk};
 use ash::ext;
-use nalgebra::{Matrix4, Vector2};
+use nalgebra::{Matrix4, Vector2, Vector4};
 
 use crate::constants;
 use crate::effect::effect_manager::EffectManager;
@@ -526,7 +526,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                     transform_matrices,
                 );
 
-                let transform_offsets: &[Vector2<i32>] =
+                let transform_offsets: &[Vector4<i32>] =
                     &scene_manager.get_render_element_transform_offsets()[..transform_matrix_count];
                 self.upload_shader_buffer_data_list(
                     command_buffer,

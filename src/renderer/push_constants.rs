@@ -81,7 +81,7 @@ impl<T> PushConstantSize for T {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct PushConstant_RenderObject {
-    pub _transform_matrix_offset: u32,
+    pub _transform_offset_index: u32,
     pub _bone_count: u32,
     pub _reserved0: u32,
     pub _reserved1: u32,
@@ -91,7 +91,7 @@ pub struct PushConstant_RenderObject {
 impl Default for PushConstant_RenderObject {
     fn default() -> PushConstant_RenderObject {
         PushConstant_RenderObject {
-            _transform_matrix_offset: 0,
+            _transform_offset_index: 0,
             _bone_count: 0,
             _reserved0: 0,
             _reserved1: 0,
@@ -108,9 +108,9 @@ impl PushConstantName for PushConstant_RenderObject {
 
 impl PushConstant for PushConstant_RenderObject {
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
-        if "_transform_matrix_offset" == key {
-            if let PushConstantParameter::Int(transform_matrix_offset) = value {
-                self._transform_matrix_offset = *transform_matrix_offset as u32;
+        if "_transform_offset_index" == key {
+            if let PushConstantParameter::Int(transform_offset_index) = value {
+                self._transform_offset_index = *transform_offset_index as u32;
             }
         } else if "_bone_count" == key {
             if let PushConstantParameter::Int(bone_count) = value {

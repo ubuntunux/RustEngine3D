@@ -125,13 +125,13 @@ impl Default for TransformMatrices {
 #[repr(C)]
 #[derive(Clone)]
 pub struct TransformOffsets {
-    pub _transform_offsets: [Vector2<i32>; constants::MAX_TRANSFORM_COUNT],
+    pub _transform_offsets: [Vector4<i32>; constants::MAX_TRANSFORM_COUNT],
 }
 
 impl Default for TransformOffsets {
     fn default() -> TransformOffsets {
         TransformOffsets {
-            _transform_offsets: [Vector2::zeros(); constants::MAX_TRANSFORM_COUNT],
+            _transform_offsets: [Vector4::zeros(); constants::MAX_TRANSFORM_COUNT],
         }
     }
 }

@@ -15,10 +15,13 @@ use crate::renderer::renderer_data::{RendererData, RenderObjectType};
 use crate::resource::resource::EngineResources;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, LightConstants};
+use crate::scene::material_instance::MaterialInstanceData;
+use crate::scene::mesh::MeshData;
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::vulkan_context::geometry_buffer::GeometryData;
 
 type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
 type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLightData>>;
@@ -65,7 +68,7 @@ pub struct SceneManager<'a> {
     pub _skeletal_shadow_render_elements: Vec<RenderElementData<'a>>,
     pub _render_element_transform_count: usize,
     pub _render_element_transform_matrices: Vec<Matrix4<f32>>,
-    pub _render_element_transform_offsets: Vec<Vector2<i32>>,
+    pub _render_element_transform_offsets: Vec<Vector4<i32>>,
     pub _bound_boxes: Vec<BoundBoxInstanceData>,
     pub _frame_count_for_refresh_light_probe: i32,
 }
@@ -118,7 +121,7 @@ impl<'a> SceneManager<'a> {
     pub fn get_render_element_transform_matrices(&self) -> &Vec<Matrix4<f32>> {
         &self._render_element_transform_matrices
     }
-    pub fn get_render_element_transform_offsets(&self) -> &Vec<Vector2<i32>> {
+    pub fn get_render_element_transform_offsets(&self) -> &Vec<Vector4<i32>> {
         &self._render_element_transform_offsets
     }
     pub fn get_bound_boxes(&self) -> &Vec<BoundBoxInstanceData> {
@@ -147,7 +150,7 @@ impl<'a> SceneManager<'a> {
             _skeletal_shadow_render_elements: Vec::new(),
             _render_element_transform_count: 0,
             _render_element_transform_matrices: vec![Matrix4::identity(); MAX_TRANSFORM_COUNT],
-            _render_element_transform_offsets: vec![Vector2::zeros(); MAX_TRANSFORM_COUNT],
+            _render_element_transform_offsets: vec![Vector4::zeros(); MAX_TRANSFORM_COUNT],
             _bound_boxes: Vec::new(),
             _frame_count_for_refresh_light_probe: 0,
         })
@@ -452,8 +455,10 @@ impl<'a> SceneManager<'a> {
         render_object_map: &RenderObjectMap<'a>,
         render_elements: &mut Vec<RenderElementData<'a>>,
         render_shadow_elements: &mut Vec<RenderElementData<'a>>,
-        render_element_transform_offset: &mut usize,
-        render_element_transform_offsets: &mut Vec<Vector2<i32>>,
+        transform_offset_index: &mut usize,
+        transform_offset_index_for_shadow: &mut usize,
+        render_element_transform_count: &mut usize,
+        render_element_transform_offsets: &mut Vec<Vector4<i32>>,
         render_element_transform_matrices: &mut Vec<Matrix4<f32>>,
         bound_boxes: &mut Vec<BoundBoxInstanceData>
     ) {
@@ -482,7 +487,6 @@ impl<'a> SceneManager<'a> {
 
             // gather render element
             if is_render || is_render_shadow {
-                let mut transform_offset = *render_element_transform_offset;
                 let local_matrix_count = 1usize;
                 let local_matrix_prev_count = 1usize;
                 let bone_count = render_object_data.get_bone_count();
@@ -493,7 +497,7 @@ impl<'a> SceneManager<'a> {
                         local_matrix_count + local_matrix_prev_count + bone_count + bone_count
                 };
 
-                if (transform_offset + required_transform_count) <= MAX_TRANSFORM_COUNT {
+                if (*render_element_transform_count + required_transform_count) <= MAX_TRANSFORM_COUNT {
                     let model_data = ptr_as_ref(render_object_data.get_model_data().as_ptr());
                     let mesh_data_refcell = model_data.get_mesh_data();
                     let mesh_data = ptr_as_ref(mesh_data_refcell.as_ptr());
@@ -541,84 +545,110 @@ impl<'a> SceneManager<'a> {
             }
         );
 
-        for (index, render_element_info) in render_element_info_list.iter().enumerate() {
+        let mut render_element_count: usize = 0;
+        let mut render_shadow_element_count: usize = 0;
+        let mut prev_mesh_data: *const MeshData = std::ptr::null();
+        let mut prev_geometry_data: *const GeometryData = std::ptr::null();
+        let mut prev_material_instance: *const MaterialInstanceData = std::ptr::null();
+        for render_element_info in render_element_info_list.iter() {
             let render_object_data = ptr_as_ref(render_element_info._render_object.as_ptr());
             let mesh_data = ptr_as_ref(render_element_info._mesh_data.as_ptr());
             let geometry_data = ptr_as_ref(render_element_info._geometry_data.as_ptr());
-            let num_render_count = 1;
+            let material_instance = ptr_as_ref(render_element_info._material_instance_data.as_ptr());
 
-            // update push constants data
-            let mut push_constant_data_list = render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
-            for push_constant_data_mut in push_constant_data_list.iter_mut() {
-                push_constant_data_mut._push_constant.set_push_constant_parameter(
-                    "_transform_matrix_offset",
-                    &PushConstantParameter::Int(*render_element_transform_offset as i32),
-                );
-                push_constant_data_mut._push_constant.set_push_constant_parameter(
-                    "_bone_count",
-                    &PushConstantParameter::Int(render_object_data.get_bone_count() as i32),
-                );
+            if render_element_info._is_render {
+                render_element_transform_offsets[*transform_offset_index].x = *render_element_transform_count as i32;
+                *transform_offset_index += 1;
+                render_element_count += 1;
             }
 
-            // add render shadow element
-            {
+            if render_element_info._is_render_shadow {
+                render_element_transform_offsets[*transform_offset_index_for_shadow].y = *render_element_transform_count as i32;
+                *transform_offset_index_for_shadow += 1;
+                render_shadow_element_count += 1;
+            }
+
+            if true || prev_mesh_data != mesh_data || prev_geometry_data != geometry_data || prev_material_instance != material_instance {
+                // update push constants data
+                let mut push_constant_data_list = render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
+                for push_constant_data_mut in push_constant_data_list.iter_mut() {
+                    push_constant_data_mut._push_constant.set_push_constant_parameter(
+                        "_transform_offset_index",
+                        &PushConstantParameter::Int((*transform_offset_index - render_element_count) as i32),
+                    );
+                    push_constant_data_mut._push_constant.set_push_constant_parameter(
+                        "_bone_count",
+                        &PushConstantParameter::Int(render_object_data.get_bone_count() as i32),
+                    );
+                }
+
+                // add render element
                 render_elements.push(RenderElementData {
-                    _geometry_data: mesh_data.get_geometry_data(render_element_info._geometry_index).clone(),
+                    _geometry_data: render_element_info._geometry_data.clone(),
                     _material_instance_data: render_element_info._material_instance_data.clone(),
                     _push_constant_data_list: push_constant_data_list.clone(),
-                    _num_render_instances: num_render_count
+                    _num_render_instances: render_element_count as u32,
                 });
-            }
+                render_element_count = 0;
 
-            // add render shadow element
-            {
+                // update push constants data for shadow
+                for push_constant_data_mut in push_constant_data_list.iter_mut() {
+                    push_constant_data_mut._push_constant.set_push_constant_parameter(
+                        "_transform_offset_index",
+                        &PushConstantParameter::Int((*transform_offset_index_for_shadow - render_shadow_element_count) as i32),
+                    );
+                }
+
+                // add render shadow element
                 render_shadow_elements.push(RenderElementData {
-                    _geometry_data: mesh_data.get_geometry_data(render_element_info._geometry_index).clone(),
+                    _geometry_data: render_element_info._geometry_data.clone(),
                     _material_instance_data: render_element_info._material_instance_data.clone(),
                     _push_constant_data_list: push_constant_data_list.clone(),
-                    _num_render_instances: num_render_count
+                    _num_render_instances: render_shadow_element_count as u32,
                 });
+                render_shadow_element_count = 0;
+
+                prev_mesh_data = mesh_data;
+                prev_geometry_data = geometry_data;
+                prev_material_instance = material_instance;
             }
 
             // update render_element_transform_matrices
             let local_matrix_count = 1usize;
             let local_matrix_prev_count = 1usize;
             let bone_count = render_object_data.get_bone_count();
-            let mut transform_offset = *render_element_transform_offset;
             match render_object_type {
                 RenderObjectType::Static => {
                     // local matrix
-                    render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
-                    transform_offset += local_matrix_count;
+                    render_element_transform_matrices[*render_element_transform_count].copy_from(&render_object_data._final_transform);
+                    *render_element_transform_count += local_matrix_count;
                 },
                 RenderObjectType::Skeletal => {
                     // local matrix prev
-                    render_element_transform_matrices[transform_offset].copy_from(&render_object_data._prev_transform);
-                    transform_offset += local_matrix_prev_count;
+                    render_element_transform_matrices[*render_element_transform_count].copy_from(&render_object_data._prev_transform);
+                    *render_element_transform_count += local_matrix_prev_count;
 
                     // local matrix
-                    render_element_transform_matrices[transform_offset].copy_from(&render_object_data._final_transform);
-                    transform_offset += local_matrix_count;
+                    render_element_transform_matrices[*render_element_transform_count].copy_from(&render_object_data._final_transform);
+                    *render_element_transform_count += local_matrix_count;
 
                     // prev animation buffer
                     let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
                     assert_eq!(bone_count, prev_animation_buffer.len());
-                    let next_transform_offset: usize = transform_offset + bone_count;
-                    render_element_transform_matrices[transform_offset..next_transform_offset]
+                    let require_render_element_transform_count: usize = *render_element_transform_count + bone_count;
+                    render_element_transform_matrices[*render_element_transform_count..require_render_element_transform_count]
                         .copy_from_slice(prev_animation_buffer);
-                    transform_offset = next_transform_offset;
+                    *render_element_transform_count = require_render_element_transform_count;
 
                     // current animation buffer
                     let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
                     assert_eq!(bone_count, animation_buffer.len());
-                    let next_transform_offset: usize = transform_offset + bone_count;
-                    render_element_transform_matrices[transform_offset..next_transform_offset]
+                    let require_render_element_transform_count: usize = *render_element_transform_count + bone_count;
+                    render_element_transform_matrices[*render_element_transform_count..require_render_element_transform_count]
                         .copy_from_slice(animation_buffer);
-                    transform_offset = next_transform_offset;
+                    *render_element_transform_count = require_render_element_transform_count;
                 }
             }
-            // set transform matrix index
-            *render_element_transform_offset = transform_offset;
         }
     }
 
@@ -886,6 +916,8 @@ impl<'a> SceneManager<'a> {
             self._skeletal_shadow_render_elements.clear();
             self._render_element_transform_count = 0;
             self._bound_boxes.clear();
+            let mut transform_offset_index: usize = 0;
+            let mut transform_offset_index_for_shadow: usize = 0;
 
             SceneManager::gather_render_elements(
                 RenderObjectType::Static,
@@ -894,6 +926,8 @@ impl<'a> SceneManager<'a> {
                 &self._static_render_object_map,
                 &mut self._static_render_elements,
                 &mut self._static_shadow_render_elements,
+                &mut transform_offset_index,
+                &mut transform_offset_index_for_shadow,
                 &mut self._render_element_transform_count,
                 &mut self._render_element_transform_offsets,
                 &mut self._render_element_transform_matrices,
@@ -907,6 +941,8 @@ impl<'a> SceneManager<'a> {
                 &self._skeletal_render_object_map,
                 &mut self._skeletal_render_elements,
                 &mut self._skeletal_shadow_render_elements,
+                &mut transform_offset_index,
+                &mut transform_offset_index_for_shadow,
                 &mut self._render_element_transform_count,
                 &mut self._render_element_transform_offsets,
                 &mut self._render_element_transform_matrices,

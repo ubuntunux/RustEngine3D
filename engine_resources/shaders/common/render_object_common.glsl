@@ -20,7 +20,8 @@ layout(binding = 3) buffer TransformMatrices
 };
 layout(binding = 4) buffer TransformOffsets
 {
-    ivec2 transform_offsets[MAX_TRANSFORM_COUNT];
+    // x: common transform index, y: transform index for shadow
+    ivec4 transform_offsets[MAX_TRANSFORM_COUNT];
 };
 #if (RenderMode_Forward == RenderMode)
 layout(binding = 5) uniform AtmosphereConstants
@@ -31,7 +32,7 @@ layout(binding = 5) uniform AtmosphereConstants
 
 layout( push_constant ) uniform PushConstant_RenderObject
 {
-    uint _transform_matrix_offset;
+    uint _transform_offset_index;
     uint _bone_count;
     uint _reserved0;
     uint _reserved1;
