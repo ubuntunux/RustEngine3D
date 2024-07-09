@@ -582,16 +582,10 @@ impl<'a> SceneManager<'a> {
 
         let mut render_element_count: usize = 0;
         let mut render_shadow_element_count: usize = 0;
-        let mut prev_mesh_data: *const MeshData = std::ptr::null();
-        let mut prev_geometry_data: *const GeometryData = std::ptr::null();
-        let mut prev_material_instance: *const MaterialInstanceData = std::ptr::null();
         let num_render_element_info = render_element_info_list.len();
         for render_element_index in 0..num_render_element_info {
             let render_element_info = &render_element_info_list[render_element_index];
             let render_object_data = ptr_as_ref(render_element_info._render_object.as_ptr());
-            let mesh_data = ptr_as_ref(render_element_info._mesh_data.as_ptr());
-            let geometry_data = ptr_as_ref(render_element_info._geometry_data.as_ptr());
-            let material_instance = ptr_as_ref(render_element_info._material_instance_data.as_ptr());
 
             if render_element_info._is_render {
                 render_element_transform_offsets[*transform_offset_index].x = render_element_info._transform_offset as i32;
@@ -605,7 +599,13 @@ impl<'a> SceneManager<'a> {
                 render_shadow_element_count += 1;
             }
 
-            if true || prev_mesh_data != mesh_data || prev_geometry_data != geometry_data || prev_material_instance != material_instance {
+            let next_render_element_info = &render_element_info_list[(num_render_element_info - 1).min(render_element_index + 1)];
+            let is_changed =
+                render_element_info._mesh_data.as_ptr() != next_render_element_info._mesh_data.as_ptr() ||
+                render_element_info._geometry_data.as_ptr() != next_render_element_info._geometry_data.as_ptr() ||
+                render_element_info._material_instance_data.as_ptr() != next_render_element_info._material_instance_data.as_ptr();
+            let is_last = render_element_index == (num_render_element_info - 1);
+            if is_last || is_changed {
                 // update push constants data
                 let mut push_constant_data_list = render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
                 for push_constant_data_mut in push_constant_data_list.iter_mut() {
@@ -620,13 +620,15 @@ impl<'a> SceneManager<'a> {
                 }
 
                 // add render element
-                render_elements.push(RenderElementData {
-                    _geometry_data: render_element_info._geometry_data.clone(),
-                    _material_instance_data: render_element_info._material_instance_data.clone(),
-                    _push_constant_data_list: push_constant_data_list.clone(),
-                    _num_render_instances: render_element_count as u32,
-                });
-                render_element_count = 0;
+                if 0 < render_element_count {
+                    render_elements.push(RenderElementData {
+                        _geometry_data: render_element_info._geometry_data.clone(),
+                        _material_instance_data: render_element_info._material_instance_data.clone(),
+                        _push_constant_data_list: push_constant_data_list.clone(),
+                        _num_render_instances: render_element_count as u32,
+                    });
+                    render_element_count = 0;
+                }
 
                 // update push constants data for shadow
                 for push_constant_data_mut in push_constant_data_list.iter_mut() {
@@ -637,17 +639,15 @@ impl<'a> SceneManager<'a> {
                 }
 
                 // add render shadow element
-                render_shadow_elements.push(RenderElementData {
-                    _geometry_data: render_element_info._geometry_data.clone(),
-                    _material_instance_data: render_element_info._material_instance_data.clone(),
-                    _push_constant_data_list: push_constant_data_list.clone(),
-                    _num_render_instances: render_shadow_element_count as u32,
-                });
-                render_shadow_element_count = 0;
-
-                prev_mesh_data = mesh_data;
-                prev_geometry_data = geometry_data;
-                prev_material_instance = material_instance;
+                if 0 < render_shadow_element_count {
+                    render_shadow_elements.push(RenderElementData {
+                        _geometry_data: render_element_info._geometry_data.clone(),
+                        _material_instance_data: render_element_info._material_instance_data.clone(),
+                        _push_constant_data_list: push_constant_data_list.clone(),
+                        _num_render_instances: render_shadow_element_count as u32,
+                    });
+                    render_shadow_element_count = 0;
+                }
             }
         }
     }
