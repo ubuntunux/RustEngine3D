@@ -18,6 +18,7 @@ pub struct RenderElementData<'a> {
 pub struct RenderElementInfo<'a> {
     pub _render_object: RcRefCell<RenderObjectData<'a>>,
     pub _mesh_data: RcRefCell<MeshData>,
+    pub _transform_offset: usize,
     pub _is_render: bool,
     pub _is_render_shadow: bool,
     pub _geometry_index: usize,
