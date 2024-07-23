@@ -15,13 +15,10 @@ use crate::renderer::renderer_data::{RendererData, RenderObjectType};
 use crate::resource::resource::EngineResources;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, LightConstants};
-use crate::scene::material_instance::MaterialInstanceData;
-use crate::scene::mesh::MeshData;
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::bounding_box::BoundingBox;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
-use crate::vulkan_context::geometry_buffer::GeometryData;
 
 type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
 type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLightData>>;
