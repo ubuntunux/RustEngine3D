@@ -183,15 +183,15 @@ impl<'a> AudioManager<'a> {
         };
     }
 
-    fn create_audio_instance_inner(
+    pub fn create_audio_instance_from_audio_data(
         &mut self,
         audio_data: &RcRefCell<AudioData>,
         audio_loop: AudioLoop,
         audio_volume: Option<f32>
-    ) -> RcRefCell<AudioInstance> {
+    ) -> Option<RcRefCell<AudioInstance>> {
         let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop);
         self.register_audio_instance(&audio_instance, audio_volume);
-        audio_instance
+        Some(audio_instance)
     }
 
     pub fn create_audio_instance(
@@ -202,12 +202,12 @@ impl<'a> AudioManager<'a> {
     ) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = ptr_as_mut(self._engine_resources);
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
-            return Some(self.create_audio_instance_inner(&audio_data, audio_loop, audio_volume));
+            return self.create_audio_instance_from_audio_data(&audio_data, audio_loop, audio_volume);
         }
         None
     }
 
-    pub fn create_audio_instance_from_bank(
+    pub fn create_audio_instance_from_audio_bank(
         &mut self,
         audio_name_bank: &str,
         audio_loop: AudioLoop,
@@ -226,8 +226,28 @@ impl<'a> AudioManager<'a> {
                 };
                 let audio_data =
                     audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
-                return Some(self.create_audio_instance_inner(&audio_data, audio_loop, audio_volume));
+                return self.create_audio_instance_from_audio_data(&audio_data, audio_loop, audio_volume);
             }
+        }
+        None
+    }
+
+    pub fn create_audio_instance_from_audio_bank_data(
+        &mut self,
+        audio_bank_data: &RcRefCell<AudioBankData>,
+        audio_loop: AudioLoop,
+        audio_volume: Option<f32>
+    ) -> Option<RcRefCell<AudioInstance>> {
+        let audio_data_count = audio_bank_data.borrow()._audio_data_list.len();
+        if 0 < audio_data_count {
+            let audio_data_index: usize = if 1 < audio_data_count {
+                rand::random::<usize>() % audio_data_count
+            } else {
+                0
+            };
+            let audio_data =
+                audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
+            return self.create_audio_instance_from_audio_data(&audio_data, audio_loop, audio_volume);
         }
         None
     }
