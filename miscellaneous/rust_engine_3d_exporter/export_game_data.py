@@ -207,7 +207,6 @@ class RustEngine3DExporter:
                 export_texcoords=True,
                 export_normals=True,
                 export_tangents=True,
-                export_colors=True,
                 export_materials='NONE',
                 export_skins=True,
                 export_animations=True,
