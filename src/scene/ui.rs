@@ -419,6 +419,7 @@ impl<'a> UIComponentInstance<'a> {
             if self._callback_touch_down.is_some() {
                 touched = self._callback_touch_down.as_ref().unwrap()(ptr_as_mut(self), touched_pos, touched_pos_delta);
             }
+
             self._changed_render_data = true;
             self._touched = touched;
         }
@@ -525,6 +526,7 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._pos_hint_x = None;
             self._ui_component_data._pos.x = x;
             self.set_changed_layout(true);
+            // log::info!("set_pos_x");
         }
     }
     pub fn set_pos_y(&mut self, y: f32) {
@@ -533,6 +535,7 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._pos_hint_y = None;
             self._ui_component_data._pos.y = y;
             self.set_changed_layout(true);
+            // log::info!("set_pos_y");
         }
     }
     pub fn get_center_x(&self) -> f32 {
@@ -549,19 +552,23 @@ impl<'a> UIComponentInstance<'a> {
         self.set_center_y(y);
     }
     pub fn set_center_x(&mut self, x: f32) {
-        if x != self._ui_component_data._pos.x || self._ui_component_data._center_hint_x.is_some() || self._ui_component_data._pos_hint_x.is_some() {
+        let left_x = x - self._ui_component_data._size.x * 0.5;
+        if left_x != self._ui_component_data._pos.x || self._ui_component_data._center_hint_x.is_some() || self._ui_component_data._pos_hint_x.is_some() {
             self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = None;
-            self._ui_component_data._pos.x = x - self._ui_component_data._size.x * 0.5;
+            self._ui_component_data._pos.x = left_x;
             self.set_changed_layout(true);
+            // log::info!("set_center_x");
         }
     }
     pub fn set_center_y(&mut self, y: f32) {
-        if y != self._ui_component_data._pos.y || self._ui_component_data._center_hint_y.is_some() || self._ui_component_data._pos_hint_y.is_some() {
+        let top_y = y - self._ui_component_data._size.y * 0.5;
+        if top_y != self._ui_component_data._pos.y || self._ui_component_data._center_hint_y.is_some() || self._ui_component_data._pos_hint_y.is_some() {
             self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = None;
-            self._ui_component_data._pos.y = y - self._ui_component_data._size.y * 0.5;
+            self._ui_component_data._pos.y = top_y;
             self.set_changed_layout(true);
+            // log::info!("set_center_y");
         }
     }
     pub fn get_pos_hint_x(&self) -> Option<f32> {
@@ -575,6 +582,7 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = pos_hint_x;
             self.set_changed_layout(true);
+            // log::info!("set_pos_hint_x");
         }
     }
     pub fn set_pos_hint_y(&mut self, pos_hint_y: Option<f32>) {
@@ -582,6 +590,7 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = pos_hint_y;
             self.set_changed_layout(true);
+            // log::info!("set_pos_hint_y");
         }
     }
     pub fn get_center_hint_x(&self) -> Option<f32> {
@@ -595,6 +604,7 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._center_hint_x = center_hint_x;
             self._ui_component_data._pos_hint_x = None;
             self.set_changed_layout(true);
+            // log::info!("set_center_hint_x");
         }
     }
     pub fn set_center_hint_y(&mut self, center_hint_y: Option<f32>) {
@@ -602,6 +612,7 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._center_hint_y = center_hint_y;
             self._ui_component_data._pos_hint_y = None;
             self.set_changed_layout(true);
+            // log::info!("set_center_hint_y");
         }
     }
     pub fn get_size(&self) -> &Vector2<f32> {
@@ -622,15 +633,15 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._size_hint_x = None;
             self._ui_component_data._size.x = size_x;
             self.set_changed_layout(true);
+            // log::info!("set_size_x");
         }
     }
     pub fn set_size_y(&mut self, size_y: f32) {
-        if size_y != self._ui_component_data._size.y
-            || self._ui_component_data._size_hint_y.is_some()
-        {
+        if size_y != self._ui_component_data._size.y || self._ui_component_data._size_hint_y.is_some() {
             self._ui_component_data._size_hint_y = None;
             self._ui_component_data._size.y = size_y;
             self.set_changed_layout(true);
+            // log::info!("set_size_y");
         }
     }
     pub fn get_size_hint_x(&self) -> Option<f32> {
@@ -643,12 +654,14 @@ impl<'a> UIComponentInstance<'a> {
         if size_hint_x != self._ui_component_data._size_hint_x {
             self._ui_component_data._size_hint_x = size_hint_x;
             self.set_changed_layout(true);
+            // log::info!("set_size_hint_x");
         }
     }
     pub fn set_size_hint_y(&mut self, size_hint_y: Option<f32>) {
         if size_hint_y != self._ui_component_data._size_hint_y {
             self._ui_component_data._size_hint_y = size_hint_y;
             self.set_changed_layout(true);
+            // log::info!("set_size_hint_y");
         }
     }
     pub fn set_margin(&mut self, margin: f32) {
@@ -658,12 +671,14 @@ impl<'a> UIComponentInstance<'a> {
         if margin != self._ui_component_data._margin {
             self._ui_component_data._margin = margin;
             self.set_changed_layout(true);
+            // log::info!("set_margins");
         }
     }
     fn set_margin_inner(&mut self, index: usize, margin: f32) {
         if margin != self._ui_component_data._margin[index] {
             self._ui_component_data._margin[index] = margin;
             self.set_changed_layout(true);
+            // log::info!("set_margin_inner");
         }
     }
     pub fn get_margin(&self) -> &Vector4<f32> {
@@ -701,12 +716,14 @@ impl<'a> UIComponentInstance<'a> {
         if padding != self._ui_component_data._padding {
             self._ui_component_data._padding = padding;
             self.set_changed_layout(true);
+            // log::info!("set_paddings");
         }
     }
     fn set_padding_inner(&mut self, index: usize, padding: f32) {
         if padding != self._ui_component_data._padding[index] {
             self._ui_component_data._padding[index] = padding;
             self.set_changed_layout(true);
+            // log::info!("set_padding_inner");
         }
     }
     pub fn get_padding(&self) -> &Vector4<f32> {
@@ -743,6 +760,7 @@ impl<'a> UIComponentInstance<'a> {
         if halign != self._ui_component_data._halign {
             self._ui_component_data._halign = halign;
             self.set_changed_layout(true);
+            // log::info!("set_halign");
         }
     }
     pub fn get_valign(&self) -> VerticalAlign {
@@ -752,6 +770,7 @@ impl<'a> UIComponentInstance<'a> {
         if valign != self._ui_component_data._valign {
             self._ui_component_data._valign = valign;
             self.set_changed_layout(true);
+            // log::info!("set_valign");
         }
     }
     pub fn get_changed_layout(&self) -> bool {
@@ -776,22 +795,31 @@ impl<'a> UIComponentInstance<'a> {
         self._renderable
     }
     pub fn set_renderable(&mut self, renderable: bool) {
-        self._renderable = renderable;
-        self._changed_render_data = true;
+        if renderable != self._renderable {
+            self._renderable = renderable;
+            self._changed_render_data = true;
+            // log::info!("{:?}: set_renderable", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn get_visible(&self) -> bool {
         self._visible
     }
     pub fn set_visible(&mut self, visible: bool) {
-        self._visible = visible;
-        self._changed_render_data = true;
+        if visible != self._visible {
+            self._visible = visible;
+            self._changed_render_data = true;
+            // log::info!("{:?}: set_visible", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn get_opacity(&self) -> f32 {
         self._opacity
     }
     pub fn set_opacity(&mut self, opacity: f32) {
-        self._opacity = opacity;
-        self._changed_render_data = true;
+        if opacity != self._opacity {
+            self._opacity = opacity;
+            self._changed_render_data = true;
+            // log::info!("{:?}: set_opacity", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn get_color(&self) -> u32 {
         self._ui_component_data._color
@@ -800,6 +828,7 @@ impl<'a> UIComponentInstance<'a> {
         if color != self._ui_component_data._color {
             self._ui_component_data._color = color;
             self._changed_render_data = true;
+            // log::info!("{:?}: set_color", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_pressed_color(&self) -> u32 {
@@ -809,6 +838,7 @@ impl<'a> UIComponentInstance<'a> {
         if color != self._ui_component_data._pressed_color {
             self._ui_component_data._pressed_color = color;
             self._changed_render_data = true;
+            // log::info!("{:?}: set_pressed_color", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_border_color(&self) -> u32 {
@@ -818,6 +848,7 @@ impl<'a> UIComponentInstance<'a> {
         if color != self._ui_component_data._border_color {
             self._ui_component_data._border_color = color;
             self._changed_render_data = true;
+            // log::info!("{:?}: set_border_color", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_font_size(&self) -> f32 {
@@ -827,6 +858,7 @@ impl<'a> UIComponentInstance<'a> {
         if font_size != self._ui_component_data._font_size {
             self._ui_component_data._font_size = font_size;
             self.set_changed_layout(true);
+            // log::info!("set_font_size");
         }
     }
     pub fn get_font_color(&self) -> u32 {
@@ -836,6 +868,7 @@ impl<'a> UIComponentInstance<'a> {
         if color != self._ui_component_data._font_color {
             self._ui_component_data._font_color = color;
             self._changed_render_data = true;
+            // log::info!("{:?}: set_font_color", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_texcoord(&self) -> &Vector4<f32> {
@@ -854,6 +887,7 @@ impl<'a> UIComponentInstance<'a> {
         if round != self._ui_component_data._round {
             self._ui_component_data._round = round;
             self._changed_render_data = true;
+            // log::info!("{:?}: set_round", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_border(&self) -> f32 {
@@ -863,6 +897,7 @@ impl<'a> UIComponentInstance<'a> {
         if border != self._ui_component_data._border {
             self._ui_component_data._border = border;
             self._changed_render_data = true;
+            // log::info!("{:?}: set_border", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn set_callback_touch_down(&mut self, callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>) {
@@ -920,46 +955,55 @@ impl<'a> UIComponentInstance<'a> {
         )
     }
     pub fn set_expandable(&mut self, expandable: bool) {
-        self._ui_component_data._expandable_x = expandable;
-        self._ui_component_data._expandable_y = expandable;
-        self._changed_layout = true;
+        self.set_expandable_x(expandable);
+        self.set_expandable_y(expandable);
     }
     pub fn get_expandable_x(&self) -> bool {
         self._ui_component_data._expandable_x
     }
     pub fn set_expandable_x(&mut self, expandable: bool) {
-        self._ui_component_data._expandable_x = expandable;
-        self._changed_layout = true;
+        if expandable != self._ui_component_data._expandable_x {
+            self._ui_component_data._expandable_x = expandable;
+            self._changed_layout = true;
+            // log::info!("{:?} set_expandable_x", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn get_expandable_y(&self) -> bool {
         self._ui_component_data._expandable_y
     }
     pub fn set_expandable_y(&mut self, expandable: bool) {
-        self._ui_component_data._expandable_y = expandable;
-        self._changed_layout = true;
+        if expandable != self._ui_component_data._expandable_y {
+            self._ui_component_data._expandable_y = expandable;
+            self._changed_layout = true;
+            // log::info!("{:?} set_expandable_y", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn get_resizable(&self) -> (bool, bool) {
-        (
-            self._ui_component_data._resizable_x,
-            self._ui_component_data._resizable_y,
-        )
+        (self._ui_component_data._resizable_x, self._ui_component_data._resizable_y)
     }
     pub fn set_resizable(&mut self, resizable: bool) {
-        self._ui_component_data._resizable_x = resizable;
-        self._ui_component_data._resizable_y = resizable;
-        self._changed_layout = true;
+        self.set_resizable_x(resizable);
+        self.set_resizable_y(resizable);
     }
     pub fn get_resizable_x(&self) -> bool {
         self._ui_component_data._resizable_x
     }
     pub fn set_resizable_x(&mut self, resizable: bool) {
-        self._ui_component_data._resizable_x = resizable;
+        if resizable != self._ui_component_data._resizable_x {
+            self._ui_component_data._resizable_x = resizable;
+            self._changed_layout = true;
+            // log::info!("{:?} set_resizable_x", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn get_resizable_y(&self) -> bool {
         self._ui_component_data._resizable_y
     }
     pub fn set_resizable_y(&mut self, resizable: bool) {
-        self._ui_component_data._resizable_y = resizable;
+        if resizable != self._ui_component_data._resizable_y {
+            self._ui_component_data._resizable_y = resizable;
+            self._changed_layout = true;
+            // log::info!("{:?} set_resizable_y", self.get_owner_widget().get_ui_widget_name());
+        }
     }
     pub fn add_ui_component(&mut self, child_ptr: *const UIComponentInstance<'a>) {
         let child = ptr_as_mut(child_ptr);
@@ -971,6 +1015,7 @@ impl<'a> UIComponentInstance<'a> {
             self._children.push(child_ptr);
             child.set_parent(self);
             self.set_changed_layout(true);
+            // log::info!("add_ui_component");
         }
     }
 
@@ -982,6 +1027,7 @@ impl<'a> UIComponentInstance<'a> {
             self._children.remove(index);
             ptr_as_mut(child).set_parent(std::ptr::null());
             self.set_changed_layout(true);
+            // log::info!("remove_ui_component");
         }
     }
 
@@ -990,6 +1036,7 @@ impl<'a> UIComponentInstance<'a> {
             self._text = String::from(text);
             self._changed_text = true;
             self.set_changed_layout(true);
+            // log::info!("set_text");
         }
     }
 
@@ -1161,13 +1208,21 @@ impl<'a> UIComponentInstance<'a> {
         mut need_to_collect_render_data: bool,
         mut opacity: f32,
     ) {
+        if self._changed_render_data {
+            need_to_collect_render_data = true;
+            self._changed_render_data = false;
+            // log::info!("    _changed_render_data");
+        }
+
         if self._visible && self._renderable {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 
-            need_to_collect_render_data = need_to_collect_render_data
-                || self._changed_render_data
-                || render_ui_index != self._render_ui_index;
+            if render_ui_index != self._render_ui_index {
+                need_to_collect_render_data = true;
+                self._render_ui_index = render_ui_index;
+                // log::info!("    _render_ui_index");
+            }
 
             // collect ui render data
             if need_to_collect_render_data {
@@ -1196,8 +1251,6 @@ impl<'a> UIComponentInstance<'a> {
                 if self._touched {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
                 }
-                self._render_ui_index = render_ui_index;
-                self._changed_render_data = false;
             }
 
             // add_ui_render_group_data
@@ -1233,6 +1286,10 @@ impl<'a> UIComponentInstance<'a> {
                 self._changed_text = false;
             }
             *render_ui_count += self._render_text_count;
+        }
+
+        if need_to_collect_render_data {
+            // log::info!("    render_ui_count: {:?}", render_ui_count);
         }
 
         if self._visible {
@@ -1424,6 +1481,9 @@ impl<'a> UIComponentInstance<'a> {
             0.0,
         );
         self._transform.set_position(&pivot);
+
+        // log::info!("{:?}: update_layout_area:: changed_layout: {:?}, changed_deep_child_layout: {:?}, changed_child_layout: {:?}", self.get_owner_widget().get_ui_widget_name(), self._changed_layout, self._changed_deep_child_layout, self._changed_child_layout);
+        self._changed_render_data = true;
     }
 
     fn update_layout(
@@ -1432,7 +1492,10 @@ impl<'a> UIComponentInstance<'a> {
         update_depth: u32,
         font_data: &FontData,
     ) {
-        inherit_changed_layout = inherit_changed_layout || self._changed_layout;
+        if self._changed_layout {
+            inherit_changed_layout = true;
+        }
+
         if inherit_changed_layout || self._changed_deep_child_layout {
             if inherit_changed_layout || self._changed_child_layout {
                 let inherit_renderable_area = Vector4::new(
@@ -1511,7 +1574,6 @@ impl<'a> UIComponentInstance<'a> {
         }
 
         // complete
-        self._changed_render_data = true;
         self.set_changed_layout(false);
         self.set_changed_child_layout(false);
         self.set_changed_deep_child_layout(false);
@@ -1636,6 +1698,7 @@ impl<'a> WidgetDefault<'a> {
         self._ui_component._parent = ptr_as_ref(widget).get_ui_component();
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
+        // log::info!("set_parent");
     }
     pub fn add_widget(&mut self, widget: &Rc<WidgetDefault<'a>>) {
         let widget_instance = ptr_as_mut(widget.as_ref());
@@ -1646,6 +1709,7 @@ impl<'a> WidgetDefault<'a> {
             .push(widget_instance.get_ui_component());
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
+        // log::info!("add_widget");
     }
     pub fn remove_widget(&mut self, widget: *const WidgetDefault<'a>) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
@@ -1657,6 +1721,7 @@ impl<'a> WidgetDefault<'a> {
                 self._ui_component._children.remove(i);
                 self._ui_component.set_changed_child_layout(true);
                 self._ui_component.set_changed_layout(true);
+                // log::info!("remove_widget");
                 return;
             }
         }
@@ -1671,6 +1736,7 @@ impl<'a> WidgetDefault<'a> {
         self._ui_component._children.clear();
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
+        // log::info!("clear_widgets");
     }
 }
 
@@ -1970,6 +2036,7 @@ impl<'a> UIManager<'a> {
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         if *window_size != self._window_size {
+            log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
             self._window_size = window_size.clone() as Vector2<i32>;
             root_ui_component.set_changed_layout(true);
         }
