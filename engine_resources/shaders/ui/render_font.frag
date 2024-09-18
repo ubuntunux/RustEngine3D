@@ -11,6 +11,6 @@ layout (location = 0) out vec4 fs_output;
 
 void main()
 {
-    fs_output = texture(texture_font, vs_output.texcoord);
+    fs_output = textureLod(texture_font, vs_output.texcoord, 0.0);
     fs_output.w = distance_field_font_opacity(fs_output.w);
 }
