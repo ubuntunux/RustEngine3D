@@ -96,7 +96,10 @@ pub const DEFAULT_AUDIO_NAME: &str = "default";
 pub const DEFAULT_AUDIO_BANK_NAME: &str = "default";
 pub const DEFAULT_EFFECT_NAME: &str = "default";
 pub const DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME: &str = "effect/render_particle";
-pub const DEFAULT_FONT_NAME: &str = "NanumBarunGothic_Basic_Latin";
+pub const DEFAULT_FONT_NAME: &str = "UbuntuSansMono-Regular_Basic_Latin";
+pub const DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME: &str = "ui/render_font";
+pub const DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME: &str = "ui/render_ui";
+pub const TEXTURE_FONT_MATERIAL_PARAMETER_NAME: &str = "texture_font";
 pub const DEFAULT_MESH_NAME: &str = "quad";
 pub const DEFAULT_MODEL_NAME: &str = "quad";
 pub const DEFAULT_TEXTURE_NAME: &str = "common/default";
@@ -1750,6 +1753,7 @@ impl<'a> EngineResources<'a> {
                     &material_instance_file,
                 )
             };
+
             let loaded_contents = system::load(material_instance_file);
             let contents: Value =
                 serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
@@ -1775,6 +1779,14 @@ impl<'a> EngineResources<'a> {
                 if false == material_parameters.contains_key(key) {
                     material_parameters.insert(key.to_string(), value.clone());
                 }
+            }
+
+            // replace texture_font parameter as a matched to default font.
+            if material_instance_name == DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME || material_instance_name == DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME {
+                material_parameters.insert(
+                    String::from(TEXTURE_FONT_MATERIAL_PARAMETER_NAME),
+                    Value::String(String::from("fonts/") + &String::from(DEFAULT_FONT_NAME))
+                );
             }
 
             let pipeline_bind_create_infos = material_data.borrow()._render_pass_pipeline_data_map.iter().map(|(_key, render_pass_pipeline_data)| {
