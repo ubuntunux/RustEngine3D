@@ -289,18 +289,13 @@ impl<'a> EngineCore<'a> {
         let renderer_context = self.get_renderer_context();
 
         // destroy managers
-        self.get_application_mut()
-            .terminate_application();
+        self.get_application_mut().terminate_application();
         self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
-        self.get_ui_manager_mut()
-            .destroy_ui_manager(renderer_context.get_device());
-        self.get_debug_line_manager_mut()
-            .destroy_debug_line_manager(renderer_context.get_device());
-        self.get_font_manager_mut()
-            .destroy_font_manager(renderer_context.get_device());
-        self.get_engine_resources_mut()
-            .destroy_engine_resources(renderer_context);
+        self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
+        self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
+        self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
+        self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
     }
 
@@ -538,19 +533,23 @@ pub fn run_application(
         }
     }
 
-    // TODO: Choose monitor, video mode
-    let monitor_index = 0;
-    let video_index = 0;
-    let first_monitor = event_loop.available_monitors().nth(monitor_index).unwrap();
-    let first_video_mode = first_monitor.video_modes().nth(video_index).unwrap();
-    log::info!("Monitor[{}]: {:?}", monitor_index, first_monitor.name());
-    log::info!(
-        "Video Mode[{}]: {:?}, {:?} bit, {:?} hz",
-        video_index,
-        first_video_mode.size(),
-        first_video_mode.bit_depth(),
-        first_video_mode.refresh_rate_millihertz()
-    );
+    // choose video mode
+    let primary_monitor = event_loop.primary_monitor().unwrap();
+    log::info!("Monitor: {:?}, {:?}, {:?}hz", primary_monitor.name(), primary_monitor.size(), primary_monitor.refresh_rate_millihertz());
+    let mut current_video_mode = primary_monitor.video_modes().nth(0).unwrap();
+    for (_video_index, video_mode) in primary_monitor.video_modes().enumerate() {
+        if video_mode.size() == primary_monitor.size() && video_mode.refresh_rate_millihertz() == primary_monitor.refresh_rate_millihertz().unwrap() {
+            current_video_mode = video_mode.clone();
+            log::info!(
+                "Matched Video Mode: {:?}, {:?} bit, {:?} hz",
+                video_mode.size(),
+                video_mode.bit_depth(),
+                video_mode.refresh_rate_millihertz()
+            );
+            break;
+        }
+    }
+
     let window_size: dpi::PhysicalSize<u32> =
         if let Some(window_size) = initial_window_size {
             dpi::PhysicalSize {
@@ -558,22 +557,23 @@ pub fn run_application(
                 height: window_size.y
             }
         } else {
-            first_video_mode.size()
+            current_video_mode.size()
         };
 
     // create window
     log::info!("Window Mode: {:?}", window_mode);
     let window: Window = WindowBuilder::new()
         .with_title(app_name.clone())
+        .with_position(dpi::PhysicalPosition {x: 0, y:0})
         .with_inner_size(dpi::Size::Physical(window_size))
         .build(&event_loop)
         .unwrap();
 
     if WindowMode::FullScreenExclusiveMode == window_mode || WindowMode::FullScreenBorderlessMode == window_mode {
         if WindowMode::FullScreenExclusiveMode == window_mode {
-            window.set_fullscreen(Some(Fullscreen::Exclusive(first_video_mode)));
+            window.set_fullscreen(Some(Fullscreen::Exclusive(current_video_mode)));
         } else if WindowMode::FullScreenBorderlessMode == window_mode {
-            window.set_fullscreen(Some(Fullscreen::Borderless(Some(first_monitor))));
+            window.set_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
         } else {
             log::error!("unexpected window mode: {:?}", window_mode);
         }
@@ -662,6 +662,11 @@ pub fn run_application(
                         }
                     }
                 }
+
+                if !run_application {
+                    engine_core.terminate_application();
+                    window_target.exit();
+                }
             }
             Event::DeviceEvent {
                 device_id: _device_id,
@@ -715,9 +720,9 @@ pub fn run_application(
                     }
 
                     // exit
-                    // if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
-                    //     run_application = false;
-                    // }
+                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
+                        run_application = false;
+                    }
                 }
                 WindowEvent::Touch(touch) => {
                     engine_core.update_touch(&touch);
@@ -728,12 +733,9 @@ pub fn run_application(
                 log::info!("Application destroyed");
             },
             Event::AboutToWait => {
-                // update application
                 if run_application {
+                    // update application
                     engine_core.update_event_and_render_scene(current_time);
-                } else {
-                    engine_core.terminate_application();
-                    window_target.exit();
                 }
             },
             _ => {

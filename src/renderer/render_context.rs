@@ -1087,30 +1087,26 @@ impl<'a> RenderContext_LightProbe<'a> {
     }
 
     pub fn destroy(&mut self, device: &Device) {
-        for i in 0..constants::CUBE_LAYER_COUNT {
-            framebuffer::destroy_framebuffer_data(
-                device,
-                &self._render_atmosphere_framebuffer_data_list[i],
-            );
-            framebuffer::destroy_framebuffer_data(
-                device,
-                &self._composite_atmosphere_framebuffer_data_list_only_sky[i],
-            );
-            framebuffer::destroy_framebuffer_data(
-                device,
-                &self._composite_atmosphere_framebuffer_data_list[i],
-            );
+        for framebuffer_data in self._render_atmosphere_framebuffer_data_list.iter() {
+            framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
+
+        for framebuffer_data in self._composite_atmosphere_framebuffer_data_list_only_sky.iter() {
+            framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
+        }
+
+        for framebuffer_data in self._composite_atmosphere_framebuffer_data_list.iter() {
+            framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
+        }
+
         self._render_atmosphere_framebuffer_data_list.clear();
-        self._composite_atmosphere_framebuffer_data_list_only_sky
-            .clear();
+        self._composite_atmosphere_framebuffer_data_list_only_sky.clear();
         self._composite_atmosphere_framebuffer_data_list.clear();
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
         self._only_sky_downsampling_descriptor_sets.clear();
         self._light_probe_downsampling_descriptor_sets.clear();
-        self._light_probe_blend_from_only_sky_descriptor_sets
-            .clear();
+        self._light_probe_blend_from_only_sky_descriptor_sets.clear();
         self._light_probe_blend_from_forward_descriptor_sets.clear();
         self._only_sky_copy_descriptor_sets.clear();
         self._light_probe_forward_copy_descriptor_sets.clear();

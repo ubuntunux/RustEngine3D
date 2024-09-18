@@ -596,33 +596,32 @@ impl<'a> RendererContext<'a> {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
     }
     pub fn destroy_renderer_context(&mut self) {
+        self.destroy_framebuffer_and_descriptors();
+        self.destroy_uniform_buffers();
+        self.destroy_image_samplers();
+        self.destroy_render_targets();
+        sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
+        sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
+        sync::destroy_fences(&self._device, &self._frame_fences);
+        command_buffer::destroy_command_buffers(
+            &self._device,
+            self._command_pool,
+            &self._command_buffers,
+        );
+        command_buffer::destroy_command_pool(&self._device, self._command_pool);
+        swapchain::destroy_swapchain_data(
+            &self._device,
+            &self._swapchain_device,
+            &self._swapchain_data,
+        );
+        device::destroy_device(&self._device);
+        device::destroy_vk_surface(&self._surface_instance, self._surface);
         unsafe {
-            self.destroy_framebuffer_and_descriptors();
-            self.destroy_uniform_buffers();
-            self.destroy_image_samplers();
-            self.destroy_render_targets();
-            sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
-            sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
-            sync::destroy_fences(&self._device, &self._frame_fences);
-            command_buffer::destroy_command_buffers(
-                &self._device,
-                self._command_pool,
-                &self._command_buffers,
-            );
-            command_buffer::destroy_command_pool(&self._device, self._command_pool);
-            swapchain::destroy_swapchain_data(
-                &self._device,
-                &self._swapchain_device,
-                &self._swapchain_data,
-            );
-            device::destroy_device(&self._device);
-            device::destroy_vk_surface(&self._surface_instance, self._surface);
             if self._debug_utils_instance.is_some() {
-                self._debug_utils_instance.as_ref().unwrap()
-                    .destroy_debug_utils_messenger(self._debug_call_back, None);
+                self._debug_utils_instance.as_ref().unwrap().destroy_debug_utils_messenger(self._debug_call_back, None);
             }
-            device::destroy_vk_instance(&self._instance);
         }
+        device::destroy_vk_instance(&self._instance);
     }
 
     pub fn pipeline_barrier(
