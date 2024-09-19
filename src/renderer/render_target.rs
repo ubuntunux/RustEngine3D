@@ -282,8 +282,8 @@ pub fn get_render_target_create_infos(
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BackBuffer.to_string(),
-            _texture_width: render_viewport_width,
-            _texture_height: render_viewport_height,
+            _texture_width: window_width,
+            _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_samples: samples,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -291,8 +291,8 @@ pub fn get_render_target_create_infos(
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BackBufferCopy.to_string(),
-            _texture_width: render_viewport_width,
-            _texture_height: render_viewport_height,
+            _texture_width: window_width,
+            _texture_height: window_height,
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_samples: samples,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
@@ -344,22 +344,22 @@ pub fn get_render_target_create_infos(
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::Bloom0.to_string(),
-            _texture_width: render_viewport_width / 2,
-            _texture_height: render_viewport_height / 2,
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
             _enable_mipmap: true,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::BloomTemp0.to_string(),
-            _texture_width: render_viewport_width / 2,
-            _texture_height: render_viewport_height / 2,
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
             _enable_mipmap: true,
             ..hdr_texture_create_info.clone()
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::LightShaft.to_string(),
-            _texture_width: render_viewport_width / 2,
-            _texture_height: render_viewport_height / 2,
+            _texture_width: window_width / 2,
+            _texture_height: window_height / 2,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
