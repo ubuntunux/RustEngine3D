@@ -153,7 +153,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             debug_utils_device,
             engine_resources,
             self._render_target_data_map
-                .get(&RenderTargetType::SceneColorCopy)
+                .get(&RenderTargetType::PostProcessedColor)
                 .as_ref()
                 .unwrap(),
             self._render_target_data_map
@@ -341,7 +341,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneColorCopy).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -1680,7 +1680,7 @@ impl<'a> RendererData<'a> {
         engine_resources: &EngineResources<'a>,
     ) {
         // image barrier
-        let scene_color = self.get_render_target(RenderTargetType::SceneColorCopy);
+        let scene_color = self.get_render_target(RenderTargetType::PostProcessedColor);
         let range = vk::ImageSubresourceRange {
             aspect_mask: vk::ImageAspectFlags::COLOR,
             base_mip_level: 0,
@@ -1854,7 +1854,7 @@ impl<'a> RendererData<'a> {
             None,
         );
 
-        // copy SceneColorCopy -> TAAResolve
+        // copy PostProcessedColor -> TAAResolve
         let framebuffer = Some(&self._render_context_taa._taa_resolve_framebuffer_data);
         let descriptor_sets = Some(&self._render_context_taa._taa_descriptor_sets);
         let push_constants = PushConstant_RenderCopy::default();

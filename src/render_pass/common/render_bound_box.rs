@@ -18,7 +18,7 @@ use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColorCopy),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::PostProcessedColor),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: None,
