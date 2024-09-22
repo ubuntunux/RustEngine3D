@@ -8,8 +8,11 @@ use ash::vk;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
+pub const SEMANTIC_TOP_LEVEL_ACCELERATION_STRUCTURE: &str = "TOP_LEVEL_ACCELERATION_STRUCTURE";
+
 pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("ray_tracing");
+
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("ray_tracing"),
         _pipeline_ray_generation_shader_file: PathBuf::from("ray_tracing/triangle.rgen"),
@@ -18,8 +21,9 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
         _pipeline_bind_point: vk::PipelineBindPoint::RAY_TRACING_KHR,
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TOP_LEVEL_ACCELERATION_STRUCTURE.to_string(),
                 _descriptor_binding_index: 0,
-                _descriptor_name: "Top-Level AccelerationStructure".to_string(),
+                _descriptor_name: String::from("Top-Level AccelerationStructure"),
                 _descriptor_resource_type: DescriptorResourceType::AccelerationStructure,
                 _descriptor_shader_stage: vk::ShaderStageFlags::RAYGEN_NV,
                 ..Default::default()

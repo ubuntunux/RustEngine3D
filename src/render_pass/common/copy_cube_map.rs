@@ -13,7 +13,7 @@ use crate::renderer::renderer_data::RendererData;
 
 pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("copy_cube_map");
-    let input = DescriptorDataCreateInfo {
+    let image_input = DescriptorDataCreateInfo {
         _descriptor_binding_index: 0,
         _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColorForward),
         _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,
@@ -22,7 +22,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
         _descriptor_image_mip_level: 0,
         ..Default::default()
     };
-    let output = DescriptorDataCreateInfo {
+    let image_output = DescriptorDataCreateInfo {
         _descriptor_binding_index: 6,
         _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColorForwardPrev),
         _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,
@@ -31,8 +31,8 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
         _descriptor_image_mip_level: 0,
         ..Default::default()
     };
-    let blend_input_0 = input.clone();
-    let blend_input_1 = output.clone();
+    let blend_input_0 = image_input.clone();
+    let blend_input_1 = image_output.clone();
     let blend_output = DescriptorDataCreateInfo {
         _descriptor_binding_index: 12,
         _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColor),
@@ -43,73 +43,66 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
         ..Default::default()
     };
 
+    let mut copy_cube_map_descriptor_data_create_infos: Vec<DescriptorDataCreateInfo> = Vec::new();
+    for layer in 0..6 {
+        copy_cube_map_descriptor_data_create_infos.push(
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from(format!("IMAGE_INPUT_{}", layer)),
+                _descriptor_binding_index: layer,
+                _descriptor_image_layer: layer,
+                ..image_input.clone()
+            }
+        )
+    }
+    for layer in 0..6 {
+        copy_cube_map_descriptor_data_create_infos.push(
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from(format!("IMAGE_OUTPUT_{}", layer)),
+                _descriptor_binding_index: 6 + layer,
+                _descriptor_image_layer: layer,
+                ..image_output.clone()
+            }
+        )
+    }
+
+    let mut blend_cube_map_descriptor_data_create_infos: Vec<DescriptorDataCreateInfo> = Vec::new();
+    for layer in 0..6 {
+        blend_cube_map_descriptor_data_create_infos.push(
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from(format!("IMAGE_INPUT_0_{}", layer)),
+                _descriptor_binding_index: layer,
+                _descriptor_image_layer: layer,
+                ..blend_input_0.clone()
+            }
+        )
+    }
+    for layer in 0..6 {
+        blend_cube_map_descriptor_data_create_infos.push(
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from(format!("IMAGE_INPUT_1_{}", layer)),
+                _descriptor_binding_index: 6 + layer,
+                _descriptor_image_layer: layer,
+                ..blend_input_1.clone()
+            }
+        )
+    }
+    for layer in 0..6 {
+        blend_cube_map_descriptor_data_create_infos.push(
+            DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from(format!("IMAGE_OUTPUT_{}", layer)),
+                _descriptor_binding_index: 12 + layer,
+                _descriptor_image_layer: layer,
+                ..blend_output.clone()
+            }
+        )
+    }
+
     let pipeline_data_create_infos = vec![
         PipelineDataCreateInfo {
             _pipeline_data_create_info_name: String::from("copy"),
             _pipeline_compute_shader_file: PathBuf::from("common/copy_cube_map.comp"),
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
-            _descriptor_data_create_infos: vec![
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 0,
-                    _descriptor_image_layer: 0,
-                    ..input.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 1,
-                    _descriptor_image_layer: 1,
-                    ..input.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 2,
-                    _descriptor_image_layer: 2,
-                    ..input.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 3,
-                    _descriptor_image_layer: 3,
-                    ..input.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 4,
-                    _descriptor_image_layer: 4,
-                    ..input.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 5,
-                    _descriptor_image_layer: 5,
-                    ..input.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 6,
-                    _descriptor_image_layer: 0,
-                    ..output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 7,
-                    _descriptor_image_layer: 1,
-                    ..output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 8,
-                    _descriptor_image_layer: 2,
-                    ..output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 9,
-                    _descriptor_image_layer: 3,
-                    ..output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 10,
-                    _descriptor_image_layer: 4,
-                    ..output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 11,
-                    _descriptor_image_layer: 5,
-                    ..output.clone()
-                },
-            ],
+            _descriptor_data_create_infos: copy_cube_map_descriptor_data_create_infos,
             ..Default::default()
         },
         PipelineDataCreateInfo {
@@ -121,98 +114,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 _offset: 0,
                 _push_constant: Box::new(PushConstant_BlendCubeMap::default()),
             }],
-            _descriptor_data_create_infos: vec![
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 0,
-                    _descriptor_image_layer: 0,
-                    ..blend_input_0.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 1,
-                    _descriptor_image_layer: 1,
-                    ..blend_input_0.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 2,
-                    _descriptor_image_layer: 2,
-                    ..blend_input_0.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 3,
-                    _descriptor_image_layer: 3,
-                    ..blend_input_0.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 4,
-                    _descriptor_image_layer: 4,
-                    ..blend_input_0.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 5,
-                    _descriptor_image_layer: 5,
-                    ..blend_input_0.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 6,
-                    _descriptor_image_layer: 0,
-                    ..blend_input_1.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 7,
-                    _descriptor_image_layer: 1,
-                    ..blend_input_1.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 8,
-                    _descriptor_image_layer: 2,
-                    ..blend_input_1.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 9,
-                    _descriptor_image_layer: 3,
-                    ..blend_input_1.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 10,
-                    _descriptor_image_layer: 4,
-                    ..blend_input_1.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 11,
-                    _descriptor_image_layer: 5,
-                    ..blend_input_1.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 12,
-                    _descriptor_image_layer: 0,
-                    ..blend_output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 13,
-                    _descriptor_image_layer: 1,
-                    ..blend_output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 14,
-                    _descriptor_image_layer: 2,
-                    ..blend_output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 15,
-                    _descriptor_image_layer: 3,
-                    ..blend_output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 16,
-                    _descriptor_image_layer: 4,
-                    ..blend_output.clone()
-                },
-                DescriptorDataCreateInfo {
-                    _descriptor_binding_index: 17,
-                    _descriptor_image_layer: 5,
-                    ..blend_output.clone()
-                },
-            ],
+            _descriptor_data_create_infos: blend_cube_map_descriptor_data_create_infos,
             ..Default::default()
         },
     ];

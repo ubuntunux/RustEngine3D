@@ -6,6 +6,7 @@ use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
+use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
@@ -251,14 +252,11 @@ impl TextRenderData {
                 .get_default_image_info()
                 .clone(),
         );
-        self._render_font_descriptor_sets = utility::create_descriptor_sets(
+        self._render_font_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             render_font_pipeline_binding_data,
-            &[(
-                0,
-                utility::create_swapchain_array(font_texture_image_info.clone()),
-            )],
+            &[(render_font::SEMANTIC_TEXTURE_FONT.to_string(), utility::create_swapchain_array(font_texture_image_info.clone()))],
         );
     }
 

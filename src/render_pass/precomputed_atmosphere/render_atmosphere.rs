@@ -77,6 +77,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ..Default::default()
         },
         DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from("VIEW_CONSTANTS"),
             _descriptor_binding_index: 1,
             _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
             _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
@@ -105,6 +106,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ..Default::default()
         },
         DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from("TEXTURE_DEPTH"),
             _descriptor_binding_index: 5,
             _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
             _descriptor_resource_type: DescriptorResourceType::RenderTarget,
@@ -203,25 +205,11 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("default"),
-        _pipeline_vertex_shader_file: PathBuf::from(
-            "precomputed_atmosphere/render_atmosphere.vert",
-        ),
-        _pipeline_fragment_shader_file: PathBuf::from(
-            "precomputed_atmosphere/render_atmosphere.frag",
-        ),
+        _pipeline_vertex_shader_file: PathBuf::from("precomputed_atmosphere/render_atmosphere.vert"),
+        _pipeline_fragment_shader_file: PathBuf::from("precomputed_atmosphere/render_atmosphere.frag"),
         _pipeline_shader_defines: vec![
-            format!(
-                "USE_LUMINANCE={:?}",
-                if Luminance::NONE != DEFAULT_LUMINANCE_TYPE {
-                    1
-                } else {
-                    0
-                }
-            ),
-            format!(
-                "COMBINED_SCATTERING_TEXTURES={:?}",
-                if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }
-            ),
+            format!("USE_LUMINANCE={:?}", if Luminance::NONE != DEFAULT_LUMINANCE_TYPE { 1 } else { 0 }),
+            format!("COMBINED_SCATTERING_TEXTURES={:?}", if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }),
         ],
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_color_blend_modes: vec![

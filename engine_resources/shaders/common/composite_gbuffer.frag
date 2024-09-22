@@ -97,7 +97,8 @@ void main() {
         vertexNormal,
         N,
         V,
-        depth
+        depth,
+        true
     );
     outColor.xyz += emissive_color;
     outColor.w = 1.0;

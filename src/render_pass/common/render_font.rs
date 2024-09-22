@@ -16,6 +16,8 @@ use ash::vk;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
+pub const SEMANTIC_TEXTURE_FONT: &str = "TEXTURE_FONT";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let swapchain_data = renderer_data.get_renderer_context().get_swap_chain_data();
     let (width, height) = (
@@ -100,6 +102,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         }],
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_FONT.to_string(),
                 _descriptor_binding_index: 0,
                 _descriptor_name: String::from("texture_font"),
                 _descriptor_resource_type: DescriptorResourceType::Texture,

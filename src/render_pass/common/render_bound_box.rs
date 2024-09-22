@@ -23,6 +23,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
             _target_mip_level: 0,
             _clear_value: None,
         }],
+        // TODO: fix to depth test in shader
+        // pCreateInfo->pAttachments[1] mip level 0 has width (1280) smaller than the corresponding framebuffer width (2560)
         &[RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
             _target_layer: 0,

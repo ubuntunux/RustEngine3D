@@ -15,6 +15,8 @@ use crate::renderer::push_constants::PushConstant_RenderCopy;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
+pub const SEMANTIC_TEXTURE_SRC: &str = "TEXTURE_SRC";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
@@ -81,6 +83,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _push_constant: Box::new(PushConstant_RenderCopy::default()),
         }],
         _descriptor_data_create_infos: vec![DescriptorDataCreateInfo {
+            _descriptor_semantic: SEMANTIC_TEXTURE_SRC.to_string(),
             _descriptor_binding_index: 0,
             _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
             _descriptor_resource_type: DescriptorResourceType::RenderTarget,

@@ -15,6 +15,8 @@ use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::scene::fft_ocean::PushConstant_FFT_Ocean;
 
+pub const SEMANTIC_FFT_WAVES_DESCRIPTOR: &str = "TEXTURE_FFT";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     let render_target = renderer_data.get_render_target(RenderTargetType::FFT_B);
     let render_target_infos: Vec<RenderTargetInfo> = (0..render_target._image_layers)
@@ -102,6 +104,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
+                    _descriptor_semantic: SEMANTIC_FFT_WAVES_DESCRIPTOR.to_string(),
                     _descriptor_binding_index: 1,
                     _descriptor_name: enum_to_string(&RenderTargetType::FFT_A),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,
@@ -143,6 +146,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
+                    _descriptor_semantic: SEMANTIC_FFT_WAVES_DESCRIPTOR.to_string(),
                     _descriptor_binding_index: 1,
                     _descriptor_name: enum_to_string(&RenderTargetType::FFT_A),
                     _descriptor_resource_type: DescriptorResourceType::RenderTarget,

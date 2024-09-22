@@ -1583,6 +1583,13 @@ impl<'a> EngineResources<'a> {
         self._render_pass_data_create_info_map.clear();
     }
 
+    pub fn get_render_pass_data_create_info(&self, resource_name: &str) -> &RenderPassDataCreateInfo {
+        if let Some(resource) = self._render_pass_data_create_info_map.get(resource_name) {
+            return resource
+        };
+        panic!("not found resource: {:?}", resource_name);
+    }
+
     // render pass data
     pub fn load_render_pass_data_list(&mut self, renderer_context: &RendererContext<'a>) {
         log::info!("    load_render_pass_data_list");

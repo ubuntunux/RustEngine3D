@@ -10,6 +10,7 @@ use nalgebra::{Matrix4, Vector2, Vector4};
 
 use crate::constants;
 use crate::effect::effect_manager::EffectManager;
+use crate::render_pass::ray_tracing::ray_tracing;
 use crate::render_pass::render_pass;
 use crate::renderer::push_constants::{
     PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy,
@@ -78,7 +79,7 @@ pub struct RendererData<'a> {
     pub _render_target_data_map: RenderTargetDataMap,
     pub _shader_buffer_data_map: ShaderBufferDataMap<'a>,
     pub _render_context_bloom: RenderContext_Bloom<'a>,
-    pub _render_context_ssao: RenderContext_SSAO,
+    pub _render_context_ssao: RenderContext_SSAO<'a>,
     pub _render_context_taa: RenderContext_TAA<'a>,
     pub _render_context_hiz: RenderContext_HierarchicalMinZ,
     pub _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling,
@@ -170,7 +171,17 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             self._render_target_data_map
                 .get(&RenderTargetType::SSAO)
                 .as_ref()
-                .unwrap()
+                .unwrap(),
+            self._render_target_data_map
+                .get(&RenderTargetType::SSAOResolved)
+                .as_ref()
+                .unwrap(),
+            self._render_target_data_map
+                .get(&RenderTargetType::SSAOResolvedPrev)
+                .as_ref()
+                .unwrap(),
+            RenderTargetType::SSAOResolved,
+            RenderTargetType::SSAOResolvedPrev
         );
 
         // Hierarchical Min Z
@@ -184,7 +195,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 .unwrap(),
         );
 
-        // SceneColor Downsampling
+        // SceneColor Down sampling
         self._render_context_scene_color_downsampling.initialize(
             device,
             debug_utils_device,
@@ -221,14 +232,10 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::SSRResolved)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::SSRResolvedPrev)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSAOResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSAOResolvedPrev).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap()
         );
 
         // RenderContext_LightProbe
@@ -317,14 +324,11 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 .get_renderer_context()
                 ._ray_tracing_test_data
                 .get_top_level_descriptor_resource_info();
-            let _render_ray_tracing_descriptor_sets = utility::create_descriptor_sets(
+            let _render_ray_tracing_descriptor_sets = utility::create_descriptor_sets_by_semantic(
                 device,
                 debug_utils_device,
                 render_ray_tracing_pipeline_binding_data,
-                &[(
-                    0,
-                    utility::create_swapchain_array(top_level_descriptor_resource_info.clone()),
-                )],
+                &[(ray_tracing::SEMANTIC_TOP_LEVEL_ACCELERATION_STRUCTURE.to_string(), utility::create_swapchain_array(top_level_descriptor_resource_info.clone()))],
             );
         }
 
@@ -342,6 +346,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SSAOResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::SSAOResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -369,8 +375,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         self._render_context_taa.destroy(device);
         self._render_context_ssao.destroy(device);
         self._render_context_hiz.destroy(device);
-        self._render_context_scene_color_downsampling
-            .destroy(device);
+        self._render_context_scene_color_downsampling.destroy(device);
         self._render_context_ssr.destroy(device);
         self._render_context_composite_gbuffer.destroy(device);
         self._render_context_clear_render_targets.destroy(device);
@@ -418,6 +423,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         if unsafe { constants::RENDER_OCEAN } {
             self._fft_ocean.update(delta_time);
         }
+        self._render_context_ssao.update();
         self._render_context_ssr.update();
     }
 
@@ -1075,8 +1081,7 @@ impl<'a> RendererData<'a> {
             _render_context_ssao: RenderContext_SSAO::default(),
             _render_context_taa: RenderContext_TAA::default(),
             _render_context_hiz: RenderContext_HierarchicalMinZ::default(),
-            _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(
-            ),
+            _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(),
             _render_context_ssr: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
             _render_context_clear_render_targets: RenderContext_ClearRenderTargets::default(),
@@ -1977,7 +1982,7 @@ impl<'a> RendererData<'a> {
             None,
         );
 
-        // Screen Space Reflection Resolve
+        // Resolve Screen Space Reflection
         let (framebuffer, descriptor_sets) = match self._render_context_ssr._current_taa_resolved {
             RenderTargetType::SSRResolved => (
                 Some(&self._render_context_ssr._framebuffer_data0),
@@ -2022,6 +2027,29 @@ impl<'a> RendererData<'a> {
             quad_geometry_data,
             None,
             None,
+            None,
+        );
+
+        // resolve ssao
+        let (framebuffer, descriptor_sets) = match self._render_context_ssao._render_context_taa_simple._current_taa_resolved {
+            RenderTargetType::SSAOResolved => (
+                Some(&self._render_context_ssao._render_context_taa_simple._framebuffer_data0),
+                Some(&self._render_context_ssao._render_context_taa_simple._descriptor_sets0),
+            ),
+            RenderTargetType::SSAOResolvedPrev => (
+                Some(&self._render_context_ssao._render_context_taa_simple._framebuffer_data1),
+                Some(&self._render_context_ssao._render_context_taa_simple._descriptor_sets1),
+            ),
+            _ => panic!("error"),
+        };
+        renderer_context.render_material_instance(
+            command_buffer,
+            swapchain_index,
+            "common/render_taa_simple",
+            DEFAULT_PIPELINE,
+            quad_geometry_data,
+            framebuffer,
+            descriptor_sets,
             None,
         );
     }

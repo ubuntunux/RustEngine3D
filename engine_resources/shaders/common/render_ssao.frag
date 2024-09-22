@@ -5,6 +5,7 @@
 #include "scene_constants.glsl"
 #include "utility.glsl"
 #include "PCFKernels.glsl"
+#include "shading.glsl"
 #include "render_quad_common.glsl"
 
 layout(binding = 0) uniform SceneConstants
@@ -22,9 +23,10 @@ layout(binding = 2) uniform LightConstants
 layout(binding = 3) uniform sampler2D textureSceneNormal;
 layout(binding = 4) uniform sampler2D textureSceneDepth;
 layout(binding = 5) uniform sampler2D ssaoNoise;
+layout(binding = 6) uniform sampler2D texture_shadow;
 
 // uniform_buffer_data - struct SSAOConstants
-layout(binding = 6) uniform SSAOConstants
+layout(binding = 7) uniform SSAOConstants
 {
     vec4 _SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;
@@ -32,6 +34,7 @@ layout(binding = 6) uniform SSAOConstants
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 layout(location = 0) out float outColor;
+
 
 void main() {
     const vec2 texture_size = textureSize(textureSceneDepth, 0);
@@ -46,6 +49,7 @@ void main() {
     }
 
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
+    const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
     const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
     const vec2 noise_size = textureSize(ssaoNoise, 0);
     const vec3 randomVec = normalize(vec3(texture(ssaoNoise, texCoord).xy  * noise, 1.0).xzy);
@@ -92,5 +96,15 @@ void main() {
         occlusion += exp(-distance);
     }
 
-    outColor = saturate(exp(-occlusion * ssao_contrast));
+    float shadow_factor = get_shadow_factor(
+        scene_constants.TIME,
+        screen_pos,
+        world_position,
+        light_constants.SHADOW_VIEW_PROJECTION,
+        light_constants.SHADOW_SAMPLES,
+        0.0,
+        texture_shadow
+    );
+
+    outColor = saturate(exp(-occlusion * ssao_contrast) * shadow_factor);
 }

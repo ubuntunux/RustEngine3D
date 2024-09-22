@@ -15,6 +15,8 @@ use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
+pub const SEMANTIC_TEXTURE_SRC: &str = "TEXTURE_SRC";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
@@ -110,6 +112,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_data_list: Vec::new(),
             _descriptor_data_create_infos: vec![DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_SRC.to_string(),
                 _descriptor_binding_index: 0,
                 _descriptor_name: enum_to_string(&RenderTargetType::Bloom0),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,

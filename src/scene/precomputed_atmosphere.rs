@@ -1299,28 +1299,27 @@ impl<'a> Atmosphere<'a> {
         // composite atmosphere
         let composite_atmosphere_pipeline_binding_data =
             material_instance.get_pipeline_binding_data("composite_atmosphere/default");
-        let composite_atmosphere_descriptor_binding_index: usize = 15;
         let precomputed_atmosphere_color_resolved = renderer_data
             .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED);
         let precomputed_atmosphere_color_resolved_prev = renderer_data
             .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV);
-        self._composite_atmosphere_descriptor_sets0 = utility::create_descriptor_sets(
+        self._composite_atmosphere_descriptor_sets0 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             composite_atmosphere_pipeline_binding_data,
             &[(
-                composite_atmosphere_descriptor_binding_index,
+                String::from("TEXTURE_ATMOSPHERE"),
                 utility::create_descriptor_image_info_swapchain_array(
                     precomputed_atmosphere_color_resolved.get_default_image_info(),
                 ),
             )],
         );
-        self._composite_atmosphere_descriptor_sets1 = utility::create_descriptor_sets(
+        self._composite_atmosphere_descriptor_sets1 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             composite_atmosphere_pipeline_binding_data,
             &[(
-                composite_atmosphere_descriptor_binding_index,
+                String::from("TEXTURE_ATMOSPHERE"),
                 utility::create_descriptor_image_info_swapchain_array(
                     precomputed_atmosphere_color_resolved_prev.get_default_image_info(),
                 ),

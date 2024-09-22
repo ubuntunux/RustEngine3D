@@ -65,7 +65,8 @@ void main() {
         vertex_normal.xyz,
         normal.xyz,
         V,
-        depth
+        depth,
+        false
     );
 
     #if (ParticleBlendMode_AlphaBlend == BlendMode) || (ParticleBlendMode_Additive == BlendMode)

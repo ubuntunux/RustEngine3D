@@ -33,7 +33,8 @@ pub enum RenderTargetType {
     BloomTemp0,
     LightShaft,
     SSAO,
-    SSAOTemp,
+    SSAOResolved,
+    SSAOResolvedPrev,
     Shadow,
     CaptureHeightMap,
     SSR,
@@ -92,6 +93,8 @@ impl std::str::FromStr for RenderTargetType {
             "BloomTemp0" => Ok(RenderTargetType::BloomTemp0),
             "LightShaft" => Ok(RenderTargetType::LightShaft),
             "SSAO" => Ok(RenderTargetType::SSAO),
+            "SSAOResolved" => Ok(RenderTargetType::SSAOResolved),
+            "SSAOResolvedPrev" => Ok(RenderTargetType::SSAOResolvedPrev),
             "Shadow" => Ok(RenderTargetType::Shadow),
             "CaptureHeightMap" => Ok(RenderTargetType::CaptureHeightMap),
             "SSR" => Ok(RenderTargetType::SSR),
@@ -145,8 +148,10 @@ pub fn get_render_target_create_infos(
     let swapchain_data = &renderer_context._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
-    let render_viewport_width = if unsafe { constants::ENABLE_UPSCALE } { window_width / 2 } else { window_width };
-    let render_viewport_height = if unsafe { constants::ENABLE_UPSCALE } { window_height / 2 } else { window_height };
+    let render_viewport_width = unsafe { if constants::ENABLE_UPSCALE { window_width / 2 } else { window_width }  };
+    let render_viewport_height = unsafe { if constants::ENABLE_UPSCALE { window_height / 2 } else { window_height } };
+    let ssao_width = unsafe { if constants::HALF_SIZE_SSAO { render_viewport_width / 2 } else  { render_viewport_width } };
+    let ssao_height = unsafe { if constants::HALF_SIZE_SSAO { render_viewport_height / 2 } else  { render_viewport_height } };
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_context._render_features._msaa_samples);
     let hdr_texture_create_info = TextureCreateInfo {
@@ -366,9 +371,25 @@ pub fn get_render_target_create_infos(
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSAO.to_string(),
-            _texture_width: unsafe { if constants::HALF_SIZE_SSAO { render_viewport_width / 2 } else  { render_viewport_width }},
-            _texture_height: unsafe { if constants::HALF_SIZE_SSAO { render_viewport_height / 2 } else  { render_viewport_height }},
-            _texture_format: vk::Format::R16_SFLOAT,
+            _texture_width: ssao_width,
+            _texture_height: ssao_height,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSAOResolved.to_string(),
+            _texture_width: ssao_width,
+            _texture_height: ssao_height,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::SSAOResolvedPrev.to_string(),
+            _texture_width: ssao_width,
+            _texture_height: ssao_height,
+            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },

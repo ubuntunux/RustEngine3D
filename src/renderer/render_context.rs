@@ -6,10 +6,12 @@ use nalgebra::{Vector3, Vector4};
 use rand;
 
 use crate::constants;
+use crate::render_pass::common::{composite_gbuffer, downsampling, generate_max_z, render_bloom, render_copy, render_gaussian_blur, render_taa_simple};
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_data::SSAOConstants;
 use crate::renderer::utility;
+use crate::renderer::utility::DescriptorResourceInfoBySemantic;
 use crate::resource::resource::EngineResources;
 use crate::vulkan_context::buffer::ShaderBufferData;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
@@ -144,15 +146,16 @@ impl<'a> Default for RenderContext_Bloom<'a> {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_SSAO {
+pub struct RenderContext_SSAO<'a> {
+    pub _render_context_taa_simple: RenderContext_TAA_Simple<'a>,
     pub _ssao_kernel_size: i32,
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
     pub _ssao_constants: SSAOConstants
 }
 
-impl Default for RenderContext_SSAO {
-    fn default() -> RenderContext_SSAO {
+impl<'a> Default for RenderContext_SSAO<'a> {
+    fn default() -> RenderContext_SSAO<'a> {
         let mut random_normals: [Vector4<f32>; 64] =
             [Vector4::new(0.0, 0.0, 0.0, 0.0); constants::SSAO_KERNEL_SIZE];
         for i in 0..constants::SSAO_KERNEL_SIZE {
@@ -168,6 +171,7 @@ impl Default for RenderContext_SSAO {
         }
 
         RenderContext_SSAO {
+            _render_context_taa_simple: RenderContext_TAA_Simple::default(),
             _ssao_kernel_size: constants::SSAO_KERNEL_SIZE as i32,
             _ssao_radius: constants::SSAO_RADIUS,
             _ssao_noise_dim: unsafe { constants::SSAO_NOISE_DIM },
@@ -251,12 +255,8 @@ impl<'a> RenderContext_Bloom<'a> {
         render_target_bloom0: &TextureData,
         render_target_bloom_temp0: &TextureData,
     ) {
-        let render_bloom_material_instance = engine_resources
-            .get_material_instance_data("common/render_bloom")
-            .borrow();
-        let pipeline_binding_data = render_bloom_material_instance
-            .get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-        let descriptor_binding_index: usize = 0;
+        let render_bloom_material_instance = engine_resources.get_material_instance_data("common/render_bloom").borrow();
+        let pipeline_binding_data = render_bloom_material_instance.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
         let layer = 0;
         for mip_level in 0..(render_target_bloom0._image_mip_levels - 1) {
             let (bloom_framebuffer_data, bloom_descriptor_set) =
@@ -269,7 +269,7 @@ impl<'a> RenderContext_Bloom<'a> {
                     mip_level + 1,
                     None,
                     &[(
-                        descriptor_binding_index,
+                        render_bloom::SEMANTIC_TEXTURE_SRC.to_string(),
                         utility::create_descriptor_image_info_swapchain_array(
                             render_target_bloom0.get_sub_image_info(layer, mip_level),
                         ),
@@ -281,12 +281,8 @@ impl<'a> RenderContext_Bloom<'a> {
                 .push(bloom_descriptor_set);
         }
 
-        let render_gaussian_blur_material_instance = engine_resources
-            .get_material_instance_data("common/render_gaussian_blur")
-            .borrow();
-        let pipeline_binding_data = render_gaussian_blur_material_instance
-            .get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
-        let descriptor_binding_index: usize = 0;
+        let render_gaussian_blur_material_instance = engine_resources.get_material_instance_data("common/render_gaussian_blur").borrow();
+        let pipeline_binding_data = render_gaussian_blur_material_instance.get_pipeline_binding_data("render_gaussian_blur/render_gaussian_blur");
         for mip_level in 0..render_target_bloom0._image_mip_levels {
             let (gaussian_blur_h_framebuffer_data, gaussian_blur_h_descriptor_sets) =
                 utility::create_framebuffer_and_descriptor_sets(
@@ -298,7 +294,7 @@ impl<'a> RenderContext_Bloom<'a> {
                     mip_level,
                     None,
                     &[(
-                        descriptor_binding_index,
+                        render_gaussian_blur::SEMANTIC_TEXTURE_SRC.to_string(),
                         utility::create_descriptor_image_info_swapchain_array(
                             render_target_bloom0.get_sub_image_info(layer, mip_level),
                         ),
@@ -314,20 +310,16 @@ impl<'a> RenderContext_Bloom<'a> {
                     mip_level,
                     None,
                     &[(
-                        descriptor_binding_index,
+                        render_gaussian_blur::SEMANTIC_TEXTURE_SRC.to_string(),
                         utility::create_descriptor_image_info_swapchain_array(
                             render_target_bloom_temp0.get_sub_image_info(layer, mip_level),
                         ),
                     )],
                 );
-            self._bloom_temp_framebuffer_data_list
-                .push(gaussian_blur_h_framebuffer_data);
-            self._bloom_temp_framebuffer_data_list
-                .push(gaussian_blur_v_framebuffer_data);
-            self._bloom_temp_descriptor_sets
-                .push(gaussian_blur_h_descriptor_sets);
-            self._bloom_temp_descriptor_sets
-                .push(gaussian_blur_v_descriptor_sets);
+            self._bloom_temp_framebuffer_data_list.push(gaussian_blur_h_framebuffer_data);
+            self._bloom_temp_framebuffer_data_list.push(gaussian_blur_v_framebuffer_data);
+            self._bloom_temp_descriptor_sets.push(gaussian_blur_h_descriptor_sets);
+            self._bloom_temp_descriptor_sets.push(gaussian_blur_v_descriptor_sets);
         }
 
         let render_bloom_framebuffer_data = engine_resources
@@ -371,12 +363,8 @@ impl<'a> RenderContext_TAA<'a> {
         taa_render_target: &TextureData,
         taa_resolve_texture: &TextureData,
     ) {
-        let render_copy_material_instance = engine_resources
-            .get_material_instance_data("common/render_copy")
-            .borrow();
-        let pipeline_binding_data =
-            render_copy_material_instance.get_pipeline_binding_data("render_copy/render_copy");
-        let descriptor_binding_index: usize = 0;
+        let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_copy").borrow();
+        let pipeline_binding_data = render_copy_material_instance.get_pipeline_binding_data("render_copy/render_copy");
         let layer: u32 = 0;
         let mip_level: u32 = 0;
         let (framebuffer_data, descriptor_sets) = utility::create_framebuffer_and_descriptor_sets(
@@ -388,7 +376,7 @@ impl<'a> RenderContext_TAA<'a> {
             mip_level,
             None,
             &[(
-                descriptor_binding_index,
+                render_copy::SEMANTIC_TEXTURE_SRC.to_string(),
                 utility::create_descriptor_image_info_swapchain_array(
                     taa_render_target.get_sub_image_info(layer, mip_level),
                 ),
@@ -406,17 +394,36 @@ impl<'a> RenderContext_TAA<'a> {
     }
 }
 
-impl RenderContext_SSAO {
-    pub fn initialize<'a>(
+impl<'a> RenderContext_SSAO<'a> {
+    pub fn initialize(
         &mut self,
-        _device: &Device,
-        _debug_utils_device: &ext::debug_utils::Device,
-        _engine_resources: &EngineResources<'a>,
-        _render_target_ssao: &TextureData
+        device: &Device,
+        debug_utils_device: &ext::debug_utils::Device,
+        engine_resources: &EngineResources<'a>,
+        texture_ssr: &TextureData,
+        texture_taa_resolved: &TextureData,
+        texture_taa_resolved_prev: &TextureData,
+        current_taa_resolved: RenderTargetType,
+        previous_taa_resolved: RenderTargetType
     ) {
+        self._render_context_taa_simple.initialize(
+            device,
+            debug_utils_device,
+            engine_resources,
+            texture_ssr,
+            texture_taa_resolved,
+            texture_taa_resolved_prev,
+            current_taa_resolved,
+            previous_taa_resolved
+        );
     }
 
-    pub fn destroy(&mut self, _device: &Device) {
+    pub fn update(&mut self) {
+        self._render_context_taa_simple.update();
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self._render_context_taa_simple.destroy(device);
     }
 }
 
@@ -436,24 +443,13 @@ impl RenderContext_HierarchicalMinZ {
         let layer: u32 = 0;
         let downsampling_count: u32 = render_target_hierarchical_min_z._image_mip_levels - 1;
         for mip_level in 0..downsampling_count {
-            let descriptor_sets = utility::create_descriptor_sets(
+            let descriptor_sets = utility::create_descriptor_sets_by_semantic(
                 device,
                 debug_utils_device,
                 pipeline_binding_data,
                 &[
-                    (
-                        0,
-                        utility::create_descriptor_image_info_swapchain_array(
-                            render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level),
-                        ),
-                    ),
-                    (
-                        1,
-                        utility::create_descriptor_image_info_swapchain_array(
-                            render_target_hierarchical_min_z
-                                .get_sub_image_info(layer, mip_level + 1),
-                        ),
-                    ),
+                    (generate_max_z::SEMANTIC_IMAGE_INPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level))),
+                    (generate_max_z::SEMANTIC_IMAGE_OUTPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level + 1)))
                 ],
             );
             self._descriptor_sets.push(descriptor_sets);
@@ -486,23 +482,13 @@ impl RenderContext_SceneColorDownSampling {
         let layer: u32 = 0;
         let downsampling_count: u32 = texture_scene_color._image_mip_levels - 1;
         for mip_level in 0..downsampling_count {
-            let descriptor_sets = utility::create_descriptor_sets(
+            let descriptor_sets = utility::create_descriptor_sets_by_semantic(
                 device,
                 debug_utils_device,
                 pipeline_binding_data,
                 &[
-                    (
-                        0,
-                        utility::create_descriptor_image_info_swapchain_array(
-                            texture_scene_color.get_sub_image_info(layer, mip_level),
-                        ),
-                    ),
-                    (
-                        1,
-                        utility::create_descriptor_image_info_swapchain_array(
-                            texture_scene_color.get_sub_image_info(layer, mip_level + 1),
-                        ),
-                    ),
+                    (downsampling::SEMANTIC_IMAGE_INPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_scene_color.get_sub_image_info(layer, mip_level))),
+                    (downsampling::SEMANTIC_IMAGE_OUTPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_scene_color.get_sub_image_info(layer, mip_level + 1)))
                 ],
             );
             self._descriptor_sets.push(descriptor_sets);
@@ -526,13 +512,10 @@ impl<'a> RenderContext_TAA_Simple<'a> {
         texture_taa_resolved: &TextureData,
         texture_taa_resolved_prev: &TextureData,
         current_taa_resolved: RenderTargetType,
-        previous_taa_resolved: RenderTargetType,
+        previous_taa_resolved: RenderTargetType
     ) {
-        let render_copy_material_instance = engine_resources
-            .get_material_instance_data("common/render_taa_simple")
-            .borrow();
-        let pipeline_binding_data =
-            render_copy_material_instance.get_default_pipeline_binding_data();
+        let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_taa_simple").borrow();
+        let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let layer: u32 = 0;
         let mip_level: u32 = 0;
         let (framebuffer_data0, descriptor_sets0) = utility::create_framebuffer_and_descriptor_sets(
@@ -545,13 +528,13 @@ impl<'a> RenderContext_TAA_Simple<'a> {
             None,
             &[
                 (
-                    0,
+                    render_taa_simple::SEMANTIC_TEXTURE_INPUT.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_ssr.get_sub_image_info(layer, mip_level),
                     ),
                 ),
                 (
-                    1,
+                    render_taa_simple::SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_taa_resolved_prev.get_sub_image_info(layer, mip_level),
                     ),
@@ -568,13 +551,13 @@ impl<'a> RenderContext_TAA_Simple<'a> {
             None,
             &[
                 (
-                    0,
+                    render_taa_simple::SEMANTIC_TEXTURE_INPUT.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_ssr.get_sub_image_info(layer, mip_level),
                     ),
                 ),
                 (
-                    1,
+                    render_taa_simple::SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_taa_resolved.get_sub_image_info(layer, mip_level),
                     ),
@@ -607,36 +590,31 @@ impl RenderContext_CompositeGBuffer {
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources<'a>,
-        texture_taa_resolved: &TextureData,
-        texture_taa_resolved_prev: &TextureData,
+        texture_ssao_resolved: &TextureData,
+        texture_ssao_resolved_prev: &TextureData,
+        texture_ssr_resolved: &TextureData,
+        texture_ssr_resolved_prev: &TextureData,
     ) {
-        let render_copy_material_instance = engine_resources
-            .get_material_instance_data("common/composite_gbuffer")
-            .borrow();
-        let pipeline_binding_data =
-            render_copy_material_instance.get_default_pipeline_binding_data();
-        let descriptor_binding_index: usize = 12;
-        self._descriptor_sets0 = utility::create_descriptor_sets(
+        let render_copy_material_instance = engine_resources.get_material_instance_data("common/composite_gbuffer").borrow();
+        let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
+        // ssao, ssr
+        self._descriptor_sets0 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
-            &[(
-                descriptor_binding_index,
-                utility::create_descriptor_image_info_swapchain_array(
-                    texture_taa_resolved.get_default_image_info(),
-                ),
-            )],
+            &[
+                (composite_gbuffer::SEMANTIC_TEXTURE_SSAO.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssao_resolved.get_default_image_info())),
+                (composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_default_image_info()))
+            ],
         );
-        self._descriptor_sets1 = utility::create_descriptor_sets(
+        self._descriptor_sets1 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
-            &[(
-                descriptor_binding_index,
-                utility::create_descriptor_image_info_swapchain_array(
-                    texture_taa_resolved_prev.get_default_image_info(),
-                ),
-            )],
+            &[
+                (composite_gbuffer::SEMANTIC_TEXTURE_SSAO.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssao_resolved_prev.get_default_image_info())),
+                (composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved_prev.get_default_image_info()))
+            ],
         );
     }
 
@@ -747,22 +725,13 @@ impl<'a> RenderContext_LightProbe<'a> {
                 .get_default_image_info()
                 .clone(),
         );
-        let render_atmosphere_pipeline_binding_data =
-            material_instance.get_pipeline_binding_data("render_atmosphere/default");
-        let composite_atmosphere_pipeline_binding_data =
-            material_instance.get_pipeline_binding_data("composite_atmosphere/default");
-        let downsampling_material_instance = engine_resources
-            .get_material_instance_data("common/downsampling")
-            .borrow();
-        let downsampling_pipeline_binding_data =
-            downsampling_material_instance.get_default_pipeline_binding_data();
-        let copy_cube_map_material_instance = engine_resources
-            .get_material_instance_data("common/copy_cube_map")
-            .borrow();
-        let copy_cube_map_pipeline_binding_data =
-            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/copy");
-        let blend_cube_map_pipeline_binding_data =
-            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
+        let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
+        let composite_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
+        let downsampling_material_instance = engine_resources.get_material_instance_data("common/downsampling").borrow();
+        let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+        let copy_cube_map_material_instance = engine_resources .get_material_instance_data("common/copy_cube_map").borrow();
+        let copy_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/copy");
+        let blend_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
 
         self._next_refresh_time = 0.0;
         self._light_probe_blend_time = 0.0;
@@ -800,18 +769,13 @@ impl<'a> RenderContext_LightProbe<'a> {
                     &[],
                 ));
             self._render_atmosphere_descriptor_sets
-                .push(utility::create_descriptor_sets(
+                .push(utility::create_descriptor_sets_by_semantic(
                     device,
                     debug_utils_device,
                     render_atmosphere_pipeline_binding_data,
                     &[
-                        (
-                            1,
-                            light_probe_view_constants[i]
-                                ._descriptor_buffer_infos
-                                .clone(),
-                        ),
-                        (5, utility::create_swapchain_array(texture_depth.clone())),
+                        (String::from("VIEW_CONSTANTS"), light_probe_view_constants[i]._descriptor_buffer_infos.clone()),
+                        (String::from("TEXTURE_DEPTH"), utility::create_swapchain_array(texture_depth.clone())),
                     ],
                 ));
 
@@ -867,30 +831,15 @@ impl<'a> RenderContext_LightProbe<'a> {
                         .clone(),
                 );
             self._composite_atmosphere_descriptor_sets
-                .push(utility::create_descriptor_sets(
+                .push(utility::create_descriptor_sets_by_semantic(
                     device,
                     debug_utils_device,
                     composite_atmosphere_pipeline_binding_data,
                     &[
-                        (
-                            1,
-                            light_probe_view_constants[i]
-                                ._descriptor_buffer_infos
-                                .clone(),
-                        ),
-                        (5, utility::create_swapchain_array(texture_depth.clone())),
-                        (
-                            15,
-                            utility::create_swapchain_array(
-                                light_probe_atmosphere_color_image_info.clone(),
-                            ),
-                        ),
-                        (
-                            16,
-                            utility::create_swapchain_array(
-                                light_probe_atmosphere_inscatter_image_info.clone(),
-                            ),
-                        ),
+                        (String::from("VIEW_CONSTANTS"), light_probe_view_constants[i] ._descriptor_buffer_infos.clone()),
+                        (String::from("TEXTURE_DEPTH"), utility::create_swapchain_array(texture_depth.clone())),
+                        (String::from("TEXTURE_ATMOSPHERE"), utility::create_swapchain_array(light_probe_atmosphere_color_image_info.clone())),
+                        (String::from("TEXTURE_INSCATTER"), utility::create_swapchain_array(light_probe_atmosphere_inscatter_image_info.clone())),
                     ],
                 ));
 
@@ -898,22 +847,21 @@ impl<'a> RenderContext_LightProbe<'a> {
             self._only_sky_downsampling_descriptor_sets.push(Vec::new());
             let downsampling_count: u32 = light_probe_color_only_sky._image_mip_levels - 1;
             for mip_level in 0..downsampling_count {
-                let descriptor_sets = utility::create_descriptor_sets(
+                let descriptor_sets = utility::create_descriptor_sets_by_semantic(
                     device,
                     debug_utils_device,
                     downsampling_pipeline_binding_data,
                     &[
                         (
-                            0,
+                            downsampling::SEMANTIC_IMAGE_INPUT.to_string(),
                             utility::create_descriptor_image_info_swapchain_array(
                                 light_probe_color_only_sky.get_sub_image_info(i as u32, mip_level),
                             ),
                         ),
                         (
-                            1,
+                            downsampling::SEMANTIC_IMAGE_OUTPUT.to_string(),
                             utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_only_sky
-                                    .get_sub_image_info(i as u32, mip_level + 1),
+                                light_probe_color_only_sky.get_sub_image_info(i as u32, mip_level + 1),
                             ),
                         ),
                     ],
@@ -929,19 +877,19 @@ impl<'a> RenderContext_LightProbe<'a> {
                 .push(Vec::new());
             let downsampling_count: u32 = light_probe_color_forward._image_mip_levels - 1;
             for mip_level in 0..downsampling_count {
-                let descriptor_sets = utility::create_descriptor_sets(
+                let descriptor_sets = utility::create_descriptor_sets_by_semantic(
                     device,
                     debug_utils_device,
                     downsampling_pipeline_binding_data,
                     &[
                         (
-                            0,
+                            downsampling::SEMANTIC_IMAGE_INPUT.to_string(),
                             utility::create_descriptor_image_info_swapchain_array(
                                 light_probe_color_forward.get_sub_image_info(i as u32, mip_level),
                             ),
                         ),
                         (
-                            1,
+                            downsampling::SEMANTIC_IMAGE_OUTPUT.to_string(),
                             utility::create_descriptor_image_info_swapchain_array(
                                 light_probe_color_forward
                                     .get_sub_image_info(i as u32, mip_level + 1),
@@ -958,62 +906,57 @@ impl<'a> RenderContext_LightProbe<'a> {
             // copy cube map, blend cube map
             let image_mip_levels: u32 = light_probe_color_forward._image_mip_levels;
             for mip_level in 0..image_mip_levels {
-                let mut light_probe_blend_from_only_sky_descriptor_resource_infos: SwapchainArray<
-                    (usize, SwapchainArray<DescriptorResourceInfo>),
-                > = SwapchainArray::new();
-                let mut light_probe_blend_from_forward_descriptor_resource_infos: SwapchainArray<
-                    (usize, SwapchainArray<DescriptorResourceInfo>),
-                > = SwapchainArray::new();
-                let mut only_sky_copy_descriptor_resource_infos: SwapchainArray<(
-                    usize,
-                    SwapchainArray<DescriptorResourceInfo>,
-                )> = SwapchainArray::new();
-                let mut light_probe_forward_copy_descriptor_resource_infos: SwapchainArray<(
-                    usize,
-                    SwapchainArray<DescriptorResourceInfo>,
-                )> = SwapchainArray::new();
+                let mut only_sky_copy_descriptor_resource_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> = SwapchainArray::new();
+                let mut light_probe_forward_copy_descriptor_resource_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> = SwapchainArray::new();
+                let mut light_probe_blend_from_only_sky_descriptor_resource_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> = SwapchainArray::new();
+                let mut light_probe_blend_from_forward_descriptor_resource_infos: SwapchainArray<DescriptorResourceInfoBySemantic<'a>> = SwapchainArray::new();
+                for layer in 0..6 {
+                    only_sky_copy_descriptor_resource_infos.push(
+                        (format!("IMAGE_INPUT_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_forward_copy_descriptor_resource_infos.push(
+                        (format!("IMAGE_INPUT_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_blend_from_only_sky_descriptor_resource_infos.push(
+                        (format!("IMAGE_INPUT_0_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky_prev.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_blend_from_forward_descriptor_resource_infos.push(
+                        (format!("IMAGE_INPUT_0_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward_prev.get_sub_image_info(layer, mip_level)))
+                    );
+                }
+                for layer in 0..6 {
+                    only_sky_copy_descriptor_resource_infos.push(
+                        (format!("IMAGE_OUTPUT_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky_prev.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_forward_copy_descriptor_resource_infos.push(
+                        (format!("IMAGE_OUTPUT_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward_prev.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_blend_from_only_sky_descriptor_resource_infos.push(
+                        (format!("IMAGE_INPUT_1_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_only_sky.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_blend_from_forward_descriptor_resource_infos.push(
+                        (format!("IMAGE_INPUT_1_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color_forward.get_sub_image_info(layer, mip_level)))
+                    );
+                }
+                for layer in 0..6 {
+                    light_probe_blend_from_only_sky_descriptor_resource_infos.push(
+                        (format!("IMAGE_OUTPUT_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color.get_sub_image_info(layer, mip_level)))
+                    );
+                    light_probe_blend_from_forward_descriptor_resource_infos.push(
+                        (format!("IMAGE_OUTPUT_{}", layer), utility::create_descriptor_image_info_swapchain_array(light_probe_color.get_sub_image_info(layer, mip_level)))
+                    );
+                }
 
                 // copy cube map
-                for binding_index in 0..12usize {
-                    let layer = (binding_index % 6) as u32;
-                    if binding_index < 6 {
-                        only_sky_copy_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_only_sky.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                        light_probe_forward_copy_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_forward.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                    } else {
-                        only_sky_copy_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_only_sky_prev
-                                    .get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                        light_probe_forward_copy_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_forward_prev.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                    }
-                }
                 self._only_sky_copy_descriptor_sets
-                    .push(utility::create_descriptor_sets(
+                    .push(utility::create_descriptor_sets_by_semantic(
                         device,
                         debug_utils_device,
                         copy_cube_map_pipeline_binding_data,
                         &only_sky_copy_descriptor_resource_infos,
                     ));
                 self._light_probe_forward_copy_descriptor_sets.push(
-                    utility::create_descriptor_sets(
+                    utility::create_descriptor_sets_by_semantic(
                         device,
                         debug_utils_device,
                         copy_cube_map_pipeline_binding_data,
@@ -1022,52 +965,8 @@ impl<'a> RenderContext_LightProbe<'a> {
                 );
 
                 // blend cube map
-                for binding_index in 0..18usize {
-                    let layer = (binding_index % 6) as u32;
-                    if binding_index < 6 {
-                        light_probe_blend_from_only_sky_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_only_sky_prev
-                                    .get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                        light_probe_blend_from_forward_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_forward_prev.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                    } else if binding_index < 12 {
-                        light_probe_blend_from_only_sky_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_only_sky.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                        light_probe_blend_from_forward_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color_forward.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                    } else {
-                        light_probe_blend_from_only_sky_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                        light_probe_blend_from_forward_descriptor_resource_infos.push((
-                            binding_index,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                light_probe_color.get_sub_image_info(layer, mip_level),
-                            ),
-                        ));
-                    }
-                }
                 self._light_probe_blend_from_only_sky_descriptor_sets.push(
-                    utility::create_descriptor_sets(
+                    utility::create_descriptor_sets_by_semantic(
                         device,
                         debug_utils_device,
                         blend_cube_map_pipeline_binding_data,
@@ -1075,7 +974,7 @@ impl<'a> RenderContext_LightProbe<'a> {
                     ),
                 );
                 self._light_probe_blend_from_forward_descriptor_sets.push(
-                    utility::create_descriptor_sets(
+                    utility::create_descriptor_sets_by_semantic(
                         device,
                         debug_utils_device,
                         blend_cube_map_pipeline_binding_data,

@@ -2,7 +2,8 @@ use std::cmp::max;
 use std::num::Wrapping;
 
 use ash::{Device, vk};
-
+use crate::render_pass::common::downsampling;
+use crate::render_pass::fft_ocean::render_fft_waves;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_context::RendererContext;
@@ -364,15 +365,12 @@ impl<'a> FFTOcean<'a> {
 
         // fft waves
         let mip_level = 0;
-        let material_instance = engine_resources
-            .get_material_instance_data("fft_ocean/render_fft_ocean")
-            .borrow();
+        let material_instance = engine_resources.get_material_instance_data("fft_ocean/render_fft_ocean").borrow();
         let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
         let texture_fft_b = renderer_data.get_render_target(RenderTargetType::FFT_B);
 
         // fft wave x
-        let pipeline_binding_data =
-            material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
+        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
         self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(
             device,
             debug_utils_device,
@@ -389,24 +387,23 @@ impl<'a> FFTOcean<'a> {
             mip_level,
             None,
         );
-        let fft_waves_descriptor_binding_index = 1;
-        self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets(
+        self._fft_wave_x_fft_a_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
             &[(
-                fft_waves_descriptor_binding_index,
+                render_fft_waves::SEMANTIC_FFT_WAVES_DESCRIPTOR.to_string(),
                 utility::create_descriptor_image_info_swapchain_array(
                     texture_fft_a.get_default_image_info(),
                 ),
             )],
         );
-        self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets(
+        self._fft_wave_x_fft_b_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
             &[(
-                fft_waves_descriptor_binding_index,
+                render_fft_waves::SEMANTIC_FFT_WAVES_DESCRIPTOR.to_string(),
                 utility::create_descriptor_image_info_swapchain_array(
                     texture_fft_b.get_default_image_info(),
                 ),
@@ -432,23 +429,23 @@ impl<'a> FFTOcean<'a> {
             mip_level,
             None,
         );
-        self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets(
+        self._fft_wave_y_fft_a_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
             &[(
-                fft_waves_descriptor_binding_index,
+                render_fft_waves::SEMANTIC_FFT_WAVES_DESCRIPTOR.to_string(),
                 utility::create_descriptor_image_info_swapchain_array(
                     texture_fft_a.get_default_image_info(),
                 ),
             )],
         );
-        self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets(
+        self._fft_wave_y_fft_b_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
             &[(
-                fft_waves_descriptor_binding_index,
+                render_fft_waves::SEMANTIC_FFT_WAVES_DESCRIPTOR.to_string(),
                 utility::create_descriptor_image_info_swapchain_array(
                     texture_fft_b.get_default_image_info(),
                 ),
@@ -466,23 +463,13 @@ impl<'a> FFTOcean<'a> {
         for layer in 0..layer_count {
             self._fft_a_generate_mips_descriptor_sets.push(Vec::new());
             for mip_level in 0..dispatch_count {
-                let descriptor_sets = utility::create_descriptor_sets(
+                let descriptor_sets = utility::create_descriptor_sets_by_semantic(
                     device,
                     debug_utils_device,
                     pipeline_binding_data,
                     &[
-                        (
-                            0,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                texture_fft_a.get_sub_image_info(layer, mip_level),
-                            ),
-                        ),
-                        (
-                            1,
-                            utility::create_descriptor_image_info_swapchain_array(
-                                texture_fft_a.get_sub_image_info(layer, mip_level + 1),
-                            ),
-                        ),
+                        (downsampling::SEMANTIC_IMAGE_INPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_sub_image_info(layer, mip_level))),
+                        (downsampling::SEMANTIC_IMAGE_OUTPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_sub_image_info(layer, mip_level + 1)))
                     ],
                 );
                 self._fft_a_generate_mips_descriptor_sets

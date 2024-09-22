@@ -15,6 +15,9 @@ use crate::renderer::push_constants::PushConstant_RenderCopy;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
+pub const SEMANTIC_IMAGE_INPUT: &str = "IMAGE_INPUT";
+pub const SEMANTIC_IMAGE_OUTPUT: &str = "IMAGE_OUTPUT";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
@@ -96,6 +99,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
             _descriptor_data_create_infos: vec![
                 DescriptorDataCreateInfo {
+                    _descriptor_semantic: SEMANTIC_IMAGE_INPUT.to_string(),
                     _descriptor_binding_index: 0,
                     _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
                     _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,
@@ -104,6 +108,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
+                    _descriptor_semantic: SEMANTIC_IMAGE_OUTPUT.to_string(),
                     _descriptor_binding_index: 1,
                     _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
                     _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,

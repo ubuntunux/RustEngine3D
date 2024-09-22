@@ -8,6 +8,9 @@ use ash::vk;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 
+pub const SEMANTIC_IMAGE_INPUT: &str = "IMAGE_INPUT";
+pub const SEMANTIC_IMAGE_OUTPUT: &str = "IMAGE_OUTPUT";
+
 pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("downsampling");
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
@@ -16,6 +19,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
         _pipeline_bind_point: vk::PipelineBindPoint::COMPUTE,
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_IMAGE_INPUT.to_string(),
                 _descriptor_binding_index: 0,
                 _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                 _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,
@@ -24,6 +28,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_IMAGE_OUTPUT.to_string(),
                 _descriptor_binding_index: 1,
                 _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                 _descriptor_resource_type: DescriptorResourceType::StorageRenderTarget,

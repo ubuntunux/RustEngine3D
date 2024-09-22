@@ -4,6 +4,7 @@
 #include "scene_constants.glsl"
 #include "PCFKernels.glsl"
 #include "utility.glsl"
+#include "../precomputed_atmosphere/atmosphere_predefined.glsl"
 
 float get_shadow_factor_func(
     const float time,
@@ -266,7 +267,8 @@ vec4 surface_shading(
     const in vec3 vertexNormal,
     const in vec3 N,
     const in vec3 V,
-    const in float depth
+    const in float depth,
+    const in bool IS_COMBINED_SHADOW
 )
 {
     const vec3 L = normalize(-light_constants.LIGHT_DIRECTION);
@@ -322,15 +324,20 @@ vec4 surface_shading(
     vec3 F0 = mix(vec3(max(0.04, reflectance)), base_color.xyz, metallic);
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
-    vec3 shadow_factor = vec3(get_shadow_factor(
-        scene_constants.TIME,
-        ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
-        world_position,
-        light_constants.SHADOW_VIEW_PROJECTION,
-        light_constants.SHADOW_SAMPLES,
-        0.0,
-        texture_shadow
-    ));
+    vec3 shadow_factor = vec3(ssao_factor);
+
+    if(!IS_COMBINED_SHADOW) {
+        shadow_factor *= get_shadow_factor(
+            scene_constants.TIME,
+            ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
+            world_position,
+            light_constants.SHADOW_VIEW_PROJECTION,
+            light_constants.SHADOW_SAMPLES,
+            0.0,
+            texture_shadow
+        );
+    }
+
 
     float sky_visibility = get_shadow_factor(
         scene_constants.TIME,
@@ -435,13 +442,6 @@ vec4 surface_shading(
     // final result
     result = diffuse_light * base_color * (1.0 - max(reflectance, metallic));
     result += mix(specular_light, specular_light * F0, vec3(max(reflectance, metallic)));
-
-    // SSAO
-    //if(RENDER_SSAO)
-    {
-        result *= ssao_factor;
-    }
-
     return vec4(max(vec3(0.0), result), opacity);
 }
 

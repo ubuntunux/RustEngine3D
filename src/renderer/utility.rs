@@ -10,6 +10,8 @@ use crate::vulkan_context::render_pass::RenderPassData;
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
+pub type DescriptorResourceInfoBySemantic<'a> = (String, SwapchainArray<DescriptorResourceInfo<'a>>);
+
 pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
     vec![a; constants::SWAPCHAIN_IMAGE_COUNT]
 }
@@ -107,11 +109,11 @@ pub fn create_framebuffer_2d_array<'a>(
     )
 }
 
-pub fn create_descriptor_sets(
+pub fn create_descriptor_sets_by_semantic<'a>(
     device: &Device,
     debug_utils_device: &ext::debug_utils::Device,
     pipeline_binding_data: &PipelineBindingData,
-    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
+    descriptor_resource_infos_by_semantic: &[DescriptorResourceInfoBySemantic<'a>],
 ) -> SwapchainArray<vk::DescriptorSet> {
     let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
     let descriptor_data = &pipeline_data._descriptor_data;
@@ -120,15 +122,12 @@ pub fn create_descriptor_sets(
         .iter()
         .map(|descriptor_data_create_info| descriptor_data_create_info._descriptor_binding_index)
         .collect();
-    let mut new_descriptor_resource_infos_list = pipeline_binding_data
-        ._descriptor_resource_infos_list
-        .clone();
-    for (descriptor_binding_index, descriptor_resource_infos) in descriptor_resource_infos_list {
-        for (index, binding_index) in descriptor_binding_indices.iter().enumerate() {
-            if (*binding_index) as usize == (*descriptor_binding_index) {
+    let mut new_descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+    for (descriptor_semantic, descriptor_resource_infos) in descriptor_resource_infos_by_semantic {
+        for (index, descriptor_data_create_info) in descriptor_data._descriptor_data_create_infos.iter().enumerate() {
+            if descriptor_data_create_info._descriptor_semantic.eq(descriptor_semantic) {
                 for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                    new_descriptor_resource_infos_list[*swapchain_index][index] =
-                        descriptor_resource_infos[*swapchain_index].clone();
+                    new_descriptor_resource_infos_list[*swapchain_index][index] = descriptor_resource_infos[*swapchain_index].clone();
                 }
             }
         }
@@ -158,7 +157,7 @@ pub fn create_framebuffer_and_descriptor_sets<'a>(
     render_target_layer: u32,
     render_target_miplevel: u32,
     clear_value: Option<vk::ClearValue>,
-    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
+    descriptor_resource_infos_by_semantic: &[DescriptorResourceInfoBySemantic<'a>],
 ) -> (FramebufferData<'a>, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffer(
         device,
@@ -169,11 +168,11 @@ pub fn create_framebuffer_and_descriptor_sets<'a>(
         render_target_miplevel,
         clear_value,
     );
-    let descriptor_sets = create_descriptor_sets(
+    let descriptor_sets = create_descriptor_sets_by_semantic(
         device,
         debug_utils_device,
         pipeline_binding_data,
-        descriptor_resource_infos_list,
+        descriptor_resource_infos_by_semantic
     );
     (framebuffer_data, descriptor_sets)
 }
@@ -186,7 +185,7 @@ pub fn create_framebuffers_and_descriptor_sets<'a>(
     color_render_targets: &[RenderTargetInfo],
     depth_render_targets: &[RenderTargetInfo],
     resolve_render_targets: &[RenderTargetInfo],
-    descriptor_resource_infos_list: &[(usize, SwapchainArray<DescriptorResourceInfo>)],
+    descriptor_resource_infos_by_semantic: &[DescriptorResourceInfoBySemantic<'a>],
 ) -> (FramebufferData<'a>, SwapchainArray<vk::DescriptorSet>) {
     let framebuffer_data = create_framebuffers(
         device,
@@ -197,11 +196,11 @@ pub fn create_framebuffers_and_descriptor_sets<'a>(
         depth_render_targets,
         resolve_render_targets,
     );
-    let descriptor_sets = create_descriptor_sets(
+    let descriptor_sets = create_descriptor_sets_by_semantic(
         device,
         debug_utils_device,
         pipeline_binding_data,
-        descriptor_resource_infos_list,
+        descriptor_resource_infos_by_semantic,
     );
     (framebuffer_data, descriptor_sets)
 }
@@ -222,7 +221,7 @@ pub fn find_exactly_matching_memory_type_index(
     }
 
     // Otherwise find a memory flag that works
-    return find_memory_type_index(memory_requirements, memory_properties, flags);
+    find_memory_type_index(memory_requirements, memory_properties, flags)
 }
 
 pub fn find_memory_type_index(

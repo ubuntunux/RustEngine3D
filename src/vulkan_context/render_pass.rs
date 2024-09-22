@@ -54,10 +54,10 @@ impl Default for RenderPassDataCreateInfo {
 }
 
 impl RenderPassDataCreateInfo {
-    pub fn get_pipeline_data_create_info_clone(&self, key: &str) -> PipelineDataCreateInfo {
+    pub fn get_pipeline_data_create_info(&self, key: &str) -> &PipelineDataCreateInfo {
         for pipeline_data_create_info in self._pipeline_data_create_infos.iter() {
             if key == pipeline_data_create_info._pipeline_data_create_info_name {
-                return pipeline_data_create_info.clone();
+                return pipeline_data_create_info;
             }
         }
         panic!("Not found pipeline_data_create_info: {:?}", key)
@@ -124,11 +124,21 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_color_blend_modes: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions:
-                VertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_data_list: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
+    }
+}
+
+impl PipelineDataCreateInfo {
+    pub fn get_descriptor_binding_index(&self, descriptor_name: &str) -> u32 {
+        for descriptor_data_create_info in self._descriptor_data_create_infos.iter() {
+            if descriptor_data_create_info._descriptor_name == descriptor_name {
+                return descriptor_data_create_info._descriptor_binding_index;
+            }
+        }
+        panic!("Not found descriptor_binding_index: {:?}", descriptor_name);
     }
 }
 

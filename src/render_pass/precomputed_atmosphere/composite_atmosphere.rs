@@ -77,6 +77,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             VertexData::create_vertex_input_attribute_descriptions(),
         _descriptor_data_create_infos: vec![
             DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from("VIEW_CONSTANTS"),
                 _descriptor_binding_index: 1,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
@@ -92,6 +93,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from("TEXTURE_DEPTH"),
                 _descriptor_binding_index: 5,
                 _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
@@ -99,6 +101,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from("TEXTURE_ATMOSPHERE"),
                 _descriptor_binding_index: 15,
                 _descriptor_name: enum_to_string(
                     &RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED,
@@ -108,6 +111,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: String::from("TEXTURE_INSCATTER"),
                 _descriptor_binding_index: 16,
                 _descriptor_name: enum_to_string(
                     &RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER,

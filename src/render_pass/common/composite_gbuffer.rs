@@ -16,6 +16,10 @@ use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
+pub const SEMANTIC_TEXTURE_SSAO: &str = "TEXTURE_SSAO";
+pub const SEMANTIC_TEXTURE_SCENE_REFLECT: &str = "TEXTURE_SCENE_REFLECT";
+
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
@@ -139,8 +143,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_SSAO.to_string(),
                 _descriptor_binding_index: 8,
-                _descriptor_name: enum_to_string(&RenderTargetType::SSAO),
+                _descriptor_name: enum_to_string(&RenderTargetType::SSAOResolved),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
@@ -167,6 +172,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(),
                 _descriptor_binding_index: 12,
                 _descriptor_name: enum_to_string(&RenderTargetType::SSRResolved),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,

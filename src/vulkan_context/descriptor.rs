@@ -33,6 +33,7 @@ pub enum DescriptorResourceType {
 
 #[derive(Debug, Clone)]
 pub struct DescriptorDataCreateInfo {
+    pub _descriptor_semantic: String,
     pub _descriptor_binding_index: u32,
     pub _descriptor_name: String,
     pub _descriptor_resource_type: DescriptorResourceType,
@@ -44,6 +45,7 @@ pub struct DescriptorDataCreateInfo {
 impl Default for DescriptorDataCreateInfo {
     fn default() -> DescriptorDataCreateInfo {
         DescriptorDataCreateInfo {
+            _descriptor_semantic: String::new(),
             _descriptor_binding_index: 0,
             _descriptor_name: String::new(),
             _descriptor_resource_type: DescriptorResourceType::Texture,
