@@ -48,6 +48,23 @@ void main()
     vec4 m2 = vec4(0.0);
     float mWeight = 0.0;
 
+    vec2 inv_velocity_tex_size = 1.0 / textureSize(texture_velocity, 0).xy;
+    vec2 velocity = vec2(0.0, 0.0);
+    float greatestVelocity = -1.0f;
+    for(int vy = -1; vy <= 1; ++vy)
+    {
+        for(int vx = -1; vx <= 1; ++vx)
+        {
+            vec2 neighborVelocity = texture(texture_velocity, uv + vec2(vx, vy) * inv_velocity_tex_size).xy;
+            float neighborVelocityMag = dot(neighborVelocity, neighborVelocity).x;
+            if(dot(neighborVelocity, neighborVelocity) > greatestVelocity)
+            {
+                velocity = neighborVelocity;
+                greatestVelocity = neighborVelocityMag;
+            }
+        }
+    }
+
     vec2 texture_input_size = textureSize(texture_input, 0).xy;
     vec4 currColor = vec4(0.0);
 
@@ -82,7 +99,6 @@ void main()
     }
 
     // Anti Aliasing
-    vec2 velocity = textureLod(texture_velocity, uv, 0.0).xy;
     vec4 prevColor = textureLod(texture_resolve_prev, uv - velocity, 0.0);
     prevColor.w = saturate(prevColor.w);
 
