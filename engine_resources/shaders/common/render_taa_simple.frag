@@ -83,7 +83,7 @@ void main()
             }
 
             vec2 sampleDist = abs(sampleOffset);
-            float weight = Filter(sampleDist.x, FilterTypes_BSpline, 1.0, true) * Filter(sampleDist.y, FilterTypes_BSpline, 1.0, true);
+            float weight = Filter(sampleDist.x, FilterTypes_CatmullRom, 1.0, true) * Filter(sampleDist.y, FilterTypes_CatmullRom, 1.0, true);
             clrMin = min(clrMin, sampleColor);
             clrMax = max(clrMax, sampleColor);
 
