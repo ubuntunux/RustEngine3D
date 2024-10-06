@@ -17,6 +17,7 @@ use winit::raw_window_handle::HasDisplayHandle;
 use winit::window::Window;
 
 use crate::constants;
+use crate::core::engine_core::TimeData;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::image_sampler::{self, ImageSamplerData};
 use crate::renderer::push_constants::PushConstant;
@@ -1348,11 +1349,13 @@ impl<'a> RendererContext<'a> {
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
-        elapsed_time: f64,
         delta_time: f64,
-        elapsed_frame: u64,
+        time_data: &mut TimeData,
     ) {
         unsafe {
+            let elapsed_time = time_data._elapsed_time;
+            let elapsed_frame = time_data._elapsed_frame;
+
             // frame index
             let frame_index = self._frame_index as usize;
             let frame_fence = self._frame_fences[frame_index];
@@ -1368,8 +1371,7 @@ impl<'a> RendererContext<'a> {
                     vk::Fence::null(),
                 );
 
-            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok()
-            {
+            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok() {
                 acquire_next_image_result.unwrap()
             } else {
                 (self._swapchain_index, true)
@@ -1415,12 +1417,16 @@ impl<'a> RendererContext<'a> {
                 if self.is_first_rendering() {
                     self.set_is_first_rendering(false);
                 }
+
+                let present_time = time_data.get_current_time();
                 let present_swapchain_result = self.present_swapchain(
                     &[command_buffer],
                     frame_fence,
                     image_available_semaphore,
                     render_finished_semaphore,
                 );
+                time_data._acc_present_time += time_data.get_current_time() - present_time;
+
                 match present_swapchain_result {
                     Ok(is_swapchain_suboptimal) => {
                         if is_swapchain_suboptimal {
@@ -1444,9 +1450,7 @@ impl<'a> RendererContext<'a> {
                 log::error!("present swapchain result: {:?}", present_result);
             }
 
-            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result
-                || vk::Result::SUBOPTIMAL_KHR == present_result
-            {
+            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
                 self.set_need_recreate_swapchain(true);
             }
 

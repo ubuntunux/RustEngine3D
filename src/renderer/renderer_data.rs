@@ -966,7 +966,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 "render_text",
             );
             let render_text_info = RenderTextInfo {
-                _render_font_size: 12,
+                _render_font_size: 16,
                 _initial_column: 0,
                 _initial_row: 0,
                 _render_text_offset: Vector2::new(10.0, 10.0),

@@ -34,33 +34,46 @@ pub enum WindowMode {
 
 #[derive(Debug, Clone)]
 pub struct TimeData {
+    pub _time_instance: time::Instant,
+    pub _current_time: f64,
     pub _acc_frame_time: f64,
+    pub _acc_render_time: f64,
+    pub _acc_present_time: f64,
     pub _acc_frame_count: i32,
-    pub _elapsed_frame: u64,
     pub _average_frame_time: f64,
     pub _average_fps: f64,
-    pub _current_time: f64,
+    pub _average_render_time: f64,
+    pub _average_present_time: f64,
+    pub _elapsed_frame: u64,
     pub _elapsed_time_prev: f64,
     pub _elapsed_time: f64,
     pub _delta_time: f64,
 }
 
-pub fn create_time_data(elapsed_time: f64) -> TimeData {
+pub fn create_time_data() -> TimeData {
+    let time_instance = time::Instant::now();
+    let current_time = time_instance.elapsed().as_secs_f64();
     TimeData {
+        _time_instance: time_instance,
+        _current_time: current_time,
         _acc_frame_time: 0.0,
+        _acc_render_time: 0.0,
+        _acc_present_time: 0.0,
         _acc_frame_count: 0,
-        _elapsed_frame: 0,
         _average_frame_time: 0.0,
         _average_fps: 0.0,
+        _average_render_time: 0.0,
+        _average_present_time: 0.0,
+        _elapsed_frame: 0,
         _elapsed_time_prev: 0.0,
-        _current_time: elapsed_time,
         _elapsed_time: 0.0,
         _delta_time: 0.0,
     }
 }
 
 impl TimeData {
-    pub fn update_time_data(&mut self, current_time: f64) {
+    pub fn update_time_data(&mut self) {
+        let current_time = self._time_instance.elapsed().as_secs_f64();
         let previous_time = self._current_time;
         let delta_time = current_time - previous_time;
         self._elapsed_time_prev = self._elapsed_time;
@@ -75,13 +88,13 @@ impl TimeData {
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
             self._average_fps = average_fps;
+            self._average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
+            self._acc_render_time = 0.0;
+            self._average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
+            self._acc_present_time = 0.0;
 
             // debug text
-            let text_fps = format!(
-                "{:.2}fps / {:.3}ms",
-                self._average_fps, self._average_frame_time
-            );
-            log::info!("{}", text_fps);
+            log::info!("{}", format!("{:.2}fps / {:.3}ms", self._average_fps, self._average_frame_time));
         } else {
             self._acc_frame_time = acc_frame_time;
             self._acc_frame_count = acc_frame_count;
@@ -89,6 +102,10 @@ impl TimeData {
         self._current_time = current_time;
         self._elapsed_time = elapsed_time;
         self._delta_time = delta_time;
+    }
+
+    pub fn get_current_time(&self) -> f64 {
+        self._time_instance.elapsed().as_secs_f64()
     }
 }
 
@@ -186,7 +203,6 @@ impl<'a> EngineCore<'a> {
         ptr_as_mut(self._ui_manager.as_ref())
     }
     pub fn create_application(
-        elapsed_time: f64,
         app_name: &str,
         app_version: u32,
         window: &Window,
@@ -223,7 +239,7 @@ impl<'a> EngineCore<'a> {
             _window_size: window_size.into(),
             _is_grab_mode: false,
             _is_grab_mode_backup: false,
-            _time_data: create_time_data(elapsed_time),
+            _time_data: create_time_data(),
             _camera_move_speed: 1.0,
             _keyboard_input_data: keyboard_input_data,
             _mouse_move_data: mouse_move_data,
@@ -405,9 +421,7 @@ impl<'a> EngineCore<'a> {
         }
     }
 
-    pub fn update_event_and_render_scene(&mut self, current_time: f64) {
-        //std::thread::sleep(time::Duration::from_millis(20));
-
+    pub fn update_event_and_render_scene(&mut self) {
         let engine_resource = ptr_as_ref(self._engine_resources.as_ref());
         let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
         let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
@@ -418,15 +432,12 @@ impl<'a> EngineCore<'a> {
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
         // update timer
-        self._time_data.update_time_data(current_time);
+        self._time_data.update_time_data();
 
         // update application event
         self.get_application_mut().update_event();
 
-        let elapsed_time = self._time_data._elapsed_time;
         let delta_time = self._time_data._delta_time;
-        let elapsed_frame = self._time_data._elapsed_frame;
-
         if renderer_context.get_need_recreate_swapchain() {
             #[cfg(not(target_os = "android"))]
             {
@@ -467,21 +478,23 @@ impl<'a> EngineCore<'a> {
                     &renderer_context.get_engine_resources(),
                 );
 
-                // render scene
-                renderer_context.render_scene(
-                    scene_manager,
-                    debug_line_manager,
-                    font_manager,
-                    ui_manager,
-                    elapsed_time,
-                    delta_time,
-                    elapsed_frame,
-                );
-
                 // debug text
                 font_manager.log(format!(
                     "{:.2}fps / {:.3}ms",
-                    self._time_data._average_fps, self._time_data._average_frame_time
+                    self._time_data._average_fps,
+                    self._time_data._average_frame_time
+                ));
+                font_manager.log(format!(
+                    "Game Time: {:.3}ms",
+                    self._time_data._average_frame_time - self._time_data._average_render_time
+                ));
+                font_manager.log(format!(
+                    "Render Time: {:.3}ms",
+                    self._time_data._average_render_time - self._time_data._average_present_time
+                ));
+                font_manager.log(format!(
+                    "Present Time: {:.3}ms",
+                    self._time_data._average_present_time
                 ));
                 font_manager.log(format!(
                     "StaticMesh: {:?}, Shadow: {:?}",
@@ -493,6 +506,18 @@ impl<'a> EngineCore<'a> {
                     scene_manager._skeletal_render_elements.len(),
                     scene_manager._skeletal_shadow_render_elements.len()
                 ));
+
+                // render scene
+                let render_time = self._time_data.get_current_time();
+                renderer_context.render_scene(
+                    scene_manager,
+                    debug_line_manager,
+                    font_manager,
+                    ui_manager,
+                    delta_time,
+                    &mut self._time_data,
+                );
+                self._time_data._acc_render_time += self._time_data.get_current_time() - render_time;
             }
         }
     }
@@ -516,7 +541,6 @@ pub fn run_application(
     sdl2::hint::set("SDL_JOYSTICK_THREAD", "1");
     let sdl = sdl2::init().expect("failed to sdl2::init");
 
-    let time_instance = time::Instant::now();
     let mut event_loop = EventLoop::new().unwrap();
 
     // show display infos
@@ -592,7 +616,6 @@ pub fn run_application(
     event_loop.run_on_demand(|event, window_target| {
         window_target.set_control_flow(ControlFlow::Poll);
 
-        let current_time = time_instance.elapsed().as_secs_f64();
         if need_initialize {
             if maybe_engine_core.is_some() {
                 let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
@@ -600,7 +623,6 @@ pub fn run_application(
             }
 
             let engine_core = EngineCore::create_application(
-                current_time,
                 app_name.as_str(),
                 app_version,
                 &window,
@@ -735,7 +757,7 @@ pub fn run_application(
             Event::AboutToWait => {
                 if run_application {
                     // update application
-                    engine_core.update_event_and_render_scene(current_time);
+                    engine_core.update_event_and_render_scene();
                 }
             },
             _ => {
