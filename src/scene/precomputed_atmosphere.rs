@@ -1529,7 +1529,7 @@ impl<'a> Atmosphere<'a> {
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,
-            "common/render_taa_simple",
+            "common/render_taa",
             DEFAULT_PIPELINE,
             quad_geometry_data,
             taa_framebuffer,

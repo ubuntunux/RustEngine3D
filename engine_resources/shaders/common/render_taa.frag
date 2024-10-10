@@ -111,19 +111,30 @@ vec3 Reproject(vec2 texCoord)
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
         vec2 inv_depth_tex_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
-        float closestDepth = 10.0f;
+        float closestDepth = view_constants.NEAR_FAR.y;
+        float average_depth = 0.0;
+        float depths[9];
+        vec2 velocities[9];
         for(int vy = -1; vy <= 1; ++vy)
         {
             for(int vx = -1; vx <= 1; ++vx)
             {
-                vec2 neighborVelocity = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
                 float neighborDepth = textureLod(texture_scene_depth, texCoord + vec2(vx, vy) * inv_depth_tex_size, 0.0).x;
                 neighborDepth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, neighborDepth);
-                if(neighborDepth < closestDepth)
-                {
-                    velocity = neighborVelocity;
-                    closestDepth = neighborDepth;
-                }
+                average_depth += neighborDepth / 9.0;
+                int index = (vy + 1) * 3 + (vx + 1);
+                depths[index] = neighborDepth;
+                velocities[index] = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
+            }
+        }
+
+        for(int i=0; i<9; ++i)
+        {
+            float depth_diff = abs(depths[i] - average_depth);
+            if(depth_diff < closestDepth)
+            {
+                velocity = velocities[i];
+                closestDepth = depth_diff;
             }
         }
     }
@@ -135,7 +146,7 @@ vec3 Reproject(vec2 texCoord)
             for(int vx = -1; vx <= 1; ++vx)
             {
                 vec2 neighborVelocity = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
-                float neighborVelocityMag = dot(neighborVelocity, neighborVelocity).x;
+                float neighborVelocityMag = dot(neighborVelocity, neighborVelocity);
                 if(dot(neighborVelocity, neighborVelocity) > greatestVelocity)
                 {
                     velocity = neighborVelocity;

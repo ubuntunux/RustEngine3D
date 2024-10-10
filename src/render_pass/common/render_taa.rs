@@ -15,6 +15,9 @@ use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
+pub const SEMANTIC_TEXTURE_INPUT: &str = "TEXTURE_INPUT";
+pub const SEMANTIC_TEXTURE_RESOLVE_PREV: &str = "TEXTURE_RESOLVE_PREV";
+
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
@@ -93,6 +96,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_INPUT.to_string(),
                 _descriptor_binding_index: 2,
                 _descriptor_name: enum_to_string(&RenderTargetType::SceneColor),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
@@ -101,6 +105,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
+                _descriptor_semantic: SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
                 _descriptor_binding_index: 3,
                 _descriptor_name: enum_to_string(&RenderTargetType::TAAResolve),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,

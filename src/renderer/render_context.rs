@@ -6,7 +6,7 @@ use nalgebra::{Vector3, Vector4};
 use rand;
 
 use crate::constants;
-use crate::render_pass::common::{composite_gbuffer, downsampling, generate_max_z, render_bloom, render_copy, render_gaussian_blur, render_taa_simple};
+use crate::render_pass::common::{composite_gbuffer, downsampling, generate_max_z, render_bloom, render_copy, render_gaussian_blur, render_taa};
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_data::SSAOConstants;
@@ -514,7 +514,7 @@ impl<'a> RenderContext_TAA_Simple<'a> {
         current_taa_resolved: RenderTargetType,
         previous_taa_resolved: RenderTargetType
     ) {
-        let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_taa_simple").borrow();
+        let render_copy_material_instance = engine_resources.get_material_instance_data("common/render_taa").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
         let layer: u32 = 0;
         let mip_level: u32 = 0;
@@ -528,13 +528,13 @@ impl<'a> RenderContext_TAA_Simple<'a> {
             None,
             &[
                 (
-                    render_taa_simple::SEMANTIC_TEXTURE_INPUT.to_string(),
+                    render_taa::SEMANTIC_TEXTURE_INPUT.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_ssr.get_sub_image_info(layer, mip_level),
                     ),
                 ),
                 (
-                    render_taa_simple::SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
+                    render_taa::SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_taa_resolved_prev.get_sub_image_info(layer, mip_level),
                     ),
@@ -551,13 +551,13 @@ impl<'a> RenderContext_TAA_Simple<'a> {
             None,
             &[
                 (
-                    render_taa_simple::SEMANTIC_TEXTURE_INPUT.to_string(),
+                    render_taa::SEMANTIC_TEXTURE_INPUT.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_ssr.get_sub_image_info(layer, mip_level),
                     ),
                 ),
                 (
-                    render_taa_simple::SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
+                    render_taa::SEMANTIC_TEXTURE_RESOLVE_PREV.to_string(),
                     utility::create_descriptor_image_info_swapchain_array(
                         texture_taa_resolved.get_sub_image_info(layer, mip_level),
                     ),
