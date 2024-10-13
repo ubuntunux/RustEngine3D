@@ -51,8 +51,7 @@ void main() {
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
     const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
     const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
-    const vec2 noise_size = textureSize(ssaoNoise, 0);
-    const vec3 randomVec = normalize(vec3(texture(ssaoNoise, texCoord).xy  * noise, 1.0).xzy);
+    const vec3 randomVec = normalize(texture(ssaoNoise, texCoord).xyz * 2.0 - 1.0);
 
     vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
     const vec3 bitangent = normalize(cross(normal, tangent));
@@ -66,7 +65,9 @@ void main() {
     for (int i = 0; i < sample_count; ++i)
     {
         const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, float(i) / float(sample_count - 1));
-        vec3 pos = (tnb * uboSSAOKernel._SSAO_KERNEL_SAPLES[i].xyz) * occlusion_distance + relative_pos.xyz;
+        float noise_radius = float(i + 1) / float(SSAO_KERNEL_SIZE);
+        vec3 ray = uboSSAOKernel._SSAO_KERNEL_SAPLES[i].xyz * vec3(noise_radius, 1.0, noise_radius);
+        vec3 pos = normalize(tnb * ray) * occlusion_distance + relative_pos.xyz;
 
         // project sample position:
         vec4 offset = vec4(pos, 1.0);
