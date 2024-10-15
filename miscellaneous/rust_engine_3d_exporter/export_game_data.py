@@ -257,9 +257,7 @@ class RustEngine3DExporter:
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             self.write_to_file('export model', model_info, export_model_filepath)
     
-    def export_scenes(self, asset, asset_info):
-        self.logger.info(f'export_scenes: {asset_info.asset_namepath}')
-        
+    def get_scene_data(self, asset):
         cameras = {}
         directional_lights = {}
         effects = {}
@@ -305,11 +303,14 @@ class RustEngine3DExporter:
                     self.logger.error(f'not implemented asset type {(child.name, child_asset_info.asset_type_name)}')
             else:
                 self.logger.error(f'not implemented object type {(child.name, child.type)}')
+        return scene_data
         
+    def export_scenes(self, asset, asset_info):
+        self.logger.info(f'export_scenes: {asset_info.asset_namepath}')
+        scene_data = self.get_scene_data(asset)
         export_filepath = asset_info.get_asset_filepath(self.resource_path, ".scene")
         self.write_to_file('export scene', scene_data, export_filepath)
         
-    # game data
     def set_game_data_asset_property(self, property_asset, key, game_data): 
         if property_asset and key in property_asset:
             child_asset = property_asset.get(key, None)
@@ -336,7 +337,7 @@ class RustEngine3DExporter:
         characters = {}
         blocks = {}
         game_data = {
-            "_scene_data_name": "",
+            "_scene": "",
             "_player": player,
             "_characters": characters,
             "_blocks": blocks,
@@ -344,14 +345,12 @@ class RustEngine3DExporter:
         }        
         for child_asset in asset.children:
             if '_scene' == child_asset.name:
-                for child_object in child_asset.objects:
-                    child_object_info = AssetInfo(child_object.instance_collection)
-                    game_data['_scene_data_name'] = child_object_info.asset_namepath
+                game_data['_scene'] = self.get_scene_data(child_asset)
             elif '_blocks' == child_asset.name:
                 for child_object in child_asset.objects:
                     child_object_info = AssetInfo(child_object.instance_collection)
                     blocks[child_object.name] = {
-                        "_block_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_block_data_name": child_object_info.asset_namepath,
                         "_position": self.convert_asset_location(child_object),
                         "_rotation": self.convert_asset_rotation(child_object),
                         "_scale": self.convert_asset_scale(child_object)
@@ -391,9 +390,7 @@ class RustEngine3DExporter:
             game_data = {}
             game_data_ext = '.data'
             game_data_type = tokens[2]
-            if 'blocks' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'block_properties')
-            elif 'characters' == game_data_type:
+            if 'characters' == game_data_type:
                 game_data = self.get_game_data(asset, asset_info, 'character_properties')
             elif 'foods' == game_data_type:
                 game_data = self.get_game_data(asset, asset_info, 'food_properties')

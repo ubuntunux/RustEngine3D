@@ -703,11 +703,7 @@ impl<'a> SceneManager<'a> {
 
     pub fn open_scene_data(&mut self, scene_data_name: &str) {
         self._scene_name = String::from(scene_data_name);
-
-        self.initialize_light_probe_cameras();
-
         let engine_resources = ptr_as_ref(self._engine_resources);
-
         if false == engine_resources.has_scene_data(scene_data_name) {
             self.create_default_scene_data(scene_data_name);
         }
@@ -715,6 +711,12 @@ impl<'a> SceneManager<'a> {
         let scene_data_create_info = engine_resources
             .get_scene_data(scene_data_name)
             .borrow();
+
+        self.create_scene_data(&scene_data_create_info);
+    }
+
+    pub fn create_scene_data(&mut self, scene_data_create_info: &SceneDataCreateInfo) {
+        self.initialize_light_probe_cameras();
 
         self._sea_height = scene_data_create_info._sea_height;
         self.get_renderer_data_mut()
