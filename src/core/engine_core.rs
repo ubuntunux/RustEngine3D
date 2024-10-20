@@ -94,7 +94,7 @@ impl TimeData {
             self._acc_present_time = 0.0;
 
             // debug text
-            log::info!("{}", format!("{:.2}fps / {:.3}ms", self._average_fps, self._average_frame_time));
+            // log::info!("{}", format!("{:.2}fps / {:.3}ms", self._average_fps, self._average_frame_time));
         } else {
             self._acc_frame_time = acc_frame_time;
             self._acc_frame_count = acc_frame_count;
