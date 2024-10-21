@@ -1,7 +1,7 @@
 {
     "pipelines": [{"render_pass": "render_ui", "pipeline": "render_ui"}],
     "material_parameters": {
-            "texture_font": "fonts/UbuntuSansMono-Bold_Basic_Lat2in",
+            "texture_font": "fonts/UbuntuSansMono-Bold_Basic_Latin",
             "texture_normal": "common/default"
     }
 }

@@ -1,4 +1,4 @@
 {
 "pipelines": [{"render_pass": "render_font", "pipeline": "render_font"}],
-"material_parameters": {"texture_font": "fonts/UbuntuSansMono-Bold_Basic_Lat2in"}
+"material_parameters": {"texture_font": "fonts/UbuntuSansMono-Bold_Basic_Latin"}
 }
