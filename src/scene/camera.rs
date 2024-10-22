@@ -185,15 +185,14 @@ impl CameraObjectData {
     }
 
     pub fn convert_world_to_screen(&self, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
-        let mut screen_pos =
-            math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
+        let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
         screen_pos.x *= self._window_size.x as f32;
         screen_pos.y *= self._window_size.y as f32;
         screen_pos
     }
 
     pub fn convert_screen_to_world(&self, screen_pos: &Vector2<i32>) -> Vector3<f32> {
-        const DEPTH: f32 = 0.0;
+        const DEPTH: f32 = 1.0;
         let ndc: Vector4<f32> = Vector4::new(
             (screen_pos.x as f32 / self._window_size.x as f32) * 2.0 - 1.0,
             (screen_pos.y as f32 / self._window_size.y as f32) * 2.0 - 1.0,
@@ -208,7 +207,7 @@ impl CameraObjectData {
     }
 
     pub fn convert_screen_to_relative_world(&self, screen_pos: &Vector2<i32>) -> Vector3<f32> {
-        const DEPTH: f32 = 0.0;
+        const DEPTH: f32 = 1.0;
         let ndc: Vector4<f32> = Vector4::new(
             (screen_pos.x as f32 / self._window_size.x as f32) * 2.0 - 1.0,
             (screen_pos.y as f32 / self._window_size.y as f32) * 2.0 - 1.0,
