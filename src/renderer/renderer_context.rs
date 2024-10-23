@@ -505,7 +505,10 @@ impl<'a> RendererContext<'a> {
         );
         self._ray_tracing_test_data = ray_tracing_test_data;
     }
-
+    pub fn destroy_ray_tracing_data(&mut self) {
+        let mut ray_tracing_test_data = RayTracingData::create_ray_tracing_data();
+        ray_tracing_test_data.destroy_ray_tracing_data(self.get_device(), self.get_ray_tracing());
+    }
     pub fn get_device_properties(&self) -> &vk::PhysicalDeviceProperties {
         &self._device_properties
     }
@@ -597,6 +600,9 @@ impl<'a> RendererContext<'a> {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
     }
     pub fn destroy_renderer_context(&mut self) {
+        if self.get_use_ray_tracing() {
+            self.destroy_ray_tracing_data();
+        }
         self.destroy_framebuffer_and_descriptors();
         self.destroy_uniform_buffers();
         self.destroy_image_samplers();

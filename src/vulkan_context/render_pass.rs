@@ -895,7 +895,6 @@ pub fn create_ray_tracing_pipeline_data<'a>(
         },
     ];
     let shader_group_count: u32 = shader_groups.len() as u32;
-
     let shader_create_infos = [
         create_shader_stage_create_info(
             device,
@@ -952,36 +951,17 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             pipeline.as_raw(),
         );
 
-        log::trace!(
-            "    create_ray_tracing_pipeline_data: {} ({:?})",
-            pipeline_data_create_info._pipeline_data_create_info_name,
-            pipeline
-        );
-        log::trace!(
-            "    shader defines: {:?}",
-            pipeline_data_create_info._pipeline_shader_defines
-        );
+        log::info!("    create_ray_tracing_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipeline);
+        log::info!("    shader defines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
         for shader_create_info in shader_create_infos {
-            log::trace!(
-                "    ray generation shader: {:#X} {:?}",
-                shader_create_info.module.as_raw(),
-                pipeline_data_create_info._pipeline_ray_generation_shader_file
-            );
-            log::trace!(
-                "    ray closet-hit shader: {:#X} {:?}",
-                shader_create_info.module.as_raw(),
-                pipeline_data_create_info._pipeline_ray_closet_hit_shader_file
-            );
-            log::trace!(
-                "    ray miss shader: {:#X} {:?}",
-                shader_create_info.module.as_raw(),
-                pipeline_data_create_info._pipeline_ray_miss_shader_file
-            );
+            log::info!("    ray generation shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_generation_shader_file);
+            log::info!("    ray closet-hit shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_closet_hit_shader_file);
+            log::info!("    ray miss shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_miss_shader_file);
         }
 
         // create shader binding table
-        let table_size =
-            (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
+        let table_size = (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
+        //let table_size = (ray_tracing_properties.shader_group_base_alignment * shader_group_count) as u64;
         let mut table_data: Vec<u8> = vec![0u8; table_size as usize];
         ray_tracing
             .get_ray_tracing_shader_group_handles(pipeline, 0, shader_group_count, &mut table_data)
@@ -993,9 +973,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             command_queue,
             device_memory_properties,
             debug_utils_device,
-            pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .as_str(),
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::BufferUsageFlags::TRANSFER_SRC,
             &table_data,
         );
@@ -1004,9 +982,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
         log::info!("    create_ray_tracing_pipeline_data.");
         log::info!("    CHECK :: do i need present_queue or graphics queue ??");
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .clone(),
+            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,
             _pipeline: pipeline,
             _pipeline_layout: pipeline_layout,

@@ -1720,6 +1720,7 @@ impl<'a> RendererData<'a> {
 
         if let Some(ref shader_binding_table) = pipeline_data._shader_binding_table {
             let handle_size = ray_tracing_properties.shader_group_handle_size as u64;
+            //let handle_size = ray_tracing_properties.shader_group_base_alignment as u64;
 
             // |[ raygen shader ]|[ hit shader  ]|[ miss shader ]|
             // |                 |               |               |
