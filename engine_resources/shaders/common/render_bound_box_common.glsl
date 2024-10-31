@@ -5,6 +5,7 @@ const uint MAX_BOUND_BOX_INSTANCE_COUNT = 1024;
 struct VERTEX_OUTPUT
 {
     vec4 color;
+    vec4 projection_pos;
 };
 
 struct BoundBoxInstanceData {
@@ -24,3 +25,4 @@ layout(binding = 2) buffer BoundBoxInstanceDataBuffer
 {
     BoundBoxInstanceData bound_box_instance_data[MAX_BOUND_BOX_INSTANCE_COUNT];
 };
+layout(binding = 3) uniform sampler2D texture_scene_depth;

@@ -21,5 +21,6 @@ void main() {
     vec3 relative_pos = (localMatrix * position).xyz;
 
     gl_Position = view_constants.VIEW_ORIGIN_PROJECTION * vec4(relative_pos, 1.0);
+    vs_output.projection_pos = gl_Position;
     vs_output.color = inColor;
 }

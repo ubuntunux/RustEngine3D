@@ -23,14 +23,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
             _target_mip_level: 0,
             _clear_value: None,
         }],
-        // TODO: fix to depth test in shader
-        // pCreateInfo->pAttachments[1] mip level 0 has width (1280) smaller than the corresponding framebuffer width (2560)
-        &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
-            _target_layer: 0,
-            _target_mip_level: 0,
-            _clear_value: None,
-        }],
+        &[],
         &[],
     )
 }
@@ -40,10 +33,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_color_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -55,22 +45,6 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ..Default::default()
         });
     }
-    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_depth_attachment_formats
-        .iter()
-    {
-        depth_attachment_descriptions.push(ImageAttachmentDescription {
-            _attachment_image_format: *format,
-            _attachment_image_samples: sample_count,
-            _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
-            _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-            _attachment_initial_layout: vk::ImageLayout::GENERAL,
-            _attachment_final_layout: vk::ImageLayout::GENERAL,
-            _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-            ..Default::default()
-        });
-    }
     let subpass_dependencies = vec![
         vk::SubpassDependency {
             src_subpass: vk::SUBPASS_EXTERNAL,
@@ -78,8 +52,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             src_access_mask: vk::AccessFlags::MEMORY_READ,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
         vk::SubpassDependency {
@@ -87,8 +60,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             dst_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dst_access_mask: vk::AccessFlags::MEMORY_READ,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
@@ -122,24 +94,28 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_binding_index: 0,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 1,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 2,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::BoundBoxInstanceDataBuffer),
                 _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 3,
+                _descriptor_name: enum_to_string(&RenderTargetType::SceneDepth),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             }
         ],
@@ -150,7 +126,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _render_pass_create_info_name: render_pass_name.clone(),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,
-        _depth_attachment_descriptions: depth_attachment_descriptions,
+        _depth_attachment_descriptions: Vec::new(),
         _resolve_attachment_descriptions: Vec::new(),
         _subpass_dependencies: subpass_dependencies,
         _pipeline_data_create_infos: pipeline_data_create_infos,
