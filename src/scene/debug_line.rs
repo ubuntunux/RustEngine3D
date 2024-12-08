@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::EngineResources;
-use crate::utilities::bounding_box::calc_bounding_box;
+use crate::scene::bounding_box::calc_bounding_box;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
 use crate::vulkan_context::vulkan_context::get_color32;

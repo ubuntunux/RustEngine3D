@@ -5,12 +5,15 @@ import time
 import json
 import math
 import shutil
+import sys
 import traceback
 
 import importlib
 import logging
 importlib.reload(logging)
 from logging.handlers import RotatingFileHandler
+
+from mathutils import Vector
 
 import bpy
 import bpy_extras
@@ -41,6 +44,20 @@ def create_logger(logger_name, log_dirname, level):
     stream_handler.setFormatter(formatter)
     file_handler.setFormatter(formatter)
     return logger
+
+
+def get_bound(collection):    
+    m = sys.float_info.min
+    M = sys.float_info.max
+    pos_min = Vector((M,M,M))
+    pos_max = Vector((m,m,m))
+    meshes = [obj for obj in collection.objects if obj.type == 'MESH']
+    for mesh in meshes:
+        for v in mesh.bound_box:
+            pos = mesh.matrix_world @ Vector(v)
+            pos_min = Vector([min(z) for z in zip(pos, pos_min)])
+            pos_max = Vector([max(z) for z in zip(pos, pos_max)])
+    return (pos_min, pos_max)
 
 
 class ResourceTypeInfo:
@@ -87,25 +104,34 @@ class RustEngine3DExporter:
         self.logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
         self.logger.info(f'>>> Begin Export Library: {library_name}')
     
+    def convert_axis(self, axis):
+        return [axis[0], axis[2], axis[1]]
+    
     def convert_asset_location(self, asset):
-        location = list(asset.location)
-        return [location[0], location[2], location[1]]
+        return self.convert_axis(list(asset.location))
     
     def convert_asset_rotation(self, asset, rx=0.0, ry=0.0, rz=0.0):
         rotation_euler = list(asset.rotation_euler)
-        return [
-            math.radians(rx) - rotation_euler[0], 
-            math.radians(rz) - rotation_euler[2], 
-            math.radians(ry) - rotation_euler[1]
-        ]
+        rotation_euler[0] = math.radians(rx) - rotation_euler[0]
+        rotation_euler[1] = math.radians(ry) - rotation_euler[1]
+        rotation_euler[2] = math.radians(rz) - rotation_euler[2]
+        return self.convert_axis(rotation_euler)
     
     def convert_asset_scale(self, asset):
-        scale = list(asset.scale)
-        return [scale[0], scale[2], scale[1]]
+        return self.convert_axis(list(asset.scale))
+    
+    def convert_asset_dimensions(self, asset):
+        return self.convert_axis(list(asset.dimensions))
     
     def convert_sun_color(self, asset):
         return [asset.data.energy * x for x in list(asset.data.color)]
     
+    def get_object_center(self, obj):
+        center = Vector((0,0,0))
+        for v in obj.bound_box:
+            center += obj.matrix_world @ Vector(v)
+        return center / 8
+
     def copy_file(self, title, src_filepath, dst_filepath):
         self.logger.info(f'{title}: {dst_filepath}')        
         try:
@@ -234,17 +260,46 @@ class RustEngine3DExporter:
             
             # material instance
             material_instances = self.export_material_instance(asset_info, mesh_collection)
-            
+                    
             # local transform object
             position = [0.0, 0.0, 0.0]
             rotation = [0.0, 0.0, 0.0]
             scale = [1.0, 1.0, 1.0]
-            for transform_object in asset.objects:
+            
+            # default bound
+            (pos_min, pos_max) = get_bound(mesh_collection)
+            
+            # bounding box
+            bounding_box = {
+                "_min": pos_min,
+                "_max": pos_max
+            }
+            
+            # collision
+            collision = {
+                "_collision_type": "NONE",
+                "_min": pos_min,
+                "_max": pos_max
+            }
+            
+            for obj in asset.objects:
+                if 'BOUNDS' == obj.display_type:
+                    pos_min = obj.location - obj.dimensions * 0.5
+                    pos_max = obj.location + obj.dimensions * 0.5                        
+                    if 'COLLISION' == obj.name:
+                        collision['_collision_type'] = obj.display_bounds_type
+                        collision['_min'] = self.convert_axis(pos_min)
+                        collision['_max'] = self.convert_axis(pos_max)
+                    elif 'BOUND_BOX' == obj.name:                        
+                        bounding_box['_min'] = self.convert_axis(pos_min)
+                        bounding_box['_max'] = self.convert_axis(pos_max)
+                    
                 # is a valid parent transform?
-                if [True for child in transform_object.children if child.name in mesh_data.objects]:
-                    position = self.convert_asset_location(transform_object)
-                    rotation = self.convert_asset_rotation(transform_object)
-                    scale = self.convert_asset_scale(transform_object)
+                if [True for child in obj.children if child.name in mesh_data.objects]:
+                    position = self.convert_asset_location(obj)
+                    rotation = self.convert_asset_rotation(obj)
+                    scale = self.convert_asset_scale(obj)
+                    
 
             # export model
             model_info = {
@@ -252,7 +307,9 @@ class RustEngine3DExporter:
                 "_position": position,
                 "_rotation": rotation,
                 "_scale": scale,
-                "_material_instances": material_instances
+                "_material_instances": material_instances,
+                "_bounding_box": bounding_box,
+                "_collision": collision
             }
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             self.write_to_file('export model', model_info, export_model_filepath)

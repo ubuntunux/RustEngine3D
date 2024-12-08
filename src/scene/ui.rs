@@ -19,7 +19,7 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
-use crate::utilities::bounding_box::calc_bounding_box;
+use crate::scene::bounding_box::calc_bounding_box;
 use crate::utilities::system::{self, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};

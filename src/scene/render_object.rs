@@ -4,7 +4,8 @@ use crate::scene::animation::{AnimationLayerData, AnimationBuffer, AnimationData
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
-use crate::utilities::bounding_box::BoundingBox;
+use crate::scene::bounding_box::BoundingBox;
+use crate::scene::collision::{CollisionData, CollisionType};
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -45,7 +46,8 @@ pub struct RenderObjectData<'a> {
     pub _mesh_data: RcRefCell<MeshData>,
     pub _model_data: RcRefCell<ModelData<'a>>,
     pub _push_constant_data_list_group: Vec<Vec<PipelinePushConstantData>>,
-    pub _bound_box: BoundingBox,
+    pub _collision: CollisionData,
+    pub _bounding_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _local_transform: Matrix4<f32>,
     pub _transform_object: TransformObjectData,
@@ -83,7 +85,6 @@ impl<'a> RenderObjectData<'a> {
             .collect();
 
         let mesh_data = model_data.borrow()._mesh_data.clone();
-        let bound_box = mesh_data.borrow()._bound_box.clone();
         let geometry_bound_boxes = mesh_data
             .borrow()
             ._geometry_data_list
@@ -98,7 +99,8 @@ impl<'a> RenderObjectData<'a> {
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
             _mesh_data: mesh_data.clone(),
-            _bound_box: bound_box,
+            _collision: model_data.borrow()._collision.clone(),
+            _bounding_box: mesh_data.borrow()._bound_box.clone(),
             _geometry_bound_boxes: geometry_bound_boxes,
             _local_transform: model_data.borrow()._local_transform.clone(),
             _transform_object: transform_object_data,
@@ -243,43 +245,23 @@ impl<'a> RenderObjectData<'a> {
         &self._animation_buffer.as_ref().unwrap()._animation_buffer
     }
 
-    pub fn update_bound_box(&mut self, matrix: &Matrix4<f32>) {
-        let mesh_bound_box = &self._mesh_data.borrow()._bound_box;
-        const UPDATE_BOUND_BOX_WITH_ANIMATION: bool = false;
-        if UPDATE_BOUND_BOX_WITH_ANIMATION && self.has_animation() {
-            let root_bone_index = 0;
-            let animated_bound_box = matrix * &self._animation_buffer.as_ref().unwrap()._animation_buffer[root_bone_index];
-            self._bound_box.update_with_matrix(mesh_bound_box, &animated_bound_box);
-        } else {
-            self._bound_box.update_with_matrix(mesh_bound_box, matrix);
-        }
-    }
-
-    pub fn update_geometry_bound_boxes(&mut self, transform_matrix: &Matrix4<f32>) {
-        for (i, geometry_data) in self
-            ._mesh_data
-            .borrow()
-            ._geometry_data_list
-            .iter()
-            .enumerate() {
-            self._geometry_bound_boxes
-                .get_mut(i)
-                .unwrap()
-                .update_with_matrix(
-                    &geometry_data.borrow()._geometry_bounding_box,
-                    transform_matrix
-                );
-        }
-    }
-
     pub fn update_render_object_data(&mut self, delta_time: f32) {
         self._prev_transform = self._final_transform.clone();
         if self._transform_object.update_transform_object() {
             self._final_transform = ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
-            self._bound_box.update_with_matrix(
+            // update bound box
+            self._bounding_box.update_with_matrix(
                 &self._mesh_data.borrow()._bound_box,
                 &self._final_transform
             );
+
+            // update collision
+            if self._collision._collision_type != CollisionType::NONE {
+                self._collision._bounding_box.update_with_matrix(
+                    &self._model_data.borrow()._collision._bounding_box,
+                    &self._final_transform
+                )
+            }
         }
 
         if self.has_animation() {
@@ -312,12 +294,10 @@ impl<'a> RenderObjectData<'a> {
                 }
 
                 // update additive animation
-                {
-                    let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::ActionLayer));
-                    if additive_animation.is_valid() /* && false == additive_animation._is_animation_end */ {
-                        let base_animation = ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
-                        base_animation.combine_additive_animation(additive_animation);
-                    }
+                let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::ActionLayer));
+                if additive_animation.is_valid() /* && false == additive_animation._is_animation_end */ {
+                    let base_animation = ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
+                    base_animation.combine_additive_animation(additive_animation);
                 }
 
                 // transform to matrix

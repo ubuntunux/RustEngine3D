@@ -36,9 +36,9 @@ impl BoundingBox {
             _center: center.clone(),
             _size: size.clone(),
             _radius: size.norm() * 0.5,
-            _transform: math::make_srt_transform(
+            _transform: math::combinate_matrix(
                 &center,
-                &Vector3::zeros(),
+                &Matrix4::identity(),
                 &(size * 0.5)
             )
         }

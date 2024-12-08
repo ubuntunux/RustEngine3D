@@ -1069,9 +1069,7 @@ impl<'a> EngineResources<'a> {
                 &model_name,
                 mesh_data.clone(),
                 material_instance_data_list,
-                &model_data_info._position,
-                &model_data_info._rotation,
-                &model_data_info._scale,
+                &model_data_info
             );
 
             self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));

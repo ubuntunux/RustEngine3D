@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::scene::animation::{
     AnimationData, AnimationNodeCreateInfo, SkeletonData, SkeletonDataCreateInfo,
 };
-use crate::utilities::bounding_box::BoundingBox;
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, GeometryData};
 

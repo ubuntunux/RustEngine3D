@@ -6,7 +6,7 @@ use nalgebra::{self, Vector2, Vector3};
 
 use crate::constants;
 use crate::scene::mesh::MeshDataCreateInfo;
-use crate::utilities::bounding_box::BoundingBox;
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system;
 use crate::vulkan_context::geometry_buffer::{self, GeometryCreateInfo, VertexData};
 use crate::vulkan_context::vulkan_context;
@@ -345,6 +345,7 @@ impl WaveFrontOBJ {
     // }
 
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
+        log::info!("WaveFrontOBJ: {:?}", filename);
         let mut obj = WaveFrontOBJ::initialize(filename);
         //obj.parse_using_library(filename);
         let texcoord_y = true;

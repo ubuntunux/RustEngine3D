@@ -13,7 +13,7 @@ use crate::scene::animation::{
     AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree,
 };
 use crate::scene::mesh::MeshDataCreateInfo;
-use crate::utilities::bounding_box::{self, BoundingBox};
+use crate::scene::bounding_box::{self, BoundingBox};
 use crate::utilities::math;
 use crate::utilities::xml::{self, XmlTree};
 use crate::vulkan_context::geometry_buffer::{
@@ -1313,6 +1313,7 @@ impl Collada {
     }
 
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
+        log::info!("Collada: {:?}", filename);
         let mut collada = Collada::create_collada(filename);
         let geometry_data_list = collada.get_geometry_data();
         let skeleton_data_list = collada.get_skeleton_data();

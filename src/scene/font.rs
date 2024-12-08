@@ -11,7 +11,7 @@ use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
 use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
-use crate::utilities::bounding_box::calc_bounding_box;
+use crate::scene::bounding_box::calc_bounding_box;
 use crate::utilities::system::{newRcRefCell, RcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;

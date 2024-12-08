@@ -1,5 +1,7 @@
 pub mod animation;
+pub mod bounding_box;
 pub mod camera;
+pub mod collision;
 pub mod debug_line;
 pub mod fft_ocean;
 pub mod font;

@@ -17,7 +17,7 @@ use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, LightConstants};
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
-use crate::utilities::bounding_box::BoundingBox;
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
 type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
@@ -308,7 +308,7 @@ impl<'a> SceneManager<'a> {
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
-            &model_data,
+            model_data,
             &render_object_create_info,
         ));
         self._static_render_object_map.insert(object_id, render_object_data.clone());
@@ -466,18 +466,18 @@ impl<'a> SceneManager<'a> {
             let render_object_data = ptr_as_ref(render_object_refcell.as_ptr());
             let is_render =
                 render_object_data._render &&
-                false == SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bound_box);
+                false == SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box);
 
             let is_render_shadow =
                 render_object_data._render &&
                 render_object_data._render_shadow &&
-                false == SceneManager::shadow_culling(light, &render_object_data._bound_box);
+                false == SceneManager::shadow_culling(light, &render_object_data._bounding_box);
 
             // render element for bound box
             if unsafe { constants::RENDER_BOUND_BOX } && is_render {
                 bound_boxes.push(
                     BoundBoxInstanceData {
-                        _transform: render_object_data._bound_box._transform
+                        _transform: render_object_data._bounding_box._transform
                     }
                 );
             }
