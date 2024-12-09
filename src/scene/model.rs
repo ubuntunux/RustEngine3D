@@ -55,6 +55,7 @@ impl<'a> ModelData<'a> {
         }
 
         let collision_info = if model_data_info._collision._collision_type == CollisionType::NONE {
+            // create collision by bounding box
             let bounding_box = &mesh_data.borrow()._bound_box;
             let dimension = bounding_box._max - bounding_box._min;
             CollisionCreateInfo {
