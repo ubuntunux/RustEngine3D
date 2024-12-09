@@ -1,6 +1,6 @@
 use std::ops::Index;
 use nalgebra;
-use nalgebra::{Matrix4, Vector3};
+use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use crate::utilities::math;
 
@@ -101,6 +101,26 @@ impl BoundingBox {
         self._min.y <= pos.y && pos.y <= self._max.y
             && self._min.z <= pos.z && pos.z <= self._max.z
     }
+
+    pub fn collide_box_with_cylinder(&self, cylinder_pos: &Vector3<f32>, radius: f32, height: f32) -> bool {
+        let cylinder_min_y = cylinder_pos.y - height * 0.5;
+        let cylinder_max_y = cylinder_pos.y + height * 0.5;
+
+        if cylinder_max_y < self._min.y || self._max.y < cylinder_min_y {
+            return false;
+        }
+
+        // Find the closest point on the rectangle to the circle
+        let closest_x = self._min.x.max(self._max.x.min(cylinder_pos.x));
+        let closest_z = self._min.z.max(self._max.z.min(cylinder_pos.z));
+
+        // Calculate the distance from the circle's center to this point
+        let distance_x = cylinder_pos.x - closest_x;
+        let distance_z = cylinder_pos.z - closest_z;
+
+        // Check if the distance is less than or equal to the circle's radius
+        (distance_x * distance_x + distance_z * distance_z) <= (radius * radius)
+    }
 }
 
 pub fn calc_bounding_box<T: Index<usize, Output = f32>>(positions: &Vec<T>) -> BoundingBox {
@@ -125,27 +145,37 @@ pub fn calc_bounding_box<T: Index<usize, Output = f32>>(positions: &Vec<T>) -> B
 
 impl BoundingBox {
     pub fn update_with_matrix(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
-        let bound_box_transform = matrix * &bound_box._transform;
-        let bound_box_location = &bound_box_transform.column(3).xyz();
-        let row_x = &bound_box_transform.row(0);
-        let row_y = &bound_box_transform.row(1);
-        let row_z = &bound_box_transform.row(2);
-        let row_x = Vector3::new(row_x[0], row_x[1], row_x[2]);
-        let row_y = Vector3::new(row_y[0], row_y[1], row_y[2]);
-        let row_z = Vector3::new(row_z[0], row_z[1], row_z[2]);
-        let row_x_negate = -row_x;
-        let row_y_negate = -row_y;
-        let row_z_negate = -row_z;
+        let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
+        let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
         let min = Vector3::new(
-            row_x.min().min(row_x_negate.min()),
-            row_y.min().min(row_y_negate.min()),
-            row_z.min().min(row_z_negate.min()),
-        ) + bound_box_location;
+            pos_min.x.min(pos_max.x),
+            pos_min.y.min(pos_max.y),
+            pos_min.z.min(pos_max.z)
+        );
         let max = Vector3::new(
-            row_x.max().max(row_x_negate.max()),
-            row_y.max().max(row_y_negate.max()),
-            row_z.max().max(row_z_negate.max()),
-        ) + bound_box_location;
+            pos_min.x.max(pos_max.x),
+            pos_min.y.max(pos_max.y),
+            pos_min.z.max(pos_max.z)
+        );
+        *self = BoundingBox::create_bounding_box(&min, &max);
+    }
+
+    pub fn update_with_matrix_no_rotation(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+        let location = math::extract_location(&matrix);
+        let scale = math::extract_scale(&matrix);
+        let matrix = math::combinate_matrix(&location, &Matrix4::identity(), &scale);
+        let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
+        let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
+        let min = Vector3::new(
+            pos_min.x.min(pos_max.x),
+            pos_min.y.min(pos_max.y),
+            pos_min.z.min(pos_max.z)
+        );
+        let max = Vector3::new(
+            pos_min.x.max(pos_max.x),
+            pos_min.y.max(pos_max.y),
+            pos_min.z.max(pos_max.z)
+        );
         *self = BoundingBox::create_bounding_box(&min, &max);
     }
 }

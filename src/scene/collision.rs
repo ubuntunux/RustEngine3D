@@ -15,16 +15,18 @@ pub enum CollisionType {
 #[serde(default)]
 pub struct CollisionCreateInfo {
     pub _collision_type: CollisionType,
-    pub _min: Vector3<f32>,
-    pub _max: Vector3<f32>
+    pub _location: Vector3<f32>,
+    pub _radius: f32,
+    pub _height: f32
 }
 
 impl Default for CollisionCreateInfo {
     fn default() -> CollisionCreateInfo {
         CollisionCreateInfo {
             _collision_type: CollisionType::NONE,
-            _min: Vector3::new(-1.0, -1.0, -1.0),
-            _max: Vector3::new(1.0, 1.0, 1.0)
+            _location: Vector3::zeros(),
+            _radius: 0.0,
+            _height: 0.0
         }
     }
 }
@@ -48,9 +50,20 @@ impl Default for CollisionData {
 
 impl CollisionData {
     pub fn create_collision(collision_info: &CollisionCreateInfo) -> CollisionData {
+        let offset = Vector3::new(collision_info._radius, collision_info._height * 0.5, collision_info._radius);
+        let pos_min = collision_info._location - offset;
+        let pos_max = collision_info._location + offset;
         CollisionData {
             _collision_type: collision_info._collision_type,
-            _bounding_box: BoundingBox::create_bounding_box(&collision_info._min, &collision_info._max)
+            _bounding_box: BoundingBox::create_bounding_box(&pos_min, &pos_max)
         }
+    }
+
+    pub fn get_collision_type(&self) -> CollisionType {
+        self._collision_type
+    }
+
+    pub fn is_valid_collision(&self) -> bool {
+        self._collision_type != CollisionType::NONE
     }
 }

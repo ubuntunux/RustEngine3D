@@ -271,15 +271,16 @@ class RustEngine3DExporter:
             
             # bounding box
             bounding_box = {
-                "_min": pos_min,
-                "_max": pos_max
+                "_min": self.convert_axis(pos_min),
+                "_max": self.convert_axis(pos_max)
             }
             
             # collision
             collision = {
                 "_collision_type": "NONE",
-                "_min": pos_min,
-                "_max": pos_max
+                "_location": [0,0,0],
+                "_radius": 0,
+                "_height": 0
             }
             
             for obj in asset.objects:
@@ -287,9 +288,13 @@ class RustEngine3DExporter:
                     pos_min = obj.location - obj.dimensions * 0.5
                     pos_max = obj.location + obj.dimensions * 0.5                        
                     if 'COLLISION' == obj.name:
+                        location = (pos_max + pos_min) * 0.5
+                        radius = max(pos_max.x - pos_min.x, pos_max.y - pos_min.y) * 0.5
+                        height = pos_max.z - pos_min.z
                         collision['_collision_type'] = obj.display_bounds_type
-                        collision['_min'] = self.convert_axis(pos_min)
-                        collision['_max'] = self.convert_axis(pos_max)
+                        collision['_location'] = self.convert_axis(location)
+                        collision['_radius'] = radius
+                        collision['_height'] = height
                     elif 'BOUND_BOX' == obj.name:                        
                         bounding_box['_min'] = self.convert_axis(pos_min)
                         bounding_box['_max'] = self.convert_axis(pos_max)
@@ -308,7 +313,7 @@ class RustEngine3DExporter:
                 "_rotation": rotation,
                 "_scale": scale,
                 "_material_instances": material_instances,
-                "_bounding_box": bounding_box,
+                #"_bounding_box": bounding_box,
                 "_collision": collision
             }
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')

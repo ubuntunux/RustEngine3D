@@ -1067,7 +1067,7 @@ impl<'a> EngineResources<'a> {
 
             let model_data = ModelData::create_model_data(
                 &model_name,
-                mesh_data.clone(),
+                &mesh_data,
                 material_instance_data_list,
                 &model_data_info
             );

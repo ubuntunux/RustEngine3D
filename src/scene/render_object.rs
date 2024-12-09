@@ -5,7 +5,7 @@ use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::scene::bounding_box::BoundingBox;
-use crate::scene::collision::{CollisionData, CollisionType};
+use crate::scene::collision::CollisionData;
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -256,8 +256,8 @@ impl<'a> RenderObjectData<'a> {
             );
 
             // update collision
-            if self._collision._collision_type != CollisionType::NONE {
-                self._collision._bounding_box.update_with_matrix(
+            if self._collision.is_valid_collision() {
+                self._collision._bounding_box.update_with_matrix_no_rotation(
                     &self._model_data.borrow()._collision._bounding_box,
                     &self._final_transform
                 )

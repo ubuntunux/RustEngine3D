@@ -1,7 +1,7 @@
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
-use crate::scene::collision::{CollisionCreateInfo, CollisionData};
+use crate::scene::collision::{CollisionCreateInfo, CollisionData, CollisionType};
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::utilities::math;
@@ -39,14 +39,13 @@ pub struct ModelData<'a> {
     pub _local_transform: Matrix4<f32>,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
-    pub _bounding_box: BoundingBox,
     pub _collision: CollisionData,
 }
 
 impl<'a> ModelData<'a> {
     pub fn create_model_data(
         model_name: &String,
-        mesh_data: RcRefCell<MeshData>,
+        mesh_data: &RcRefCell<MeshData>,
         material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
         model_data_info: &ModelDataInfo,
     ) -> ModelData<'a> {
@@ -55,20 +54,29 @@ impl<'a> ModelData<'a> {
             log::debug!("    material_instance[{:?}]{:?}: {:?}", i, model_name, x.borrow()._material_instance_data_name);
         }
 
+        let collision_info = if model_data_info._collision._collision_type == CollisionType::NONE {
+            let bounding_box = &mesh_data.borrow()._bound_box;
+            let dimension = bounding_box._max - bounding_box._min;
+            CollisionCreateInfo {
+                _collision_type: CollisionType::BOX,
+                _location: (bounding_box._max + bounding_box._min) * 0.5,
+                _radius: dimension.x.max(dimension.z) * 0.5,
+                _height: dimension.y
+            }
+        } else {
+            model_data_info._collision.clone()
+        };
+
         ModelData {
             _model_data_name: model_name.clone(),
-            _mesh_data: mesh_data,
+            _mesh_data: mesh_data.clone(),
             _local_transform: math::make_srt_transform(
                 &model_data_info._position,
                 &model_data_info._rotation,
                 &model_data_info._scale
             ),
             _material_instance_data_list: material_instance_data_list,
-            _bounding_box: BoundingBox::create_bounding_box(
-                &model_data_info._bounding_box._min,
-                &model_data_info._bounding_box._max
-            ),
-            _collision: CollisionData::create_collision(&model_data_info._collision),
+            _collision: CollisionData::create_collision(&collision_info),
         }
     }
 
