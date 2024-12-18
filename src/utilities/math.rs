@@ -648,3 +648,39 @@ pub fn convert_to_screen_texcoord(
 
     texcoord
 }
+
+pub fn collide_box_with_cylinder(box_min_pos: &Vector3<f32>, box_max_pos: &Vector3<f32>, cylinder_pos: &Vector3<f32>, radius: f32, height: f32) -> bool {
+    let cylinder_min_y = cylinder_pos.y - height * 0.5;
+    let cylinder_max_y = cylinder_pos.y + height * 0.5;
+
+    if cylinder_max_y < box_min_pos.y || box_max_pos.y < cylinder_min_y {
+        return false;
+    }
+
+    // Find the closest point on the rectangle to the circle
+    let closest_x = box_min_pos.x.max(box_max_pos.x.min(cylinder_pos.x));
+    let closest_z = box_min_pos.z.max(box_max_pos.z.min(cylinder_pos.z));
+
+    // Calculate the distance from the circle's center to this point
+    let distance_x = cylinder_pos.x - closest_x;
+    let distance_z = cylinder_pos.z - closest_z;
+
+    // Check if the distance is less than or equal to the circle's radius
+    //(distance_x * distance_x + distance_z * distance_z) <= (radius * radius)
+    distance_x.abs() <= radius && distance_z.abs() <= radius
+}
+
+pub fn collide_cylinder_with_cylinder(cylinder_pos_a: &Vector3<f32>, radius_a: f32, height_a: f32, cylinder_pos_b: &Vector3<f32>, radius_b: f32, height_b: f32) -> bool {
+    let cylinder_a_min_y = cylinder_pos_a.y - height_a * 0.5;
+    let cylinder_a_max_y = cylinder_pos_a.y + height_a * 0.5;
+    let cylinder_b_min_y = cylinder_pos_b.y - height_b * 0.5;
+    let cylinder_b_max_y = cylinder_pos_b.y + height_b * 0.5;
+
+    if cylinder_a_max_y < cylinder_b_min_y || cylinder_b_max_y < cylinder_a_min_y {
+        return false;
+    }
+
+    let distance_x = cylinder_pos_a.x - cylinder_pos_b.x;
+    let distance_z = cylinder_pos_a.z - cylinder_pos_b.z;
+    (distance_x * distance_x + distance_z * distance_z) <= (radius_a * radius_a + radius_b * radius_b)
+}

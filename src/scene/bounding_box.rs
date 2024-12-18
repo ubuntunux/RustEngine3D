@@ -101,26 +101,6 @@ impl BoundingBox {
         self._min.y <= pos.y && pos.y <= self._max.y
             && self._min.z <= pos.z && pos.z <= self._max.z
     }
-
-    pub fn collide_box_with_cylinder(&self, cylinder_pos: &Vector3<f32>, radius: f32, height: f32) -> bool {
-        let cylinder_min_y = cylinder_pos.y - height * 0.5;
-        let cylinder_max_y = cylinder_pos.y + height * 0.5;
-
-        if cylinder_max_y < self._min.y || self._max.y < cylinder_min_y {
-            return false;
-        }
-
-        // Find the closest point on the rectangle to the circle
-        let closest_x = self._min.x.max(self._max.x.min(cylinder_pos.x));
-        let closest_z = self._min.z.max(self._max.z.min(cylinder_pos.z));
-
-        // Calculate the distance from the circle's center to this point
-        let distance_x = cylinder_pos.x - closest_x;
-        let distance_z = cylinder_pos.z - closest_z;
-
-        // Check if the distance is less than or equal to the circle's radius
-        (distance_x * distance_x + distance_z * distance_z) <= (radius * radius)
-    }
 }
 
 pub fn calc_bounding_box<T: Index<usize, Output = f32>>(positions: &Vec<T>) -> BoundingBox {
