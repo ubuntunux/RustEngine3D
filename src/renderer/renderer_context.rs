@@ -188,7 +188,7 @@ impl<'a> RendererContext<'a> {
             let surface_extensions =
                 ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap();
             let required_layer_names =
-                device::get_instance_layers(&entry, &constants::REQUIRED_INSTANCE_LAYERS);
+                device::get_instance_layers(&entry, &*&raw const constants::REQUIRED_INSTANCE_LAYERS);
             let required_instance_layers: Vec<*const c_char> = required_layer_names
                 .iter()
                 .map(|layer| layer.as_ptr())
