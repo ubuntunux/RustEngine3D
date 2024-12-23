@@ -66,6 +66,30 @@ impl CollisionData {
     pub fn is_valid_collision(&self) -> bool {
         self._collision_type != CollisionType::NONE
     }
+
+    pub fn collide_collision(&self, other: &CollisionData) -> bool {
+        let location = &self._bounding_box._center;
+        let radius = self._bounding_box._size.x * 0.5;
+        let height = self._bounding_box._size.y;
+
+        let other_location = &other._bounding_box._center;
+        let other_radius = other._bounding_box._size.x * 0.5;
+        let other_height = other._bounding_box._size.y;
+
+        if other._collision_type == CollisionType::CYLINDER {
+            if self._collision_type == CollisionType::CYLINDER {
+                collide_cylinder_with_cylinder(&location, radius, height, &other_location, other_radius, other_height)
+            } else {
+                collide_box_with_cylinder(&self._bounding_box._min, &self._bounding_box._max, &other_location, other_radius, other_height)
+            }
+        } else {
+            if self._collision_type == CollisionType::CYLINDER {
+                collide_box_with_cylinder(&other._bounding_box._min, &other._bounding_box._max, &location, radius, height)
+            } else {
+                collide_box_with_box(&other._bounding_box._min, &other._bounding_box._max, &self._bounding_box._min, &self._bounding_box._max)
+            }
+        }
+    }
 }
 
 pub fn collide_box_with_box(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, box_min_pos_b: &Vector3<f32>, box_max_pos_b: &Vector3<f32>) -> bool {
