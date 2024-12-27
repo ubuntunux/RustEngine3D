@@ -313,7 +313,6 @@ class RustEngine3DExporter:
                 "_rotation": rotation,
                 "_scale": scale,
                 "_material_instances": material_instances,
-                #"_bounding_box": bounding_box,
                 "_collision": collision
             }
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
@@ -454,8 +453,8 @@ class RustEngine3DExporter:
             game_data_type = tokens[2]
             if 'characters' == game_data_type:
                 game_data = self.get_game_data(asset, asset_info, 'character_properties')
-            elif 'foods' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'food_properties')
+            elif 'items' == game_data_type:
+                game_data = self.get_game_data(asset, asset_info, 'item_properties')
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
