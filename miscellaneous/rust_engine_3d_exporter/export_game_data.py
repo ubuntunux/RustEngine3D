@@ -397,11 +397,13 @@ class RustEngine3DExporter:
         player = {}
         characters = {}
         blocks = {}
+        props = {}
         game_data = {
             "_scene": "",
             "_player": player,
             "_characters": characters,
             "_blocks": blocks,
+            "_props": props,
             "_start_point": [0, 0, 0]
         }        
         for child_asset in asset.children:
@@ -421,6 +423,15 @@ class RustEngine3DExporter:
                     child_object_info = AssetInfo(child_object.instance_collection)
                     characters[child_object.name] = {
                         "_character_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_position": self.convert_asset_location(child_object),
+                        "_rotation": self.convert_asset_rotation(child_object),
+                        "_scale": self.convert_asset_scale(child_object)
+                    }
+            elif '_props' == child_asset.name:
+                for child_object in child_asset.objects:
+                    child_object_info = AssetInfo(child_object.instance_collection)
+                    props[child_object.name] = {
+                        "_prop_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
                         "_position": self.convert_asset_location(child_object),
                         "_rotation": self.convert_asset_rotation(child_object),
                         "_scale": self.convert_asset_scale(child_object)
@@ -455,6 +466,8 @@ class RustEngine3DExporter:
                 game_data = self.get_game_data(asset, asset_info, 'character_properties')
             elif 'items' == game_data_type:
                 game_data = self.get_game_data(asset, asset_info, 'item_properties')
+            elif 'props' == game_data_type:
+                game_data = self.get_game_data(asset, asset_info, 'prop_properties')
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:

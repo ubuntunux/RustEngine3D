@@ -194,6 +194,12 @@ impl TransformObjectData {
     pub fn set_scale_z(&mut self, scale: f32) {
         self._scale.z = scale;
     }
+    pub fn set_transform(&mut self, position: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) {
+        self.set_position(position);
+        self.set_rotation(rotation);
+        self.set_scale(scale);
+    }
+
     pub fn update_matrix(&mut self) -> bool {
         let updated_position = self._prev_position != self._position;
         let updated_rotation = self._prev_rotation != self._rotation;

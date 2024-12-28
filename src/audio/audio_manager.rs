@@ -207,7 +207,7 @@ impl<'a> AudioManager<'a> {
         None
     }
 
-    pub fn create_audio_instance_from_audio_bank(
+    pub fn play_audio_bank(
         &mut self,
         audio_name_bank: &str,
         audio_loop: AudioLoop,
@@ -232,7 +232,7 @@ impl<'a> AudioManager<'a> {
         None
     }
 
-    pub fn create_audio_instance_from_audio_bank_data(
+    pub fn play_audio_bank_data(
         &mut self,
         audio_bank_data: &RcRefCell<AudioBankData>,
         audio_loop: AudioLoop,
