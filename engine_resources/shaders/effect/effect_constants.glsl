@@ -17,12 +17,11 @@ const uint PARTICLE_STATE_DEAD = 1 << 2;
 #define ParticleSpawnVolumeType_Cone 2
 #define ParticleSpawnVolumeType_Cylinder 3
 
-#define ParticleGeometryType_Quad 0
+#define ParticleGeometryType_Mesh 0
 #define ParticleGeometryType_Decal 1
-#define ParticleGeometryType_Mesh 2
-#define ParticleGeometryType_Ribbon 3
-#define ParticleGeometryType_Beam 4
-#define ParticleGeometryType_Capsule 5
+#define ParticleGeometryType_Ribbon 2
+#define ParticleGeometryType_Beam 3
+#define ParticleGeometryType_Capsule 4
 
 #define ParticleAlignMode_None 0
 #define ParticleAlignMode_Billboard 1

@@ -17,7 +17,7 @@
 "_particle_lifetime_max":3.0,
 "_align_mode":"Billboard",
 "_blend_mode":"AlphaBlend",
-"_geometry_type":"Quad",
+"_geometry_type":"Mesh",
 "_material_instance_name":"effect/render_particle",
 "_mesh_name":"quad",
 "_rotation_min":[0.0,0.0,0.0],

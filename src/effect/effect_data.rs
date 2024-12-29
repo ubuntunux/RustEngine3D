@@ -33,18 +33,17 @@ impl Default for ParticleSpawnVolumeType {
 // must match with effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleGeometryType {
-    Quad = 0,
+    Mesh = 0,
     Decal = 1,
-    Mesh = 2,
-    Ribbon = 3,
-    Beam = 4,
-    Capsule = 5,
-    Count = 6,
+    Ribbon = 2,
+    Beam = 3,
+    Capsule = 4,
+    Count = 5,
 }
 
 impl Default for ParticleGeometryType {
     fn default() -> Self {
-        ParticleGeometryType::Quad
+        ParticleGeometryType::Mesh
     }
 }
 
@@ -165,9 +164,9 @@ impl Default for EmitterDataCreateInfo {
             _particle_lifetime_max: 1.0,
             _align_mode: ParticleAlignMode::Billboard,
             _blend_mode: ParticleBlendMode::AlphaBlend,
-            _geometry_type: ParticleGeometryType::Quad,
+            _geometry_type: ParticleGeometryType::Mesh,
             _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
-            _mesh_name: String::new(),
+            _mesh_name: String::from("quad"),
             _rotation_min: Vector3::zeros(),
             _rotation_max: Vector3::zeros(),
             _scale_min: Vector3::zeros(),

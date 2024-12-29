@@ -175,7 +175,7 @@ pub fn get_render_pass_data_create_infos(
         effect::render_particle_translucent::get_render_pass_data_create_info(
             renderer_data,
             ParticleBlendMode::AlphaBlend,
-            ParticleGeometryType::Quad,
+            ParticleGeometryType::Mesh,
         ),
         fft_ocean::render_fft_init::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_ocean::get_render_pass_data_create_info(renderer_data),
