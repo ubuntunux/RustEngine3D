@@ -377,7 +377,7 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
     .map(|(x, y, z)| Vector3::new(*x, *y, *z))
     .collect();
     let vertex_count = positions.len();
-    let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 1.0, 0.0); vertex_count];
+    let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 0.0, 1.0); vertex_count];
     let vertex_color = get_color32(255, 255, 255, 255);
     let texcoords: Vec<Vector2<f32>> = vec![
         Vector2::new(0.0, 0.0),

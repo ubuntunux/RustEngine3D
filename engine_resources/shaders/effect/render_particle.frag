@@ -26,7 +26,7 @@ void main() {
     // x: roughness, y: metalicness, z: emissive intensity
     vec4 material = texture(textureMaterial, vs_output.texCoord);
     vec3 normal = normalize(vs_output.tangent_to_world * (texture(textureNormal, vs_output.texCoord).xyz * 2.0 - 1.0));
-    vec3 vertex_normal = normalize(vs_output.tangent_to_world[1]);
+    vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
 
 #if (ParticleBlendMode_Opaque == RenderMode)
     // xyz: albedo, w: emissive_intensity

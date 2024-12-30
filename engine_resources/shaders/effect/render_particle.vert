@@ -27,9 +27,6 @@ void main() {
     }
 
     vec4 position = vec4(inPosition, 1.0);
-    vec3 vertex_normal = normalize(inNormal);
-    vec3 vertex_tangent = normalize(inTangent);
-
     vec3 relative_pos = (particle_buffer._particle_relative_transform * position).xyz;
     vec3 relative_pos_prev = relative_pos + (view_constants.CAMERA_POSITION_PREV - view_constants.CAMERA_POSITION);
 
@@ -42,7 +39,17 @@ void main() {
 
     vs_output.color = inColor;// * vec4(1.0, 1.0, 1.0, 1.0 - abs(play_time_ratio * 2.0 - 1.0));
     // Note : Normalization is very important because tangent_to_world may have been scaled..
+    vec3 vertex_normal = normalize(inNormal);
+    vec3 vertex_tangent = normalize(inTangent);
     vec3 bitangent = cross(vertex_tangent, vertex_normal);
     vs_output.tangent_to_world = mat3(particle_buffer._particle_relative_transform) * mat3(vertex_tangent, bitangent, vertex_normal);
+
+    vec3 world_vertex_normal = vs_output.tangent_to_world[2];
+    vec3 view_center_ray = vec3(view_constants.VIEW_ORIGIN[0].z, view_constants.VIEW_ORIGIN[1].z, view_constants.VIEW_ORIGIN[2].z);
+    if(0.0 < dot(view_center_ray, world_vertex_normal)) {
+        // back-face
+        vs_output.tangent_to_world[2] = -world_vertex_normal;
+    }
+
     vs_output.texCoord = inTexCoord;
 }
