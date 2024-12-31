@@ -35,6 +35,20 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 layout(location = 0) out float outColor;
 
+float get_min_z(vec2 texture_size, vec2 texcoord) {
+    float min_z = 1.0;
+    for(int y=-1;y<=1;++y) {
+        for(int x=-1;x<=1;++x) {
+            float depth = texture(textureSceneDepth, texcoord + vec2(x,y) / texture_size).x;
+            if(depth < min_z) {
+                min_z = depth;
+            }
+        }
+    }
+
+    return min_z;
+}
+
 
 void main() {
     const vec2 texture_size = textureSize(textureSceneDepth, 0);
@@ -42,7 +56,7 @@ void main() {
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
     const vec2 texCoord = vs_output.texCoord;
-    const float device_depth = texture(textureSceneDepth, texCoord).x;
+    const float device_depth = get_min_z(texture_size, texCoord);
     if(0.0 == device_depth)
     {
         discard;
