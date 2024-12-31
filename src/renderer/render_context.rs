@@ -6,7 +6,7 @@ use nalgebra::{Vector3, Vector4};
 use rand;
 
 use crate::constants;
-use crate::render_pass::common::{composite_gbuffer, downsampling, generate_max_z, render_bloom, render_copy, render_gaussian_blur, render_taa};
+use crate::render_pass::common::{composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy, render_gaussian_blur, render_taa};
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::shader_buffer_data::SSAOConstants;
@@ -435,11 +435,11 @@ impl RenderContext_HierarchicalMinZ {
         engine_resources: &EngineResources<'a>,
         render_target_hierarchical_min_z: &TextureData,
     ) {
-        let generate_max_z_material_instance = engine_resources
-            .get_material_instance_data("common/generate_max_z")
+        let generate_min_z_material_instance = engine_resources
+            .get_material_instance_data("common/generate_min_z")
             .borrow();
-        let pipeline_binding_data = generate_max_z_material_instance
-            .get_pipeline_binding_data("generate_max_z/generate_max_z");
+        let pipeline_binding_data = generate_min_z_material_instance
+            .get_pipeline_binding_data("generate_min_z/generate_min_z");
         let layer: u32 = 0;
         let downsampling_count: u32 = render_target_hierarchical_min_z._image_mip_levels - 1;
         for mip_level in 0..downsampling_count {
@@ -448,8 +448,8 @@ impl RenderContext_HierarchicalMinZ {
                 debug_utils_device,
                 pipeline_binding_data,
                 &[
-                    (generate_max_z::SEMANTIC_IMAGE_INPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level))),
-                    (generate_max_z::SEMANTIC_IMAGE_OUTPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level + 1)))
+                    (generate_min_z::SEMANTIC_IMAGE_INPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level))),
+                    (generate_min_z::SEMANTIC_IMAGE_OUTPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(render_target_hierarchical_min_z.get_sub_image_info(layer, mip_level + 1)))
                 ],
             );
             self._descriptor_sets.push(descriptor_sets);

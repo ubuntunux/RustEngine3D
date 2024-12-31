@@ -78,7 +78,7 @@ pub fn get_render_pass_data_create_infos(
         common::composite_gbuffer::get_render_pass_data_create_info(renderer_data),
         common::copy_cube_map::get_render_pass_data_create_info(renderer_data),
         common::downsampling::get_render_pass_data_create_info(renderer_data),
-        common::generate_max_z::get_render_pass_data_create_info(renderer_data),
+        common::generate_min_z::get_render_pass_data_create_info(renderer_data),
         common::render_bloom::get_render_pass_data_create_info(renderer_data),
         common::render_bound_box::get_render_pass_data_create_info(renderer_data),
         common::render_copy::get_render_pass_data_create_info(renderer_data),

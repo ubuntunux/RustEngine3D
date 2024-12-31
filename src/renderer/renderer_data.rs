@@ -2088,17 +2088,17 @@ impl<'a> RendererData<'a> {
         );
     }
 
-    pub fn generate_max_z(
+    pub fn generate_min_z(
         &self,
         renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
     ) {
-        let _label_generate_max_z = ScopedDebugLabel::create_scoped_cmd_label(
+        let _label_generate_min_z = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
-            "generate_max_z",
+            "generate_min_z",
         );
         let engine_resources = renderer_context.get_engine_resources();
 
@@ -2106,8 +2106,8 @@ impl<'a> RendererData<'a> {
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,
-            "common/generate_max_z",
-            "generate_max_z/render_copy",
+            "common/generate_min_z",
+            "generate_min_z/render_copy",
             &quad_geometry_data,
             None,
             None,
@@ -2116,10 +2116,10 @@ impl<'a> RendererData<'a> {
 
         // Generate Hierarchical Min Z
         let material_instance_data: Ref<MaterialInstanceData> = engine_resources
-            .get_material_instance_data("common/generate_max_z")
+            .get_material_instance_data("common/generate_min_z")
             .borrow();
         let pipeline_binding_data =
-            material_instance_data.get_pipeline_binding_data("generate_max_z/generate_max_z");
+            material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._render_context_hiz._descriptor_sets.len();
         renderer_context.begin_compute_pipeline(command_buffer, pipeline_data);
@@ -2195,7 +2195,7 @@ impl<'a> RendererData<'a> {
         quad_geometry_data: &GeometryData,
     ) {
         // Generate Hierarchical Min Z
-        self.generate_max_z(
+        self.generate_min_z(
             renderer_context,
             command_buffer,
             swapchain_index,

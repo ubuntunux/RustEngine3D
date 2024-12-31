@@ -21,7 +21,7 @@ layout(binding = 2) uniform LightConstants
     LIGHT_CONSTANTS light_constants;
 };
 layout(binding = 3) uniform sampler2D textureSceneNormal;
-layout(binding = 4) uniform sampler2D textureSceneDepth;
+layout(binding = 4) uniform sampler2D textureHiZ;
 layout(binding = 5) uniform sampler2D ssaoNoise;
 layout(binding = 6) uniform sampler2D texture_shadow;
 
@@ -35,28 +35,14 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 layout(location = 0) out float outColor;
 
-float get_min_z(vec2 texture_size, vec2 texcoord) {
-    float min_z = 1.0;
-    for(int y=-1;y<=1;++y) {
-        for(int x=-1;x<=1;++x) {
-            float depth = texture(textureSceneDepth, texcoord + vec2(x,y) / texture_size).x;
-            if(depth < min_z) {
-                min_z = depth;
-            }
-        }
-    }
-
-    return min_z;
-}
-
 
 void main() {
-    const vec2 texture_size = textureSize(textureSceneDepth, 0);
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
     const vec2 texCoord = vs_output.texCoord;
-    const float device_depth = get_min_z(texture_size, texCoord);
+
+    const float device_depth = textureLod(textureHiZ, texCoord, 1.0).x;
     if(0.0 == device_depth)
     {
         discard;
@@ -100,7 +86,7 @@ void main() {
             continue;
         }
 
-        const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
+        const float occlusion_depth = textureLod(textureHiZ, offset.xy, 1.0).x;
         if(occlusion_depth <= offset.z)
         {
             continue;

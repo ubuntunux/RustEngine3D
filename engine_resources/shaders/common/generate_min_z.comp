@@ -13,8 +13,8 @@ void main()
     ivec2 input_pixel_coords0 = pixel_coords * 2;
     ivec2 input_pixel_coords1 = input_pixel_coords0 + 1;
     vec4 depth = imageLoad(img_input, input_pixel_coords0);
-    depth = max(depth, imageLoad(img_input, ivec2(input_pixel_coords1.x, input_pixel_coords0.y)));
-    depth = max(depth, imageLoad(img_input, ivec2(input_pixel_coords0.x, input_pixel_coords1.y)));
-    depth = max(depth, imageLoad(img_input, input_pixel_coords1));
+    depth = min(depth, imageLoad(img_input, ivec2(input_pixel_coords1.x, input_pixel_coords0.y)));
+    depth = min(depth, imageLoad(img_input, ivec2(input_pixel_coords0.x, input_pixel_coords1.y)));
+    depth = min(depth, imageLoad(img_input, input_pixel_coords1));
     imageStore(img_output, pixel_coords, depth);
 }
