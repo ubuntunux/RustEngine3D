@@ -16,9 +16,9 @@ layout(binding = 1) uniform ViewConstants
 {
     VIEW_CONSTANTS view_constants;
 };
-layout(binding = 2) uniform LightConstants
+layout(binding = 2) uniform LightData
 {
-    LIGHT_CONSTANTS light_constants;
+    LIGHT_DATA light_data;
 };
 layout(binding = 3) uniform AtmosphereConstants
 {
@@ -80,7 +80,7 @@ void main() {
         single_mie_scattering_texture,
         scene_constants,
         view_constants,
-        light_constants,
+        light_data,
         //point_lights,
         base_color.xyz,
         opacity,

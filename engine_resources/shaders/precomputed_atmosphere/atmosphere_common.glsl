@@ -8,9 +8,9 @@ layout(binding = 1) uniform ViewConstants
 {
     VIEW_CONSTANTS view_constants;
 };
-layout(binding = 2) uniform LightConstants
+layout(binding = 2) uniform LightData
 {
-    LIGHT_CONSTANTS light_constants;
+    LIGHT_DATA light_data;
 };
 layout(binding = 3) uniform AtmosphereConstants
 {

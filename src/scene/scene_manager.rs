@@ -14,16 +14,16 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{RendererData, RenderObjectType};
 use crate::resource::resource::EngineResources;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
-use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLightData, LightConstants};
+use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLight, LightData, PointLightCreateInfo, PointLight};
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
 type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
-type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLightData>>;
+type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLight>>;
+type PointLightObjectMap = HashMap<i64, RcRefCell<PointLight>>;
 type RenderObjectMap<'a> = HashMap<i64, RcRefCell<RenderObjectData<'a>>>;
-
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -37,6 +37,7 @@ pub struct SceneDataCreateInfo {
     pub _sea_height: f32,
     pub _cameras: HashMap<String, CameraCreateInfo>,
     pub _directional_lights: HashMap<String, DirectionalLightCreateInfo>,
+    pub _point_lights: HashMap<String, PointLightCreateInfo>,
     pub _effects: HashMap<String, EffectCreateInfo>,
     pub _static_objects: HashMap<String, RenderObjectCreateInfo>,
     pub _skeletal_objects: HashMap<String, RenderObjectCreateInfo>,
@@ -51,11 +52,12 @@ pub struct SceneManager<'a> {
     pub _scene_name: String,
     pub _sea_height: f32,
     pub _main_camera: Option<Rc<CameraObjectData>>,
-    pub _main_light: Option<RcRefCell<DirectionalLightData>>,
-    pub _capture_height_map: Option<RcRefCell<DirectionalLightData>>,
+    pub _main_light: Option<RcRefCell<DirectionalLight>>,
+    pub _capture_height_map: Option<RcRefCell<DirectionalLight>>,
     pub _light_probe_cameras: Vec<RcRefCell<CameraObjectData>>,
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
+    pub _point_light_object_map: PointLightObjectMap,
     pub _object_id_generator: i64,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
@@ -77,6 +79,7 @@ impl Default for SceneDataCreateInfo {
             _sea_height: 0.0,
             _cameras: HashMap::new(),
             _directional_lights: HashMap::new(),
+            _point_lights: HashMap::new(),
             _effects: HashMap::new(),
             _static_objects: HashMap::new(),
             _skeletal_objects: HashMap::new(),
@@ -91,13 +94,13 @@ impl<'a> SceneManager<'a> {
     pub fn get_main_camera_mut(&self) -> &mut CameraObjectData {
         ptr_as_mut(self._main_camera.as_ref().unwrap().as_ref())
     }
-    pub fn get_main_light(&self) -> &RcRefCell<DirectionalLightData> {
+    pub fn get_main_light(&self) -> &RcRefCell<DirectionalLight> {
         &self._main_light.as_ref().unwrap()
     }
     pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
         &self._light_probe_cameras[index]
     }
-    pub fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLightData> {
+    pub fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLight> {
         &self._capture_height_map.as_ref().unwrap()
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
@@ -138,6 +141,7 @@ impl<'a> SceneManager<'a> {
             _light_probe_cameras: Vec::new(),
             _camera_object_map: HashMap::new(),
             _directional_light_object_map: HashMap::new(),
+            _point_light_object_map: HashMap::new(),
             _object_id_generator: 0,
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
@@ -210,13 +214,13 @@ impl<'a> SceneManager<'a> {
                 &light_probe_camera_create_info,
             )),
         ];
-        let default_light = DirectionalLightData::create_light_data(
+        let default_light = DirectionalLight::create_directional_light(
             self.generate_object_id(),
             &String::from("default_light"),
             &DirectionalLightCreateInfo::default(),
         );
         let capture_height_map = unsafe {
-            DirectionalLightData::create_light_data(
+            DirectionalLight::create_directional_light(
                 self.generate_object_id(),
                 &String::from("capture_height_map"),
                 &DirectionalLightCreateInfo {
@@ -286,14 +290,28 @@ impl<'a> SceneManager<'a> {
         &mut self,
         object_name: &str,
         light_create_info: &DirectionalLightCreateInfo,
-    ) -> RcRefCell<DirectionalLightData> {
+    ) -> RcRefCell<DirectionalLight> {
         let object_id = self.generate_object_id();
-        let light_object_data = newRcRefCell(DirectionalLightData::create_light_data(
+        let light_object_data = newRcRefCell(DirectionalLight::create_directional_light(
             object_id,
             &String::from(object_name),
             light_create_info,
         ));
         self._directional_light_object_map.insert(object_id, light_object_data.clone());
+        light_object_data
+    }
+    pub fn add_point_light_object(
+        &mut self,
+        object_name: &str,
+        light_create_info: &PointLightCreateInfo,
+    ) -> RcRefCell<PointLight> {
+        let object_id = self.generate_object_id();
+        let light_object_data = newRcRefCell(PointLight::create_point_light(
+            object_id,
+            &String::from(object_name),
+            light_create_info,
+        ));
+        self._point_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
     pub fn add_static_render_object(
@@ -407,7 +425,7 @@ impl<'a> SceneManager<'a> {
         }
         false
     }
-    pub fn shadow_culling(light: &DirectionalLightData, geometry_bound_box: &BoundingBox) -> bool {
+    pub fn shadow_culling(light: &DirectionalLight, geometry_bound_box: &BoundingBox) -> bool {
         let shadow_view_projection = light.get_shadow_view_projection();
         let bound_min: Vector4<f32> = shadow_view_projection
             * Vector4::new(
@@ -448,7 +466,7 @@ impl<'a> SceneManager<'a> {
     pub fn gather_render_elements(
         render_object_type: RenderObjectType,
         camera: &CameraObjectData,
-        light: &DirectionalLightData,
+        light: &DirectionalLight,
         render_object_map: &RenderObjectMap<'a>,
         render_elements: &mut Vec<RenderElementData<'a>>,
         render_shadow_elements: &mut Vec<RenderElementData<'a>>,
@@ -660,6 +678,7 @@ impl<'a> SceneManager<'a> {
             _sea_height: 0.0,
             _cameras: HashMap::new(),
             _directional_lights: HashMap::new(),
+            _point_lights: HashMap::new(),
             _effects: HashMap::new(),
             _static_objects: HashMap::new(),
             _skeletal_objects: HashMap::new(),
@@ -680,7 +699,7 @@ impl<'a> SceneManager<'a> {
             DirectionalLightCreateInfo {
                 _position: Vector3::zeros(),
                 _rotation: Vector3::new(pitch, 0.0, 0.3),
-                _light_constants: LightConstants {
+                _light_data: LightData {
                     _light_direction: Vector3::new(pitch, 0.0, 0.3),
                     ..Default::default()
                 },
@@ -735,7 +754,7 @@ impl<'a> SceneManager<'a> {
             }
         }
 
-        // lights
+        // directional lights
         for (index, (object_name, light_create_info)) in scene_data_create_info
             ._directional_lights
             .iter()
@@ -743,12 +762,12 @@ impl<'a> SceneManager<'a> {
             let light_create_info = DirectionalLightCreateInfo {
                 _position: light_create_info._position.clone() as Vector3<f32>,
                 _rotation: light_create_info._rotation.clone() as Vector3<f32>,
-                _light_constants: LightConstants {
-                    _light_position: light_create_info._light_constants._light_position.clone()
+                _light_data: LightData {
+                    _light_position: light_create_info._light_data._light_position.clone()
                         as Vector3<f32>,
-                    _light_direction: light_create_info._light_constants._light_direction.clone()
+                    _light_direction: light_create_info._light_data._light_direction.clone()
                         as Vector3<f32>,
-                    _light_color: light_create_info._light_constants._light_color.clone()
+                    _light_color: light_create_info._light_data._light_color.clone()
                         as Vector3<f32>,
                     ..Default::default()
                 },
@@ -758,6 +777,11 @@ impl<'a> SceneManager<'a> {
             if 0 == index {
                 self._main_light = Some(light_object);
             }
+        }
+
+        // point lights
+        for (object_name, light_create_info) in scene_data_create_info._point_lights.iter() {
+            self.add_point_light_object(object_name, light_create_info);
         }
 
         // effects
@@ -782,6 +806,7 @@ impl<'a> SceneManager<'a> {
         self.get_effect_manager_mut().clear_effects();
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
+        self._point_light_object_map.clear();
         self._static_render_object_map.clear();
         self._skeletal_render_object_map.clear();
         self._static_render_elements.clear();
@@ -795,6 +820,7 @@ impl<'a> SceneManager<'a> {
             _sea_height: self._sea_height,
             _cameras: HashMap::new(),
             _directional_lights: HashMap::new(),
+            _point_lights: HashMap::new(),
             _effects: HashMap::new(),
             _static_objects: HashMap::new(),
             _skeletal_objects: HashMap::new(),

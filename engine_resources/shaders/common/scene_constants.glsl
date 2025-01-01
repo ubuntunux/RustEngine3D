@@ -37,7 +37,7 @@ const float kSphereRadius = 1.0;
 const vec3 kSphereAlbedo = vec3(0.8);
 const vec3 kGroundAlbedo = vec3(0.0, 0.0, 0.04);
 
-const int MAX_POINT_LIGHTS = 10;
+const int MAX_POINT_LIGHTS = 32;
 
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
@@ -93,29 +93,30 @@ struct VIEW_CONSTANTS
     float VIEWCONSTANTS_DUMMY2;
 };
 
-// uniform_buffer_data_list.rs - struct LightConstants
-struct LIGHT_CONSTANTS
+// light.rs - struct LightData
+struct LIGHT_DATA
 {
     mat4 SHADOW_VIEW_PROJECTION;
     vec3 LIGHT_POSITION;
     int SHADOW_SAMPLES;
     vec3 LIGHT_DIRECTION;
-    int LIGHT_CONSTANTS_TEMP0;
+    int LIGHT_DATA_TEMP0;
     vec3 LIGHT_COLOR;
-    int LIGHT_CONSTANTS_TEMP1;
+    int LIGHT_DATA_TEMP1;
 };
 
-struct POINT_LIGHT
+// light.rs - struct PointLightData
+struct POINT_LIGHT_DATA
 {
-    vec3 color;
-    float radius;
-    vec3 pos;
-    float render;
+    vec3 LIGHT_POSITION;
+    float RADIUS;
+    vec3 LIGHT_COLOR;
+    int reserved0;
 };
 
 struct POINT_LIGHTS
 {
-    POINT_LIGHT data[MAX_POINT_LIGHTS];
+    POINT_LIGHT_DATA point_light_data[MAX_POINT_LIGHTS];
 };
 
 #endif // _SCENE_CONSTANTS_

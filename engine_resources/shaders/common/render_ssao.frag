@@ -16,9 +16,9 @@ layout(binding = 1) uniform ViewConstants
 {
     VIEW_CONSTANTS view_constants;
 };
-layout(binding = 2) uniform LightConstants
+layout(binding = 2) uniform LightData
 {
-    LIGHT_CONSTANTS light_constants;
+    LIGHT_DATA light_data;
 };
 layout(binding = 3) uniform sampler2D textureSceneNormal;
 layout(binding = 4) uniform sampler2D textureHiZ;
@@ -101,8 +101,8 @@ void main() {
         scene_constants.TIME,
         screen_pos,
         world_position,
-        light_constants.SHADOW_VIEW_PROJECTION,
-        light_constants.SHADOW_SAMPLES,
+        light_data.SHADOW_VIEW_PROJECTION,
+        light_data.SHADOW_SAMPLES,
         0.0,
         texture_shadow
     );

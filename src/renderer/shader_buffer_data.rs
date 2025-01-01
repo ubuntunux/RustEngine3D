@@ -13,7 +13,7 @@ use crate::effect::effect_manager::{
 use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineInstanceData;
 use crate::scene::font::FontInstanceData;
-use crate::scene::light::LightConstants;
+use crate::scene::light::LightData;
 use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
@@ -25,7 +25,7 @@ pub enum ShaderBufferDataType {
     None,
     SceneConstants,
     ViewConstants,
-    LightConstants,
+    LightData,
     SSAOConstants,
     AtmosphereConstants,
     LightProbeViewConstants0,
@@ -258,7 +258,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "None" => Ok(ShaderBufferDataType::None),
             "SceneConstants" => Ok(ShaderBufferDataType::SceneConstants),
             "ViewConstants" => Ok(ShaderBufferDataType::ViewConstants),
-            "LightConstants" => Ok(ShaderBufferDataType::LightConstants),
+            "LightData" => Ok(ShaderBufferDataType::LightData),
             "SSAOConstants" => Ok(ShaderBufferDataType::SSAOConstants),
             "AtmosphereConstants" => Ok(ShaderBufferDataType::AtmosphereConstants),
             "LightProbeViewConstants0" => Ok(ShaderBufferDataType::LightProbeViewConstants0),
@@ -355,8 +355,8 @@ pub fn register_shader_buffer_data_list(
     register_shader_buffer_data(
         debug_utils_device,
         &mut RegistShaderBufferCreateInfo {
-            _shader_buffer_data_type: ShaderBufferDataType::LightConstants,
-            _shader_buffer_data_stride: std::mem::size_of::<LightConstants>(),
+            _shader_buffer_data_type: ShaderBufferDataType::LightData,
+            _shader_buffer_data_stride: std::mem::size_of::<LightData>(),
             ..uniform_buffer_create_info
         },
     );

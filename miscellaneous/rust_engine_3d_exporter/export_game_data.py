@@ -123,7 +123,7 @@ class RustEngine3DExporter:
     def convert_asset_dimensions(self, asset):
         return self.convert_axis(list(asset.dimensions))
     
-    def convert_sun_color(self, asset):
+    def convert_light_color(self, asset):
         return [asset.data.energy * x for x in list(asset.data.color)]
     
     def get_object_center(self, obj):
@@ -321,6 +321,7 @@ class RustEngine3DExporter:
     def get_scene_data(self, asset):
         cameras = {}
         directional_lights = {}
+        point_lights = {}
         effects = {}
         static_objects = {}
         skeletal_objects = {}
@@ -328,6 +329,7 @@ class RustEngine3DExporter:
         scene_data = {
             "_cameras": cameras,
             "_directional_lights": directional_lights,
+            "_point_lights": point_lights,
             "_effects": effects,
             "_static_objects": static_objects,
             "_skeletal_objects": skeletal_objects
@@ -335,14 +337,22 @@ class RustEngine3DExporter:
         
         for child in asset.objects:
             if 'LIGHT' == child.type:
+                light_color = self.convert_light_color(child)
                 light_rotation = self.convert_asset_rotation(child, rx=90.0)
-                directional_lights[child.name] = {
-                    "_rotation": light_rotation,
-                    "_light_constants": {                    
-                        "_light_direction": light_rotation,
-                        "_light_color": self.convert_sun_color(child)
+                
+                if 'SUN' == child.data.type:
+                    directional_lights[child.name] = {
+                        "_rotation": light_rotation,
+                        "_light_data": {                    
+                            "_light_direction": light_rotation,
+                            "_light_color": light_color,
+                        }
                     }
-                }
+                elif 'POINT' == child.data.type:
+                    point_lights[child.name] = {
+                        "_light_color": light_color,
+                        "_radius": child.data.shadow_soft_size
+                    }
             elif 'CAMERA' == child.type:
                 cameras[child.name] = {
                     # 'fov': math.degrees(child.data.angle),

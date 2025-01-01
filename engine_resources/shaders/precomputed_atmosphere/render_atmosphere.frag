@@ -59,7 +59,7 @@ void main()
 
     float world_pos_y = max(0.0, view_constants.CAMERA_POSITION.y);
 
-    vec3 sun_direction = -light_constants.LIGHT_DIRECTION.xyz;
+    vec3 sun_direction = -light_data.LIGHT_DIRECTION.xyz;
     vec3 eye_direction = normalize(vs_output.eye_ray);
     float VdotL = dot(eye_direction, sun_direction);
 
@@ -72,7 +72,7 @@ void main()
     view_constants.CAMERA_POSITION.xyz,
     eye_direction,
     sun_direction,
-    light_constants.SHADOW_VIEW_PROJECTION,
+    light_data.SHADOW_VIEW_PROJECTION,
     texture_shadow
     );
 
@@ -99,7 +99,7 @@ void main()
     const float sun_disc_intensity = 20.0;
     if (false == is_render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL && 0.0 == device_depth)
     {
-        sun_disc = transmittance * solar_radiance.x * light_constants.LIGHT_COLOR.xyz * sun_disc_intensity;
+        sun_disc = transmittance * solar_radiance.x * light_data.LIGHT_COLOR.xyz * sun_disc_intensity;
         sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
     }
 
@@ -198,7 +198,7 @@ void main()
         float altitude_ratio = saturate(world_pos_y / (atmosphere_constants.cloud_altitude + atmosphere_constants.cloud_height));
         float atmosphere_lighting = max(0.2, pow(saturate(dot(N, sun_direction) * 0.5 + 0.5), 1.0));
         vec3 light_color = (cloud_sun_irradiance + cloud_sky_irradiance);
-        light_color *= atmosphere_constants.cloud_exposure * light_constants.LIGHT_COLOR.xyz * atmosphere_lighting;
+        light_color *= atmosphere_constants.cloud_exposure * light_data.LIGHT_COLOR.xyz * atmosphere_lighting;
 
         const float c0 = saturate(calc_Fr_c(VdotL));
         const float c1 = saturate(calc_Fr_c(1.0));

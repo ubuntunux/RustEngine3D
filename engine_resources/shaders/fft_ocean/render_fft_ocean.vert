@@ -89,7 +89,7 @@ void main()
         0.0,
         ivec2(screen_coord * scene_constants.SCREEN_SIZE),
         world_pos,
-        light_constants.SHADOW_VIEW_PROJECTION,
+        light_data.SHADOW_VIEW_PROJECTION,
         8,
         0.0,
         texture_shadow
@@ -109,7 +109,7 @@ void main()
         dist,
         view_constants.CAMERA_POSITION.xyz,
         eye_direction,
-        -light_constants.LIGHT_DIRECTION.xyz,
+        -light_data.LIGHT_DIRECTION.xyz,
         vertex_normal,
         sun_irradiance,
         sky_irradiance,

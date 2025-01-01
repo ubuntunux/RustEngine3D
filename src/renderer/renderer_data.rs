@@ -505,8 +505,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             self.upload_shader_buffer_data(
                 command_buffer,
                 swapchain_index,
-                &ShaderBufferDataType::LightConstants,
-                main_light.get_light_constants(),
+                &ShaderBufferDataType::LightData,
+                main_light.get_light_data(),
             );
             self.upload_shader_buffer_data(
                 command_buffer,

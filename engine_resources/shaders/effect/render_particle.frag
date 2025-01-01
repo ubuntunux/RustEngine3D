@@ -61,7 +61,7 @@ void main() {
         single_mie_scattering_texture,
         scene_constants,
         view_constants,
-        light_constants,
+        light_data,
         //point_lights,
         base_color.xyz,
         opacity,
