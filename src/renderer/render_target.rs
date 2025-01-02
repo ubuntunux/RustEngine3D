@@ -197,8 +197,8 @@ pub fn get_render_target_create_infos(
             _texture_height: render_viewport_height,
             _texture_format: vk::Format::R32_SFLOAT,
             _texture_samples: samples,
-            _texture_min_filter: vk::Filter::NEAREST,
-            _texture_mag_filter: vk::Filter::NEAREST,
+            _texture_min_filter: vk::Filter::LINEAR,
+            _texture_mag_filter: vk::Filter::LINEAR,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             _enable_mipmap: true,
             ..Default::default()

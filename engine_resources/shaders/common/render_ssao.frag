@@ -41,8 +41,8 @@ void main() {
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
     const vec2 texCoord = vs_output.texCoord;
-
-    const float device_depth = textureLod(textureHiZ, texCoord, 1.0).x;
+    const float lod_level = 1.0;
+    const float device_depth = textureLod(textureHiZ, texCoord, lod_level).x;
     if(0.0 == device_depth)
     {
         discard;
@@ -86,7 +86,7 @@ void main() {
             continue;
         }
 
-        const float occlusion_depth = textureLod(textureHiZ, offset.xy, 1.0).x;
+        const float occlusion_depth = textureLod(textureHiZ, offset.xy, lod_level).x;
         if(occlusion_depth <= offset.z)
         {
             continue;
