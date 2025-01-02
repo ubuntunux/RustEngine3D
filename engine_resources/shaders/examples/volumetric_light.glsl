@@ -256,7 +256,7 @@ void main()
 	vec3 camPos = vec3( 20.0, 18.0,-50.0);
     if(MOUSE_POS.x+MOUSE_POS.y > 0.0)
     {
-        camPos += vec3(0.05,0.12,0.0) * (vec3(MOUSE_POS.x, MOUSE_POS.y, 0.0) - vec3(BACKBUFFER_SIZE.xy * 0.5, 0.0));
+        camPos += vec3(0.05,0.12,0.0) * (vec3(MOUSE_POS.x, MOUSE_POS.y, 0.0) - vec3(BACK_BUFFER_SIZE.xy * 0.5, 0.0));
     }
 
 	vec3 camX   = vec3( 1.0, 0.0, 0.0) *0.75;
@@ -269,7 +269,7 @@ void main()
 	vec3 albedo = vec3( 0.0, 0.0, 0.0 );
 	vec3 normal = vec3( 0.0, 0.0, 0.0 );
     vec4 scatTrans = vec4( 0.0, 0.0, 0.0, 0.0 );
-    traceScene( gl_FragCoord.x > (BACKBUFFER_SIZE.x / 2.0), rO, rD, finalPos, normal, albedo, scatTrans);
+    traceScene( gl_FragCoord.x > (BACK_BUFFER_SIZE.x / 2.0), rO, rD, finalPos, normal, albedo, scatTrans);
 
     //lighting
     vec3 color = (albedo/3.14) * evaluateLight(finalPos, normal) * volumetricShadow(finalPos, LPOS());

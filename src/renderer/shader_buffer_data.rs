@@ -13,7 +13,7 @@ use crate::effect::effect_manager::{
 use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineInstanceData;
 use crate::scene::font::FontInstanceData;
-use crate::scene::light::LightData;
+use crate::scene::light::{LightData, PointLightData};
 use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
@@ -26,6 +26,7 @@ pub enum ShaderBufferDataType {
     SceneConstants,
     ViewConstants,
     LightData,
+    PointLightData,
     SSAOConstants,
     AtmosphereConstants,
     LightProbeViewConstants0,
@@ -52,7 +53,7 @@ pub enum ShaderBufferDataType {
 #[derive(Clone, Debug, Default)]
 pub struct SceneConstants {
     pub _screen_size: Vector2<f32>,
-    pub _backbuffer_size: Vector2<f32>,
+    pub _back_buffer_size: Vector2<f32>,
     pub _time: f32,
     pub _delta_time: f32,
     pub _sea_height: f32,
@@ -62,9 +63,9 @@ pub struct SceneConstants {
     pub _gpu_particle_update_buffer_offset: i32,
     pub _prev_gpu_particle_count_buffer_offset: i32,
     pub _prev_gpu_particle_update_buffer_offset: i32,
+    pub _render_point_light_count: i32,
     pub _reserved0: i32,
     pub _reserved1: i32,
-    pub _reserved2: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
@@ -93,15 +94,20 @@ pub struct ViewConstants {
     pub _camera_position: Vector3<f32>,
     pub _jitter_frame: i32,
     pub _camera_position_prev: Vector3<f32>,
-    pub _viewconstants_dummy0: f32,
+    pub _view_constants_dummy0: f32,
     pub _near_far: Vector2<f32>,
     pub _jitter_delta: Vector2<f32>,
     pub _jitter_offset: Vector2<f32>,
-    pub _viewconstants_dummy1: f32,
-    pub _viewconstants_dummy2: f32,
+    pub _view_constants_dummy1: f32,
+    pub _view_constants_dummy2: f32,
 }
 
-// render_ssao.frag - SSAOConstants
+#[repr(C)]
+#[derive(Clone, Default)]
+pub struct PointLights {
+    pub _point_light_data: [PointLightData; constants::MAX_POINT_LIGHTS],
+}
+
 #[repr(C)]
 #[derive(Clone)]
 pub struct SSAOConstants {
@@ -189,9 +195,10 @@ impl SceneConstants {
         sea_height: f32,
         gpu_particle_count_buffer_offset: i32,
         gpu_particle_update_buffer_offset: i32,
+        render_point_light_count: i32,
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
-        self._backbuffer_size = self._screen_size.into();
+        self._back_buffer_size = self._screen_size.into();
         self._time = elapsed_time as f32;
         self._delta_time = delta_time as f32;
         self._sea_height = sea_height;
@@ -199,13 +206,11 @@ impl SceneConstants {
         self._max_emitter_count = unsafe { constants::MAX_EMITTER_COUNT };
         self._gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset;
         self._gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset;
-        self._prev_gpu_particle_count_buffer_offset =
-            unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
-        self._prev_gpu_particle_update_buffer_offset =
-            unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
+        self._prev_gpu_particle_count_buffer_offset = unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
+        self._prev_gpu_particle_update_buffer_offset = unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
+        self._render_point_light_count = render_point_light_count;
         self._reserved0 = 0;
         self._reserved1 = 0;
-        self._reserved2 = 0;
     }
 }
 
@@ -236,12 +241,12 @@ impl ViewConstants {
         self._jitter_frame = camera_data._jitter_frame;
         self._camera_position_prev =
             camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
-        self._viewconstants_dummy0 = 0.0;
+        self._view_constants_dummy0 = 0.0;
         self._near_far = Vector2::new(camera_data._near, camera_data._far);
         self._jitter_delta = camera_data._jitter_delta.into();
         self._jitter_offset = camera_data._jitter.into();
-        self._viewconstants_dummy1 = 0.0;
-        self._viewconstants_dummy2 = 0.0;
+        self._view_constants_dummy1 = 0.0;
+        self._view_constants_dummy2 = 0.0;
     }
 }
 
@@ -259,6 +264,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "SceneConstants" => Ok(ShaderBufferDataType::SceneConstants),
             "ViewConstants" => Ok(ShaderBufferDataType::ViewConstants),
             "LightData" => Ok(ShaderBufferDataType::LightData),
+            "PointLightData" => Ok(ShaderBufferDataType::PointLightData),
             "SSAOConstants" => Ok(ShaderBufferDataType::SSAOConstants),
             "AtmosphereConstants" => Ok(ShaderBufferDataType::AtmosphereConstants),
             "LightProbeViewConstants0" => Ok(ShaderBufferDataType::LightProbeViewConstants0),
@@ -357,6 +363,14 @@ pub fn register_shader_buffer_data_list(
         &mut RegistShaderBufferCreateInfo {
             _shader_buffer_data_type: ShaderBufferDataType::LightData,
             _shader_buffer_data_stride: std::mem::size_of::<LightData>(),
+            ..uniform_buffer_create_info
+        },
+    );
+    register_shader_buffer_data(
+        debug_utils_device,
+        &mut RegistShaderBufferCreateInfo {
+            _shader_buffer_data_type: ShaderBufferDataType::PointLightData,
+            _shader_buffer_data_stride: std::mem::size_of::<PointLights>(),
             ..uniform_buffer_create_info
         },
     );

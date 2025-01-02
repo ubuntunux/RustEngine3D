@@ -133,9 +133,9 @@ void main()
 {
     vec2 q = vs_output.tex_coord;
     vec2 p = q - 0.5;
-	float asp = BACKBUFFER_SIZE.x / BACKBUFFER_SIZE.y;
+	float asp = BACK_BUFFER_SIZE.x / BACK_BUFFER_SIZE.y;
     p.x *= asp;
-	vec2 mo = 1.0 / BACKBUFFER_SIZE.xy;
+	vec2 mo = 1.0 / BACK_BUFFER_SIZE.xy;
 	moy = mo.y;
     float st = sin(TIME*0.3-1.3)*0.2;
     vec3 ro = vec3(0.,-2.+sin(TIME*.3-1.)*2.,TIME*30.);

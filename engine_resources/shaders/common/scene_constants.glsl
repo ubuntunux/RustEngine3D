@@ -37,7 +37,7 @@ const float kSphereRadius = 1.0;
 const vec3 kSphereAlbedo = vec3(0.8);
 const vec3 kGroundAlbedo = vec3(0.0, 0.0, 0.04);
 
-const int MAX_POINT_LIGHTS = 32;
+const int MAX_POINT_LIGHTS = 32; // MAX_POINT_LIGHTS must match with constants.rs
 
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
@@ -45,7 +45,7 @@ const float SEA_COASTLINE_THICKNESS = 1.0;
 struct SCENE_CONSTANTS
 {
     vec2 SCREEN_SIZE;
-    vec2 BACKBUFFER_SIZE;
+    vec2 BACK_BUFFER_SIZE;
     float TIME;
     float DELTA_TIME;
     float SEA_HEIGHT;
@@ -55,9 +55,9 @@ struct SCENE_CONSTANTS
     int GPU_PARTICLE_UPDATE_BUFFER_OFFSET;
     int PREV_GPU_PARTICLE_COUNT_BUFFER_OFFSET;
     int PREV_GPU_PARTICLE_UPDATE_BUFFER_OFFSET;
+    int RENDER_POINT_LIGHT_COUNT;
     int reserved0;
     int reserved1;
-    int reserved2;
 };
 
 // uniform_buffer_data_list.rs - struct ViewConstants
@@ -85,12 +85,12 @@ struct VIEW_CONSTANTS
     vec3 CAMERA_POSITION;
     int JITTER_FRAME;
     vec3 CAMERA_POSITION_PREV;
-    float VIEWCONSTANTS_DUMMY0;
+    float VIEW_CONSTANTS_DUMMY0;
     vec2 NEAR_FAR;
     vec2 JITTER_DELTA;
     vec2 JITTER_OFFSET;
-    float VIEWCONSTANTS_DUMMY1;
-    float VIEWCONSTANTS_DUMMY2;
+    float VIEW_CONSTANTS_DUMMY1;
+    float VIEW_CONSTANTS_DUMMY2;
 };
 
 // light.rs - struct LightData
@@ -114,6 +114,7 @@ struct POINT_LIGHT_DATA
     int reserved0;
 };
 
+// shader_buffer_data.rs - struct PointLights
 struct POINT_LIGHTS
 {
     POINT_LIGHT_DATA point_light_data[MAX_POINT_LIGHTS];

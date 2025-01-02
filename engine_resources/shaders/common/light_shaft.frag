@@ -20,7 +20,7 @@ void main()
     vec2 uv = vs_output.tex_coord;
     vec3 screen_center_ray = vec3(VIEW_ORIGIN[0].z, VIEW_ORIGIN[1].z, VIEW_ORIGIN[2].z);
 
-    const float screenRatio = BACKBUFFER_SIZE.y / BACKBUFFER_SIZE.x;
+    const float screenRatio = BACK_BUFFER_SIZE.y / BACK_BUFFER_SIZE.x;
 
     vec4 sun_proj = PROJECTION * VIEW_ORIGIN * vec4(-LIGHT_DIRECTION.xyz * NEAR_FAR.y, 1.0);
     sun_proj.xyz /= sun_proj.w;

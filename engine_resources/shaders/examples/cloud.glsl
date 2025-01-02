@@ -168,9 +168,9 @@ layout (location = 0) out vec4 fs_output;
 
 void main()
 {
-    vec2 p = (vs_output.tex_coord * 2.0 - 1.0) * (BACKBUFFER_SIZE.y / BACKBUFFER_SIZE.x);
+    vec2 p = (vs_output.tex_coord * 2.0 - 1.0) * (BACK_BUFFER_SIZE.y / BACK_BUFFER_SIZE.x);
 
-    vec2 m = MOUSE_POS / BACKBUFFER_SIZE * 2.0;
+    vec2 m = MOUSE_POS / BACK_BUFFER_SIZE * 2.0;
 
     // camera
     vec3 ro = 4.0*normalize(vec3(sin(3.0*m.x), 0.4*m.y, cos(3.0*m.x)));

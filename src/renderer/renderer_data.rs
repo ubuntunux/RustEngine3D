@@ -451,8 +451,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         let main_camera = scene_manager.get_main_camera();
         let main_light = scene_manager.get_main_light().borrow();
         let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
-        let render_capture_height_map: bool =
-            capture_height_map.get_need_to_redraw_shadow_and_reset();
+        let render_capture_height_map: bool = capture_height_map.get_need_to_redraw_shadow_and_reset();
         let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
         let cube_geometry_data: Ref<GeometryData> = cube_mesh.get_default_geometry_data().borrow();
         let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
@@ -478,16 +477,14 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 elapsed_time,
                 delta_time,
                 self._fft_ocean.get_height(),
-                self.get_effect_manager()
-                    .get_gpu_particle_count_buffer_offset(frame_index),
-                self.get_effect_manager()
-                    .get_gpu_particle_update_buffer_offset(frame_index),
+                self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
+                self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
+                scene_manager.get_render_point_light_count() as i32
             );
 
             self._view_constants.update_view_constants(&main_camera);
             if render_capture_height_map {
-                self._view_constants._capture_height_map_view_projection =
-                    (*capture_height_map.get_shadow_view_projection()).into();
+                self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
             }
 
             self.upload_shader_buffer_data(
@@ -507,6 +504,12 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 swapchain_index,
                 &ShaderBufferDataType::LightData,
                 main_light.get_light_data(),
+            );
+            self.upload_shader_buffer_data(
+                command_buffer,
+                swapchain_index,
+                &ShaderBufferDataType::PointLightData,
+                scene_manager.get_render_point_light_data(),
             );
             self.upload_shader_buffer_data(
                 command_buffer,
