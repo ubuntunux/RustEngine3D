@@ -951,7 +951,6 @@ impl<'a> SceneManager<'a> {
             for (i, point_light_data) in self._point_light_object_map.values().enumerate() {
                 self._render_point_lights._point_light_data[i] = point_light_data.borrow()._light_data.clone();
                 self._render_point_light_count += 1;
-                log::info!("PointLight: {:?}", self._render_point_lights._point_light_data[i]);
                 if MAX_POINT_LIGHTS <= self._render_point_light_count as usize {
                     break;
                 }
