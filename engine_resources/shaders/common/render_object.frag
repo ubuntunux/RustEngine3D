@@ -10,18 +10,18 @@
 #endif
 
 #if (RenderMode_Forward == RenderMode)
-layout(binding = 6) uniform sampler2D textureShadow;
-layout(binding = 7) uniform sampler2D textureHeightMap;
-layout(binding = 8) uniform samplerCube texture_probe;
-layout(binding = 9) uniform sampler2D transmittance_texture;
-layout(binding = 10) uniform sampler2D irradiance_texture;
-layout(binding = 11) uniform sampler3D scattering_texture;
-layout(binding = 12) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 7) uniform sampler2D textureShadow;
+layout(binding = 8) uniform sampler2D textureHeightMap;
+layout(binding = 9) uniform samplerCube texture_probe;
+layout(binding = 10) uniform sampler2D transmittance_texture;
+layout(binding = 11) uniform sampler2D irradiance_texture;
+layout(binding = 12) uniform sampler3D scattering_texture;
+layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
 #endif
-layout(binding = 13) uniform sampler2D textureBase;
+layout(binding = 14) uniform sampler2D textureBase;
 #if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
-layout(binding = 14) uniform sampler2D textureMaterial;
-layout(binding = 15) uniform sampler2D textureNormal;
+layout(binding = 15) uniform sampler2D textureMaterial;
+layout(binding = 16) uniform sampler2D textureNormal;
 #endif
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
@@ -47,7 +47,7 @@ void main() {
     }
 
 #if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
-    // x: roughness, y: metalicness, z: emissive intensity
+    // x: roughness, y: metallic, z: emissive intensity
     vec4 material = texture(textureMaterial, vs_output.texCoord);
     vec3 normal = normalize(vs_output.tangent_to_world * (texture(textureNormal, vs_output.texCoord).xyz * 2.0 - 1.0));
     vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
@@ -71,7 +71,7 @@ void main() {
     float opacity = base_color.w * pushConstant._color.w;
     vec3 emissive_color = vec3(0.0);
     float roughness = material.x;
-    float metalicness = material.y;
+    float metallic = material.y;
     float reflectance = 0.0;
     float ssao = 1.0;
     vec4 scene_reflect_color = vec4(0.0);
@@ -87,10 +87,10 @@ void main() {
         scene_constants,
         view_constants,
         light_data,
-        //point_lights,
+        point_lights,
         base_color.xyz * pushConstant._color.xyz,
         opacity,
-        metalicness,
+        metallic,
         roughness,
         reflectance,
         ssao,

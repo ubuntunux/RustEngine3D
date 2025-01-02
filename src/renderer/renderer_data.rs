@@ -479,7 +479,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 self._fft_ocean.get_height(),
                 self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
                 self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
-                scene_manager.get_render_point_light_count() as i32
+                scene_manager.get_render_point_light_count()
             );
 
             self._view_constants.update_view_constants(&main_camera);
@@ -509,7 +509,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 &ShaderBufferDataType::PointLightData,
-                scene_manager.get_render_point_light_data(),
+                scene_manager.get_render_point_lights(),
             );
             self.upload_shader_buffer_data(
                 command_buffer,

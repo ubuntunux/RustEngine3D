@@ -350,8 +350,9 @@ class RustEngine3DExporter:
                     }
                 elif 'POINT' == child.data.type:
                     point_lights[child.name] = {
-                        "_light_color": light_color,
-                        "_radius": child.data.shadow_soft_size
+                        "_light_position": self.convert_asset_location(child),
+                        "_radius": child.data.shadow_soft_size,
+                        "_light_color": light_color
                     }
             elif 'CAMERA' == child.type:
                 cameras[child.name] = {

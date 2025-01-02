@@ -251,7 +251,7 @@ vec4 surface_shading(
     const in SCENE_CONSTANTS scene_constants,
     const in VIEW_CONSTANTS view_constants,
     const in LIGHT_DATA light_data,
-    //const in POINT_LIGHTS point_lights,
+    const in POINT_LIGHTS point_lights,
     vec3 base_color,
     float opacity,
     const in float metallic,
@@ -389,35 +389,27 @@ vec4 surface_shading(
     specular_light *= inv_sea_ratio;
 
     // Point Lights
-//    for(int i = 0; i < MAX_POINT_LIGHTS; ++i)
-//    {
-//        if(1.0 != point_lights.data[i].render)
-//        {
-//            break;
-//        }
-//
-//        const float point_light_radius = point_lights.data[i].radius;
-//        vec3 point_light_dir = point_lights.data[i].pos.xyz - world_position;
-//        const float point_light_dist = length(point_light_dir);
-//
-//        if(point_light_radius < point_light_dist)
-//        {
-//            continue;
-//        }
-//
-//        point_light_dir /= point_light_dist;
-//
-//        const vec3 point_light_half = normalize(V + point_light_dir);
-//        float point_light_attenuation = clamp(1.0 - point_light_dist / point_light_radius, 0.0, 1.0);
-//        point_light_attenuation *= point_light_attenuation;
-//        const vec3 point_light_color = point_lights.data[i].color.xyz * point_light_attenuation;
-//        const float point_light_NoL = max(0.01, dot(N, point_light_dir));
-//        const float point_light_NoH = max(0.01, dot(N, point_light_half));
-//        const float point_light_VoH = max(0.01, dot(V, point_light_half));
-//        const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
-//        diffuse_light += oren_nayar(roughness2, point_light_NoL, NoV, N, V, point_light_dir) * (vec3(1.0) - point_light_F) * point_light_color;
-//        specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
-//    }
+    for(int i = 0; i < scene_constants.RENDER_POINT_LIGHT_COUNT; ++i)
+    {
+        const float point_light_radius = point_lights.point_light_data[i].RADIUS;
+        vec3 to_point_light = point_lights.point_light_data[i].LIGHT_POSITION - world_position;
+        const float point_light_dist = length(to_point_light);
+        if(point_light_dist <= point_light_radius)
+        {
+            vec3 point_light_dir = to_point_light / point_light_dist;
+            const vec3 point_light_half = normalize(V + point_light_dir);
+            float point_light_attenuation = clamp(1.0 - point_light_dist / point_light_radius, 0.0, 1.0);
+            point_light_attenuation *= point_light_attenuation;
+            const vec3 point_light_color = point_lights.point_light_data[i].LIGHT_COLOR * point_light_attenuation;
+            const float point_light_NoL = max(0.01, dot(N, point_light_dir));
+            const float point_light_NoH = max(0.01, dot(N, point_light_half));
+            const float point_light_VoH = max(0.01, dot(V, point_light_half));
+            const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
+
+            diffuse_light += diffuse_burley(roughness, NoV, point_light_NoL, point_light_VoH) * point_light_NoL * (vec3(1.0) - point_light_F) * point_light_color;
+            specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
+        }
+    }
 
 /*
 #ifdef FRAGMENT_SHADER
@@ -429,12 +421,9 @@ vec4 surface_shading(
     vec3 yneg = N - ddy;
     vec3 ypos = N + ddy;
     float curvature = (cross(xneg, xpos).y - cross(yneg, ypos).x) / scene_linear_depth;
-
     float corrosion = clamp(-curvature * 3.0, 0.0, 1.0);
     float shine = clamp(curvature * 5.0, 0.0, 1.0);
-
     curvature = pow(saturate((curvature * 0.5 + 0.5) * 1.0), 4.0);
-
     return vec4(curvature, curvature, curvature, 1.0);
 #endif
 */

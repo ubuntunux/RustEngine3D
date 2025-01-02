@@ -13,36 +13,40 @@ layout(binding = 2) uniform LightData
 {
     LIGHT_DATA light_data;
 };
-layout(binding = 3) uniform AtmosphereConstants
+layout(binding = 3) uniform PointLights
+{
+    POINT_LIGHTS point_lights;
+};
+layout(binding = 4) uniform AtmosphereConstants
 {
     ATMOSPHERE_CONSTANTS atmosphere_constants;
 };
-layout(binding = 4) uniform sampler2D textureShadow;
-layout(binding = 5) uniform sampler2D textureHeightMap;
-layout(binding = 6) uniform samplerCube texture_probe;
-layout(binding = 7) uniform sampler2D transmittance_texture;
-layout(binding = 8) uniform sampler2D irradiance_texture;
-layout(binding = 9) uniform sampler3D scattering_texture;
-layout(binding = 10) uniform sampler3D single_mie_scattering_texture;
-layout(binding = 11) buffer readonly GpuParticleStaticConstantsBuffer
+layout(binding = 5) uniform sampler2D textureShadow;
+layout(binding = 6) uniform sampler2D textureHeightMap;
+layout(binding = 7) uniform samplerCube texture_probe;
+layout(binding = 8) uniform sampler2D transmittance_texture;
+layout(binding = 9) uniform sampler2D irradiance_texture;
+layout(binding = 10) uniform sampler3D scattering_texture;
+layout(binding = 11) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 12) buffer readonly GpuParticleStaticConstantsBuffer
 {
     GpuParticleStaticConstants gpu_particle_static_constants[];
 };
-layout(binding = 12) buffer readonly GpuParticleDynamicConstantsBuffer
+layout(binding = 13) buffer readonly GpuParticleDynamicConstantsBuffer
 {
     GpuParticleDynamicConstants gpu_particle_dynamic_constants[];
 };
-layout(binding = 13) buffer readonly GpuParticleCountBuffer
+layout(binding = 14) buffer readonly GpuParticleCountBuffer
 {
     GpuParticleCountBufferData gpu_particle_count_buffer[];
 };
-layout(binding = 14) buffer readonly GpuParticleUpdateBuffer
+layout(binding = 15) buffer readonly GpuParticleUpdateBuffer
 {
     GpuParticleUpdateBufferData gpu_particle_update_buffer[];
 };
-layout(binding = 15) uniform sampler2D textureBase;
-layout(binding = 16) uniform sampler2D textureMaterial;
-layout(binding = 17) uniform sampler2D textureNormal;
+layout(binding = 16) uniform sampler2D textureBase;
+layout(binding = 17) uniform sampler2D textureMaterial;
+layout(binding = 18) uniform sampler2D textureNormal;
 
 layout( push_constant ) uniform PushConstant_RenderParticle
 {

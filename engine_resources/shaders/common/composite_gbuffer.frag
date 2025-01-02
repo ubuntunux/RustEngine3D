@@ -20,23 +20,27 @@ layout(binding = 2) uniform LightData
 {
     LIGHT_DATA light_data;
 };
-layout(binding = 3) uniform AtmosphereConstants
+layout(binding = 3) uniform PointLights
+{
+    POINT_LIGHTS point_lights;
+};
+layout(binding = 4) uniform AtmosphereConstants
 {
     ATMOSPHERE_CONSTANTS atmosphere_constants;
 };
-layout(binding = 4) uniform sampler2D textureSceneAlbedo;
-layout(binding = 5) uniform sampler2D textureSceneMaterial;
-layout(binding = 6) uniform sampler2D textureSceneNormal;
-layout(binding = 7) uniform sampler2D textureSceneDepth;
-layout(binding = 8) uniform sampler2D textureSSAO;
-layout(binding = 9) uniform sampler2D textureShadow;
-layout(binding = 10) uniform sampler2D textureHeightMap;
-layout(binding = 11) uniform samplerCube texture_probe;
-layout(binding = 12) uniform sampler2D textureSceneReflect;
-layout(binding = 13) uniform sampler2D transmittance_texture;
-layout(binding = 14) uniform sampler2D irradiance_texture;
-layout(binding = 15) uniform sampler3D scattering_texture;
-layout(binding = 16) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 5) uniform sampler2D textureSceneAlbedo;
+layout(binding = 6) uniform sampler2D textureSceneMaterial;
+layout(binding = 7) uniform sampler2D textureSceneNormal;
+layout(binding = 8) uniform sampler2D textureSceneDepth;
+layout(binding = 9) uniform sampler2D textureSSAO;
+layout(binding = 10) uniform sampler2D textureShadow;
+layout(binding = 11) uniform sampler2D textureHeightMap;
+layout(binding = 12) uniform samplerCube texture_probe;
+layout(binding = 13) uniform sampler2D textureSceneReflect;
+layout(binding = 14) uniform sampler2D transmittance_texture;
+layout(binding = 15) uniform sampler2D irradiance_texture;
+layout(binding = 16) uniform sampler3D scattering_texture;
+layout(binding = 17) uniform sampler3D single_mie_scattering_texture;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -62,7 +66,7 @@ void main() {
     vec3 world_position = relative_position.xyz + view_constants.CAMERA_POSITION;
 
     float roughness = material.x;
-    float metalicness = material.y;
+    float metallic = material.y;
     float reflectance = 0.0;
 
     float ssao = texture(textureSSAO, vs_output.texCoord).x;
@@ -81,10 +85,10 @@ void main() {
         scene_constants,
         view_constants,
         light_data,
-        //point_lights,
+        point_lights,
         base_color.xyz,
         opacity,
-        metalicness,
+        metallic,
         roughness,
         reflectance,
         ssao,

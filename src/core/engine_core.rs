@@ -506,6 +506,11 @@ impl<'a> EngineCore<'a> {
                     scene_manager._skeletal_render_elements.len(),
                     scene_manager._skeletal_shadow_render_elements.len()
                 ));
+                font_manager.log(format!(
+                    "PointLight: {:?}, Render PointLight: {:?}",
+                    scene_manager._point_light_object_map.len(),
+                    scene_manager.get_render_point_light_count()
+                ));
 
                 // render scene
                 let render_time = self._time_data.get_current_time();

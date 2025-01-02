@@ -13,22 +13,26 @@ layout(binding = 2) uniform LightData
 {
     LIGHT_DATA light_data;
 };
-layout(binding = 3) uniform AtmosphereConstants
+layout(binding = 3) uniform PointLights
+{
+    POINT_LIGHTS point_lights;
+};
+layout(binding = 4) uniform AtmosphereConstants
 {
     ATMOSPHERE_CONSTANTS atmosphere_constants;
 };
-layout(binding = 4) uniform sampler2DArray fftWavesSampler;
-layout(binding = 5) uniform sampler2D texture_scene;
-layout(binding = 6) uniform sampler2D texture_depth;
-layout(binding = 7) uniform sampler2D texture_shadow;
-layout(binding = 8) uniform samplerCube texture_probe;
-layout(binding = 9) uniform sampler2D texture_noise;
-layout(binding = 10) uniform sampler3D texture_caustic;
-layout(binding = 11) uniform sampler2D texture_foam;
-layout(binding = 12) uniform sampler2D transmittance_texture;
-layout(binding = 13) uniform sampler2D irradiance_texture;
-layout(binding = 14) uniform sampler3D scattering_texture;
-layout(binding = 15) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 5) uniform sampler2DArray fftWavesSampler;
+layout(binding = 6) uniform sampler2D texture_scene;
+layout(binding = 7) uniform sampler2D texture_depth;
+layout(binding = 8) uniform sampler2D texture_shadow;
+layout(binding = 9) uniform samplerCube texture_probe;
+layout(binding = 10) uniform sampler2D texture_noise;
+layout(binding = 11) uniform sampler3D texture_caustic;
+layout(binding = 12) uniform sampler2D texture_foam;
+layout(binding = 13) uniform sampler2D transmittance_texture;
+layout(binding = 14) uniform sampler2D irradiance_texture;
+layout(binding = 15) uniform sampler3D scattering_texture;
+layout(binding = 16) uniform sampler3D single_mie_scattering_texture;
 
 struct VERTEX_OUTPUT
 {

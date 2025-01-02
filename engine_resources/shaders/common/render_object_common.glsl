@@ -14,17 +14,21 @@ layout(binding = 2) uniform LightData
 {
     LIGHT_DATA light_data;
 };
-layout(binding = 3) buffer TransformMatrices
+layout(binding = 3) uniform PointLights
+{
+    POINT_LIGHTS point_lights;
+};
+layout(binding = 4) buffer TransformMatrices
 {
     mat4 transform_matrices[MAX_TRANSFORM_COUNT];
 };
-layout(binding = 4) buffer TransformOffsets
+layout(binding = 5) buffer TransformOffsets
 {
     // x: common transform index, y: transform index for shadow
     ivec4 transform_offsets[MAX_TRANSFORM_COUNT];
 };
 #if (RenderMode_Forward == RenderMode)
-layout(binding = 5) uniform AtmosphereConstants
+layout(binding = 6) uniform AtmosphereConstants
 {
     ATMOSPHERE_CONSTANTS atmosphere_constants;
 };

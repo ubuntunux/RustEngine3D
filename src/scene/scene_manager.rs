@@ -12,9 +12,10 @@ use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{RendererData, RenderObjectType};
+use crate::renderer::shader_buffer_data::PointLights;
 use crate::resource::resource::EngineResources;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
-use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLight, LightData, PointLightCreateInfo, PointLight, PointLightData};
+use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLight, LightData, PointLightCreateInfo, PointLight};
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::scene::bounding_box::BoundingBox;
@@ -58,7 +59,8 @@ pub struct SceneManager<'a> {
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
     pub _point_light_object_map: PointLightObjectMap,
-    pub _render_point_light_data: Vec<PointLightData>,
+    pub _render_point_lights: PointLights,
+    pub _render_point_light_count: i32,
     pub _object_id_generator: i64,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
@@ -98,11 +100,11 @@ impl<'a> SceneManager<'a> {
     pub fn get_main_light(&self) -> &RcRefCell<DirectionalLight> {
         &self._main_light.as_ref().unwrap()
     }
-    pub fn get_render_point_light_data(&self) -> &Vec<PointLightData> {
-        &self._render_point_light_data
+    pub fn get_render_point_lights(&self) -> &PointLights {
+        &self._render_point_lights
     }
-    pub fn get_render_point_light_count(&self) -> usize {
-        self._render_point_light_data.len()
+    pub fn get_render_point_light_count(&self) -> i32 {
+        self._render_point_light_count
     }
     pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
         &self._light_probe_cameras[index]
@@ -149,7 +151,8 @@ impl<'a> SceneManager<'a> {
             _camera_object_map: HashMap::new(),
             _directional_light_object_map: HashMap::new(),
             _point_light_object_map: HashMap::new(),
-            _render_point_light_data: vec![PointLightData::default(); MAX_POINT_LIGHTS],
+            _render_point_lights: PointLights::default(),
+            _render_point_light_count: 0,
             _object_id_generator: 0,
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
@@ -944,9 +947,14 @@ impl<'a> SceneManager<'a> {
         // gather point lights
         {
             // TODO: cull point light
-            self._render_point_light_data.clear();
-            for point_light_data in self._point_light_object_map.values() {
-                self._render_point_light_data.push(point_light_data.borrow()._light_data.clone());
+            self._render_point_light_count = 0;
+            for (i, point_light_data) in self._point_light_object_map.values().enumerate() {
+                self._render_point_lights._point_light_data[i] = point_light_data.borrow()._light_data.clone();
+                self._render_point_light_count += 1;
+                log::info!("PointLight: {:?}", self._render_point_lights._point_light_data[i]);
+                if MAX_POINT_LIGHTS <= self._render_point_light_count as usize {
+                    break;
+                }
             }
         }
 
