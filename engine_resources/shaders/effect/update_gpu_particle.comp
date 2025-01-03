@@ -106,7 +106,7 @@ void spawn_particle_func(
     int emitter_index
 )
 {
-    uint random_seed = uint(mod(scene_constants.TIME, 1.0) * 65535.0) ^ uint(update_buffer_index * emitter_index);
+    uint random_seed = uint(mod(scene_constants.TIME, 3.141592) * 65535.0) ^ uint(update_buffer_index + (emitter_index + 1));
     const float initial_lifetime = mix(
         gpu_particle_static_constant._particle_lifetime_min,
         gpu_particle_static_constant._particle_lifetime_max,
