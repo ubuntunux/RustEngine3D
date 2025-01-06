@@ -564,8 +564,7 @@ impl<'a> EffectManager<'a> {
             );
 
             // barrier for update gpu particles pipeline
-            let gpu_particle_count_buffer_data =
-                &gpu_particle_count_buffer._buffers[swapchain_index as usize];
+            let gpu_particle_count_buffer_data = &gpu_particle_count_buffer._buffers[swapchain_index as usize];
             let buffer_memory_barriers: [vk::BufferMemoryBarrier; 1] = [vk::BufferMemoryBarrier {
                 src_access_mask: vk::AccessFlags::SHADER_WRITE,
                 dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE,
@@ -573,9 +572,7 @@ impl<'a> EffectManager<'a> {
                 dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                 buffer: gpu_particle_count_buffer_data._buffer,
                 offset: 0,
-                size: gpu_particle_count_buffer_data
-                    ._buffer_memory_requirements
-                    .size,
+                size: gpu_particle_count_buffer_data._buffer_memory_requirements.size,
                 ..Default::default()
             }];
             renderer_context.pipeline_barrier(
@@ -617,9 +614,7 @@ impl<'a> EffectManager<'a> {
                     dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                     buffer: gpu_particle_count_buffer_data._buffer,
                     offset: 0,
-                    size: gpu_particle_count_buffer_data
-                        ._buffer_memory_requirements
-                        .size,
+                    size: gpu_particle_count_buffer_data._buffer_memory_requirements.size,
                     ..Default::default()
                 },
                 vk::BufferMemoryBarrier {
@@ -629,9 +624,7 @@ impl<'a> EffectManager<'a> {
                     dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                     buffer: gpu_particle_update_buffer_data._buffer,
                     offset: 0,
-                    size: gpu_particle_update_buffer_data
-                        ._buffer_memory_requirements
-                        .size,
+                    size: gpu_particle_update_buffer_data._buffer_memory_requirements.size,
                     ..Default::default()
                 },
             ];

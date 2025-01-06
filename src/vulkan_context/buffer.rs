@@ -25,7 +25,7 @@ pub struct ShaderBufferData<'a> {
     pub _buffer_data_size: vk::DeviceSize,
     pub _descriptor_buffer_infos: SwapchainArray<DescriptorResourceInfo<'a>>,
     pub _staging_buffers: Option<SwapchainArray<BufferData>>,
-    pub _is_single_index_buffer: bool,
+    pub _create_buffer_per_swapchain_count: bool,
 }
 
 impl Default for BufferData {
@@ -340,7 +340,7 @@ pub fn create_shader_buffer_data<'a>(
     buffer_name: &String,
     buffer_usage: vk::BufferUsageFlags,
     buffer_size: vk::DeviceSize,
-    is_single_index_buffer: bool,
+    create_buffer_per_swapchain_count: bool,
     has_staging_buffer: bool,
     is_device_local: bool,
 ) -> ShaderBufferData<'a> {
@@ -361,7 +361,19 @@ pub fn create_shader_buffer_data<'a>(
     } else {
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT
     };
-    let buffers: SwapchainArray<BufferData> = if is_single_index_buffer {
+    let buffers: SwapchainArray<BufferData> = if create_buffer_per_swapchain_count {
+        (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
+            create_buffer_data(
+                device,
+                memory_properties,
+                debug_utils_device,
+                buffer_name.as_str(),
+                buffer_size,
+                buffer_usage_flags,
+                memory_property_flags,
+            )
+        }).collect()
+    } else {
         let buffer = create_buffer_data(
             device,
             memory_properties,
@@ -372,20 +384,6 @@ pub fn create_shader_buffer_data<'a>(
             memory_property_flags,
         );
         vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
-    } else {
-        (0..constants::SWAPCHAIN_IMAGE_COUNT)
-            .map(|_i| {
-                create_buffer_data(
-                    device,
-                    memory_properties,
-                    debug_utils_device,
-                    buffer_name.as_str(),
-                    buffer_size,
-                    buffer_usage_flags,
-                    memory_property_flags,
-                )
-            })
-            .collect()
     };
 
     // staging buffer
@@ -393,7 +391,19 @@ pub fn create_shader_buffer_data<'a>(
         let staging_buffer_usage_flags = buffer_usage | vk::BufferUsageFlags::TRANSFER_SRC;
         let staging_memory_property_flags =
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-        Some(if is_single_index_buffer {
+        Some(if create_buffer_per_swapchain_count {
+            (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
+                create_buffer_data(
+                    device,
+                    memory_properties,
+                    debug_utils_device,
+                    buffer_name,
+                    buffer_size,
+                    staging_buffer_usage_flags,
+                    staging_memory_property_flags,
+                )
+            }).collect()
+        } else {
             let buffer = create_buffer_data(
                 device,
                 memory_properties,
@@ -404,20 +414,6 @@ pub fn create_shader_buffer_data<'a>(
                 staging_memory_property_flags,
             );
             vec![buffer; constants::SWAPCHAIN_IMAGE_COUNT]
-        } else {
-            (0..constants::SWAPCHAIN_IMAGE_COUNT)
-                .map(|_i| {
-                    create_buffer_data(
-                        device,
-                        memory_properties,
-                        debug_utils_device,
-                        buffer_name,
-                        buffer_size,
-                        staging_buffer_usage_flags,
-                        staging_memory_property_flags,
-                    )
-                })
-                .collect()
         })
     } else {
         None
@@ -440,7 +436,7 @@ pub fn create_shader_buffer_data<'a>(
         _buffer_data_size: buffer_size,
         _descriptor_buffer_infos: descriptor_buffer_infos,
         _staging_buffers: staging_buffers,
-        _is_single_index_buffer: is_single_index_buffer,
+        _create_buffer_per_swapchain_count: create_buffer_per_swapchain_count,
     }
 }
 
@@ -449,10 +445,11 @@ pub fn destroy_shader_buffer_data(device: &Device, uniform_buffer_data: &mut Sha
         "destroy_shader_buffer_data: {:?}",
         uniform_buffer_data._buffer_name
     );
-    let buffer_count = if uniform_buffer_data._is_single_index_buffer {
-        1
-    } else {
+
+    let buffer_count = if uniform_buffer_data._create_buffer_per_swapchain_count {
         uniform_buffer_data._buffers.len()
+    } else {
+        1
     };
 
     for i in 0..buffer_count {

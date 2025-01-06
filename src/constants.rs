@@ -20,8 +20,8 @@ pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] =
 pub const INVALID_QUEUE_INDEX: u32 = u32::MAX;
 pub const WHOLE_LAYERS: u32 = u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = u32::MAX;
-pub const SWAPCHAIN_IMAGE_COUNT: usize = 3;
-pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2];
+pub const SWAPCHAIN_IMAGE_COUNT: usize = 2;
+pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1];
 pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
     vk::SurfaceFormatKHR {
         format: vk::Format::R8G8B8A8_SRGB,
@@ -71,6 +71,8 @@ pub static mut ENABLE_UPSCALE: bool = false;
 pub const SSAO_KERNEL_SIZE: usize = 64; // must match with scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const MAX_POINT_LIGHTS: usize = 32; // must match with scene_constants.glsl
+pub const LIGHT_GRID_DIMENSION: [u32; 3] = [ 10, 10, 10 ];
+pub const LIGHT_GRID_CELL_COUNT: usize = (LIGHT_GRID_DIMENSION[0] * LIGHT_GRID_DIMENSION[1] * LIGHT_GRID_DIMENSION[2]) as usize;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
 pub const MAX_TRANSFORM_COUNT: usize = 65536; // must match with scene_constants.glsl
