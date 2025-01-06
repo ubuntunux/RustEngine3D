@@ -38,6 +38,7 @@ const vec3 kSphereAlbedo = vec3(0.8);
 const vec3 kGroundAlbedo = vec3(0.0, 0.0, 0.04);
 
 const int MAX_POINT_LIGHTS = 32; // MAX_POINT_LIGHTS must match with constants.rs
+const int MAX_LIGHT_COUNT_PER_CELL = 4; // MAX_LIGHT_COUNT_PER_CELL must match with constants.rs
 
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
@@ -118,6 +119,11 @@ struct POINT_LIGHT_DATA
 struct POINT_LIGHTS
 {
     POINT_LIGHT_DATA point_light_data[MAX_POINT_LIGHTS];
+};
+
+// shader_buffer_data.rs - struct LightIndicesCell
+struct LIGHT_INDICES_CELL {
+    int light_indices[MAX_LIGHT_COUNT_PER_CELL];
 };
 
 #endif // _SCENE_CONSTANTS_

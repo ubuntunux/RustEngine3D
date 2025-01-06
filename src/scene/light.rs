@@ -1,5 +1,6 @@
 use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
+use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::transform_object::TransformObjectData;
 
@@ -41,13 +42,26 @@ pub struct DirectionalLight {
 
 // scene_constants.glsl - struct POINT_LIGHT_DATA
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, Clone)]
-#[serde(default)]
+#[derive(Debug, Clone)]
 pub struct PointLightData {
     pub _light_position: Vector3<f32>,
     pub _radius: f32,
     pub _light_color: Vector3<f32>,
     pub _reserved0: i32,
+}
+
+// scene_constants.glsl - struct POINT_LIGHTS
+#[repr(C)]
+#[derive(Clone, Default)]
+pub struct PointLights {
+    pub _point_light_data: [PointLightData; constants::MAX_POINT_LIGHTS],
+}
+
+// scene_constants.glsl - struct LIGHT_INDICES_CELL
+#[repr(C)]
+#[derive(Default, Debug, Clone)]
+pub struct LightIndicesCell {
+    pub _light_indices: [i32; constants::MAX_LIGHT_COUNT_PER_CELL]
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]

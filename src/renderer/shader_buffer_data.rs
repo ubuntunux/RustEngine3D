@@ -13,7 +13,7 @@ use crate::effect::effect_manager::{
 use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineInstanceData;
 use crate::scene::font::FontInstanceData;
-use crate::scene::light::{LightData, PointLightData};
+use crate::scene::light::{LightData, LightIndicesCell, PointLights};
 use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer::{self, ShaderBufferData};
@@ -102,12 +102,6 @@ pub struct ViewConstants {
     pub _jitter_offset: Vector2<f32>,
     pub _view_constants_dummy1: f32,
     pub _view_constants_dummy2: f32,
-}
-
-#[repr(C)]
-#[derive(Clone, Default)]
-pub struct PointLights {
-    pub _point_light_data: [PointLightData; constants::MAX_POINT_LIGHTS],
 }
 
 #[repr(C)]
@@ -554,6 +548,32 @@ pub fn register_storage_buffers(
             _shader_buffer_data_type: ShaderBufferDataType::GpuParticleUpdateBuffer,
             _shader_buffer_data_stride: std::mem::size_of::<GpuParticleUpdateBufferData>(),
             _shader_buffer_data_count: unsafe { constants::MAX_PARTICLE_COUNT as usize * 2 },
+            _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
+            _create_buffer_per_swapchain_count: false,
+            _has_staging_buffer: false,
+            _is_device_local: true,
+            ..storage_buffer_create_info
+        },
+    );
+    register_shader_buffer_data(
+        debug_utils_device,
+        &mut RegisterShaderBufferCreateInfo {
+            _shader_buffer_data_type: ShaderBufferDataType::PointLightCountBuffer,
+            _shader_buffer_data_stride: std::mem::size_of::<u32>(),
+            _shader_buffer_data_count: constants::LIGHT_GRID_CELL_COUNT,
+            _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
+            _create_buffer_per_swapchain_count: false,
+            _has_staging_buffer: false,
+            _is_device_local: true,
+            ..storage_buffer_create_info
+        },
+    );
+    register_shader_buffer_data(
+        debug_utils_device,
+        &mut RegisterShaderBufferCreateInfo {
+            _shader_buffer_data_type: ShaderBufferDataType::PointLightIndexBuffer,
+            _shader_buffer_data_stride: std::mem::size_of::<LightIndicesCell>(),
+            _shader_buffer_data_count: constants::LIGHT_GRID_CELL_COUNT,
             _buffer_usage: vk::BufferUsageFlags::STORAGE_BUFFER,
             _create_buffer_per_swapchain_count: false,
             _has_staging_buffer: false,
