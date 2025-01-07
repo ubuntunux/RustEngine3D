@@ -747,7 +747,8 @@ pub fn run_application(
                     }
 
                     // exit
-                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) {
+                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) ||
+                        engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
                         run_application = false;
                     }
                 }

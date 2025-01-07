@@ -88,6 +88,7 @@ pub struct JoystickInputData {
     pub _btn_back: ButtonState,
     pub _btn_start: ButtonState,
     pub _btn_guide: ButtonState,
+    pub _is_any_button_pressed: bool,
     pub _game_controller: Option<GameController>,
 }
 
@@ -186,6 +187,10 @@ impl MouseInputData {
         self._btn_m_pressed = pressed;
         self._btn_m_hold = pressed;
         self._btn_m_released = !pressed;
+    }
+
+    pub fn is_any_button_pressed(&self) -> bool {
+        self._btn_l_pressed || self._btn_m_pressed || self._btn_r_pressed
     }
 }
 
@@ -310,6 +315,7 @@ impl JoystickInputData {
             _btn_back: ButtonState::None,
             _btn_start: ButtonState::None,
             _btn_guide: ButtonState::None,
+            _is_any_button_pressed: false,
             _game_controller: joystick,
         })
     }
@@ -340,6 +346,11 @@ impl JoystickInputData {
         JoystickInputData::reset_button_state(&mut self._btn_back);
         JoystickInputData::reset_button_state(&mut self._btn_start);
         JoystickInputData::reset_button_state(&mut self._btn_guide);
+        self._is_any_button_pressed = false;
+    }
+
+    pub fn is_any_button_pressed(&self) -> bool {
+        self._is_any_button_pressed
     }
 
     pub fn has_game_controller(&self) -> bool {
@@ -421,6 +432,10 @@ impl JoystickInputData {
     }
 
     pub fn update_controller_button_state(&mut self, button: Button, button_state: ButtonState) {
+        if button_state == ButtonState::Pressed {
+            self._is_any_button_pressed = true;
+        }
+
         match button {
             Button::A => self._btn_a = button_state,
             Button::B => self._btn_b = button_state,
