@@ -106,37 +106,44 @@ vec3 Reproject(vec2 texCoord)
 
     if(DilationMode == DilationModes_CenterAverage)
     {
-        velocity += texture(texture_velocity, texCoord).xy;
+        velocity = texture(texture_velocity, texCoord).xy;
     }
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
         vec2 inv_depth_tex_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
-        float closestDepth = view_constants.NEAR_FAR.y;
         float average_depth = 0.0;
         float depths[9];
-        vec2 velocities[9];
-        for(int vy = -1; vy <= 1; ++vy)
+        const vec2 offsets[9] = {
+            vec2(-1.0, -1.0),
+            vec2(0.0, -1.0),
+            vec2(1.0, -1.0),
+            vec2(-1.0, 0.0),
+            vec2(0.0, 0.0),
+            vec2(1.0, 0.0),
+            vec2(-1.0, 1.0),
+            vec2(0.0, 1.0),
+            vec2(1.0, 1.0)
+        };
+
+        for(int i=0; i<9; ++i)
         {
-            for(int vx = -1; vx <= 1; ++vx)
-            {
-                float neighborDepth = textureLod(texture_scene_depth, texCoord + vec2(vx, vy) * inv_depth_tex_size, 0.0).x;
-                neighborDepth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, neighborDepth);
-                average_depth += neighborDepth / 9.0;
-                int index = (vy + 1) * 3 + (vx + 1);
-                depths[index] = neighborDepth;
-                velocities[index] = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
-            }
+            float neighborDepth = texture(texture_scene_depth, texCoord + offsets[i] * inv_depth_tex_size).x;
+            depths[i] = neighborDepth;
+            average_depth += neighborDepth / 9.0;
         }
 
+        int offset_index = 0;
+        float closestDepth = 1.0;
         for(int i=0; i<9; ++i)
         {
             float depth_diff = abs(depths[i] - average_depth);
             if(depth_diff < closestDepth)
             {
-                velocity = velocities[i];
+                offset_index = i;
                 closestDepth = depth_diff;
             }
         }
+        velocity = texture(texture_velocity, texCoord + offsets[offset_index] * inv_velocity_tex_size).xy;
     }
     else if(DilationMode == DilationModes_DilateGreatestVelocity)
     {
