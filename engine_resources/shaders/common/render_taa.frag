@@ -48,6 +48,7 @@ layout(binding = 2) uniform sampler2D texture_input;
 layout(binding = 3) uniform sampler2D texture_prev_resolve;
 layout(binding = 4) uniform sampler2D texture_velocity;
 layout(binding = 5) uniform sampler2D texture_scene_depth;
+layout(binding = 6) uniform sampler2D texture_hiz;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 outColor;
@@ -110,9 +111,6 @@ vec3 Reproject(vec2 texCoord)
     }
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
-        vec2 inv_depth_tex_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
-        float average_depth = 0.0;
-        float depths[9];
         const vec2 offsets[9] = {
             vec2(-1.0, -1.0),
             vec2(0.0, -1.0),
@@ -125,24 +123,21 @@ vec3 Reproject(vec2 texCoord)
             vec2(1.0, 1.0)
         };
 
-        for(int i=0; i<9; ++i)
-        {
-            float neighborDepth = texture(texture_scene_depth, texCoord + offsets[i] * inv_depth_tex_size).x;
-            depths[i] = neighborDepth;
-            average_depth += neighborDepth / 9.0;
-        }
-
-        int offset_index = 0;
+        float scene_depth = texture(texture_scene_depth, texCoord).x;
+        vec2 inv_depth_tex_size = 1.0 / textureSize(texture_hiz, 0).xy;
         float closestDepth = 1.0;
+        int offset_index = 0;
         for(int i=0; i<9; ++i)
         {
-            float depth_diff = abs(depths[i] - average_depth);
+            float neighborDepth = textureLod(texture_hiz, texCoord + offsets[i] * inv_depth_tex_size, 0.0).x;
+            float depth_diff = abs(neighborDepth - scene_depth);
             if(depth_diff < closestDepth)
             {
                 offset_index = i;
                 closestDepth = depth_diff;
             }
         }
+
         velocity = texture(texture_velocity, texCoord + offsets[offset_index] * inv_velocity_tex_size).xy;
     }
     else if(DilationMode == DilationModes_DilateGreatestVelocity)

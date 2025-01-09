@@ -21,12 +21,13 @@ layout(binding = 2) uniform LightData
     LIGHT_DATA light_data;
 };
 layout(binding = 3) uniform sampler2D textureSceneNormal;
-layout(binding = 4) uniform sampler2D textureHiZ;
-layout(binding = 5) uniform sampler2D ssaoNoise;
-layout(binding = 6) uniform sampler2D texture_shadow;
+layout(binding = 4) uniform sampler2D textureSceneDepth;
+layout(binding = 5) uniform sampler2D textureHiZ;
+layout(binding = 6) uniform sampler2D ssaoNoise;
+layout(binding = 7) uniform sampler2D texture_shadow;
 
 // uniform_buffer_data - struct SSAOConstants
-layout(binding = 7) uniform SSAOConstants
+layout(binding = 8) uniform SSAOConstants
 {
     vec4 _SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;
@@ -40,9 +41,33 @@ void main() {
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
-    const vec2 texCoord = vs_output.texCoord;
-    const float lod_level = 1.0;
-    const float device_depth = textureLod(textureHiZ, texCoord, lod_level).x;
+    vec2 texCoord = vs_output.texCoord;
+    const vec2 offsets[8] = {
+        vec2(-1.0, 0.0),
+        vec2(1.0, 0.0),
+        vec2(0.0, -1.0),
+        vec2(0.0, 1.0),
+        vec2(-1.0, -1.0),
+        vec2(1.0, -1.0),
+        vec2(-1.0, 1.0),
+        vec2(1.0, 1.0)
+    };
+
+    vec2 inv_depth_tex_size = 1.0 / textureSize(textureSceneDepth, 0);
+    float device_depth = texture(textureSceneDepth, texCoord).x;
+    int offset_index = 0;
+    const int loop_count = 4;
+    for(int i=0; i<loop_count; ++i)
+    {
+        float neighborDepth = texture(textureSceneDepth, texCoord + offsets[i] * inv_depth_tex_size).x;
+        if(device_depth > neighborDepth)
+        {
+            device_depth = neighborDepth;
+            offset_index = i;
+        }
+    }
+    texCoord += offsets[offset_index] * inv_depth_tex_size;
+
     if(0.0 == device_depth)
     {
         discard;
@@ -86,7 +111,7 @@ void main() {
             continue;
         }
 
-        const float occlusion_depth = textureLod(textureHiZ, offset.xy, lod_level).x;
+        const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
         if(occlusion_depth <= offset.z)
         {
             continue;
