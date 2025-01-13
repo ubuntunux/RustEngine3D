@@ -107,7 +107,7 @@ vec3 Reproject(vec2 texCoord)
 
     if(DilationMode == DilationModes_CenterAverage)
     {
-        velocity = texture(texture_velocity, texCoord - 0.5 * inv_velocity_tex_size).xy;
+        velocity = texture(texture_velocity, texCoord).xy;
     }
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
@@ -130,7 +130,7 @@ vec3 Reproject(vec2 texCoord)
         vec2 offset = vec2(0.0, 0.0);
         for(int i=0; i<9; ++i)
         {
-            vec2 curr_offset = offsets[i] - 0.5;
+            vec2 curr_offset = offsets[i] + 0.5;
             float neighborDepth = texture(texture_hiz, texCoord + curr_offset * inv_hiz_size).x;
             float depth_diff = abs(neighborDepth - depth);
             if(depth_diff < closestDepth)
@@ -148,7 +148,7 @@ vec3 Reproject(vec2 texCoord)
         {
             for(int vx = -1; vx <= 1; ++vx)
             {
-                vec2 neighborVelocity = texture(texture_velocity, texCoord + (vec2(vx, vy) - 0.5) * inv_velocity_tex_size).xy;
+                vec2 neighborVelocity = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
                 float neighborVelocityMag = dot(neighborVelocity, neighborVelocity);
                 if(dot(neighborVelocity, neighborVelocity) > greatestVelocity)
                 {
