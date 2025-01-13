@@ -153,7 +153,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             DescriptorDataCreateInfo {
                 _descriptor_semantic: SEMANTIC_TEXTURE_SSAO.to_string(),
                 _descriptor_binding_index: 9,
-                _descriptor_name: enum_to_string(&RenderTargetType::SSAOResolved),
+                _descriptor_name: enum_to_string(&RenderTargetType::ShadowResolved),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
@@ -214,6 +214,14 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 17,
                 _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
+                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
+                    | vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+            DescriptorDataCreateInfo {
+                _descriptor_binding_index: 18,
+                _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
                     | vk::ShaderStageFlags::FRAGMENT,

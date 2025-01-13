@@ -173,15 +173,15 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 .as_ref()
                 .unwrap(),
             self._render_target_data_map
-                .get(&RenderTargetType::SSAOResolved)
+                .get(&RenderTargetType::ShadowResolved)
                 .as_ref()
                 .unwrap(),
             self._render_target_data_map
-                .get(&RenderTargetType::SSAOResolvedPrev)
+                .get(&RenderTargetType::ShadowResolvedPrev)
                 .as_ref()
                 .unwrap(),
-            RenderTargetType::SSAOResolved,
-            RenderTargetType::SSAOResolvedPrev
+            RenderTargetType::ShadowResolved,
+            RenderTargetType::ShadowResolvedPrev
         );
 
         // Hierarchical Min Z
@@ -232,8 +232,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map.get(&RenderTargetType::SSAOResolved).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::SSAOResolvedPrev).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::ShadowResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::ShadowResolvedPrev).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap()
         );
@@ -346,8 +346,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSAOResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSAOResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::ShadowResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
+                (*self._render_target_data_map.get(&RenderTargetType::ShadowResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -2036,11 +2036,11 @@ impl<'a> RendererData<'a> {
 
         // resolve ssao
         let (framebuffer, descriptor_sets) = match self._render_context_ssao._render_context_taa_simple._current_taa_resolved {
-            RenderTargetType::SSAOResolved => (
+            RenderTargetType::ShadowResolved => (
                 Some(&self._render_context_ssao._render_context_taa_simple._framebuffer_data0),
                 Some(&self._render_context_ssao._render_context_taa_simple._descriptor_sets0),
             ),
-            RenderTargetType::SSAOResolvedPrev => (
+            RenderTargetType::ShadowResolvedPrev => (
                 Some(&self._render_context_ssao._render_context_taa_simple._framebuffer_data1),
                 Some(&self._render_context_ssao._render_context_taa_simple._descriptor_sets1),
             ),

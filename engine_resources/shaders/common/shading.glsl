@@ -167,6 +167,7 @@ float GeometrySmith(float NoV, float NoL, float roughness)
 vec3 phong_specular(in float LdR, in vec3 specular, in float roughness)
 {
     float spec = max(0.0, LdR);
+    float spec = max(0.0, LdR);
     float k = 1.999 / (roughness * roughness);
     return min(1.0, 3.0 * 0.0398 * k) * pow(spec, min(10000.0, k)) * specular;
 }
@@ -201,7 +202,7 @@ void apply_image_based_lighting(
     const in samplerCube texture_probe,
     const in vec4 scene_reflect_color,
     const in vec3 scene_sky_irradiance,
-    in vec3 shadow_factor,
+    float shadow_factor,
     const float sky_visibility,
     float roughness,
     const in vec3 F0,
@@ -224,7 +225,7 @@ void apply_image_based_lighting(
     vec3 ibl_diffuse_light = textureLod(texture_probe, N, max_env_mipmap).xyz;
     vec3 ibl_specular_light = textureLod(texture_probe, R, roughness * max_env_mipmap).xyz;
 
-    shadow_factor = pow(max(shadow_factor, vec3(dot(vec3(0.33333333), scene_sky_irradiance))), vec3(1.5 - sky_visibility * 0.5));
+    shadow_factor = pow(max(shadow_factor, dot(vec3(0.33333333), scene_sky_irradiance)), 1.5 - sky_visibility * 0.5);
     ibl_diffuse_light *= shadow_factor;
     ibl_specular_light *= shadow_factor;
 
@@ -254,10 +255,10 @@ vec4 surface_shading(
     const in POINT_LIGHTS point_lights,
     vec3 base_color,
     float opacity,
-    const in float metallic,
+    float metallic,
     float roughness,
-    const in float reflectance,
-    const in float ssao_factor,
+    float reflectance,
+    float shadow_factor,
     const in vec4 scene_reflect_color,
     const in samplerCube texture_probe,
     const in sampler2D texture_shadow,
@@ -324,7 +325,6 @@ vec4 surface_shading(
     vec3 F0 = mix(vec3(max(0.04, reflectance)), base_color.xyz, metallic);
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
-    vec3 shadow_factor = vec3(ssao_factor);
 
     if(!IS_COMBINED_SHADOW) {
         shadow_factor *= get_shadow_factor(

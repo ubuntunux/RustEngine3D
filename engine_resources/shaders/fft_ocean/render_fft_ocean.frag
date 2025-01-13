@@ -147,7 +147,7 @@ void main()
         texture_probe,
         scene_reflect_color,
         sky_irradiance,
-        vec3(vs_output.shadow_factor),
+        vs_output.shadow_factor,
         sky_visibility,
         roughness,
         F0,

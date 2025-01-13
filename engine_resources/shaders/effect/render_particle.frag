@@ -48,7 +48,7 @@ void main() {
     float roughness = material.x;
     float metallic = material.y;
     float reflectance = 0.0;
-    float ssao = 1.0;
+    float shadow_factor = 1.0;
     vec4 scene_reflect_color = vec4(0.0);
     vec3 V = normalize(-vs_output.relative_position.xyz);
 
@@ -68,7 +68,7 @@ void main() {
         metallic,
         roughness,
         reflectance,
-        ssao,
+        shadow_factor,
         scene_reflect_color,
         texture_probe,
         textureShadow,
