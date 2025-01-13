@@ -22,12 +22,11 @@ layout(binding = 2) uniform LightData
 };
 layout(binding = 3) uniform sampler2D textureSceneNormal;
 layout(binding = 4) uniform sampler2D textureSceneDepth;
-layout(binding = 5) uniform sampler2D textureHiZ;
-layout(binding = 6) uniform sampler2D ssaoNoise;
-layout(binding = 7) uniform sampler2D texture_shadow;
+layout(binding = 5) uniform sampler2D ssaoNoise;
+layout(binding = 6) uniform sampler2D texture_shadow;
 
 // uniform_buffer_data - struct SSAOConstants
-layout(binding = 8) uniform SSAOConstants
+layout(binding = 7) uniform SSAOConstants
 {
     vec4 _SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;
@@ -40,7 +39,7 @@ layout(location = 0) out float outColor;
 void main() {
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
-    const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
+    vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
     const vec2 inv_depth_size = 1.0 / textureSize(textureSceneDepth, 0).xy;
     vec2 texCoord = vs_output.texCoord;
     float device_depth = texture(textureSceneDepth, texCoord).x;
@@ -49,7 +48,7 @@ void main() {
         discard;
     }
 
-    const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
+    vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
     const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
     const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
     const vec3 randomVec = normalize(texture(ssaoNoise, texCoord).xyz * 2.0 - 1.0);
@@ -65,8 +64,15 @@ void main() {
     float occlusion = 0.0;
     for (int i = 0; i < sample_count; ++i)
     {
+        // apply noise
+        noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex + i) * 2.0 - 1.0);
+        texCoord = vs_output.texCoord + noise * inv_depth_size * 2.0;
+        device_depth = texture(textureSceneDepth, texCoord).x;
+        relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
+
+        // ray
         const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, float(i) / float(sample_count - 1));
-        float noise_radius = float(i + 1) / float(SSAO_KERNEL_SIZE);
+        float noise_radius = float(i + 1) / float(sample_count);
         vec3 ray = uboSSAOKernel._SSAO_KERNEL_SAPLES[i].xyz * vec3(noise_radius, 1.0, noise_radius);
         vec3 pos = normalize(tnb * ray) * occlusion_distance + relative_pos.xyz;
 

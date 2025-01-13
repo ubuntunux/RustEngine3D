@@ -117,27 +117,20 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 5,
-                _descriptor_name: enum_to_string(&RenderTargetType::HierarchicalMinZ),
-                _descriptor_resource_type: DescriptorResourceType::RenderTarget,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 6,
                 _descriptor_name: String::from("ssaoNoise"),
                 _descriptor_resource_type: DescriptorResourceType::Texture,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 7,
+                _descriptor_binding_index: 6,
                 _descriptor_name: enum_to_string(&RenderTargetType::Shadow),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_binding_index: 8,
+                _descriptor_binding_index: 7,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::SSAOConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
