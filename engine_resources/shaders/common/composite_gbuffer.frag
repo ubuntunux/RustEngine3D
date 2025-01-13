@@ -32,7 +32,7 @@ layout(binding = 5) uniform sampler2D textureSceneAlbedo;
 layout(binding = 6) uniform sampler2D textureSceneMaterial;
 layout(binding = 7) uniform sampler2D textureSceneNormal;
 layout(binding = 8) uniform sampler2D textureSceneDepth;
-layout(binding = 9) uniform sampler2D textureSSAO;
+layout(binding = 9) uniform sampler2D textureShadowResolved;
 layout(binding = 10) uniform sampler2D textureShadow;
 layout(binding = 11) uniform sampler2D textureHeightMap;
 layout(binding = 12) uniform samplerCube texture_probe;
@@ -41,6 +41,7 @@ layout(binding = 14) uniform sampler2D transmittance_texture;
 layout(binding = 15) uniform sampler2D irradiance_texture;
 layout(binding = 16) uniform sampler3D scattering_texture;
 layout(binding = 17) uniform sampler3D single_mie_scattering_texture;
+layout(binding = 18) uniform sampler2D textureHiz;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 
@@ -68,8 +69,38 @@ void main() {
     float roughness = material.x;
     float metallic = material.y;
     float reflectance = 0.0;
+    float shadow_resolved = 1.0;
+    {
+        vec2 inv_depth_tex_size = 1.0 / textureSize(textureSceneDepth, 0).xy;
+        vec2 inv_hiz_tex_size = 1.0 / textureSize(textureHiz, 0).xy;
 
-    float ssao = texture(textureSSAO, vs_output.texCoord).x;
+        const vec2 offsets[9] = {
+            vec2(-1.0, -1.0),
+            vec2(0.0, -1.0),
+            vec2(1.0, -1.0),
+            vec2(-1.0, 0.0),
+            vec2(0.0, 0.0),
+            vec2(1.0, 0.0),
+            vec2(-1.0, 1.0),
+            vec2(0.0, 1.0),
+            vec2(1.0, 1.0)
+        };
+
+        float scene_depth = texture(textureSceneDepth, vs_output.texCoord).x;
+        int offset_index = 0;
+        float closestDepth = 1.0;
+        for(int i=0; i<9; ++i)
+        {
+            float neighborDepth = textureLod(textureHiz, vs_output.texCoord + offsets[i] * inv_hiz_tex_size, 0.0).x;
+            float depth_diff = abs(neighborDepth - scene_depth);
+            if(depth_diff < closestDepth)
+            {
+                offset_index = i;
+                closestDepth = depth_diff;
+            }
+        }
+        shadow_resolved = texture(textureShadowResolved, vs_output.texCoord - offsets[offset_index] * inv_depth_tex_size).x;
+    }
     vec4 scene_reflect_color = texture(textureSceneReflect, vs_output.texCoord);
     vec3 vertexNormal = normalize(vec3(material.z, material.w, normal.w) * 2.0 - 1.0);
     vec3 N = normalize(normal.xyz * 2.0 - 1.0);
@@ -91,7 +122,7 @@ void main() {
         metallic,
         roughness,
         reflectance,
-        ssao,
+        shadow_resolved,
         scene_reflect_color,
         texture_probe,
         textureShadow,
