@@ -17,10 +17,10 @@ const int DilationModes_CenterAverage = 0;
 const int DilationModes_DilateNearestDepth = 1;
 const int DilationModes_DilateGreatestVelocity = 2;
 
-const int ResolveFilterType = FilterTypes_BSpline;
+const int ResolveFilterType = FilterTypes_CatmullRom;
 const float ResolveFilterDiameter = 2.0;  // 0.0 ~ 6.0
 const float ExposureFilterOffset = 2.0;     // -16.0 ~ 16.0
-const float TemporalAABlendFactor = 0.9;    // default: 0.9, 0.0 ~ 1.0
+const float TemporalAABlendFactor = 0.95;    // default: 0.9, 0.0 ~ 1.0
 const int NeighborhoodClampMode = ClampModes_Variance_Clip;
 const float VarianceClipGamma = 1.5;    // 0.0 ~ 2.0
 const float LowFreqWeight = 0.25;   // 0.0 ~ 100.0
@@ -48,6 +48,7 @@ layout(binding = 2) uniform sampler2D texture_input;
 layout(binding = 3) uniform sampler2D texture_prev_resolve;
 layout(binding = 4) uniform sampler2D texture_velocity;
 layout(binding = 5) uniform sampler2D texture_scene_depth;
+layout(binding = 6) uniform sampler2D texture_hiz;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
 layout(location = 0) out vec4 outColor;
@@ -106,13 +107,12 @@ vec3 Reproject(vec2 texCoord)
 
     if(DilationMode == DilationModes_CenterAverage)
     {
-        velocity = texture(texture_velocity, texCoord).xy;
+        velocity = texture(texture_velocity, texCoord - 0.5 * inv_velocity_tex_size).xy;
     }
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
-        vec2 inv_depth_tex_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
-        float average_depth = 0.0;
-        float depths[9];
+        vec2 inv_depth_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
+        vec2 inv_hiz_size = 1.0 / textureSize(texture_hiz, 0).xy;
         const vec2 offsets[9] = {
             vec2(-1.0, -1.0),
             vec2(0.0, -1.0),
@@ -125,25 +125,21 @@ vec3 Reproject(vec2 texCoord)
             vec2(1.0, 1.0)
         };
 
-        for(int i=0; i<9; ++i)
-        {
-            float neighborDepth = texture(texture_scene_depth, texCoord + offsets[i] * inv_depth_tex_size).x;
-            depths[i] = neighborDepth;
-            average_depth += neighborDepth / 9.0;
-        }
-
-        int offset_index = 0;
+        float depth = texture(texture_scene_depth, texCoord).x;
         float closestDepth = 1.0;
+        vec2 offset = vec2(0.0, 0.0);
         for(int i=0; i<9; ++i)
         {
-            float depth_diff = abs(depths[i] - average_depth);
+            vec2 curr_offset = offsets[i] - 0.5;
+            float neighborDepth = texture(texture_hiz, texCoord + curr_offset * inv_hiz_size).x;
+            float depth_diff = abs(neighborDepth - depth);
             if(depth_diff < closestDepth)
             {
-                offset_index = i;
+                offset = curr_offset;
                 closestDepth = depth_diff;
             }
         }
-        velocity = texture(texture_velocity, texCoord + offsets[offset_index] * inv_velocity_tex_size).xy;
+        velocity = texture(texture_velocity, texCoord + offset * inv_velocity_tex_size).xy;
     }
     else if(DilationMode == DilationModes_DilateGreatestVelocity)
     {
@@ -152,7 +148,7 @@ vec3 Reproject(vec2 texCoord)
         {
             for(int vx = -1; vx <= 1; ++vx)
             {
-                vec2 neighborVelocity = texture(texture_velocity, texCoord + vec2(vx, vy) * inv_velocity_tex_size).xy;
+                vec2 neighborVelocity = texture(texture_velocity, texCoord + (vec2(vx, vy) - 0.5) * inv_velocity_tex_size).xy;
                 float neighborVelocityMag = dot(neighborVelocity, neighborVelocity);
                 if(dot(neighborVelocity, neighborVelocity) > greatestVelocity)
                 {
@@ -216,9 +212,7 @@ vec4 ResolvePS(vec2 texCoord, vec2 pixelPos)
     float mWeight = 0.0f;
 
     vec2 texture_input_size = textureSize(texture_input, 0).xy;
-
     const float filterRadius = ResolveFilterDiameter / 2.0f;
-
     for(int y = -1; y <= 1; ++y)
     {
         for(int x = -1; x <= 1; ++x)
@@ -228,11 +222,8 @@ vec4 ResolvePS(vec2 texCoord, vec2 pixelPos)
             sampleUV = clamp(sampleUV, 0.0, 1.0);
 
             vec3 sample_color = texture(texture_input, sampleUV).xyz;
-
             vec2 sampleDist = abs(sampleOffset) / (ResolveFilterDiameter / 2.0f);
-
-            float weight = Filter(sampleDist.x, ResolveFilterType, filterRadius, true) *
-            Filter(sampleDist.y, ResolveFilterType, filterRadius, true);
+            float weight = Filter(sampleDist.x, ResolveFilterType, filterRadius, true) * Filter(sampleDist.y, ResolveFilterType, filterRadius, true);
             clrMin = min(clrMin, sample_color);
             clrMax = max(clrMax, sample_color);
 

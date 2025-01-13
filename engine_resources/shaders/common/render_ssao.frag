@@ -41,33 +41,9 @@ void main() {
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
     const vec2 noise = ((0.0 != scene_constants.TIME) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0));
-    vec2 texCoord = vs_output.texCoord;
-    const vec2 offsets[8] = {
-        vec2(-1.0, 0.0),
-        vec2(1.0, 0.0),
-        vec2(0.0, -1.0),
-        vec2(0.0, 1.0),
-        vec2(-1.0, -1.0),
-        vec2(1.0, -1.0),
-        vec2(-1.0, 1.0),
-        vec2(1.0, 1.0)
-    };
-
-    vec2 inv_depth_tex_size = 1.0 / textureSize(textureSceneDepth, 0);
+    const vec2 inv_depth_size = 1.0 / textureSize(textureSceneDepth, 0).xy;
+    vec2 texCoord = vs_output.texCoord - inv_depth_size;
     float device_depth = texture(textureSceneDepth, texCoord).x;
-    int offset_index = 0;
-    const int loop_count = 4;
-    for(int i=0; i<loop_count; ++i)
-    {
-        float neighborDepth = texture(textureSceneDepth, texCoord + offsets[i] * inv_depth_tex_size).x;
-        if(device_depth > neighborDepth)
-        {
-            device_depth = neighborDepth;
-            offset_index = i;
-        }
-    }
-    texCoord += offsets[offset_index] * inv_depth_tex_size;
-
     if(0.0 == device_depth)
     {
         discard;
@@ -83,7 +59,7 @@ void main() {
     const mat3 tnb = mat3(tangent, normal, bitangent);
     const float occlusion_distance_min = 0.05;
     const float occlusion_distance_max = 5.0;
-    const float ssao_contrast = 0.3;
+    const float ssao_contrast = 1.0;
 
     const int sample_count = SSAO_KERNEL_SIZE;
     float occlusion = 0.0;
@@ -128,7 +104,7 @@ void main() {
         world_position,
         light_data.SHADOW_VIEW_PROJECTION,
         light_data.SHADOW_SAMPLES,
-        0.0,
+        SHADOW_BIAS,
         texture_shadow
     );
 

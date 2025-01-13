@@ -369,8 +369,8 @@ pub fn get_render_target_create_infos(
         },
         TextureCreateInfo {
             _texture_name: RenderTargetType::SSAO.to_string(),
-            _texture_width: render_viewport_width / 2,
-            _texture_height: render_viewport_height / 2,
+            _texture_width: render_viewport_width,
+            _texture_height: render_viewport_height,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()

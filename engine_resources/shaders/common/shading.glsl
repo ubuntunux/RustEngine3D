@@ -333,11 +333,10 @@ vec4 surface_shading(
             world_position,
             light_data.SHADOW_VIEW_PROJECTION,
             light_data.SHADOW_SAMPLES,
-            0.0,
+            SHADOW_BIAS,
             texture_shadow
         );
     }
-
 
     float sky_visibility = get_shadow_factor(
         scene_constants.TIME,

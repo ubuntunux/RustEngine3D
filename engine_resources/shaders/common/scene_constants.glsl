@@ -3,6 +3,7 @@
 
 // constants.rs
 #define SSAO_KERNEL_SIZE 64
+#define SHADOW_BIAS -0.000025
 
 // enum RenderMode
 #define RenderMode_DepthPrepass 0
