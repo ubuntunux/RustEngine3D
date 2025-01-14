@@ -167,7 +167,6 @@ float GeometrySmith(float NoV, float NoL, float roughness)
 vec3 phong_specular(in float LdR, in vec3 specular, in float roughness)
 {
     float spec = max(0.0, LdR);
-    float spec = max(0.0, LdR);
     float k = 1.999 / (roughness * roughness);
     return min(1.0, 3.0 * 0.0398 * k) * pow(spec, min(10000.0, k)) * specular;
 }
