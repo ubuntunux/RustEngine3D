@@ -44,20 +44,35 @@ pub fn get_framebuffer_data_create_info(
     )
 }
 
+pub fn get_render_pass_name(render_object_type: RenderObjectType, layer: u32) -> &'static str {
+    match render_object_type {
+        RenderObjectType::Static => match layer {
+            0 => "render_pass_static_forward_light_probe_0",
+            1 => "render_pass_static_forward_light_probe_1",
+            2 => "render_pass_static_forward_light_probe_2",
+            3 => "render_pass_static_forward_light_probe_3",
+            4 => "render_pass_static_forward_light_probe_4",
+            5 => "render_pass_static_forward_light_probe_5",
+            _ => panic!("Unsupported layer!: {:?}", layer)
+        }
+        RenderObjectType::Skeletal => match layer {
+            0 => "render_pass_skeletal_forward_light_probe_0",
+            1 => "render_pass_skeletal_forward_light_probe_1",
+            2 => "render_pass_skeletal_forward_light_probe_2",
+            3 => "render_pass_skeletal_forward_light_probe_3",
+            4 => "render_pass_skeletal_forward_light_probe_4",
+            5 => "render_pass_skeletal_forward_light_probe_5",
+            _ => panic!("Unsupported layer!: {:?}", layer)
+        }
+    }
+}
+
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
     layer: u32,
 ) -> RenderPassDataCreateInfo {
-    let render_pass_name = match render_object_type {
-        RenderObjectType::Static => {
-            String::from(format!("render_pass_static_forward_light_probe_{}", layer))
-        }
-        RenderObjectType::Skeletal => String::from(format!(
-            "render_pass_skeletal_forward_light_probe_{}",
-            layer
-        )),
-    };
+    let render_pass_name = get_render_pass_name(render_object_type, layer);
     let light_probe_depth_only: bool = false;
     let framebuffer_data_create_info =
         get_framebuffer_data_create_info(renderer_data, layer, light_probe_depth_only);
@@ -297,7 +312,7 @@ pub fn get_render_pass_data_create_info(
     }];
 
     RenderPassDataCreateInfo {
-        _render_pass_create_info_name: render_pass_name.clone(),
+        _render_pass_create_info_name: String::from(render_pass_name),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: color_attachment_descriptions,
         _depth_attachment_descriptions: depth_attachment_descriptions,

@@ -668,7 +668,7 @@ impl<'a> EffectManager<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        renderer_data: &RendererData<'a>,
+        renderer_data: &RendererData,
         _engine_resources: &EngineResources<'a>,
     ) {
         if self._effect_render_group.is_empty() {

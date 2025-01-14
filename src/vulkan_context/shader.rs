@@ -74,6 +74,8 @@ pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
 }
 
 pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
+    log::info!("compile_glsl: {:?}", shader_filename);
+
     let (is_engine_resource, shader_file_path) = get_shader_file_path(shader_filename);
     let spirv_file_path: PathBuf =
         spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);

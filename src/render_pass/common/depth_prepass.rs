@@ -29,14 +29,18 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     )
 }
 
+pub fn get_render_pass_name(render_object_type: RenderObjectType) -> &'static str {
+    match render_object_type {
+        RenderObjectType::Static => "depth_prepass_static",
+        RenderObjectType::Skeletal => "depth_prepass_skeletal",
+    }
+}
+
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
 ) -> RenderPassDataCreateInfo {
-    let render_pass_name = match render_object_type {
-        RenderObjectType::Static => String::from("depth_prepass_static"),
-        RenderObjectType::Skeletal => String::from("depth_prepass_skeletal"),
-    };
+    let render_pass_name = get_render_pass_name(render_object_type);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -173,7 +177,7 @@ pub fn get_render_pass_data_create_info(
     }];
 
     RenderPassDataCreateInfo {
-        _render_pass_create_info_name: render_pass_name.clone(),
+        _render_pass_create_info_name: String::from(render_pass_name),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
         _color_attachment_descriptions: Vec::new(),
         _depth_attachment_descriptions: depth_attachment_descriptions,

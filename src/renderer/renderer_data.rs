@@ -10,6 +10,7 @@ use nalgebra::{Matrix4, Vector2, Vector4};
 
 use crate::constants;
 use crate::effect::effect_manager::EffectManager;
+use crate::render_pass::common::{capture_height_map, depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
 use crate::render_pass::ray_tracing::ray_tracing;
 use crate::render_pass::render_pass;
 use crate::renderer::push_constants::{
@@ -606,14 +607,14 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "depth_prepass_static",
+                depth_prepass::get_render_pass_name(RenderObjectType::Static),
                 &static_render_elements,
             );
             self.render_solid_object(
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "depth_prepass_skeletal",
+                depth_prepass::get_render_pass_name(RenderObjectType::Skeletal),
                 &skeletal_render_elements,
             );
         }
@@ -639,14 +640,14 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "render_pass_static_shadow",
+                render_shadow::get_render_pass_name(RenderObjectType::Static),
                 &static_shadow_render_elements,
             );
             self.render_solid_object(
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "render_pass_skeletal_shadow",
+                render_shadow::get_render_pass_name(RenderObjectType::Skeletal),
                 &skeletal_shadow_render_elements,
             );
         }
@@ -672,7 +673,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "capture_static_height_map",
+                capture_height_map::get_render_pass_name(RenderObjectType::Static),
                 &static_render_elements,
             );
         }
@@ -767,14 +768,14 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "render_pass_static_gbuffer",
+                render_gbuffer::get_render_pass_name(RenderObjectType::Static),
                 &static_render_elements,
             );
             self.render_solid_object(
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                "render_pass_skeletal_gbuffer",
+                render_gbuffer::get_render_pass_name(RenderObjectType::Skeletal),
                 &skeletal_render_elements,
             );
         }
@@ -1552,20 +1553,11 @@ impl<'a> RendererData<'a> {
                 );
 
                 // render forward for light probe
-                const RENDER_FORWARD_RENDER_PASS_NAMES: [&str; 6] = [
-                    "render_pass_static_forward_light_probe_0",
-                    "render_pass_static_forward_light_probe_1",
-                    "render_pass_static_forward_light_probe_2",
-                    "render_pass_static_forward_light_probe_3",
-                    "render_pass_static_forward_light_probe_4",
-                    "render_pass_static_forward_light_probe_5",
-                ];
-
                 self.render_solid_object(
                     renderer_context,
                     command_buffer,
                     swapchain_index,
-                    RENDER_FORWARD_RENDER_PASS_NAMES[layer_index],
+                    render_forward_for_light_probe::get_render_pass_name(RenderObjectType::Static, layer_index as u32),
                     static_render_elements,
                 );
 
