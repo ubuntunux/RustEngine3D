@@ -193,7 +193,7 @@ impl<'a> RendererContext<'a> {
                 .iter()
                 .map(|layer| layer.as_ptr())
                 .collect();
-            let device_extensions: Vec<CString> = constants::REQUIRED_DEVICE_EXTENSIONS
+            let device_extensions: Vec<CString> = (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
                 .iter()
                 .map(|str| CString::new(str.as_str()).unwrap())
                 .collect();
@@ -201,8 +201,8 @@ impl<'a> RendererContext<'a> {
                 .iter()
                 .map(|extension| extension.as_ptr())
                 .collect();
-            let device_extensions_for_ray_tracing: Vec<CString> = if constants::USE_RAY_TRACING {
-                constants::REQUIRED_RAY_TRACING_EXTENSIONS
+            let device_extensions_for_ray_tracing: Vec<CString> = if *&raw const constants::USE_RAY_TRACING {
+                (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
                     .iter()
                     .map(|str| CString::new(str.as_str()).unwrap())
                     .collect()
