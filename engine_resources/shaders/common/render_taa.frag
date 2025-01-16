@@ -25,7 +25,7 @@ const int NeighborhoodClampMode = ClampModes_Variance_Clip;
 const float VarianceClipGamma = 1.5;    // 0.0 ~ 2.0
 const float LowFreqWeight = 0.25;   // 0.0 ~ 100.0
 const float HiFreqWeight = 0.85;    // 0.0 ~ 100.0
-const int DilationMode = DilationModes_DilateGreatestVelocity;
+const int DilationMode = DilationModes_DilateNearestDepth;
 const int ReprojectionFilter = FilterTypes_CatmullRom;
 const float ExposureScale = 0.0;    // -16.0 ~ 16.0
 const float ManualExposure = -2.5;  // -10.0 ~ 10.0
@@ -111,35 +111,44 @@ vec3 Reproject(vec2 texCoord)
     }
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
-        vec2 inv_depth_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
-        vec2 inv_hiz_size = 1.0 / textureSize(texture_hiz, 0).xy;
         const vec2 offsets[9] = {
-            vec2(-1.0, -1.0),
-            vec2(0.0, -1.0),
-            vec2(1.0, -1.0),
-            vec2(-1.0, 0.0),
             vec2(0.0, 0.0),
+            vec2(-1.0, 0.0),
             vec2(1.0, 0.0),
-            vec2(-1.0, 1.0),
+            vec2(0.0, -1.0),
             vec2(0.0, 1.0),
+            vec2(-1.0, -1.0),
+            vec2(1.0, -1.0),
+            vec2(-1.0, 1.0),
             vec2(1.0, 1.0)
         };
 
-        float depth = texture(texture_scene_depth, texCoord).x;
-        float closestDepth = 1.0;
-        vec2 offset = vec2(0.0, 0.0);
-        for(int i=0; i<9; ++i)
+        vec2 inv_depth_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
+        float average_depth = 0.0;
+        const int sample_count = 5;
+        float depths[sample_count];
+        for(int i=0; i<sample_count; ++i)
         {
-            vec2 curr_offset = offsets[i] + 0.5;
-            float neighborDepth = texture(texture_hiz, texCoord + curr_offset * inv_hiz_size).x;
-            float depth_diff = abs(neighborDepth - depth);
-            if(depth_diff < closestDepth)
+            float depth = texture(texture_scene_depth, texCoord + (offsets[i] + 0.5) * inv_depth_size).x;
+            float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
+            average_depth += linear_depth / float(sample_count);
+            depths[i] = linear_depth;
+        }
+
+        int offset_index = 0;
+        float closest_depth = view_constants.NEAR_FAR.y;
+        for(int i=0; i<sample_count; ++i)
+        {
+            float depth_diff = abs(depths[i] - average_depth);
+            if(depth_diff < closest_depth)
             {
-                offset = curr_offset;
-                closestDepth = depth_diff;
+                offset_index = i;
+                closest_depth = depth_diff;
             }
         }
-        velocity = texture(texture_velocity, texCoord + offset * inv_velocity_tex_size).xy;
+
+        vec2 inv_velocity_size = 1.0 / textureSize(texture_velocity, 0).xy;
+        velocity = texture(texture_velocity, texCoord + (offsets[offset_index] + 0.5) * inv_velocity_size).xy;
     }
     else if(DilationMode == DilationModes_DilateGreatestVelocity)
     {
