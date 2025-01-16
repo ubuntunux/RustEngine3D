@@ -58,7 +58,7 @@ struct SCENE_CONSTANTS
     int PREV_GPU_PARTICLE_COUNT_BUFFER_OFFSET;
     int PREV_GPU_PARTICLE_UPDATE_BUFFER_OFFSET;
     int RENDER_POINT_LIGHT_COUNT;
-    int reserved0;
+    uint ELAPSED_FRAME;
     int reserved1;
 };
 

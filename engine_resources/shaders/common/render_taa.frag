@@ -111,25 +111,23 @@ vec3 Reproject(vec2 texCoord)
     }
     else if(DilationMode == DilationModes_DilateNearestDepth)
     {
-        const vec2 offsets[9] = {
+        const int sample_count = 4;
+        const vec2 offsets[4] = {
             vec2(0.0, 0.0),
-            vec2(-1.0, 0.0),
             vec2(1.0, 0.0),
-            vec2(0.0, -1.0),
             vec2(0.0, 1.0),
-            vec2(-1.0, -1.0),
-            vec2(1.0, -1.0),
-            vec2(-1.0, 1.0),
             vec2(1.0, 1.0)
         };
 
+        int frame_index = int(scene_constants.ELAPSED_FRAME) % 4;
+        ivec2 offset_dir = ivec2(frame_index & 1, frame_index / 2) * 2 - 1;
+
         vec2 inv_depth_size = 1.0 / textureSize(texture_scene_depth, 0).xy;
         float average_depth = 0.0;
-        const int sample_count = 5;
         float depths[sample_count];
         for(int i=0; i<sample_count; ++i)
         {
-            float depth = texture(texture_scene_depth, texCoord + (offsets[i] + 0.5) * inv_depth_size).x;
+            float depth = texture(texture_scene_depth, texCoord + offsets[i] * offset_dir * inv_depth_size).x;
             float linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, depth);
             average_depth += linear_depth / float(sample_count);
             depths[i] = linear_depth;
@@ -148,7 +146,7 @@ vec3 Reproject(vec2 texCoord)
         }
 
         vec2 inv_velocity_size = 1.0 / textureSize(texture_velocity, 0).xy;
-        velocity = texture(texture_velocity, texCoord + (offsets[offset_index] + 0.5) * inv_velocity_size).xy;
+        velocity = texture(texture_velocity, texCoord + offsets[offset_index] * offset_dir * inv_velocity_size).xy;
     }
     else if(DilationMode == DilationModes_DilateGreatestVelocity)
     {
