@@ -66,8 +66,8 @@ pub struct SceneConstants {
     pub _prev_gpu_particle_count_buffer_offset: i32,
     pub _prev_gpu_particle_update_buffer_offset: i32,
     pub _render_point_light_count: i32,
+    pub _elapsed_frame: u32,
     pub _reserved0: i32,
-    pub _reserved1: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS
@@ -186,6 +186,7 @@ impl SceneConstants {
         &mut self,
         screen_width: u32,
         screen_height: u32,
+        elapsed_frame: u64,
         elapsed_time: f64,
         delta_time: f64,
         sea_height: f32,
@@ -205,8 +206,8 @@ impl SceneConstants {
         self._prev_gpu_particle_count_buffer_offset = unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
         self._prev_gpu_particle_update_buffer_offset = unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
         self._render_point_light_count = render_point_light_count;
+        self._elapsed_frame = elapsed_frame as u32;
         self._reserved0 = 0;
-        self._reserved1 = 0;
     }
 }
 
@@ -228,15 +229,11 @@ impl ViewConstants {
         self._view_projection_jitter = camera_data._view_projection_jitter.into();
         self._inv_view_projection_jitter = camera_data._inv_view_projection_jitter.into();
         self._view_origin_projection_jitter = camera_data._view_origin_projection_jitter.into();
-        self._inv_view_origin_projection_jitter =
-            camera_data._inv_view_origin_projection_jitter.into();
-        self._view_origin_projection_prev_jitter =
-            camera_data._view_origin_projection_prev_jitter.into();
-        self._camera_position =
-            camera_data._transform_object.get_position().clone() as Vector3<f32>;
+        self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
+        self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
+        self._camera_position = camera_data._transform_object.get_position().clone() as Vector3<f32>;
         self._jitter_frame = camera_data._jitter_frame;
-        self._camera_position_prev =
-            camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
+        self._camera_position_prev = camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
         self._view_constants_dummy0 = 0.0;
         self._near_far = Vector2::new(camera_data._near, camera_data._far);
         self._jitter_delta = camera_data._jitter_delta.into();

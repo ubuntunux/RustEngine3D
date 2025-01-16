@@ -440,7 +440,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         ui_manager: &mut UIManager,
         elapsed_time: f64,
         delta_time: f64,
-        _elapsed_frame: u64,
+        elapsed_frame: u64,
     ) {
         let _label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
@@ -475,6 +475,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             self._scene_constants.update_scene_constants(
                 renderer_context._swapchain_data._swapchain_extent.width,
                 renderer_context._swapchain_data._swapchain_extent.height,
+                elapsed_frame,
                 elapsed_time,
                 delta_time,
                 self._fft_ocean.get_height(),

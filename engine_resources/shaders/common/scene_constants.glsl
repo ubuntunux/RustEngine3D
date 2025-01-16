@@ -87,12 +87,12 @@ struct VIEW_CONSTANTS
     vec3 CAMERA_POSITION;
     int JITTER_FRAME;
     vec3 CAMERA_POSITION_PREV;
-    float VIEW_CONSTANTS_DUMMY0;
+    uint FRAME_COUNT;
     vec2 NEAR_FAR;
     vec2 JITTER_DELTA;
     vec2 JITTER_OFFSET;
+    uint ELAPSED_FRAME;
     float VIEW_CONSTANTS_DUMMY1;
-    float VIEW_CONSTANTS_DUMMY2;
 };
 
 // light.rs - struct LightData
