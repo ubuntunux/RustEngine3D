@@ -16,7 +16,7 @@ use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
-pub const SEMANTIC_TEXTURE_SSAO: &str = "TEXTURE_SSAO";
+pub const SEMANTIC_TEXTURE_SHADOW_AO: &str = "TEXTURE_SHADOW_AO";
 pub const SEMANTIC_TEXTURE_SCENE_REFLECT: &str = "TEXTURE_SCENE_REFLECT";
 
 
@@ -151,9 +151,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
-                _descriptor_semantic: SEMANTIC_TEXTURE_SSAO.to_string(),
+                _descriptor_semantic: SEMANTIC_TEXTURE_SHADOW_AO.to_string(),
                 _descriptor_binding_index: 9,
-                _descriptor_name: enum_to_string(&RenderTargetType::ShadowResolved),
+                _descriptor_name: enum_to_string(&RenderTargetType::ShadowAO),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()

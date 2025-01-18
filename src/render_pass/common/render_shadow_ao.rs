@@ -18,7 +18,7 @@ use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::SSAO),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::ShadowAO),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_color_clear_one()),
@@ -29,7 +29,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 }
 
 pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderPassDataCreateInfo {
-    let render_pass_name = String::from("render_ssao");
+    let render_pass_name = String::from("render_shadow_ao");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
@@ -58,9 +58,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
-        _pipeline_data_create_info_name: String::from("render_ssao"),
+        _pipeline_data_create_info_name: String::from("render_shadow_ao"),
         _pipeline_vertex_shader_file: PathBuf::from("common/render_quad.vert"),
-        _pipeline_fragment_shader_file: PathBuf::from("common/render_ssao.frag"),
+        _pipeline_fragment_shader_file: PathBuf::from("common/render_shadow_ao.frag"),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
@@ -131,7 +131,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 7,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::SSAOConstants),
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::ShadowAOConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
                     | vk::ShaderStageFlags::FRAGMENT,

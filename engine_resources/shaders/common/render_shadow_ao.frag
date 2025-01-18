@@ -25,10 +25,10 @@ layout(binding = 4) uniform sampler2D textureSceneDepth;
 layout(binding = 5) uniform sampler2D ssaoNoise;
 layout(binding = 6) uniform sampler2D texture_shadow;
 
-// uniform_buffer_data - struct SSAOConstants
-layout(binding = 7) uniform SSAOConstants
+// uniform_buffer_data - struct ShadowAOConstants
+layout(binding = 7) uniform ShadowAOConstants
 {
-    vec4 _SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
+    vec4 SSAO_KERNEL_SAPLES[SSAO_KERNEL_SIZE];
 } uboSSAOKernel;
 
 layout(location = 0) in VERTEX_OUTPUT vs_output;
@@ -73,7 +73,7 @@ void main() {
         // ray
         const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, float(i) / float(sample_count - 1));
         float noise_radius = float(i + 1) / float(sample_count);
-        vec3 ray = uboSSAOKernel._SSAO_KERNEL_SAPLES[i].xyz * vec3(noise_radius, 1.0, noise_radius);
+        vec3 ray = uboSSAOKernel.SSAO_KERNEL_SAPLES[i].xyz * vec3(noise_radius, 1.0, noise_radius);
         vec3 pos = normalize(tnb * ray) * occlusion_distance + relative_pos.xyz;
 
         // project sample position:

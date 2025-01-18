@@ -27,7 +27,7 @@ pub enum ShaderBufferDataType {
     ViewConstants,
     LightData,
     PointLightData,
-    SSAOConstants,
+    ShadowAOConstants,
     AtmosphereConstants,
     LightProbeViewConstants0,
     LightProbeViewConstants1,
@@ -106,7 +106,7 @@ pub struct ViewConstants {
 
 #[repr(C)]
 #[derive(Clone)]
-pub struct SSAOConstants {
+pub struct ShadowAOConstants {
     pub _ssao_kernel_samples: [Vector4<f32>; constants::SSAO_KERNEL_SIZE],
 }
 
@@ -258,7 +258,7 @@ impl std::str::FromStr for ShaderBufferDataType {
             "ViewConstants" => Ok(ShaderBufferDataType::ViewConstants),
             "LightData" => Ok(ShaderBufferDataType::LightData),
             "PointLightData" => Ok(ShaderBufferDataType::PointLightData),
-            "SSAOConstants" => Ok(ShaderBufferDataType::SSAOConstants),
+            "ShadowAOConstants" => Ok(ShaderBufferDataType::ShadowAOConstants),
             "AtmosphereConstants" => Ok(ShaderBufferDataType::AtmosphereConstants),
             "LightProbeViewConstants0" => Ok(ShaderBufferDataType::LightProbeViewConstants0),
             "LightProbeViewConstants1" => Ok(ShaderBufferDataType::LightProbeViewConstants1),
@@ -366,8 +366,8 @@ pub fn register_uniform_buffers(
     register_shader_buffer_data(
         debug_utils_device,
         &mut RegisterShaderBufferCreateInfo {
-            _shader_buffer_data_type: ShaderBufferDataType::SSAOConstants,
-            _shader_buffer_data_stride: std::mem::size_of::<SSAOConstants>(),
+            _shader_buffer_data_type: ShaderBufferDataType::ShadowAOConstants,
+            _shader_buffer_data_stride: std::mem::size_of::<ShadowAOConstants>(),
             ..uniform_buffer_create_info
         },
     );

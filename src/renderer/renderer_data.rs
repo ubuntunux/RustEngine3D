@@ -20,7 +20,7 @@ use crate::renderer::push_constants::{
 use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
     RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SceneColorDownSampling,
-    RenderContext_SSAO, RenderContext_TAA, RenderContext_TAA_Simple,
+    RenderContext_ShadowAO, RenderContext_TAA, RenderContext_TAA_Simple,
 };
 use crate::renderer::render_target::{self, RenderTargetType};
 use crate::renderer::renderer_context::{RendererContext, RendererDataBase};
@@ -80,7 +80,7 @@ pub struct RendererData<'a> {
     pub _render_target_data_map: RenderTargetDataMap,
     pub _shader_buffer_data_map: ShaderBufferDataMap<'a>,
     pub _render_context_bloom: RenderContext_Bloom<'a>,
-    pub _render_context_ssao: RenderContext_SSAO<'a>,
+    pub _render_context_shadow_ao: RenderContext_ShadowAO,
     pub _render_context_taa: RenderContext_TAA<'a>,
     pub _render_context_hiz: RenderContext_HierarchicalMinZ,
     pub _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling,
@@ -164,28 +164,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 .unwrap(),
         );
 
-        // SSAO
-        self._render_context_ssao.initialize(
-            device,
-            debug_utils_device,
-            engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::SSAO)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::ShadowResolved)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::ShadowResolvedPrev)
-                .as_ref()
-                .unwrap(),
-            RenderTargetType::ShadowResolved,
-            RenderTargetType::ShadowResolvedPrev
-        );
-
-        // Hierarchical Min Z
+        // Hierarchical Min
         self._render_context_hiz.initialize(
             device,
             debug_utils_device,
@@ -233,8 +212,6 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map.get(&RenderTargetType::ShadowResolved).as_ref().unwrap(),
-            self._render_target_data_map.get(&RenderTargetType::ShadowResolvedPrev).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
             self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap()
         );
@@ -347,8 +324,6 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::ShadowResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::ShadowResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
                 (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
@@ -374,7 +349,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             .destroy_atmosphere(self.get_renderer_context().get_device());
         self._render_context_bloom.destroy(device);
         self._render_context_taa.destroy(device);
-        self._render_context_ssao.destroy(device);
+        self._render_context_shadow_ao.destroy(device);
         self._render_context_hiz.destroy(device);
         self._render_context_scene_color_downsampling.destroy(device);
         self._render_context_ssr.destroy(device);
@@ -424,7 +399,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         if unsafe { constants::RENDER_OCEAN } {
             self._fft_ocean.update(delta_time);
         }
-        self._render_context_ssao.update();
+        self._render_context_shadow_ao.update();
         self._render_context_ssr.update();
     }
 
@@ -516,8 +491,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             self.upload_shader_buffer_data(
                 command_buffer,
                 swapchain_index,
-                &ShaderBufferDataType::SSAOConstants,
-                &self._render_context_ssao._ssao_constants,
+                &ShaderBufferDataType::ShadowAOConstants,
+                &self._render_context_shadow_ao._shadow_ao_constants,
             );
             self.upload_shader_buffer_data(
                 command_buffer,
@@ -806,7 +781,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             );
         }
 
-        // pre-process: min-z, ssr, ssao, gbuffer, downsampling scnee color
+        // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scnee color
         {
             let _label_pre_process = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
@@ -1083,7 +1058,7 @@ impl<'a> RendererData<'a> {
             _render_target_data_map: RenderTargetDataMap::new(),
             _shader_buffer_data_map: ShaderBufferDataMap::new(),
             _render_context_bloom: RenderContext_Bloom::default(),
-            _render_context_ssao: RenderContext_SSAO::default(),
+            _render_context_shadow_ao: RenderContext_ShadowAO::default(),
             _render_context_taa: RenderContext_TAA::default(),
             _render_context_hiz: RenderContext_HierarchicalMinZ::default(),
             _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(),
@@ -2003,50 +1978,28 @@ impl<'a> RendererData<'a> {
         );
     }
 
-    pub fn render_ssao(
+    pub fn render_shadow_ao(
         &self,
         renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
     ) {
-        // render ssao
-        let _label_render_ssao = ScopedDebugLabel::create_scoped_cmd_label(
+        // render shadow ao
+        let _label_render_shadow_ao = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
-            "render_ssao",
-        );
-        renderer_context.render_material_instance(
-            command_buffer,
-            swapchain_index,
-            "common/render_ssao",
-            DEFAULT_PIPELINE,
-            quad_geometry_data,
-            None,
-            None,
-            None,
+            "render_shadow_ao",
         );
 
-        // resolve ssao
-        let (framebuffer, descriptor_sets) = match self._render_context_ssao._render_context_taa_simple._current_taa_resolved {
-            RenderTargetType::ShadowResolved => (
-                Some(&self._render_context_ssao._render_context_taa_simple._framebuffer_data0),
-                Some(&self._render_context_ssao._render_context_taa_simple._descriptor_sets0),
-            ),
-            RenderTargetType::ShadowResolvedPrev => (
-                Some(&self._render_context_ssao._render_context_taa_simple._framebuffer_data1),
-                Some(&self._render_context_ssao._render_context_taa_simple._descriptor_sets1),
-            ),
-            _ => panic!("error"),
-        };
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,
-            "common/render_taa",
+            "common/render_shadow_ao",
             DEFAULT_PIPELINE,
             quad_geometry_data,
-            framebuffer,
-            descriptor_sets,
+            None,
+            None,
             None,
         );
     }
@@ -2206,8 +2159,8 @@ impl<'a> RendererData<'a> {
             quad_geometry_data,
         );
 
-        // SSAO
-        self.render_ssao(
+        // ShadowAO
+        self.render_shadow_ao(
             renderer_context,
             command_buffer,
             swapchain_index,

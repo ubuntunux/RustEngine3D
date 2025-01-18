@@ -32,9 +32,7 @@ pub enum RenderTargetType {
     Bloom0,
     BloomTemp0,
     LightShaft,
-    SSAO,
-    ShadowResolved,
-    ShadowResolvedPrev,
+    ShadowAO,
     Shadow,
     CaptureHeightMap,
     SSR,
@@ -92,9 +90,7 @@ impl std::str::FromStr for RenderTargetType {
             "Bloom0" => Ok(RenderTargetType::Bloom0),
             "BloomTemp0" => Ok(RenderTargetType::BloomTemp0),
             "LightShaft" => Ok(RenderTargetType::LightShaft),
-            "SSAO" => Ok(RenderTargetType::SSAO),
-            "ShadowResolved" => Ok(RenderTargetType::ShadowResolved),
-            "ShadowResolvedPrev" => Ok(RenderTargetType::ShadowResolvedPrev),
+            "ShadowAO" => Ok(RenderTargetType::ShadowAO),
             "Shadow" => Ok(RenderTargetType::Shadow),
             "CaptureHeightMap" => Ok(RenderTargetType::CaptureHeightMap),
             "SSR" => Ok(RenderTargetType::SSR),
@@ -368,23 +364,7 @@ pub fn get_render_target_create_infos(
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::SSAO.to_string(),
-            _texture_width: render_viewport_width,
-            _texture_height: render_viewport_height,
-            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            ..Default::default()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::ShadowResolved.to_string(),
-            _texture_width: render_viewport_width,
-            _texture_height: render_viewport_height,
-            _texture_format: vk::Format::R16G16B16A16_SFLOAT,
-            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            ..Default::default()
-        },
-        TextureCreateInfo {
-            _texture_name: RenderTargetType::ShadowResolvedPrev.to_string(),
+            _texture_name: RenderTargetType::ShadowAO.to_string(),
             _texture_width: render_viewport_width,
             _texture_height: render_viewport_height,
             _texture_format: vk::Format::R16G16B16A16_SFLOAT,

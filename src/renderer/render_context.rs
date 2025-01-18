@@ -9,7 +9,7 @@ use crate::constants;
 use crate::render_pass::common::{composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy, render_gaussian_blur, render_taa};
 use crate::renderer::push_constants::PushConstant_BloomHighlight;
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::shader_buffer_data::SSAOConstants;
+use crate::renderer::shader_buffer_data::ShadowAOConstants;
 use crate::renderer::utility;
 use crate::renderer::utility::DescriptorResourceInfoBySemantic;
 use crate::resource::resource::EngineResources;
@@ -146,16 +146,15 @@ impl<'a> Default for RenderContext_Bloom<'a> {
 
 #[derive(Clone)]
 #[allow(non_camel_case_types)]
-pub struct RenderContext_SSAO<'a> {
-    pub _render_context_taa_simple: RenderContext_TAA_Simple<'a>,
+pub struct RenderContext_ShadowAO {
     pub _ssao_kernel_size: i32,
     pub _ssao_radius: f32,
     pub _ssao_noise_dim: i32,
-    pub _ssao_constants: SSAOConstants
+    pub _shadow_ao_constants: ShadowAOConstants
 }
 
-impl<'a> Default for RenderContext_SSAO<'a> {
-    fn default() -> RenderContext_SSAO<'a> {
+impl Default for RenderContext_ShadowAO {
+    fn default() -> RenderContext_ShadowAO {
         let mut random_normals: [Vector4<f32>; 64] =
             [Vector4::new(0.0, 0.0, 0.0, 0.0); constants::SSAO_KERNEL_SIZE];
         for i in 0..constants::SSAO_KERNEL_SIZE {
@@ -170,12 +169,11 @@ impl<'a> Default for RenderContext_SSAO<'a> {
             random_normals[i] = Vector4::new(normal.x, normal.y, normal.z, 0.0);
         }
 
-        RenderContext_SSAO {
-            _render_context_taa_simple: RenderContext_TAA_Simple::default(),
+        RenderContext_ShadowAO {
             _ssao_kernel_size: constants::SSAO_KERNEL_SIZE as i32,
             _ssao_radius: constants::SSAO_RADIUS,
             _ssao_noise_dim: unsafe { constants::SSAO_NOISE_DIM },
-            _ssao_constants: SSAOConstants {
+            _shadow_ao_constants: ShadowAOConstants {
                 _ssao_kernel_samples: random_normals,
             }
         }
@@ -394,36 +392,14 @@ impl<'a> RenderContext_TAA<'a> {
     }
 }
 
-impl<'a> RenderContext_SSAO<'a> {
-    pub fn initialize(
-        &mut self,
-        device: &Device,
-        debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources<'a>,
-        texture_ssr: &TextureData,
-        texture_taa_resolved: &TextureData,
-        texture_taa_resolved_prev: &TextureData,
-        current_taa_resolved: RenderTargetType,
-        previous_taa_resolved: RenderTargetType
-    ) {
-        self._render_context_taa_simple.initialize(
-            device,
-            debug_utils_device,
-            engine_resources,
-            texture_ssr,
-            texture_taa_resolved,
-            texture_taa_resolved_prev,
-            current_taa_resolved,
-            previous_taa_resolved
-        );
+impl<'a> RenderContext_ShadowAO {
+    pub fn initialize(&mut self) {
     }
 
     pub fn update(&mut self) {
-        self._render_context_taa_simple.update();
     }
 
-    pub fn destroy(&mut self, device: &Device) {
-        self._render_context_taa_simple.destroy(device);
+    pub fn destroy(&mut self, _device: &Device) {
     }
 }
 
@@ -590,20 +566,17 @@ impl RenderContext_CompositeGBuffer {
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources<'a>,
-        texture_ssao_resolved: &TextureData,
-        texture_ssao_resolved_prev: &TextureData,
         texture_ssr_resolved: &TextureData,
         texture_ssr_resolved_prev: &TextureData,
     ) {
         let render_copy_material_instance = engine_resources.get_material_instance_data("common/composite_gbuffer").borrow();
         let pipeline_binding_data = render_copy_material_instance.get_default_pipeline_binding_data();
-        // ssao, ssr
+        // ssr
         self._descriptor_sets0 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
             pipeline_binding_data,
             &[
-                (composite_gbuffer::SEMANTIC_TEXTURE_SSAO.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssao_resolved.get_default_image_info())),
                 (composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved.get_default_image_info()))
             ],
         );
@@ -612,7 +585,6 @@ impl RenderContext_CompositeGBuffer {
             debug_utils_device,
             pipeline_binding_data,
             &[
-                (composite_gbuffer::SEMANTIC_TEXTURE_SSAO.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssao_resolved_prev.get_default_image_info())),
                 (composite_gbuffer::SEMANTIC_TEXTURE_SCENE_REFLECT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_ssr_resolved_prev.get_default_image_info()))
             ],
         );

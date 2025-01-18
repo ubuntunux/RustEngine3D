@@ -82,6 +82,10 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
 
     // collect include files
     let re_include = Regex::new("\\#include\\s+[\"|<](.+?)[\"|>]").unwrap();
+    if false == shader_file_path.is_file() {
+        panic!("compileGLSL: {:?} does not exist.", shader_file_path);
+    }
+
     let shader_file_contents: String =
         fs::read_to_string(&shader_file_path).expect("Something went wrong reading the file");
     let mut included_files: Vec<PathBuf> = Vec::new();
@@ -125,10 +129,6 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
 
         fs::create_dir_all(spirv_file_path.parent().unwrap())
             .expect("Failed to create directories.");
-
-        if false == shader_file_path.is_file() {
-            panic!("compileGLSL: {:?} does not exist.", shader_file_path);
-        }
 
         let validator_exe = match which::which("glslangValidator") {
             Ok(path) => path,
