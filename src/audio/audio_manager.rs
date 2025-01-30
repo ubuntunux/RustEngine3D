@@ -41,7 +41,9 @@ pub struct AudioInstance {
 pub struct AudioManager<'a> {
     pub _engine_resources: *const EngineResources<'a>,
     pub _audio_instances: HashMap<i32, RcRefCell<AudioInstance>>,
-    pub _bgm: Option<RcRefCell<AudioInstance>>,
+    pub _bgm_audio_bank_data: Option<RcRefCell<AudioBankData>>,
+    pub _bgm_audio_instance: Option<RcRefCell<AudioInstance>>,
+    pub _bgm_volume: Option<f32>,
     pub _audio_subsystem: AudioSubsystem,
     pub _mixer_context: Sdl2MixerContext,
     pub _volume: i32,
@@ -136,7 +138,9 @@ impl<'a> AudioManager<'a> {
         Box::new(AudioManager {
             _engine_resources: engine_resources,
             _audio_instances: HashMap::new(),
-            _bgm: None,
+            _bgm_audio_bank_data: None,
+            _bgm_audio_instance: None,
+            _bgm_volume: None,
             _audio_subsystem: audio_subsystem,
             _mixer_context: mixer_context,
             _volume: DEFAULT_AUDIO_VOLUME,
@@ -144,7 +148,7 @@ impl<'a> AudioManager<'a> {
     }
 
     pub fn initialize_audio_manager(&mut self) {
-        // example) self._bgm = self.create_audio_instance("default", AudioLoop::LOOP, None);
+        // example) self._bgm = self.play_audio("default", AudioLoop::LOOP, None);
     }
 
     pub fn destroy_audio_manager(&mut self) {
@@ -176,14 +180,13 @@ impl<'a> AudioManager<'a> {
                     }
                 );
                 let Channel(channel_num) = channel;
-                self._audio_instances
-                    .insert(channel_num, audio_instance.clone())
+                self._audio_instances.insert(channel_num, audio_instance.clone())
             }
             _ => None,
         };
     }
 
-    pub fn create_audio_instance_from_audio_data(
+    pub fn play_audio_data(
         &mut self,
         audio_data: &RcRefCell<AudioData>,
         audio_loop: AudioLoop,
@@ -194,7 +197,7 @@ impl<'a> AudioManager<'a> {
         Some(audio_instance)
     }
 
-    pub fn create_audio_instance(
+    pub fn play_audio(
         &mut self,
         audio_name: &str,
         audio_loop: AudioLoop,
@@ -202,7 +205,7 @@ impl<'a> AudioManager<'a> {
     ) -> Option<RcRefCell<AudioInstance>> {
         let engine_resources = ptr_as_mut(self._engine_resources);
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
-            return self.create_audio_instance_from_audio_data(&audio_data, audio_loop, audio_volume);
+            return self.play_audio_data(&audio_data, audio_loop, audio_volume);
         }
         None
     }
@@ -213,21 +216,9 @@ impl<'a> AudioManager<'a> {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>
     ) -> Option<RcRefCell<AudioInstance>> {
-        if let ResourceData::AudioBank(audio_bank_data) = self
-            .get_engine_resources_mut()
-            .get_audio_bank_data(audio_name_bank)
-        {
-            let audio_data_count = audio_bank_data.borrow()._audio_data_list.len();
-            if 0 < audio_data_count {
-                let audio_data_index: usize = if 1 < audio_data_count {
-                    rand::random::<usize>() % audio_data_count
-                } else {
-                    0
-                };
-                let audio_data =
-                    audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
-                return self.create_audio_instance_from_audio_data(&audio_data, audio_loop, audio_volume);
-            }
+        let engine_resources = ptr_as_mut(self._engine_resources);
+        if let ResourceData::AudioBank(audio_bank_data) = engine_resources.get_audio_bank_data(audio_name_bank) {
+            return self.play_audio_bank_data(audio_bank_data, audio_loop, audio_volume);
         }
         None
     }
@@ -245,19 +236,85 @@ impl<'a> AudioManager<'a> {
             } else {
                 0
             };
-            let audio_data =
-                audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
-            return self.create_audio_instance_from_audio_data(&audio_data, audio_loop, audio_volume);
+            let audio_data = audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
+            return self.play_audio_data(&audio_data, audio_loop, audio_volume);
         }
         None
     }
 
+    pub fn play_audio_resource_data(
+        &mut self,
+        audio_resource_data: &ResourceData,
+        audio_loop: AudioLoop,
+        audio_volume: Option<f32>
+    ) -> Option<RcRefCell<AudioInstance>> {
+        match audio_resource_data {
+            ResourceData::Audio(audio_data) => self.play_audio_data(audio_data, audio_loop, audio_volume),
+            ResourceData::AudioBank(audio_bank_data) => self.play_audio_bank_data(audio_bank_data, audio_loop, audio_volume),
+            _ => None
+        }
+    }
+
+    pub fn play_bgm(
+        &mut self,
+        audio_data_name: &str,
+        audio_volume: Option<f32>
+    ) {
+        let engine_resources = ptr_as_mut(self._engine_resources);
+        let audio_resource_data = engine_resources.get_audio_bank_data(audio_data_name);
+        if let ResourceData::AudioBank(audio_bank_data) = audio_resource_data {
+            self.stop_bgm();
+
+            self._bgm_audio_bank_data = Some(audio_bank_data.clone());
+            self._bgm_audio_instance = self.play_audio_bank_data(audio_bank_data, AudioLoop::ONCE, audio_volume);
+            self._bgm_volume = audio_volume;
+        }
+    }
+
+    pub fn stop_bgm(&mut self) {
+        if self._bgm_audio_instance.is_some() {
+            if let Some(prev_audio_instance) = self._bgm_audio_instance.clone().as_ref() {
+                self.stop_audio_instance(prev_audio_instance);
+            }
+        }
+        self._bgm_audio_bank_data = None;
+        self._bgm_audio_instance = None;
+    }
+
+    pub fn stop_audio_instance(&self, audio_instance: &RcRefCell<AudioInstance>) {
+        let audio_instance_borrow = audio_instance.borrow();
+        if let Ok(channel) = audio_instance_borrow._channel {
+            channel.halt()
+        }
+    }
+
+    pub fn is_playing_audio_instance(&self, audio_instance: &RcRefCell<AudioInstance>) -> bool {
+        let audio_instance_borrow = audio_instance.borrow();
+        if let Ok(channel) = audio_instance_borrow._channel.as_ref() {
+            return channel.is_playing();
+        }
+        false
+    }
+
     pub fn update_audio_manager(&mut self) {
+        let mut is_playing_bgm: bool = false;
+        if let Some(audio_instance_refcell) = self._bgm_audio_instance.as_ref() {
+            if self.is_playing_audio_instance(audio_instance_refcell) {
+                is_playing_bgm = true;
+            }
+        }
+
+        if false == is_playing_bgm && self._bgm_audio_bank_data.is_some() {
+            if let Some(bgm_audio_bank_data) = self._bgm_audio_bank_data.as_ref() {
+                self._bgm_audio_instance = self.play_audio_bank_data(&bgm_audio_bank_data.clone(), AudioLoop::ONCE, self._bgm_volume);
+            }
+        }
+
         let mut remove_audio_instances: Vec<i32> = Vec::new();
         for (key, audio) in self._audio_instances.iter() {
             let channel = &audio.borrow()._channel;
-            if channel.is_ok() {
-                if false == channel.as_ref().unwrap().is_playing() {
+            if let Ok(channel) = channel.as_ref() {
+                if false == channel.is_playing() {
                     remove_audio_instances.push(*key);
                 }
             }

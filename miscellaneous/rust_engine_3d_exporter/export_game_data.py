@@ -195,15 +195,18 @@ class RustEngine3DExporter:
                     if node.label:
                         if 'TEX_IMAGE' == node.type:
                             # gather texture parameter
-                            image_relative_filepath = node.image.filepath.replace('//', '')
-                            image_filepath = os.path.abspath(os.path.join(self.resource_path, asset_info.asset_relative_path, image_relative_filepath))
+                            image_filepath = node.image.filepath
+                            tokens = image_filepath.split('/')
+                            textures_index = tokens.index('textures')
+                            image_relative_filepath = os.path.join(*tokens[textures_index:])
+                            image_filepath = os.path.abspath(os.path.join(self.resource_path, image_relative_filepath))
                             image_namepath = os.path.splitext(os.path.relpath(image_filepath, texture_dirpath))[0]
                             material_parameters[node.label] = image_namepath
 
                             # export texture
                             EXPORT_TEXTURES = False
                             if EXPORT_TEXTURES:
-                                image_external_filepath = os.path.abspath(os.path.join(self.external_path, asset_info.asset_relative_path, image_relative_filepath))
+                                image_external_filepath = os.path.abspath(os.path.join(self.external_path, ))
                                 if os.path.exists(image_external_filepath):
                                     src_modified_time = os.path.getmtime(image_external_filepath)
                                     dst_modified_time = os.path.getmtime(image_filepath) if os.path.exists(image_filepath) else 0
@@ -215,6 +218,7 @@ class RustEngine3DExporter:
                 # export material instance
                 export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
                 self.write_to_file('export material_instance', material_instance_info, export_filepath)
+        material_instance_namepaths.sort()
         return material_instance_namepaths
 
     def export_selected_meshes(self, asset_info):
@@ -387,6 +391,7 @@ class RustEngine3DExporter:
         if property_asset and key in property_asset:
             child_asset = property_asset.get(key, None)
             if child_asset:
+                self.logger.info(f'child_asset: {child_asset.name, child_asset.type}')
                 child_asset_info = AssetInfo(child_asset)
                 game_data[key] = child_asset_info.asset_namepath
     
