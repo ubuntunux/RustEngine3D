@@ -376,8 +376,6 @@ pub fn get_render_target_create_infos(
             _texture_width: unsafe { constants::SHADOW_MAP_SIZE },
             _texture_height: unsafe { constants::SHADOW_MAP_SIZE },
             _texture_format: vk::Format::D32_SFLOAT,
-            _texture_min_filter: vk::Filter::NEAREST,
-            _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },
@@ -386,8 +384,6 @@ pub fn get_render_target_create_infos(
             _texture_width: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::D32_SFLOAT,
-            _texture_min_filter: vk::Filter::NEAREST,
-            _texture_mag_filter: vk::Filter::NEAREST,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },

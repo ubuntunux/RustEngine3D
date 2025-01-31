@@ -1,4 +1,4 @@
-use nalgebra::{Matrix4, Vector3, Vector4};
+use nalgebra::{linalg, Matrix4, Vector3, Vector4};
 use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::light::{DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLightData};
@@ -11,6 +11,7 @@ impl Default for LightData {
         unsafe {
             LightData {
                 _shadow_view_projection: Matrix4::identity(),
+                _inv_shadow_view_projection: Matrix4::identity(),
                 _light_position: Vector3::zeros(),
                 _shadow_samples: constants::SHADOW_SAMPLES,
                 _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
@@ -89,6 +90,9 @@ impl DirectionalLight {
     pub fn get_shadow_view_projection(&self) -> &Matrix4<f32> {
         &self._light_data._shadow_view_projection
     }
+    pub fn get_inv_shadow_view_projection(&self) -> &Matrix4<f32> {
+        &self._light_data._inv_shadow_view_projection
+    }
     pub fn get_need_to_redraw_shadow_and_reset(&mut self) -> bool {
         let need_to_redraw_shadow = self._need_to_redraw_shadow;
         self._need_to_redraw_shadow = false;
@@ -112,10 +116,9 @@ impl DirectionalLight {
 
         let updated_transform = self._transform_object.update_transform_object();
         if self._updated_light_data || updated_transform {
-            self._light_data._shadow_view_projection =
-                &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
-            self._light_data._light_direction =
-                self.get_light_direction().clone() as Vector3<f32>;
+            self._light_data._shadow_view_projection = &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
+            linalg::try_invert_to(self._light_data._shadow_view_projection.into(), &mut self._light_data._inv_shadow_view_projection);
+            self._light_data._light_direction = self.get_light_direction().clone() as Vector3<f32>;
             self._need_to_redraw_shadow = true;
         }
         self._updated_light_data = false;

@@ -11,18 +11,15 @@ float get_shadow_factor_func(
     const in ivec2 screen_pos,
     const in vec3 world_position,
     const in mat4 shadow_view_projection,
+    const in mat4 inv_shadow_view_projection,
     const int sample_count,
     const float depth_bias,
     sampler2D texture_shadow
 )
 {
-    const vec2 shadow_size = textureSize(texture_shadow, 0);
-    const vec2 shadow_texel_size = 1.0 / shadow_size;
-    const vec2 shadow_noise_radius = shadow_texel_size * max(1.0, log2(sample_count));
-    const vec2 shadow_uv_min = shadow_texel_size * 0.5;
-    const vec2 shadow_uv_max = vec2(1.0) - shadow_texel_size * 0.5;
+    const vec2 shadow_texture_size = textureSize(texture_shadow, 0);
+    const vec2 shadow_texel_size = 1.0 / shadow_texture_size;
     vec4 shadow_proj = shadow_view_projection * vec4(world_position, 1.0);
-    const float shadow_dist = saturate((length(shadow_proj.xy) - 0.9) * 10.0);
     shadow_proj.xyz /= shadow_proj.w;
     shadow_proj.xy = shadow_proj.xy * 0.5 + 0.5;
 
@@ -31,31 +28,24 @@ float get_shadow_factor_func(
         return 1.0;
     }
 
+    /*
+    float shadow_depth = texture(texture_shadow, shadow_proj.xy).x;
+    vec4 shadow_ndc = vec4(shadow_proj.xy * 2.0 - 1.0, shadow_depth, 1.0);
+    vec4 shadow_world_pos = inv_shadow_view_projection * shadow_ndc;
+    shadow_world_pos.xyz /= shadow_world_pos.w;
+    const float shadow_dist = length(world_position.xyz - shadow_world_pos.xyz);
+    */
+    const vec2 shadow_noise_radius = shadow_texel_size * 4.0;
+
     const float shadow_noise_size = 0.25;
     const int timeIndex = int(mod(time, 1.0) * 128);
-    const vec2 noise = ((0.0 != time) ? vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) : vec2(0.0)) * shadow_noise_size;
+    const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * shadow_noise_size;
     float total_shadow_factor = 0.0;
     for(int sample_index = 0; sample_index < sample_count; ++sample_index)
     {
         const vec2 shadow_uv = shadow_proj.xy + (PoissonSamples[sample_index % PoissonSampleCount] + noise) * shadow_noise_radius;
-        const vec2 pixel_ratio = fract(shadow_uv * shadow_size);
-        vec4 shadow_depths = vec4(
-            textureLod(texture_shadow, shadow_uv, 0.0).x,
-            textureLod(texture_shadow, shadow_uv + vec2(shadow_texel_size.x, 0.0), 0.0).x,
-            textureLod(texture_shadow, shadow_uv + vec2(0.0, shadow_texel_size.y), 0.0).x,
-            textureLod(texture_shadow, shadow_uv + vec2(shadow_texel_size.x, shadow_texel_size.y), 0.0).x
-        );
-
-        float shadow_depth = mix(
-            mix(shadow_depths[0], shadow_depths[1], pixel_ratio.x),
-            mix(shadow_depths[2], shadow_depths[3], pixel_ratio.x), pixel_ratio.y
-        );
-
-        float shadow_factor = 1.0;
-        if(shadow_proj.z < (shadow_depth + depth_bias))
-        {
-            shadow_factor = saturate(shadow_dist);
-        }
+        const float sample_shadow_depth = texture(texture_shadow, shadow_uv).x;
+        float shadow_factor = shadow_proj.z < (sample_shadow_depth + depth_bias) ? 0.0 : 1.0;
         total_shadow_factor += shadow_factor;
     }
     return saturate(total_shadow_factor / float(sample_count));
@@ -66,11 +56,12 @@ float get_shadow_factor_simple(
     const in ivec2 screen_pos,
     const in vec3 world_position,
     const in mat4 shadow_view_projection,
+    const in mat4 inv_shadow_view_projection,
     const float depth_bias,
     sampler2D texture_shadow
 )
 {
-    return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, 1, depth_bias, texture_shadow);
+    return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, inv_shadow_view_projection, 1, depth_bias, texture_shadow);
 }
 
 float get_shadow_factor(
@@ -78,12 +69,13 @@ float get_shadow_factor(
     const in ivec2 screen_pos,
     const in vec3 world_position,
     const in mat4 shadow_view_projection,
+    const in mat4 inv_shadow_view_projection,
     const in int sample_count,
     const float depth_bias,
     sampler2D texture_shadow
 )
 {
-    return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, sample_count, depth_bias, texture_shadow);
+    return get_shadow_factor_func(time, screen_pos, world_position, shadow_view_projection, inv_shadow_view_projection, sample_count, depth_bias, texture_shadow);
 }
 
 // [Burley 2012, "Physically-Based Shading at Disney"]
@@ -331,6 +323,7 @@ vec4 surface_shading(
             ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
             world_position,
             light_data.SHADOW_VIEW_PROJECTION,
+            light_data.INV_SHADOW_VIEW_PROJECTION,
             light_data.SHADOW_SAMPLES,
             SHADOW_BIAS,
             texture_shadow
@@ -342,6 +335,7 @@ vec4 surface_shading(
         ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),
         world_position,
         view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
+        view_constants.INV_CAPTURE_HEIGHT_MAP_VIEW_PROJECTION,
         4,
         -0.0005,
         texture_height_map

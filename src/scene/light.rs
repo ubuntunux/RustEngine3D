@@ -10,6 +10,7 @@ use crate::scene::transform_object::TransformObjectData;
 #[serde(default)]
 pub struct LightData {
     pub _shadow_view_projection: Matrix4<f32>,
+    pub _inv_shadow_view_projection: Matrix4<f32>,
     pub _light_position: Vector3<f32>,
     pub _shadow_samples: i32,
     pub _light_direction: Vector3<f32>,

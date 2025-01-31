@@ -462,6 +462,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             self._view_constants.update_view_constants(&main_camera);
             if render_capture_height_map {
                 self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
+                self._view_constants._inv_capture_height_map_view_projection = (*capture_height_map.get_inv_shadow_view_projection()).into();
             }
 
             self.upload_shader_buffer_data(

@@ -92,7 +92,7 @@ pub fn get_render_pass_data_create_info(
         ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        _pipeline_cull_mode: vk::CullModeFlags::BACK,
+        _pipeline_cull_mode: vk::CullModeFlags::FRONT,
         _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
         _pipeline_depth_bias_constant_factor: unsafe { SHADOW_DEPTH_BIAS },
         _pipeline_depth_bias_clamp: -1000.0,

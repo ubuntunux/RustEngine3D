@@ -90,6 +90,7 @@ void main()
         ivec2(screen_coord * scene_constants.SCREEN_SIZE),
         world_pos,
         light_data.SHADOW_VIEW_PROJECTION,
+        light_data.INV_SHADOW_VIEW_PROJECTION,
         8,
         0.0,
         texture_shadow
