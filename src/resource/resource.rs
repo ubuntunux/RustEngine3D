@@ -49,7 +49,7 @@ pub const ENGINE_RESOURCE_PATH: &str = "resources/engine_resources";
 pub const ENGINE_RESOURCE_SOURCE_PATH: &str = "RustEngine3D/engine_resources";
 
 pub const ANIMATION_LAYER_DIRECTORY: &str = "animation_layers";
-pub const AUDIO_DIRECTORY: &str = "sounds";
+pub const AUDIO_DIRECTORY: &str = "externals/sounds";
 pub const AUDIO_BANK_DIRECTORY: &str = "sound_banks";
 pub const EFFECT_DIRECTORY: &str = "effects";
 pub const FONT_SOURCE_DIRECTORY: &str = "externals/fonts";
@@ -304,14 +304,11 @@ impl MetaData {
         let mut meta_file_path: PathBuf = resource_file_path.clone();
         meta_file_path.set_extension(EXT_META_FILE);
 
-        let write_to_file: bool;
         let meta_data = if meta_file_path.is_file() {
-            write_to_file = false;
             let loaded_contents = system::load(&meta_file_path);
             serde_json::from_reader(loaded_contents).expect("Failed to deserialize.")
         } else {
-            write_to_file = true;
-            MetaData {
+            let meta_data = MetaData {
                 _is_engine_resource: resource_file_path.starts_with(ENGINE_RESOURCE_PATH),
                 _meta_file_path: meta_file_path.clone(),
                 _resource_version: 0,
@@ -323,18 +320,15 @@ impl MetaData {
                 _source_file_path: source_file_path.clone(),
                 _source_modify_time: fs::metadata(&source_file_path).unwrap().modified().unwrap(),
                 _source_changed: false,
-            }
+            };
+
+            let mut write_meta_file = File::create(&meta_file_path).expect("Failed to create file");
+            let mut write_meta_contents: String = serde_json::to_string(&meta_data).expect("Failed to serialize.");
+            write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
+            write_meta_file.write(write_meta_contents.as_bytes()).expect("Failed to write");
+            meta_data
         };
 
-        if write_to_file {
-            let mut write_meta_file = File::create(&meta_file_path).expect("Failed to create file");
-            let mut write_meta_contents: String =
-                serde_json::to_string(&meta_data).expect("Failed to serialize.");
-            write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
-            write_meta_file
-                .write(write_meta_contents.as_bytes())
-                .expect("Failed to write");
-        }
         meta_data
     }
 }
