@@ -247,7 +247,7 @@ pub fn get_resource_data<'a, T>(
 }
 
 pub fn get_resource_name_from_file_path(
-    resource_dircetory: &PathBuf,
+    resource_directory: &PathBuf,
     resource_file_path: &PathBuf,
 ) -> String {
     let mut resource_name = PathBuf::from(resource_file_path.parent().unwrap());
@@ -259,7 +259,7 @@ pub fn get_resource_name_from_file_path(
     } else {
         resource_root_path = PathBuf::from(APPLICATION_RESOURCE_PATH);
     }
-    resource_root_path.push(resource_dircetory);
+    resource_root_path.push(resource_directory);
 
     let resource_name = String::from(
         system::get_relative_path(&resource_root_path, &resource_name)
@@ -271,21 +271,21 @@ pub fn get_resource_name_from_file_path(
 
 pub fn get_unique_resource_name<T>(
     resource_map: &HashMap<String, T>,
-    resource_dircetory: &PathBuf,
+    resource_directory: &PathBuf,
     resource_file_path: &PathBuf,
 ) -> String {
-    let resource_name = get_resource_name_from_file_path(resource_dircetory, resource_file_path);
+    let resource_name = get_resource_name_from_file_path(resource_directory, resource_file_path);
     system::generate_unique_name(resource_map, &resource_name)
 }
 
 pub fn get_resource_file_path(
     resource_root_path: &str,
-    resource_dircetory: &str,
+    resource_directory: &str,
     resource_name: &String,
     resource_ext: &str,
 ) -> PathBuf {
     let mut resource_file_path: PathBuf = PathBuf::from(resource_root_path);
-    resource_file_path.push(resource_dircetory);
+    resource_file_path.push(resource_directory);
     resource_file_path.push(resource_name);
     resource_file_path.set_extension(resource_ext);
     resource_file_path

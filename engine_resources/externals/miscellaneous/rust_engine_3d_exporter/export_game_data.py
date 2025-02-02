@@ -386,27 +386,30 @@ class RustEngine3DExporter:
         scene_data = self.get_scene_data(asset)
         export_filepath = asset_info.get_asset_filepath(self.resource_path, ".scene")
         self.write_to_file('export scene', scene_data, export_filepath)
-        
-    def set_game_data_asset_property(self, property_asset, key, game_data): 
-        if property_asset and key in property_asset:
-            child_asset = property_asset.get(key, None)
-            if child_asset:
-                self.logger.info(f'child_asset: {child_asset.name, child_asset.type}')
-                child_asset_info = AssetInfo(child_asset)
-                game_data[key] = child_asset_info.asset_namepath
-    
+
+    def asset_property_to_game_data(self, property_asset, game_data):
+        for key in property_asset.keys():
+            property_value = property_asset[key]
+            property_type = type(property_value)
+            if property_type in [bool, int, float, str]:
+                 game_data[key] = property_value
+            elif property_type is bpy.types.Collection:
+                if property_value:
+                    property_value_asset_info = AssetInfo(property_value)
+                    game_data[key] = property_value_asset_info.asset_namepath
+            else:
+                self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
+
+        for child_property_asset in property_asset.children:
+             child_game_data = {}
+             self.asset_property_to_game_data(child_property_asset, child_game_data)
+             game_data["_" + child_property_asset.name] = child_game_data
+
     def get_game_data(self, asset, asset_info, property_asset_name):
         game_data = {}
         for property_asset in asset.objects:
             if property_asset.name == property_asset_name:
-                for key in property_asset.keys():
-                    property_type = type(property_asset[key])
-                    if property_type is int or property_type is float or property_type is str:
-                         game_data[key] = property_asset.get(key)
-                    elif property_type is bpy.types.Collection:
-                        self.set_game_data_asset_property(property_asset, key, game_data)
-                    else:
-                        self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
+                self.asset_property_to_game_data(property_asset, game_data)
         return game_data
     
     def get_game_data_scenes(self, asset, asset_info):
@@ -479,11 +482,11 @@ class RustEngine3DExporter:
             game_data_ext = '.data'
             game_data_type = tokens[2]
             if 'characters' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'character_properties')
+                game_data = self.get_game_data(asset, asset_info, 'character_data')
             elif 'items' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'item_properties')
+                game_data = self.get_game_data(asset, asset_info, 'item_data')
             elif 'props' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'prop_properties')
+                game_data = self.get_game_data(asset, asset_info, 'prop_data')
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
