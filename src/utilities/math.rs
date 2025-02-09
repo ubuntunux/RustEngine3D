@@ -84,6 +84,10 @@ pub fn make_vector_xz_mut(vec: &mut Vector3<f32>) {
     vec.y = 0.0;
 }
 
+pub fn get_norm_xz(vec: &Vector3<f32>) -> f32 {
+    (vec.x * vec.x + vec.z * vec.z).sqrt()
+}
+
 pub fn make_normalize_xz(vec: &Vector3<f32>) -> Vector3<f32> {
     let distance = (vec.x * vec.x + vec.z * vec.z).sqrt();
     if 0.0 < distance {
@@ -93,7 +97,7 @@ pub fn make_normalize_xz(vec: &Vector3<f32>) -> Vector3<f32> {
 }
 
 pub fn make_normalize_xz_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
-    let distance = (vec.x * vec.x + vec.z * vec.z).sqrt();
+    let distance = get_norm_xz(vec);
     if 0.0 < distance {
         return (
             Vector3::new(vec.x / distance, 0.0, vec.z / distance),
