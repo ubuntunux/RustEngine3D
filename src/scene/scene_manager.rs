@@ -4,7 +4,7 @@ use std::rc::Rc;
 
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
-
+use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
 use crate::constants;
 use crate::constants::{MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
@@ -12,7 +12,8 @@ use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{RendererData, RenderObjectType};
-use crate::resource::resource::EngineResources;
+use crate::resource::resource::{EngineResources, ResourceData};
+use crate::resource::resource::ResourceData::{Audio, AudioBank};
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLight, LightData, PointLightCreateInfo, PointLight, PointLights};
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
@@ -47,6 +48,7 @@ pub struct SceneDataCreateInfo {
 pub struct SceneManager<'a> {
     pub _engine_resources: *const EngineResources<'a>,
     pub _renderer_data: *const RendererData<'a>,
+    pub _audio_manager: *const AudioManager<'a>,
     pub _effect_manager: *const EffectManager<'a>,
     pub _window_size: Vector2<i32>,
     pub _scene_name: String,
@@ -139,6 +141,7 @@ impl<'a> SceneManager<'a> {
         Box::new(SceneManager {
             _engine_resources: std::ptr::null(),
             _renderer_data: std::ptr::null(),
+            _audio_manager: std::ptr::null(),
             _effect_manager: std::ptr::null(),
             _window_size: Vector2::new(1024, 768),
             _scene_name: String::new(),
@@ -170,11 +173,13 @@ impl<'a> SceneManager<'a> {
     pub fn initialize_scene_manager(
         &mut self,
         renderer_context: &RendererContext<'a>,
+        audio_manager: &AudioManager<'a>,
         effect_manager: &EffectManager<'a>,
         engine_resources: &EngineResources<'a>,
         window_size: &Vector2<i32>,
     ) {
         self._renderer_data = renderer_context.get_renderer_data();
+        self._audio_manager = audio_manager;
         self._effect_manager = effect_manager;
         self._engine_resources = engine_resources;
 
@@ -271,6 +276,12 @@ impl<'a> SceneManager<'a> {
     pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager)
     }
+    pub fn get_audio_manager(&self) -> &AudioManager<'a> {
+        ptr_as_ref(self._audio_manager)
+    }
+    pub fn get_audio_manager_mut(&self) -> &mut AudioManager<'a> {
+        ptr_as_mut(self._audio_manager)
+    }
     pub fn set_effect_manager(&mut self, effect_manager: *const EffectManager<'a>) {
         self._effect_manager = effect_manager;
     }
@@ -362,13 +373,24 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> i64 {
-        let effect_data = self
-            .get_engine_resources()
-            .get_effect_data(&effect_create_info._effect_data_name);
-        let effect_id = self
-            .get_effect_manager_mut()
-            .create_effect(object_name, effect_create_info, &effect_data);
-        effect_id
+        let effect_data = self.get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
+        self.get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
+    }
+
+    pub fn play_audio_bank(&self, audio_name_bank: &str) {
+        self.get_audio_manager_mut().play_audio_bank(audio_name_bank, AudioLoop::ONCE, None);
+    }
+
+    pub fn play_audio(&self, audio_resource: &ResourceData) -> Option<RcRefCell<AudioInstance>> {
+        match audio_resource {
+            Audio(audio_data) => self.get_audio_manager_mut().play_audio_data(&audio_data, AudioLoop::ONCE, None),
+            AudioBank(audio_bank_data) => self.get_audio_manager_mut().play_audio_bank_data(&audio_bank_data, AudioLoop::ONCE, None),
+            _ => None,
+        }
+    }
+
+    pub fn play_audio_options(&self, audio_name_bank: &str, audio_loop: AudioLoop, volume: Option<f32>) {
+        self.get_audio_manager_mut().play_audio_bank(audio_name_bank, audio_loop, volume);
     }
 
     pub fn get_static_render_object(
