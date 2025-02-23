@@ -441,7 +441,7 @@ class RustEngine3DExporter:
                 for child_object in child_asset.objects:
                     child_object_info = AssetInfo(child_object.instance_collection)
                     characters[child_object.name] = {
-                        "_character_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_character_data_name": child_object_info.asset_namepath,
                         "_position": self.convert_asset_location(child_object),
                         "_rotation": self.convert_asset_rotation(child_object),
                         "_scale": self.convert_asset_scale(child_object)
@@ -450,7 +450,7 @@ class RustEngine3DExporter:
                 for child_object in child_asset.objects:
                     child_object_info = AssetInfo(child_object.instance_collection)
                     props[child_object.name] = {
-                        "_prop_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_prop_data_name": child_object_info.asset_namepath,
                         "_position": self.convert_asset_location(child_object),
                         "_rotation": self.convert_asset_rotation(child_object),
                         "_scale": self.convert_asset_scale(child_object)
@@ -459,7 +459,7 @@ class RustEngine3DExporter:
                 for child_object in child_asset.objects:
                     child_object_info = AssetInfo(child_object.instance_collection)
                     player[child_object.name] = {
-                        "_character_data_name": '/'.join(child_object_info.asset_namepath.split('/')[1:]),
+                        "_character_data_name": child_object_info.asset_namepath,
                         "_position": self.convert_asset_location(child_object),
                         "_rotation": self.convert_asset_rotation(child_object),
                         "_scale": self.convert_asset_scale(child_object)
