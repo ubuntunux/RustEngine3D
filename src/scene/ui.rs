@@ -2065,7 +2065,7 @@ impl<'a> UIManager<'a> {
             &mut touch_event,
         );
 
-        // updatge ui layout
+        // update ui layout
         let contents_area = Vector4::new(0.0, 0.0, window_size.x as f32, window_size.y as f32);
         let contents_area_size = Vector2::new(window_size.x as f32, window_size.y as f32);
         let required_contents_size = Vector2::<f32>::zeros();
