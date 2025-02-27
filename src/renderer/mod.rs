@@ -5,4 +5,5 @@ pub mod render_target;
 pub mod renderer_context;
 pub mod renderer_data;
 pub mod shader_buffer_data;
+pub mod shader_buffer_data_impl;
 pub mod utility;

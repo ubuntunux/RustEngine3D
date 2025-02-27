@@ -92,7 +92,6 @@ pub fn get_render_pass_data_create_info(
         }
         ParticleBlendMode::Additive => (String::from("additive"), BlendMode::Additive),
         ParticleBlendMode::Opaque => (String::from("opaque"), BlendMode::None),
-        _ => (String::from("none"), BlendMode::None),
     };
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {

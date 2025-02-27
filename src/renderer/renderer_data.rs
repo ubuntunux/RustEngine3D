@@ -49,7 +49,7 @@ pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
 pub const DEFAULT_PIPELINE: &str = "";
 
-// NOTE : RenderMode must match with scene_constants.glsl
+// NOTE: Ensure enum values match in scene_constants.glsl
 #[derive(Clone, Debug, Copy, PartialEq)]
 #[allow(non_camel_case_types)]
 pub enum RenderMode {
@@ -60,7 +60,7 @@ pub enum RenderMode {
     CaptureHeightMap = 4,
 }
 
-// NOTE : RenderObjectType must match with scene_constants.glsl
+// NOTE: Ensure enum values match in scene_constants.glsl
 #[derive(Clone, Debug, Copy, PartialEq)]
 pub enum RenderObjectType {
     Static = 0,
@@ -105,7 +105,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
 
         let renderer_context_ref = ptr_as_ref(renderer_context);
 
-        shader_buffer_data::register_shader_buffer_data_list(
+        ShaderBufferDataType::register_shader_buffer_data_list(
             renderer_context_ref.get_device(),
             renderer_context_ref.get_device_memory_properties(),
             renderer_context_ref.get_debug_utils(),

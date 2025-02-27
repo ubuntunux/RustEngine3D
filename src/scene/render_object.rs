@@ -1,5 +1,7 @@
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
+use strum::EnumCount;
+use strum_macros::EnumCount;
 use crate::scene::animation::{AnimationLayerData, AnimationBuffer, AnimationData, AnimationPlayArgs, AnimationPlayInfo};
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
@@ -10,11 +12,10 @@ use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 #[repr(i32)]
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount)]
 pub enum AnimationLayer {
     BaseLayer,
-    ActionLayer,
-    LayerCount
+    ActionLayer
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
@@ -146,14 +147,14 @@ impl<'a> RenderObjectData<'a> {
 
     pub fn initialize_animation_play_info(&mut self) {
         let animation_data_list = &self._mesh_data.borrow()._animation_data_list;
-        assert!(false == animation_data_list.is_empty());
+        assert!(!animation_data_list.is_empty());
         let first_animation = animation_data_list.first();
-        assert!(false == first_animation.is_none());
+        assert!(!first_animation.is_none());
         let bone_count = first_animation.unwrap().get_bone_count();
 
         assert!(0 < bone_count);
-        let base_layer_index = AnimationLayer::BaseLayer as i32;
-        for i in 0..(AnimationLayer::LayerCount as i32) {
+        let base_layer_index = AnimationLayer::BaseLayer as usize;
+        for i in 0..(AnimationLayer::COUNT) {
             let mesh_data = if base_layer_index == i { Some(self._mesh_data.clone()) } else { None };
             self._animation_play_infos.push(
                 AnimationPlayInfo::create_animation_play_info(mesh_data, bone_count)

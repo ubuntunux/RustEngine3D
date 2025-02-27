@@ -1,5 +1,5 @@
 use ash::vk;
-
+use strum_macros::{Display, EnumString};
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::fft_ocean;
@@ -8,7 +8,7 @@ use crate::vulkan_context::texture::TextureCreateInfo;
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy)]
+#[derive(Clone, PartialEq, Eq, Hash, Debug, Display, EnumString, Copy)]
 pub enum RenderTargetType {
     SceneColor,
     PostProcessedColor,
@@ -56,86 +56,6 @@ pub enum RenderTargetType {
     PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING,
     PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY,
     MaxBound,
-}
-
-impl std::fmt::Display for RenderTargetType {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "{:?}", self)
-    }
-}
-
-impl std::str::FromStr for RenderTargetType {
-    type Err = String;
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        match s {
-            "SceneColor" => Ok(RenderTargetType::SceneColor),
-            "PostProcessedColor" => Ok(RenderTargetType::PostProcessedColor),
-            "SceneDepth" => Ok(RenderTargetType::SceneDepth),
-            "HierarchicalMinZ" => Ok(RenderTargetType::HierarchicalMinZ),
-            "LightProbeAtmosphereColor" => Ok(RenderTargetType::LightProbeAtmosphereColor),
-            "LightProbeAtmosphereInscatter" => Ok(RenderTargetType::LightProbeAtmosphereInscatter),
-            "LightProbeColor" => Ok(RenderTargetType::LightProbeColor),
-            "LightProbeColorOnlySky" => Ok(RenderTargetType::LightProbeColorOnlySky),
-            "LightProbeColorOnlySkyPrev" => Ok(RenderTargetType::LightProbeColorOnlySkyPrev),
-            "LightProbeColorForward" => Ok(RenderTargetType::LightProbeColorForward),
-            "LightProbeColorForwardPrev" => Ok(RenderTargetType::LightProbeColorForwardPrev),
-            "LightProbeDepth" => Ok(RenderTargetType::LightProbeDepth),
-            "BackBuffer" => Ok(RenderTargetType::BackBuffer),
-            "BackBufferCopy" => Ok(RenderTargetType::BackBufferCopy),
-            "SceneAlbedo" => Ok(RenderTargetType::SceneAlbedo),
-            "SceneNormal" => Ok(RenderTargetType::SceneNormal),
-            "SceneMaterial" => Ok(RenderTargetType::SceneMaterial),
-            "SceneVelocity" => Ok(RenderTargetType::SceneVelocity),
-            "TAAResolve" => Ok(RenderTargetType::TAAResolve),
-            "Bloom0" => Ok(RenderTargetType::Bloom0),
-            "BloomTemp0" => Ok(RenderTargetType::BloomTemp0),
-            "LightShaft" => Ok(RenderTargetType::LightShaft),
-            "ShadowAO" => Ok(RenderTargetType::ShadowAO),
-            "Shadow" => Ok(RenderTargetType::Shadow),
-            "CaptureHeightMap" => Ok(RenderTargetType::CaptureHeightMap),
-            "SSR" => Ok(RenderTargetType::SSR),
-            "SSRResolved" => Ok(RenderTargetType::SSRResolved),
-            "SSRResolvedPrev" => Ok(RenderTargetType::SSRResolvedPrev),
-            "FFT_A" => Ok(RenderTargetType::FFT_A),
-            "FFT_B" => Ok(RenderTargetType::FFT_B),
-            "FFT_SLOPE_VARIANCE" => Ok(RenderTargetType::FFT_SLOPE_VARIANCE),
-            "PRECOMPUTED_ATMOSPHERE_COLOR" => Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
-            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED)
-            }
-            "PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV)
-            }
-            "PRECOMPUTED_ATMOSPHERE_INSCATTER" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER)
-            }
-            "PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_TRANSMITTANCE)
-            }
-            "PRECOMPUTED_ATMOSPHERE_SCATTERING" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING)
-            }
-            "PRECOMPUTED_ATMOSPHERE_IRRADIANCE" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_IRRADIANCE)
-            }
-            "PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING)
-            }
-            "PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_IRRADIANCE)
-            }
-            "PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING)
-            }
-            "PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING)
-            }
-            "PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY" => {
-                Ok(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY)
-            }
-            _ => Err(format!("'{}' is not a valid value for RenderTargetType", s)),
-        }
-    }
 }
 
 pub fn get_render_target_create_infos(

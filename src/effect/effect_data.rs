@@ -14,14 +14,13 @@ pub const INVALID_EFFECT_ID: i64 = -1;
 pub const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
 pub const INVALID_ALLOCATED_PARTICLE_OFFSET: i32 = -1;
 
-// must match with effect/common.glsl
+// NOTE: Ensure enum values match in effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleSpawnVolumeType {
     Box = 0,
     Sphere = 1,
     Cone = 2,
-    Cylinder = 3,
-    Count = 4,
+    Cylinder = 3
 }
 
 impl Default for ParticleSpawnVolumeType {
@@ -30,7 +29,7 @@ impl Default for ParticleSpawnVolumeType {
     }
 }
 
-// must match with effect/common.glsl
+// NOTE: Ensure enum values match in effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleGeometryType {
     Mesh = 0,
@@ -38,7 +37,6 @@ pub enum ParticleGeometryType {
     Ribbon = 2,
     Beam = 3,
     Capsule = 4,
-    Count = 5,
 }
 
 impl Default for ParticleGeometryType {
@@ -47,13 +45,12 @@ impl Default for ParticleGeometryType {
     }
 }
 
-// must match with effect/common.glsl
+// NOTE: Ensure enum values match in effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleBlendMode {
     AlphaBlend = 0,
     Additive = 1,
-    Opaque = 2,
-    Count = 3,
+    Opaque = 2
 }
 
 impl Default for ParticleBlendMode {
@@ -62,13 +59,12 @@ impl Default for ParticleBlendMode {
     }
 }
 
-// must match with effect/common.glsl
+// NOTE: Ensure enum values match in effect/common.glsl
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleAlignMode {
     None = 0,
     Billboard = 1,
-    VelocityAlign = 2,
-    Count = 3,
+    VelocityAlign = 2
 }
 
 impl Default for ParticleAlignMode {
@@ -77,14 +73,13 @@ impl Default for ParticleAlignMode {
     }
 }
 
-// must match with effect/common.glsl
+// NOTE: Ensure enum values match in effect/common.glsl
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
 pub enum ParticleVelocityType {
     Local = 0,
     WorldY_LocalXZ = 1,
-    NormalDirection = 2,
-    Count = 3,
+    NormalDirection = 2
 }
 
 impl Default for ParticleVelocityType {

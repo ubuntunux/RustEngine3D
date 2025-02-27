@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use std::fmt;
-
+use rand::Rng;
 use sdl2::{self, AudioSubsystem, Sdl};
 use sdl2::mixer::{AUDIO_S16LSB, Channel, Chunk, DEFAULT_CHANNELS, InitFlag, Sdl2MixerContext};
 use serde::{Deserialize, Serialize};
@@ -229,14 +229,16 @@ impl<'a> AudioManager<'a> {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>
     ) -> Option<RcRefCell<AudioInstance>> {
-        let audio_data_count = audio_bank_data.borrow()._audio_data_list.len();
+        let audio_data_count = audio_bank_data.borrow()._audio_data_list.len() as u32;
         if 0 < audio_data_count {
-            let audio_data_index: usize = if 1 < audio_data_count {
-                rand::random::<usize>() % audio_data_count
+            let mut rng = rand::rng();
+            let n: u32 = rng.random();
+            let audio_data_index: u32 = if 1 < audio_data_count {
+                n % audio_data_count
             } else {
                 0
             };
-            let audio_data = audio_bank_data.borrow()._audio_data_list[audio_data_index].clone();
+            let audio_data = audio_bank_data.borrow()._audio_data_list[audio_data_index as usize].clone();
             return self.play_audio_data(&audio_data, audio_loop, audio_volume);
         }
         None
