@@ -389,16 +389,17 @@ class RustEngine3DExporter:
 
     def asset_property_to_game_data(self, property_asset, game_data):
         for key in property_asset.keys():
-            property_value = property_asset[key]
-            property_type = type(property_value)
-            if property_type in [bool, int, float, str]:
-                 game_data[key] = property_value
-            elif property_type is bpy.types.Collection:
-                if property_value:
-                    property_value_asset_info = AssetInfo(property_value)
-                    game_data[key] = property_value_asset_info.asset_namepath
-            else:
-                self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
+            if key not in property_asset.bl_rna.properties:
+                property_value = property_asset[key]
+                property_type = type(property_value)
+                if property_type in [bool, int, float, str]:
+                     game_data[key] = property_value
+                elif property_type is bpy.types.Collection:
+                    if property_value:
+                        property_value_asset_info = AssetInfo(property_value)
+                        game_data[key] = property_value_asset_info.asset_namepath
+                else:
+                    self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
 
         for child_property_asset in property_asset.children:
              child_game_data = {}
