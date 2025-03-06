@@ -303,12 +303,11 @@ class RustEngine3DExporter:
                         bounding_box['_min'] = self.convert_axis(pos_min)
                         bounding_box['_max'] = self.convert_axis(pos_max)
                     
-                # is a valid parent transform?
-                if [True for child in obj.children if child.name in mesh_data.objects]:
-                    position = self.convert_asset_location(obj)
-                    rotation = self.convert_asset_rotation(obj)
-                    scale = self.convert_asset_scale(obj)
-                    
+            # model transform
+            for mesh_obj in mesh_collection.objects:
+                position = self.convert_asset_location(mesh_obj)
+                rotation = self.convert_asset_rotation(mesh_obj)
+                scale = self.convert_asset_scale(mesh_obj)
 
             # export model
             model_info = {
