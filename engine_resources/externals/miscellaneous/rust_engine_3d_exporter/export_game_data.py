@@ -413,16 +413,18 @@ class RustEngine3DExporter:
         return game_data
     
     def get_game_data_scenes(self, asset, asset_info):
-        player = {}
-        characters = {}
         blocks = {}
+        characters = {}
+        items = {}
+        player = {}
         props = {}
         game_data = {
-            "_scene": "",
-            "_player": player,
             "_characters": characters,
             "_blocks": blocks,
+            "_items": items,
+            "_player": player,
             "_props": props,
+            "_scene": "",
             "_start_point": [0, 0, 0]
         }        
         for child_asset in asset.children:
@@ -442,6 +444,15 @@ class RustEngine3DExporter:
                     child_object_info = AssetInfo(child_object.instance_collection)
                     characters[child_object.name] = {
                         "_character_data_name": child_object_info.asset_namepath,
+                        "_position": self.convert_asset_location(child_object),
+                        "_rotation": self.convert_asset_rotation(child_object),
+                        "_scale": self.convert_asset_scale(child_object)
+                    }
+            elif '_items' == child_asset.name:
+                for child_object in child_asset.objects:
+                    child_object_info = AssetInfo(child_object.instance_collection)
+                    items[child_object.name] = {
+                        "_item_data_name": child_object_info.asset_namepath,
                         "_position": self.convert_asset_location(child_object),
                         "_rotation": self.convert_asset_rotation(child_object),
                         "_scale": self.convert_asset_scale(child_object)
