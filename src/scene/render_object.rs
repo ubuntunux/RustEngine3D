@@ -260,7 +260,7 @@ impl<'a> RenderObjectData<'a> {
             if self._collision.is_valid_collision() {
                 self._collision._bounding_box.update_with_matrix_no_rotation(
                     &self._model_data.borrow()._collision._bounding_box,
-                    &self._final_transform
+                    self._transform_object.get_matrix()
                 )
             }
         }

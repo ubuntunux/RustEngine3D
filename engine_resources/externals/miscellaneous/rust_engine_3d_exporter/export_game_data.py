@@ -286,7 +286,7 @@ class RustEngine3DExporter:
                 "_radius": 0,
                 "_height": 0
             }
-            
+
             for obj in asset.objects:
                 if 'BOUNDS' == obj.display_type:
                     pos_min = obj.location - obj.dimensions * 0.5
@@ -304,10 +304,18 @@ class RustEngine3DExporter:
                         bounding_box['_max'] = self.convert_axis(pos_max)
                     
             # model transform
-            for mesh_obj in mesh_collection.objects:
-                position = self.convert_asset_location(mesh_obj)
-                rotation = self.convert_asset_rotation(mesh_obj)
-                scale = self.convert_asset_scale(mesh_obj)
+            for (model_obj, mesh_obj) in zip(mesh_collection.objects, mesh_data.objects):
+                if mesh_obj.parent is None:
+                    mesh_location = self.convert_asset_location(mesh_obj)
+                    mesh_rotation = self.convert_asset_rotation(mesh_obj)
+                    mesh_scale = self.convert_asset_scale(mesh_obj)
+                    model_location = self.convert_asset_location(model_obj)
+                    model_rotation = self.convert_asset_rotation(model_obj)
+                    model_scale = self.convert_asset_scale(model_obj)
+                    position = [model_location[0] - mesh_location[0], model_location[1] - mesh_location[1], model_location[2] - mesh_location[2]]
+                    rotation = [model_rotation[0] - mesh_rotation[0], model_rotation[1] - mesh_rotation[1], model_rotation[2] - mesh_rotation[2]]
+                    scale = [model_scale[0] / mesh_scale[0], model_scale[1] / mesh_scale[1], model_scale[2] / mesh_scale[2]]
+                    break
 
             # export model
             model_info = {
