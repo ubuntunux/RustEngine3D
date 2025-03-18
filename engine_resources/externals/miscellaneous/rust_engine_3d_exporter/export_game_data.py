@@ -506,6 +506,8 @@ class RustEngine3DExporter:
                 game_data = self.get_game_data(asset, asset_info, 'item_data')
             elif 'props' == game_data_type:
                 game_data = self.get_game_data(asset, asset_info, 'prop_data')
+            elif 'weapons' == game_data_type:
+                game_data = self.get_game_data(asset, asset_info, 'weapon_data')
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
