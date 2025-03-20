@@ -271,12 +271,12 @@ class RustEngine3DExporter:
             scale = [1.0, 1.0, 1.0]
             
             # default bound
-            (pos_min, pos_max) = get_bound(mesh_collection)
+            (default_pos_min, default_pos_max) = get_bound(mesh_collection)
             
             # bounding box
             bounding_box = {
-                "_min": self.convert_axis(pos_min),
-                "_max": self.convert_axis(pos_max)
+                "_min": self.convert_axis(default_pos_min),
+                "_max": self.convert_axis(default_pos_max)
             }
             
             # collision
@@ -287,21 +287,34 @@ class RustEngine3DExporter:
                 "_height": 0
             }
 
+            # sockets
+            sockets = {}
+
+            # extra objects
             for obj in asset.objects:
-                if 'BOUNDS' == obj.display_type:
+                if 'COLLISION' == obj.name:
                     pos_min = obj.location - obj.dimensions * 0.5
-                    pos_max = obj.location + obj.dimensions * 0.5                        
-                    if 'COLLISION' == obj.name:
-                        location = (pos_max + pos_min) * 0.5
-                        radius = max(pos_max.x - pos_min.x, pos_max.y - pos_min.y) * 0.5
-                        height = pos_max.z - pos_min.z
-                        collision['_collision_type'] = obj.display_bounds_type
-                        collision['_location'] = self.convert_axis(location)
-                        collision['_radius'] = radius
-                        collision['_height'] = height
-                    elif 'BOUND_BOX' == obj.name:                        
-                        bounding_box['_min'] = self.convert_axis(pos_min)
-                        bounding_box['_max'] = self.convert_axis(pos_max)
+                    pos_max = obj.location + obj.dimensions * 0.5
+                    location = (pos_max + pos_min) * 0.5
+                    radius = max(pos_max.x - pos_min.x, pos_max.y - pos_min.y) * 0.5
+                    height = pos_max.z - pos_min.z
+                    collision['_collision_type'] = 'CYLINDER' if obj.display_bounds_type == 'CYLINDER' else 'BOX'
+                    collision['_location'] = self.convert_axis(location)
+                    collision['_radius'] = radius
+                    collision['_height'] = height
+                elif 'BOUND_BOX' == obj.name:
+                    pos_min = obj.location - obj.dimensions * 0.5
+                    pos_max = obj.location + obj.dimensions * 0.5
+                    bounding_box['_min'] = self.convert_axis(pos_min)
+                    bounding_box['_max'] = self.convert_axis(pos_max)
+                elif obj.name.startswith('SOCKET_'):
+                    if obj.parent and obj.parent_type == 'BONE':
+                        sockets[obj.name] = {
+                            '_parent_bone': obj.parent_bone,
+                            '_position': self.convert_asset_location(obj),
+                            '_rotation': self.convert_asset_rotation(obj),
+                            '_scale': self.convert_asset_scale(obj)
+                        }
                     
             # model transform
             for (model_obj, mesh_obj) in zip(mesh_collection.objects, mesh_data.objects):
@@ -324,7 +337,8 @@ class RustEngine3DExporter:
                 "_rotation": rotation,
                 "_scale": scale,
                 "_material_instances": material_instances,
-                "_collision": collision
+                "_collision": collision,
+                "_sockets": sockets
             }
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             self.write_to_file('export model', model_info, export_model_filepath)
@@ -413,13 +427,52 @@ class RustEngine3DExporter:
              self.asset_property_to_game_data(child_property_asset, child_game_data)
              game_data["_" + child_property_asset.name] = child_game_data
 
-    def get_game_data(self, asset, asset_info, property_asset_name):
+    def get_custom_properties(self, asset, asset_info, property_asset_name):
         game_data = {}
         for property_asset in asset.objects:
             if property_asset.name == property_asset_name:
                 self.asset_property_to_game_data(property_asset, game_data)
         return game_data
-    
+
+    def export_game_data(self, asset, asset_info):
+        self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
+        self.logger.info(f'library_name: {self.library_name}, external_path: {self.external_path}, resource_path: {self.resource_path}')
+        
+        tokens = asset_info.asset_library_path.split('/')
+        if 'game_data' == asset_info.asset_type_name and 2 < len(tokens):
+            game_data = {}
+            game_data_ext = '.data'
+            game_data_type = tokens[2]
+            if 'characters' == game_data_type:
+                game_data = self.get_custom_properties(asset, asset_info, 'character_data')
+                for child_object in asset.objects:
+                    if 'WEAPON' == child_object.name:
+                        child_asset = child_object.instance_collection
+                        weapon_asset_info = AssetInfo(child_asset)
+                        game_data["_weapon"] = {
+                            "_weapon_data_name": weapon_asset_info.asset_namepath,
+                            "_position": self.convert_asset_location(child_object),
+                            "_rotation": self.convert_asset_rotation(child_object),
+                            "_scale": self.convert_asset_scale(child_object)
+                        }
+            elif 'items' == game_data_type:
+                game_data = self.get_custom_properties(asset, asset_info, 'item_data')
+            elif 'props' == game_data_type:
+                game_data = self.get_custom_properties(asset, asset_info, 'prop_data')
+            elif 'weapons' == game_data_type:
+                game_data = self.get_custom_properties(asset, asset_info, 'weapon_data')
+            elif 'game_scenes':
+                game_data = self.get_game_data_scenes(asset, asset_info)
+            else:
+                self.logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
+                
+            if game_data:
+                export_filepath = asset_info.get_asset_filepath(self.resource_path, game_data_ext)
+                self.write_to_file('export game_data', game_data, export_filepath)
+                return
+        self.logger.error(f'error export_game_data: {asset_info.asset_fullpath}')
+
+    # export game scene
     def get_game_data_scenes(self, asset, asset_info):
         blocks = {}
         characters = {}
@@ -434,7 +487,7 @@ class RustEngine3DExporter:
             "_props": props,
             "_scene": "",
             "_start_point": [0, 0, 0]
-        }        
+        }
         for child_asset in asset.children:
             if '_scene' == child_asset.name:
                 game_data['_scene'] = self.get_scene_data(child_asset)
@@ -489,36 +542,6 @@ class RustEngine3DExporter:
             else:
                 self.logger.error(f'not implemented object type {child_asset.name}')
         return game_data
-        
-        
-    def export_game_data(self, asset, asset_info):
-        self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
-        self.logger.info(f'library_name: {self.library_name}, external_path: {self.external_path}, resource_path: {self.resource_path}')
-        
-        tokens = asset_info.asset_library_path.split('/')
-        if 2 < len(tokens):
-            game_data = {}
-            game_data_ext = '.data'
-            game_data_type = tokens[2]
-            if 'characters' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'character_data')
-            elif 'items' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'item_data')
-            elif 'props' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'prop_data')
-            elif 'weapons' == game_data_type:
-                game_data = self.get_game_data(asset, asset_info, 'weapon_data')
-            elif 'game_scenes':
-                game_data = self.get_game_data_scenes(asset, asset_info)
-            else:
-                self.logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
-                
-            if game_data:
-                export_filepath = asset_info.get_asset_filepath(self.resource_path, game_data_ext)
-                self.write_to_file('export game_data', game_data, export_filepath)
-                return
-        self.logger.error(f'error export_game_data: {asset_info.asset_fullpath}')
-            
 
     # export asset
     def export_asset(self, asset):

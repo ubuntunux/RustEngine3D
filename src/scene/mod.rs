@@ -15,6 +15,7 @@ pub mod precomputed_atmosphere;
 pub mod render_element;
 pub mod render_object;
 pub mod scene_manager;
+pub mod socket;
 pub mod spline;
 pub mod transform_object;
 pub mod ui;

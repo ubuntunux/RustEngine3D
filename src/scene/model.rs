@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionCreateInfo, CollisionData, CollisionType};
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
+use crate::scene::socket::SocketCreateInfo;
 use crate::utilities::math;
 use crate::utilities::system::RcRefCell;
 
@@ -17,6 +19,7 @@ pub struct ModelDataInfo {
     pub _material_instances: Vec<String>,
     pub _bounding_box: BoundingBox,
     pub _collision: CollisionCreateInfo,
+    pub _sockets: HashMap<String, SocketCreateInfo>
 }
 
 impl Default for ModelDataInfo {
@@ -29,6 +32,7 @@ impl Default for ModelDataInfo {
             _material_instances: Vec::new(),
             _bounding_box: BoundingBox::default(),
             _collision: CollisionCreateInfo::default(),
+            _sockets: HashMap::new()
         }
     }
 }
