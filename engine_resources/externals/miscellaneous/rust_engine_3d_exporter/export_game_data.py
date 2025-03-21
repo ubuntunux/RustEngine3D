@@ -449,7 +449,7 @@ class RustEngine3DExporter:
                     if 'WEAPON' == child_object.name:
                         child_asset = child_object.instance_collection
                         weapon_asset_info = AssetInfo(child_asset)
-                        game_data["_weapon"] = {
+                        game_data["_weapon_data"] = {
                             "_weapon_data_name": weapon_asset_info.asset_namepath,
                             "_position": self.convert_asset_location(child_object),
                             "_rotation": self.convert_asset_rotation(child_object),

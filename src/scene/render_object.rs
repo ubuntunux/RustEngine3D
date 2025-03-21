@@ -8,6 +8,7 @@ use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::CollisionData;
+use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -56,7 +57,8 @@ pub struct RenderObjectData<'a> {
     pub _final_transform: Matrix4<f32>,
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
     pub _animation_buffer: Option<AnimationBuffer>,
-    pub _bone_count: usize
+    pub _bone_count: usize,
+    pub _sockets: Vec<Socket>
 }
 
 impl<'a> RenderObjectData<'a> {
@@ -110,7 +112,8 @@ impl<'a> RenderObjectData<'a> {
             _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_infos: Vec::new(),
             _animation_buffer: None,
-            _bone_count: 0
+            _bone_count: 0,
+            _sockets: Vec::new()
         };
 
         render_object_data.initialize_render_object_data();

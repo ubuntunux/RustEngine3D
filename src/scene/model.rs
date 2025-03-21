@@ -5,7 +5,7 @@ use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionCreateInfo, CollisionData, CollisionType};
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
-use crate::scene::socket::SocketCreateInfo;
+use crate::scene::socket::{Socket, SocketDataCreateInfo};
 use crate::utilities::math;
 use crate::utilities::system::RcRefCell;
 
@@ -19,7 +19,7 @@ pub struct ModelDataInfo {
     pub _material_instances: Vec<String>,
     pub _bounding_box: BoundingBox,
     pub _collision: CollisionCreateInfo,
-    pub _sockets: HashMap<String, SocketCreateInfo>
+    pub _sockets: HashMap<String, SocketDataCreateInfo>
 }
 
 impl Default for ModelDataInfo {
@@ -44,6 +44,7 @@ pub struct ModelData<'a> {
     pub _mesh_data: RcRefCell<MeshData>,
     pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
     pub _collision: CollisionData,
+    pub _sockets: Vec<Socket>
 }
 
 impl<'a> ModelData<'a> {
@@ -82,6 +83,7 @@ impl<'a> ModelData<'a> {
             ),
             _material_instance_data_list: material_instance_data_list,
             _collision: CollisionData::create_collision(&collision_info),
+            _sockets: Vec::new()
         }
     }
 
