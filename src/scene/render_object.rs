@@ -318,7 +318,7 @@ impl<'a> RenderObjectData<'a> {
                 let base_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::BaseLayer));
                 let animation_buffer = self._animation_buffer.as_mut().unwrap();
                 animation_buffer.swap_animation_buffer();
-                animation_buffer.update_animation_buffer(base_animation);
+                animation_buffer.update_animation_buffer(base_animation, &mut self._sockets);
 
                 // update sockets
                 for (_socket_name, socket) in self._sockets.iter_mut() {
@@ -326,7 +326,7 @@ impl<'a> RenderObjectData<'a> {
                     let parent_bon_index = socket_borrowed._socket_data.borrow()._parent_bone_index;
                     if parent_bon_index < self._bone_count {
                         let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
-                        socket_borrowed._transform = animation_buffer._animation_buffer[parent_bon_index] * local_transform;
+                        socket_borrowed._transform = self._final_transform * socket_borrowed._transform * local_transform;
                     }
                 }
             }

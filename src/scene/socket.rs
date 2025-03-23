@@ -31,7 +31,6 @@ pub struct SocketData {
 
 impl SocketData {
     pub fn create_socket_data(socket_name: &String, socket_data_info: &SocketDataCreateInfo, parent_bone_index: usize) -> SocketData {
-        log::debug!("create_socket_data: {:}, parent_bone_index: {:?}, socket_data_info: {:?}", socket_name, parent_bone_index, socket_data_info);
         SocketData {
             _socket_name: socket_name.clone(),
             _parent_bone_index: parent_bone_index,

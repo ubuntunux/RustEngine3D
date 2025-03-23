@@ -8,6 +8,7 @@ use crate::scene::transform_object::{SimpleTransform, TransformObjectData};
 
 use nalgebra_glm as glm;
 use crate::constants;
+use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, RcRefCell};
 
 pub const INVALID_BONE_INDEX: usize = usize::MAX;
@@ -396,7 +397,7 @@ impl AnimationBuffer {
         );
     }
 
-    pub fn update_animation_buffer(&mut self, animation_play_info: &AnimationPlayInfo) {
+    pub fn update_animation_buffer(&mut self, animation_play_info: &AnimationPlayInfo, sockets: &mut HashMap<String, RcRefCell<Socket>>) {
         let animation_transforms: &Vec<SimpleTransform> = &animation_play_info._animation_transforms;
         let animation_data_list: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
         let animation_data: &AnimationData = &animation_data_list[animation_play_info._animation_index];
@@ -410,7 +411,17 @@ impl AnimationBuffer {
                 &transform,
                 animation_data,
                 animation_transforms,
+                sockets
             );
+
+            // update sockets
+            for (_socket_name, socket) in sockets.iter_mut() {
+                let mut socket_borrowed = socket.borrow_mut();
+                let socket_bone_index = socket_borrowed._socket_data.borrow()._parent_bone_index;
+                if socket_bone_index == bone_index {
+                    socket_borrowed._transform = transform.clone();
+                }
+            }
         }
     }
 
@@ -420,6 +431,7 @@ impl AnimationBuffer {
         parent_matrix: *const Matrix4<f32>,
         animation_data: &AnimationData,
         animation_transforms: &Vec<SimpleTransform>,
+        sockets: &mut HashMap<String, RcRefCell<Socket>>
     ) {
         for bone_data in ptr_as_ref(parent_bone)._children.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
@@ -431,7 +443,17 @@ impl AnimationBuffer {
                 &transform,
                 animation_data,
                 animation_transforms,
+                sockets
             );
+
+            // update sockets
+            for (_socket_name, socket) in sockets.iter_mut() {
+                let mut socket_borrowed = socket.borrow_mut();
+                let socket_bone_index = socket_borrowed._socket_data.borrow()._parent_bone_index;
+                if socket_bone_index == bone_index {
+                    socket_borrowed._transform = transform.clone();
+                }
+            }
         }
     }
 }
