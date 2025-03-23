@@ -194,10 +194,16 @@ impl TransformObjectData {
     pub fn set_scale_z(&mut self, scale: f32) {
         self._scale.z = scale;
     }
-    pub fn set_transform(&mut self, position: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) {
+    pub fn set_position_rotation_scale(&mut self, position: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) {
         self.set_position(position);
         self.set_rotation(rotation);
         self.set_scale(scale);
+    }
+
+    pub fn set_transform(&mut self, matrix: &Matrix4<f32>) {
+        self.set_position(&math::extract_location(matrix));
+        self.set_rotation(&math::matrix_decompose_pitch_yaw_roll(matrix));
+        self.set_scale(&math::extract_scale(matrix));
     }
 
     pub fn update_matrix(&mut self) -> bool {
@@ -225,12 +231,9 @@ impl TransformObjectData {
                 //             ]);
 
                 unsafe {
-                    let left: &mut Vector3<f32> =
-                        &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
-                    let up: &mut Vector3<f32> =
-                        &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
-                    let front: &mut Vector3<f32> =
-                        &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
+                    let left: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
+                    let up: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
+                    let front: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
                     left.normalize_mut();
                     up.normalize_mut();
                     front.normalize_mut();
@@ -272,11 +275,5 @@ impl TransformObjectData {
         self._updated = false; // reset
         self._prev_updated = updated; // store
         updated
-    }
-
-    pub fn set_position_rotation_scale(&mut self, matrix: &Matrix4<f32>) {
-        self.set_position(&math::extract_location(matrix));
-        self.set_rotation(&math::matrix_decompose_pitch_yaw_roll(matrix));
-        self.set_scale(&math::extract_scale(matrix));
     }
 }

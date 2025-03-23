@@ -582,21 +582,21 @@ impl<'a> SceneManager<'a> {
                             render_element_transform_matrices[*render_element_transform_count].copy_from(&render_object_data._final_transform);
                             *render_element_transform_count += local_matrix_count;
 
-                            // prev animation buffer
-                            let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
-                            assert_eq!(bone_count, prev_animation_buffer.len());
-                            let require_render_element_transform_count: usize = *render_element_transform_count + bone_count;
-                            render_element_transform_matrices[*render_element_transform_count..require_render_element_transform_count]
-                                .copy_from_slice(prev_animation_buffer);
-                            *render_element_transform_count = require_render_element_transform_count;
+                            if render_object_data.has_animation() {
+                                // prev animation buffer
+                                let prev_animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_prev_animation_buffer();
+                                assert_eq!(bone_count, prev_animation_buffer.len());
+                                let require_render_element_transform_count: usize = *render_element_transform_count + bone_count;
+                                render_element_transform_matrices[*render_element_transform_count..require_render_element_transform_count].copy_from_slice(prev_animation_buffer);
+                                *render_element_transform_count = require_render_element_transform_count;
 
-                            // current animation buffer
-                            let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
-                            assert_eq!(bone_count, animation_buffer.len());
-                            let require_render_element_transform_count: usize = *render_element_transform_count + bone_count;
-                            render_element_transform_matrices[*render_element_transform_count..require_render_element_transform_count]
-                                .copy_from_slice(animation_buffer);
-                            *render_element_transform_count = require_render_element_transform_count;
+                                // current animation buffer
+                                let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
+                                assert_eq!(bone_count, animation_buffer.len());
+                                let require_render_element_transform_count: usize = *render_element_transform_count + bone_count;
+                                render_element_transform_matrices[*render_element_transform_count..require_render_element_transform_count].copy_from_slice(animation_buffer);
+                                *render_element_transform_count = require_render_element_transform_count;
+                            }
                         }
                     }
                 }

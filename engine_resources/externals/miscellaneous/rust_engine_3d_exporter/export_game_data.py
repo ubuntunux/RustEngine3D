@@ -315,7 +315,7 @@ class RustEngine3DExporter:
                             '_rotation': self.convert_asset_rotation(obj),
                             '_scale': self.convert_asset_scale(obj)
                         }
-                    
+
             # model transform
             for (model_obj, mesh_obj) in zip(mesh_collection.objects, mesh_data.objects):
                 if mesh_obj.parent is None:
@@ -446,10 +446,11 @@ class RustEngine3DExporter:
             if 'characters' == game_data_type:
                 game_data = self.get_custom_properties(asset, asset_info, 'character_data')
                 for child_object in asset.objects:
-                    if 'WEAPON' == child_object.name:
+                    if 'WEAPON' == child_object.name and child_asset.parent:
                         child_asset = child_object.instance_collection
                         weapon_asset_info = AssetInfo(child_asset)
-                        game_data["_weapon_data"] = {
+                        game_data["_weapon_create_info"] = {
+                            "_weapon_socket_name": child_asset.parent.name,
                             "_weapon_data_name": weapon_asset_info.asset_namepath,
                             "_position": self.convert_asset_location(child_object),
                             "_rotation": self.convert_asset_rotation(child_object),

@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use strum::EnumCount;
@@ -9,7 +10,7 @@ use crate::scene::transform_object::TransformObjectData;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::CollisionData;
 use crate::scene::socket::Socket;
-use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell};
+use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell, newRcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 #[repr(i32)]
@@ -58,7 +59,7 @@ pub struct RenderObjectData<'a> {
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
     pub _animation_buffer: Option<AnimationBuffer>,
     pub _bone_count: usize,
-    pub _sockets: Vec<Socket>
+    pub _sockets: HashMap<String, RcRefCell<Socket>>
 }
 
 impl<'a> RenderObjectData<'a> {
@@ -95,6 +96,15 @@ impl<'a> RenderObjectData<'a> {
             .map(|geometry_data| geometry_data.borrow()._geometry_bounding_box.clone())
             .collect();
 
+        let mut sockets = HashMap::new();
+        for (socket_name, socket_data) in model_data.borrow()._socket_data_map.iter() {
+            let socket = newRcRefCell(Socket {
+                _socket_data: socket_data.clone(),
+                _transform: Matrix4::identity(),
+            });
+            sockets.insert(socket_name.clone(), socket);
+        }
+
         let mut render_object_data = RenderObjectData {
             _object_id: object_id,
             _render: true,
@@ -113,7 +123,7 @@ impl<'a> RenderObjectData<'a> {
             _animation_play_infos: Vec::new(),
             _animation_buffer: None,
             _bone_count: 0,
-            _sockets: Vec::new()
+            _sockets: sockets
         };
 
         render_object_data.initialize_render_object_data();
@@ -157,7 +167,7 @@ impl<'a> RenderObjectData<'a> {
 
         assert!(0 < bone_count);
         let base_layer_index = AnimationLayer::BaseLayer as usize;
-        for i in 0..(AnimationLayer::COUNT) {
+        for i in 0..AnimationLayer::COUNT {
             let mesh_data = if base_layer_index == i { Some(self._mesh_data.clone()) } else { None };
             self._animation_play_infos.push(
                 AnimationPlayInfo::create_animation_play_info(mesh_data, bone_count)
@@ -309,6 +319,16 @@ impl<'a> RenderObjectData<'a> {
                 let animation_buffer = self._animation_buffer.as_mut().unwrap();
                 animation_buffer.swap_animation_buffer();
                 animation_buffer.update_animation_buffer(base_animation);
+
+                // update sockets
+                for (_socket_name, socket) in self._sockets.iter_mut() {
+                    let mut socket_borrowed = socket.borrow_mut();
+                    let parent_bon_index = socket_borrowed._socket_data.borrow()._parent_bone_index;
+                    if parent_bon_index < self._bone_count {
+                        let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
+                        socket_borrowed._transform = animation_buffer._animation_buffer[parent_bon_index] * local_transform;
+                    }
+                }
             }
         }
     }

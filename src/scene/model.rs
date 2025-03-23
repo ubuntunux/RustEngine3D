@@ -1,13 +1,14 @@
 use std::collections::HashMap;
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
+use crate::scene::animation::INVALID_BONE_INDEX;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionCreateInfo, CollisionData, CollisionType};
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
-use crate::scene::socket::{Socket, SocketDataCreateInfo};
+use crate::scene::socket::{SocketData, SocketDataCreateInfo};
 use crate::utilities::math;
-use crate::utilities::system::RcRefCell;
+use crate::utilities::system::{newRcRefCell, RcRefCell};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
@@ -44,7 +45,7 @@ pub struct ModelData<'a> {
     pub _mesh_data: RcRefCell<MeshData>,
     pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
     pub _collision: CollisionData,
-    pub _sockets: Vec<Socket>
+    pub _socket_data_map: HashMap<String, RcRefCell<SocketData>>
 }
 
 impl<'a> ModelData<'a> {
@@ -59,8 +60,8 @@ impl<'a> ModelData<'a> {
             log::debug!("    material_instance[{:?}]{:?}: {:?}", i, model_name, x.borrow()._material_instance_data_name);
         }
 
+        // create collision by bounding box
         let collision_info = if model_data_info._collision._collision_type == CollisionType::NONE {
-            // create collision by bounding box
             let bounding_box = &mesh_data.borrow()._bound_box;
             let dimension = bounding_box._max - bounding_box._min;
             CollisionCreateInfo {
@@ -73,6 +74,26 @@ impl<'a> ModelData<'a> {
             model_data_info._collision.clone()
         };
 
+        let mut socket_data_map = HashMap::new();
+        for (socket_name, socket_data_create_info) in model_data_info._sockets.iter() {
+            let mut parent_bone_index: usize = INVALID_BONE_INDEX;
+            for skeleton_data in mesh_data.borrow()._skeleton_data_list.iter() {
+                if let Some(bone_index) = skeleton_data._bone_index_map.get(&socket_data_create_info._parent_bone) {
+                    parent_bone_index = *bone_index;
+                    break;
+                }
+            }
+
+            if parent_bone_index != INVALID_BONE_INDEX {
+                socket_data_map.insert(
+                    socket_name.clone(),
+                    newRcRefCell(SocketData::create_socket_data(socket_name, socket_data_create_info, parent_bone_index))
+                );
+            } else {
+                log::info!("Failed to create socket: {:?}, parent bone: {:?}", socket_name, socket_data_create_info._parent_bone);
+            }
+        }
+
         ModelData {
             _model_data_name: model_name.clone(),
             _mesh_data: mesh_data.clone(),
@@ -83,7 +104,7 @@ impl<'a> ModelData<'a> {
             ),
             _material_instance_data_list: material_instance_data_list,
             _collision: CollisionData::create_collision(&collision_info),
-            _sockets: Vec::new()
+            _socket_data_map: socket_data_map
         }
     }
 

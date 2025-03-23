@@ -10,6 +10,8 @@ use nalgebra_glm as glm;
 use crate::constants;
 use crate::utilities::system::{ptr_as_ref, RcRefCell};
 
+pub const INVALID_BONE_INDEX: usize = usize::MAX;
+
 #[derive(Clone, Debug)]
 pub struct BoneData {
     pub _name: String,

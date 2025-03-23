@@ -1,6 +1,7 @@
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::utilities::math;
+use crate::utilities::system::RcRefCell;
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SocketDataCreateInfo {
@@ -23,34 +24,37 @@ impl Default for SocketDataCreateInfo {
 
 #[derive(Debug, Clone)]
 pub struct SocketData {
+    pub _socket_name: String,
     pub _parent_bone_index: usize,
-    pub _transform: Matrix4<f32>
+    pub _local_transform: Matrix4<f32>
 }
 
 impl SocketData {
-    pub fn create_socket_data(socket_create_info: &SocketDataCreateInfo, parent_bone_index: usize) -> SocketData {
+    pub fn create_socket_data(socket_name: &String, socket_data_info: &SocketDataCreateInfo, parent_bone_index: usize) -> SocketData {
+        log::debug!("create_socket_data: {:}, parent_bone_index: {:?}, socket_data_info: {:?}", socket_name, parent_bone_index, socket_data_info);
         SocketData {
+            _socket_name: socket_name.clone(),
             _parent_bone_index: parent_bone_index,
-            _transform: math::make_srt_transform(
-                &socket_create_info._position,
-                &socket_create_info._rotation,
-                &socket_create_info._scale
-            ),
+            _local_transform: math::make_srt_transform(
+                &socket_data_info._position,
+                &socket_data_info._rotation,
+                &socket_data_info._scale
+            )
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Socket {
-    pub _socket_data: SocketData,
+    pub _socket_data: RcRefCell<SocketData>,
     pub _transform: Matrix4<f32>
 }
 
 impl Socket {
-    pub fn create_socket(socket_data: &SocketData, parent_bone_transform: &Matrix4<f32>) -> Socket {
+    pub fn create_socket(socket_data: &RcRefCell<SocketData>, parent_bone_transform: &Matrix4<f32>) -> Socket {
         let mut socket = Socket {
             _socket_data: socket_data.clone(),
-            _transform: socket_data._transform.clone(),
+            _transform: Default::default(),
         };
 
         socket.update_socket(parent_bone_transform);
@@ -58,6 +62,6 @@ impl Socket {
     }
 
     pub fn update_socket(&mut self, parent_bone_transform: &Matrix4<f32>) {
-        self._transform = parent_bone_transform * self._transform;
+        self._transform = parent_bone_transform * self._socket_data.borrow()._local_transform;
     }
 }
