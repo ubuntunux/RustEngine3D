@@ -19,6 +19,7 @@ use crate::scene::light::{DirectionalLightCreateInfo, DirectionalLight, LightDat
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
 type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
@@ -55,7 +56,7 @@ pub struct SceneManager<'a> {
     pub _sea_height: f32,
     pub _main_camera: Option<Rc<CameraObjectData>>,
     pub _main_light: Option<RcRefCell<DirectionalLight>>,
-    pub _capture_height_map: Option<RcRefCell<DirectionalLight>>,
+    pub _capture_height_map: Option<RcRefCell<CaptureHeightMap<'a>>>,
     pub _light_probe_cameras: Vec<RcRefCell<CameraObjectData>>,
     pub _camera_object_map: CameraObjectMap,
     pub _directional_light_object_map: DirectionalLightObjectMap,
@@ -110,8 +111,8 @@ impl<'a> SceneManager<'a> {
     pub fn get_light_probe_camera(&self, index: usize) -> &RcRefCell<CameraObjectData> {
         &self._light_probe_cameras[index]
     }
-    pub fn get_capture_height_map(&self) -> &RcRefCell<DirectionalLight> {
-        &self._capture_height_map.as_ref().unwrap()
+    pub fn get_capture_height_map(&self) -> &RcRefCell<CaptureHeightMap<'a>> {
+        self._capture_height_map.as_ref().unwrap()
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_render_elements
@@ -234,28 +235,15 @@ impl<'a> SceneManager<'a> {
             &String::from("default_light"),
             &DirectionalLightCreateInfo::default(),
         );
-        let capture_height_map = unsafe {
-            DirectionalLight::create_directional_light(
-                self.generate_object_id(),
-                &String::from("capture_height_map"),
-                &DirectionalLightCreateInfo {
-                    _rotation: Vector3::new(std::f32::consts::PI * 0.5, 0.0, 0.0),
-                    _shadow_dimensions: Vector4::new(
-                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                        -constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                        constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                    ),
-                    ..Default::default()
-                },
-            )
-        };
+        let capture_height_map = newRcRefCell(CaptureHeightMap::create_capture_height_map(self.generate_object_id()));
 
+        // assign
         self._main_camera = Some(Rc::new(default_camera));
         self._main_light = Some(newRcRefCell(default_light));
-        self._capture_height_map = Some(newRcRefCell(capture_height_map));
+        self._capture_height_map = Some(capture_height_map);
         self._light_probe_cameras = light_probe_cameras;
 
+        // done
         self.update_window_size(window_size.x, window_size.y);
     }
     pub fn get_engine_resources(&self) -> &EngineResources<'a> {

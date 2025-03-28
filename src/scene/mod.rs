@@ -1,6 +1,7 @@
 pub mod animation;
 pub mod bounding_box;
 pub mod camera;
+pub mod capture_height_map;
 pub mod collision;
 pub mod debug_line;
 pub mod fft_ocean;

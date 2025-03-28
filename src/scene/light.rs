@@ -37,7 +37,6 @@ pub struct DirectionalLight {
     pub _light_shadow_projection: Matrix4<f32>,
     pub _transform_object: TransformObjectData,
     pub _updated_light_data: bool,
-    pub _need_to_redraw_shadow: bool,
     pub _shadow_update_distance: f32,
 }
 

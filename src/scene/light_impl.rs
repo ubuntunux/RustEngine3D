@@ -58,7 +58,6 @@ impl DirectionalLight {
             _light_shadow_projection: Matrix4::identity(),
             _transform_object: TransformObjectData::create_transform_object_data(),
             _updated_light_data: true,
-            _need_to_redraw_shadow: true,
             _shadow_update_distance: light_create_info._shadow_update_distance,
         };
         light_data
@@ -93,11 +92,6 @@ impl DirectionalLight {
     pub fn get_inv_shadow_view_projection(&self) -> &Matrix4<f32> {
         &self._light_data._inv_shadow_view_projection
     }
-    pub fn get_need_to_redraw_shadow_and_reset(&mut self) -> bool {
-        let need_to_redraw_shadow = self._need_to_redraw_shadow;
-        self._need_to_redraw_shadow = false;
-        need_to_redraw_shadow
-    }
 
     pub fn update_shadow_orthogonal(&mut self, shadow_dimensions: &Vector4<f32>) {
         let width = shadow_dimensions.x;
@@ -119,7 +113,6 @@ impl DirectionalLight {
             self._light_data._shadow_view_projection = &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
             linalg::try_invert_to(self._light_data._shadow_view_projection.into(), &mut self._light_data._inv_shadow_view_projection);
             self._light_data._light_direction = self.get_light_direction().clone() as Vector3<f32>;
-            self._need_to_redraw_shadow = true;
         }
         self._updated_light_data = false;
     }

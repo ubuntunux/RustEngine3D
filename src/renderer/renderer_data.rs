@@ -426,8 +426,6 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         let engine_resources = renderer_context.get_engine_resources();
         let main_camera = scene_manager.get_main_camera();
         let main_light = scene_manager.get_main_light().borrow();
-        let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
-        let render_capture_height_map: bool = capture_height_map.get_need_to_redraw_shadow_and_reset();
         let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
         let cube_geometry_data: Ref<GeometryData> = cube_mesh.get_default_geometry_data().borrow();
         let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
@@ -436,6 +434,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
         let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
         let skeletal_shadow_render_elements = scene_manager.get_skeletal_shadow_render_elements();
+        let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
 
         // pre update
         self.pre_update_render_scene(delta_time);
@@ -460,9 +459,9 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             );
 
             self._view_constants.update_view_constants(&main_camera);
-            if render_capture_height_map {
-                self._view_constants._capture_height_map_view_projection = (*capture_height_map.get_shadow_view_projection()).into();
-                self._view_constants._inv_capture_height_map_view_projection = (*capture_height_map.get_inv_shadow_view_projection()).into();
+            if capture_height_map.need_to_capture_height_map() {
+                self._view_constants._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
+                self._view_constants._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
             }
 
             self.upload_shader_buffer_data(
@@ -630,7 +629,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         }
 
         // capture height map
-        if render_capture_height_map || self._is_first_rendering {
+        if capture_height_map.need_to_capture_height_map() {
             let _label_capture_height_map = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
@@ -646,13 +645,15 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 None,
                 None,
             );
+
             self.render_solid_object(
                 renderer_context,
                 command_buffer,
                 swapchain_index,
                 capture_height_map::get_render_pass_name(RenderObjectType::Static),
-                &static_render_elements,
+                capture_height_map.get_static_render_elements()
             );
+            capture_height_map.clear_static_render_elements();
         }
 
         // fft-simulation
@@ -672,8 +673,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         }
 
         // light probe
-        if self._render_context_light_probe._next_refresh_time <= elapsed_time
-            || self._render_context_light_probe._light_probe_capture_count < 2
+        if self._render_context_light_probe._next_refresh_time <= elapsed_time ||
+            self._render_context_light_probe._light_probe_capture_count < 2
         {
             let _label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
@@ -690,8 +691,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 &main_camera,
                 static_render_elements,
             );
-            self._render_context_light_probe._next_refresh_time =
-                elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
+            self._render_context_light_probe._next_refresh_time = elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
             self._render_context_light_probe._light_probe_blend_time = 0.0;
             self._render_context_light_probe._light_probe_capture_count += 1;
         }
@@ -707,8 +707,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 "copy_cube_map",
             );
             self._render_context_light_probe._light_probe_blend_time += delta_time;
-            let blend_ratio: f64 = 1.0f64
-                .min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
+            let blend_ratio: f64 = 1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
             self.copy_cube_map(
                 renderer_context,
                 command_buffer,
@@ -716,13 +715,9 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 &engine_resources,
                 "copy_cube_map/blend",
                 if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
-                    &self
-                        ._render_context_light_probe
-                        ._light_probe_blend_from_forward_descriptor_sets
+                    &self._render_context_light_probe._light_probe_blend_from_forward_descriptor_sets
                 } else {
-                    &self
-                        ._render_context_light_probe
-                        ._light_probe_blend_from_only_sky_descriptor_sets
+                    &self._render_context_light_probe._light_probe_blend_from_only_sky_descriptor_sets
                 },
                 constants::LIGHT_PROBE_SIZE,
                 Some(&PushConstant_BlendCubeMap {
@@ -782,7 +777,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             );
         }
 
-        // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scnee color
+        // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scene color
         {
             let _label_pre_process = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
