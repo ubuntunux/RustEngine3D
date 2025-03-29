@@ -1,4 +1,3 @@
-use std::cell::{Ref, RefMut};
 use std::collections::HashMap;
 use std::num::Wrapping;
 use std::str::FromStr;
@@ -7,7 +6,6 @@ use std::vec::Vec;
 use ash::{Device, vk};
 use ash::ext;
 use nalgebra::{Matrix4, Vector2, Vector4};
-
 use crate::constants;
 use crate::effect::effect_manager::EffectManager;
 use crate::render_pass::common::{capture_height_map, depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
@@ -31,7 +29,7 @@ use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::fft_ocean::FFTOcean;
 use crate::scene::font::{FontManager, RenderTextInfo};
-use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
+use crate::scene::material_instance::PipelineBindingData;
 use crate::scene::precomputed_atmosphere::{Atmosphere, PushConstant_PrecomputedAtmosphere};
 use crate::scene::render_element::RenderElementData;
 use crate::scene::scene_manager::{BoundBoxInstanceData, SceneManager};
@@ -427,9 +425,9 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         let main_camera = scene_manager.get_main_camera();
         let main_light = scene_manager.get_main_light().borrow();
         let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
-        let cube_geometry_data: Ref<GeometryData> = cube_mesh.get_default_geometry_data().borrow();
+        let cube_geometry_data = cube_mesh.get_default_geometry_data().borrow();
         let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
-        let quad_geometry_data: Ref<GeometryData> = quad_mesh.get_default_geometry_data().borrow();
+        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
         let static_render_elements = scene_manager.get_static_render_elements();
         let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
         let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
@@ -646,6 +644,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 None,
             );
 
+            // capture height map
             self.render_solid_object(
                 renderer_context,
                 command_buffer,
@@ -654,6 +653,18 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 capture_height_map.get_static_render_elements()
             );
             capture_height_map.clear_static_render_elements();
+
+            // read back image
+            let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
+            let texture_data = self.get_render_target(RenderTargetType::CaptureHeightMap);
+            let _read_data = texture::read_texture_data(
+                renderer_context.get_device(),
+                renderer_context.get_command_pool(),
+                renderer_context.get_graphics_queue(),
+                renderer_context.get_device_memory_properties(),
+                renderer_context.get_debug_utils(),
+                texture_data
+            );
         }
 
         // fft-simulation
@@ -963,12 +974,8 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 command_buffer,
                 "render_debug",
             );
-            let mut render_debug_material_instance_data: RefMut<MaterialInstanceData> =
-                engine_resources
-                    .get_material_instance_data(&"common/render_debug")
-                    .borrow_mut();
-            let mut render_debug_pipeline_binding_data =
-                render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
+            let mut render_debug_material_instance_data = engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
+            let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
             renderer_context.begin_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -1019,23 +1026,6 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
             renderer_context.draw_elements(command_buffer, &quad_geometry_data);
             renderer_context.end_render_pass(command_buffer);
         }
-
-        // TEST CODE: readback image
-        // {
-        //     let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
-        //     let texture_data = self.get_render_target(RenderTargetType::CaptureHeightMap);
-        //     let buffer_size = unsafe { renderer_context.get_device().get_image_memory_requirements(texture_data._image).size };
-        //     let mut read_data: Vec<f32> = vec![0.0; buffer_size as usize];
-        //     texture::read_texture_data(
-        //         renderer_context.get_device(),
-        //         renderer_context.get_command_pool(),
-        //         renderer_context.get_graphics_queue(),
-        //         renderer_context.get_device_memory_properties(),
-        //         texture_data,
-        //         &mut read_data
-        //     );
-        //     println!("{:?}", read_data);
-        // }
     }
 }
 
@@ -1242,7 +1232,7 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "clear_render_targets",
         );
-        let material_instance_data: Ref<MaterialInstanceData> = engine_resources
+        let material_instance_data = engine_resources
             .get_material_instance_data("common/clear_render_target")
             .borrow();
         for (_, framebuffers) in self
@@ -1343,18 +1333,11 @@ impl<'a> RendererData<'a> {
         main_camera: &CameraObjectData,
         static_render_elements: &Vec<RenderElementData>,
     ) {
-        let material_instance_data: Ref<MaterialInstanceData> = engine_resources
-            .get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere")
-            .borrow();
-        let render_atmosphere_pipeline_binding_data =
-            material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
-        let composite_atmosphere_pipeline_binding_data =
-            material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
-        let downsampling_material_instance = engine_resources
-            .get_material_instance_data("common/downsampling")
-            .borrow();
-        let downsampling_pipeline_binding_data =
-            downsampling_material_instance.get_default_pipeline_binding_data();
+        let material_instance_data = engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
+        let render_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
+        let composite_atmosphere_pipeline_binding_data = material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
+        let downsampling_material_instance = engine_resources.get_material_instance_data("common/downsampling").borrow();
+        let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
         let mut light_probe_view_constants = shader_buffer_data::ViewConstants::default();
         let light_probe_view_constant_types = [
             ShaderBufferDataType::LightProbeViewConstants0,
@@ -1856,12 +1839,9 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "render_bloom",
         );
-        let render_bloom_material_instance_data: Ref<MaterialInstanceData> = engine_resources
-            .get_material_instance_data("common/render_bloom")
-            .borrow();
         // render_bloom_highlight
-        let pipeline_binding_data = render_bloom_material_instance_data
-            .get_pipeline_binding_data("render_bloom/render_bloom_highlight");
+        let render_bloom_material_instance_data = engine_resources.get_material_instance_data("common/render_bloom").borrow();
+        let pipeline_binding_data = render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
         renderer_context.render_render_pass_pipeline(
             command_buffer,
             swapchain_index,
@@ -1896,12 +1876,8 @@ impl<'a> RendererData<'a> {
         }
 
         // render_gaussian_blur
-        let render_gaussian_blur_material_instance_data: Ref<MaterialInstanceData> =
-            engine_resources
-                .get_material_instance_data("common/render_gaussian_blur")
-                .borrow();
-        let pipeline_binding_data =
-            render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
+        let render_gaussian_blur_material_instance_data = engine_resources.get_material_instance_data("common/render_gaussian_blur").borrow();
+        let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
         let framebuffer_count = self
             ._render_context_bloom
             ._bloom_temp_framebuffer_data_list
@@ -2060,11 +2036,8 @@ impl<'a> RendererData<'a> {
         );
 
         // Generate Hierarchical Min Z
-        let material_instance_data: Ref<MaterialInstanceData> = engine_resources
-            .get_material_instance_data("common/generate_min_z")
-            .borrow();
-        let pipeline_binding_data =
-            material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
+        let material_instance_data = engine_resources.get_material_instance_data("common/generate_min_z").borrow();
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._render_context_hiz._descriptor_sets.len();
         renderer_context.begin_compute_pipeline(command_buffer, pipeline_data);

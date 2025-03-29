@@ -244,7 +244,7 @@ pub fn read_buffer_data<T: Copy>(
         let read_data_count = read_data.len();
         let read_data_size = mem::size_of::<T>() as u64 * read_data_count as u64;
         let offset = mem::size_of::<T>() as u64 * read_offset as u64;
-        assert!(read_data_size <= buffer_data._buffer_memory_requirements.size);
+        assert!((offset + read_data_size) <= buffer_data._buffer_memory_requirements.size);
         let buffer_ptr = device
             .map_memory(
                 buffer_data._buffer_memory,

@@ -1,5 +1,4 @@
 use std::borrow::Cow;
-use std::cell::Ref;
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::rc::Rc;
@@ -25,7 +24,7 @@ use crate::renderer::renderer_data::RendererData;
 use crate::resource::resource::EngineResources;
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
-use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
+use crate::scene::material_instance::PipelineBindingData;
 use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui::UIManager;
 use crate::utilities::system;
@@ -725,9 +724,7 @@ impl<'a> RendererContext<'a> {
         push_constant_data: Option<&dyn PushConstant>,
     ) {
         let engine_resources = self.get_engine_resources();
-        let material_instance_data: Ref<MaterialInstanceData> = engine_resources
-            .get_material_instance_data(material_instance_name)
-            .borrow();
+        let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
         } else {

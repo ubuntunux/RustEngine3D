@@ -33,6 +33,7 @@ impl<'a> CaptureHeightMap<'a> {
         }
     }
     pub fn need_to_capture_height_map(&self) -> bool {
+        //if SWAPCHAIN_IMAGE_COUNT
         !self._static_render_elements.is_empty()
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {

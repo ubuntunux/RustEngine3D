@@ -4,13 +4,20 @@ use std::os::raw::c_void;
 
 use ash::ext;
 use ash::util::Align;
-use ash::vk::Handle;
+use ash::vk::{Format, Handle};
 use ash::{vk, Device, Instance};
-
+use cgmath::Vector4;
 use crate::constants;
 use crate::renderer::utility::find_memory_type_index;
 use crate::vulkan_context::vulkan_context::{run_commands_once, Layers, MipLevels};
 use crate::vulkan_context::{buffer, debug_utils};
+
+#[derive(Debug)]
+pub enum TextureDataType {
+    None,
+    R32(Vec<f32>),
+    R8G8B8A8(Vector4<u8>),
+}
 
 #[derive(Debug, Clone)]
 pub struct TextureCreateInfo<T> {
@@ -1315,19 +1322,16 @@ pub fn destroy_texture_data(device: &Device, texture_data: &TextureData) {
     }
 }
 
-pub fn read_texture_data<T: Copy>(
+pub fn read_texture_data(
     device: &Device,
     command_pool: vk::CommandPool,
     command_queue: vk::Queue,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     debug_utils_device: &ext::debug_utils::Device,
-    texture_data: &TextureData,
-    read_data: &mut [T],
-) {
+    texture_data: &TextureData
+) -> TextureDataType {
     let buffer_size = unsafe {
-        device
-            .get_image_memory_requirements(texture_data._image)
-            .size
+        device.get_image_memory_requirements(texture_data._image).size
     };
 
     // create temporary staging buffer
@@ -1362,8 +1366,20 @@ pub fn read_texture_data<T: Copy>(
         staging_buffer_data._buffer,
     );
 
-    buffer::read_buffer_data(device, &staging_buffer_data, 0, read_data);
+    // read back texture data
+    let mut texture_data_read_back = TextureDataType::None;
+    let element_count = texture_data._image_width * texture_data._image_height;
+    match texture_data._image_format {
+        Format::D32_SFLOAT => {
+            let mut read_data: Vec<f32> = vec![0.0; element_count as usize];
+            buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
+            texture_data_read_back = TextureDataType::R32(read_data);
+        },
+        _ => {}
+    }
 
     // destroy staging buffer
     buffer::destroy_buffer_data(device, &staging_buffer_data);
+
+    texture_data_read_back
 }
