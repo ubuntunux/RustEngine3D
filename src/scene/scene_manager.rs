@@ -674,7 +674,7 @@ impl<'a> SceneManager<'a> {
             }
 
             if enable_capture_height_map && render_element_info._is_render_height_map {
-                render_element_transform_offsets[*transform_offset_index_for_height_map].y = render_element_info._transform_offset as i32;
+                render_element_transform_offsets[*transform_offset_index_for_height_map].z = render_element_info._transform_offset as i32;
                 *transform_offset_index_for_height_map += 1;
                 capture_height_map_element_count += 1;
             }
@@ -1063,6 +1063,7 @@ impl<'a> SceneManager<'a> {
             let mut transform_offset_index: usize = 0;
             let mut transform_offset_index_for_shadow: usize = 0;
             let mut transform_offset_index_for_height_map: usize = 0;
+
             self._bound_boxes.clear();
 
             let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_render_height_map();

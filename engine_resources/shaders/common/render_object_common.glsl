@@ -24,7 +24,7 @@ layout(binding = 4) buffer TransformMatrices
 };
 layout(binding = 5) buffer TransformOffsets
 {
-    // x: common transform index, y: transform index for shadow
+    // x: common transform index, y: transform index for shadow, z: transform index for height map
     ivec4 transform_offsets[MAX_TRANSFORM_COUNT];
 };
 #if (RenderMode_Forward == RenderMode)
