@@ -511,6 +511,10 @@ impl<'a> EngineCore<'a> {
                     scene_manager._point_light_object_map.len(),
                     scene_manager.get_render_point_light_count()
                 ));
+                font_manager.log(format!(
+                    "RenderTarget: {:?}",
+                    renderer_context._renderer_data._debug_render_target)
+                );
 
                 // render scene
                 let render_time = self._time_data.get_current_time();

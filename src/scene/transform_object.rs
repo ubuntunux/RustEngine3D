@@ -38,7 +38,7 @@ impl SimpleTransform {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct TransformObjectData {
     pub _updated: bool,
     pub _prev_updated: bool,

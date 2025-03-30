@@ -32,8 +32,8 @@ pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
         color_space: vk::ColorSpaceKHR::SRGB_NONLINEAR,
     },
 ];
-pub const MAX_FRAME_COUNT: usize = 2;
-pub const FRAME_INDICES: [usize; MAX_FRAME_COUNT] = [0, 1];
+pub const MAX_FRAME_COUNT: u64 = 2;
+pub const FRAME_INDICES: [u64; MAX_FRAME_COUNT as usize] = [0, 1];
 
 // application configs - default values
 pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);

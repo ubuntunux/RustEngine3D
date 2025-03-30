@@ -3,7 +3,7 @@ use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::light::{DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLightData};
 use crate::scene::transform_object::TransformObjectData;
-use crate::utilities::math::orthogonal;
+use crate::utilities::math;
 
 // LightData
 impl Default for LightData {
@@ -14,7 +14,7 @@ impl Default for LightData {
                 _inv_shadow_view_projection: Matrix4::identity(),
                 _light_position: Vector3::zeros(),
                 _shadow_samples: constants::SHADOW_SAMPLES,
-                _light_direction: Vector3::new(-std::f32::consts::PI * 0.5, 0.0, 0.0),
+                _light_direction: math::get_bottom_up_view(),
                 _reserved0: 0,
                 _light_color: Vector3::new(1.0, 1.0, 1.0),
                 _reserved1: 0,
@@ -29,7 +29,7 @@ impl Default for DirectionalLightCreateInfo {
         unsafe {
             DirectionalLightCreateInfo {
                 _position: Vector3::zeros(),
-                _rotation: Vector3::new(std::f32::consts::PI * -0.5, 0.0, 0.0),
+                _rotation: math::get_bottom_up_view(),
                 _light_data: LightData::default(),
                 _shadow_update_distance: constants::SHADOW_UPDATE_DISTANCE,
                 _shadow_dimensions: Vector4::new(
@@ -60,12 +60,8 @@ impl DirectionalLight {
             _updated_light_data: true,
             _shadow_update_distance: light_create_info._shadow_update_distance,
         };
-        light_data
-            ._transform_object
-            .set_position(&light_create_info._position);
-        light_data
-            ._transform_object
-            .set_rotation(&light_create_info._rotation);
+        light_data._transform_object.set_position(&light_create_info._position);
+        light_data._transform_object.set_rotation(&light_create_info._rotation);
         light_data.update_shadow_orthogonal(&light_create_info._shadow_dimensions);
         light_data.update_light_data(&Vector3::zeros());
         light_data
@@ -98,7 +94,7 @@ impl DirectionalLight {
         let height = shadow_dimensions.y;
         let near = shadow_dimensions.z;
         let far = shadow_dimensions.w;
-        self._light_shadow_projection = orthogonal(-width, width, -height, height, near, far);
+        self._light_shadow_projection = math::orthogonal(-width, width, -height, height, near, far);
         self._updated_light_data = true;
     }
 

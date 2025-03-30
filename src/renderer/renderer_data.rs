@@ -7,8 +7,9 @@ use ash::{Device, vk};
 use ash::ext;
 use nalgebra::{Matrix4, Vector2, Vector4};
 use crate::constants;
+use crate::constants::MAX_FRAME_COUNT;
 use crate::effect::effect_manager::EffectManager;
-use crate::render_pass::common::{capture_height_map, depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
+use crate::render_pass::common::{depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
 use crate::render_pass::ray_tracing::ray_tracing;
 use crate::render_pass::render_pass;
 use crate::renderer::push_constants::{
@@ -21,14 +22,16 @@ use crate::renderer::render_context::{
     RenderContext_ShadowAO, RenderContext_TAA, RenderContext_TAA_Simple,
 };
 use crate::renderer::render_target::{self, RenderTargetType};
-use crate::renderer::renderer_context::{RendererContext, RendererDataBase};
+use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::shader_buffer_data::{self, ShaderBufferDataMap, ShaderBufferDataType};
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
 use crate::scene::camera::CameraObjectData;
+use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::fft_ocean::FFTOcean;
 use crate::scene::font::{FontManager, RenderTextInfo};
+use crate::scene::light::DirectionalLight;
 use crate::scene::material_instance::PipelineBindingData;
 use crate::scene::precomputed_atmosphere::{Atmosphere, PushConstant_PrecomputedAtmosphere};
 use crate::scene::render_element::RenderElementData;
@@ -69,7 +72,6 @@ pub struct RendererData<'a> {
     pub _renderer_context: *const RendererContext<'a>,
     pub _engine_resources: *const EngineResources<'a>,
     pub _effect_manager: *const EffectManager<'a>,
-    pub _is_first_rendering: bool,
     pub _scene_constants: shader_buffer_data::SceneConstants,
     pub _view_constants: shader_buffer_data::ViewConstants,
     pub _debug_render_target: RenderTargetType,
@@ -90,8 +92,8 @@ pub struct RendererData<'a> {
     pub _atmosphere: Atmosphere<'a>,
 }
 
-impl<'a> RendererDataBase<'a> for RendererData<'a> {
-    fn initialize_renderer_data(
+impl<'a> RendererData<'a> {
+    pub fn initialize_renderer_data(
         &mut self,
         renderer_context: *const RendererContext<'a>,
         engine_resources: *const EngineResources<'a>,
@@ -117,16 +119,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         }
     }
 
-    fn is_first_rendering(&self) -> bool {
-        self._is_first_rendering
-    }
-
-    fn set_is_first_rendering(&mut self, is_first_rendering: bool) {
-        log::info!("set_is_first_rendering: {}", is_first_rendering);
-        self._is_first_rendering = is_first_rendering;
-    }
-
-    fn prepare_framebuffer_and_descriptors(
+    pub fn prepare_framebuffer_and_descriptors(
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
@@ -338,7 +331,7 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         );
     }
 
-    fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
+    pub fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
         if unsafe { constants::RENDER_OCEAN } {
             self.get_fft_ocean_mut()
                 .destroy_fft_ocean(self.get_renderer_context().get_device());
@@ -356,16 +349,16 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         self._render_context_light_probe.destroy(device);
     }
 
-    fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
+    pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
         self.get_shader_buffer_data(&ShaderBufferDataType::from_str(buffer_data_name).unwrap())
     }
-    fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
+    pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
         self.get_render_target(RenderTargetType::from_str(render_target_type_str).unwrap())
     }
-    fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
+    pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
         render_pass::get_render_pass_data_create_infos(self)
     }
-    fn create_render_targets(&mut self, renderer_context: &RendererContext) {
+    pub fn create_render_targets(&mut self, renderer_context: &RendererContext) {
         log::info!("create_render_targets");
         let render_target_create_infos =
             render_target::get_render_target_create_infos(renderer_context);
@@ -378,21 +371,21 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
                 .insert(render_target_type, texture_data);
         }
     }
-    fn destroy_render_targets(&mut self, device: &Device) {
+    pub fn destroy_render_targets(&mut self, device: &Device) {
         for render_target_data in self._render_target_data_map.values() {
             texture::destroy_texture_data(device, render_target_data);
         }
         self._render_target_data_map.clear();
     }
 
-    fn destroy_uniform_buffers(&mut self, device: &Device) {
+    pub fn destroy_uniform_buffers(&mut self, device: &Device) {
         for shader_buffer_data in self._shader_buffer_data_map.values_mut() {
             buffer::destroy_shader_buffer_data(device, shader_buffer_data);
         }
         self._shader_buffer_data_map.clear();
     }
 
-    fn pre_update_render_scene(&mut self, delta_time: f64) {
+    pub fn pre_update_render_scene(&mut self, delta_time: f64) {
         self._atmosphere.update();
         if unsafe { constants::RENDER_OCEAN } {
             self._fft_ocean.update(delta_time);
@@ -401,641 +394,99 @@ impl<'a> RendererDataBase<'a> for RendererData<'a> {
         self._render_context_ssr.update();
     }
 
-    fn render_scene(
+    pub fn upload_uniform_buffers(
         &mut self,
         command_buffer: vk::CommandBuffer,
         frame_index: usize,
         swapchain_index: u32,
         renderer_context: &RendererContext<'a>,
         scene_manager: &SceneManager,
-        debug_line_manager: &mut DebugLineManager,
-        font_manager: &mut FontManager,
-        ui_manager: &mut UIManager,
+        main_camera: &CameraObjectData,
+        main_light: &DirectionalLight,
+        capture_height_map: &CaptureHeightMap<'a>,
         elapsed_time: f64,
         delta_time: f64,
         elapsed_frame: u64,
     ) {
-        let _label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(
-            renderer_context.get_debug_utils(),
+        // update constants
+        self._scene_constants.update_scene_constants(
+            renderer_context._swapchain_data._swapchain_extent.width,
+            renderer_context._swapchain_data._swapchain_extent.height,
+            elapsed_frame,
+            elapsed_time,
+            delta_time,
+            self._fft_ocean.get_height(),
+            self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
+            self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
+            scene_manager.get_render_point_light_count()
+        );
+        self._view_constants.update_view_constants(&main_camera, capture_height_map);
+
+        // upload constants
+        self.upload_shader_buffer_data(
             command_buffer,
-            "render_scene",
+            swapchain_index,
+            &ShaderBufferDataType::SceneConstants,
+            &self._scene_constants,
+        );
+        self.upload_shader_buffer_data(
+            command_buffer,
+            swapchain_index,
+            &ShaderBufferDataType::ViewConstants,
+            &self._view_constants,
+        );
+        self.upload_shader_buffer_data(
+            command_buffer,
+            swapchain_index,
+            &ShaderBufferDataType::LightData,
+            main_light.get_light_data(),
+        );
+        self.upload_shader_buffer_data(
+            command_buffer,
+            swapchain_index,
+            &ShaderBufferDataType::PointLightData,
+            scene_manager.get_render_point_lights(),
+        );
+        self.upload_shader_buffer_data(
+            command_buffer,
+            swapchain_index,
+            &ShaderBufferDataType::ShadowAOConstants,
+            &self._render_context_shadow_ao._shadow_ao_constants,
+        );
+        self.upload_shader_buffer_data(
+            command_buffer,
+            swapchain_index,
+            &ShaderBufferDataType::AtmosphereConstants,
+            &self._atmosphere._atmosphere_constants,
         );
 
-        let engine_resources = renderer_context.get_engine_resources();
-        let main_camera = scene_manager.get_main_camera();
-        let main_light = scene_manager.get_main_light().borrow();
-        let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
-        let cube_geometry_data = cube_mesh.get_default_geometry_data().borrow();
-        let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
-        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
-        let static_render_elements = scene_manager.get_static_render_elements();
-        let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
-        let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
-        let skeletal_shadow_render_elements = scene_manager.get_skeletal_shadow_render_elements();
-        let mut capture_height_map = scene_manager.get_capture_height_map().borrow_mut();
-
-        // pre update
-        self.pre_update_render_scene(delta_time);
-
-        // Upload Uniform Buffers
-        {
-            let _label_upload_uniform_buffers = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "upload_uniform_buffers",
-            );
-            self._scene_constants.update_scene_constants(
-                renderer_context._swapchain_data._swapchain_extent.width,
-                renderer_context._swapchain_data._swapchain_extent.height,
-                elapsed_frame,
-                elapsed_time,
-                delta_time,
-                self._fft_ocean.get_height(),
-                self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
-                self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
-                scene_manager.get_render_point_light_count()
-            );
-
-            self._view_constants.update_view_constants(&main_camera);
-            if capture_height_map.need_to_capture_height_map() {
-                self._view_constants._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
-                self._view_constants._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
-            }
-
-            self.upload_shader_buffer_data(
+        let transform_matrix_count = scene_manager.get_render_element_transform_count();
+        if 0 < transform_matrix_count {
+            let transform_matrices: &[Matrix4<f32>] =
+                &scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
+            self.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,
-                &ShaderBufferDataType::SceneConstants,
-                &self._scene_constants,
-            );
-            self.upload_shader_buffer_data(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::ViewConstants,
-                &self._view_constants,
-            );
-            self.upload_shader_buffer_data(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::LightData,
-                main_light.get_light_data(),
-            );
-            self.upload_shader_buffer_data(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::PointLightData,
-                scene_manager.get_render_point_lights(),
-            );
-            self.upload_shader_buffer_data(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::ShadowAOConstants,
-                &self._render_context_shadow_ao._shadow_ao_constants,
-            );
-            self.upload_shader_buffer_data(
-                command_buffer,
-                swapchain_index,
-                &ShaderBufferDataType::AtmosphereConstants,
-                &self._atmosphere._atmosphere_constants,
+                &ShaderBufferDataType::TransformMatrices,
+                transform_matrices,
             );
 
-            let transform_matrix_count = scene_manager.get_render_element_transform_count();
-            if 0 < transform_matrix_count {
-                let transform_matrices: &[Matrix4<f32>] =
-                    &scene_manager.get_render_element_transform_matrices()[..transform_matrix_count];
-                self.upload_shader_buffer_data_list(
-                    command_buffer,
-                    swapchain_index,
-                    &ShaderBufferDataType::TransformMatrices,
-                    transform_matrices,
-                );
-
-                let transform_offsets: &[Vector4<i32>] =
-                    &scene_manager.get_render_element_transform_offsets()[..transform_matrix_count];
-                self.upload_shader_buffer_data_list(
-                    command_buffer,
-                    swapchain_index,
-                    &ShaderBufferDataType::TransformOffsets,
-                    transform_offsets,
-                );
-            }
-        }
-
-        if self._is_first_rendering {
-            let _label_precompute_environment = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "precompute_environment",
-            );
-            self.clear_render_targets(
+            let transform_offsets: &[Vector4<i32>] =
+                &scene_manager.get_render_element_transform_offsets()[..transform_matrix_count];
+            self.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,
-                renderer_context,
-                &engine_resources,
-                &quad_geometry_data,
+                &ShaderBufferDataType::TransformOffsets,
+                transform_offsets,
             );
-            if unsafe { constants::RENDER_OCEAN } {
-                self._fft_ocean.compute_slope_variance_texture(
-                    command_buffer,
-                    swapchain_index,
-                    &quad_geometry_data,
-                    renderer_context,
-                    &engine_resources,
-                );
-            }
-            self._atmosphere.precompute(
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                renderer_context,
-            );
-        }
-
-        // clear gbuffer
-        {
-            let _label_clear_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "clear_gbuffer",
-            );
-            renderer_context.render_material_instance(
-                command_buffer,
-                swapchain_index,
-                "common/clear_framebuffer",
-                "clear_gbuffer/clear",
-                &quad_geometry_data,
-                None,
-                None,
-                None,
-            );
-        }
-
-        // depth prepass solid object
-        {
-            let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "depth_prepass_object",
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                depth_prepass::get_render_pass_name(RenderObjectType::Static),
-                &static_render_elements,
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                depth_prepass::get_render_pass_name(RenderObjectType::Skeletal),
-                &skeletal_render_elements,
-            );
-        }
-
-        // render shadow
-        {
-            let _label_render_shadow = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render shadow",
-            );
-            renderer_context.render_material_instance(
-                command_buffer,
-                swapchain_index,
-                "common/clear_framebuffer",
-                "clear_shadow/clear",
-                &quad_geometry_data,
-                None,
-                None,
-                None,
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                render_shadow::get_render_pass_name(RenderObjectType::Static),
-                &static_shadow_render_elements,
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                render_shadow::get_render_pass_name(RenderObjectType::Skeletal),
-                &skeletal_shadow_render_elements,
-            );
-        }
-
-        // capture height map
-        if capture_height_map.need_to_capture_height_map() {
-            let _label_capture_height_map = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "capture_height_map",
-            );
-            renderer_context.render_material_instance(
-                command_buffer,
-                swapchain_index,
-                "common/clear_framebuffer",
-                "clear_capture_height_map/clear",
-                &quad_geometry_data,
-                None,
-                None,
-                None,
-            );
-
-            // capture height map
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                capture_height_map::get_render_pass_name(RenderObjectType::Static),
-                capture_height_map.get_static_render_elements()
-            );
-            capture_height_map.clear_static_render_elements();
-
-            // read back image
-            let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_debug");
-            let texture_data = self.get_render_target(RenderTargetType::CaptureHeightMap);
-            let _read_data = texture::read_texture_data(
-                renderer_context.get_device(),
-                renderer_context.get_command_pool(),
-                renderer_context.get_graphics_queue(),
-                renderer_context.get_device_memory_properties(),
-                renderer_context.get_debug_utils(),
-                texture_data
-            );
-        }
-
-        // fft-simulation
-        if unsafe { constants::RENDER_OCEAN } {
-            let _label_fft_simulation = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "fft_simulation",
-            );
-            self._fft_ocean.simulate_fft_waves(
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                renderer_context,
-                &engine_resources,
-            );
-        }
-
-        // light probe
-        if self._render_context_light_probe._next_refresh_time <= elapsed_time ||
-            self._render_context_light_probe._light_probe_capture_count < 2
-        {
-            let _label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_light_probe",
-            );
-            self.render_light_probe(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                &engine_resources,
-                scene_manager,
-                &main_camera,
-                static_render_elements,
-            );
-            self._render_context_light_probe._next_refresh_time = elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
-            self._render_context_light_probe._light_probe_blend_time = 0.0;
-            self._render_context_light_probe._light_probe_capture_count += 1;
-        }
-
-        let light_probe_term = self
-            ._render_context_light_probe
-            ._light_probe_blend_term
-            .min(self._render_context_light_probe._light_probe_refresh_term);
-        if self._render_context_light_probe._light_probe_blend_time < light_probe_term {
-            let _label_copy_cube_map = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "copy_cube_map",
-            );
-            self._render_context_light_probe._light_probe_blend_time += delta_time;
-            let blend_ratio: f64 = 1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
-            self.copy_cube_map(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &engine_resources,
-                "copy_cube_map/blend",
-                if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
-                    &self._render_context_light_probe._light_probe_blend_from_forward_descriptor_sets
-                } else {
-                    &self._render_context_light_probe._light_probe_blend_from_only_sky_descriptor_sets
-                },
-                constants::LIGHT_PROBE_SIZE,
-                Some(&PushConstant_BlendCubeMap {
-                    _blend_ratio: blend_ratio as f32,
-                    _reserved0: 0,
-                    _reserved1: 0,
-                    _reserved2: 0,
-                }),
-            );
-        }
-
-        // render solid object
-        {
-            let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_solid_object",
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                render_gbuffer::get_render_pass_name(RenderObjectType::Static),
-                &static_render_elements,
-            );
-            self.render_solid_object(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                render_gbuffer::get_render_pass_name(RenderObjectType::Skeletal),
-                &skeletal_render_elements,
-            );
-        }
-
-        // process gpu particles
-        {
-            let _label_process_gpu_particles = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "process_gpu_particles",
-            );
-            let effect_manager = self.get_effect_manager_mut();
-            if effect_manager.get_need_to_clear_gpu_particle_buffer() {
-                effect_manager.clear_gpu_particles(
-                    command_buffer,
-                    swapchain_index,
-                    renderer_context,
-                    &engine_resources,
-                );
-                effect_manager.set_need_to_clear_gpu_particle_buffer(false);
-            }
-            effect_manager.process_gpu_particles(
-                command_buffer,
-                swapchain_index,
-                self,
-                &engine_resources,
-            );
-        }
-
-        // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scene color
-        {
-            let _label_pre_process = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "pre_process",
-            );
-            self.render_pre_process(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-            );
-        }
-
-        // render ocean
-        if unsafe { constants::RENDER_OCEAN } {
-            let _label_render_ocean = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_ocean",
-            );
-            self._fft_ocean.render_ocean(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-            );
-        }
-
-        // render atmosphere
-        {
-            let _label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_atmosphere",
-            );
-            let render_light_probe_mode: bool = false;
-            self._atmosphere.render_precomputed_atmosphere(
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                &renderer_context,
-                render_light_probe_mode,
-            );
-        }
-
-        // render translucent
-        {
-            let _label_render_translucent = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_translucent",
-            );
-            self.render_translucent(command_buffer, swapchain_index, &engine_resources);
-        }
-
-        // TEST_CODE: ray tracing test
-        if renderer_context.get_use_ray_tracing() {
-            let _label_render_ray_tracing = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_ray_tracing",
-            );
-            self.render_ray_tracing(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &engine_resources,
-            );
-        }
-
-        // post-process: taa, bloom, motion blur
-        {
-            let _label_render_post_process = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_post_process",
-            );
-            self.render_post_process(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                &engine_resources,
-            );
-        }
-
-        // Render Bound Box
-        if unsafe { constants::RENDER_BOUND_BOX } {
-            let bound_box_matrices = scene_manager.get_bound_boxes();
-            let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_bound_box",
-            );
-
-            self.render_bound_box(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-                &cube_geometry_data,
-                &bound_box_matrices
-            );
-        }
-
-        // Render Final
-        {
-            let _label_render_final = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_final",
-            );
-            renderer_context.render_material_instance(
-                command_buffer,
-                swapchain_index,
-                "common/render_final",
-                DEFAULT_PIPELINE,
-                &quad_geometry_data,
-                None,
-                None,
-                None,
-            );
-        }
-
-        // Render Debug Line
-        {
-            let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_debug_line",
-            );
-
-            debug_line_manager.render_debug_line(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-            );
-        }
-
-        // Render UI
-        {
-            let _label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_ui",
-            );
-            ui_manager.render_ui(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-            );
-        }
-
-        // Render Text
-        {
-            let _label_render_text = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_text",
-            );
-            let render_text_info = RenderTextInfo {
-                _render_font_size: 16,
-                _initial_column: 0,
-                _initial_row: 0,
-                _render_text_offset: Vector2::new(10.0, 10.0),
-            };
-            font_manager.render_text(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-                &render_text_info,
-            );
-        }
-
-        // Render Debug
-        if RenderTargetType::BackBuffer != self._debug_render_target {
-            let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(
-                renderer_context.get_debug_utils(),
-                command_buffer,
-                "render_debug",
-            );
-            let mut render_debug_material_instance_data = engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
-            let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
-            renderer_context.begin_render_pass_pipeline(
-                command_buffer,
-                swapchain_index,
-                &render_debug_pipeline_binding_data
-                    .get_render_pass_data()
-                    .borrow(),
-                &render_debug_pipeline_binding_data
-                    .get_pipeline_data()
-                    .borrow(),
-                None,
-            );
-
-            let debug_texture_data = self.get_render_target(self._debug_render_target);
-            let descriptor_index = match debug_texture_data.get_image_view_type() {
-                vk::ImageViewType::TYPE_2D => 1,
-                vk::ImageViewType::TYPE_2D_ARRAY => 2,
-                vk::ImageViewType::TYPE_3D => 3,
-                vk::ImageViewType::CUBE => 4,
-                _ => panic!("Not implemented."),
-            };
-            renderer_context.update_descriptor_set_mut(
-                swapchain_index,
-                &mut render_debug_pipeline_binding_data,
-                descriptor_index,
-                &DescriptorResourceInfo::DescriptorImageInfo(
-                    debug_texture_data.get_default_image_info(),
-                ),
-            );
-
-            renderer_context.upload_push_constant_data(
-                command_buffer,
-                &render_debug_pipeline_binding_data
-                    .get_pipeline_data()
-                    .borrow(),
-                &PushConstant_RenderDebug {
-                    _debug_target: debug_texture_data.get_image_view_type().as_raw() as u32,
-                    _mip_level: self._debug_render_target_miplevel,
-                    ..Default::default()
-                },
-            );
-
-            renderer_context.bind_descriptor_sets(
-                command_buffer,
-                swapchain_index,
-                &render_debug_pipeline_binding_data,
-                None,
-            );
-            renderer_context.draw_elements(command_buffer, &quad_geometry_data);
-            renderer_context.end_render_pass(command_buffer);
         }
     }
-}
 
-impl<'a> RendererData<'a> {
     pub fn create_renderer_data() -> RendererData<'a> {
         RendererData {
             _renderer_context: std::ptr::null(),
             _engine_resources: std::ptr::null(),
             _effect_manager: std::ptr::null(),
-            _is_first_rendering: true,
             _scene_constants: shader_buffer_data::SceneConstants::default(),
             _view_constants: shader_buffer_data::ViewConstants::default(),
             _debug_render_target: RenderTargetType::BackBuffer,
@@ -1331,6 +782,7 @@ impl<'a> RendererData<'a> {
         engine_resources: &EngineResources<'a>,
         scene_manager: &SceneManager,
         main_camera: &CameraObjectData,
+        capture_height_map: &CaptureHeightMap<'a>,
         static_render_elements: &Vec<RenderElementData>,
     ) {
         let material_instance_data = engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
@@ -1376,7 +828,7 @@ impl<'a> RendererData<'a> {
                 ._transform_object
                 .set_position(main_camera_position);
             light_probe_camera.update_camera_object_data();
-            light_probe_view_constants.update_view_constants(&light_probe_camera);
+            light_probe_view_constants.update_view_constants(&light_probe_camera, capture_height_map);
             self.upload_shader_buffer_data(
                 command_buffer,
                 swapchain_index,
@@ -2184,5 +1636,549 @@ impl<'a> RendererData<'a> {
             None,
             None,
         );
+    }
+
+    pub fn render_scene(
+        &mut self,
+        command_buffer: vk::CommandBuffer,
+        frame_index: usize,
+        swapchain_index: u32,
+        renderer_context: &RendererContext<'a>,
+        scene_manager: &mut SceneManager<'a>,
+        debug_line_manager: &mut DebugLineManager,
+        font_manager: &mut FontManager,
+        ui_manager: &mut UIManager,
+        elapsed_time: f64,
+        delta_time: f64,
+        elapsed_frame: u64,
+    ) {
+        let _label_render_scene = ScopedDebugLabel::create_scoped_cmd_label(
+            renderer_context.get_debug_utils(),
+            command_buffer,
+            "render_scene",
+        );
+
+        let engine_resources = renderer_context.get_engine_resources();
+        let main_camera = scene_manager.get_main_camera();
+        let main_light = scene_manager.get_main_light().borrow();
+        let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
+        let cube_geometry_data = cube_mesh.get_default_geometry_data().borrow();
+        let quad_mesh = engine_resources.get_mesh_data("quad").borrow();
+        let quad_geometry_data = quad_mesh.get_default_geometry_data().borrow();
+        let static_render_elements = scene_manager.get_static_render_elements();
+        let static_shadow_render_elements = scene_manager.get_static_shadow_render_elements();
+        let skeletal_render_elements = scene_manager.get_skeletal_render_elements();
+        let skeletal_shadow_render_elements = scene_manager.get_skeletal_shadow_render_elements();
+        let capture_height_map = scene_manager.get_capture_height_map_mut();
+
+        // pre update
+        self.pre_update_render_scene(delta_time);
+
+        // Upload Uniform Buffers
+        {
+            let _label_upload_uniform_buffers = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "upload_uniform_buffers",
+            );
+
+            self.upload_uniform_buffers(
+                command_buffer,
+                frame_index,
+                swapchain_index,
+                renderer_context,
+                scene_manager,
+                &main_camera,
+                &main_light,
+                capture_height_map,
+                elapsed_time,
+                delta_time,
+                elapsed_frame,
+            );
+        }
+
+        if renderer_context.is_first_rendering() {
+            let _label_precompute_environment = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "precompute_environment",
+            );
+            self.clear_render_targets(
+                command_buffer,
+                swapchain_index,
+                renderer_context,
+                &engine_resources,
+                &quad_geometry_data,
+            );
+            if unsafe { constants::RENDER_OCEAN } {
+                self._fft_ocean.compute_slope_variance_texture(
+                    command_buffer,
+                    swapchain_index,
+                    &quad_geometry_data,
+                    renderer_context,
+                    &engine_resources,
+                );
+            }
+            self._atmosphere.precompute(
+                command_buffer,
+                swapchain_index,
+                &quad_geometry_data,
+                renderer_context,
+            );
+        }
+
+        // capture height map
+        {
+            if capture_height_map.need_to_render_height_map() {
+                capture_height_map.render_capture_height_map(
+                    command_buffer,
+                    swapchain_index,
+                    &quad_geometry_data,
+                    renderer_context,
+                    self
+                );
+            }
+
+            if capture_height_map.need_to_read_back_height_map(renderer_context.get_render_frame()) {
+                capture_height_map.read_back_height_map(
+                    command_buffer,
+                    renderer_context,
+                    self
+                );
+            }
+        }
+
+
+        // clear gbuffer
+        {
+            let _label_clear_gbuffer = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "clear_gbuffer",
+            );
+            renderer_context.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "common/clear_framebuffer",
+                "clear_gbuffer/clear",
+                &quad_geometry_data,
+                None,
+                None,
+                None,
+            );
+        }
+
+        // depth prepass solid object
+        {
+            let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "depth_prepass_object",
+            );
+            self.render_solid_object(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                depth_prepass::get_render_pass_name(RenderObjectType::Static),
+                &static_render_elements,
+            );
+            self.render_solid_object(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                depth_prepass::get_render_pass_name(RenderObjectType::Skeletal),
+                &skeletal_render_elements,
+            );
+        }
+
+        // render shadow
+        {
+            let _label_render_shadow = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render shadow",
+            );
+            renderer_context.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "common/clear_framebuffer",
+                "clear_shadow/clear",
+                &quad_geometry_data,
+                None,
+                None,
+                None,
+            );
+            self.render_solid_object(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                render_shadow::get_render_pass_name(RenderObjectType::Static),
+                &static_shadow_render_elements,
+            );
+            self.render_solid_object(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                render_shadow::get_render_pass_name(RenderObjectType::Skeletal),
+                &skeletal_shadow_render_elements,
+            );
+        }
+
+        // fft-simulation
+        if unsafe { constants::RENDER_OCEAN } {
+            let _label_fft_simulation = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "fft_simulation",
+            );
+            self._fft_ocean.simulate_fft_waves(
+                command_buffer,
+                swapchain_index,
+                &quad_geometry_data,
+                renderer_context,
+                &engine_resources,
+            );
+        }
+
+        // light probe
+        if self._render_context_light_probe._next_refresh_time <= elapsed_time ||
+            self._render_context_light_probe._light_probe_capture_count < MAX_FRAME_COUNT
+        {
+            let _label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_light_probe",
+            );
+            self.render_light_probe(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &quad_geometry_data,
+                &engine_resources,
+                scene_manager,
+                &main_camera,
+                capture_height_map,
+                static_render_elements,
+            );
+            self._render_context_light_probe._next_refresh_time = elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
+            self._render_context_light_probe._light_probe_blend_time = 0.0;
+            self._render_context_light_probe._light_probe_capture_count += 1;
+        }
+
+        let light_probe_term = self
+            ._render_context_light_probe
+            ._light_probe_blend_term
+            .min(self._render_context_light_probe._light_probe_refresh_term);
+        if self._render_context_light_probe._light_probe_blend_time < light_probe_term {
+            let _label_copy_cube_map = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "copy_cube_map",
+            );
+            self._render_context_light_probe._light_probe_blend_time += delta_time;
+            let blend_ratio: f64 = 1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
+            self.copy_cube_map(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &engine_resources,
+                "copy_cube_map/blend",
+                if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
+                    &self._render_context_light_probe._light_probe_blend_from_forward_descriptor_sets
+                } else {
+                    &self._render_context_light_probe._light_probe_blend_from_only_sky_descriptor_sets
+                },
+                constants::LIGHT_PROBE_SIZE,
+                Some(&PushConstant_BlendCubeMap {
+                    _blend_ratio: blend_ratio as f32,
+                    _reserved0: 0,
+                    _reserved1: 0,
+                    _reserved2: 0,
+                }),
+            );
+        }
+
+        // render solid object
+        {
+            let _label_render_solid_object = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_solid_object",
+            );
+            self.render_solid_object(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                render_gbuffer::get_render_pass_name(RenderObjectType::Static),
+                &static_render_elements,
+            );
+            self.render_solid_object(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                render_gbuffer::get_render_pass_name(RenderObjectType::Skeletal),
+                &skeletal_render_elements,
+            );
+        }
+
+        // process gpu particles
+        {
+            let _label_process_gpu_particles = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "process_gpu_particles",
+            );
+            let effect_manager = self.get_effect_manager_mut();
+            if effect_manager.get_need_to_clear_gpu_particle_buffer() {
+                effect_manager.clear_gpu_particles(
+                    command_buffer,
+                    swapchain_index,
+                    renderer_context,
+                    &engine_resources,
+                );
+                effect_manager.set_need_to_clear_gpu_particle_buffer(false);
+            }
+            effect_manager.process_gpu_particles(
+                command_buffer,
+                swapchain_index,
+                self,
+                &engine_resources,
+            );
+        }
+
+        // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scene color
+        {
+            let _label_pre_process = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "pre_process",
+            );
+            self.render_pre_process(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &quad_geometry_data,
+            );
+        }
+
+        // render ocean
+        if unsafe { constants::RENDER_OCEAN } {
+            let _label_render_ocean = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_ocean",
+            );
+            self._fft_ocean.render_ocean(
+                command_buffer,
+                swapchain_index,
+                &renderer_context,
+                &engine_resources,
+            );
+        }
+
+        // render atmosphere
+        {
+            let _label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_atmosphere",
+            );
+            let render_light_probe_mode: bool = false;
+            self._atmosphere.render_precomputed_atmosphere(
+                command_buffer,
+                swapchain_index,
+                &quad_geometry_data,
+                &renderer_context,
+                render_light_probe_mode,
+            );
+        }
+
+        // render translucent
+        {
+            let _label_render_translucent = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_translucent",
+            );
+            self.render_translucent(command_buffer, swapchain_index, &engine_resources);
+        }
+
+        // TEST_CODE: ray tracing test
+        if renderer_context.get_use_ray_tracing() {
+            let _label_render_ray_tracing = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_ray_tracing",
+            );
+            self.render_ray_tracing(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &engine_resources,
+            );
+        }
+
+        // post-process: taa, bloom, motion blur
+        {
+            let _label_render_post_process = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_post_process",
+            );
+            self.render_post_process(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                &quad_geometry_data,
+                &engine_resources,
+            );
+        }
+
+        // Render Bound Box
+        if unsafe { constants::RENDER_BOUND_BOX } {
+            let bound_box_matrices = scene_manager.get_bound_boxes();
+            let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_bound_box",
+            );
+
+            self.render_bound_box(
+                command_buffer,
+                swapchain_index,
+                &renderer_context,
+                &engine_resources,
+                &cube_geometry_data,
+                &bound_box_matrices
+            );
+        }
+
+        // Render Final
+        {
+            let _label_render_final = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_final",
+            );
+            renderer_context.render_material_instance(
+                command_buffer,
+                swapchain_index,
+                "common/render_final",
+                DEFAULT_PIPELINE,
+                &quad_geometry_data,
+                None,
+                None,
+                None,
+            );
+        }
+
+        // Render Debug Line
+        {
+            let _label_render_debug_line = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_debug_line",
+            );
+
+            debug_line_manager.render_debug_line(
+                command_buffer,
+                swapchain_index,
+                &renderer_context,
+                &engine_resources,
+            );
+        }
+
+        // Render UI
+        {
+            let _label_render_ui = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_ui",
+            );
+            ui_manager.render_ui(
+                command_buffer,
+                swapchain_index,
+                &renderer_context,
+                &engine_resources,
+            );
+        }
+
+        // Render Debug
+        if RenderTargetType::BackBuffer != self._debug_render_target {
+            let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_debug",
+            );
+            let mut render_debug_material_instance_data = engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
+            let mut render_debug_pipeline_binding_data = render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
+            renderer_context.begin_render_pass_pipeline(
+                command_buffer,
+                swapchain_index,
+                &render_debug_pipeline_binding_data.get_render_pass_data().borrow(),
+                &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
+                None,
+            );
+
+            let debug_texture_data = self.get_render_target(self._debug_render_target);
+            let descriptor_index = match debug_texture_data.get_image_view_type() {
+                vk::ImageViewType::TYPE_2D => 1,
+                vk::ImageViewType::TYPE_2D_ARRAY => 2,
+                vk::ImageViewType::TYPE_3D => 3,
+                vk::ImageViewType::CUBE => 4,
+                _ => panic!("Not implemented."),
+            };
+            renderer_context.update_descriptor_set_mut(
+                swapchain_index,
+                &mut render_debug_pipeline_binding_data,
+                descriptor_index,
+                &DescriptorResourceInfo::DescriptorImageInfo(
+                    debug_texture_data.get_default_image_info(),
+                ),
+            );
+
+            renderer_context.upload_push_constant_data(
+                command_buffer,
+                &render_debug_pipeline_binding_data
+                    .get_pipeline_data()
+                    .borrow(),
+                &PushConstant_RenderDebug {
+                    _debug_target: debug_texture_data.get_image_view_type().as_raw() as u32,
+                    _mip_level: self._debug_render_target_miplevel,
+                    ..Default::default()
+                },
+            );
+
+            renderer_context.bind_descriptor_sets(
+                command_buffer,
+                swapchain_index,
+                &render_debug_pipeline_binding_data,
+                None,
+            );
+            renderer_context.draw_elements(command_buffer, &quad_geometry_data);
+            renderer_context.end_render_pass(command_buffer);
+        }
+
+        // Render Text
+        {
+            let _label_render_text = ScopedDebugLabel::create_scoped_cmd_label(
+                renderer_context.get_debug_utils(),
+                command_buffer,
+                "render_text",
+            );
+            let render_text_info = RenderTextInfo {
+                _render_font_size: 16,
+                _initial_column: 0,
+                _initial_row: 0,
+                _render_text_offset: Vector2::new(10.0, 10.0),
+            };
+            font_manager.render_text(
+                command_buffer,
+                swapchain_index,
+                &renderer_context,
+                &engine_resources,
+                &render_text_info,
+            );
+        }
     }
 }

@@ -7,7 +7,7 @@ use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::scene::mesh::MeshDataCreateInfo;
-use crate::scene::bounding_box::{calc_bounding_box, BoundingBox};
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::{get_color32, get_format_size};
@@ -402,7 +402,7 @@ pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
     let geometry_create_infos = vec![GeometryCreateInfo {
         _vertex_data_list: vertex_data_list,
         _indices: indices,
-        _bounding_box: calc_bounding_box(&positions),
+        _bounding_box: BoundingBox::calc_bounding_box(&positions),
         ..Default::default()
     }];
     let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
@@ -524,7 +524,7 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
     let geometry_create_infos = vec![GeometryCreateInfo {
         _vertex_data_list: vertex_data_list,
         _indices: indices,
-        _bounding_box: calc_bounding_box(&positions),
+        _bounding_box: BoundingBox::calc_bounding_box(&positions),
         ..Default::default()
     }];
     let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);
@@ -596,7 +596,7 @@ pub fn plane_mesh_create_info(width: u32, height: u32, xz_plane: bool) -> MeshDa
     let geometry_create_infos = vec![GeometryCreateInfo {
         _vertex_data_list: vertex_data_list,
         _indices: indices,
-        _bounding_box: calc_bounding_box(&positions),
+        _bounding_box: BoundingBox::calc_bounding_box(&positions),
         ..Default::default()
     }];
     let bounding_box = MeshDataCreateInfo::calc_mesh_bounding_box(&geometry_create_infos);

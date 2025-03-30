@@ -19,7 +19,7 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
-use crate::scene::bounding_box::calc_bounding_box;
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{self, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
@@ -1908,7 +1908,7 @@ impl<'a> UIManager<'a> {
             _vertex_buffer_data: quad_mesh_vertex_buffer,
             _index_buffer_data: quad_mesh_index_buffer,
             _vertex_index_count: indices.len() as u32,
-            _geometry_bounding_box: calc_bounding_box(&positions),
+            _geometry_bounding_box: BoundingBox::calc_bounding_box(&positions),
         }
     }
 

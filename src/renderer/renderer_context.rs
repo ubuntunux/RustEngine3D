@@ -95,46 +95,9 @@ pub fn get_debug_message_level(
     }
 }
 
-pub trait RendererDataBase<'a> {
-    fn initialize_renderer_data(
-        &mut self,
-        renderer_context: *const RendererContext<'a>,
-        engine_resources: *const EngineResources<'a>,
-        effect_manager: *const EffectManager<'a>,
-    );
-    fn is_first_rendering(&self) -> bool;
-    fn set_is_first_rendering(&mut self, is_first_rendering: bool);
-    fn prepare_framebuffer_and_descriptors(
-        &mut self,
-        device: &Device,
-        debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources<'a>,
-    );
-    fn destroy_framebuffer_and_descriptors(&mut self, device: &Device);
-    fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData;
-    fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData;
-    fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo>;
-    fn create_render_targets(&mut self, renderer_context: &RendererContext);
-    fn destroy_render_targets(&mut self, device: &Device);
-    fn destroy_uniform_buffers(&mut self, device: &Device);
-    fn pre_update_render_scene(&mut self, delta_time: f64);
-    fn render_scene(
-        &mut self,
-        command_buffer: CommandBuffer,
-        frame_index: usize,
-        swapchain_index: u32,
-        renderer_context: &RendererContext<'a>,
-        scene_manager: &SceneManager,
-        debug_line_manager: &mut DebugLineManager,
-        font_manager: &mut FontManager,
-        ui_manager: &mut UIManager,
-        elapsed_time: f64,
-        delta_time: f64,
-        elapsed_frame: u64,
-    );
-}
-
 pub struct RendererContext<'a> {
+    _is_first_rendering: bool,
+    _elapsed_frame: u64,
     _frame_index: i32,
     _swapchain_index: u32,
     _need_recreate_swapchain: bool,
@@ -386,6 +349,8 @@ impl<'a> RendererContext<'a> {
             let renderer_data = Box::new(RendererData::create_renderer_data());
 
             Box::new(RendererContext {
+                _is_first_rendering: true,
+                _elapsed_frame: 0,
                 _frame_index: 0,
                 _swapchain_index: 0,
                 _need_recreate_swapchain: false,
@@ -1348,7 +1313,7 @@ impl<'a> RendererContext<'a> {
 
     pub fn render_scene(
         &mut self,
-        scene_manager: &SceneManager,
+        scene_manager: &mut SceneManager<'a>,
         debug_line_manager: &mut DebugLineManager,
         font_manager: &mut FontManager,
         ui_manager: &mut UIManager,
@@ -1392,9 +1357,7 @@ impl<'a> RendererContext<'a> {
                     flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
                     ..Default::default()
                 };
-                self._device
-                    .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-                    .expect("vkBeginCommandBuffer failed!");
+                self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
                 // renderer - render_scene
                 self.get_renderer_data_mut().render_scene(
@@ -1458,38 +1421,40 @@ impl<'a> RendererContext<'a> {
             }
 
             self._frame_index = (self._frame_index + 1) % (constants::MAX_FRAME_COUNT as i32);
+            self._elapsed_frame += 1;
         }
     }
 
     // renderer interface
     pub fn is_first_rendering(&self) -> bool {
-        self.get_renderer_data_mut().is_first_rendering()
+        self._is_first_rendering
     }
 
-    pub fn set_is_first_rendering(&self, is_first_rendering: bool) {
-        self.get_renderer_data_mut()
-            .set_is_first_rendering(is_first_rendering);
+    pub fn set_is_first_rendering(&mut self, is_first_rendering: bool) {
+        log::info!("set_is_first_rendering: {}", is_first_rendering);
+        self._is_first_rendering = is_first_rendering;
+    }
+
+    pub fn get_render_frame(&self) -> u64 {
+        self._elapsed_frame
     }
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::prepare_framebuffer_and_descriptors");
-        self.get_renderer_data_mut()
-            .prepare_framebuffer_and_descriptors(
-                self.get_device(),
-                self.get_debug_utils(),
-                &self.get_engine_resources(),
-            );
+        self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(
+            self.get_device(),
+            self.get_debug_utils(),
+            &self.get_engine_resources(),
+        );
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::destroy_framebuffer_and_descriptors");
-        self.get_renderer_data_mut()
-            .destroy_framebuffer_and_descriptors(self.get_device());
+        self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
-        self.get_renderer_data()
-            .get_shader_buffer_data_from_str(buffer_data_name)
+        self.get_renderer_data().get_shader_buffer_data_from_str(buffer_data_name)
     }
 
     pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
@@ -1497,8 +1462,7 @@ impl<'a> RendererContext<'a> {
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
-        self.get_renderer_data()
-            .get_render_target_from_str(render_target_type_str)
+        self.get_renderer_data().get_render_target_from_str(render_target_type_str)
     }
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
@@ -1507,8 +1471,7 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_image_samplers(&self) {
         log::info!("destroy_image_samplers");
-        self.get_image_sampler_data_mut()
-            .destroy_image_samplers(self.get_device());
+        self.get_image_sampler_data_mut().destroy_image_samplers(self.get_device());
     }
 
     pub fn create_render_targets(&self) {
@@ -1518,12 +1481,10 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self.get_renderer_data_mut()
-            .destroy_render_targets(self.get_device());
+        self.get_renderer_data_mut().destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {
-        self.get_renderer_data_mut()
-            .destroy_uniform_buffers(self.get_device());
+        self.get_renderer_data_mut().destroy_uniform_buffers(self.get_device());
     }
 }

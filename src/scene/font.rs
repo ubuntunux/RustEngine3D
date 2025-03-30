@@ -11,7 +11,7 @@ use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
 use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
-use crate::scene::bounding_box::calc_bounding_box;
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{newRcRefCell, RcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
@@ -447,7 +447,7 @@ impl FontManager {
             _vertex_buffer_data: font_mesh_vertex_buffer,
             _index_buffer_data: font_mesh_index_buffer,
             _vertex_index_count: indices.len() as u32,
-            _geometry_bounding_box: calc_bounding_box(&positions),
+            _geometry_bounding_box: BoundingBox::calc_bounding_box(&positions),
         }
     }
 
@@ -494,15 +494,10 @@ impl FontManager {
                 skip_check,
             );
             let font_data = self._ascii.borrow();
-            let framebuffer_data = engine_resources
-                .get_framebuffer_data("render_font")
-                .borrow();
-            let material_instance_data = engine_resources
-                .get_material_instance_data("ui/render_font")
-                .borrow();
+            let framebuffer_data = engine_resources.get_framebuffer_data("render_font").borrow();
+            let material_instance_data = engine_resources.get_material_instance_data("ui/render_font").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-            let render_font_descriptor_sets =
-                Some(&self._text_render_data._render_font_descriptor_sets);
+            let render_font_descriptor_sets = Some(&self._text_render_data._render_font_descriptor_sets);
             let font_width_ratio = font_data._font_size.x / font_data._font_size.y;
             let font_size = Vector2::new(
                 render_text_info._render_font_size as f32 * font_width_ratio,
@@ -521,10 +516,8 @@ impl FontManager {
 
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
-            let upload_data =
-                &self._text_render_data._font_instance_data_list[0..text_count as usize];
-            let shader_buffer =
-                renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
+            let upload_data = &self._text_render_data._font_instance_data_list[0..text_count as usize];
+            let shader_buffer = renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
             renderer_context.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,

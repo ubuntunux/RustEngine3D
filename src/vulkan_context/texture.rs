@@ -13,10 +13,16 @@ use crate::vulkan_context::vulkan_context::{run_commands_once, Layers, MipLevels
 use crate::vulkan_context::{buffer, debug_utils};
 
 #[derive(Debug)]
-pub enum TextureDataType {
+pub enum TextureRawData {
     None,
     R32(Vec<f32>),
     R8G8B8A8(Vector4<u8>),
+}
+
+impl Default for TextureRawData {
+    fn default() -> TextureRawData {
+        TextureRawData::None
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -1329,7 +1335,7 @@ pub fn read_texture_data(
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     debug_utils_device: &ext::debug_utils::Device,
     texture_data: &TextureData
-) -> TextureDataType {
+) -> TextureRawData {
     let buffer_size = unsafe {
         device.get_image_memory_requirements(texture_data._image).size
     };
@@ -1367,19 +1373,21 @@ pub fn read_texture_data(
     );
 
     // read back texture data
-    let mut texture_data_read_back = TextureDataType::None;
+    let texture_raw_data;
     let element_count = texture_data._image_width * texture_data._image_height;
     match texture_data._image_format {
         Format::D32_SFLOAT => {
             let mut read_data: Vec<f32> = vec![0.0; element_count as usize];
             buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
-            texture_data_read_back = TextureDataType::R32(read_data);
+            texture_raw_data = TextureRawData::R32(read_data);
         },
-        _ => {}
+        _ => {
+            panic!("Not implemented yet: {:?}", texture_data._image_format);
+        }
     }
 
     // destroy staging buffer
     buffer::destroy_buffer_data(device, &staging_buffer_data);
 
-    texture_data_read_back
+    texture_raw_data
 }

@@ -4,6 +4,7 @@ use crate::constants;
 use crate::effect::effect_manager::{GpuParticleCountBufferData, GpuParticleDynamicConstants, GpuParticleStaticConstants, GpuParticleUpdateBufferData};
 use crate::renderer::shader_buffer_data::{AtmosphereConstants, RegisterShaderBufferCreateInfo, SceneConstants, ShaderBufferDataMap, ShaderBufferDataType, ShadowAOConstants, TransformMatrices, TransformOffsets, ViewConstants};
 use crate::scene::camera::CameraObjectData;
+use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::scene::debug_line::DebugLineInstanceData;
 use crate::scene::font::FontInstanceData;
 use crate::scene::light::{LightData, LightIndicesCell, PointLights};
@@ -42,7 +43,7 @@ impl SceneConstants {
 }
 
 impl ViewConstants {
-    pub fn update_view_constants(&mut self, camera_data: &CameraObjectData) {
+    pub fn update_view_constants<'a>(&mut self, camera_data: &CameraObjectData, capture_height_map: &CaptureHeightMap<'a>) {
         self._view = camera_data._view.into();
         self._inv_view = camera_data._inv_view.into();
         self._view_origin = camera_data._view_origin.into();
@@ -62,6 +63,10 @@ impl ViewConstants {
         self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
         self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
         self._camera_position = camera_data._transform_object.get_position().clone() as Vector3<f32>;
+        if capture_height_map.need_to_render_height_map() {
+            self._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
+            self._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
+        }
         self._jitter_frame = camera_data._jitter_frame;
         self._camera_position_prev = camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
         self._view_constants_dummy0 = 0.0;

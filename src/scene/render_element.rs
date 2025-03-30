@@ -21,6 +21,7 @@ pub struct RenderElementInfo<'a> {
     pub _transform_offset: usize,
     pub _is_render: bool,
     pub _is_render_shadow: bool,
+    pub _is_capture_height_map: bool,
     pub _geometry_index: usize,
     pub _geometry_data: RcRefCell<GeometryData>,
     pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>

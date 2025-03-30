@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::EngineResources;
-use crate::scene::bounding_box::calc_bounding_box;
+use crate::scene::bounding_box::BoundingBox;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
 use crate::vulkan_context::vulkan_context::get_color32;
@@ -150,7 +150,7 @@ impl DebugLineManager {
             _vertex_buffer_data: debug_line_vertex_buffer,
             _index_buffer_data: debug_line_index_buffer,
             _vertex_index_count: indices.len() as u32,
-            _geometry_bounding_box: calc_bounding_box(&positions),
+            _geometry_bounding_box: BoundingBox::calc_bounding_box(&positions),
         }
     }
 

@@ -13,7 +13,7 @@ use crate::scene::animation::{
     AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree,
 };
 use crate::scene::mesh::MeshDataCreateInfo;
-use crate::scene::bounding_box::{self, BoundingBox};
+use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::xml::{self, XmlTree};
 use crate::vulkan_context::geometry_buffer::{
@@ -1249,7 +1249,7 @@ impl Collada {
                     glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &position));
             }
 
-            let bounding_box: BoundingBox = bounding_box::calc_bounding_box(&geometry._positions);
+            let bounding_box: BoundingBox = BoundingBox::calc_bounding_box(&geometry._positions);
 
             for normal_index in 0..geometry._normals.len() {
                 let normal = Vector4::new(

@@ -29,7 +29,7 @@ pub struct DirectionalLightCreateInfo {
     pub _shadow_update_distance: f32,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct DirectionalLight {
     pub _object_id: i64,
     pub _light_name: String,

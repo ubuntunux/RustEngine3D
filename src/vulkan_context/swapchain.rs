@@ -60,25 +60,13 @@ pub fn choose_swapchain_surface_format(
 pub fn choose_swapchain_present_mode(
     swapchain_support_details: &SwapchainSupportDetails,
 ) -> vk::PresentModeKHR {
-    if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::FIFO)
-    {
+    if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO) {
         return vk::PresentModeKHR::FIFO;
-    } else if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::FIFO_RELAXED)
-    {
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
         return vk::PresentModeKHR::FIFO_RELAXED;
-    } else if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::MAILBOX)
-    {
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
         return vk::PresentModeKHR::MAILBOX;
-    } else if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::IMMEDIATE)
-    {
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
         return vk::PresentModeKHR::IMMEDIATE;
     }
     vk::PresentModeKHR::FIFO

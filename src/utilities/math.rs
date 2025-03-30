@@ -28,6 +28,22 @@ pub fn hammersley_2d(sample_idx: u32, num_samples: u32) -> Vector2<f32> {
     )
 }
 
+pub fn get_min(lhs: &Vector3<f32>, rhs: &Vector3<f32>) -> Vector3<f32> {
+    Vector3::new(lhs.x.min(rhs.x), lhs.y.min(rhs.y), lhs.z.min(rhs.z))
+}
+
+pub fn get_max(lhs: &Vector3<f32>, rhs: &Vector3<f32>) -> Vector3<f32> {
+    Vector3::new(lhs.x.max(rhs.x), lhs.y.max(rhs.y), lhs.z.max(rhs.z))
+}
+
+pub fn get_bottom_up_view() -> Vector3<f32> {
+    Vector3::new(-HALF_PI * 0.5, 0.0, 0.0)
+}
+
+pub fn get_top_down_view() -> Vector3<f32> {
+    Vector3::new(HALF_PI * 0.5, 0.0, 0.0)
+}
+
 pub fn get_world_right() -> Vector3<f32> {
     Vector3::new(1.0, 0.0, 0.0)
 }
