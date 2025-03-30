@@ -37,11 +37,11 @@ pub fn get_max(lhs: &Vector3<f32>, rhs: &Vector3<f32>) -> Vector3<f32> {
 }
 
 pub fn get_bottom_up_view() -> Vector3<f32> {
-    Vector3::new(-HALF_PI * 0.5, 0.0, 0.0)
+    Vector3::new(-HALF_PI, 0.0, 0.0)
 }
 
 pub fn get_top_down_view() -> Vector3<f32> {
-    Vector3::new(HALF_PI * 0.5, 0.0, 0.0)
+    Vector3::new(HALF_PI, 0.0, 0.0)
 }
 
 pub fn get_world_right() -> Vector3<f32> {

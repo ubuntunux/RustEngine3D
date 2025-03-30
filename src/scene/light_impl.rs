@@ -14,7 +14,7 @@ impl Default for LightData {
                 _inv_shadow_view_projection: Matrix4::identity(),
                 _light_position: Vector3::zeros(),
                 _shadow_samples: constants::SHADOW_SAMPLES,
-                _light_direction: math::get_bottom_up_view(),
+                _light_direction: math::get_top_down_view(),
                 _reserved0: 0,
                 _light_color: Vector3::new(1.0, 1.0, 1.0),
                 _reserved1: 0,
@@ -29,7 +29,7 @@ impl Default for DirectionalLightCreateInfo {
         unsafe {
             DirectionalLightCreateInfo {
                 _position: Vector3::zeros(),
-                _rotation: math::get_bottom_up_view(),
+                _rotation: math::get_top_down_view(),
                 _light_data: LightData::default(),
                 _shadow_update_distance: constants::SHADOW_UPDATE_DISTANCE,
                 _shadow_dimensions: Vector4::new(

@@ -527,17 +527,17 @@ impl<'a> SceneManager<'a> {
         for (_key, render_object_refcell) in render_object_map.iter() {
             let render_object_data = ptr_as_ref(render_object_refcell.as_ptr());
             let is_render =
-                render_object_data._render &&
+                render_object_data._is_render &&
                 false == SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box);
 
             let is_render_shadow =
-                render_object_data._render &&
-                render_object_data._render_shadow &&
+                render_object_data._is_render &&
+                render_object_data._is_render_shadow &&
                 false == SceneManager::shadow_culling(light, &render_object_data._bounding_box);
 
-            let is_capture_height_map = enable_capture_height_map && render_object_data._render_height_map;
+            let is_render_height_map = enable_capture_height_map && render_object_data._is_render_height_map;
 
-            if is_capture_height_map {
+            if is_render_height_map {
                 bound_min = math::get_min(&bound_min, &render_object_data._bounding_box._min);
                 bound_max = math::get_max(&bound_max, &render_object_data._bounding_box._max);
             }
@@ -552,7 +552,7 @@ impl<'a> SceneManager<'a> {
             }
 
             // gather render element infos
-            if is_render || is_render_shadow || is_capture_height_map {
+            if is_render || is_render_shadow || is_render_height_map {
                 let local_matrix_count = 1usize;
                 let local_matrix_prev_count = 1usize;
                 let bone_count = render_object_data.get_bone_count();
@@ -578,7 +578,7 @@ impl<'a> SceneManager<'a> {
                                 _transform_offset: *render_element_transform_count,
                                 _is_render: is_render,
                                 _is_render_shadow: is_render_shadow,
-                                _is_capture_height_map: is_capture_height_map,
+                                _is_render_height_map: is_render_height_map,
                                 _geometry_index: geometry_index,
                                 _geometry_data: mesh_data.get_geometry_data(geometry_index).clone(),
                                 _material_instance_data: model_data.get_material_instance_data(geometry_index).clone()
@@ -673,7 +673,7 @@ impl<'a> SceneManager<'a> {
                 render_shadow_element_count += 1;
             }
 
-            if render_element_info._is_capture_height_map {
+            if enable_capture_height_map && render_element_info._is_render_height_map {
                 render_element_transform_offsets[*transform_offset_index_for_height_map].y = render_element_info._transform_offset as i32;
                 *transform_offset_index_for_height_map += 1;
                 capture_height_map_element_count += 1;
@@ -1064,6 +1064,7 @@ impl<'a> SceneManager<'a> {
             let mut transform_offset_index_for_shadow: usize = 0;
             let mut transform_offset_index_for_height_map: usize = 0;
             self._bound_boxes.clear();
+
             let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_render_height_map();
             let capture_height_map_fot_skeletal_mesh: bool = false;
             let mut height_map_bounding_box_for_static_mesh = BoundingBox::default();

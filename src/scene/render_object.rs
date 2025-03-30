@@ -43,9 +43,9 @@ impl Default for RenderObjectCreateInfo {
 #[derive(Clone, Debug)]
 pub struct RenderObjectData<'a> {
     pub _object_id: i64,
-    pub _render: bool,
-    pub _render_shadow: bool,
-    pub _render_height_map: bool,
+    pub _is_render: bool,
+    pub _is_render_shadow: bool,
+    pub _is_render_height_map: bool,
     pub _render_object_name: String,
     pub _mesh_data: RcRefCell<MeshData>,
     pub _model_data: RcRefCell<ModelData<'a>>,
@@ -108,9 +108,9 @@ impl<'a> RenderObjectData<'a> {
 
         let mut render_object_data = RenderObjectData {
             _object_id: object_id,
-            _render: true,
-            _render_shadow: true,
-            _render_height_map: false,
+            _is_render: true,
+            _is_render_shadow: true,
+            _is_render_height_map: false,
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
             _mesh_data: mesh_data.clone(),
@@ -144,12 +144,28 @@ impl<'a> RenderObjectData<'a> {
         self._prev_transform = self._final_transform.clone();
     }
 
+    pub fn is_render(&self) -> bool {
+        self._is_render
+    }
+
     pub fn set_render(&mut self, render: bool) {
-        self._render = render;
+        self._is_render = render;
+    }
+
+    pub fn is_render_shadow(&self) -> bool {
+        self._is_render_shadow
     }
 
     pub fn set_render_shadow(&mut self, render: bool) {
-        self._render_shadow = render;
+        self._is_render_shadow = render;
+    }
+
+    pub fn is_render_height_map(&self) -> bool {
+        self._is_render_height_map
+    }
+
+    pub fn set_render_height_map(&mut self, render: bool) {
+        self._is_render_height_map = render;
     }
 
     pub fn debug_bone_names(&self) {

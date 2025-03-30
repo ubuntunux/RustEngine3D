@@ -155,11 +155,12 @@ impl<'a> CaptureHeightMap<'a> {
     }
 
     pub fn update_capture_height_map(&mut self, bounding_box: &BoundingBox) {
+        let max_side = bounding_box._size.x.max(bounding_box._size.z) * 0.5;
         let shadow_dimensions = Vector4::new(
-            bounding_box._size.x,
-            bounding_box._size.z,
-            -bounding_box._size.y,
-            bounding_box._size.y,
+            max_side,
+            max_side,
+            -bounding_box._size.y * 0.5,
+            bounding_box._size.y * 0.5,
         );
         self._capture_height_map_view.update_shadow_orthogonal(&shadow_dimensions);
         self._capture_height_map_view.update_light_data(&bounding_box._center);
