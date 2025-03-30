@@ -118,8 +118,6 @@ impl<'a> CaptureHeightMap<'a> {
             None,
         );
 
-        log::info!("capture height map: {:?}", self.get_static_render_elements().len());
-
         // capture height map
         renderer_data.render_solid_object(
             renderer_context,
