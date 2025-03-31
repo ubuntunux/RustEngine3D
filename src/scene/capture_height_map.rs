@@ -16,7 +16,8 @@ use crate::vulkan_context::texture::TextureRawData;
 
 #[derive(Default)]
 pub struct CaptureHeightMap<'a> {
-    pub _render_height_map: bool,
+    pub _is_capture_height_map_complete: bool,
+    pub _start_capture_height_map: bool,
     pub _capture_height_map_view: DirectionalLight,
     pub _static_render_elements: Vec<RenderElementData<'a>>,
     pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
@@ -45,7 +46,8 @@ impl<'a> CaptureHeightMap<'a> {
             );
 
             CaptureHeightMap {
-                _render_height_map: false,
+                _is_capture_height_map_complete: true,
+                _start_capture_height_map: false,
                 _capture_height_map_view: capture_height_map_view,
                 _static_render_elements: Vec::new(),
                 _skeletal_render_elements: Vec::new(),
@@ -54,11 +56,20 @@ impl<'a> CaptureHeightMap<'a> {
             }
         }
     }
-    pub fn is_render_height_map(&self) -> bool {
-        self._render_height_map
+    pub fn is_capture_height_map_complete(&self) -> bool {
+        self._is_capture_height_map_complete
     }
-    pub fn set_render_height_map(&mut self, is_render_height_map: bool) {
-        self._render_height_map = is_render_height_map;
+    pub fn set_capture_height_map_complete(&mut self) {
+        self._is_capture_height_map_complete = true;
+    }
+    pub fn is_start_capture_height_map(&self) -> bool {
+        self._start_capture_height_map
+    }
+    pub fn set_start_capture_height_map(&mut self, start: bool) {
+        if start {
+            self._is_capture_height_map_complete = false;
+        }
+        self._start_capture_height_map = start;
     }
     pub fn need_to_render_height_map(&self) -> bool {
         !self._static_render_elements.is_empty()
@@ -152,6 +163,7 @@ impl<'a> CaptureHeightMap<'a> {
             renderer_context.get_debug_utils(),
             texture_data
         );
+        self.set_capture_height_map_complete();
     }
 
     pub fn update_capture_height_map(&mut self, bounding_box: &BoundingBox) {

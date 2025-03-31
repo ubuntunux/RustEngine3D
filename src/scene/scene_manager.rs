@@ -20,14 +20,15 @@ use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::capture_height_map::CaptureHeightMap;
-use crate::scene::landscape::LandscapeData;
+use crate::scene::height_map::HeightMapData;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
-type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
-type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLight>>;
-type PointLightObjectMap = HashMap<i64, RcRefCell<PointLight>>;
-type RenderObjectMap<'a> = HashMap<i64, RcRefCell<RenderObjectData<'a>>>;
+pub type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
+pub type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLight>>;
+pub type PointLightObjectMap = HashMap<i64, RcRefCell<PointLight>>;
+pub type RenderObjectMap<'a> = HashMap<i64, RcRefCell<RenderObjectData<'a>>>;
+pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -43,8 +44,8 @@ pub struct SceneDataCreateInfo {
     pub _directional_lights: HashMap<String, DirectionalLightCreateInfo>,
     pub _point_lights: HashMap<String, PointLightCreateInfo>,
     pub _effects: HashMap<String, EffectCreateInfo>,
-    pub _static_objects: HashMap<String, RenderObjectCreateInfo>,
-    pub _skeletal_objects: HashMap<String, RenderObjectCreateInfo>,
+    pub _static_objects: RenderObjectCreateInfoMap,
+    pub _skeletal_objects: RenderObjectCreateInfoMap,
 }
 
 pub struct SceneManager<'a> {
@@ -64,7 +65,7 @@ pub struct SceneManager<'a> {
     pub _point_light_object_map: PointLightObjectMap,
     pub _render_point_lights: PointLights,
     pub _render_point_light_count: i32,
-    pub _landscape_data: LandscapeData,
+    pub _height_map_data: HeightMapData,
     pub _object_id_generator: i64,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
@@ -119,17 +120,23 @@ impl<'a> SceneManager<'a> {
     pub fn get_capture_height_map_mut(&self) -> &mut CaptureHeightMap<'a> {
         ptr_as_mut(self._capture_height_map.as_ref())
     }
-    pub fn get_landscape_data(&self) -> &LandscapeData {
-        &self._landscape_data
+    pub fn set_start_capture_height_map(&mut self, start: bool) {
+        self._capture_height_map.set_start_capture_height_map(start)
+    }
+    pub fn is_capture_height_map_completed(&self) -> bool {
+        self._capture_height_map.is_capture_height_map_complete()
+    }
+    pub fn get_height_map_data(&self) -> &HeightMapData {
+        &self._height_map_data
     }
     pub fn get_height_map_collision_point(&self, start_pos: &Vector3<f32>, dir: &Vector3<f32>, limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
-        self._landscape_data.get_collision_point(start_pos, dir, limit_dist, collision_point)
+        self._height_map_data.get_collision_point(start_pos, dir, limit_dist, collision_point)
     }
     pub fn get_height_bilinear(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        self._landscape_data.get_height_bilinear(pos, lod)
+        self._height_map_data.get_height_bilinear(pos, lod)
     }
     pub fn get_height_point(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        self._landscape_data.get_height_point(pos, lod)
+        self._height_map_data.get_height_point(pos, lod)
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_render_elements
@@ -173,7 +180,7 @@ impl<'a> SceneManager<'a> {
             _point_light_object_map: HashMap::new(),
             _render_point_lights: PointLights::default(),
             _render_point_light_count: 0,
-            _landscape_data: LandscapeData::default(),
+            _height_map_data: HeightMapData::default(),
             _object_id_generator: 0,
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
@@ -889,7 +896,7 @@ impl<'a> SceneManager<'a> {
             self.add_skeletal_render_object(object_name, render_object_create_info);
         }
 
-        // landscape
+        // height_map
         // let maybe_stage_model = self._static_render_object_map.get("stage");
         // {
         //     let mut stage_model = maybe_stage_model.unwrap().borrow_mut();
@@ -905,7 +912,7 @@ impl<'a> SceneManager<'a> {
         //             stage_model._transform_object.update_transform_object();
         //             let stage_transform = ptr_as_ref(stage_model._transform_object.get_matrix());
         //             stage_model.update_bound_box(stage_transform);
-        //             self._landscape_data.initialize_landscape_data(&stage_model._bound_box, image_width as i32, image_height as i32, image_data, scene_data_create_info._sea_height);
+        //             self._height_map_data.initialize_height_map_data(&stage_model._bound_box, image_width as i32, image_height as i32, image_data, scene_data_create_info._sea_height);
         //             break;
         //         }
         //     }
@@ -1055,7 +1062,6 @@ impl<'a> SceneManager<'a> {
         {
             self._static_render_elements.clear();
             self._static_shadow_render_elements.clear();
-            self._capture_height_map._static_render_elements.clear();
             self._skeletal_render_elements.clear();
             self._skeletal_shadow_render_elements.clear();
             self._capture_height_map._skeletal_render_elements.clear();
@@ -1066,7 +1072,7 @@ impl<'a> SceneManager<'a> {
 
             self._bound_boxes.clear();
 
-            let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_render_height_map();
+            let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_start_capture_height_map();
             let capture_height_map_fot_skeletal_mesh: bool = false;
             let mut height_map_bounding_box_for_static_mesh = BoundingBox::default();
             let mut height_map_bounding_box_for_skeletal_mesh = BoundingBox::default();
@@ -1109,9 +1115,12 @@ impl<'a> SceneManager<'a> {
                 &mut height_map_bounding_box_for_skeletal_mesh
             );
 
-            if self._capture_height_map.is_render_height_map() {
+            if capture_height_map_fot_static_mesh {
                 self._capture_height_map.update_capture_height_map(&height_map_bounding_box_for_static_mesh);
-                self._capture_height_map.set_render_height_map(false);
+                if self._capture_height_map.need_to_render_height_map() == false {
+                    self._capture_height_map.set_capture_height_map_complete();
+                }
+                self._capture_height_map.set_start_capture_height_map(false);
             }
         }
     }

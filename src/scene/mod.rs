@@ -6,7 +6,7 @@ pub mod collision;
 pub mod debug_line;
 pub mod fft_ocean;
 pub mod font;
-pub mod landscape;
+pub mod height_map;
 pub mod light;
 pub mod light_impl;
 pub mod material;

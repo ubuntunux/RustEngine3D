@@ -3,30 +3,30 @@ use crate::utilities::math;
 use crate::scene::bounding_box::BoundingBox;
 
 #[derive(Clone)]
-pub struct LandscapeData {
+pub struct HeightMapData {
     _sea_height: f32,
     _bounding_box: BoundingBox,
     _lod_count: i32,
     _width: Vec<i32>,
     _height: Vec<i32>,
-    _min_landscape_data: Vec<Vec<f32>>,
+    _min_height_map_data: Vec<Vec<f32>>,
 }
 
-impl Default for LandscapeData {
-    fn default() -> LandscapeData {
-        LandscapeData {
+impl Default for HeightMapData {
+    fn default() -> HeightMapData {
+        HeightMapData {
             _sea_height: 0.0,
             _bounding_box: BoundingBox::default(),
             _lod_count: 0,
             _width: Vec::new(),
             _height: Vec::new(),
-            _min_landscape_data: Vec::new(),
+            _min_height_map_data: Vec::new(),
         }
     }
 }
 
-impl LandscapeData {
-    pub fn initialize_landscape_data(&mut self, bounding_box: &BoundingBox, width: i32, height: i32, landscape_data: Vec<u8>, sea_height: f32) {
+impl HeightMapData {
+    pub fn initialize_height_map_data(&mut self, bounding_box: &BoundingBox, width: i32, height: i32, height_map_data: Vec<u8>, sea_height: f32) {
         self._sea_height = sea_height;
         self._bounding_box = bounding_box.clone();
         let max_height = bounding_box._size.y;
@@ -37,13 +37,13 @@ impl LandscapeData {
 
         self._width.push(width);
         self._height.push(height);
-        let mut lod_landscape_data: Vec<f32> = Vec::new();
+        let mut lod_height_map_data: Vec<f32> = Vec::new();
         for y in 0..height {
             for x in 0..width {
-                lod_landscape_data.push(landscape_data[(y * width + x) as usize * 4] as f32 / 255.0 * max_height);
+                lod_height_map_data.push(height_map_data[(y * width + x) as usize * 4] as f32 / 255.0 * max_height);
             }
         }
-        self._min_landscape_data.push(lod_landscape_data);
+        self._min_height_map_data.push(lod_height_map_data);
         self.generate_hiz_max();
     }
 
@@ -53,21 +53,21 @@ impl LandscapeData {
             let height = *self._height.last().unwrap() as i32;
             self._width.push(width / 2);
             self._height.push(height / 2);
-            let mut lod_landscape_data: Vec<f32> = Vec::new();
-            let last_landscape_data = &self._min_landscape_data.last().unwrap();
+            let mut lod_height_map_data: Vec<f32> = Vec::new();
+            let last_height_map_data = &self._min_height_map_data.last().unwrap();
             for y in (0..height).step_by(2) {
                 for x in (0..width).step_by(2) {
                     let tex_coord_0 = (y * width + x) as usize;
                     let tex_coord_1 = ((y + 1) * width + x) as usize;
-                    let height_00 = last_landscape_data[tex_coord_0];
-                    let height_01 = last_landscape_data[tex_coord_0 + 1];
-                    let height_10 = last_landscape_data[tex_coord_1];
-                    let height_11 = last_landscape_data[tex_coord_1 + 1];
+                    let height_00 = last_height_map_data[tex_coord_0];
+                    let height_01 = last_height_map_data[tex_coord_0 + 1];
+                    let height_10 = last_height_map_data[tex_coord_1];
+                    let height_11 = last_height_map_data[tex_coord_1 + 1];
                     let min_height = height_00.max(height_01.max(height_10.max(height_11)));
-                    lod_landscape_data.push(min_height);
+                    lod_height_map_data.push(min_height);
                 }
             }
-            self._min_landscape_data.push(lod_landscape_data);
+            self._min_height_map_data.push(lod_height_map_data);
         }
     }
 
@@ -87,9 +87,9 @@ impl LandscapeData {
         let pixel_index_01: usize = (pixel_pos_y_min + pixel_pos_x_max) as usize;
         let pixel_index_10: usize = (pixel_pos_y_max + pixel_pos_x_min) as usize;
         let pixel_index_11: usize = (pixel_pos_y_max + pixel_pos_x_max) as usize;
-        let landscape_data = &self._min_landscape_data[lod];
-        let height_data_0 = math::lerp(landscape_data[pixel_index_00], landscape_data[pixel_index_01], pixel_pos_x_frac);
-        let height_data_1 = math::lerp(landscape_data[pixel_index_10], landscape_data[pixel_index_11], pixel_pos_x_frac);
+        let height_map_data = &self._min_height_map_data[lod];
+        let height_data_0 = math::lerp(height_map_data[pixel_index_00], height_map_data[pixel_index_01], pixel_pos_x_frac);
+        let height_data_1 = math::lerp(height_map_data[pixel_index_10], height_map_data[pixel_index_11], pixel_pos_x_frac);
         let height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, pixel_pos_y_frac);
         self._sea_height.max(height as f32)
     }
@@ -109,7 +109,7 @@ impl LandscapeData {
         let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32) as i32;
         let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32) as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
-        let height = self._bounding_box._min.y + self._min_landscape_data[lod][pixel_index];
+        let height = self._bounding_box._min.y + self._min_height_map_data[lod][pixel_index];
         self._sea_height.max(height as f32)
     }
 
