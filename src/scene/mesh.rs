@@ -8,7 +8,7 @@ use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, GeometryData};
 
-#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(default)]
 pub struct MeshDataCreateInfo {
     pub _bound_box: BoundingBox,

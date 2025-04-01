@@ -62,7 +62,7 @@ impl Default for SkeletalVertexData {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct GeometryCreateInfo {
     pub _vertex_data_list: Vec<VertexData>,

@@ -1,11 +1,11 @@
 use ash::vk;
 use nalgebra::{Matrix4, Vector4};
-use crate::constants;
 use crate::render_pass::common::capture_height_map;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{RenderObjectType, RendererData};
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{DirectionalLight, DirectionalLightCreateInfo};
 use crate::scene::render_element::RenderElementData;
 use crate::utilities::math;
@@ -21,39 +21,35 @@ pub struct CaptureHeightMap<'a> {
     pub _capture_height_map_view: DirectionalLight,
     pub _static_render_elements: Vec<RenderElementData<'a>>,
     pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
-    pub _height_map_raw_data: TextureRawData,
     pub _read_back_frames: Vec<u64>,
+    pub _sea_height: f32,
+    pub _stretch_height_map_xz: bool,
+    pub _bounding_box: BoundingBox,
+    pub _height_map_data: HeightMapData
 }
 
 impl<'a> CaptureHeightMap<'a> {
     pub fn create_capture_height_map(object_id: i64) -> CaptureHeightMap<'a> {
-        unsafe {
-            let capture_height_map_view = DirectionalLight::create_directional_light(
-                object_id,
-                &String::from("capture_height_map"),
-                &DirectionalLightCreateInfo {
-                    _position: Default::default(),
-                    _rotation: math::get_top_down_view(),
-                    _light_data: Default::default(),
-                    _shadow_dimensions: Vector4::new(
-                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                        constants::CAPTURE_HEIGHT_MAP_DISTANCE,
-                        -constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                        constants::CAPTURE_HEIGHT_MAP_DEPTH,
-                    ),
-                    _shadow_update_distance: 0.0
-                }
-            );
-
-            CaptureHeightMap {
-                _is_capture_height_map_complete: true,
-                _start_capture_height_map: false,
-                _capture_height_map_view: capture_height_map_view,
-                _static_render_elements: Vec::new(),
-                _skeletal_render_elements: Vec::new(),
-                _height_map_raw_data: TextureRawData::None,
-                _read_back_frames: Vec::new()
+        let capture_height_map_view = DirectionalLight::create_directional_light(
+            object_id,
+            &String::from("capture_height_map"),
+            &DirectionalLightCreateInfo {
+                _rotation: math::get_top_down_view(),
+                ..Default::default()
             }
+        );
+
+        CaptureHeightMap {
+            _is_capture_height_map_complete: true,
+            _start_capture_height_map: false,
+            _capture_height_map_view: capture_height_map_view,
+            _static_render_elements: Vec::new(),
+            _skeletal_render_elements: Vec::new(),
+            _read_back_frames: Vec::new(),
+            _sea_height: 0.0,
+            _stretch_height_map_xz: false,
+            _bounding_box: BoundingBox::default(),
+            _height_map_data: HeightMapData::default()
         }
     }
     pub fn is_capture_height_map_complete(&self) -> bool {
@@ -151,30 +147,50 @@ impl<'a> CaptureHeightMap<'a> {
     ) {
         let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
-            command_buffer, "render_debug"
+            command_buffer,
+            "render_debug"
         );
 
         let texture_data = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
-        self._height_map_raw_data = texture::read_texture_data(
+        if let TextureRawData::R32(height_map_raw_data) = texture::read_texture_data(
             renderer_context.get_device(),
             renderer_context.get_command_pool(),
             renderer_context.get_graphics_queue(),
             renderer_context.get_device_memory_properties(),
             renderer_context.get_debug_utils(),
             texture_data
-        );
+        ) {
+            self._height_map_data.initialize_height_map_data(
+                &self._bounding_box,
+                texture_data._image_width as i32,
+                texture_data._image_height as i32,
+                height_map_raw_data,
+                self._sea_height
+            )
+        }
         self.set_capture_height_map_complete();
     }
 
-    pub fn update_capture_height_map(&mut self, bounding_box: &BoundingBox) {
-        let max_side = bounding_box._size.x.max(bounding_box._size.z) * 0.5;
+    pub fn update_capture_height_map(&mut self, bounding_box: BoundingBox, sea_height: f32) {
+        self._sea_height = sea_height;
+        self._bounding_box = bounding_box;
+        if self._stretch_height_map_xz == false {
+            let mut bounding_box_min = self._bounding_box._min.clone();
+            let mut bounding_box_max = self._bounding_box._max.clone();
+            bounding_box_min.x = bounding_box_min.x.min(bounding_box_min.z);
+            bounding_box_max.x = bounding_box_max.x.max(bounding_box_max.z);
+            bounding_box_min.z = bounding_box_min.x;
+            bounding_box_max.z = bounding_box_max.x;
+            self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+        }
+
         let shadow_dimensions = Vector4::new(
-            max_side,
-            max_side,
-            -bounding_box._size.y * 0.5,
-            bounding_box._size.y * 0.5,
+            self._bounding_box._size.x * 0.5,
+            self._bounding_box._size.z * 0.5,
+            -self._bounding_box._size.y * 0.5,
+            self._bounding_box._size.y * 0.5,
         );
         self._capture_height_map_view.update_shadow_orthogonal(&shadow_dimensions);
-        self._capture_height_map_view.update_light_data(&bounding_box._center);
+        self._capture_height_map_view.update_light_data(&self._bounding_box._center);
     }
 }

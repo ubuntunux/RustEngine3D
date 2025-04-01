@@ -65,7 +65,6 @@ pub struct SceneManager<'a> {
     pub _point_light_object_map: PointLightObjectMap,
     pub _render_point_lights: PointLights,
     pub _render_point_light_count: i32,
-    pub _height_map_data: HeightMapData,
     pub _object_id_generator: i64,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
@@ -127,16 +126,16 @@ impl<'a> SceneManager<'a> {
         self._capture_height_map.is_capture_height_map_complete()
     }
     pub fn get_height_map_data(&self) -> &HeightMapData {
-        &self._height_map_data
+        &self._capture_height_map._height_map_data
     }
     pub fn get_height_map_collision_point(&self, start_pos: &Vector3<f32>, dir: &Vector3<f32>, limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
-        self._height_map_data.get_collision_point(start_pos, dir, limit_dist, collision_point)
+        self._capture_height_map._height_map_data.get_collision_point(start_pos, dir, limit_dist, collision_point)
     }
     pub fn get_height_bilinear(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        self._height_map_data.get_height_bilinear(pos, lod)
+        self._capture_height_map._height_map_data.get_height_bilinear(pos, lod)
     }
     pub fn get_height_point(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        self._height_map_data.get_height_point(pos, lod)
+        self._capture_height_map._height_map_data.get_height_point(pos, lod)
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_render_elements
@@ -180,7 +179,6 @@ impl<'a> SceneManager<'a> {
             _point_light_object_map: HashMap::new(),
             _render_point_lights: PointLights::default(),
             _render_point_light_count: 0,
-            _height_map_data: HeightMapData::default(),
             _object_id_generator: 0,
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
@@ -896,28 +894,7 @@ impl<'a> SceneManager<'a> {
             self.add_skeletal_render_object(object_name, render_object_create_info);
         }
 
-        // height_map
-        // let maybe_stage_model = self._static_render_object_map.get("stage");
-        // {
-        //     let mut stage_model = maybe_stage_model.unwrap().borrow_mut();
-        //     let stage_height_map_name: String = stage_model._model_data.borrow()._model_data_name.clone() + "_heightmap";
-        //     let texture_directory = PathBuf::from(TEXTURE_SOURCE_DIRECTORY);
-        //     let mut height_map_directory: PathBuf = texture_directory.clone();
-        //     height_map_directory.push("stages");
-        //     let height_map_files = project_resources.get_engine_resources().collect_resources(height_map_directory.as_path(), &EXT_IMAGE_SOURCE);
-        //     for height_map_file in height_map_files.iter() {
-        //         let resource_name = get_resource_name_from_file_path(&texture_directory, &height_map_file);
-        //         if resource_name == stage_height_map_name {
-        //             let (image_width, image_height, _image_layers, image_data, _image_format) = EngineResources::load_image_data(height_map_file);
-        //             stage_model._transform_object.update_transform_object();
-        //             let stage_transform = ptr_as_ref(stage_model._transform_object.get_matrix());
-        //             stage_model.update_bound_box(stage_transform);
-        //             self._height_map_data.initialize_height_map_data(&stage_model._bound_box, image_width as i32, image_height as i32, image_data, scene_data_create_info._sea_height);
-        //             break;
-        //         }
-        //     }
-        // }
-
+        // refresh light probe
         self.reset_frame_count_for_refresh_light_probe();
     }
 
@@ -1116,7 +1093,7 @@ impl<'a> SceneManager<'a> {
             );
 
             if capture_height_map_fot_static_mesh {
-                self._capture_height_map.update_capture_height_map(&height_map_bounding_box_for_static_mesh);
+                self._capture_height_map.update_capture_height_map(height_map_bounding_box_for_static_mesh, self._sea_height);
                 if self._capture_height_map.need_to_render_height_map() == false {
                     self._capture_height_map.set_capture_height_map_complete();
                 }

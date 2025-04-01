@@ -32,7 +32,7 @@ impl Default for CollisionCreateInfo {
 }
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct CollisionData {
     pub _collision_type: CollisionType,

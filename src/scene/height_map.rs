@@ -2,31 +2,18 @@ use nalgebra::{Vector2, Vector3};
 use crate::utilities::math;
 use crate::scene::bounding_box::BoundingBox;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct HeightMapData {
     _sea_height: f32,
     _bounding_box: BoundingBox,
     _lod_count: i32,
     _width: Vec<i32>,
     _height: Vec<i32>,
-    _min_height_map_data: Vec<Vec<f32>>,
-}
-
-impl Default for HeightMapData {
-    fn default() -> HeightMapData {
-        HeightMapData {
-            _sea_height: 0.0,
-            _bounding_box: BoundingBox::default(),
-            _lod_count: 0,
-            _width: Vec::new(),
-            _height: Vec::new(),
-            _min_height_map_data: Vec::new(),
-        }
-    }
+    _height_map_data: Vec<Vec<f32>>,
 }
 
 impl HeightMapData {
-    pub fn initialize_height_map_data(&mut self, bounding_box: &BoundingBox, width: i32, height: i32, height_map_data: Vec<u8>, sea_height: f32) {
+    pub fn initialize_height_map_data(&mut self, bounding_box: &BoundingBox, width: i32, height: i32, height_map_data: Vec<f32>, sea_height: f32) {
         self._sea_height = sea_height;
         self._bounding_box = bounding_box.clone();
         let max_height = bounding_box._size.y;
@@ -40,10 +27,10 @@ impl HeightMapData {
         let mut lod_height_map_data: Vec<f32> = Vec::new();
         for y in 0..height {
             for x in 0..width {
-                lod_height_map_data.push(height_map_data[(y * width + x) as usize * 4] as f32 / 255.0 * max_height);
+                lod_height_map_data.push(height_map_data[(y * width + x) as usize] * max_height);
             }
         }
-        self._min_height_map_data.push(lod_height_map_data);
+        self._height_map_data.push(lod_height_map_data);
         self.generate_hiz_max();
     }
 
@@ -54,7 +41,7 @@ impl HeightMapData {
             self._width.push(width / 2);
             self._height.push(height / 2);
             let mut lod_height_map_data: Vec<f32> = Vec::new();
-            let last_height_map_data = &self._min_height_map_data.last().unwrap();
+            let last_height_map_data = &self._height_map_data.last().unwrap();
             for y in (0..height).step_by(2) {
                 for x in (0..width).step_by(2) {
                     let tex_coord_0 = (y * width + x) as usize;
@@ -67,7 +54,7 @@ impl HeightMapData {
                     lod_height_map_data.push(min_height);
                 }
             }
-            self._min_height_map_data.push(lod_height_map_data);
+            self._height_map_data.push(lod_height_map_data);
         }
     }
 
@@ -87,7 +74,7 @@ impl HeightMapData {
         let pixel_index_01: usize = (pixel_pos_y_min + pixel_pos_x_max) as usize;
         let pixel_index_10: usize = (pixel_pos_y_max + pixel_pos_x_min) as usize;
         let pixel_index_11: usize = (pixel_pos_y_max + pixel_pos_x_max) as usize;
-        let height_map_data = &self._min_height_map_data[lod];
+        let height_map_data = &self._height_map_data[lod];
         let height_data_0 = math::lerp(height_map_data[pixel_index_00], height_map_data[pixel_index_01], pixel_pos_x_frac);
         let height_data_1 = math::lerp(height_map_data[pixel_index_10], height_map_data[pixel_index_11], pixel_pos_x_frac);
         let height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, pixel_pos_y_frac);
@@ -109,7 +96,7 @@ impl HeightMapData {
         let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32) as i32;
         let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32) as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
-        let height = self._bounding_box._min.y + self._min_height_map_data[lod][pixel_index];
+        let height = self._bounding_box._min.y + self._height_map_data[lod][pixel_index];
         self._sea_height.max(height as f32)
     }
 

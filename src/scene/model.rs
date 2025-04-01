@@ -10,7 +10,7 @@ use crate::scene::socket::{SocketData, SocketDataCreateInfo};
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, RcRefCell};
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct ModelDataInfo {
     pub _mesh: String,

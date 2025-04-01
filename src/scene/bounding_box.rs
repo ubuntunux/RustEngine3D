@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use crate::utilities::math;
 
 #[repr(C)]
-#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
 pub struct BoundingBox {
     pub _min: Vector3<f32>,
