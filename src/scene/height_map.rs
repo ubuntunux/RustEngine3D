@@ -1,4 +1,5 @@
 use nalgebra::{Vector2, Vector3};
+use crate::constants::HEIGHT_MAP_INVERT_TEXCOORD_Y;
 use crate::utilities::math;
 use crate::scene::bounding_box::BoundingBox;
 
@@ -10,6 +11,7 @@ pub struct HeightMapData {
     _width: Vec<i32>,
     _height: Vec<i32>,
     _height_map_data: Vec<Vec<f32>>,
+    _initialiezed: bool,
 }
 
 impl HeightMapData {
@@ -32,6 +34,7 @@ impl HeightMapData {
         }
         self._height_map_data.push(lod_height_map_data);
         self.generate_hiz_max();
+        self._initialiezed = true;
     }
 
     pub fn generate_hiz_max(&mut self) {
@@ -58,7 +61,31 @@ impl HeightMapData {
         }
     }
 
+    pub fn get_texcoord(&self, pos: &Vector3<f32>) -> Vector2<f32> {
+        let mut texcoord = Vector2::new(
+            (pos.x - &self._bounding_box._min.x) / self._bounding_box._size.x,
+            (pos.z - &self._bounding_box._min.z) / self._bounding_box._size.z
+        );
+
+        if HEIGHT_MAP_INVERT_TEXCOORD_Y {
+            texcoord.y = 1.0 - texcoord.y;
+        }
+        texcoord
+    }
+
+    pub fn get_height_bilinear(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
+        self.get_height_bilinear_by_texcoord(&self.get_texcoord(pos), lod)
+    }
+
+    pub fn get_height_point(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
+        self.get_height_point_by_texcoord(&self.get_texcoord(pos), lod)
+    }
+
     pub fn get_height_bilinear_by_texcoord(&self, texcoord: &Vector2<f32>, lod: usize) -> f32 {
+        if self._initialiezed == false {
+            return 0.0;
+        }
+
         let lod = lod.min(self._lod_count as usize - 1);
         let width = self._width[lod];
         let height = self._height[lod];
@@ -81,15 +108,11 @@ impl HeightMapData {
         self._sea_height.max(height as f32)
     }
 
-    pub fn get_height_bilinear(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        let texcoord: Vector2<f32> = Vector2::new(
-            (pos.x - &self._bounding_box._min.x) / self._bounding_box._size.x,
-            (pos.z - &self._bounding_box._min.z) / self._bounding_box._size.z
-        );
-        self.get_height_bilinear_by_texcoord(&texcoord, lod)
-    }
-
     pub fn get_height_point_by_texcoord(&self, texcoord: &Vector2<f32>, lod: usize) -> f32 {
+        if self._initialiezed == false {
+            return 0.0;
+        }
+
         let lod = lod.min(self._lod_count as usize - 1);
         let width = self._width[lod];
         let height = self._height[lod];
@@ -97,39 +120,36 @@ impl HeightMapData {
         let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32) as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         let height = self._bounding_box._min.y + self._height_map_data[lod][pixel_index];
-        self._sea_height.max(height as f32)
+        self._sea_height.max(height)
     }
 
-    pub fn get_height_point(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        let texcoord: Vector2<f32> = Vector2::new(
-            (pos.x - &self._bounding_box._min.x) / self._bounding_box._size.x,
-            (pos.z - &self._bounding_box._min.z) / self._bounding_box._size.z
-        );
-        self.get_height_point_by_texcoord(&texcoord, lod)
-    }
+    pub fn get_collision_point(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
+        if self._initialiezed == false {
+            return false;
+        }
 
-    pub fn get_collision_point(&self, start_pos: &Vector3<f32>, dir: &Vector3<f32>, mut limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
         let max_size: f32 = self._bounding_box._size.x.max(self._bounding_box._size.z);
         if limit_dist < 0.0 {
             limit_dist = max_size;
         }
-        let max_dir: f32 = dir.x.abs().max(dir.z.abs());
+        let texcoord_dir: Vector2<f32> = if HEIGHT_MAP_INVERT_TEXCOORD_Y {
+            Vector2::new(move_dir.x, -move_dir.z).normalize()
+        } else {
+            Vector2::new(move_dir.x, move_dir.z).normalize()
+        };
+        let max_dir: f32 = texcoord_dir.x.abs().max(texcoord_dir.y.abs());
         let max_lod: i32 = self._lod_count - 2;
         let max_dist: f32 = max_dir * limit_dist;
         let mut lod: i32 = 0.max(max_lod - (max_size / max_dist).log2().ceil() as i32);
 
         collision_point.clone_from(start_pos);
-        let mut collision_point_prev: Vector3<f32> = start_pos.clone_owned();
-        let mut texcoord: Vector2<f32> = Vector2::new(
-            (collision_point.x - self._bounding_box._min.x) / self._bounding_box._size.x,
-            (collision_point.z - self._bounding_box._min.z) / self._bounding_box._size.z
-        );
-        let mut texcoord_prev: Vector2<f32> = texcoord.clone_owned();
+        let mut collision_point_prev: Vector3<f32> = start_pos.clone();
+        let mut texcoord: Vector2<f32> = self.get_texcoord(collision_point);
+        let mut texcoord_prev: Vector2<f32> = texcoord.clone();
         let goal_texcoord: Vector2<f32> = Vector2::new(
-            texcoord.x + dir.x * limit_dist / self._bounding_box._size.x,
-            texcoord.y + dir.z * limit_dist / self._bounding_box._size.z
+            texcoord.x + texcoord_dir.x * limit_dist / self._bounding_box._size.x,
+            texcoord.y + texcoord_dir.y * limit_dist / self._bounding_box._size.z
         );
-        let dir_xz: Vector2<f32> = Vector2::new(dir.x, dir.z).normalize();
         let mut step: f32 = 1.0 / self._width[lod as usize].max(self._height[lod as usize]) as f32;
         let mut collided = false;
         let mut debug_loop_count: i32 = 0;
@@ -152,13 +172,13 @@ impl HeightMapData {
 
             // next step
             texcoord_prev.clone_from(&texcoord);
-            texcoord += &dir_xz * step;
+            texcoord += &texcoord_dir * step;
             collision_point_prev.clone_from(&collision_point);
-            let ddx: f32 = (((texcoord.x * self._bounding_box._size.x) + self._bounding_box._min.x - start_pos.x) / dir.x).abs();
-            *collision_point = start_pos + dir * ddx;
+            let ddx: f32 = (((texcoord.x * self._bounding_box._size.x) + self._bounding_box._min.x - start_pos.x) / texcoord_dir.x).abs();
+            *collision_point = start_pos + move_dir * ddx;
 
             // arrive in goal
-            if dir_xz.dot(&(&goal_texcoord - &texcoord)) < 0.0 {
+            if texcoord_dir.dot(&(&goal_texcoord - &texcoord)) < 0.0 {
                 texcoord.clone_from(&goal_texcoord);
                 break;
             }
