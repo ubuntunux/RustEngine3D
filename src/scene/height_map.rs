@@ -1,4 +1,4 @@
-use nalgebra::{Vector2, Vector3};
+use nalgebra::{Vector2, Vector3, Vector4};
 use crate::constants::HEIGHT_MAP_INVERT_TEXCOORD_Y;
 use crate::utilities::math;
 use crate::scene::bounding_box::BoundingBox;
@@ -10,12 +10,13 @@ pub struct HeightMapData {
     _lod_count: i32,
     _width: Vec<i32>,
     _height: Vec<i32>,
+    _normal_map_data: Vec<Vec<Vector3<f32>>>,
     _height_map_data: Vec<Vec<f32>>,
     _initialiezed: bool,
 }
 
 impl HeightMapData {
-    pub fn initialize_height_map_data(&mut self, bounding_box: &BoundingBox, width: i32, height: i32, height_map_data: Vec<f32>, sea_height: f32) {
+    pub fn initialize_height_map_data(&mut self, bounding_box: &BoundingBox, width: i32, height: i32, normal_map_data: &Vec<Vector4<u8>>, height_map_data: &Vec<f32>, sea_height: f32) {
         self._sea_height = sea_height;
         self._bounding_box = bounding_box.clone();
         let max_height = bounding_box._size.y;
@@ -24,8 +25,51 @@ impl HeightMapData {
         self._lod_count = lod_count_x.min(lod_count_y);
         assert!(2 <= self._lod_count, "lod_count must be greater than 2.");
 
-        self._width.push(width);
-        self._height.push(height);
+        for lod in 0..self._lod_count {
+            self._width.push(width / 2_i32.pow(lod as u32));
+            self._height.push(height / 2_i32.pow(lod as u32));
+        }
+
+        self.generate_normal_mips(width, height, normal_map_data);
+        self.generate_hiz_max(width, height, height_map_data, max_height);
+        self._initialiezed = true;
+    }
+
+    pub fn generate_normal_mips(&mut self, width: i32, height: i32, normal_map_data: &Vec<Vector4<u8>>) {
+        let mut lod_normal_map_data: Vec<Vector3<f32>> = Vec::new();
+        for y in 0..height {
+            for x in 0..width {
+                let normal_vector = normal_map_data[(y * width + x) as usize];
+                lod_normal_map_data.push(Vector3::new(
+                    normal_vector.x as f32 * 2.0 - 1.0,
+                    normal_vector.y as f32 * 2.0 - 1.0,
+                    normal_vector.z as f32 * 2.0 - 1.0
+                ).normalize());
+            }
+        }
+        self._normal_map_data.push(lod_normal_map_data);
+
+        for lod in 1..self._lod_count as usize {
+            let parent_width = self._width[lod - 1];
+            let parent_height = self._height[lod - 1];
+            let mut lod_normal_map_data: Vec<Vector3<f32>> = Vec::new();
+            let last_normal_map_data = &self._normal_map_data.last().unwrap();
+            for y in (0..parent_height).step_by(2) {
+                for x in (0..parent_width).step_by(2) {
+                    let tex_coord_0 = (y * parent_width + x) as usize;
+                    let tex_coord_1 = ((y + 1) * parent_width + x) as usize;
+                    let normal_00 = last_normal_map_data[tex_coord_0];
+                    let normal_01 = last_normal_map_data[tex_coord_0 + 1];
+                    let normal_10 = last_normal_map_data[tex_coord_1];
+                    let normal_11 = last_normal_map_data[tex_coord_1 + 1];
+                    lod_normal_map_data.push((normal_00 + normal_01 + normal_10 + normal_11).normalize());
+                }
+            }
+            self._normal_map_data.push(lod_normal_map_data);
+        }
+    }
+
+    pub fn generate_hiz_max(&mut self, width: i32, height: i32, height_map_data: &Vec<f32>, max_height: f32) {
         let mut lod_height_map_data: Vec<f32> = Vec::new();
         for y in 0..height {
             for x in 0..width {
@@ -33,22 +77,16 @@ impl HeightMapData {
             }
         }
         self._height_map_data.push(lod_height_map_data);
-        self.generate_hiz_max();
-        self._initialiezed = true;
-    }
 
-    pub fn generate_hiz_max(&mut self) {
-        for _ in 1..self._lod_count {
-            let width = *self._width.last().unwrap() as i32;
-            let height = *self._height.last().unwrap() as i32;
-            self._width.push(width / 2);
-            self._height.push(height / 2);
+        for lod in 1..self._lod_count as usize {
+            let parent_width = self._width[lod - 1];
+            let parent_height = self._height[lod - 1];
             let mut lod_height_map_data: Vec<f32> = Vec::new();
             let last_height_map_data = &self._height_map_data.last().unwrap();
-            for y in (0..height).step_by(2) {
-                for x in (0..width).step_by(2) {
-                    let tex_coord_0 = (y * width + x) as usize;
-                    let tex_coord_1 = ((y + 1) * width + x) as usize;
+            for y in (0..parent_height).step_by(2) {
+                for x in (0..parent_width).step_by(2) {
+                    let tex_coord_0 = (y * parent_width + x) as usize;
+                    let tex_coord_1 = ((y + 1) * parent_width + x) as usize;
                     let height_00 = last_height_map_data[tex_coord_0];
                     let height_01 = last_height_map_data[tex_coord_0 + 1];
                     let height_10 = last_height_map_data[tex_coord_1];

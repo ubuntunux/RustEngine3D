@@ -1,5 +1,5 @@
 use std::path::PathBuf;
-
+use ash::vk;
 use crate::renderer::push_constants::PushConstant_RenderObject;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData};
@@ -13,16 +13,21 @@ use crate::vulkan_context::render_pass::{
     PipelinePushConstantData, RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context;
-use ash::vk;
+use crate::vulkan_context::vulkan_context::BlendMode;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        &[],
+        &[RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(RenderTargetType::CaptureNormalMap),
+            _target_layer: 0,
+            _target_mip_level: 0,
+            _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 1.0, 0.5, 0.0)),
+        }],
         &[RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(RenderTargetType::CaptureHeightMap),
             _target_layer: 0,
             _target_mip_level: 0,
-            _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(0.0, 0)),
+            _clear_value: Some(vulkan_context::get_default_depth_clear_value()),
         }],
         &[],
     )
@@ -42,19 +47,29 @@ pub fn get_render_pass_data_create_info(
     let render_pass_name = get_render_pass_name(render_object_type);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
+    let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
+        color_attachment_descriptions.push(ImageAttachmentDescription {
+            _attachment_image_format: *format,
+            _attachment_image_samples: sample_count,
+            _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
+            _attachment_store_operation: vk::AttachmentStoreOp::STORE,
+            _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
+            _attachment_final_layout: vk::ImageLayout::GENERAL,
+            _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            ..Default::default()
+        });
+    }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_depth_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
-            _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
+            _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
             _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-            _attachment_initial_layout: vk::ImageLayout::GENERAL,
+            _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
             _attachment_final_layout: vk::ImageLayout::GENERAL,
-            _attachment_reference_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            _attachment_reference_layout: vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
             ..Default::default()
         });
     }
@@ -65,8 +80,7 @@ pub fn get_render_pass_data_create_info(
             src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             src_access_mask: vk::AccessFlags::MEMORY_READ,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
         vk::SubpassDependency {
@@ -74,12 +88,12 @@ pub fn get_render_pass_data_create_info(
             dst_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             dst_access_mask: vk::AccessFlags::MEMORY_READ,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
     ];
+
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("render_object"),
         _pipeline_vertex_shader_file: PathBuf::from("common/render_object.vert"),
@@ -93,18 +107,15 @@ pub fn get_render_pass_data_create_info(
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::BACK,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
+        _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::get_vertex_input_binding_descriptions()
-            }
+            RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions()
         },
         _vertex_input_attribute_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::create_vertex_input_attribute_descriptions()
-            }
+            RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions()
         },
         _push_constant_data_list: vec![PipelinePushConstantData {
             _stage_flags: vk::ShaderStageFlags::ALL,
@@ -116,8 +127,7 @@ pub fn get_render_pass_data_create_info(
                 _descriptor_binding_index: 0,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {
@@ -163,7 +173,7 @@ pub fn get_render_pass_data_create_info(
     RenderPassDataCreateInfo {
         _render_pass_create_info_name: String::from(render_pass_name),
         _render_pass_framebuffer_create_info: framebuffer_data_create_info,
-        _color_attachment_descriptions: Vec::new(),
+        _color_attachment_descriptions: color_attachment_descriptions,
         _depth_attachment_descriptions: depth_attachment_descriptions,
         _resolve_attachment_descriptions: Vec::new(),
         _subpass_dependencies: subpass_dependencies,

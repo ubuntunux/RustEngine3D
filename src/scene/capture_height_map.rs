@@ -151,23 +151,40 @@ impl<'a> CaptureHeightMap<'a> {
             "render_debug"
         );
 
-        let texture_data = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
-        if let TextureRawData::R32(height_map_raw_data) = texture::read_texture_data(
+        let normal_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
+        let mut normal_map_raw_data: Vec<Vector4<u8>> = Vec::new();
+        if let TextureRawData::R8G8B8A8_UNORM(texture_raw_data) = texture::read_texture_data(
             renderer_context.get_device(),
             renderer_context.get_command_pool(),
             renderer_context.get_graphics_queue(),
             renderer_context.get_device_memory_properties(),
             renderer_context.get_debug_utils(),
-            texture_data
+            normal_map_texture
         ) {
-            self._height_map_data.initialize_height_map_data(
-                &self._bounding_box,
-                texture_data._image_width as i32,
-                texture_data._image_height as i32,
-                height_map_raw_data,
-                self._sea_height
-            )
+            normal_map_raw_data = texture_raw_data;
         }
+
+        let height_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
+        let mut height_map_raw_data: Vec<f32> = Vec::new();
+        if let TextureRawData::R32(texture_raw_data) = texture::read_texture_data(
+            renderer_context.get_device(),
+            renderer_context.get_command_pool(),
+            renderer_context.get_graphics_queue(),
+            renderer_context.get_device_memory_properties(),
+            renderer_context.get_debug_utils(),
+            height_map_texture
+        ) {
+            height_map_raw_data = texture_raw_data;
+        }
+
+        self._height_map_data.initialize_height_map_data(
+            &self._bounding_box,
+            height_map_texture._image_width as i32,
+            height_map_texture._image_height as i32,
+            &normal_map_raw_data,
+            &height_map_raw_data,
+            self._sea_height
+        );
         self.set_capture_height_map_complete();
     }
 

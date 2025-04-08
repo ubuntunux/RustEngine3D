@@ -6,17 +6,18 @@ use ash::ext;
 use ash::util::Align;
 use ash::vk::{Format, Handle};
 use ash::{vk, Device, Instance};
-use cgmath::Vector4;
+use nalgebra::Vector4;
 use crate::constants;
 use crate::renderer::utility::find_memory_type_index;
 use crate::vulkan_context::vulkan_context::{run_commands_once, Layers, MipLevels};
 use crate::vulkan_context::{buffer, debug_utils};
 
-#[derive(Debug)]
+#[allow(non_camel_case_types)]
+#[derive(Clone)]
 pub enum TextureRawData {
     None,
     R32(Vec<f32>),
-    R8G8B8A8(Vector4<u8>),
+    R8G8B8A8_UNORM(Vec<Vector4<u8>>),
 }
 
 impl Default for TextureRawData {
@@ -1380,6 +1381,11 @@ pub fn read_texture_data(
             let mut read_data: Vec<f32> = vec![0.0; element_count as usize];
             buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
             texture_raw_data = TextureRawData::R32(read_data);
+        },
+        Format::R8G8B8A8_UNORM => {
+            let mut read_data: Vec<Vector4<u8>> = vec![Vector4::zeros(); element_count as usize];
+            buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
+            texture_raw_data = TextureRawData::R8G8B8A8_UNORM(read_data);
         },
         _ => {
             panic!("Not implemented yet: {:?}", texture_data._image_format);

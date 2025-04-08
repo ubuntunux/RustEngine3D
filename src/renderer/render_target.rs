@@ -34,6 +34,7 @@ pub enum RenderTargetType {
     LightShaft,
     ShadowAO,
     Shadow,
+    CaptureNormalMap,
     CaptureHeightMap,
     SSR,
     SSRResolved,
@@ -296,6 +297,14 @@ pub fn get_render_target_create_infos(
             _texture_width: unsafe { constants::SHADOW_MAP_SIZE },
             _texture_height: unsafe { constants::SHADOW_MAP_SIZE },
             _texture_format: vk::Format::D32_SFLOAT,
+            _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            ..Default::default()
+        },
+        TextureCreateInfo {
+            _texture_name: RenderTargetType::CaptureNormalMap.to_string(),
+            _texture_width: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
+            _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
+            _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },

@@ -146,7 +146,7 @@ pub fn create_rect_2d(x: i32, y: i32, width: u32, height: u32) -> vk::Rect2D {
     }
 }
 
-pub fn get_depth_clear_one() -> vk::ClearValue {
+pub fn get_default_depth_clear_value() -> vk::ClearValue {
     get_depth_stencil_clear_value(0.0, 0)
 }
 

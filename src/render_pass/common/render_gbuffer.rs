@@ -76,10 +76,7 @@ pub fn get_render_pass_data_create_info(
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data, false);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_color_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -92,10 +89,7 @@ pub fn get_render_pass_data_create_info(
         });
     }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_depth_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -141,13 +135,9 @@ pub fn get_render_pass_data_create_info(
         ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        //_pipeline_cull_mode: vk::CullModeFlags::BACK,
         _pipeline_cull_mode: vk::CullModeFlags::BACK,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(BlendMode::None);
-            color_attachment_descriptions.len()
-        ],
+        _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
             _depth_write_enable: false,
             ..Default::default()
