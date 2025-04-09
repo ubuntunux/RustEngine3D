@@ -64,7 +64,6 @@ pub static mut SHADOW_DEPTH_SLOPE_BIAS: f32 = 1.0;
 pub static mut SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
-pub static HEIGHT_MAP_INVERT_TEXCOORD_Y: bool = true;
 pub static mut ENABLE_UPSCALE: bool = false;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
