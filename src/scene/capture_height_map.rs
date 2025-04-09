@@ -18,6 +18,7 @@ use crate::vulkan_context::texture::TextureRawData;
 pub struct CaptureHeightMap<'a> {
     pub _is_capture_height_map_complete: bool,
     pub _start_capture_height_map: bool,
+    pub _enable_capture_normal_map: bool,
     pub _capture_height_map_view: DirectionalLight,
     pub _static_render_elements: Vec<RenderElementData<'a>>,
     pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
@@ -42,6 +43,7 @@ impl<'a> CaptureHeightMap<'a> {
         CaptureHeightMap {
             _is_capture_height_map_complete: true,
             _start_capture_height_map: false,
+            _enable_capture_normal_map: false,
             _capture_height_map_view: capture_height_map_view,
             _static_render_elements: Vec::new(),
             _skeletal_render_elements: Vec::new(),
@@ -151,21 +153,23 @@ impl<'a> CaptureHeightMap<'a> {
             "render_debug"
         );
 
-        let normal_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
         let mut normal_map_raw_data: Vec<Vector4<u8>> = Vec::new();
-        if let TextureRawData::R8G8B8A8_UNORM(texture_raw_data) = texture::read_texture_data(
-            renderer_context.get_device(),
-            renderer_context.get_command_pool(),
-            renderer_context.get_graphics_queue(),
-            renderer_context.get_device_memory_properties(),
-            renderer_context.get_debug_utils(),
-            normal_map_texture
-        ) {
-            normal_map_raw_data = texture_raw_data;
+        if self._enable_capture_normal_map {
+            let normal_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
+            if let TextureRawData::R8G8B8A8_UNORM(texture_raw_data) = texture::read_texture_data(
+                renderer_context.get_device(),
+                renderer_context.get_command_pool(),
+                renderer_context.get_graphics_queue(),
+                renderer_context.get_device_memory_properties(),
+                renderer_context.get_debug_utils(),
+                normal_map_texture
+            ) {
+                normal_map_raw_data = texture_raw_data;
+            }
         }
 
-        let height_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
         let mut height_map_raw_data: Vec<f32> = Vec::new();
+        let height_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
         if let TextureRawData::R32(texture_raw_data) = texture::read_texture_data(
             renderer_context.get_device(),
             renderer_context.get_command_pool(),

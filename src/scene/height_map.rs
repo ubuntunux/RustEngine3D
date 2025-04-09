@@ -10,7 +10,7 @@ pub struct HeightMapData {
     _lod_count: i32,
     _width: Vec<i32>,
     _height: Vec<i32>,
-    _normal_map_data: Vec<Vec<Vector3<f32>>>,
+    _normal_map_data: Vec<Vector3<f32>>,
     _height_map_data: Vec<Vec<f32>>,
     _initialiezed: bool,
 }
@@ -25,64 +25,31 @@ impl HeightMapData {
         self._lod_count = lod_count_x.min(lod_count_y);
         assert!(2 <= self._lod_count, "lod_count must be greater than 2.");
 
+        // generate dimension mips
+        self._width.clear();
+        self._height.clear();
         for lod in 0..self._lod_count {
             self._width.push(width / 2_i32.pow(lod as u32));
             self._height.push(height / 2_i32.pow(lod as u32));
         }
 
-        self.generate_normal_mips(width, height, normal_map_data);
-        self.generate_hiz_max(width, height, height_map_data, max_height);
-        self._initialiezed = true;
-    }
-
-    pub fn generate_normal_mips(&mut self, width: i32, height: i32, normal_map_data: &Vec<Vector4<u8>>) {
-        let mut lod_normal_map_data: Vec<Vector3<f32>> = Vec::new();
-        for y in 0..height {
-            for x in 0..width {
-                let normal_vector = normal_map_data[(y * width + x) as usize];
-                lod_normal_map_data.push(Vector3::new(
-                    normal_vector.x as f32 * 2.0 - 1.0,
-                    normal_vector.y as f32 * 2.0 - 1.0,
-                    normal_vector.z as f32 * 2.0 - 1.0
-                ).normalize());
-            }
-        }
-        self._normal_map_data.push(lod_normal_map_data);
-
-        for lod in 1..self._lod_count as usize {
-            let parent_width = self._width[lod - 1];
-            let parent_height = self._height[lod - 1];
-            let mut lod_normal_map_data: Vec<Vector3<f32>> = Vec::new();
-            let last_normal_map_data = &self._normal_map_data.last().unwrap();
-            for y in (0..parent_height).step_by(2) {
-                for x in (0..parent_width).step_by(2) {
-                    let tex_coord_0 = (y * parent_width + x) as usize;
-                    let tex_coord_1 = ((y + 1) * parent_width + x) as usize;
-                    let normal_00 = last_normal_map_data[tex_coord_0];
-                    let normal_01 = last_normal_map_data[tex_coord_0 + 1];
-                    let normal_10 = last_normal_map_data[tex_coord_1];
-                    let normal_11 = last_normal_map_data[tex_coord_1 + 1];
-                    lod_normal_map_data.push((normal_00 + normal_01 + normal_10 + normal_11).normalize());
-                }
-            }
-            self._normal_map_data.push(lod_normal_map_data);
-        }
-    }
-
-    pub fn generate_hiz_max(&mut self, width: i32, height: i32, height_map_data: &Vec<f32>, max_height: f32) {
-        let mut lod_height_map_data: Vec<f32> = Vec::new();
+        // generate base height map
+        let mut lod_height_map_data: Vec<f32> = Vec::with_capacity((width * height) as usize);
         for y in 0..height {
             for x in 0..width {
                 lod_height_map_data.push(height_map_data[(y * width + x) as usize] * max_height);
             }
         }
+        self._height_map_data.reserve(self._lod_count as usize);
+        self._height_map_data.clear();
         self._height_map_data.push(lod_height_map_data);
 
+        // generate height map mips
         for lod in 1..self._lod_count as usize {
             let parent_width = self._width[lod - 1];
             let parent_height = self._height[lod - 1];
-            let mut lod_height_map_data: Vec<f32> = Vec::new();
             let last_height_map_data = &self._height_map_data.last().unwrap();
+            let mut lod_height_map_data: Vec<f32> = Vec::with_capacity(((parent_width / 2) * (parent_height / 2)) as usize);
             for y in (0..parent_height).step_by(2) {
                 for x in (0..parent_width).step_by(2) {
                     let tex_coord_0 = (y * parent_width + x) as usize;
@@ -97,6 +64,48 @@ impl HeightMapData {
             }
             self._height_map_data.push(lod_height_map_data);
         }
+
+        // generate normal map data
+        let step_size_x: f32 = self._bounding_box._size.x / (width - 1) as f32;
+        let step_size_z: f32 = self._bounding_box._size.z / (height - 1) as f32;
+        self._normal_map_data.reserve((width * height) as usize);
+        self._normal_map_data.clear();
+        if normal_map_data.is_empty() {
+            for y in 0..height {
+                for x in 0..width {
+                    let height_r = self._height_map_data[0][(y * width + (x + 1).min(width - 1)) as usize];
+                    let height_l = self._height_map_data[0][(y * width + (x - 1).max(0)) as usize];
+                    let height_t = self._height_map_data[0][((y + 1).min(height - 1) * width + x) as usize];
+                    let height_b = self._height_map_data[0][((y - 1).max(0) * width + x) as usize];
+
+                    let vector_x: Vector3<f32> = Vector3::new(
+                        step_size_x * 2.0,
+                        height_r - height_l,
+                        0.0
+                    ).normalize();
+
+                    let vector_z: Vector3<f32> = Vector3::new(
+                        0.0,
+                        if HEIGHT_MAP_INVERT_TEXCOORD_Y { height_t - height_b } else { height_b - height_t },
+                        if HEIGHT_MAP_INVERT_TEXCOORD_Y { step_size_z * -2.0 } else { step_size_z * 2.0 }
+                    ).normalize();
+
+                    self._normal_map_data.push(vector_x.cross(&vector_z).normalize());
+                }
+            }
+        } else {
+            for y in 0..height {
+                for x in 0..width {
+                    let normal_vector = normal_map_data[(y * width + x) as usize];
+                    self._normal_map_data.push(Vector3::new(
+                        normal_vector.x as f32 * 2.0 - 1.0,
+                        normal_vector.y as f32 * 2.0 - 1.0,
+                        normal_vector.z as f32 * 2.0 - 1.0
+                    ).normalize());
+                }
+            }
+        }
+        self._initialiezed = true;
     }
 
     pub fn get_texcoord(&self, pos: &Vector3<f32>) -> Vector2<f32> {
@@ -159,6 +168,24 @@ impl HeightMapData {
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         let height = self._bounding_box._min.y + self._height_map_data[lod][pixel_index];
         self._sea_height.max(height)
+    }
+
+    pub fn get_normal_point_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
+        if self._initialiezed == false {
+            return Vector3::new(0.0, 1.0, 0.0);
+        }
+
+        let lod = 0;
+        let width = self._width[lod];
+        let height = self._height[lod];
+        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32) as i32;
+        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32) as i32;
+        let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
+        self._normal_map_data[pixel_index]
+    }
+
+    pub fn get_normal_point(&self, pos: &Vector3<f32>) -> Vector3<f32> {
+        self.get_normal_point_by_texcoord(&self.get_texcoord(pos))
     }
 
     pub fn get_collision_point(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
