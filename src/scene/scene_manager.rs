@@ -95,6 +95,9 @@ impl Default for SceneDataCreateInfo {
 }
 
 impl<'a> SceneManager<'a> {
+    pub fn is_load_complete(&self) -> bool {
+        self._capture_height_map.is_capture_height_map_complete()
+    }
     pub fn get_main_camera(&self) -> &CameraObjectData {
         self._main_camera.as_ref().unwrap().as_ref()
     }
@@ -121,9 +124,6 @@ impl<'a> SceneManager<'a> {
     }
     pub fn set_start_capture_height_map(&mut self, start: bool) {
         self._capture_height_map.set_start_capture_height_map(start)
-    }
-    pub fn is_capture_height_map_completed(&self) -> bool {
-        self._capture_height_map.is_capture_height_map_complete()
     }
     pub fn get_height_map_data(&self) -> &HeightMapData {
         &self._capture_height_map._height_map_data
