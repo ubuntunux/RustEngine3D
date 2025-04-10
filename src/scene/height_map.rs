@@ -126,6 +126,26 @@ impl HeightMapData {
         }
     }
 
+    pub fn get_bilinear_pixel_pos_infos(&self, texcoord: &Vector2<f32>, lod: usize) -> (Vector4<usize>, Vector2<f32>) {
+        let width = self._width[lod];
+        let height = self._height[lod];
+        let pixel_pos_x: f32 = 0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32;
+        let pixel_pos_y: f32 = 0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32;
+        let pixel_pos_x_frac: f32 = pixel_pos_x.fract();
+        let pixel_pos_y_frac: f32 = pixel_pos_y.fract();
+        let pixel_pos_x_min: i32 = pixel_pos_x as i32;
+        let pixel_pos_y_min: i32 = pixel_pos_y as i32 * width;
+        let pixel_pos_x_max: i32 = pixel_pos_x.ceil() as i32;
+        let pixel_pos_y_max: i32 = pixel_pos_y.ceil() as i32 * width;
+        let pixel_indices: Vector4<usize> = Vector4::new(
+            (pixel_pos_y_min + pixel_pos_x_min) as usize,
+            (pixel_pos_y_min + pixel_pos_x_max) as usize,
+            (pixel_pos_y_max + pixel_pos_x_min) as usize,
+            (pixel_pos_y_max + pixel_pos_x_max) as usize
+        );
+        (pixel_indices, Vector2::new(pixel_pos_x_frac, pixel_pos_y_frac))
+    }
+
     pub fn get_texcoord(&self, pos: &Vector3<f32>) -> Vector2<f32> {
         Vector2::new(
             (pos.x - &self._bounding_box._min.x) / self._bounding_box._size.x,
@@ -147,25 +167,12 @@ impl HeightMapData {
         }
 
         let lod = lod.min(self._lod_count as usize - 1);
-        let width = self._width[lod];
-        let height = self._height[lod];
-        let pixel_pos_x: f32 = 0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32;
-        let pixel_pos_y: f32 = 0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32;
-        let pixel_pos_x_frac: f32 = pixel_pos_x.fract();
-        let pixel_pos_y_frac: f32 = pixel_pos_y.fract();
-        let pixel_pos_x_min: i32 = pixel_pos_x as i32;
-        let pixel_pos_y_min: i32 = pixel_pos_y as i32 * width;
-        let pixel_pos_x_max: i32 = pixel_pos_x.ceil() as i32;
-        let pixel_pos_y_max: i32 = pixel_pos_y.ceil() as i32 * width;
-        let pixel_index_00: usize = (pixel_pos_y_min + pixel_pos_x_min) as usize;
-        let pixel_index_01: usize = (pixel_pos_y_min + pixel_pos_x_max) as usize;
-        let pixel_index_10: usize = (pixel_pos_y_max + pixel_pos_x_min) as usize;
-        let pixel_index_11: usize = (pixel_pos_y_max + pixel_pos_x_max) as usize;
+        let (pixel_indices, blend_factors) = self.get_bilinear_pixel_pos_infos(texcoord, lod);
         let height_map_data = &self._height_map_data[lod];
-        let height_data_0 = math::lerp(height_map_data[pixel_index_00], height_map_data[pixel_index_01], pixel_pos_x_frac);
-        let height_data_1 = math::lerp(height_map_data[pixel_index_10], height_map_data[pixel_index_11], pixel_pos_x_frac);
-        let height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, pixel_pos_y_frac);
-        self._sea_height.max(height as f32)
+        let height_data_0 = math::lerp(height_map_data[pixel_indices.x], height_map_data[pixel_indices.y], blend_factors.x);
+        let height_data_1 = math::lerp(height_map_data[pixel_indices.z], height_map_data[pixel_indices.w], blend_factors.x);
+        let height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, blend_factors.y);
+        self._sea_height.max(height)
     }
 
     pub fn get_height_point_by_texcoord(&self, texcoord: &Vector2<f32>, lod: usize) -> f32 {
@@ -189,23 +196,10 @@ impl HeightMapData {
         }
 
         let lod = 0;
-        let width = self._width[lod];
-        let height = self._height[lod];
-        let pixel_pos_x: f32 = 0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32;
-        let pixel_pos_y: f32 = 0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32;
-        let pixel_pos_x_frac: f32 = pixel_pos_x.fract();
-        let pixel_pos_y_frac: f32 = pixel_pos_y.fract();
-        let pixel_pos_x_min: i32 = pixel_pos_x as i32;
-        let pixel_pos_y_min: i32 = pixel_pos_y as i32 * width;
-        let pixel_pos_x_max: i32 = pixel_pos_x.ceil() as i32;
-        let pixel_pos_y_max: i32 = pixel_pos_y.ceil() as i32 * width;
-        let pixel_index_00: usize = (pixel_pos_y_min + pixel_pos_x_min) as usize;
-        let pixel_index_01: usize = (pixel_pos_y_min + pixel_pos_x_max) as usize;
-        let pixel_index_10: usize = (pixel_pos_y_max + pixel_pos_x_min) as usize;
-        let pixel_index_11: usize = (pixel_pos_y_max + pixel_pos_x_max) as usize;
-        let height_data_0: Vector3<f32> = self._normal_map_data[pixel_index_00].lerp(&self._normal_map_data[pixel_index_01], pixel_pos_x_frac);
-        let height_data_1: Vector3<f32> = self._normal_map_data[pixel_index_10].lerp(&self._normal_map_data[pixel_index_11], pixel_pos_x_frac);
-        height_data_0.lerp(&height_data_1, pixel_pos_y_frac).normalize()
+        let (pixel_indices, blend_factors) = self.get_bilinear_pixel_pos_infos(texcoord, lod);
+        let height_data_0: Vector3<f32> = self._normal_map_data[pixel_indices.x].lerp(&self._normal_map_data[pixel_indices.y], blend_factors.x);
+        let height_data_1: Vector3<f32> = self._normal_map_data[pixel_indices.z].lerp(&self._normal_map_data[pixel_indices.w], blend_factors.x);
+        height_data_0.lerp(&height_data_1, blend_factors.y).normalize()
     }
 
     pub fn get_normal_point_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
