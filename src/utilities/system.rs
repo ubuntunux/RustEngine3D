@@ -5,6 +5,19 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 
+#[macro_export] macro_rules! begin_block {
+    ($name:expr) => {
+        // BeginBlock($name)
+    };
+}
+
+#[macro_export] macro_rules! end_block {
+    () => {
+        // EndBlock()
+    };
+}
+
+
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 

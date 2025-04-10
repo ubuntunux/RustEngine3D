@@ -64,6 +64,11 @@ pub fn radian_to_degree(degree: f32) -> f32 {
     degree / std::f32::consts::PI * 180.0
 }
 
+pub fn make_reflect(incidence: &Vector3<f32>, normal: &Vector3<f32>) -> Vector3<f32> {
+    // r = i - 2 * dot(i, n) * n
+    incidence - 2.0 * incidence.dot(&normal) * normal
+}
+
 pub fn safe_normalize(vec: &Vector3<f32>) -> Vector3<f32> {
     let mag_sq = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
     if 0.0 < mag_sq {
@@ -71,15 +76,6 @@ pub fn safe_normalize(vec: &Vector3<f32>) -> Vector3<f32> {
         return vec / mag;
     }
     Vector3::zeros()
-}
-
-pub fn safe_normalize_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
-    let mag_sq = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
-    if 0.0 < mag_sq {
-        let mag = mag_sq.sqrt();
-        return (vec / mag, mag);
-    }
-    (Vector3::zeros(), 0.0)
 }
 
 pub fn safe_normalize_mut(vec: &mut Vector3<f32>) {
@@ -90,6 +86,15 @@ pub fn safe_normalize_mut(vec: &mut Vector3<f32>) {
         vec.y /= mag;
         vec.z /= mag;
     }
+}
+
+pub fn make_normalize_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
+    let mag_sq = vec.x * vec.x + vec.y * vec.y + vec.z * vec.z;
+    if 0.0 < mag_sq {
+        let mag = mag_sq.sqrt();
+        return (vec / mag, mag);
+    }
+    (Vector3::zeros(), 0.0)
 }
 
 pub fn make_vector_xz(vec: &Vector3<f32>) -> Vector3<f32> {
