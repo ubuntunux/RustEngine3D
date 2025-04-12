@@ -49,9 +49,7 @@ pub fn choose_swapchain_surface_format(
         }
     }
     let mut surface_format = require_surface_formats[0].clone();
-    if 0 < swap_chain_support_details._formats.len()
-        && vk::Format::UNDEFINED != swap_chain_support_details._formats[0].format
-    {
+    if 0 < swap_chain_support_details._formats.len() && vk::Format::UNDEFINED != swap_chain_support_details._formats[0].format {
         surface_format = swap_chain_support_details._formats[0].clone();
     }
     surface_format
