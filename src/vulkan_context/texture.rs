@@ -230,7 +230,7 @@ pub fn get_transition_dependent(
         },
         ImageLayoutTransition::TransferUndefToDepthAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
-            _new_layout: vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
+            _new_layout: vk::ImageLayout::GENERAL, // vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL
             _src_access_mask: vk::AccessFlags::empty(),
             _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
@@ -841,7 +841,7 @@ pub fn create_image(
             array_layers: layer_count,
             format,
             tiling,
-            initial_layout: vk::ImageLayout::UNDEFINED,
+            initial_layout: vk::ImageLayout::GENERAL,
             usage,
             sharing_mode: vk::SharingMode::EXCLUSIVE,
             samples,
