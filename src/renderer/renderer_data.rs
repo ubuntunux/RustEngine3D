@@ -363,12 +363,9 @@ impl<'a> RendererData<'a> {
         let render_target_create_infos =
             render_target::get_render_target_create_infos(renderer_context);
         for render_target_create_info in render_target_create_infos.iter() {
-            let render_target_type: RenderTargetType =
-                RenderTargetType::from_str(render_target_create_info._texture_name.as_str())
-                    .unwrap();
+            let render_target_type: RenderTargetType = RenderTargetType::from_str(render_target_create_info._texture_name.as_str()).unwrap();
             let texture_data = renderer_context.create_render_target(render_target_create_info);
-            self._render_target_data_map
-                .insert(render_target_type, texture_data);
+            self._render_target_data_map.insert(render_target_type, texture_data);
         }
     }
     pub fn destroy_render_targets(&mut self, device: &Device) {

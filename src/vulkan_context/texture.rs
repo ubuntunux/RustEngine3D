@@ -101,6 +101,7 @@ pub enum ImageLayoutTransition {
     TransferUndefToTransferDst,
     TransferDstToShaderReadOnly,
     TransferDstToTransferSrc,
+    TransferUndefToDepthAttachement,
     TransferUndefToDepthStencilAttachement,
     TransferUndefToColorAttachement,
 }
@@ -227,12 +228,19 @@ pub fn get_transition_dependent(
             _src_stage_mask: vk::PipelineStageFlags::TRANSFER,
             _dst_stage_mask: vk::PipelineStageFlags::TRANSFER,
         },
+        ImageLayoutTransition::TransferUndefToDepthAttachement => TransitionDependent {
+            _old_layout: vk::ImageLayout::UNDEFINED,
+            _new_layout: vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
+            _src_access_mask: vk::AccessFlags::empty(),
+            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
+            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+        },
         ImageLayoutTransition::TransferUndefToDepthStencilAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
             _new_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
-            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
             _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
         },
@@ -240,8 +248,7 @@ pub fn get_transition_dependent(
             _old_layout: vk::ImageLayout::UNDEFINED,
             _new_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
-            _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
             _dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
         },
@@ -283,12 +290,12 @@ pub fn calc_mip_levels(
 }
 
 pub fn get_image_aspect_by_format(image_format: vk::Format) -> vk::ImageAspectFlags {
-    match constants::DEPTH_FORMATS.contains(&image_format) {
-        true => match constants::DEPTH_STENCIL_FORMATS.contains(&image_format) {
-            true => vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL,
-            false => vk::ImageAspectFlags::DEPTH,
-        },
-        false => vk::ImageAspectFlags::COLOR,
+    if constants::DEPTH_FORMATS.contains(&image_format) {
+        vk::ImageAspectFlags::DEPTH
+    } else if constants::DEPTH_STENCIL_FORMATS.contains(&image_format) {
+        vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+    } else {
+        vk::ImageAspectFlags::COLOR
     }
 }
 
@@ -762,14 +769,15 @@ pub fn transition_image_layout(
 ) {
     let transition_dependent = get_transition_dependent(transition);
     let aspect_mask = match transition_dependent._new_layout {
+        vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
+            assert!(constants::DEPTH_FORMATS.contains(&format), "not contained depth format!");
+            vk::ImageAspectFlags::DEPTH
+        },
         vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => {
-            if constants::DEPTH_STENCIL_FORMATS.contains(&format) {
-                vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
-            } else {
-                vk::ImageAspectFlags::DEPTH
-            }
-        }
-        _ => vk::ImageAspectFlags::COLOR,
+            assert!(constants::DEPTH_STENCIL_FORMATS.contains(&format), "not contained depth stencil format!");
+            vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
+        },
+        _ => vk::ImageAspectFlags::COLOR
     };
     let barriers: [vk::ImageMemoryBarrier; 1] = [vk::ImageMemoryBarrier {
         old_layout: transition_dependent._old_layout,
@@ -1067,49 +1075,46 @@ fn create_texture_data_inner<T: Copy>(
         1
     };
 
-    let is_depth_format = constants::DEPTH_FORMATS.contains(&texture_create_info._texture_format);
-    let common_usage = vk::ImageUsageFlags::SAMPLED
-        | vk::ImageUsageFlags::TRANSFER_SRC
-        | vk::ImageUsageFlags::TRANSFER_DST;
+    let common_usage = vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
     let (image_usage, image_aspect, image_layout_transition, image_format, image_layout) =
         if is_render_target {
-            if is_depth_format {
-                (
-                    common_usage
-                        | vk::ImageUsageFlags::INPUT_ATTACHMENT
-                        | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-                    vk::ImageAspectFlags::DEPTH,
-                    ImageLayoutTransition::TransferUndefToDepthStencilAttachement,
-                    find_supported_format(
-                        instance,
-                        physical_device,
-                        texture_create_info._texture_format,
-                        vk::ImageTiling::OPTIMAL,
-                        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
-                    ),
-                    vk::ImageLayout::GENERAL,
-                )
+            if constants::DEPTH_FORMATS.contains(&texture_create_info._texture_format) {
+                (common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                 vk::ImageAspectFlags::DEPTH,
+                 ImageLayoutTransition::TransferUndefToDepthAttachement,
+                 find_supported_format(
+                     instance,
+                     physical_device,
+                     texture_create_info._texture_format,
+                     vk::ImageTiling::OPTIMAL,
+                     vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+                 ),
+                 vk::ImageLayout::GENERAL)
+            } else if constants::DEPTH_STENCIL_FORMATS.contains(&texture_create_info._texture_format) {
+                (common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                 vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL,
+                 ImageLayoutTransition::TransferUndefToDepthStencilAttachement,
+                 find_supported_format(
+                     instance,
+                     physical_device,
+                     texture_create_info._texture_format,
+                     vk::ImageTiling::OPTIMAL,
+                     vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+                 ),
+                 vk::ImageLayout::GENERAL)
             } else {
-                (
-                    common_usage
-                        | vk::ImageUsageFlags::INPUT_ATTACHMENT
-                        | vk::ImageUsageFlags::COLOR_ATTACHMENT
-                        | vk::ImageUsageFlags::STORAGE,
-                    vk::ImageAspectFlags::COLOR,
-                    ImageLayoutTransition::TransferUndefToColorAttachement,
-                    texture_create_info._texture_format,
-                    vk::ImageLayout::GENERAL,
-                )
+                (common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE,
+                 vk::ImageAspectFlags::COLOR,
+                 ImageLayoutTransition::TransferUndefToColorAttachement,
+                 texture_create_info._texture_format,
+                 vk::ImageLayout::GENERAL)
             }
         } else {
-            // Texture Resource
-            (
-                common_usage,
-                vk::ImageAspectFlags::COLOR,
-                ImageLayoutTransition::TransferUndefToTransferDst,
-                texture_create_info._texture_format,
-                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-            )
+            (common_usage,
+             vk::ImageAspectFlags::COLOR,
+             ImageLayoutTransition::TransferUndefToTransferDst,
+             texture_create_info._texture_format,
+             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
         };
     let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
 
