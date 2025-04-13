@@ -494,7 +494,6 @@ class RustEngine3DExporter:
         terrain = {}
         game_data = {
             "_characters": characters,
-            "_blocks": blocks,
             "_items": items,
             "_player": player,
             "_props": props,
@@ -504,9 +503,7 @@ class RustEngine3DExporter:
         }
 
         for child_asset in asset.children:
-            if '_blocks' == child_asset.name:
-                self.get_game_asset_data(blocks, child_asset, "_block_data_name")
-            elif '_characters' == child_asset.name:
+            if '_characters' == child_asset.name:
                 self.get_game_asset_data(characters, child_asset, "_character_data_name")
             elif '_items' == child_asset.name:
                 self.get_game_asset_data(items, child_asset, "_item_data_name")

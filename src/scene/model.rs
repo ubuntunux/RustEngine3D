@@ -3,7 +3,7 @@ use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::animation::INVALID_BONE_INDEX;
 use crate::scene::bounding_box::BoundingBox;
-use crate::scene::collision::{CollisionCreateInfo, CollisionData, CollisionType};
+use crate::scene::collision::{CollisionCreateInfo, CollisionData};
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::scene::socket::{SocketData, SocketDataCreateInfo};
@@ -60,20 +60,6 @@ impl<'a> ModelData<'a> {
             log::debug!("    material_instance[{:?}]{:?}: {:?}", i, model_name, x.borrow()._material_instance_data_name);
         }
 
-        // create collision by bounding box
-        let collision_info = if model_data_info._collision._collision_type == CollisionType::NONE {
-            let bounding_box = &mesh_data.borrow()._bound_box;
-            let dimension = bounding_box._max - bounding_box._min;
-            CollisionCreateInfo {
-                _collision_type: CollisionType::BOX,
-                _location: (bounding_box._max + bounding_box._min) * 0.5,
-                _radius: dimension.x.max(dimension.z) * 0.5,
-                _height: dimension.y
-            }
-        } else {
-            model_data_info._collision.clone()
-        };
-
         let mut socket_data_map = HashMap::new();
         for (socket_name, socket_data_create_info) in model_data_info._sockets.iter() {
             let mut parent_bone_index: usize = INVALID_BONE_INDEX;
@@ -103,7 +89,7 @@ impl<'a> ModelData<'a> {
                 &model_data_info._scale
             ),
             _material_instance_data_list: material_instance_data_list,
-            _collision: CollisionData::create_collision(&collision_info),
+            _collision: CollisionData::create_collision(&model_data_info._collision),
             _socket_data_map: socket_data_map
         }
     }

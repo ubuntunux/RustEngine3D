@@ -404,6 +404,10 @@ impl<'a> SceneManager<'a> {
         self.get_audio_manager_mut().play_audio_bank(audio_name_bank, audio_loop, volume);
     }
 
+    pub fn get_static_render_object_map(&self) -> &RenderObjectMap<'a> {
+        &self._static_render_object_map
+    }
+
     pub fn get_static_render_object(
         &self,
         object_id: i64,
@@ -413,6 +417,10 @@ impl<'a> SceneManager<'a> {
 
     pub fn remove_static_render_object(&mut self, object_id: i64) {
         self._static_render_object_map.remove(&object_id);
+    }
+
+    pub fn get_skeletal_render_object_map(&self) -> &RenderObjectMap<'a> {
+        &self._skeletal_render_object_map
     }
 
     pub fn get_skeletal_render_object(

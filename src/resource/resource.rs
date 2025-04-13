@@ -198,7 +198,7 @@ pub struct EngineResources<'a> {
 fn walk_directory_recursive(dir: &Path, include_extensions: &[&str], ignore_extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
     let contents = fs::read_dir(dir).unwrap();
     for content in contents {
-        let mut content = content.unwrap().path();
+        let content = content.unwrap().path();
         if content.is_dir() {
             walk_directory_recursive(&content, include_extensions, ignore_extensions, out_contents);
         } else {
