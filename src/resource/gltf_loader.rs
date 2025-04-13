@@ -304,17 +304,9 @@ pub fn compute_tangent(
     // gather vertex data_list
     for vertex_data_index in 0..vertex_count {
         if is_skeletal_mesh {
-            positions.push(
-                skeletal_vertex_data_list[vertex_data_index]
-                    ._position
-                    .clone(),
-            );
+            positions.push(skeletal_vertex_data_list[vertex_data_index]._position.clone());
             normals.push(skeletal_vertex_data_list[vertex_data_index]._normal.clone());
-            texcoords.push(
-                skeletal_vertex_data_list[vertex_data_index]
-                    ._texcoord
-                    .clone(),
-            );
+            texcoords.push(skeletal_vertex_data_list[vertex_data_index]._texcoord.clone());
         } else {
             positions.push(vertex_data_list[vertex_data_index]._position.clone());
             normals.push(vertex_data_list[vertex_data_index]._normal.clone());
@@ -327,13 +319,9 @@ pub fn compute_tangent(
         geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
     for (vertex_data_index, tangent) in tangents.iter().enumerate() {
         if is_skeletal_mesh {
-            skeletal_vertex_data_list[vertex_data_index]
-                ._tangent
-                .clone_from(&tangent);
+            skeletal_vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
         } else {
-            vertex_data_list[vertex_data_index]
-                ._tangent
-                .clone_from(&tangent);
+            vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
         }
     }
 }
@@ -360,9 +348,7 @@ pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHi
         assert!(child_node.mesh().is_none());
         let mut child_hierarchy = SkeletonHierarchyTree::default();
         parsing_bone_hierarchy(&child_node, &mut child_hierarchy);
-        hierarchy
-            ._children
-            .insert(child_node.name().unwrap().to_string(), child_hierarchy);
+        hierarchy._children.insert(child_node.name().unwrap().to_string(), child_hierarchy);
     }
 }
 
@@ -376,15 +362,17 @@ pub fn parsing_skins(
         if armature_node.name().unwrap() == skin.name().unwrap() {
             let m: &[[f32; 4]; 4] = &armature_node.transform().matrix();
             let mut parent_transform: Matrix4<f32> = Matrix4::new(
-                m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2],
-                m[1][2], m[2][2], m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
+                m[0][0], m[1][0], m[2][0], m[3][0],
+                m[0][1], m[1][1], m[2][1], m[3][1],
+                m[0][2], m[1][2], m[2][2], m[3][2],
+                m[0][3], m[1][3], m[2][3], m[3][3]
             );
 
             // inverse bind matrices
             let mut inverse_bind_matrices = parsing_inverse_bind_matrices(&skin, buffers);
 
             if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
-                parent_transform.set_column(1, &(-parent_transform.column(1)));
+                parent_transform.set_column(2, &(-parent_transform.column(2)));
                 for inverse_bind_matrix in inverse_bind_matrices.iter_mut() {
                     inverse_bind_matrix.set_column(2, &(-inverse_bind_matrix.column(2)));
                 }
@@ -575,10 +563,7 @@ pub fn precompute_animation(
     animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
 
     for (child_bone_name, child_hierarchy) in hierarchy._children.iter() {
-        let child_bone_index = bone_names
-            .iter()
-            .position(|bone_name| bone_name == child_bone_name)
-            .unwrap();
+        let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
         precompute_animation(
             frame_index,
             &transform,
@@ -619,8 +604,10 @@ pub fn parsing_meshes(
         let mesh = node.mesh().unwrap();
         let m: &[[f32; 4]; 4] = &node.transform().matrix();
         let mut parent_transform: Matrix4<f32> = Matrix4::new(
-            m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2],
-            m[1][2], m[2][2], m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
+            m[0][0], m[1][0], m[2][0], m[3][0],
+            m[0][1], m[1][1], m[2][1], m[3][1],
+            m[0][2], m[1][2], m[2][2], m[3][2],
+            m[0][3], m[1][3], m[2][3], m[3][3]
         );
 
         if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
@@ -725,10 +712,7 @@ impl GLTF {
                 let bone_names = &skeleton_create_info._bone_names;
                 let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
                 for (child_bone_name, child_hierarchy) in skeleton_create_info._hierarchy._children.iter() {
-                    let child_bone_index = bone_names
-                        .iter()
-                        .position(|bone_name| bone_name == child_bone_name)
-                        .unwrap();
+                    let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
                     let total_frame_count = animation_node_data_list[child_bone_index]._times.len();
                     for frame_index in 0..total_frame_count {
                         precompute_animation(
