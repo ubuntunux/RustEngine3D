@@ -261,7 +261,9 @@ class RustEngine3DExporter:
             mesh_data = mesh_collection.override_library.reference
             mesh_asset_info = AssetInfo(mesh_data)
             mesh_path = mesh_asset_info.asset_namepath
-            
+            is_render_camera = True
+            is_render_shadow = True
+
             # material instance
             material_instances = self.export_material_instance(asset_info, mesh_collection)
                     
@@ -328,6 +330,8 @@ class RustEngine3DExporter:
                     position = [model_location[0] - mesh_location[0], model_location[1] - mesh_location[1], model_location[2] - mesh_location[2]]
                     rotation = [model_rotation[0] - mesh_rotation[0], model_rotation[1] - mesh_rotation[1], model_rotation[2] - mesh_rotation[2]]
                     scale = [model_scale[0] / mesh_scale[0], model_scale[1] / mesh_scale[1], model_scale[2] / mesh_scale[2]]
+                    is_render_camera = model_obj.visible_camera
+                    is_render_shadow = model_obj.visible_shadow
                     break
 
             # export model
@@ -336,6 +340,8 @@ class RustEngine3DExporter:
                 "_position": position,
                 "_rotation": rotation,
                 "_scale": scale,
+                "_is_render_camera": is_render_camera,
+                "_is_render_shadow": is_render_shadow,
                 "_material_instances": material_instances,
                 "_collision": collision,
                 "_sockets": sockets

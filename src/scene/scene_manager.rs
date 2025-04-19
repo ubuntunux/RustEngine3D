@@ -539,16 +539,20 @@ impl<'a> SceneManager<'a> {
         // gather render object
         for (_key, render_object_refcell) in render_object_map.iter() {
             let render_object_data = ptr_as_ref(render_object_refcell.as_ptr());
-            let is_render =
-                render_object_data._is_render &&
+            let is_render_camera =
+                render_object_data._is_visible &&
+                render_object_data._is_render_camera &&
                 false == SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box);
 
             let is_render_shadow =
-                render_object_data._is_render &&
+                render_object_data._is_visible &&
                 render_object_data._is_render_shadow &&
                 false == SceneManager::shadow_culling(light, &render_object_data._bounding_box);
 
-            let is_render_height_map = enable_capture_height_map && render_object_data._is_render_height_map;
+            let is_render_height_map =
+                enable_capture_height_map &&
+                render_object_data._is_visible &&
+                render_object_data._is_render_height_map;
 
             if is_render_height_map {
                 bound_min = math::get_min(&bound_min, &render_object_data._bounding_box._min);
@@ -556,7 +560,7 @@ impl<'a> SceneManager<'a> {
             }
 
             // render element for bound box
-            if unsafe { constants::RENDER_BOUND_BOX } && is_render {
+            if unsafe { constants::RENDER_BOUND_BOX } && is_render_camera {
                 bound_boxes.push(
                     BoundBoxInstanceData {
                         _transform: render_object_data._bounding_box._transform
@@ -565,7 +569,7 @@ impl<'a> SceneManager<'a> {
             }
 
             // gather render element infos
-            if is_render || is_render_shadow || is_render_height_map {
+            if is_render_camera || is_render_shadow || is_render_height_map {
                 let local_matrix_count = 1usize;
                 let local_matrix_prev_count = 1usize;
                 let bone_count = render_object_data.get_bone_count();
@@ -589,7 +593,7 @@ impl<'a> SceneManager<'a> {
                                 _render_object: render_object_refcell.clone(),
                                 _mesh_data: mesh_data_refcell.clone(),
                                 _transform_offset: *render_element_transform_count,
-                                _is_render: is_render,
+                                _is_render_camera: is_render_camera,
                                 _is_render_shadow: is_render_shadow,
                                 _is_render_height_map: is_render_height_map,
                                 _geometry_index: geometry_index,
@@ -674,7 +678,7 @@ impl<'a> SceneManager<'a> {
             let render_element_info = &render_element_info_list[render_element_index];
             let render_object_data = ptr_as_ref(render_element_info._render_object.as_ptr());
 
-            if render_element_info._is_render {
+            if render_element_info._is_render_camera {
                 render_element_transform_offsets[*transform_offset_index].x = render_element_info._transform_offset as i32;
                 *transform_offset_index += 1;
                 render_element_count += 1;

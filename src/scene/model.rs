@@ -17,6 +17,8 @@ pub struct ModelDataInfo {
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
+    pub _is_render_camera: bool,
+    pub _is_render_shadow: bool,
     pub _material_instances: Vec<String>,
     pub _bounding_box: BoundingBox,
     pub _collision: CollisionCreateInfo,
@@ -30,6 +32,8 @@ impl Default for ModelDataInfo {
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
             _scale: Vector3::new(1.0, 1.0, 1.0),
+            _is_render_camera: true,
+            _is_render_shadow: true,
             _material_instances: Vec::new(),
             _bounding_box: BoundingBox::default(),
             _collision: CollisionCreateInfo::default(),
@@ -43,6 +47,8 @@ pub struct ModelData<'a> {
     pub _model_data_name: String,
     pub _local_transform: Matrix4<f32>,
     pub _mesh_data: RcRefCell<MeshData>,
+    pub _is_render_camera: bool,
+    pub _is_render_shadow: bool,
     pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
     pub _collision: CollisionData,
     pub _socket_data_map: HashMap<String, RcRefCell<SocketData>>
@@ -88,13 +94,32 @@ impl<'a> ModelData<'a> {
                 &model_data_info._rotation,
                 &model_data_info._scale
             ),
+            _is_render_camera: model_data_info._is_render_camera,
+            _is_render_shadow: model_data_info._is_render_shadow,
             _material_instance_data_list: material_instance_data_list,
             _collision: CollisionData::create_collision(&model_data_info._collision),
             _socket_data_map: socket_data_map
         }
     }
 
-    pub fn destroy_model_data(&self) {}
+    pub fn destroy_model_data(&self) {
+    }
+
+    pub fn is_render_camera(&self) -> bool {
+        self._is_render_camera
+    }
+
+    pub fn set_render_camera(&mut self, render: bool) {
+        self._is_render_camera = render;
+    }
+
+    pub fn is_render_shadow(&self) -> bool {
+        self._is_render_shadow
+    }
+
+    pub fn set_render_shadow(&mut self, render: bool) {
+        self._is_render_shadow = render;
+    }
 
     pub fn get_mesh_data(&self) -> &RcRefCell<MeshData> {
         &self._mesh_data

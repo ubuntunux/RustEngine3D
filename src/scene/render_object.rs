@@ -43,7 +43,8 @@ impl Default for RenderObjectCreateInfo {
 #[derive(Clone, Debug)]
 pub struct RenderObjectData<'a> {
     pub _object_id: i64,
-    pub _is_render: bool,
+    pub _is_visible: bool,
+    pub _is_render_camera: bool,
     pub _is_render_shadow: bool,
     pub _is_render_height_map: bool,
     pub _render_object_name: String,
@@ -76,8 +77,8 @@ impl<'a> RenderObjectData<'a> {
         transform_object_data.set_rotation(&render_object_create_data._rotation);
         transform_object_data.set_scale(&render_object_create_data._scale);
 
-        let push_constant_data_list_group = model_data
-            .borrow()
+        let model_data_ref = model_data.borrow();
+        let push_constant_data_list_group = model_data_ref
             ._material_instance_data_list
             .iter()
             .map(|material_instance_data| {
@@ -89,7 +90,7 @@ impl<'a> RenderObjectData<'a> {
             })
             .collect();
 
-        let mesh_data = model_data.borrow()._mesh_data.clone();
+        let mesh_data = model_data_ref._mesh_data.clone();
         let geometry_bound_boxes = mesh_data
             .borrow()
             ._geometry_data_list
@@ -98,7 +99,7 @@ impl<'a> RenderObjectData<'a> {
             .collect();
 
         let mut sockets = HashMap::new();
-        for (socket_name, socket_data) in model_data.borrow()._socket_data_map.iter() {
+        for (socket_name, socket_data) in model_data_ref._socket_data_map.iter() {
             let socket = newRcRefCell(Socket {
                 _socket_data: socket_data.clone(),
                 _transform: Matrix4::identity(),
@@ -108,16 +109,17 @@ impl<'a> RenderObjectData<'a> {
 
         let mut render_object_data = RenderObjectData {
             _object_id: object_id,
-            _is_render: true,
-            _is_render_shadow: true,
+            _is_visible: true,
+            _is_render_camera: model_data_ref.is_render_camera(),
+            _is_render_shadow: model_data_ref.is_render_shadow(),
             _is_render_height_map: false,
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
             _mesh_data: mesh_data.clone(),
-            _collision: model_data.borrow()._collision.clone(),
+            _collision: model_data_ref._collision.clone(),
             _bounding_box: mesh_data.borrow()._bound_box.clone(),
             _geometry_bound_boxes: geometry_bound_boxes,
-            _local_transform: model_data.borrow()._local_transform.clone(),
+            _local_transform: model_data_ref._local_transform.clone(),
             _transform_object: transform_object_data,
             _prev_transform: Matrix4::identity(),
             _final_transform: Matrix4::identity(),
@@ -144,12 +146,20 @@ impl<'a> RenderObjectData<'a> {
         self._prev_transform = self._final_transform.clone();
     }
 
-    pub fn is_render(&self) -> bool {
-        self._is_render
+    pub fn is_visbile(&self) -> bool {
+        self._is_visible
     }
 
-    pub fn set_render(&mut self, render: bool) {
-        self._is_render = render;
+    pub fn set_is_visible(&mut self, visible: bool) {
+        self._is_visible = visible;
+    }
+
+    pub fn is_render_camera(&self) -> bool {
+        self._is_render_camera
+    }
+
+    pub fn set_render_camera(&mut self, render: bool) {
+        self._is_render_camera = render;
     }
 
     pub fn is_render_shadow(&self) -> bool {
