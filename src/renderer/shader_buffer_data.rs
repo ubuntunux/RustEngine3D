@@ -45,6 +45,7 @@ pub enum ShaderBufferDataType {
 pub struct SceneConstants {
     pub _screen_size: Vector2<f32>,
     pub _back_buffer_size: Vector2<f32>,
+    pub _moon_light_color: Vector3<f32>,
     pub _time: f32,
     pub _delta_time: f32,
     pub _sea_height: f32,
@@ -56,7 +57,6 @@ pub struct SceneConstants {
     pub _prev_gpu_particle_update_buffer_offset: i32,
     pub _render_point_light_count: i32,
     pub _elapsed_frame: u32,
-    pub _reserved0: i32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS

@@ -48,6 +48,7 @@ struct SCENE_CONSTANTS
 {
     vec2 SCREEN_SIZE;
     vec2 BACK_BUFFER_SIZE;
+    vec3 MOON_LIGHT_COLOR;
     float TIME;
     float DELTA_TIME;
     float SEA_HEIGHT;
@@ -59,7 +60,6 @@ struct SCENE_CONSTANTS
     int PREV_GPU_PARTICLE_UPDATE_BUFFER_OFFSET;
     int RENDER_POINT_LIGHT_COUNT;
     uint ELAPSED_FRAME;
-    int reserved1;
 };
 
 // uniform_buffer_data_list.rs - struct ViewConstants

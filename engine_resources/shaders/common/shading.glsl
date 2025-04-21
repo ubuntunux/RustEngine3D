@@ -341,7 +341,7 @@ vec4 surface_shading(
         texture_height_map
     );
 
-    light_color *= scene_sun_irradiance * shadow_factor;
+    light_color = light_color * scene_sun_irradiance * shadow_factor;
 
     // Image based lighting
     apply_image_based_lighting(
@@ -371,7 +371,6 @@ vec4 surface_shading(
     // Directional Light
     {
         const vec3 F = fresnelSchlick(VoH, F0);
-        //diffuse_light += oren_nayar(roughness2, clampled_NoL, NoV, N, V, L) * (vec3(1.0) - F) * light_color;
         diffuse_light += diffuse_burley(roughness, NoV, NoL, VoH ) * clampled_NoL * (vec3(1.0) - F) * light_color;
         specular_light += cooktorrance_specular(F, clampled_NoL, NoV, NoH, roughness) * clampled_NoL * light_color;
     }

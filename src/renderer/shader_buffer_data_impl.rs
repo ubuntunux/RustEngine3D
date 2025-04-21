@@ -27,6 +27,7 @@ impl SceneConstants {
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._back_buffer_size = self._screen_size.into();
+        self._moon_light_color = Vector3::new(0.796, 0.723, 0.618);
         self._time = elapsed_time as f32;
         self._delta_time = delta_time as f32;
         self._sea_height = sea_height;
@@ -38,7 +39,6 @@ impl SceneConstants {
         self._prev_gpu_particle_update_buffer_offset = unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
         self._render_point_light_count = render_point_light_count;
         self._elapsed_frame = elapsed_frame as u32;
-        self._reserved0 = 0;
     }
 }
 
