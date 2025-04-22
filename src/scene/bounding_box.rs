@@ -63,6 +63,14 @@ impl BoundingBox {
         BoundingBox::create_bounding_box(&bound_min, &bound_max)
     }
 
+    pub fn get_mag_xz(&self) -> f32 {
+        (self._size.x * self._size.x + self._size.z * self._size.z).sqrt()
+    }
+
+    pub fn get_max_xz(&self) -> f32 {
+        self._size.x.max(self._size.z)
+    }
+
     pub fn collide_in_radius(&self, pos: &Vector3<f32>) -> bool {
         (self._center - pos).magnitude() < self._radius
     }
