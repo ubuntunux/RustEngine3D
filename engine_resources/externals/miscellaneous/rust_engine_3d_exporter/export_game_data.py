@@ -195,7 +195,7 @@ class RustEngine3DExporter:
                     if node.label:
                         if 'TEX_IMAGE' == node.type:
                             # gather texture parameter
-                            image_filepath = node.image.filepath
+                            image_filepath = node.image.filepath.replace('\\', '/')
                             tokens = image_filepath.split('/')
                             textures_index = tokens.index('textures')
                             image_relative_filepath = os.path.join(*tokens[textures_index:])
