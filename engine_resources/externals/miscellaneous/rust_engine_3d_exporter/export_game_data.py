@@ -549,7 +549,10 @@ class RustEngine3DExporter:
     def export_selected_objects(self):
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
         self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
-        for asset in bpy.context.selected_objects:
+        selected_objects = bpy.context.selected_objects
+        for asset in selected_objects:
+            bpy.ops.object.select_all(action='DESELECT')
+            asset.select_set(True)
             asset.location = [0, 0, 0]
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
                 self.export_asset(asset.instance_collection)
