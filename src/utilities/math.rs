@@ -1,5 +1,5 @@
 // https://docs.rs/nalgebra-glm/0.9.0/nalgebra_glm/
-use nalgebra::{Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix3, Matrix4, Quaternion, UnitQuaternion, Vector2, Vector3, Vector4};
 use nalgebra_glm as glm;
 
 pub const HALF_PI: f32 = std::f32::consts::PI * 0.5;
@@ -191,6 +191,19 @@ pub fn combinate_matrix(
         rotation_matrix.column(0) * scale[0],
         rotation_matrix.column(1) * scale[1],
         rotation_matrix.column(2) * scale[2],
+        Vector4::new(translation[0], translation[1], translation[2], 1.0),
+    ])
+}
+
+pub fn combinate_matrix2(
+    translation: &Vector3<f32>,
+    rotation_matrix: &Matrix3<f32>,
+    scale: &Vector3<f32>,
+) -> Matrix4<f32> {
+    Matrix4::from_columns(&[
+        (rotation_matrix.column(0) * scale[0]).to_homogeneous(),
+        (rotation_matrix.column(1) * scale[1]).to_homogeneous(),
+        (rotation_matrix.column(2) * scale[2]).to_homogeneous(),
         Vector4::new(translation[0], translation[1], translation[2], 1.0),
     ])
 }
@@ -604,6 +617,14 @@ pub fn extract_rotation(matrix: &Matrix4<f32>) -> Matrix4<f32> {
         matrix.column(1).normalize(),
         matrix.column(2).normalize(),
         Vector4::new(0.0, 0.0, 0.0, 1.0),
+    ])
+}
+
+pub fn extract_axes(matrix: &Matrix4<f32>) -> Matrix3<f32> {
+    Matrix3::from_columns(&[
+        matrix.column(0).xyz().normalize(),
+        matrix.column(1).xyz().normalize(),
+        matrix.column(2).xyz().normalize()
     ])
 }
 

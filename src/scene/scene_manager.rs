@@ -563,7 +563,11 @@ impl<'a> SceneManager<'a> {
             if unsafe { constants::RENDER_BOUND_BOX } && is_render_camera {
                 bound_boxes.push(
                     BoundBoxInstanceData {
-                        _transform: render_object_data._bounding_box._transform
+                        _transform: math::combinate_matrix2(
+                            &render_object_data._bounding_box._center,
+                            &render_object_data._bounding_box._orientation,
+                            &(render_object_data._bounding_box._extents * 2.0)
+                        )
                     }
                 );
             }

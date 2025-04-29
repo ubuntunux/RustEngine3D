@@ -1,4 +1,4 @@
-use nalgebra::{Vector3};
+use nalgebra::{Matrix3, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
 
@@ -69,12 +69,14 @@ impl CollisionData {
 
     pub fn collide_collision(&self, other: &CollisionData) -> bool {
         let location = &self._bounding_box._center;
-        let radius = self._bounding_box._size.x * 0.5;
-        let height = self._bounding_box._size.y;
+        let radius = self._bounding_box._extents.x;
+        let height = self._bounding_box._extents.y * 2.0;
 
         let other_location = &other._bounding_box._center;
-        let other_radius = other._bounding_box._size.x * 0.5;
-        let other_height = other._bounding_box._size.y;
+        let other_radius = other._bounding_box._extents.x;
+        let other_height = other._bounding_box._extents.y * 2.0;
+
+        //return collide_box_with_box(self, other);
 
         if other._collision_type == CollisionType::CYLINDER {
             if self._collision_type == CollisionType::CYLINDER {
@@ -86,16 +88,123 @@ impl CollisionData {
             if self._collision_type == CollisionType::CYLINDER {
                 collide_box_with_cylinder(&other._bounding_box._min, &other._bounding_box._max, &location, radius, height)
             } else {
-                collide_box_with_box(&other._bounding_box._min, &other._bounding_box._max, &self._bounding_box._min, &self._bounding_box._max)
+                collide_aabb(&self._bounding_box._min, &self._bounding_box._max, &other._bounding_box._min, &other._bounding_box._max)
             }
         }
     }
 }
 
-pub fn collide_box_with_box(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, box_min_pos_b: &Vector3<f32>, box_max_pos_b: &Vector3<f32>) -> bool {
-    box_min_pos_a.x < box_max_pos_b.x && box_min_pos_b.x < box_max_pos_a.x
-        && box_min_pos_a.y < box_max_pos_b.y && box_min_pos_b.y < box_max_pos_a.y
-        && box_min_pos_a.z < box_max_pos_b.z && box_min_pos_b.z < box_max_pos_a.z
+pub fn collide_aabb(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, box_min_pos_b: &Vector3<f32>, box_max_pos_b: &Vector3<f32>) -> bool {
+    box_min_pos_a.x < box_max_pos_b.x && box_min_pos_b.x < box_max_pos_a.x &&
+    box_min_pos_a.y < box_max_pos_b.y && box_min_pos_b.y < box_max_pos_a.y &&
+    box_min_pos_a.z < box_max_pos_b.z && box_min_pos_b.z < box_max_pos_a.z
+}
+
+pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
+    log::info!("collide_box_with_box");
+
+    let a_rotation: &Matrix3<f32> = &a._bounding_box._orientation;
+    let b_rotation: &Matrix3<f32> = &b._bounding_box._orientation;
+
+    let a_half_sizes: Vector3<f32> = a._bounding_box._extents;
+    let b_half_sizes: Vector3<f32> = b._bounding_box._extents;
+
+    let mut a_vertices: Vec<Vector3<f32>> = Vec::new();
+    let mut b_vertices: Vec<Vector3<f32>> = Vec::new();
+    for i in [-1, 1] {
+        for j in [-1, 1] {
+            for k in [-1, 1] {
+                let sign: Vector3<f32> = Vector3::new(i as f32, j as f32, k as f32);
+                a_vertices.push(a._bounding_box._center + a_rotation * a_half_sizes.component_mul(&sign));
+                b_vertices.push(b._bounding_box._center + b_rotation * b_half_sizes.component_mul(&sign));
+            }
+        }
+    }
+
+    for i in 0..3 {
+        let axis: Vector3<f32> = Vector3::from(a_rotation.column(i));
+        if axis.x.is_nan() || axis.y.is_nan() || axis.z.is_nan() {
+            continue;
+        }
+        let mut a_max = f32::MIN;
+        let mut a_min = f32::MAX;
+        let mut b_max = f32::MIN;
+        let mut b_min = f32::MAX;
+        for i in 0..8 {
+            let d = axis.dot(&a_vertices[i]);
+            a_max = a_max.max(d);
+            a_min = a_min.min(d);
+
+            let d = axis.dot(&b_vertices[i]);
+            b_max = b_max.max(d);
+            b_min = b_min.min(d);
+        }
+
+        let found_sat = a_max < b_min || b_max < a_min;
+        if found_sat {
+            log::info!("    [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_sat, axis, a_min, a_max, b_min, b_max);
+            return false;
+        }
+    }
+
+    for i in 0..3 {
+        let axis: Vector3<f32> = Vector3::from(b_rotation.column(i));
+        if axis.x.is_nan() || axis.y.is_nan() || axis.z.is_nan() {
+            continue;
+        }
+        let mut a_max = f32::MIN;
+        let mut a_min = f32::MAX;
+        let mut b_max = f32::MIN;
+        let mut b_min = f32::MAX;
+        for i in 0..8 {
+            let d = axis.dot(&a_vertices[i]);
+            a_max = a_max.max(d);
+            a_min = a_min.min(d);
+
+            let d = axis.dot(&b_vertices[i]);
+            b_max = b_max.max(d);
+            b_min = b_min.min(d);
+        }
+
+        let found_sat = a_max < b_min || b_max < a_min;
+        if found_sat {
+            log::info!("    [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_sat, axis, a_min, a_max, b_min, b_max);
+            return false;
+        }
+    }
+
+    for i in 0..3 {
+        for j in 0..3 {
+            let a_axis: Vector3<f32> = Vector3::from(a_rotation.column(i));
+            let b_axis: Vector3<f32> = Vector3::from(b_rotation.column(j));
+            let axis: Vector3<f32> = a_axis.cross(&b_axis).normalize();
+            if axis.x.is_nan() || axis.y.is_nan() || axis.z.is_nan() {
+                continue;
+            }
+            let mut a_max = f32::MIN;
+            let mut a_min = f32::MAX;
+            let mut b_max = f32::MIN;
+            let mut b_min = f32::MAX;
+            for i in 0..8 {
+                let d = axis.dot(&a_vertices[i]);
+                a_max = a_max.max(d);
+                a_min = a_min.min(d);
+
+                let d = axis.dot(&b_vertices[i]);
+                b_max = b_max.max(d);
+                b_min = b_min.min(d);
+            }
+
+            let found_sat = a_max < b_min || b_max < a_min;
+            if found_sat {
+                log::info!("    [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_sat, axis, a_min, a_max, b_min, b_max);
+                return false;
+            }
+        }
+    }
+
+    log::info!("    Collid!!");
+    true
 }
 
 pub fn collide_box_with_cylinder(box_min_pos: &Vector3<f32>, box_max_pos: &Vector3<f32>, cylinder_pos: &Vector3<f32>, radius: f32, height: f32) -> bool {

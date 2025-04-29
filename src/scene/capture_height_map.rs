@@ -206,10 +206,10 @@ impl<'a> CaptureHeightMap<'a> {
         }
 
         let shadow_dimensions = Vector4::new(
-            self._bounding_box._size.x * 0.5,
-            self._bounding_box._size.z * 0.5,
-            -self._bounding_box._size.y * 0.5,
-            self._bounding_box._size.y * 0.5,
+            self._bounding_box._extents.x,
+            self._bounding_box._extents.z,
+            -self._bounding_box._extents.y,
+            self._bounding_box._extents.y,
         );
         self._capture_height_map_view.update_shadow_orthogonal(&shadow_dimensions);
         self._capture_height_map_view.update_light_data(&self._bounding_box._center);

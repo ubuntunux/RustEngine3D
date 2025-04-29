@@ -28,7 +28,7 @@ impl HeightMapData {
     ) {
         self._sea_height = sea_height;
         self._bounding_box = bounding_box.clone();
-        let max_height = bounding_box._size.y;
+        let max_height = bounding_box._extents.y * 2.0;
         let lod_count_x = (width as f32).log2() as i32 + 1;
         let lod_count_y = (height as f32).log2() as i32 + 1;
         self._lod_count = lod_count_x.min(lod_count_y);
@@ -76,8 +76,8 @@ impl HeightMapData {
         }
 
         // generate normal map data
-        let step_size_x: f32 = self._bounding_box._size.x / (width - 1) as f32;
-        let step_size_z: f32 = self._bounding_box._size.z / (height - 1) as f32;
+        let step_size_x: f32 = self._bounding_box._extents.x * 2.0 / (width - 1) as f32;
+        let step_size_z: f32 = self._bounding_box._extents.z * 2.0 / (height - 1) as f32;
         self._normal_map_data.reserve((width * height) as usize);
         self._normal_map_data.clear();
         if normal_map_data.is_empty() {
@@ -148,8 +148,8 @@ impl HeightMapData {
 
     pub fn get_texcoord(&self, pos: &Vector3<f32>) -> Vector2<f32> {
         Vector2::new(
-            (pos.x - &self._bounding_box._min.x) / self._bounding_box._size.x,
-            (pos.z - &self._bounding_box._min.z) / self._bounding_box._size.z
+            (pos.x - &self._bounding_box._min.x) / (self._bounding_box._extents.x * 2.0),
+            (pos.z - &self._bounding_box._min.z) / (self._bounding_box._extents.z * 2.0)
         )
     }
 
@@ -229,7 +229,7 @@ impl HeightMapData {
             return false;
         }
 
-        let max_size: f32 = self._bounding_box._size.x.max(self._bounding_box._size.z);
+        let max_size: f32 = self._bounding_box._extents.x.max(self._bounding_box._extents.z) * 2.0;
         if limit_dist < 0.0 {
             limit_dist = max_size;
         }
@@ -244,8 +244,8 @@ impl HeightMapData {
         let mut texcoord: Vector2<f32> = self.get_texcoord(collision_point);
         let mut texcoord_prev: Vector2<f32> = texcoord.clone();
         let goal_texcoord: Vector2<f32> = Vector2::new(
-            texcoord.x + texcoord_dir.x * limit_dist / self._bounding_box._size.x,
-            texcoord.y + texcoord_dir.y * limit_dist / self._bounding_box._size.z
+            texcoord.x + texcoord_dir.x * limit_dist / (self._bounding_box._extents.x * 2.0),
+            texcoord.y + texcoord_dir.y * limit_dist / (self._bounding_box._extents.z * 2.0)
         );
         let mut step: f32 = 1.0 / self._width[lod as usize].max(self._height[lod as usize]) as f32;
         let mut collided = false;
@@ -271,7 +271,7 @@ impl HeightMapData {
             texcoord_prev.clone_from(&texcoord);
             texcoord += &texcoord_dir * step;
             collision_point_prev.clone_from(&collision_point);
-            let ddx: f32 = (((texcoord.x * self._bounding_box._size.x) + self._bounding_box._min.x - start_pos.x) / texcoord_dir.x).abs();
+            let ddx: f32 = (((texcoord.x * self._bounding_box._extents.x * 2.0) + self._bounding_box._min.x - start_pos.x) / texcoord_dir.x).abs();
             *collision_point = start_pos + move_dir * ddx;
 
             // arrive in goal
