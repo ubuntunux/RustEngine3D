@@ -123,7 +123,7 @@ impl BoundingBox {
         self._min.z <= pos.z && pos.z <= self._max.z
     }
 
-    pub fn update_with_matrix(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+    pub fn update_aixs_aligned_bounding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
         let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
         let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
 
@@ -138,36 +138,25 @@ impl BoundingBox {
         self._center = self._max * 0.5 + self._min * 0.5;
 
         self._extents = (self._max - self._min) * 0.5;
-        self._extents = self._extents.component_mul(&math::extract_scale(matrix));
         self._radius = (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
         self._mag_xz = self._extents.magnitude();
 
         self._orientation = math::extract_axes(matrix) * bound_box._orientation;
     }
 
-    pub fn update_with_matrix_no_rotation(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+    pub fn update_oriented_bouding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
         let location = math::extract_location(&matrix);
+        let rotation = math::extract_axes(&matrix);
         let scale = math::extract_scale(&matrix);
-        let matrix = math::combinate_matrix(&location, &Matrix4::identity(), &scale);
 
-        let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
-        let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
+        self._min = location + bound_box._min.component_mul(&scale);
+        self._max = location + bound_box._max.component_mul(&scale);
+        self._center = location + bound_box._center;
 
-        self._min.x = pos_min.x.min(pos_max.x);
-        self._min.y = pos_min.y.min(pos_max.y);
-        self._min.z = pos_min.z.min(pos_max.z);
-
-        self._max.x = pos_min.x.max(pos_max.x);
-        self._max.y = pos_min.y.max(pos_max.y);
-        self._max.z = pos_min.z.max(pos_max.z);
-
-        self._center = self._max * 0.5 + self._min * 0.5;
-
-        self._extents = (self._max - self._min) * 0.5;
-        self._extents = self._extents.component_mul(&math::extract_scale(&matrix));
+        self._extents = bound_box._extents.component_mul(&scale);
         self._radius = (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
         self._mag_xz = self._extents.magnitude();
 
-        self._orientation = math::extract_axes(&matrix) * bound_box._orientation;
+        self._orientation = rotation * bound_box._orientation;
     }
 }

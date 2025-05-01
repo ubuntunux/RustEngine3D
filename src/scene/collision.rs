@@ -1,4 +1,4 @@
-use nalgebra::{Matrix3, Vector3};
+use nalgebra::{Matrix3, Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
 
@@ -76,7 +76,7 @@ impl CollisionData {
         let other_radius = other._bounding_box._extents.x;
         let other_height = other._bounding_box._extents.y * 2.0;
 
-        //return collide_box_with_box(self, other);
+        return collide_box_with_box(self, other);
 
         if other._collision_type == CollisionType::CYLINDER {
             if self._collision_type == CollisionType::CYLINDER {
@@ -101,105 +101,72 @@ pub fn collide_aabb(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, 
 }
 
 pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
-    log::info!("collide_box_with_box");
+    if !collide_aabb(&a._bounding_box._min, &a._bounding_box._max, &b._bounding_box._min, &b._bounding_box._max) {
+        return false;
+    }
+
+    if a._bounding_box._max.y < b._bounding_box._min.y || b._bounding_box._max.y < a._bounding_box._min.y  {
+        return false;
+    }
+
+    log::info!(">> collide_box_with_box");
 
     let a_rotation: &Matrix3<f32> = &a._bounding_box._orientation;
     let b_rotation: &Matrix3<f32> = &b._bounding_box._orientation;
 
-    let a_half_sizes: Vector3<f32> = a._bounding_box._extents;
-    let b_half_sizes: Vector3<f32> = b._bounding_box._extents;
+    let a_half_sizes: Vector3<f32> = a._bounding_box._extents.component_mul(&Vector3::new(1.0, 1.0, 0.3));
+    let b_half_sizes: Vector3<f32> = b._bounding_box._extents.component_mul(&Vector3::new(1.0, 1.0, 0.3));
 
-    let mut a_vertices: Vec<Vector3<f32>> = Vec::new();
-    let mut b_vertices: Vec<Vector3<f32>> = Vec::new();
-    for i in [-1, 1] {
-        for j in [-1, 1] {
-            for k in [-1, 1] {
-                let sign: Vector3<f32> = Vector3::new(i as f32, j as f32, k as f32);
-                a_vertices.push(a._bounding_box._center + a_rotation * a_half_sizes.component_mul(&sign));
-                b_vertices.push(b._bounding_box._center + b_rotation * b_half_sizes.component_mul(&sign));
-            }
-        }
-    }
+    let to_a = a._bounding_box._center - b._bounding_box._center;
+    let to_a_vertices: [Vector3<f32>; 4] = [
+        to_a + a_rotation.column(0) * a_half_sizes[0] + a_rotation.column(2) * a_half_sizes[2],
+        to_a - a_rotation.column(0) * a_half_sizes[0] + a_rotation.column(2) * a_half_sizes[2],
+        to_a + a_rotation.column(0) * a_half_sizes[0] - a_rotation.column(2) * a_half_sizes[2],
+        to_a - a_rotation.column(0) * a_half_sizes[0] - a_rotation.column(2) * a_half_sizes[2]
+    ];
+    let to_b_vertices: [Vector3<f32>; 4] = [
+          b_rotation.column(0) * b_half_sizes[0] + b_rotation.column(2) * b_half_sizes[2] - to_a,
+         -b_rotation.column(0) * b_half_sizes[0] + b_rotation.column(2) * b_half_sizes[2] - to_a,
+          b_rotation.column(0) * b_half_sizes[0] - b_rotation.column(2) * b_half_sizes[2] - to_a,
+         -b_rotation.column(0) * b_half_sizes[0] - b_rotation.column(2) * b_half_sizes[2] - to_a
+    ];
 
-    for i in 0..3 {
-        let axis: Vector3<f32> = Vector3::from(a_rotation.column(i));
-        if axis.x.is_nan() || axis.y.is_nan() || axis.z.is_nan() {
-            continue;
-        }
-        let mut a_max = f32::MIN;
-        let mut a_min = f32::MAX;
-        let mut b_max = f32::MIN;
-        let mut b_min = f32::MAX;
-        for i in 0..8 {
-            let d = axis.dot(&a_vertices[i]);
-            a_max = a_max.max(d);
-            a_min = a_min.min(d);
+    log::info!("    to_a: {:?}", to_a);
+    log::info!("    a_half_sizes: {:?}, b_half_sizes: {:?}", a_half_sizes, b_half_sizes);
 
-            let d = axis.dot(&b_vertices[i]);
-            b_max = b_max.max(d);
-            b_min = b_min.min(d);
+    for i in [0, 2] {
+        let axis = Vector3::new(a_rotation.column(i)[0], a_rotation.column(i)[1], a_rotation.column(i)[2]);
+        let mut dot_max = f32::MIN;
+        let mut dot_min = f32::MAX;
+        for to_b_vertex in to_b_vertices {
+            let d = axis.dot(&to_b_vertex);
+            log::info!("    to_b [{}] axis: {:?}, to_b_vertex: {:?}, dot: {:?}", i, axis, to_b_vertex, d);
+            dot_max = dot_max.max(d);
+            dot_min = dot_min.min(d);
         }
 
-        let found_sat = a_max < b_min || b_max < a_min;
-        if found_sat {
-            log::info!("    [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_sat, axis, a_min, a_max, b_min, b_max);
+        let found_seperate = a_half_sizes[i] < dot_min || dot_max < -a_half_sizes[i];
+        log::info!("    to_b [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_seperate, axis, -a_half_sizes[i], a_half_sizes[i], dot_min, dot_max);
+        if found_seperate {
             return false;
         }
     }
 
-    for i in 0..3 {
-        let axis: Vector3<f32> = Vector3::from(b_rotation.column(i));
-        if axis.x.is_nan() || axis.y.is_nan() || axis.z.is_nan() {
-            continue;
-        }
-        let mut a_max = f32::MIN;
-        let mut a_min = f32::MAX;
-        let mut b_max = f32::MIN;
-        let mut b_min = f32::MAX;
-        for i in 0..8 {
-            let d = axis.dot(&a_vertices[i]);
-            a_max = a_max.max(d);
-            a_min = a_min.min(d);
-
-            let d = axis.dot(&b_vertices[i]);
-            b_max = b_max.max(d);
-            b_min = b_min.min(d);
+    for i in [0, 2] {
+        let axis = Vector3::new(b_rotation.column(i)[0], b_rotation.column(i)[1], b_rotation.column(i)[2]);
+        let mut dot_max = f32::MIN;
+        let mut dot_min = f32::MAX;
+        for to_a_vertex in to_a_vertices {
+            let d = axis.dot(&to_a_vertex);
+            log::info!("    to_a [{}] axis: {:?}, to_a_vertex: {:?}, dot: {:?}", i, axis, to_a_vertex, d);
+            dot_max = dot_max.max(d);
+            dot_min = dot_min.min(d);
         }
 
-        let found_sat = a_max < b_min || b_max < a_min;
-        if found_sat {
-            log::info!("    [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_sat, axis, a_min, a_max, b_min, b_max);
+        let found_seperate = b_half_sizes[i] < dot_min || dot_max < -b_half_sizes[i];
+        log::info!("    to_a [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_seperate, axis, -b_half_sizes[i], b_half_sizes[i], dot_min, dot_max);
+        if found_seperate {
             return false;
-        }
-    }
-
-    for i in 0..3 {
-        for j in 0..3 {
-            let a_axis: Vector3<f32> = Vector3::from(a_rotation.column(i));
-            let b_axis: Vector3<f32> = Vector3::from(b_rotation.column(j));
-            let axis: Vector3<f32> = a_axis.cross(&b_axis).normalize();
-            if axis.x.is_nan() || axis.y.is_nan() || axis.z.is_nan() {
-                continue;
-            }
-            let mut a_max = f32::MIN;
-            let mut a_min = f32::MAX;
-            let mut b_max = f32::MIN;
-            let mut b_min = f32::MAX;
-            for i in 0..8 {
-                let d = axis.dot(&a_vertices[i]);
-                a_max = a_max.max(d);
-                a_min = a_min.min(d);
-
-                let d = axis.dot(&b_vertices[i]);
-                b_max = b_max.max(d);
-                b_min = b_min.min(d);
-            }
-
-            let found_sat = a_max < b_min || b_max < a_min;
-            if found_sat {
-                log::info!("    [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_sat, axis, a_min, a_max, b_min, b_max);
-                return false;
-            }
         }
     }
 

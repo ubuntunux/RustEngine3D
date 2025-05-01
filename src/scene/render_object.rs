@@ -292,14 +292,14 @@ impl<'a> RenderObjectData<'a> {
         if self._transform_object.update_transform_object() {
             self._final_transform = ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
             // update bound box
-            self._bounding_box.update_with_matrix(
+            self._bounding_box.update_aixs_aligned_bounding_box(
                 &self._mesh_data.borrow()._bound_box,
                 &self._final_transform
             );
 
             // update collision
             if self._collision.is_valid_collision() {
-                self._collision._bounding_box.update_with_matrix_no_rotation(
+                self._collision._bounding_box.update_oriented_bouding_box(
                     &self._model_data.borrow()._collision._bounding_box,
                     self._transform_object.get_matrix()
                 )
