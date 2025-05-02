@@ -284,9 +284,8 @@ class RustEngine3DExporter:
             # collision
             collision = {
                 "_collision_type": "NONE",
-                "_location": [0,0,0],
-                "_radius": 0,
-                "_height": 0
+                "_location": [0, 0, 0],
+                "_extents": [0.5, 0.5, 0.5]
             }
 
             # sockets
@@ -298,12 +297,9 @@ class RustEngine3DExporter:
                     pos_min = obj.location - obj.dimensions * 0.5
                     pos_max = obj.location + obj.dimensions * 0.5
                     location = (pos_max + pos_min) * 0.5
-                    radius = max(pos_max.x - pos_min.x, pos_max.y - pos_min.y) * 0.5
-                    height = pos_max.z - pos_min.z
                     collision['_collision_type'] = 'CYLINDER' if obj.display_bounds_type == 'CYLINDER' else 'BOX'
                     collision['_location'] = self.convert_axis(location)
-                    collision['_radius'] = radius
-                    collision['_height'] = height
+                    collision['_extents'] = self.convert_axis(obj.dimensions * 0.5)
                 elif 'BOUND_BOX' == obj.name:
                     pos_min = obj.location - obj.dimensions * 0.5
                     pos_max = obj.location + obj.dimensions * 0.5

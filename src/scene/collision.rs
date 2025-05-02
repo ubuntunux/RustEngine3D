@@ -1,4 +1,4 @@
-use nalgebra::{Matrix3, Vector2, Vector3};
+use nalgebra::{Matrix3, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
 
@@ -16,8 +16,7 @@ pub enum CollisionType {
 pub struct CollisionCreateInfo {
     pub _collision_type: CollisionType,
     pub _location: Vector3<f32>,
-    pub _radius: f32,
-    pub _height: f32
+    pub _extents: Vector3<f32>
 }
 
 impl Default for CollisionCreateInfo {
@@ -25,8 +24,7 @@ impl Default for CollisionCreateInfo {
         CollisionCreateInfo {
             _collision_type: CollisionType::NONE,
             _location: Vector3::zeros(),
-            _radius: 0.0,
-            _height: 0.0
+            _extents: Vector3::new(0.5, 0.5, 0.5)
         }
     }
 }
@@ -50,9 +48,8 @@ impl Default for CollisionData {
 
 impl CollisionData {
     pub fn create_collision(collision_info: &CollisionCreateInfo) -> CollisionData {
-        let offset = Vector3::new(collision_info._radius, collision_info._height * 0.5, collision_info._radius);
-        let pos_min = collision_info._location - offset;
-        let pos_max = collision_info._location + offset;
+        let pos_min = collision_info._location - collision_info._extents;
+        let pos_max = collision_info._location + collision_info._extents;
         CollisionData {
             _collision_type: collision_info._collision_type,
             _bounding_box: BoundingBox::create_bounding_box(&pos_min, &pos_max)
@@ -76,8 +73,6 @@ impl CollisionData {
         let other_radius = other._bounding_box._extents.x;
         let other_height = other._bounding_box._extents.y * 2.0;
 
-        return collide_box_with_box(self, other);
-
         if other._collision_type == CollisionType::CYLINDER {
             if self._collision_type == CollisionType::CYLINDER {
                 collide_cylinder_with_cylinder(&location, radius, height, &other_location, other_radius, other_height)
@@ -88,7 +83,8 @@ impl CollisionData {
             if self._collision_type == CollisionType::CYLINDER {
                 collide_box_with_cylinder(&other._bounding_box._min, &other._bounding_box._max, &location, radius, height)
             } else {
-                collide_aabb(&self._bounding_box._min, &self._bounding_box._max, &other._bounding_box._min, &other._bounding_box._max)
+                //collide_aabb(&self._bounding_box._min, &self._bounding_box._max, &other._bounding_box._min, &other._bounding_box._max)
+                collide_box_with_box(self, other)
             }
         }
     }
@@ -101,21 +97,11 @@ pub fn collide_aabb(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, 
 }
 
 pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
-    if !collide_aabb(&a._bounding_box._min, &a._bounding_box._max, &b._bounding_box._min, &b._bounding_box._max) {
-        return false;
-    }
-
-    if a._bounding_box._max.y < b._bounding_box._min.y || b._bounding_box._max.y < a._bounding_box._min.y  {
-        return false;
-    }
-
-    log::info!(">> collide_box_with_box");
-
     let a_rotation: &Matrix3<f32> = &a._bounding_box._orientation;
     let b_rotation: &Matrix3<f32> = &b._bounding_box._orientation;
 
-    let a_half_sizes: Vector3<f32> = a._bounding_box._extents.component_mul(&Vector3::new(1.0, 1.0, 0.3));
-    let b_half_sizes: Vector3<f32> = b._bounding_box._extents.component_mul(&Vector3::new(1.0, 1.0, 0.3));
+    let a_half_sizes: Vector3<f32> = a._bounding_box._extents;
+    let b_half_sizes: Vector3<f32> = b._bounding_box._extents;
 
     let to_a = a._bounding_box._center - b._bounding_box._center;
     let to_a_vertices: [Vector3<f32>; 4] = [
@@ -131,22 +117,17 @@ pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
          -b_rotation.column(0) * b_half_sizes[0] - b_rotation.column(2) * b_half_sizes[2] - to_a
     ];
 
-    log::info!("    to_a: {:?}", to_a);
-    log::info!("    a_half_sizes: {:?}, b_half_sizes: {:?}", a_half_sizes, b_half_sizes);
-
     for i in [0, 2] {
         let axis = Vector3::new(a_rotation.column(i)[0], a_rotation.column(i)[1], a_rotation.column(i)[2]);
         let mut dot_max = f32::MIN;
         let mut dot_min = f32::MAX;
         for to_b_vertex in to_b_vertices {
             let d = axis.dot(&to_b_vertex);
-            log::info!("    to_b [{}] axis: {:?}, to_b_vertex: {:?}, dot: {:?}", i, axis, to_b_vertex, d);
             dot_max = dot_max.max(d);
             dot_min = dot_min.min(d);
         }
 
         let found_seperate = a_half_sizes[i] < dot_min || dot_max < -a_half_sizes[i];
-        log::info!("    to_b [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_seperate, axis, -a_half_sizes[i], a_half_sizes[i], dot_min, dot_max);
         if found_seperate {
             return false;
         }
@@ -158,19 +139,15 @@ pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
         let mut dot_min = f32::MAX;
         for to_a_vertex in to_a_vertices {
             let d = axis.dot(&to_a_vertex);
-            log::info!("    to_a [{}] axis: {:?}, to_a_vertex: {:?}, dot: {:?}", i, axis, to_a_vertex, d);
             dot_max = dot_max.max(d);
             dot_min = dot_min.min(d);
         }
 
         let found_seperate = b_half_sizes[i] < dot_min || dot_max < -b_half_sizes[i];
-        log::info!("    to_a [{}] seperate {}, axis: {:?}, a_min: {:?}, a_max: {:?}, b_min: {:?}, b_max: {:?}", i, found_seperate, axis, -b_half_sizes[i], b_half_sizes[i], dot_min, dot_max);
         if found_seperate {
             return false;
         }
     }
-
-    log::info!("    Collid!!");
     true
 }
 
