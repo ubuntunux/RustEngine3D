@@ -64,6 +64,40 @@ impl CollisionData {
         self._collision_type != CollisionType::NONE
     }
 
+    pub fn collide_cylinder_with_point(&self, point: &Vector3<f32>) -> bool {
+        if self._bounding_box._max.y < point.y || point.y < self._bounding_box._min.y {
+            return false;
+        }
+
+        let to_point = &self._bounding_box._center;
+        let length_x = self._bounding_box._orientation.column(0).dot(&to_point) / self._bounding_box._extents.x;
+        let length_z = self._bounding_box._orientation.column(2).dot(&to_point) / self._bounding_box._extents.z;
+        (length_x * length_x + length_z * length_z) < 1.0
+    }
+
+    pub fn collide_box_with_point(&self, point: &Vector3<f32>) -> bool {
+        if self._bounding_box._max.y < point.y || point.y < self._bounding_box._min.y {
+            return false;
+        }
+        let to_point = &self._bounding_box._center;
+        self._bounding_box._orientation.column(0).dot(&to_point).abs() <= self._bounding_box._extents.x &&
+        self._bounding_box._orientation.column(2).dot(&to_point).abs() <= self._bounding_box._extents.z
+    }
+
+    pub fn collide_aabb(&self, other: &CollisionData) -> bool {
+        self._bounding_box._min.x < other._bounding_box._max.x && other._bounding_box._min.x < self._bounding_box._max.x &&
+        self._bounding_box._min.y < other._bounding_box._max.y && other._bounding_box._min.y < self._bounding_box._max.y &&
+        self._bounding_box._min.z < other._bounding_box._max.z && other._bounding_box._min.z < self._bounding_box._max.z
+    }
+
+    pub fn collide_point(&self, point: &Vector3<f32>) -> bool {
+        if self._collision_type == CollisionType::CYLINDER {
+            self.collide_cylinder_with_point(point)
+        } else {
+            self.collide_box_with_point(point)
+        }
+    }
+
     pub fn collide_collision(&self, other: &CollisionData) -> bool {
         let location = &self._bounding_box._center;
         let radius = self._bounding_box._extents.x;
@@ -87,12 +121,6 @@ impl CollisionData {
             }
         }
     }
-}
-
-pub fn collide_aabb(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, box_min_pos_b: &Vector3<f32>, box_max_pos_b: &Vector3<f32>) -> bool {
-    box_min_pos_a.x < box_max_pos_b.x && box_min_pos_b.x < box_max_pos_a.x &&
-    box_min_pos_a.y < box_max_pos_b.y && box_min_pos_b.y < box_max_pos_a.y &&
-    box_min_pos_a.z < box_max_pos_b.z && box_min_pos_b.z < box_max_pos_a.z
 }
 
 pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
