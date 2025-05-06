@@ -83,7 +83,6 @@ impl CollisionData {
             if self._collision_type == CollisionType::CYLINDER {
                 collide_box_with_cylinder(&other._bounding_box._min, &other._bounding_box._max, &location, radius, height)
             } else {
-                //collide_aabb(&self._bounding_box._min, &self._bounding_box._max, &other._bounding_box._min, &other._bounding_box._max)
                 collide_box_with_box(self, other)
             }
         }
@@ -97,6 +96,10 @@ pub fn collide_aabb(box_min_pos_a: &Vector3<f32>, box_max_pos_a: &Vector3<f32>, 
 }
 
 pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
+    if b._bounding_box._max.y < a._bounding_box._min.y || a._bounding_box._max.y < b._bounding_box._min.y {
+        return false;
+    }
+
     let a_rotation: &Matrix3<f32> = &a._bounding_box._orientation;
     let b_rotation: &Matrix3<f32> = &b._bounding_box._orientation;
 
