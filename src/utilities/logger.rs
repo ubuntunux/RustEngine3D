@@ -1,3 +1,4 @@
+use std::fs::File;
 #[cfg(not(target_os = "android"))]
 use chrono::Local;
 use env_logger;
@@ -20,18 +21,23 @@ pub fn initialize_logger(log_level: LevelFilter) {
 }
 #[cfg(not(target_os = "android"))]
 pub fn initialize_logger(log_level: LevelFilter) {
-    env_logger::Builder::new()
-        .format(|buffer, record| {
-            writeln!(
-                buffer,
-                "{} [{}] {} ({} line:{})",
-                Local::now().format("%Y-%m-%dT%H:%M:%S"),
-                record.level(),
-                record.args(),
-                record.file().unwrap(),
-                record.line().unwrap(),
-            )
-        })
-        .filter(None, log_level)
-        .init();
+    let mut builder = env_logger::Builder::new();
+    builder.format(|buffer, record| {
+        writeln!(
+            buffer,
+            "{} [{}] {} ({} line:{})",
+            Local::now().format("%Y-%m-%dT%H:%M:%S"),
+            record.level(),
+            record.args(),
+            record.file().unwrap(),
+            record.line().unwrap(),
+        )
+    });
+    builder.filter(None, log_level);
+
+    let log_file = File::create("log.txt").expect("Could not create log file");
+    let writer = std::io::BufWriter::new(log_file);
+    builder.target(env_logger::Target::Pipe(Box::new(writer)));
+
+    builder.init();
 }
