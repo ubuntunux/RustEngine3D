@@ -195,21 +195,19 @@ impl<'a> RendererContext<'a> {
                 surface,
                 &device_extensions,
                 &device_extensions_for_ray_tracing,
-            )
-            .unwrap();
-            let device_properties: vk::PhysicalDeviceProperties =
-                instance.get_physical_device_properties(physical_device);
-            let device_memory_properties: vk::PhysicalDeviceMemoryProperties =
-                instance.get_physical_device_memory_properties(physical_device);
+            ).unwrap();
+            let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
+            let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
             let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
             let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
 
             log::info!("PhysicalDeviceProperties");
             log::info!(
-                "    vulakn api_version: {}.{}.{}",
-                vk::api_version_major(device_properties.api_version),
-                vk::api_version_minor(device_properties.api_version),
-                vk::api_version_patch(device_properties.api_version)
+                "    device: {:?} {:?} vendor_id: {:?} device_id: {:?}",
+                device_name,
+                device_properties.device_type,
+                device_properties.vendor_id,
+                device_properties.device_id
             );
             log::info!(
                 "    driver_version: {}.{}.{}",
@@ -218,11 +216,10 @@ impl<'a> RendererContext<'a> {
                 vk::api_version_patch(device_properties.driver_version)
             );
             log::info!(
-                "    device: {:?} {:?} vendor_id: {:?} device_id: {:?}",
-                device_name,
-                device_properties.device_type,
-                device_properties.vendor_id,
-                device_properties.device_id
+                "    vulakn api_version: {}.{}.{}",
+                vk::api_version_major(device_properties.api_version),
+                vk::api_version_minor(device_properties.api_version),
+                vk::api_version_patch(device_properties.api_version)
             );
             log::info!("    limits: {:?}", device_properties.limits);
 

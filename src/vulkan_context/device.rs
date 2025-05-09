@@ -1,10 +1,11 @@
 use std::cmp::min;
+use std::collections::HashMap;
 use std::ffi::{c_void, CStr, CString};
 use std::os::raw::c_char;
-use std::vec::Vec;
 
 use ash::khr;
 use ash::{vk, Device, Entry, Instance};
+use ash::vk::PhysicalDeviceType;
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::window::Window;
 
@@ -311,30 +312,61 @@ pub fn select_physical_device(
     bool,
 )> {
     unsafe {
-        let physical_devices = instance
-            .enumerate_physical_devices()
-            .expect("Physical device error");
+        let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
         log::info!("Found {} physical devices.", physical_devices.len());
 
-        for physical_device in physical_devices {
-            let (result, swapchain_support_details, physical_device_features, enable_ray_tracing) =
-                is_device_suitable(
-                    instance,
-                    surface_instance,
-                    surface,
-                    physical_device,
-                    device_extension_names,
-                    ray_tracing_extension_names,
-                );
+        let mut physical_device_map: HashMap<PhysicalDeviceType, Vec<vk::PhysicalDevice>> = HashMap::new();
+        for (index, physical_device) in physical_devices.iter().enumerate() {
+            let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(*physical_device);
+            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
 
-            if result {
-                log::info!("Select physical devices: [{:?}]", physical_device);
-                return Some((
-                    physical_device,
-                    swapchain_support_details,
-                    physical_device_features,
-                    enable_ray_tracing,
-                ));
+            log::info!("    PhysicalDeviceProperties[{}] device: [{:?}] {:?} {:?} vendor_id: {:?} device_id: {:?}",
+                index,
+                physical_device,
+                device_name,
+                device_properties.device_type,
+                device_properties.vendor_id,
+                device_properties.device_id
+            );
+
+            if physical_device_map.contains_key(&device_properties.device_type) == false {
+                physical_device_map.insert(device_properties.device_type, Vec::new());
+            }
+            physical_device_map.get_mut(&device_properties.device_type)?.push(*physical_device);
+        }
+
+        let device_types_priority: [PhysicalDeviceType; 5] = [
+            PhysicalDeviceType::DISCRETE_GPU,
+            PhysicalDeviceType::INTEGRATED_GPU,
+            PhysicalDeviceType::VIRTUAL_GPU,
+            PhysicalDeviceType::OTHER,
+            PhysicalDeviceType::CPU
+        ];
+
+        // find suitable physical device
+        for device_type in device_types_priority {
+            if let Some(physical_devices) = physical_device_map.get(&device_type) {
+                for physical_device in physical_devices {
+                    let (result, swapchain_support_details, physical_device_features, enable_ray_tracing) =
+                        is_device_suitable(
+                            instance,
+                            surface_instance,
+                            surface,
+                            *physical_device,
+                            device_extension_names,
+                            ray_tracing_extension_names,
+                        );
+
+                    if result {
+                        log::info!("Select physical device: {:?} {:?}", physical_device, device_type);
+                        return Some((
+                            *physical_device,
+                            swapchain_support_details,
+                            physical_device_features,
+                            enable_ray_tracing,
+                        ));
+                    }
+                }
             }
         }
     }

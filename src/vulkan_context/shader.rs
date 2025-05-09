@@ -12,6 +12,7 @@ use ash::ext;
 use ash::vk::Handle;
 use ash::{vk, Device};
 use regex::Regex;
+use crate::constants::IS_SHIPPING_BUILD;
 
 pub fn spirv_file_path_with_defines(
     is_engine_resource: bool,
@@ -101,7 +102,7 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
 
     // check need to compile
     #[cfg(not(target_os = "android"))]
-    let need_to_compile: bool = if spirv_file_path.is_file() {
+    let need_to_compile: bool = unsafe { IS_SHIPPING_BUILD == false } && if spirv_file_path.is_file() {
         let spirv_file_modified_time = fs::metadata(&spirv_file_path).unwrap().modified().unwrap();
         let mut recent_modified_time = fs::metadata(&shader_file_path).unwrap().modified().unwrap();
         for included_file_path in included_files.iter() {
@@ -127,8 +128,7 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
             spirv_file_path
         );
 
-        fs::create_dir_all(spirv_file_path.parent().unwrap())
-            .expect("Failed to create directories.");
+        fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
 
         let validator_exe = match which::which("glslangValidator") {
             Ok(path) => path,
