@@ -101,7 +101,6 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
     }
 
     // check need to compile
-    #[cfg(not(target_os = "android"))]
     let need_to_compile: bool = !IS_SHIPPING_BUILD && if spirv_file_path.is_file() {
         let spirv_file_modified_time = fs::metadata(&spirv_file_path).unwrap().modified().unwrap();
         let mut recent_modified_time = fs::metadata(&shader_file_path).unwrap().modified().unwrap();
