@@ -35,7 +35,7 @@ pub fn initialize_logger(log_level: LevelFilter) {
     });
     builder.filter(None, log_level);
 
-    let log_file = File::create("log.txt").expect("Could not create log file");
+    let log_file = File::create(".log").expect("Could not create log file");
     let writer = std::io::BufWriter::new(log_file);
     builder.target(env_logger::Target::Pipe(Box::new(writer)));
 
