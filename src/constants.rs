@@ -1,5 +1,6 @@
 use ash::vk;
 
+pub const IS_SHIPPING_BUILD: bool = false;
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub const DEPTH_FORMATS: [vk::Format; 2] = [
@@ -33,7 +34,6 @@ pub const MAX_FRAME_COUNT: u64 = 2;
 pub const FRAME_INDICES: [u64; MAX_FRAME_COUNT as usize] = [0, 1];
 
 // application configs - default values
-pub static mut IS_SHIPPING_BUILD: bool = false;
 pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::empty();
 pub static mut REQUIRED_INSTANCE_LAYERS: Vec<String> = Vec::new();
