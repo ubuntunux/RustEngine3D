@@ -99,23 +99,15 @@ impl CollisionData {
     }
 
     pub fn collide_collision(&self, other: &CollisionData) -> bool {
-        let location = &self._bounding_box._center;
-        let radius = self._bounding_box._extents.x;
-        let height = self._bounding_box._extents.y * 2.0;
-
-        let other_location = &other._bounding_box._center;
-        let other_radius = other._bounding_box._extents.x;
-        let other_height = other._bounding_box._extents.y * 2.0;
-
         if other._collision_type == CollisionType::CYLINDER {
             if self._collision_type == CollisionType::CYLINDER {
-                collide_cylinder_with_cylinder(&location, radius, height, &other_location, other_radius, other_height)
+                collide_cylinder_with_cylinder(self, other)
             } else {
-                collide_box_with_cylinder(&self._bounding_box._min, &self._bounding_box._max, &other_location, other_radius, other_height)
+                collide_box_with_cylinder(self, other)
             }
         } else {
             if self._collision_type == CollisionType::CYLINDER {
-                collide_box_with_cylinder(&other._bounding_box._min, &other._bounding_box._max, &location, radius, height)
+                collide_box_with_cylinder(other, self)
             } else {
                 collide_box_with_box(self, other)
             }
@@ -182,38 +174,42 @@ pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
     true
 }
 
-pub fn collide_box_with_cylinder(box_min_pos: &Vector3<f32>, box_max_pos: &Vector3<f32>, cylinder_pos: &Vector3<f32>, radius: f32, height: f32) -> bool {
-    let cylinder_min_y = cylinder_pos.y - height * 0.5;
-    let cylinder_max_y = cylinder_pos.y + height * 0.5;
-
-    if cylinder_max_y < box_min_pos.y || box_max_pos.y < cylinder_min_y {
+pub fn collide_box_with_cylinder(a_box: &CollisionData, b_cylinder: &CollisionData) -> bool {
+    if b_cylinder._bounding_box._max.y < a_box._bounding_box._min.y || a_box._bounding_box._max.y < b_cylinder._bounding_box._min.y {
         return false;
     }
 
-    // Find the closest point on the rectangle to the circle
-    let closest_x = box_min_pos.x.max(box_max_pos.x.min(cylinder_pos.x));
-    let closest_z = box_min_pos.z.max(box_max_pos.z.min(cylinder_pos.z));
+    let a_box_axis_x = a_box._bounding_box._orientation.column(0);
+    let a_box_axis_z = a_box._bounding_box._orientation.column(2);
 
-    // Calculate the distance from the circle's center to this point
-    let distance_x = cylinder_pos.x - closest_x;
-    let distance_z = cylinder_pos.z - closest_z;
+    let a_box_half_sizes: Vector3<f32> = a_box._bounding_box._extents;
+    let b_cylinder_radius: f32 = b_cylinder._bounding_box._extents.x.max(b_cylinder._bounding_box._extents.z);
+    let to_a_box = a_box._bounding_box._center - b_cylinder._bounding_box._center;
 
-    // Check if the distance is less than or equal to the circle's radius
-    //(distance_x * distance_x + distance_z * distance_z) <= (radius * radius)
-    distance_x.abs() <= radius && distance_z.abs() <= radius
+    let to_box_pos_x0 = to_a_box + a_box_axis_x * a_box_half_sizes.x;
+    let to_box_pos_x1 = to_a_box - a_box_axis_x * a_box_half_sizes.x;
+    let to_box_pos_z0 = to_a_box + a_box_axis_z * a_box_half_sizes.z;
+    let to_box_pos_z1 = to_a_box - a_box_axis_z * a_box_half_sizes.z;
+
+    let d_x0 = a_box_axis_x.dot(&to_box_pos_x0).abs();
+    let d_x1 = a_box_axis_x.dot(&to_box_pos_x1).abs();
+    let distance_x = d_x0.min(d_x1);
+
+    let d_z0 = a_box_axis_z.dot(&to_box_pos_z0).abs();
+    let d_z1 = a_box_axis_z.dot(&to_box_pos_z1).abs();
+    let distance_z = d_z0.min(d_z1);
+
+    distance_x.abs() <= b_cylinder_radius && distance_z.abs() <= b_cylinder_radius
 }
 
-pub fn collide_cylinder_with_cylinder(cylinder_pos_a: &Vector3<f32>, radius_a: f32, height_a: f32, cylinder_pos_b: &Vector3<f32>, radius_b: f32, height_b: f32) -> bool {
-    let cylinder_a_min_y = cylinder_pos_a.y - height_a * 0.5;
-    let cylinder_a_max_y = cylinder_pos_a.y + height_a * 0.5;
-    let cylinder_b_min_y = cylinder_pos_b.y - height_b * 0.5;
-    let cylinder_b_max_y = cylinder_pos_b.y + height_b * 0.5;
-
-    if cylinder_a_max_y < cylinder_b_min_y || cylinder_b_max_y < cylinder_a_min_y {
+pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> bool {
+    if b._bounding_box._max.y < a._bounding_box._min.y || a._bounding_box._max.y < b._bounding_box._min.y {
         return false;
     }
 
-    let distance_x = cylinder_pos_a.x - cylinder_pos_b.x;
-    let distance_z = cylinder_pos_a.z - cylinder_pos_b.z;
-    (distance_x * distance_x + distance_z * distance_z) <= (radius_a * radius_a + radius_b * radius_b)
+    let a_radius: f32 = a._bounding_box._extents.x.max(a._bounding_box._extents.z);
+    let b_radius: f32 = b._bounding_box._extents.x.max(b._bounding_box._extents.z);
+
+    let to_a = a._bounding_box._center - b._bounding_box._center;
+    (to_a.x * to_a.x + to_a.z * to_a.z) <= (a_radius * a_radius + b_radius * b_radius)
 }
