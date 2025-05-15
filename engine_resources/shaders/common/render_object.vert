@@ -22,7 +22,7 @@ void main() {
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
 
-    const uint transform_offset_index = pushConstant._transform_offset_index + gl_InstanceIndex;
+    const uint transform_offset_index = pushConstant._push_constant_base._transform_offset_index + gl_InstanceIndex;
 #if (RenderMode_CaptureHeightMap == RenderMode)
     const uint transform_matrix_offset = transform_offsets[transform_offset_index].z;
 #elif (RenderMode_Shadow == RenderMode)
@@ -35,9 +35,9 @@ void main() {
     const uint local_matrix_prev_offset = transform_matrix_offset;
     const uint local_matrix_offset = local_matrix_prev_offset + 1;
     const uint prev_bone_matrix_offset = local_matrix_offset + 1;
-    const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._bone_count;
+    const uint bone_matrix_offset = prev_bone_matrix_offset + pushConstant._push_constant_base._bone_count;
 
-    if (0 < pushConstant._bone_count)
+    if (0 < pushConstant._push_constant_base._bone_count)
     {
         for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
         {

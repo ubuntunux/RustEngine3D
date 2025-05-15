@@ -34,13 +34,18 @@ layout(binding = 6) uniform AtmosphereConstants
 };
 #endif
 
-layout( push_constant ) uniform PushConstant_RenderObject
+struct PushConstant_RenderObjectBase
 {
     uint _transform_offset_index;
     uint _bone_count;
     uint _reserved0;
     uint _reserved1;
     vec4 _color;
+};
+
+layout( push_constant ) uniform PushConstant_RenderObject
+{
+    PushConstant_RenderObjectBase _push_constant_base;
 } pushConstant;
 
 struct VERTEX_OUTPUT

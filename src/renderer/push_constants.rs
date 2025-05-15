@@ -80,7 +80,7 @@ impl<T> PushConstantSize for T {
 #[allow(non_camel_case_types)]
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
-pub struct PushConstant_RenderObject {
+pub struct PushConstant_RenderObjectBase {
     pub _transform_offset_index: u32,
     pub _bone_count: u32,
     pub _reserved0: u32,
@@ -88,9 +88,9 @@ pub struct PushConstant_RenderObject {
     pub _color: Vector4<f32>,
 }
 
-impl Default for PushConstant_RenderObject {
-    fn default() -> PushConstant_RenderObject {
-        PushConstant_RenderObject {
+impl Default for PushConstant_RenderObjectBase {
+    fn default() -> PushConstant_RenderObjectBase {
+        PushConstant_RenderObjectBase {
             _transform_offset_index: 0,
             _bone_count: 0,
             _reserved0: 0,
@@ -100,13 +100,13 @@ impl Default for PushConstant_RenderObject {
     }
 }
 
-impl PushConstantName for PushConstant_RenderObject {
+impl PushConstantName for PushConstant_RenderObjectBase {
     fn get_push_constant_name(&self) -> &str {
-        "PushConstant_RenderObject"
+        "PushConstant_RenderObjectBase"
     }
 }
 
-impl PushConstant for PushConstant_RenderObject {
+impl PushConstant for PushConstant_RenderObjectBase {
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
         if "_transform_offset_index" == key {
             if let PushConstantParameter::Int(transform_offset_index) = value {
@@ -121,15 +121,42 @@ impl PushConstant for PushConstant_RenderObject {
         }
     }
 
-    fn update_material_parameters(
-        &mut self,
-        material_parameters: &serde_json::Map<String, serde_json::Value>,
-    ) {
-        if let PushConstantParameter::Float4(value) =
-            convert_json_value_to_push_constant_parameter(material_parameters, "_color")
-        {
+    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
+        if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
             self._color = value;
         }
+    }
+}
+
+#[repr(C)]
+#[allow(non_camel_case_types)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
+#[serde(default)]
+pub struct PushConstant_RenderObject {
+    pub _push_constant_base: PushConstant_RenderObjectBase
+}
+
+impl Default for PushConstant_RenderObject {
+    fn default() -> PushConstant_RenderObject {
+        PushConstant_RenderObject {
+            _push_constant_base: PushConstant_RenderObjectBase::default()
+        }
+    }
+}
+
+impl PushConstantName for PushConstant_RenderObject {
+    fn get_push_constant_name(&self) -> &str {
+        "PushConstant_RenderObject"
+    }
+}
+
+impl PushConstant for PushConstant_RenderObject {
+    fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
+        self._push_constant_base.set_push_constant_parameter(key, value);
+    }
+
+    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
+        self._push_constant_base.update_material_parameters(material_parameters);
     }
 }
 
