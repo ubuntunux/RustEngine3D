@@ -1,6 +1,7 @@
 use nalgebra::{Matrix3, Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
+use crate::utilities::math;
 
 #[repr(i32)]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -183,23 +184,32 @@ pub fn collide_box_with_cylinder(a_box: &CollisionData, b_cylinder: &CollisionDa
     let a_box_axis_z = a_box._bounding_box._orientation.column(2);
 
     let a_box_half_sizes: Vector3<f32> = a_box._bounding_box._extents;
-    let b_cylinder_radius: f32 = b_cylinder._bounding_box._extents.x.max(b_cylinder._bounding_box._extents.z);
-    let to_a_box = a_box._bounding_box._center - b_cylinder._bounding_box._center;
+    let to_a_box = math::make_vector_xz(&(a_box._bounding_box._center - b_cylinder._bounding_box._center));
+    let b_cylinder_radius_dir = b_cylinder._bounding_box._orientation.column(0).dot(&to_a_box.normalize()).abs();
+    let b_cylinder_radius: f32 = math::lerp(b_cylinder._bounding_box._extents.z, b_cylinder._bounding_box._extents.x, b_cylinder_radius_dir);
 
     let to_box_pos_x0 = to_a_box + a_box_axis_x * a_box_half_sizes.x;
     let to_box_pos_x1 = to_a_box - a_box_axis_x * a_box_half_sizes.x;
     let to_box_pos_z0 = to_a_box + a_box_axis_z * a_box_half_sizes.z;
     let to_box_pos_z1 = to_a_box - a_box_axis_z * a_box_half_sizes.z;
 
-    let d_x0 = a_box_axis_x.dot(&to_box_pos_x0).abs();
-    let d_x1 = a_box_axis_x.dot(&to_box_pos_x1).abs();
-    let distance_x = d_x0.min(d_x1);
+    let d_x0 = a_box_axis_x.dot(&to_box_pos_x0);
+    let d_x1 = a_box_axis_x.dot(&to_box_pos_x1);
+    let distance_x = if d_x0.signum() != d_x1.signum() {
+        0.0
+    } else {
+        d_x0.abs().min(d_x1.abs())
+    };
 
-    let d_z0 = a_box_axis_z.dot(&to_box_pos_z0).abs();
-    let d_z1 = a_box_axis_z.dot(&to_box_pos_z1).abs();
-    let distance_z = d_z0.min(d_z1);
+    let d_z0 = a_box_axis_z.dot(&to_box_pos_z0);
+    let d_z1 = a_box_axis_z.dot(&to_box_pos_z1);
+    let distance_z = if d_z0.signum() != d_z1.signum() {
+        0.0
+    } else {
+        d_z0.abs().min(d_z1.abs())
+    };
 
-    distance_x.abs() <= b_cylinder_radius && distance_z.abs() <= b_cylinder_radius
+    (distance_x * distance_x + distance_z * distance_z) <= b_cylinder_radius * b_cylinder_radius
 }
 
 pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> bool {
@@ -207,9 +217,10 @@ pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> b
         return false;
     }
 
-    let a_radius: f32 = a._bounding_box._extents.x.max(a._bounding_box._extents.z);
-    let b_radius: f32 = b._bounding_box._extents.x.max(b._bounding_box._extents.z);
-
-    let to_a = a._bounding_box._center - b._bounding_box._center;
+    let to_a = math::make_vector_xz(&(a._bounding_box._center - b._bounding_box._center));
+    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let a_radius: f32 = math::lerp(a._bounding_box._extents.z, a._bounding_box._extents.x, a_radius_dir);
+    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let b_radius: f32 = math::lerp(b._bounding_box._extents.z, b._bounding_box._extents.x, b_radius_dir);
     (to_a.x * to_a.x + to_a.z * to_a.z) <= (a_radius * a_radius + b_radius * b_radius)
 }
