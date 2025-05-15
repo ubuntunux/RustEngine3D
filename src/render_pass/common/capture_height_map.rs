@@ -22,13 +22,14 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_color_clear_value(0.5, 1.0, 0.5, 0.0)),
-        }],
-        &[RenderTargetInfo {
+        },
+        RenderTargetInfo {
             _texture_data: renderer_data.get_render_target(RenderTargetType::CaptureHeightMap),
             _target_layer: 0,
             _target_mip_level: 0,
-            _clear_value: Some(vulkan_context::get_default_depth_clear_value()),
+            _clear_value: Some(vulkan_context::get_color_clear_zero()),
         }],
+        &[],
         &[],
     )
 }
@@ -60,26 +61,14 @@ pub fn get_render_pass_data_create_info(
             ..Default::default()
         });
     }
-    let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
-        depth_attachment_descriptions.push(ImageAttachmentDescription {
-            _attachment_image_format: *format,
-            _attachment_image_samples: sample_count,
-            _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
-            _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-            _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
-            _attachment_final_layout: vk::ImageLayout::GENERAL,
-            _attachment_reference_layout: vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
-            ..Default::default()
-        });
-    }
+    let depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     let subpass_dependencies = vec![
         vk::SubpassDependency {
             src_subpass: 0,
             dst_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_stage_mask: vk::PipelineStageFlags::ALL_GRAPHICS | vk::PipelineStageFlags::TRANSFER,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::TRANSFER_READ,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
@@ -98,7 +87,10 @@ pub fn get_render_pass_data_create_info(
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::BACK,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-        _pipeline_color_blend_modes: vec![vulkan_context::get_color_blend_mode(BlendMode::None); color_attachment_descriptions.len()],
+        _pipeline_color_blend_modes: vec![
+            vulkan_context::get_color_blend_mode(BlendMode::None),
+            vulkan_context::get_color_blend_mode(BlendMode::MaxDepth)
+        ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),

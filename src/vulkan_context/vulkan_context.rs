@@ -17,6 +17,7 @@ pub enum BlendMode {
     None,
     AlphaBlend,
     Additive,
+    MaxDepth,
     PreMultipliedAlpha,
 }
 
@@ -68,6 +69,16 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
             color_write_mask: vk::ColorComponentFlags::R
                 | vk::ColorComponentFlags::G
                 | vk::ColorComponentFlags::B,
+        },
+        BlendMode::MaxDepth => vk::PipelineColorBlendAttachmentState {
+            blend_enable: vk::TRUE,
+            src_color_blend_factor: vk::BlendFactor::ONE,
+            dst_color_blend_factor: vk::BlendFactor::ONE,
+            color_blend_op: vk::BlendOp::MAX,
+            src_alpha_blend_factor: vk::BlendFactor::ONE,
+            dst_alpha_blend_factor: vk::BlendFactor::ONE,
+            alpha_blend_op: vk::BlendOp::MAX,
+            color_write_mask: vk::ColorComponentFlags::R
         },
         BlendMode::PreMultipliedAlpha => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,

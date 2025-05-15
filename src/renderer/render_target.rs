@@ -312,7 +312,7 @@ pub fn get_render_target_create_infos(
             _texture_name: RenderTargetType::CaptureHeightMap.to_string(),
             _texture_width: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
-            _texture_format: vk::Format::D32_SFLOAT,
+            _texture_format: vk::Format::R32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
             ..Default::default()
         },

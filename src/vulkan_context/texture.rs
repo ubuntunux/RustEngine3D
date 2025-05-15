@@ -246,7 +246,7 @@ pub fn get_transition_dependent(
         },
         ImageLayoutTransition::TransferUndefToColorAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
-            _new_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            _new_layout: vk::ImageLayout::GENERAL, // vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
             _src_access_mask: vk::AccessFlags::empty(),
             _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
@@ -841,7 +841,7 @@ pub fn create_image(
             array_layers: layer_count,
             format,
             tiling,
-            initial_layout: vk::ImageLayout::GENERAL,
+            initial_layout: vk::ImageLayout::UNDEFINED,
             usage,
             sharing_mode: vk::SharingMode::EXCLUSIVE,
             samples,
@@ -1382,7 +1382,7 @@ pub fn read_texture_data(
     let texture_raw_data;
     let element_count = texture_data._image_width * texture_data._image_height;
     match texture_data._image_format {
-        Format::D32_SFLOAT => {
+        Format::D32_SFLOAT | Format::R32_SFLOAT => {
             let mut read_data: Vec<f32> = vec![0.0; element_count as usize];
             buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
             texture_raw_data = TextureRawData::R32(read_data);
