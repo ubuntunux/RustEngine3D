@@ -723,20 +723,16 @@ pub fn create_graphics_pipeline_data<'a>(
     }];
 
     unsafe {
-        let graphics_pipelines = device
-            .create_graphics_pipelines(
+        let graphics_pipelines = device.create_graphics_pipelines(
                 vk::PipelineCache::null(),
                 &graphics_pipeline_create_info,
                 None,
-            )
-            .expect("vkCreateGraphicsPipelines failed!");
+            ).expect("vkCreateGraphicsPipelines failed!");
         assert_eq!(1, graphics_pipelines.len());
 
         debug_utils::set_object_debug_info(
             debug_utils_device,
-            pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .as_str(),
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::ObjectType::PIPELINE,
             graphics_pipelines[0].as_raw(),
         );
@@ -761,9 +757,7 @@ pub fn create_graphics_pipeline_data<'a>(
         );
 
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .clone(),
+            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _vertex_shader_create_info: vertex_shader_create_info,
             _fragment_shader_create_info: fragment_shader_create_info,
             _pipeline: graphics_pipelines[0],

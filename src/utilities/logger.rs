@@ -5,6 +5,7 @@ use env_logger;
 use log::LevelFilter;
 #[cfg(not(target_os = "android"))]
 use std::io::Write;
+use crate::constants::IS_SHIPPING_BUILD;
 
 #[cfg(target_os = "android")]
 pub fn initialize_logger(log_level: LevelFilter) {
@@ -35,9 +36,13 @@ pub fn initialize_logger(log_level: LevelFilter) {
     });
     builder.filter(None, log_level);
 
-    let log_file = File::create(".log").expect("Could not create log file");
-    let writer = std::io::BufWriter::new(log_file);
-    builder.target(env_logger::Target::Pipe(Box::new(writer)));
+    if IS_SHIPPING_BUILD {
+        let log_file = File::create(".log").expect("Could not create log file");
+        let writer = std::io::BufWriter::new(log_file);
+        builder.target(env_logger::Target::Pipe(Box::new(writer)));
+    } else {
+        builder.target(env_logger::Target::Stdout);
+    }
 
     builder.init();
 }

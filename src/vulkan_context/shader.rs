@@ -74,7 +74,7 @@ pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
     };
 }
 
-pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec<u8> {
+pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String], stage_flag: vk::ShaderStageFlags) -> Vec<u8> {
     //log::info!("compile_glsl: {:?}", shader_filename);
 
     let (is_engine_resource, shader_file_path) = get_shader_file_path(shader_filename);
@@ -139,14 +139,27 @@ pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String]) -> Vec
         command.arg("-o");
         command.arg(spirv_file_path.to_str().unwrap());
         command.arg(shader_file_path.to_str().unwrap());
-        let shader_define_args: Vec<String> = shader_defines
-            .iter()
-            .map(|shader_define| {
-                let mut arg = shader_define.clone().replace(" ", "");
-                arg.insert_str(0, "-D");
-                arg
-            })
-            .collect();
+
+        const SHADER_STAGE_FLAGS:  [vk::ShaderStageFlags; 6] = [
+            vk::ShaderStageFlags::VERTEX,
+            vk::ShaderStageFlags::TESSELLATION_CONTROL,
+            vk::ShaderStageFlags::TESSELLATION_EVALUATION,
+            vk::ShaderStageFlags::GEOMETRY,
+            vk::ShaderStageFlags::FRAGMENT,
+            vk::ShaderStageFlags::COMPUTE
+        ];
+
+        for shader_stage_flag in SHADER_STAGE_FLAGS.iter() {
+            command.arg(format!("-D{:?}={:?}", shader_stage_flag, shader_stage_flag.as_raw()));
+        }
+        command.arg(format!("-DSHADER_STAGE_FLAG={:?}", stage_flag));
+
+        let shader_define_args: Vec<String> = shader_defines.iter().map(|shader_define| {
+            let mut arg = shader_define.clone().replace(" ", "");
+            arg.insert_str(0, "-D");
+            arg
+        }).collect();
+
         for shader_define_arg in shader_define_args.iter() {
             command.arg(shader_define_arg);
         }
@@ -185,19 +198,17 @@ pub fn create_shader_stage_create_info<'a>(
     debug_utils_device: &ext::debug_utils::Device,
     shader_filename: &PathBuf,
     shader_defines: &[String],
-    stage_flag: vk::ShaderStageFlags,
+    stage_flag: vk::ShaderStageFlags
 ) -> vk::PipelineShaderStageCreateInfo<'a> {
     // ex) shaderDefines = ["STATIC_MESH", "RENDER_SHADOW=true", "SAMPLES=16"]
-    let code_buffer = compile_glsl(shader_filename, shader_defines);
+    let code_buffer = compile_glsl(shader_filename, shader_defines, stage_flag);
     let shader_module_create_info = vk::ShaderModuleCreateInfo {
         code_size: code_buffer.len(),
         p_code: code_buffer.as_ptr() as *const u32,
         ..Default::default()
     };
     unsafe {
-        let shader_module = device
-            .create_shader_module(&shader_module_create_info, None)
-            .expect("vkCreateShaderModule failed!");
+        let shader_module = device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
         let shader_module_name: PathBuf = get_shader_module_name(&shader_filename, &shader_defines);
         debug_utils::set_object_debug_info(
             debug_utils_device,
