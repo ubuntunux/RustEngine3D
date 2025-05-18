@@ -9,7 +9,7 @@ use nalgebra::{Matrix4, Vector2, Vector4};
 use crate::constants;
 use crate::constants::MAX_FRAME_COUNT;
 use crate::effect::effect_manager::EffectManager;
-use crate::render_pass::common::{depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
+use crate::render_pass::render_object::{depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
 use crate::render_pass::ray_tracing::ray_tracing;
 use crate::render_pass::render_pass;
 use crate::renderer::push_constants::{

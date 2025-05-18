@@ -1,7 +1,7 @@
 use ash::vk;
 
 use crate::effect::effect_data::{ParticleBlendMode, ParticleGeometryType};
-use crate::render_pass::{common, effect, fft_ocean, precomputed_atmosphere, ray_tracing};
+use crate::render_pass::{common, effect, fft_ocean, precomputed_atmosphere, ray_tracing, render_object};
 use crate::renderer::renderer_data::RenderObjectType;
 use crate::renderer::renderer_data::RendererData;
 use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
@@ -100,69 +100,69 @@ pub fn get_render_pass_data_create_infos(
         common::render_final::get_render_pass_data_create_info(renderer_data),
         common::render_gaussian_blur::get_render_pass_data_create_info(renderer_data),
         common::render_motion_blur::get_render_pass_data_create_info(renderer_data),
-        common::depth_prepass::get_render_pass_data_create_info(
+        render_object::depth_prepass::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
         ),
-        common::depth_prepass::get_render_pass_data_create_info(
+        render_object::depth_prepass::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
         ),
-        common::render_gbuffer::get_render_pass_data_create_info(
+        render_object::render_gbuffer::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
         ),
-        common::render_gbuffer::get_render_pass_data_create_info(
+        render_object::render_gbuffer::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
         ),
-        common::render_forward::get_render_pass_data_create_info(
+        render_object::render_forward::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
         ),
-        common::render_forward::get_render_pass_data_create_info(
+        render_object::render_forward::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
         ),
-        common::render_forward_for_light_probe::get_render_pass_data_create_info(
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
             0,
         ),
-        common::render_forward_for_light_probe::get_render_pass_data_create_info(
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
             1,
         ),
-        common::render_forward_for_light_probe::get_render_pass_data_create_info(
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
             2,
         ),
-        common::render_forward_for_light_probe::get_render_pass_data_create_info(
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
             3,
         ),
-        common::render_forward_for_light_probe::get_render_pass_data_create_info(
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
             4,
         ),
-        common::render_forward_for_light_probe::get_render_pass_data_create_info(
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
             5,
         ),
-        common::render_shadow::get_render_pass_data_create_info(
+        render_object::render_shadow::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
         ),
-        common::render_shadow::get_render_pass_data_create_info(
+        render_object::render_shadow::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
         ),
-        common::capture_height_map::get_render_pass_data_create_info(
+        render_object::capture_height_map::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
         ),

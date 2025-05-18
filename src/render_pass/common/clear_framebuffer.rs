@@ -17,53 +17,46 @@ pub fn get_framebuffer_data_create_info(
 ) -> FramebufferDataCreateInfo {
     let light_probe_depth_only: bool = true;
     match framebuffer_name {
-        "clear_gbuffer" => render_pass::common::render_gbuffer::get_framebuffer_data_create_info(
-            renderer_data,
-            true,
-        ),
-        "clear_shadow" => {
-            render_pass::common::render_shadow::get_framebuffer_data_create_info(renderer_data)
-        }
-        "clear_capture_height_map" => {
-            render_pass::common::capture_height_map::get_framebuffer_data_create_info(renderer_data)
-        }
+        "clear_gbuffer" => render_pass::render_object::render_gbuffer::get_framebuffer_data_create_info(renderer_data, true),
+        "clear_shadow" => render_pass::render_object::render_shadow::get_framebuffer_data_create_info(renderer_data),
+        "clear_capture_height_map" => render_pass::render_object::capture_height_map::get_framebuffer_data_create_info(renderer_data),
         "clear_light_probe_depth_0" => {
-            render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(
+            render_pass::render_object::render_forward_for_light_probe::get_framebuffer_data_create_info(
                 renderer_data,
                 0,
                 light_probe_depth_only,
             )
         }
         "clear_light_probe_depth_1" => {
-            render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(
+            render_pass::render_object::render_forward_for_light_probe::get_framebuffer_data_create_info(
                 renderer_data,
                 1,
                 light_probe_depth_only,
             )
         }
         "clear_light_probe_depth_2" => {
-            render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(
+            render_pass::render_object::render_forward_for_light_probe::get_framebuffer_data_create_info(
                 renderer_data,
                 2,
                 light_probe_depth_only,
             )
         }
         "clear_light_probe_depth_3" => {
-            render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(
+            render_pass::render_object::render_forward_for_light_probe::get_framebuffer_data_create_info(
                 renderer_data,
                 3,
                 light_probe_depth_only,
             )
         }
         "clear_light_probe_depth_4" => {
-            render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(
+            render_pass::render_object::render_forward_for_light_probe::get_framebuffer_data_create_info(
                 renderer_data,
                 4,
                 light_probe_depth_only,
             )
         }
         "clear_light_probe_depth_5" => {
-            render_pass::common::render_forward_for_light_probe::get_framebuffer_data_create_info(
+            render_pass::render_object::render_forward_for_light_probe::get_framebuffer_data_create_info(
                 renderer_data,
                 5,
                 light_probe_depth_only,

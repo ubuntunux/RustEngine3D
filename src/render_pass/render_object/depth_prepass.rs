@@ -2,7 +2,6 @@ use std::path::PathBuf;
 
 use ash::vk;
 
-use crate::constants::{SHADOW_DEPTH_BIAS, SHADOW_DEPTH_SLOPE_BIAS};
 use crate::renderer::push_constants::PushConstant_RenderObject;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData};
@@ -21,7 +20,7 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
     framebuffer::create_framebuffer_data_create_info(
         &[],
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::Shadow),
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
             _target_layer: 0,
             _target_mip_level: 0,
             _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(0.0, 0)),
@@ -32,8 +31,8 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 
 pub fn get_render_pass_name(render_object_type: RenderObjectType) -> &'static str {
     match render_object_type {
-        RenderObjectType::Static => "render_pass_static_shadow",
-        RenderObjectType::Skeletal => "render_pass_skeletal_shadow",
+        RenderObjectType::Static => "depth_prepass_static",
+        RenderObjectType::Skeletal => "depth_prepass_skeletal",
     }
 }
 
@@ -47,7 +46,8 @@ pub fn get_render_pass_data_create_info(
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info
         ._framebuffer_depth_attachment_formats
-        .iter() {
+        .iter()
+    {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -81,22 +81,23 @@ pub fn get_render_pass_data_create_info(
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
     ];
+
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("render_object"),
-        _pipeline_vertex_shader_file: PathBuf::from("common/render_object.vert"),
-        _pipeline_fragment_shader_file: PathBuf::from("common/render_object.frag"),
+        _pipeline_vertex_shader_file: PathBuf::from("render_object/render_object.vert"),
+        _pipeline_fragment_shader_file: PathBuf::from("render_object/render_object.frag"),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_shader_defines: vec![
-            format!("RenderMode={:?}", RenderMode::Shadow as i32),
+            format!("RenderMode={:?}", RenderMode::DepthPrepass as i32),
             format!("RenderObjectType={:?}", render_object_type as i32),
         ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        _pipeline_cull_mode: vk::CullModeFlags::FRONT,
-        _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
-        _pipeline_depth_bias_constant_factor: unsafe { SHADOW_DEPTH_BIAS },
-        _pipeline_depth_bias_clamp: -1000.0,
-        _pipeline_depth_bias_slope_factor: unsafe { SHADOW_DEPTH_SLOPE_BIAS },
+        _pipeline_cull_mode: vk::CullModeFlags::BACK,
+        _pipeline_front_face: vk::FrontFace::CLOCKWISE,
+        _pipeline_depth_bias_constant_factor: 0.0,
+        _pipeline_depth_bias_clamp: 0.0,
+        _pipeline_depth_bias_slope_factor: 0.0,
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),

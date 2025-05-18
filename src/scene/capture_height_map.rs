@@ -1,6 +1,6 @@
 use ash::vk;
 use nalgebra::{Matrix4, Vector4};
-use crate::render_pass::common::capture_height_map;
+use crate::render_pass::render_object::capture_height_map;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{RenderObjectType, RendererData};

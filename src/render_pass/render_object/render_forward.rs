@@ -17,65 +17,37 @@ use crate::renderer::renderer_data::RendererData;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType};
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
-pub fn get_framebuffer_data_create_info(
-    renderer_data: &RendererData,
-    layer: u32,
-    light_probe_depth_only: bool,
-) -> FramebufferDataCreateInfo {
+pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
-        &(if light_probe_depth_only {
-            vec![]
-        } else {
-            vec![RenderTargetInfo {
-                _texture_data: renderer_data
-                    .get_render_target(RenderTargetType::LightProbeColorForward),
-                _target_layer: layer,
-                _target_mip_level: 0,
-                _clear_value: Some(vulkan_context::get_color_clear_zero()),
-            }]
-        }),
         &[RenderTargetInfo {
-            _texture_data: renderer_data.get_render_target(RenderTargetType::LightProbeDepth),
-            _target_layer: layer,
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneColor),
+            _target_layer: 0,
             _target_mip_level: 0,
-            _clear_value: Some(vulkan_context::get_depth_stencil_clear_value(0.0, 0)),
+            _clear_value: None,
+        }],
+        &[RenderTargetInfo {
+            _texture_data: renderer_data.get_render_target(RenderTargetType::SceneDepth),
+            _target_layer: 0,
+            _target_mip_level: 0,
+            _clear_value: None,
         }],
         &[],
     )
 }
 
-pub fn get_render_pass_name(render_object_type: RenderObjectType, layer: u32) -> &'static str {
+pub fn get_render_pass_name(render_object_type: RenderObjectType) -> &'static str {
     match render_object_type {
-        RenderObjectType::Static => match layer {
-            0 => "render_pass_static_forward_light_probe_0",
-            1 => "render_pass_static_forward_light_probe_1",
-            2 => "render_pass_static_forward_light_probe_2",
-            3 => "render_pass_static_forward_light_probe_3",
-            4 => "render_pass_static_forward_light_probe_4",
-            5 => "render_pass_static_forward_light_probe_5",
-            _ => panic!("Unsupported layer!: {:?}", layer)
-        }
-        RenderObjectType::Skeletal => match layer {
-            0 => "render_pass_skeletal_forward_light_probe_0",
-            1 => "render_pass_skeletal_forward_light_probe_1",
-            2 => "render_pass_skeletal_forward_light_probe_2",
-            3 => "render_pass_skeletal_forward_light_probe_3",
-            4 => "render_pass_skeletal_forward_light_probe_4",
-            5 => "render_pass_skeletal_forward_light_probe_5",
-            _ => panic!("Unsupported layer!: {:?}", layer)
-        }
+        RenderObjectType::Static => "render_pass_static_forward",
+        RenderObjectType::Skeletal => "render_pass_skeletal_forward",
     }
 }
 
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
-    layer: u32,
 ) -> RenderPassDataCreateInfo {
-    let render_pass_name = get_render_pass_name(render_object_type, layer);
-    let light_probe_depth_only: bool = false;
-    let framebuffer_data_create_info =
-        get_framebuffer_data_create_info(renderer_data, layer, light_probe_depth_only);
+    let render_pass_name = get_render_pass_name(render_object_type);
+    let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     for format in framebuffer_data_create_info
@@ -131,18 +103,11 @@ pub fn get_render_pass_data_create_info(
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
     ];
-    let light_probe_view_constants = [
-        ShaderBufferDataType::LightProbeViewConstants0,
-        ShaderBufferDataType::LightProbeViewConstants1,
-        ShaderBufferDataType::LightProbeViewConstants2,
-        ShaderBufferDataType::LightProbeViewConstants3,
-        ShaderBufferDataType::LightProbeViewConstants4,
-        ShaderBufferDataType::LightProbeViewConstants5,
-    ];
+
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("render_object"),
-        _pipeline_vertex_shader_file: PathBuf::from("common/render_object.vert"),
-        _pipeline_fragment_shader_file: PathBuf::from("common/render_object.frag"),
+        _pipeline_vertex_shader_file: PathBuf::from("render_object/render_object.vert"),
+        _pipeline_fragment_shader_file: PathBuf::from("render_object/render_object.frag"),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_shader_defines: vec![
             format!("RenderMode={:?}", RenderMode::Forward as i32),
@@ -185,7 +150,7 @@ pub fn get_render_pass_data_create_info(
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 1,
-                _descriptor_name: enum_to_string(&light_probe_view_constants[layer as usize]),
+                _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
                     | vk::ShaderStageFlags::FRAGMENT,
@@ -247,7 +212,7 @@ pub fn get_render_pass_data_create_info(
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 9,
-                _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColorOnlySky),
+                _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColor),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()

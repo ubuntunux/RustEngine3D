@@ -1,7 +1,7 @@
-#include "scene_constants.glsl"
-#include "utility.glsl"
+#include "../common/scene_constants.glsl"
+#include "../common/utility.glsl"
 #include "../precomputed_atmosphere/atmosphere_predefined.glsl"
-#include "shading.glsl"
+#include "../common/shading.glsl"
 
 struct VERTEX_OUTPUT
 {
