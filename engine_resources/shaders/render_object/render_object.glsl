@@ -1,5 +1,3 @@
-#include "render_object_common.glsl"
-
 layout( push_constant ) uniform PushConstant_RenderObject
 {
     PushConstant_RenderObjectBase _push_constant_base;
