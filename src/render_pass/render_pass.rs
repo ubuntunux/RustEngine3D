@@ -181,34 +181,18 @@ pub fn get_render_pass_data_create_infos(
         fft_ocean::render_fft_ocean::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_variance::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_waves::get_render_pass_data_create_info(renderer_data),
-        precomputed_atmosphere::composite_atmosphere::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::compute_transmittance::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::compute_direct_irradiance::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::compute_indirect_irradiance::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::compute_multiple_scattering::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::compute_single_scattering::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::compute_scattering_density::get_render_pass_data_create_info(
-            renderer_data,
-        ),
-        precomputed_atmosphere::render_atmosphere::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::composite_atmosphere::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::compute_transmittance::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::compute_direct_irradiance::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::compute_indirect_irradiance::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::compute_multiple_scattering::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::compute_single_scattering::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::compute_scattering_density::get_render_pass_data_create_info(renderer_data),
+        precomputed_atmosphere::render_atmosphere::get_render_pass_data_create_info(renderer_data)
     ];
 
     if renderer_data.get_renderer_context().get_use_ray_tracing() {
-        render_pass_data_create_infos.push(
-            ray_tracing::ray_tracing::get_render_pass_data_create_info(renderer_data),
-        );
+        render_pass_data_create_infos.push(ray_tracing::ray_tracing::get_render_pass_data_create_info(renderer_data));
     }
 
     render_pass_data_create_infos

@@ -1,20 +1,14 @@
 use std::path::PathBuf;
-
-use crate::renderer::push_constants::PushConstant_RenderObject;
+use ash::vk;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData};
-use crate::renderer::shader_buffer_data::ShaderBufferDataType;
-use crate::utilities::system::enum_to_string;
-use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
-use crate::vulkan_context::render_pass::PipelinePushConstantData;
 use crate::vulkan_context::render_pass::{
-    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
-    RenderPassDataCreateInfo,
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context::{self, BlendMode};
-use ash::vk;
+use crate::render_pass::render_object::render_object::{get_descriptor_data_create_infos, get_push_constant_data_list};
 
 pub fn get_framebuffer_data_create_info(
     renderer_data: &RendererData,
@@ -154,74 +148,8 @@ pub fn get_render_pass_data_create_info(
                 SkeletalVertexData::create_vertex_input_attribute_descriptions()
             }
         },
-        _push_constant_data_list: vec![PipelinePushConstantData {
-            _stage_flags: vk::ShaderStageFlags::ALL,
-            _offset: 0,
-            _push_constant: Box::new(PushConstant_RenderObject::default()),
-        }],
-        _descriptor_data_create_infos: vec![
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 0,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
-                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 1,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
-                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 2,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::LightData),
-                _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 4,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformMatrices),
-                _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 5,
-                _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformOffsets),
-                _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 14,
-                _descriptor_name: String::from("textureBase"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 15,
-                _descriptor_name: String::from("textureMaterial"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            DescriptorDataCreateInfo {
-                _descriptor_binding_index: 16,
-                _descriptor_name: String::from("textureNormal"),
-                _descriptor_resource_type: DescriptorResourceType::Texture,
-                _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-        ],
+        _push_constant_data_list: get_push_constant_data_list(),
+        _descriptor_data_create_infos: get_descriptor_data_create_infos(),
         ..Default::default()
     }];
 

@@ -1,0 +1,123 @@
+use ash::vk;
+use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::shader_buffer_data::ShaderBufferDataType;
+use crate::utilities::system::enum_to_string;
+use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
+
+pub const USER_BINDING_INDEX0: u32 = 14;
+pub const USER_BINDING_INDEX1: u32 = 15;
+pub const USER_BINDING_INDEX2: u32 = 16;
+pub const USER_BINDING_INDEX3: u32 = 17;
+pub const USER_BINDING_INDEX4: u32 = 18;
+pub const USER_BINDING_INDEX5: u32 = 19;
+pub const USER_BINDING_INDEX6: u32 = 20;
+pub const USER_BINDING_INDEX7: u32 = 21;
+pub const USER_BINDING_INDEX8: u32 = 22;
+pub const USER_BINDING_INDEX9: u32 = 23;
+
+pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
+    let descriptor_data_create_infos = vec![
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 0,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::SceneConstants),
+            _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 1,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
+            _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 2,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::LightData),
+            _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 3,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::PointLightData),
+            _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 4,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformMatrices),
+            _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 5,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::TransformOffsets),
+            _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 6,
+            _descriptor_name: enum_to_string(&ShaderBufferDataType::AtmosphereConstants),
+            _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 7,
+            _descriptor_name: enum_to_string(&RenderTargetType::Shadow),
+            _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+            _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 8,
+            _descriptor_name: enum_to_string(&RenderTargetType::CaptureHeightMap),
+            _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+            _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 9,
+            _descriptor_name: enum_to_string(&RenderTargetType::LightProbeColor),
+            _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+            _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 10,
+            _descriptor_name: String::from("transmittance_texture"),
+            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 11,
+            _descriptor_name: String::from("irradiance_texture"),
+            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 12,
+            _descriptor_name: String::from("scattering_texture"),
+            _descriptor_resource_type: DescriptorResourceType::Texture,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        },
+        DescriptorDataCreateInfo {
+            _descriptor_binding_index: 13,
+            _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
+            _descriptor_resource_type: DescriptorResourceType::RenderTarget,
+            _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        }
+    ];
+
+    assert_eq!(descriptor_data_create_infos.len(), USER_BINDING_INDEX0 as usize);
+
+    descriptor_data_create_infos
+}
