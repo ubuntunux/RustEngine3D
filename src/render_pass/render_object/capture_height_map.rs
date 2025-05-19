@@ -1,13 +1,13 @@
 use std::path::PathBuf;
 use ash::vk;
-use crate::render_pass::render_object::render_object::{get_descriptor_data_create_infos, get_push_constant_data_list};
+use crate::render_pass::render_object::common;
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData};
+use crate::vulkan_context::descriptor::DescriptorDataCreateInfo;
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
-use crate::vulkan_context::render_pass::{
-    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, RenderPassDataCreateInfo,
-};
+use crate::vulkan_context::render_pass::{DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
 use crate::vulkan_context::vulkan_context;
 use crate::vulkan_context::vulkan_context::BlendMode;
 
@@ -40,6 +40,8 @@ pub fn get_render_pass_name(render_object_type: RenderObjectType) -> &'static st
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
+    push_constant_data: Box<dyn PushConstant>,
+    descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = get_render_pass_name(render_object_type);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
@@ -96,8 +98,12 @@ pub fn get_render_pass_data_create_info(
             RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
             RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions()
         },
-        _push_constant_data_list: get_push_constant_data_list(),
-        _descriptor_data_create_infos: get_descriptor_data_create_infos(),
+        _push_constant_data_list: vec![PipelinePushConstantData {
+            _stage_flags: vk::ShaderStageFlags::ALL,
+            _offset: 0,
+            _push_constant: push_constant_data,
+        }],
+        _descriptor_data_create_infos: [common::get_descriptor_data_create_infos(), descriptor_data_create_infos].concat(),
         ..Default::default()
     }];
 

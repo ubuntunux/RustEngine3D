@@ -1,21 +1,17 @@
 use ash::vk;
 use crate::render_pass::render_object::common;
 use crate::render_pass::render_object::common::{USER_BINDING_INDEX0, USER_BINDING_INDEX1, USER_BINDING_INDEX2};
-use crate::renderer::push_constants::PushConstant_RenderObject;
+use crate::renderer::push_constants::{PushConstant, PushConstant_RenderObject};
+use crate::renderer::renderer_data::RendererData;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
-use crate::vulkan_context::render_pass::PipelinePushConstantData;
+use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
-pub fn get_push_constant_data_list() -> Vec<PipelinePushConstantData> {
-    vec![PipelinePushConstantData {
-        _stage_flags: vk::ShaderStageFlags::ALL,
-        _offset: 0,
-        _push_constant: Box::new(PushConstant_RenderObject::default()),
-    }]
+pub fn get_push_constant_data() -> Box<dyn PushConstant> {
+    Box::new(PushConstant_RenderObject::default())
 }
 
 pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
-    let descriptor_data_create_infos = common::get_descriptor_data_create_infos();
-    [descriptor_data_create_infos, vec![
+    vec![
         DescriptorDataCreateInfo {
             _descriptor_binding_index: USER_BINDING_INDEX0,
             _descriptor_name: String::from("textureBase"),
@@ -37,5 +33,11 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
             _descriptor_shader_stage: vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
         }
-    ]].concat()
+    ]
+}
+
+pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
+    let push_constant_data = get_push_constant_data();
+    let descriptor_data_create_infos = get_descriptor_data_create_infos();
+    common::get_render_pass_data_create_infos(renderer_data, &push_constant_data, &descriptor_data_create_infos)
 }

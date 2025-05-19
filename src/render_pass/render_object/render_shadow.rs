@@ -1,16 +1,14 @@
 use std::path::PathBuf;
-
 use ash::vk;
-
 use crate::constants::{SHADOW_DEPTH_BIAS, SHADOW_DEPTH_SLOPE_BIAS};
-use crate::render_pass::render_object::render_object::{get_descriptor_data_create_infos, get_push_constant_data_list};
+use crate::render_pass::render_object::common;
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData};
+use crate::vulkan_context::descriptor::DescriptorDataCreateInfo;
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
-use crate::vulkan_context::render_pass::{
-    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, RenderPassDataCreateInfo
-};
+use crate::vulkan_context::render_pass::{DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
 use crate::vulkan_context::vulkan_context;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
@@ -36,14 +34,14 @@ pub fn get_render_pass_name(render_object_type: RenderObjectType) -> &'static st
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
+    push_constant_data: Box<dyn PushConstant>,
+    descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = get_render_pass_name(render_object_type);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_depth_attachment_formats
-        .iter() {
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -62,8 +60,7 @@ pub fn get_render_pass_data_create_info(
             src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
             dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             src_access_mask: vk::AccessFlags::MEMORY_READ,
-            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
         vk::SubpassDependency {
@@ -71,8 +68,7 @@ pub fn get_render_pass_data_create_info(
             dst_subpass: vk::SUBPASS_EXTERNAL,
             src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
             dst_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
-                | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             dst_access_mask: vk::AccessFlags::MEMORY_READ,
             dependency_flags: vk::DependencyFlags::BY_REGION,
         },
@@ -96,18 +92,18 @@ pub fn get_render_pass_data_create_info(
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::get_vertex_input_binding_descriptions()
-            }
+            RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions()
         },
         _vertex_input_attribute_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::create_vertex_input_attribute_descriptions()
-            }
+            RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions()
         },
-        _push_constant_data_list: get_push_constant_data_list(),
-        _descriptor_data_create_infos: get_descriptor_data_create_infos(),
+        _push_constant_data_list: vec![PipelinePushConstantData {
+            _stage_flags: vk::ShaderStageFlags::ALL,
+            _offset: 0,
+            _push_constant: push_constant_data,
+        }],
+        _descriptor_data_create_infos: [common::get_descriptor_data_create_infos(), descriptor_data_create_infos].concat(),
         ..Default::default()
     }];
 

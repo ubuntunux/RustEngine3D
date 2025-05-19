@@ -1,8 +1,12 @@
 use ash::vk;
+use crate::render_pass::render_object;
+use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
+use crate::renderer::renderer_data::{RenderObjectType, RendererData};
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
+use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 pub const USER_BINDING_INDEX0: u32 = 14;
 pub const USER_BINDING_INDEX1: u32 = 15;
@@ -120,4 +124,28 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
     assert_eq!(descriptor_data_create_infos.len(), USER_BINDING_INDEX0 as usize);
 
     descriptor_data_create_infos
+}
+
+pub fn get_render_pass_data_create_infos(
+    renderer_data: &RendererData,
+    push_constant_data: &Box<dyn PushConstant>,
+    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>
+) -> Vec<RenderPassDataCreateInfo> {
+    vec![
+        render_object::capture_height_map::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::depth_prepass::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::depth_prepass::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_gbuffer::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_gbuffer::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 0, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 1, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 2, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 3, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 4, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 5, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
+        render_object::render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone())
+    ]
 }
