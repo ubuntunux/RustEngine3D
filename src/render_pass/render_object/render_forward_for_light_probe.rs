@@ -65,6 +65,9 @@ pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
     layer: u32,
+    pipeline_data_name: &str,
+    vertex_shader_file: &str,
+    pixel_shader_file: &str,
     push_constant_data: Box<dyn PushConstant>,
     descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>
 ) -> RenderPassDataCreateInfo {
@@ -119,9 +122,9 @@ pub fn get_render_pass_data_create_info(
         },
     ];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
-        _pipeline_data_create_info_name: String::from("render_object"),
-        _pipeline_vertex_shader_file: PathBuf::from("render_object/render_object.vert"),
-        _pipeline_fragment_shader_file: PathBuf::from("render_object/render_object.frag"),
+        _pipeline_data_create_info_name: String::from(pipeline_data_name),
+        _pipeline_vertex_shader_file: PathBuf::from(vertex_shader_file),
+        _pipeline_fragment_shader_file: PathBuf::from(pixel_shader_file),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_shader_defines: vec![
             format!("RenderMode={:?}", RenderMode::Forward as i32),

@@ -73,8 +73,8 @@ void main() {
     localMatrixPrev[3].xyz -= view_constants.CAMERA_POSITION_PREV;
 
     const vec3 world_offset = get_world_offset(position.xyz, localMatrix);
-    vec3 relative_pos = (localMatrix * position).xyz;
-    vec3 relative_pos_prev = (localMatrixPrev * prev_position).xyz;
+    vec3 relative_pos = (localMatrix * position).xyz + world_offset;
+    vec3 relative_pos_prev = (localMatrixPrev * prev_position).xyz + world_offset;
 
 #if (RenderMode_DepthPrepass == RenderMode || RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
     vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);

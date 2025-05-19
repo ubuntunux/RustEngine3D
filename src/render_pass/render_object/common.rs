@@ -128,24 +128,153 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
 
 pub fn get_render_pass_data_create_infos(
     renderer_data: &RendererData,
+    pipeline_data_name: &str,
+    vertex_shader_file: &str,
+    pixel_shader_file: &str,
     push_constant_data: &Box<dyn PushConstant>,
     descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>
 ) -> Vec<RenderPassDataCreateInfo> {
     vec![
-        render_object::capture_height_map::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::depth_prepass::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::depth_prepass::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_gbuffer::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_gbuffer::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 0, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 1, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 2, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 3, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 4, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, 5, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Skeletal, push_constant_data.clone(), descriptor_data_create_infos.clone()),
-        render_object::render_shadow::get_render_pass_data_create_info(renderer_data, RenderObjectType::Static, push_constant_data.clone(), descriptor_data_create_infos.clone())
+        render_object::capture_height_map::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::depth_prepass::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Skeletal,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::depth_prepass::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_gbuffer::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Skeletal,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_gbuffer::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Skeletal,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            0,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            1,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            2,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            3,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            4,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            5,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_shadow::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Static,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        ),
+        render_object::render_shadow::get_render_pass_data_create_info(
+            renderer_data,
+            RenderObjectType::Skeletal,
+            pipeline_data_name,
+            vertex_shader_file,
+            pixel_shader_file,
+            push_constant_data.clone(),
+            descriptor_data_create_infos.clone()
+        )
     ]
 }

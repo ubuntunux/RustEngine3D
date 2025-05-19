@@ -22,18 +22,16 @@ pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName 
     fn get_push_constant_parameter(&self, _key: &str) -> PushConstantParameter {
         panic!("Not implemented.")
     }
-    fn set_push_constant_parameter(&mut self, _key: &str, _value: &PushConstantParameter) {
-        panic!("Not implemented.")
+    fn set_push_constant_parameter(&mut self, _key: &str, _value: &PushConstantParameter) -> bool {
+        false
     }
 
-    fn update_material_parameters(
-        &mut self,
-        _material_parameters: &serde_json::Map<String, serde_json::Value>,
-    ) {
+    fn update_material_parameters(&mut self, _material_parameters: &serde_json::Map<String, serde_json::Value>) -> bool {
         // ex)
         // if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
         //     self._color = value;
         // }
+        false
     }
 }
 
@@ -107,56 +105,28 @@ impl PushConstantName for PushConstant_RenderObjectBase {
 }
 
 impl PushConstant for PushConstant_RenderObjectBase {
-    fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
+    fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) -> bool {
         if "_transform_offset_index" == key {
             if let PushConstantParameter::Int(transform_offset_index) = value {
                 self._transform_offset_index = *transform_offset_index as u32;
+                return true;
             }
         } else if "_bone_count" == key {
             if let PushConstantParameter::Int(bone_count) = value {
                 self._bone_count = *bone_count as u32;
+                return true;
             }
-        } else {
-            panic!("Not implemented for {:?}", key);
         }
+
+        false
     }
 
-    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
+    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) -> bool {
         if let PushConstantParameter::Float4(value) = convert_json_value_to_push_constant_parameter(material_parameters, "_color") {
             self._color = value;
+            return true;
         }
-    }
-}
-
-#[repr(C)]
-#[allow(non_camel_case_types)]
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(default)]
-pub struct PushConstant_RenderObject {
-    pub _push_constant_base: PushConstant_RenderObjectBase
-}
-
-impl Default for PushConstant_RenderObject {
-    fn default() -> PushConstant_RenderObject {
-        PushConstant_RenderObject {
-            _push_constant_base: PushConstant_RenderObjectBase::default()
-        }
-    }
-}
-
-impl PushConstantName for PushConstant_RenderObject {
-    fn get_push_constant_name(&self) -> &str {
-        "PushConstant_RenderObject"
-    }
-}
-
-impl PushConstant for PushConstant_RenderObject {
-    fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
-        self._push_constant_base.set_push_constant_parameter(key, value);
-    }
-
-    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
-        self._push_constant_base.update_material_parameters(material_parameters);
+        false
     }
 }
 
