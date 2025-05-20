@@ -1,5 +1,6 @@
 from enum import Enum
 import datetime
+from collections import OrderedDict
 import os
 import time
 import json
@@ -152,7 +153,7 @@ class RustEngine3DExporter:
             f.write(json.dumps(data, sort_keys=True, indent=4))
     
     def export_animation_layers(self, asset, asset_info):
-        bone_blend_map = {}        
+        bone_blend_map = OrderedDict()
         
         for child in asset.children:
             for child_object in [x for x in child.objects if 'ARMATURE' == x.type]:
@@ -160,9 +161,9 @@ class RustEngine3DExporter:
                     for target in constraint.targets:
                         bone_blend_map[target.subtarget] = target.weight
         
-        animation_layers = {
+        animation_layers = OrderedDict({
             "_bone_blend_map": bone_blend_map
-        }
+        })
         
         # export animation_layers
         export_filepath = asset_info.get_asset_filepath(self.resource_path, '.layer')
@@ -185,11 +186,11 @@ class RustEngine3DExporter:
                 material_instance_namepaths.append(material_instance_asset_info.asset_namepath)
 
                 # export material instance
-                material_parameters = {}
-                material_instance_info = {
+                material_parameters = OrderedDict()
+                material_instance_info = OrderedDict({
                     'material_name': material_asset_info.asset_namepath,
                     'material_parameters': material_parameters
-                }
+                })
 
                 for node in material_instance.node_tree.nodes:
                     if node.label:
@@ -218,7 +219,6 @@ class RustEngine3DExporter:
                 # export material instance
                 export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
                 self.write_to_file('export material_instance', material_instance_info, export_filepath)
-        material_instance_namepaths.sort()
         return material_instance_namepaths
 
     def export_selected_meshes(self, asset_info):
@@ -276,20 +276,20 @@ class RustEngine3DExporter:
             (default_pos_min, default_pos_max) = get_bound(mesh_collection)
             
             # bounding box
-            bounding_box = {
+            bounding_box = OrderedDict({
                 "_min": self.convert_axis(default_pos_min),
                 "_max": self.convert_axis(default_pos_max)
-            }
+            })
             
             # collision
-            collision = {
+            collision = OrderedDict({
                 "_collision_type": "NONE",
                 "_location": [0, 0, 0],
                 "_extents": [0.5, 0.5, 0.5]
-            }
+            })
 
             # sockets
-            sockets = {}
+            sockets = OrderedDict()
 
             # extra objects
             for obj in asset.objects:
@@ -307,12 +307,12 @@ class RustEngine3DExporter:
                     bounding_box['_max'] = self.convert_axis(pos_max)
                 elif obj.name.startswith('SOCKET_'):
                     if obj.parent and obj.parent_type == 'BONE':
-                        sockets[obj.name] = {
+                        sockets[obj.name] = OrderedDict({
                             '_parent_bone': obj.parent_bone,
                             '_position': self.convert_asset_location(obj),
                             '_rotation': self.convert_asset_rotation(obj),
                             '_scale': self.convert_asset_scale(obj)
-                        }
+                        })
 
             # model transform
             for (model_obj, mesh_obj) in zip(mesh_collection.objects, mesh_data.objects):
@@ -331,7 +331,7 @@ class RustEngine3DExporter:
                     break
 
             # export model
-            model_info = {
+            model_info = OrderedDict({
                 "_mesh": mesh_path,
                 "_position": position,
                 "_rotation": rotation,
@@ -341,26 +341,26 @@ class RustEngine3DExporter:
                 "_material_instances": material_instances,
                 "_collision": collision,
                 "_sockets": sockets
-            }
+            })
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             self.write_to_file('export model', model_info, export_model_filepath)
     
     def get_scene_data(self, asset):
-        cameras = {}
-        directional_lights = {}
-        point_lights = {}
-        effects = {}
-        static_objects = {}
-        skeletal_objects = {}
+        cameras = OrderedDict()
+        directional_lights = OrderedDict()
+        point_lights = OrderedDict()
+        effects = OrderedDict()
+        static_objects = OrderedDict()
+        skeletal_objects = OrderedDict()
         
-        scene_data = {
+        scene_data = OrderedDict({
             "_cameras": cameras,
             "_directional_lights": directional_lights,
             "_point_lights": point_lights,
             "_effects": effects,
             "_static_objects": static_objects,
             "_skeletal_objects": skeletal_objects
-        }
+        })
         
         for child in asset.objects:
             if 'LIGHT' == child.type:
@@ -368,35 +368,35 @@ class RustEngine3DExporter:
                 light_rotation = self.convert_asset_rotation(child, rx=90.0)
                 
                 if 'SUN' == child.data.type:
-                    directional_lights[child.name] = {
+                    directional_lights[child.name] = OrderedDict({
                         "_rotation": light_rotation,
-                        "_light_data": {                    
+                        "_light_data": OrderedDict({
                             "_light_direction": light_rotation,
                             "_light_color": light_color,
-                        }
-                    }
+                        })
+                    })
                 elif 'POINT' == child.data.type:
-                    point_lights[child.name] = {
+                    point_lights[child.name] = OrderedDict({
                         "_light_position": self.convert_asset_location(child),
                         "_radius": child.data.shadow_soft_size,
                         "_light_color": light_color
-                    }
+                    })
             elif 'CAMERA' == child.type:
-                cameras[child.name] = {
+                cameras[child.name] = OrderedDict({
                     # 'fov': math.degrees(child.data.angle),
                     'position': self.convert_asset_location(child),
                     'rotation': self.convert_asset_rotation(child, rx=90.0)
-                }                
+                })
             elif 'EMPTY' == child.type and 'COLLECTION' == child.instance_type:
                 self.logger.info(f'child: {child.name, child.instance_collection.asset_data is None}')
                 child_asset_info = AssetInfo(child.instance_collection)
                 if 'models' == child_asset_info.asset_type_name:
-                    static_objects[child.name] = {
+                    static_objects[child.name] = OrderedDict({
                         "_model_data_name": child_asset_info.asset_namepath,
                         "_position": self.convert_asset_location(child),
                         "_rotation": self.convert_asset_rotation(child),
                         "_scale": self.convert_asset_scale(child)
-                    }
+                    })
                     # TODO - Skeletal Mesh
                 else:
                     self.logger.error(f'not implemented asset type {(child.name, child_asset_info.asset_type_name)}')
@@ -425,12 +425,12 @@ class RustEngine3DExporter:
                     self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
 
         for child_property_asset in property_asset.children:
-             child_game_data = {}
+             child_game_data = OrderedDict()
              self.asset_property_to_game_data(child_property_asset, child_game_data)
              game_data["_" + child_property_asset.name] = child_game_data
 
     def get_custom_properties(self, asset, asset_info, property_asset_name):
-        game_data = {}
+        game_data = OrderedDict()
         for property_asset in asset.objects:
             if property_asset.name == property_asset_name:
                 self.asset_property_to_game_data(property_asset, game_data)
@@ -442,7 +442,7 @@ class RustEngine3DExporter:
         
         tokens = asset_info.asset_library_path.split('/')
         if 'game_data' == asset_info.asset_type_name and 2 < len(tokens):
-            game_data = {}
+            game_data = OrderedDict()
             game_data_ext = '.data'
             game_data_type = tokens[2]
             if 'characters' == game_data_type:
@@ -451,13 +451,13 @@ class RustEngine3DExporter:
                     if 'WEAPON' == child_object.name and child_object.parent:
                         child_asset = child_object.instance_collection
                         weapon_asset_info = AssetInfo(child_asset)
-                        game_data["_weapon_create_info"] = {
+                        game_data["_weapon_create_info"] = OrderedDict({
                             "_weapon_socket_name": child_object.parent.name,
                             "_weapon_data_name": weapon_asset_info.asset_namepath,
                             "_position": self.convert_asset_location(child_object),
                             "_rotation": self.convert_asset_rotation(child_object),
                             "_scale": self.convert_asset_scale(child_object)
-                        }
+                        })
             elif 'items' == game_data_type:
                 game_data = self.get_custom_properties(asset, asset_info, 'item_data')
             elif 'props' == game_data_type:
@@ -479,22 +479,22 @@ class RustEngine3DExporter:
     def get_game_asset_data(self, asset_container, child_asset, asset_data_name):
         for child_object in child_asset.objects:
             child_object_info = AssetInfo(child_object.instance_collection)
-            asset_container[child_object.name] = {
+            asset_container[child_object.name] = OrderedDict({
                 asset_data_name: child_object_info.asset_namepath,
                 "_position": self.convert_asset_location(child_object),
                 "_rotation": self.convert_asset_rotation(child_object),
                 "_scale": self.convert_asset_scale(child_object)
-            }
+            })
 
     # export game scene
     def get_game_data_scenes(self, asset, asset_info):
-        blocks = {}
-        characters = {}
-        items = {}
-        player = {}
-        props = {}
-        terrain = {}
-        game_data = {
+        blocks = OrderedDict()
+        characters = OrderedDict()
+        items = OrderedDict()
+        player = OrderedDict()
+        props = OrderedDict()
+        terrain = OrderedDict()
+        game_data = OrderedDict({
             "_characters": characters,
             "_items": items,
             "_player": player,
@@ -502,7 +502,7 @@ class RustEngine3DExporter:
             "_scene": "",
             "_start_point": [0, 0, 0],
             "_terrain": terrain
-        }
+        })
 
         for child_asset in asset.children:
             if '_characters' == child_asset.name:
