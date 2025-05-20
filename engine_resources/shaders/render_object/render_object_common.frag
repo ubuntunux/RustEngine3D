@@ -15,10 +15,9 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 #endif
 
 void main() {
-    const PushConstant_RenderObjectBase push_constant_base = get_push_constant_base();
+    PushConstant_RenderObjectBase push_constant_base = GET_PUSH_CONSTANT_BASE();
     const vec2 texcoord = vs_output.texCoord;
-    vec4 base_color = get_base_color(texcoord);
-    base_color.xyz = pow(base_color.xyz, vec3(2.2));
+    vec4 base_color = GET_BASE_COLOR(texcoord);
     base_color *= vs_output.color;
     if(base_color.w < 0.333)
     {
@@ -27,8 +26,8 @@ void main() {
 
 #if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
     // x: roughness, y: metallic, z: emissive intensity
-    const vec4 material = get_material(texcoord);
-    const vec3 tangent_normal = get_tangent_normal(texcoord);
+    const vec4 material = GET_MATERIAL(texcoord);
+    const vec3 tangent_normal = GET_TANGENT_NORMAL(texcoord);
     vec3 normal = normalize(vs_output.tangent_to_world * tangent_normal);
     vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
 #endif

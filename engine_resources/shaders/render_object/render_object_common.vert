@@ -10,7 +10,7 @@ layout(location = 6) in vec4 inBoneWeights;
 layout(location = 0) out VERTEX_OUTPUT vs_output;
 
 void main() {
-    const PushConstant_RenderObjectBase push_constant_base = get_push_constant_base();
+    PushConstant_RenderObjectBase push_constant_base = GET_PUSH_CONSTANT_BASE();
     vec4 position = vec4(0.0);
     vec4 prev_position = vec4(0.0);
     vec3 vertex_normal = vec3(0.0);
@@ -72,9 +72,13 @@ void main() {
     localMatrix[3].xyz -= view_constants.CAMERA_POSITION;
     localMatrixPrev[3].xyz -= view_constants.CAMERA_POSITION_PREV;
 
-    const vec3 world_offset = get_world_offset(position.xyz, localMatrix);
-    vec3 relative_pos = (localMatrix * position).xyz + world_offset;
-    vec3 relative_pos_prev = (localMatrixPrev * prev_position).xyz + world_offset;
+    vec3 relative_pos = (localMatrix * position).xyz;
+    vec3 relative_pos_prev = (localMatrixPrev * prev_position).xyz;
+
+    // apply world offset
+    const vec3 world_offset = GET_WORLD_OFFSET(relative_pos, localMatrix);
+    relative_pos += world_offset;
+    relative_pos_prev += world_offset;
 
 #if (RenderMode_DepthPrepass == RenderMode || RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
     vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);

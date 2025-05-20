@@ -23,11 +23,21 @@ struct PushConstant_RenderObjectBase
 };
 
 // material functions
-PushConstant_RenderObjectBase get_push_constant_base();
-vec4 get_base_color(in const vec2 texcoord);
-vec4 get_material(in const vec2 texcoord);
-vec3 get_tangent_normal(in const vec2 texcoord);
-vec3 get_world_offset(in const vec3 vertex_position, in const mat4 local_latrix);
+#define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
+#define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
+
+#define GET_BASE_COLOR(texcoord) get_base_color(texcoord)
+#define IMPL_GET_BASE_COLOR() vec4 GET_BASE_COLOR(in const vec2 texcoord)
+
+#define GET_MATERIAL(texcoord) get_material(texcoord)
+#define IMPL_GET_MATERIAL() vec4 GET_MATERIAL(in const vec2 texcoord)
+
+#define GET_TANGENT_NORMAL(texcoord) get_tangent_normal(texcoord)
+#define IMPL_GET_TANGENT_NORMAL() vec3 GET_TANGENT_NORMAL(in const vec2 texcoord)
+
+#define GET_WORLD_OFFSET(relative_position, local_latrix) get_world_offset(relative_position, local_latrix)
+#define IMPL_GET_WORLD_OFFSET() vec3 GET_WORLD_OFFSET(in const vec3 relative_position, in const mat4 local_latrix)
+
 
 // bindings
 layout(binding = 0) uniform SceneConstants
