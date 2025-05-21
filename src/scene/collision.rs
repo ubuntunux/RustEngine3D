@@ -8,7 +8,8 @@ use crate::utilities::math;
 pub enum CollisionType {
     NONE,
     BOX,
-    CYLINDER
+    CYLINDER,
+    SPHERE
 }
 
 #[repr(C)]
@@ -65,24 +66,36 @@ impl CollisionData {
         self._collision_type != CollisionType::NONE
     }
 
+    pub fn collide_box_with_point(&self, point: &Vector3<f32>) -> bool {
+        if self._bounding_box._max.y < point.y || point.y < self._bounding_box._min.y {
+            return false;
+        }
+        let to_point = point - self._bounding_box._center;
+        self._bounding_box._orientation.column(0).dot(&to_point).abs() <= self._bounding_box._extents.x &&
+            self._bounding_box._orientation.column(2).dot(&to_point).abs() <= self._bounding_box._extents.z
+    }
+
     pub fn collide_cylinder_with_point(&self, point: &Vector3<f32>) -> bool {
         if self._bounding_box._max.y < point.y || point.y < self._bounding_box._min.y {
             return false;
         }
 
-        let to_point = &self._bounding_box._center;
-        let length_x = self._bounding_box._orientation.column(0).dot(&to_point) / self._bounding_box._extents.x;
-        let length_z = self._bounding_box._orientation.column(2).dot(&to_point) / self._bounding_box._extents.z;
-        (length_x * length_x + length_z * length_z) < 1.0
+        let (to_point_dir_xz, dist) = math::make_normalize_with_norm(&(point - self._bounding_box._center));
+        let d = self._bounding_box._orientation.column(0).dot(&to_point_dir_xz);
+        let r = math::lerp(self._bounding_box._extents.z, self._bounding_box._extents.x, d);
+        dist <= r
     }
 
-    pub fn collide_box_with_point(&self, point: &Vector3<f32>) -> bool {
-        if self._bounding_box._max.y < point.y || point.y < self._bounding_box._min.y {
+    pub fn collide_sphere_with_point(&self, point: &Vector3<f32>) -> bool {
+        let h = (point - self._bounding_box._center).normalize().y.abs() * self._bounding_box._extents.y;
+        if h < (point.y - self._bounding_box._center.y).abs() {
             return false;
         }
-        let to_point = &self._bounding_box._center;
-        self._bounding_box._orientation.column(0).dot(&to_point).abs() <= self._bounding_box._extents.x &&
-        self._bounding_box._orientation.column(2).dot(&to_point).abs() <= self._bounding_box._extents.z
+
+        let (to_point_dir_xz, dist) = math::make_normalize_with_norm(&(point - self._bounding_box._center));
+        let d = self._bounding_box._orientation.column(0).dot(&to_point_dir_xz);
+        let r = math::lerp(self._bounding_box._extents.z, self._bounding_box._extents.x, d);
+        dist <= r
     }
 
     pub fn collide_aabb(&self, other: &CollisionData) -> bool {
@@ -100,19 +113,32 @@ impl CollisionData {
     }
 
     pub fn collide_collision(&self, other: &CollisionData) -> bool {
-        if other._collision_type == CollisionType::CYLINDER {
-            if self._collision_type == CollisionType::CYLINDER {
-                collide_cylinder_with_cylinder(self, other)
-            } else {
-                collide_box_with_cylinder(self, other)
+        if other._collision_type == CollisionType::BOX {
+            if self._collision_type == CollisionType::BOX {
+                return collide_box_with_box(self, other);
+            } else if self._collision_type == CollisionType::CYLINDER {
+                return collide_box_with_cylinder(other, self);
+            } else if self._collision_type == CollisionType::SPHERE {
+                return collide_box_with_sphere(other, self);
             }
-        } else {
-            if self._collision_type == CollisionType::CYLINDER {
-                collide_box_with_cylinder(other, self)
-            } else {
-                collide_box_with_box(self, other)
+        } else if other._collision_type == CollisionType::CYLINDER {
+            if self._collision_type == CollisionType::BOX {
+                return collide_box_with_cylinder(self, other);
+            } else if self._collision_type == CollisionType::CYLINDER {
+                return collide_cylinder_with_cylinder(self, other);
+            } else if self._collision_type == CollisionType::SPHERE {
+                return collide_cylinder_with_sphere(other, self);
+            }
+        } else if other._collision_type == CollisionType::SPHERE {
+            if self._collision_type == CollisionType::BOX {
+                return collide_box_with_sphere(self, other);
+            } else if self._collision_type == CollisionType::CYLINDER {
+                return collide_cylinder_with_sphere(self, other);
+            } else if self._collision_type == CollisionType::SPHERE {
+                return collide_sphere_with_sphere(self, other);
             }
         }
+        false
     }
 }
 
@@ -212,7 +238,70 @@ pub fn collide_box_with_cylinder(a_box: &CollisionData, b_cylinder: &CollisionDa
     (distance_x * distance_x + distance_z * distance_z) <= b_cylinder_radius * b_cylinder_radius
 }
 
+pub fn collide_box_with_sphere(a_box: &CollisionData, b_cylinder: &CollisionData) -> bool {
+    if b_cylinder._bounding_box._max.y < a_box._bounding_box._min.y || a_box._bounding_box._max.y < b_cylinder._bounding_box._min.y {
+        return false;
+    }
+
+    let a_box_axis_x = a_box._bounding_box._orientation.column(0);
+    let a_box_axis_z = a_box._bounding_box._orientation.column(2);
+
+    let a_box_half_sizes: Vector3<f32> = a_box._bounding_box._extents;
+    let to_a_box = math::make_vector_xz(&(a_box._bounding_box._center - b_cylinder._bounding_box._center));
+    let b_cylinder_radius_dir = b_cylinder._bounding_box._orientation.column(0).dot(&to_a_box.normalize()).abs();
+    let b_cylinder_radius: f32 = math::lerp(b_cylinder._bounding_box._extents.z, b_cylinder._bounding_box._extents.x, b_cylinder_radius_dir);
+
+    let to_box_pos_x0 = to_a_box + a_box_axis_x * a_box_half_sizes.x;
+    let to_box_pos_x1 = to_a_box - a_box_axis_x * a_box_half_sizes.x;
+    let to_box_pos_z0 = to_a_box + a_box_axis_z * a_box_half_sizes.z;
+    let to_box_pos_z1 = to_a_box - a_box_axis_z * a_box_half_sizes.z;
+
+    let d_x0 = a_box_axis_x.dot(&to_box_pos_x0);
+    let d_x1 = a_box_axis_x.dot(&to_box_pos_x1);
+    let distance_x = if d_x0.signum() != d_x1.signum() {
+        0.0
+    } else {
+        d_x0.abs().min(d_x1.abs())
+    };
+
+    let d_z0 = a_box_axis_z.dot(&to_box_pos_z0);
+    let d_z1 = a_box_axis_z.dot(&to_box_pos_z1);
+    let distance_z = if d_z0.signum() != d_z1.signum() {
+        0.0
+    } else {
+        d_z0.abs().min(d_z1.abs())
+    };
+
+    (distance_x * distance_x + distance_z * distance_z) <= b_cylinder_radius * b_cylinder_radius
+}
+
 pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> bool {
+    if b._bounding_box._max.y < a._bounding_box._min.y || a._bounding_box._max.y < b._bounding_box._min.y {
+        return false;
+    }
+
+    let to_a = math::make_vector_xz(&(a._bounding_box._center - b._bounding_box._center));
+    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let a_radius: f32 = math::lerp(a._bounding_box._extents.z, a._bounding_box._extents.x, a_radius_dir);
+    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let b_radius: f32 = math::lerp(b._bounding_box._extents.z, b._bounding_box._extents.x, b_radius_dir);
+    (to_a.x * to_a.x + to_a.z * to_a.z) <= (a_radius * a_radius + b_radius * b_radius)
+}
+
+pub fn collide_cylinder_with_sphere(a: &CollisionData, b: &CollisionData) -> bool {
+    if b._bounding_box._max.y < a._bounding_box._min.y || a._bounding_box._max.y < b._bounding_box._min.y {
+        return false;
+    }
+
+    let to_a = math::make_vector_xz(&(a._bounding_box._center - b._bounding_box._center));
+    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let a_radius: f32 = math::lerp(a._bounding_box._extents.z, a._bounding_box._extents.x, a_radius_dir);
+    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let b_radius: f32 = math::lerp(b._bounding_box._extents.z, b._bounding_box._extents.x, b_radius_dir);
+    (to_a.x * to_a.x + to_a.z * to_a.z) <= (a_radius * a_radius + b_radius * b_radius)
+}
+
+pub fn collide_sphere_with_sphere(a: &CollisionData, b: &CollisionData) -> bool {
     if b._bounding_box._max.y < a._bounding_box._min.y || a._bounding_box._max.y < b._bounding_box._min.y {
         return false;
     }
