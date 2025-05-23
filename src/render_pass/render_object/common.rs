@@ -18,6 +18,14 @@ pub const USER_BINDING_INDEX6: u32 = 20;
 pub const USER_BINDING_INDEX7: u32 = 21;
 pub const USER_BINDING_INDEX8: u32 = 22;
 pub const USER_BINDING_INDEX9: u32 = 23;
+pub const USER_BINDING_INDEX10: u32 = 24;
+pub const USER_BINDING_INDEX11: u32 = 25;
+pub const USER_BINDING_INDEX12: u32 = 26;
+pub const USER_BINDING_INDEX13: u32 = 27;
+pub const USER_BINDING_INDEX14: u32 = 28;
+pub const USER_BINDING_INDEX15: u32 = 29;
+pub const USER_BINDING_INDEX16: u32 = 30;
+pub const USER_BINDING_INDEX17: u32 = 31;
 
 pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
     let descriptor_data_create_infos = vec![
