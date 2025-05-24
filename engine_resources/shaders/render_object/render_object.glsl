@@ -14,6 +14,11 @@ IMPL_GET_PUSH_CONSTANT_BASE()
     return pushConstant._push_constant_base;
 }
 
+IMPL_GET_TEXCOORD()
+{
+    return texcoord;
+}
+
 IMPL_GET_BASE_COLOR()
 {
     vec4 base_color = texture(textureBase, texcoord);

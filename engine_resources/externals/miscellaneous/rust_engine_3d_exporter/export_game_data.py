@@ -215,6 +215,8 @@ class RustEngine3DExporter:
                                         self.copy_file('export texture', image_external_filepath, image_filepath)
                         elif 'RGB' == node.type:
                             material_parameters[node.label] = list(node.outputs[0].default_value)
+                        elif 'VALUE' == node.type:
+                            material_parameters[node.label] = node.outputs[0].default_value
 
                 # export material instance
                 export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")

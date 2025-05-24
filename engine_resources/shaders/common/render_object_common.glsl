@@ -26,6 +26,9 @@ struct PushConstant_RenderObjectBase
 #define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
 #define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
 
+#define GET_TEXCOORD(texcoord) get_texcoord(texcoord)
+#define IMPL_GET_TEXCOORD() vec2 GET_TEXCOORD(in const vec2 texcoord)
+
 #define GET_BASE_COLOR(texcoord) get_base_color(texcoord)
 #define IMPL_GET_BASE_COLOR() vec4 GET_BASE_COLOR(in const vec2 texcoord)
 

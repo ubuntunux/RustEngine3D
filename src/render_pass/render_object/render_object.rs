@@ -12,13 +12,13 @@ use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct PushConstant_RenderObject {
-    pub _push_constant_base: PushConstant_RenderObjectBase
+    pub push_constant_base: PushConstant_RenderObjectBase
 }
 
 impl Default for PushConstant_RenderObject {
     fn default() -> PushConstant_RenderObject {
         PushConstant_RenderObject {
-            _push_constant_base: PushConstant_RenderObjectBase::default()
+            push_constant_base: PushConstant_RenderObjectBase::default()
         }
     }
 }
@@ -31,11 +31,11 @@ impl PushConstantName for PushConstant_RenderObject {
 
 impl PushConstant for PushConstant_RenderObject {
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) -> bool {
-        self._push_constant_base.set_push_constant_parameter(key, value)
+        self.push_constant_base.set_push_constant_parameter(key, value)
     }
 
     fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) -> bool {
-        self._push_constant_base.update_material_parameters(material_parameters)
+        self.push_constant_base.update_material_parameters(material_parameters)
     }
 }
 
