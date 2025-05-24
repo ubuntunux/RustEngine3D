@@ -3,10 +3,10 @@
 #extension GL_GOOGLE_include_directive : enable
 
 // shader predefined
-#include "render_object_common.glsl"
+#include "../common/render_object_common.glsl"
 
 // user defined shader
 #include "render_object.glsl"
 
 // shader entry point
-#include "render_object_common.frag"
+#include "../common/render_object_common.frag"

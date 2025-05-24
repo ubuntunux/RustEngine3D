@@ -594,8 +594,7 @@ impl<'a> EngineResources<'a> {
         for (relative_filepath, resource_filename) in self._relative_resource_file_path_map.iter() {
             if relative_filepath.starts_with(directory) {
                 let ext = resource_filename.extension();
-                if extensions.is_empty()
-                    || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap()))
+                if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap().to_lowercase().as_str()))
                 {
                     out_engine_resources.push(PathBuf::from(resource_filename));
                 }
