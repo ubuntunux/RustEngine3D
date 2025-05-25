@@ -16,7 +16,7 @@ IMPL_GET_PUSH_CONSTANT_BASE()
 
 IMPL_GET_TEXCOORD()
 {
-    return texcoord;
+    return vs_output.texCoord;
 }
 
 IMPL_GET_BASE_COLOR()

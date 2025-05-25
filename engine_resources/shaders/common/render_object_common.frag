@@ -16,7 +16,7 @@ layout(location = 0) in VERTEX_OUTPUT vs_output;
 
 void main() {
     PushConstant_RenderObjectBase push_constant_base = GET_PUSH_CONSTANT_BASE();
-    const vec2 texcoord = GET_TEXCOORD(vs_output.texCoord);
+    const vec2 texcoord = GET_TEXCOORD(vs_output);
     vec4 base_color = GET_BASE_COLOR(texcoord);
     base_color *= vs_output.color;
     if(base_color.w < 0.333)
