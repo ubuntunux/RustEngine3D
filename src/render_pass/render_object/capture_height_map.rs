@@ -54,7 +54,7 @@ pub fn get_render_pass_data_create_info(
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
-            _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
+            _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
             _attachment_store_operation: vk::AttachmentStoreOp::STORE,
             _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
             _attachment_final_layout: vk::ImageLayout::GENERAL,
