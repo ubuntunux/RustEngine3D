@@ -1,24 +1,7 @@
-layout(location = 0) in VERTEX_OUTPUT vs_output;
-
-#if (RenderMode_GBuffer == RenderMode)
-    layout(location = 0) out vec4 outAlbedo;
-    layout(location = 1) out vec4 outMaterial;
-    layout(location = 2) out vec4 outNormal;
-    layout(location = 3) out vec2 outVelocity;
-#elif (RenderMode_Forward == RenderMode)
-    layout(location = 0) out vec4 outColor;
-#elif (RenderMode_CaptureHeightMap == RenderMode)
-    layout(location = 0) out vec4 outNormalWithDepth;
-    layout(location = 1) out float outDepth;
-#elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode)
-    layout(location = 0) out float outDepth;
-#endif
-
 void main() {
     PushConstant_RenderObjectBase push_constant_base = GET_PUSH_CONSTANT_BASE();
-    const vec2 texcoord = GET_TEXCOORD(vs_output);
+    const vec2 texcoord = GET_TEXCOORD();
     vec4 base_color = GET_BASE_COLOR(texcoord);
-    base_color *= vs_output.color;
     if(base_color.w < 0.333)
     {
         discard;

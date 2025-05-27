@@ -26,8 +26,8 @@ struct PushConstant_RenderObjectBase
 #define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
 #define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
 
-#define GET_TEXCOORD(vs_output) get_texcoord(vs_output)
-#define IMPL_GET_TEXCOORD() vec2 GET_TEXCOORD(in const VERTEX_OUTPUT vs_output)
+#define GET_TEXCOORD() get_texcoord()
+#define IMPL_GET_TEXCOORD() vec2 GET_TEXCOORD()
 
 #define GET_BASE_COLOR(texcoord) get_base_color(texcoord)
 #define IMPL_GET_BASE_COLOR() vec4 GET_BASE_COLOR(in const vec2 texcoord)
@@ -98,3 +98,32 @@ layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
 #define USER_BINDING_INDEX15 29
 #define USER_BINDING_INDEX16 30
 #define USER_BINDING_INDEX17 31
+
+// input and output
+#if SHADER_STAGE_FLAG == VERTEX
+    layout(location = 0) in vec3 inPosition;
+    layout(location = 1) in vec3 inNormal;
+    layout(location = 2) in vec3 inTangent;
+    layout(location = 3) in vec4 inColor;
+    layout(location = 4) in vec2 inTexCoord;
+    #if (RenderObjectType_Skeletal == RenderObjectType)
+        layout(location = 5) in uvec4 inBoneIndices;
+        layout(location = 6) in vec4 inBoneWeights;
+    #endif
+    layout(location = 0) out VERTEX_OUTPUT vs_output;
+#elif SHADER_STAGE_FLAG == FRAGMENT
+    layout(location = 0) in VERTEX_OUTPUT vs_output;
+    #if (RenderMode_GBuffer == RenderMode)
+        layout(location = 0) out vec4 outAlbedo;
+        layout(location = 1) out vec4 outMaterial;
+        layout(location = 2) out vec4 outNormal;
+        layout(location = 3) out vec2 outVelocity;
+    #elif (RenderMode_Forward == RenderMode)
+        layout(location = 0) out vec4 outColor;
+    #elif (RenderMode_CaptureHeightMap == RenderMode)
+        layout(location = 0) out vec4 outNormalWithDepth;
+        layout(location = 1) out float outDepth;
+    #elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode)
+        layout(location = 0) out float outDepth;
+    #endif
+#endif
