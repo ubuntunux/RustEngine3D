@@ -22,26 +22,6 @@ struct PushConstant_RenderObjectBase
     vec4 _color;
 };
 
-// material functions
-#define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
-#define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
-
-#define INITALIZE_USER_DATA() initialize_user_data()
-#define IMPL_INITALIZE_USER_DATA() void initialize_user_data()
-
-#define GET_BASE_COLOR() get_base_color()
-#define IMPL_GET_BASE_COLOR() vec4 get_base_color()
-
-#define GET_MATERIAL() get_material()
-#define IMPL_GET_MATERIAL() vec4 get_material()
-
-#define GET_TANGENT_NORMAL() get_tangent_normal()
-#define IMPL_GET_TANGENT_NORMAL() vec3 get_tangent_normal()
-
-#define GET_WORLD_OFFSET(relative_position, local_latrix) get_world_offset(relative_position, local_latrix)
-#define IMPL_GET_WORLD_OFFSET() vec3 get_world_offset(in const vec3 relative_position, in const mat4 local_latrix)
-
-
 // bindings
 layout(binding = 0) uniform SceneConstants
 {
@@ -127,3 +107,22 @@ layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
         layout(location = 0) out float outDepth;
     #endif
 #endif
+
+// material functions
+#define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
+#define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
+
+#define GET_WORLD_OFFSET(relative_position, local_latrix) get_world_offset(relative_position, local_latrix)
+#define IMPL_GET_WORLD_OFFSET() vec3 get_world_offset(in const vec3 relative_position, in const mat4 local_latrix)
+
+#define INITALIZE_USER_DATA() initialize_user_data()
+#define IMPL_INITALIZE_USER_DATA() void initialize_user_data()
+
+#define GET_BASE_COLOR() get_base_color()
+#define IMPL_GET_BASE_COLOR() vec4 get_base_color()
+
+#define GET_MATERIAL() get_material()
+#define IMPL_GET_MATERIAL() vec4 get_material()
+
+#define GET_TANGENT_NORMAL() get_tangent_normal()
+#define IMPL_GET_TANGENT_NORMAL() vec3 get_tangent_normal()
