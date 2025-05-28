@@ -26,20 +26,20 @@ struct PushConstant_RenderObjectBase
 #define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
 #define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
 
-#define GET_TEXCOORD() get_texcoord()
-#define IMPL_GET_TEXCOORD() vec2 GET_TEXCOORD()
+#define INITALIZE_USER_DATA() initialize_user_data()
+#define IMPL_INITALIZE_USER_DATA() void initialize_user_data()
 
-#define GET_BASE_COLOR(texcoord) get_base_color(texcoord)
-#define IMPL_GET_BASE_COLOR() vec4 GET_BASE_COLOR(in const vec2 texcoord)
+#define GET_BASE_COLOR() get_base_color()
+#define IMPL_GET_BASE_COLOR() vec4 get_base_color()
 
-#define GET_MATERIAL(texcoord) get_material(texcoord)
-#define IMPL_GET_MATERIAL() vec4 GET_MATERIAL(in const vec2 texcoord)
+#define GET_MATERIAL() get_material()
+#define IMPL_GET_MATERIAL() vec4 get_material()
 
-#define GET_TANGENT_NORMAL(texcoord) get_tangent_normal(texcoord)
-#define IMPL_GET_TANGENT_NORMAL() vec3 GET_TANGENT_NORMAL(in const vec2 texcoord)
+#define GET_TANGENT_NORMAL() get_tangent_normal()
+#define IMPL_GET_TANGENT_NORMAL() vec3 get_tangent_normal()
 
 #define GET_WORLD_OFFSET(relative_position, local_latrix) get_world_offset(relative_position, local_latrix)
-#define IMPL_GET_WORLD_OFFSET() vec3 GET_WORLD_OFFSET(in const vec3 relative_position, in const mat4 local_latrix)
+#define IMPL_GET_WORLD_OFFSET() vec3 get_world_offset(in const vec3 relative_position, in const mat4 local_latrix)
 
 
 // bindings

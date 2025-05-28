@@ -1,7 +1,7 @@
 void main() {
+    INITALIZE_USER_DATA();
     PushConstant_RenderObjectBase push_constant_base = GET_PUSH_CONSTANT_BASE();
-    const vec2 texcoord = GET_TEXCOORD();
-    vec4 base_color = GET_BASE_COLOR(texcoord);
+    vec4 base_color = GET_BASE_COLOR();
     if(base_color.w < 0.333)
     {
         discard;
@@ -9,8 +9,8 @@ void main() {
 
 #if (RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
     // x: roughness, y: metallic, z: emissive intensity
-    const vec4 material = GET_MATERIAL(texcoord);
-    const vec3 tangent_normal = GET_TANGENT_NORMAL(texcoord);
+    const vec4 material = GET_MATERIAL();
+    const vec3 tangent_normal = GET_TANGENT_NORMAL();
     vec3 normal = normalize(vs_output.tangent_to_world * tangent_normal);
     vec3 vertex_normal = normalize(vs_output.tangent_to_world[2]);
 #endif
