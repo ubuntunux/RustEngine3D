@@ -77,21 +77,21 @@ impl<T> PushConstantSize for T {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct PushConstant_RenderObjectBase {
+    pub _color: Vector4<f32>,
     pub _transform_offset_index: u32,
     pub _bone_count: u32,
-    pub _reserved0: u32,
-    pub _reserved1: u32,
-    pub _color: Vector4<f32>,
+    pub _bound_height: f32,
+    pub _reserved0: u32
 }
 
 impl Default for PushConstant_RenderObjectBase {
     fn default() -> PushConstant_RenderObjectBase {
         PushConstant_RenderObjectBase {
+            _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
             _transform_offset_index: 0,
             _bone_count: 0,
+            _bound_height: 1.0,
             _reserved0: 0,
-            _reserved1: 0,
-            _color: Vector4::new(1.0, 1.0, 1.0, 1.0),
         }
     }
 }
@@ -107,26 +107,24 @@ impl PushConstant for PushConstant_RenderObjectBase {
         if "_transform_offset_index" == key {
             if let PushConstantParameter::Int(transform_offset_index) = value {
                 self._transform_offset_index = *transform_offset_index as u32;
-                return true;
             }
         } else if "_bone_count" == key {
             if let PushConstantParameter::Int(bone_count) = value {
                 self._bone_count = *bone_count as u32;
-                return true;
+            }
+        } else if "_bound_height" == key {
+            if let PushConstantParameter::Float(bound_height) = value {
+                self._bound_height = *bound_height;
             }
         } else if "_color" == key {
             if let PushConstantParameter::Float4(value) = value {
                 self._color = *value;
-                return true;
             }
+        } else {
+            // not found parameter
+            return false;
         }
-        false
-    }
-
-    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
-        for (key, value) in material_parameters {
-            self.set_push_constant_parameter(key, &convert_json_value_to_push_constant_parameter(value));
-        }
+        true
     }
 }
 

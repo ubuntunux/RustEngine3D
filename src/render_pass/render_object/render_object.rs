@@ -4,7 +4,6 @@ use crate::render_pass::render_object::common;
 use crate::render_pass::render_object::common::{USER_BINDING_INDEX0, USER_BINDING_INDEX1, USER_BINDING_INDEX2};
 use crate::renderer::push_constants::{PushConstant, PushConstantName, PushConstantParameter, PushConstant_RenderObjectBase};
 use crate::renderer::renderer_data::RendererData;
-use crate::utilities::json::convert_json_value_to_push_constant_parameter;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
 use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
@@ -33,12 +32,6 @@ impl PushConstantName for PushConstant_RenderObject {
 impl PushConstant for PushConstant_RenderObject {
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) -> bool {
         self.push_constant_base.set_push_constant_parameter(key, value)
-    }
-
-    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
-        for (key, value) in material_parameters {
-            self.set_push_constant_parameter(key, &convert_json_value_to_push_constant_parameter(value));
-        }
     }
 }
 
