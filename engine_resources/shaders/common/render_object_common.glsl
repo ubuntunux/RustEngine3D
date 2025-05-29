@@ -3,7 +3,7 @@
 #include "../precomputed_atmosphere/atmosphere_predefined.glsl"
 #include "../common/shading.glsl"
 
-struct VERTEX_OUTPUT
+struct VertexOutput
 {
     mat3 tangent_to_world;
     vec4 color;
@@ -80,6 +80,11 @@ layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
 #define USER_BINDING_INDEX17 31
 
 // input and output
+#define BEGIN_PUSH_CONSTANT(type_name) layout( push_constant ) uniform type_name { PushConstant_RenderObjectBase push_constant_base;
+#define END_PUSH_CONSTANT() } push_constant;
+#define GET_PUSH_CONSTANT() push_constant
+#define GET_PUSH_CONSTANT_BASE() push_constant.push_constant_base
+
 #if SHADER_STAGE_FLAG == VERTEX
     layout(location = 0) in vec3 inPosition;
     layout(location = 1) in vec3 inNormal;
@@ -90,9 +95,15 @@ layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
         layout(location = 5) in uvec4 inBoneIndices;
         layout(location = 6) in vec4 inBoneWeights;
     #endif
-    layout(location = 0) out VERTEX_OUTPUT vs_output;
+    layout(location = 0) out VertexOutput out_vertex_output;
+
+    #define VERTEX_SHADER_MAIN() void vertex_shader_main( \
+        in const vec3 in_relative_position, \
+        in const mat4 in_local_latrix, \
+        inout vec3 out_world_offset)
+
 #elif SHADER_STAGE_FLAG == FRAGMENT
-    layout(location = 0) in VERTEX_OUTPUT vs_output;
+    layout(location = 0) in VertexOutput in_vertex_output;
     #if (RenderMode_GBuffer == RenderMode)
         layout(location = 0) out vec4 outAlbedo;
         layout(location = 1) out vec4 outMaterial;
@@ -106,23 +117,9 @@ layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
     #elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode)
         layout(location = 0) out float outDepth;
     #endif
+
+    #define FRAGMENT_SHADER_MAIN() void fragment_shader_main( \
+        inout vec4 out_base_color, \
+        inout vec4 out_material, \
+        inout vec3 out_tangent_normal)
 #endif
-
-// material functions
-#define GET_PUSH_CONSTANT_BASE() get_push_constant_base()
-#define IMPL_GET_PUSH_CONSTANT_BASE() PushConstant_RenderObjectBase GET_PUSH_CONSTANT_BASE()
-
-#define GET_WORLD_OFFSET(relative_position, local_latrix) get_world_offset(relative_position, local_latrix)
-#define IMPL_GET_WORLD_OFFSET() vec3 get_world_offset(in const vec3 relative_position, in const mat4 local_latrix)
-
-#define INITALIZE_USER_DATA() initialize_user_data()
-#define IMPL_INITALIZE_USER_DATA() void initialize_user_data()
-
-#define GET_BASE_COLOR() get_base_color()
-#define IMPL_GET_BASE_COLOR() vec4 get_base_color()
-
-#define GET_MATERIAL() get_material()
-#define IMPL_GET_MATERIAL() vec4 get_material()
-
-#define GET_TANGENT_NORMAL() get_tangent_normal()
-#define IMPL_GET_TANGENT_NORMAL() vec3 get_tangent_normal()

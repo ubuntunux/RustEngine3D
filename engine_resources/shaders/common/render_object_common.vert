@@ -1,11 +1,10 @@
 void main() {
-    PushConstant_RenderObjectBase push_constant_base = GET_PUSH_CONSTANT_BASE();
     vec4 position = vec4(0.0);
     vec4 prev_position = vec4(0.0);
     vec3 vertex_normal = vec3(0.0);
     vec3 vertex_tangent = vec3(0.0);
 
-    const uint transform_offset_index = push_constant_base._transform_offset_index + gl_InstanceIndex;
+    const uint transform_offset_index = GET_PUSH_CONSTANT_BASE()._transform_offset_index + gl_InstanceIndex;
 #if (RenderMode_CaptureHeightMap == RenderMode)
     const uint transform_matrix_offset = transform_offsets[transform_offset_index].z;
 #elif (RenderMode_Shadow == RenderMode)
@@ -18,9 +17,9 @@ void main() {
     const uint local_matrix_prev_offset = transform_matrix_offset;
     const uint local_matrix_offset = local_matrix_prev_offset + 1;
     const uint prev_bone_matrix_offset = local_matrix_offset + 1;
-    const uint bone_matrix_offset = prev_bone_matrix_offset + push_constant_base._bone_count;
+    const uint bone_matrix_offset = prev_bone_matrix_offset + GET_PUSH_CONSTANT_BASE()._bone_count;
 
-    if (0 < push_constant_base._bone_count)
+    if (0 < GET_PUSH_CONSTANT_BASE()._bone_count)
     {
         for(int i = 0; i < MAX_BONES_PER_VERTEX; ++i)
         {
@@ -64,25 +63,32 @@ void main() {
     vec3 relative_pos = (localMatrix * position).xyz;
     vec3 relative_pos_prev = (localMatrixPrev * prev_position).xyz;
 
-    // apply world offset
-    const vec3 world_offset = GET_WORLD_OFFSET(relative_pos, localMatrix);
+    // Begin: VertexShaderMain
+    vec3 world_offset = vec3(0.0, 0.0, 0.0);
+    vertex_shader_main(
+        relative_pos,
+        localMatrix,
+        world_offset
+    );
+    // End: VertexShaderMain
+
     relative_pos += world_offset;
     relative_pos_prev += world_offset;
 
 #if (RenderMode_DepthPrepass == RenderMode || RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
-    vs_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
-    vs_output.projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
+    out_vertex_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
+    out_vertex_output.projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
 #elif (RenderMode_Shadow == RenderMode)
-    vs_output.projection_pos = light_data.SHADOW_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
+    out_vertex_output.projection_pos = light_data.SHADOW_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
 #elif (RenderMode_CaptureHeightMap == RenderMode)
-    vs_output.projection_pos = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
+    out_vertex_output.projection_pos = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
 #endif
-    gl_Position = vs_output.projection_pos;
+    gl_Position = out_vertex_output.projection_pos;
 
-    vs_output.relative_position = relative_pos;
-    vs_output.color = inColor;
+    out_vertex_output.relative_position = relative_pos;
+    out_vertex_output.color = inColor;
     // Note : Normalization is very important because tangent_to_world may have been scaled..
     vec3 bitangent = cross(vertex_tangent, vertex_normal);
-    vs_output.tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
-    vs_output.texCoord = inTexCoord;
+    out_vertex_output.tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
+    out_vertex_output.texCoord = inTexCoord;
 }
