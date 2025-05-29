@@ -3,25 +3,6 @@
 #include "../precomputed_atmosphere/atmosphere_predefined.glsl"
 #include "../common/shading.glsl"
 
-struct VertexOutput
-{
-    mat3 tangent_to_world;
-    vec4 color;
-    vec2 texCoord;
-    vec3 relative_position;
-    vec4 projection_pos;
-    vec4 projection_pos_prev;
-};
-
-struct PushConstant_RenderObjectBase
-{
-    uint _transform_offset_index;
-    uint _bone_count;
-    uint _reserved0;
-    uint _reserved1;
-    vec4 _color;
-};
-
 // bindings
 layout(binding = 0) uniform SceneConstants
 {
@@ -80,6 +61,25 @@ layout(binding = 13) uniform sampler3D single_mie_scattering_texture;
 #define USER_BINDING_INDEX17 31
 
 // input and output
+struct VertexOutput
+{
+    mat3 _tangent_to_world;
+    vec4 _color;
+    vec2 _texCoord;
+    vec3 _relative_position;
+    vec4 _projection_pos;
+    vec4 _projection_pos_prev;
+};
+
+struct PushConstant_RenderObjectBase
+{
+    vec4 _color;
+    uint _transform_offset_index;
+    uint _bone_count;
+    float _bound_height;
+    uint _reserved0;
+};
+
 #define BEGIN_PUSH_CONSTANT(type_name) layout( push_constant ) uniform type_name { PushConstant_RenderObjectBase push_constant_base;
 #define END_PUSH_CONSTANT() } push_constant;
 #define GET_PUSH_CONSTANT() push_constant

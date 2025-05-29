@@ -76,19 +76,19 @@ void main() {
     relative_pos_prev += world_offset;
 
 #if (RenderMode_DepthPrepass == RenderMode || RenderMode_GBuffer == RenderMode || RenderMode_Forward == RenderMode)
-    out_vertex_output.projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
-    out_vertex_output.projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
+    out_vertex_output._projection_pos_prev = view_constants.VIEW_ORIGIN_PROJECTION_PREV_JITTER * vec4(relative_pos_prev, 1.0);
+    out_vertex_output._projection_pos = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * vec4(relative_pos, 1.0);
 #elif (RenderMode_Shadow == RenderMode)
-    out_vertex_output.projection_pos = light_data.SHADOW_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
+    out_vertex_output._projection_pos = light_data.SHADOW_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
 #elif (RenderMode_CaptureHeightMap == RenderMode)
-    out_vertex_output.projection_pos = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
+    out_vertex_output._projection_pos = view_constants.CAPTURE_HEIGHT_MAP_VIEW_PROJECTION * vec4(relative_pos + view_constants.CAMERA_POSITION, 1.0);
 #endif
-    gl_Position = out_vertex_output.projection_pos;
+    gl_Position = out_vertex_output._projection_pos;
 
-    out_vertex_output.relative_position = relative_pos;
-    out_vertex_output.color = inColor;
+    out_vertex_output._relative_position = relative_pos;
+    out_vertex_output._color = inColor;
     // Note : Normalization is very important because tangent_to_world may have been scaled..
     vec3 bitangent = cross(vertex_tangent, vertex_normal);
-    out_vertex_output.tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
-    out_vertex_output.texCoord = inTexCoord;
+    out_vertex_output._tangent_to_world = mat3(localMatrix) * mat3(vertex_tangent, bitangent, vertex_normal);
+    out_vertex_output._texCoord = inTexCoord;
 }

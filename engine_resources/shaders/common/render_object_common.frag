@@ -15,8 +15,8 @@ void main() {
         discard;
     }
 
-    vec3 normal = normalize(in_vertex_output.tangent_to_world * tangent_normal);
-    vec3 vertex_normal = normalize(in_vertex_output.tangent_to_world[2]);
+    vec3 normal = normalize(in_vertex_output._tangent_to_world * tangent_normal);
+    vec3 vertex_normal = normalize(in_vertex_output._tangent_to_world[2]);
 
 #if (RenderMode_GBuffer == RenderMode)
     // xyz: albedo, w: emissive_intensity
@@ -27,12 +27,12 @@ void main() {
     outMaterial.zw = vertex_normal.xy * 0.5 + 0.5;
     outNormal.xyz = normal * 0.5 + 0.5;
     outNormal.w = vertex_normal.z * 0.5 + 0.5;
-    outVelocity = ((in_vertex_output.projection_pos.xy / in_vertex_output.projection_pos.w) - (in_vertex_output.projection_pos_prev.xy / in_vertex_output.projection_pos_prev.w)) * 0.5;
+    outVelocity = ((in_vertex_output._projection_pos.xy / in_vertex_output._projection_pos.w) - (in_vertex_output._projection_pos_prev.xy / in_vertex_output._projection_pos_prev.w)) * 0.5;
     outVelocity -= view_constants.JITTER_DELTA;
 #elif (RenderMode_Forward == RenderMode)
-    vec2 screen_texcoord = (in_vertex_output.projection_pos.xy / in_vertex_output.projection_pos.w) * 0.5 + 0.5;
+    vec2 screen_texcoord = (in_vertex_output._projection_pos.xy / in_vertex_output._projection_pos.w) * 0.5 + 0.5;
     float depth = gl_FragCoord.z;
-    vec3 world_position = in_vertex_output.relative_position.xyz + view_constants.CAMERA_POSITION;
+    vec3 world_position = in_vertex_output._relative_position.xyz + view_constants.CAMERA_POSITION;
     float opacity = base_color.w;
     vec3 emissive_color = vec3(0.0);
     float roughness = material.x;
@@ -40,7 +40,7 @@ void main() {
     float reflectance = 0.0;
     float shadow_factor = 1.0;
     vec4 scene_reflect_color = vec4(0.0);
-    vec3 V = normalize(-in_vertex_output.relative_position.xyz);
+    vec3 V = normalize(-in_vertex_output._relative_position.xyz);
 
     outColor = surface_shading(
         ATMOSPHERE,
@@ -74,7 +74,7 @@ void main() {
     outColor.xyz += emissive_color;
     outColor.w = 1.0;
 #elif (RenderMode_CaptureHeightMap == RenderMode)
-    outNormalWithDepth = vec4(normalize(in_vertex_output.tangent_to_world[2]), gl_FragCoord.z);
+    outNormalWithDepth = vec4(normalize(in_vertex_output._tangent_to_world[2]), gl_FragCoord.z);
     outDepth = gl_FragCoord.z;
 #elif (RenderMode_DepthPrepass == RenderMode || RenderMode_Shadow == RenderMode)
     outDepth = gl_FragCoord.z;
