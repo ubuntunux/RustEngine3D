@@ -99,13 +99,18 @@ impl HeightMapData {
                         0.0
                     ).normalize();
 
-                    let vector_z: Vector3<f32> = Vector3::new(
+                    let mut vector_z: Vector3<f32> = Vector3::new(
                         0.0,
                         height_b - height_t,
                         step_size_z * 2.0
-                    ).normalize() * if HEIGHT_MAP_INVERT_TEXCOORD_Y { -1.0 } else { 1.0 };
+                    ).normalize();
 
-                    self._normal_map_data.push(vector_x.cross(&vector_z).normalize());
+                    if HEIGHT_MAP_INVERT_TEXCOORD_Y {
+                        vector_z.z = -vector_z.z;
+                    }
+
+                    let normal_map = vector_x.cross(&vector_z).normalize();
+                    self._normal_map_data.push(normal_map);
                 }
             }
         } else {
