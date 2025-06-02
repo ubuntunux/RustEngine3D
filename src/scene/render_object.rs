@@ -8,7 +8,7 @@ use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::scene::bounding_box::BoundingBox;
-use crate::scene::collision::CollisionData;
+use crate::scene::collision::{CollisionData, CollisionType};
 use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell, newRcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
@@ -176,6 +176,14 @@ impl<'a> RenderObjectData<'a> {
 
     pub fn set_render_height_map(&mut self, render: bool) {
         self._is_render_height_map = render;
+    }
+
+    pub fn get_collision_type(&self) -> CollisionType {
+        self._collision._collision_type
+    }
+
+    pub fn set_collision_type(&mut self, collision_type: CollisionType) {
+        self._collision._collision_type = collision_type;
     }
 
     pub fn debug_bone_names(&self) {

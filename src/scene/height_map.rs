@@ -43,11 +43,16 @@ impl HeightMapData {
         }
 
         // generate base height map
+        let min_height = self._sea_height - self._bounding_box._min.y;
         let mut lod_height_map_data: Vec<f32> = Vec::with_capacity((width * height) as usize);
         for y in 0..height {
             for x in 0..width {
                 let pixel_index = self.convert_to_pixel_index(width, height, x, y);
-                lod_height_map_data.push(height_map_data[pixel_index] * max_height);
+                let mut height = height_map_data[pixel_index] * max_height;
+                if height == 0.0 {
+                    height = min_height;
+                }
+                lod_height_map_data.push(min_height.max(height));
             }
         }
         self._height_map_data.reserve(self._lod_count as usize);
@@ -183,8 +188,8 @@ impl HeightMapData {
         let lod = lod.min(self._lod_count as usize - 1);
         let width = self._width[lod];
         let height = self._height[lod];
-        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32) as i32;
-        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32) as i32;
+        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x.round())) * (width - 1) as f32) as i32;
+        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y.round())) * (height - 1) as f32) as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         let height = self._bounding_box._min.y + self._height_map_data[lod][pixel_index];
         self._sea_height.max(height)
@@ -210,8 +215,8 @@ impl HeightMapData {
         let lod = 0;
         let width = self._width[lod];
         let height = self._height[lod];
-        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32) as i32;
-        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height - 1) as f32) as i32;
+        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x.round())) * (width - 1) as f32) as i32;
+        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y.round())) * (height - 1) as f32) as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         self._normal_map_data[pixel_index]
     }
