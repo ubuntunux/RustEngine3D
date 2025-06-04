@@ -1986,8 +1986,6 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_scene_data(&self, resource_name: &str) -> &RcRefCell<SceneDataCreateInfo> {
-        self._scene_data_create_infos_map
-            .get(resource_name)
-            .unwrap()
+        get_resource_data_must(&self._scene_data_create_infos_map, resource_name)
     }
 }
