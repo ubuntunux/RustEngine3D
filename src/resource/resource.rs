@@ -14,7 +14,7 @@ use serde_json::{self, Value};
 
 use crate::audio::audio_manager::{AudioBankCreateInfo, AudioBankData, AudioData};
 use crate::constants;
-use crate::constants::IS_SHIPPING_BUILD;
+use crate::constants::PACKAGED;
 use crate::effect::effect_data::{
     EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo,
 };
@@ -367,7 +367,7 @@ impl<'a> EngineResources<'a> {
         let resource_list_file_path: PathBuf =
             PathBuf::from(APPLICATION_RESOURCE_PATH).join("resources.txt");
 
-        if !IS_SHIPPING_BUILD
+        if unsafe { !PACKAGED }
         {
             // update engine resources
             self.update_engine_resources();
@@ -658,7 +658,7 @@ impl<'a> EngineResources<'a> {
             default_audio_bank_file_path.push(&audio_bank_directory);
             default_audio_bank_file_path.push(&DEFAULT_AUDIO_BANK_NAME);
             default_audio_bank_file_path.set_extension(EXT_AUDIO_BANK);
-            if !IS_SHIPPING_BUILD {
+            if unsafe { !PACKAGED } {
                 if false == default_audio_bank_file_path.is_file() {
                     let mut default_audio_bank_data_create_info = AudioBankCreateInfo::default();
                     default_audio_bank_data_create_info._audio_names.push(DEFAULT_AUDIO_NAME.to_string());
@@ -769,7 +769,7 @@ impl<'a> EngineResources<'a> {
         default_effect_file_path.push(EFFECT_DIRECTORY);
         default_effect_file_path.push(DEFAULT_EFFECT_NAME);
         default_effect_file_path.set_extension(EXT_EFFECT);
-        if !IS_SHIPPING_BUILD {
+        if unsafe { !PACKAGED } {
             if false == default_effect_file_path.is_file() {
                 let default_effect_data_create_info = EffectDataCreateInfo {
                     _emitter_data_create_infos: vec![EmitterDataCreateInfo {
@@ -937,7 +937,7 @@ impl<'a> EngineResources<'a> {
 
                 // Gets FontDataCreateInfo and also creates font texture files if needed.
                 let maybe_font_file = font_file_map.get(&font_data_name);
-                let font_data_create_info: FontDataCreateInfo = if !IS_SHIPPING_BUILD && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name)) {
+                let font_data_create_info: FontDataCreateInfo = if unsafe { !PACKAGED } && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name)) {
                     self.get_font_data_create_info(
                         &resource_root_path,
                         &font_directory,
@@ -1302,7 +1302,7 @@ impl<'a> EngineResources<'a> {
         let mut combined_texture_types_map: HashMap<String, vk::ImageViewType> = HashMap::new();
 
         // generate necessary texture data_list
-        if !IS_SHIPPING_BUILD {
+        if unsafe { !PACKAGED } {
             let mut engine_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH);
             engine_texture_source_path.push(TEXTURE_SOURCE_DIRECTORY);
             texture_generator::generate_images(&engine_texture_source_path);
