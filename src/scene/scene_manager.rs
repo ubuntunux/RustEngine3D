@@ -299,6 +299,7 @@ impl<'a> SceneManager<'a> {
     pub fn get_sea_height(&self) -> f32 {
         self._sea_height
     }
+    pub fn get_dead_zone_height(&self) -> f32 { self._sea_height - 10.0 }
     pub fn generate_object_id(&mut self) -> i64 {
         let _object_id_generator = self._object_id_generator;
         self._object_id_generator += 1;
@@ -1109,7 +1110,8 @@ impl<'a> SceneManager<'a> {
             );
 
             if capture_height_map_fot_static_mesh {
-                self._capture_height_map.update_capture_height_map(height_map_bounding_box_for_static_mesh, self._sea_height);
+                let dead_zone = self.get_dead_zone_height();
+                self._capture_height_map.update_capture_height_map(height_map_bounding_box_for_static_mesh, dead_zone);
                 if self._capture_height_map.need_to_render_height_map() == false {
                     self._capture_height_map.set_capture_height_map_complete();
                 }

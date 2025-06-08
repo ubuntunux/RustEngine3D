@@ -23,7 +23,7 @@ pub struct CaptureHeightMap<'a> {
     pub _static_render_elements: Vec<RenderElementData<'a>>,
     pub _skeletal_render_elements: Vec<RenderElementData<'a>>,
     pub _read_back_frames: Vec<u64>,
-    pub _sea_height: f32,
+    pub _dead_zone: f32,
     pub _stretch_height_map_xz: bool,
     pub _bounding_box: BoundingBox,
     pub _height_map_data: HeightMapData
@@ -48,7 +48,7 @@ impl<'a> CaptureHeightMap<'a> {
             _static_render_elements: Vec::new(),
             _skeletal_render_elements: Vec::new(),
             _read_back_frames: Vec::new(),
-            _sea_height: 0.0,
+            _dead_zone: 0.0,
             _stretch_height_map_xz: false,
             _bounding_box: BoundingBox::default(),
             _height_map_data: HeightMapData::default()
@@ -187,13 +187,13 @@ impl<'a> CaptureHeightMap<'a> {
             height_map_texture._image_height as i32,
             &normal_map_raw_data,
             &height_map_raw_data,
-            self._sea_height
+            self._dead_zone
         );
         self.set_capture_height_map_complete();
     }
 
-    pub fn update_capture_height_map(&mut self, bounding_box: BoundingBox, sea_height: f32) {
-        self._sea_height = sea_height;
+    pub fn update_capture_height_map(&mut self, bounding_box: BoundingBox, dead_zone: f32) {
+        self._dead_zone = dead_zone;
         self._bounding_box = bounding_box;
         if self._stretch_height_map_xz == false {
             let mut bounding_box_min = self._bounding_box._min.clone();

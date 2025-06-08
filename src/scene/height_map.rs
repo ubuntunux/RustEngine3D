@@ -6,7 +6,7 @@ const HEIGHT_MAP_INVERT_TEXCOORD_Y: bool = true;
 
 #[derive(Clone, Default)]
 pub struct HeightMapData {
-    _sea_height: f32,
+    _dead_zone: f32,
     _bounding_box: BoundingBox,
     _lod_count: i32,
     _width: Vec<i32>,
@@ -24,9 +24,9 @@ impl HeightMapData {
         height: i32,
         normal_map_data: &Vec<Vector4<u8>>,
         height_map_data: &Vec<f32>,
-        sea_height: f32
+        dead_zone: f32
     ) {
-        self._sea_height = sea_height;
+        self._dead_zone = dead_zone;
         self._bounding_box = bounding_box.clone();
         let max_height = bounding_box._extents.y * 2.0;
         let lod_count_x = (width as f32).log2() as i32 + 1;
@@ -43,7 +43,7 @@ impl HeightMapData {
         }
 
         // generate base height map
-        let min_height = self._sea_height - self._bounding_box._min.y;
+        let min_height = self._dead_zone - self._bounding_box._min.y;
         let mut lod_height_map_data: Vec<f32> = Vec::with_capacity((width * height) as usize);
         for y in 0..height {
             for x in 0..width {
@@ -182,7 +182,7 @@ impl HeightMapData {
         let height_data_0 = math::lerp(height_map_data[pixel_indices.x], height_map_data[pixel_indices.y], blend_factors.x);
         let height_data_1 = math::lerp(height_map_data[pixel_indices.z], height_map_data[pixel_indices.w], blend_factors.x);
         let height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, blend_factors.y);
-        self._sea_height.max(height)
+        self._dead_zone.max(height)
     }
 
     pub fn get_height_point_by_texcoord(&self, texcoord: &Vector2<f32>, lod: usize) -> f32 {
@@ -197,7 +197,7 @@ impl HeightMapData {
         let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y.round())) * (height - 1) as f32) as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         let height = self._bounding_box._min.y + self._height_map_data[lod][pixel_index];
-        self._sea_height.max(height)
+        self._dead_zone.max(height)
     }
 
     pub fn get_normal_bilinear_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
