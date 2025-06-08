@@ -113,8 +113,12 @@ pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
     use std::io::Read;
 
     let mut buf = Vec::new();
-    let mut file = File::open(&path).unwrap();
-    file.read_to_end(&mut buf).unwrap();
+    let file = File::open(&path);
+    if file.is_ok() {
+        file.unwrap().read_to_end(&mut buf).unwrap();
+    } else {
+        log::info!("file not found: {}", path.as_ref().display());
+    }
     Cursor::new(buf)
 }
 
