@@ -58,7 +58,7 @@ pub const DEFAULT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 pub struct PushConstant_RenderUI {
     pub _inv_canvas_size: Vector2<f32>,
     pub _instance_id_offset: u32,
-    pub _reserved0: u32,
+    pub _color: u32,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
@@ -877,8 +877,8 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_material_instance(&self) -> &Option<RcRefCell<MaterialInstanceData<'a>>> {
         &self._ui_component_data._material_instance
     }
-    pub fn set_material_instance(&mut self, material_instance: &RcRefCell<MaterialInstanceData<'a>>) {
-        self._ui_component_data._material_instance = Some(material_instance.clone());
+    pub fn set_material_instance(&mut self, material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>) {
+        self._ui_component_data._material_instance = material_instance;
     }
     pub fn get_round(&self) -> f32 {
         self._ui_component_data._round
@@ -1933,7 +1933,7 @@ impl<'a> UIManager<'a> {
                     1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32,
                 ),
                 _instance_id_offset: 0,
-                _reserved0: 0,
+                _color: get_color32(255, 255, 255, 255),
             };
 
             // upload storage buffer
