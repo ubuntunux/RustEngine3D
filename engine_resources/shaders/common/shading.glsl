@@ -329,6 +329,8 @@ vec4 surface_shading(
             texture_shadow
         );
     }
+    const float ambient_light = 0.1;
+    shadow_factor = 0.0 < L.y ? max(ambient_light, shadow_factor) : ambient_light;
 
     float sky_visibility = get_shadow_factor(
         scene_constants.TIME,
@@ -360,13 +362,13 @@ vec4 surface_shading(
         specular_light
     );
 
-#if TRANSPARENT_MATERIAL == 1
+    #if TRANSPARENT_MATERIAL == 1
     {
         vec3 fresnel = fresnelSchlick(NoV, F0);
         float reflectivity = max(max(fresnel.r, fresnel.g), fresnel.b);
         opacity = clamp(opacity + opacity * reflectivity, 0.0, 1.0);
     }
-#endif
+    #endif
 
     // Directional Light
     {
@@ -401,6 +403,15 @@ vec4 surface_shading(
             specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
         }
     }
+
+    // Moon Light
+    const vec3 moon_light_color = vec3(0.68, 0.72, 0.85) * 0.2;
+    {
+        vec3 moon_light_dir = -L;
+        const float moon_light_NoL = max(0.0, dot(N, moon_light_dir) * 0.5 + 0.5);
+        diffuse_light += moon_light_NoL * moon_light_color;
+    }
+
 
 /*
 #ifdef FRAGMENT_SHADER
