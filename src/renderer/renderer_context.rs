@@ -1156,12 +1156,14 @@ impl<'a> RendererContext<'a> {
             }
 
             // waiting
-            match self._device.device_wait_idle() {
-                Err(e) => {
-                    log::error!("device_wait_idle: {:?}", e);
-                    return Err(e);
+            if !waiting_for_fence {
+                match self._device.device_wait_idle() {
+                    Err(e) => {
+                        log::error!("device_wait_idle: {:?}", e);
+                        return Err(e);
+                    }
+                    _ => (),
                 }
-                _ => (),
             }
 
             is_swapchain_suboptimal
