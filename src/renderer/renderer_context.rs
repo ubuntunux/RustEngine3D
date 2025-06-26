@@ -1088,7 +1088,6 @@ impl<'a> RendererContext<'a> {
         fence: vk::Fence,
         image_available_semaphore: vk::Semaphore,
         render_finished_semaphore: vk::Semaphore,
-        time_data:  &mut TimeData,
     ) -> VkResult<bool> {
         let wait_semaphores = [image_available_semaphore];
         let wait_mask = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
@@ -1113,7 +1112,6 @@ impl<'a> RendererContext<'a> {
 
             // vkQueueSubmit
             {
-                let start_time = time_data.get_current_time();
                 let _label_render_effects = ScopedDebugLabel::create_scoped_queue_label(
                     self.get_debug_utils(),
                     self._queue_family_data_list._graphics_queue,
@@ -1130,15 +1128,12 @@ impl<'a> RendererContext<'a> {
                         },
                     )
                     .expect("vkQueueSubmit failed!");
-                time_data._acc_queue_submit_time += time_data.get_current_time() - start_time;
             }
 
             if waiting_for_fence {
-                let start_time =  time_data.get_current_time();
                 self._device
                     .wait_for_fences(fences, true, u64::MAX)
                     .expect("vkWaitForFences failed!");
-                time_data._acc_wait_for_fences_time += time_data.get_current_time() - start_time;
             }
 
             let present_wait_semaphores = [render_finished_semaphore];
@@ -1153,17 +1148,14 @@ impl<'a> RendererContext<'a> {
                 ..Default::default()
             };
 
-            let start_time = time_data.get_current_time();
             let is_swapchain_suboptimal: VkResult<bool> = self
                 ._swapchain_device
                 .queue_present(self.get_present_queue(), &present_info);
             if let Err(present_error) = is_swapchain_suboptimal {
                 log::error!("present_error: {:?}", present_error);
             }
-            time_data._acc_queue_present_time += time_data.get_current_time() - start_time;
 
             // waiting
-            let start_time =  time_data.get_current_time();
             match self._device.device_wait_idle() {
                 Err(e) => {
                     log::error!("device_wait_idle: {:?}", e);
@@ -1171,7 +1163,6 @@ impl<'a> RendererContext<'a> {
                 }
                 _ => (),
             }
-            time_data._acc_device_wait_idle_time += time_data.get_current_time() - start_time;
 
             is_swapchain_suboptimal
         }
@@ -1337,7 +1328,6 @@ impl<'a> RendererContext<'a> {
             let render_finished_semaphore = self._render_finished_semaphores[frame_index];
 
             // Begin Render
-            let start_time = time_data.get_current_time();
             let acquire_next_image_result: VkResult<(u32, bool)> =
                 self._swapchain_device.acquire_next_image(
                     self._swapchain_data._swapchain,
@@ -1345,7 +1335,6 @@ impl<'a> RendererContext<'a> {
                     image_available_semaphore,
                     vk::Fence::null(),
                 );
-            time_data._acc_acquire_next_image_time += time_data.get_current_time() - start_time;
 
             let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok() {
                 acquire_next_image_result.unwrap()
@@ -1368,7 +1357,6 @@ impl<'a> RendererContext<'a> {
                 self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
 
                 // renderer - render_scene
-                let start_time = time_data.get_current_time();
                 self.get_renderer_data_mut().render_scene(
                     command_buffer,
                     frame_index,
@@ -1382,14 +1370,11 @@ impl<'a> RendererContext<'a> {
                     delta_time,
                     elapsed_frame,
                 );
-                time_data._acc_render_scene_time += time_data.get_current_time() - start_time;
 
                 // End command buffer
-                let start_time = time_data.get_current_time();
                 self._device
                     .end_command_buffer(command_buffer)
                     .expect("vkEndCommandBuffer failed!");
-                time_data._acc_end_command_buffer_time += time_data.get_current_time() - start_time;
 
                 // End Render
                 if self.is_first_rendering() {
@@ -1402,7 +1387,6 @@ impl<'a> RendererContext<'a> {
                     frame_fence,
                     image_available_semaphore,
                     render_finished_semaphore,
-                    time_data,
                 );
                 time_data._acc_present_time += time_data.get_current_time() - present_time;
 

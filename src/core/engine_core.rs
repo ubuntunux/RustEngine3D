@@ -39,22 +39,6 @@ pub struct TimeData {
     pub _acc_frame_time: f64,
     pub _acc_render_time: f64,
     pub _acc_present_time: f64,
-
-    pub _acc_acquire_next_image_time: f64,
-    pub _average_acquire_next_image_time: f64,
-    pub _acc_render_scene_time: f64,
-    pub _average_render_scene_time: f64,
-    pub _acc_end_command_buffer_time: f64,
-    pub _average_end_command_buffer_time: f64,
-    pub _acc_queue_submit_time: f64,
-    pub _average_queue_submit_time: f64,
-    pub _acc_wait_for_fences_time: f64,
-    pub _average_wait_for_fences_time: f64,
-    pub _acc_queue_present_time: f64,
-    pub _average_queue_present_time: f64,
-    pub _acc_device_wait_idle_time: f64,
-    pub _average_device_wait_idle_time: f64,
-
     pub _acc_frame_count: i32,
     pub _average_frame_time: f64,
     pub _average_fps: f64,
@@ -72,26 +56,9 @@ pub fn create_time_data() -> TimeData {
     TimeData {
         _time_instance: time_instance,
         _current_time: current_time,
-
-        _acc_device_wait_idle_time: 0.0,
-        _average_device_wait_idle_time: 0.0,
-        _acc_queue_present_time: 0.0,
-        _average_queue_present_time: 0.0,
-        _acc_wait_for_fences_time: 0.0,
-        _average_wait_for_fences_time: 0.0,
-        _acc_queue_submit_time: 0.0,
-        _average_queue_submit_time: 0.0,
-        _acc_end_command_buffer_time: 0.0,
-        _average_end_command_buffer_time: 0.0,
-        _acc_render_scene_time: 0.0,
-        _average_render_scene_time: 0.0,
-        _acc_acquire_next_image_time: 0.0,
-        _average_acquire_next_image_time: 0.0,
-
         _acc_frame_time: 0.0,
         _acc_render_time: 0.0,
         _acc_present_time: 0.0,
-
         _acc_frame_count: 0,
         _average_frame_time: 0.0,
         _average_fps: 0.0,
@@ -125,22 +92,6 @@ impl TimeData {
             self._acc_render_time = 0.0;
             self._average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
             self._acc_present_time = 0.0;
-
-            self._average_device_wait_idle_time = self._acc_device_wait_idle_time / (acc_frame_count as f64) * 1000.0;
-            self._average_queue_present_time = self._acc_queue_present_time / (acc_frame_count as f64) * 1000.0;
-            self._average_wait_for_fences_time = self._acc_wait_for_fences_time / (acc_frame_count as f64) * 1000.0;
-            self._average_queue_submit_time = self._acc_queue_submit_time / (acc_frame_count as f64) * 1000.0;
-            self._average_end_command_buffer_time = self._acc_end_command_buffer_time / (acc_frame_count as f64) * 1000.0;
-            self._average_render_scene_time = self._acc_render_scene_time / (acc_frame_count as f64) * 1000.0;
-            self._average_acquire_next_image_time = self._acc_acquire_next_image_time / (acc_frame_count as f64) * 1000.0;
-
-            self._acc_device_wait_idle_time = 0.0;
-            self._acc_queue_present_time = 0.0;
-            self._acc_wait_for_fences_time = 0.0;
-            self._acc_queue_submit_time = 0.0;
-            self._acc_end_command_buffer_time = 0.0;
-            self._acc_render_scene_time = 0.0;
-            self._acc_acquire_next_image_time = 0.0;
 
             // debug text
             // log::info!("{}", format!("{:.2}fps / {:.3}ms", self._average_fps, self._average_frame_time));
@@ -541,16 +492,10 @@ impl<'a> EngineCore<'a> {
                     "Render Time: {:.3}ms",
                     self._time_data._average_render_time - self._time_data._average_present_time
                 ));
-                font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
-
-                font_manager.log(format!("device_wait_idle_time: {:.3}ms", self._time_data._average_device_wait_idle_time));
-                font_manager.log(format!("queue_present_time: {:.3}ms", self._time_data._average_queue_present_time));
-                font_manager.log(format!("wait_for_fences_time: {:.3}ms", self._time_data._average_wait_for_fences_time));
-                font_manager.log(format!("queue_submit_time: {:.3}ms", self._time_data._average_queue_submit_time));
-                font_manager.log(format!("end_command_buffer_time: {:.3}ms", self._time_data._average_end_command_buffer_time));
-                font_manager.log(format!("render_scene_time: {:.3}ms", self._time_data._average_render_scene_time));
-                font_manager.log(format!("acquire_next_image_time: {:.3}ms", self._time_data._average_acquire_next_image_time));
-
+                font_manager.log(format!(
+                    "Present Time: {:.3}ms",
+                    self._time_data._average_present_time
+                ));
                 font_manager.log(format!(
                     "StaticMesh: {:?}, Shadow: {:?}",
                     scene_manager._static_render_elements.len(),
