@@ -56,9 +56,9 @@ pub fn get_render_pass_data_create_info(
             _attachment_image_samples: sample_count,
             _attachment_load_operation: vk::AttachmentLoadOp::LOAD,
             _attachment_store_operation: vk::AttachmentStoreOp::STORE,
-            _attachment_initial_layout: vk::ImageLayout::UNDEFINED,
+            _attachment_initial_layout: vk::ImageLayout::GENERAL,
             _attachment_final_layout: vk::ImageLayout::GENERAL,
-            _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            _attachment_reference_layout: vk::ImageLayout::GENERAL,
             ..Default::default()
         });
     }
@@ -66,9 +66,9 @@ pub fn get_render_pass_data_create_info(
     let subpass_dependencies = vec![vk::SubpassDependency {
         src_subpass: vk::SUBPASS_EXTERNAL,
         dst_subpass: 0,
-        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-        src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+        src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
+        src_access_mask: vk::AccessFlags::empty(),
+        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
         dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];

@@ -52,7 +52,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         dst_subpass: 0,
         src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
         src_access_mask: vk::AccessFlags::empty(),
-        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
         dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];

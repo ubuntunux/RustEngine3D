@@ -4,7 +4,7 @@ use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::fft_ocean;
 use crate::scene::precomputed_atmosphere;
-use crate::vulkan_context::texture::TextureCreateInfo;
+use crate::vulkan_context::texture::{ImageLayoutTransition, TextureCreateInfo};
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -306,6 +306,7 @@ pub fn get_render_target_create_infos(
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -314,6 +315,7 @@ pub fn get_render_target_create_infos(
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::R32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
         TextureCreateInfo {

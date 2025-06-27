@@ -42,6 +42,7 @@ pub struct TextureCreateInfo<T> {
     pub _enable_mipmap: bool,
     pub _enable_anisotropy: bool,
     pub _texture_initial_data_list: Vec<T>,
+    pub _image_layout_transition: ImageLayoutTransition
 }
 
 #[derive(Debug, Clone)]
@@ -96,14 +97,16 @@ pub struct ImageDataList {
     pub _sub_image_view_type: vk::ImageViewType,
 }
 
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, PartialEq)]
 pub enum ImageLayoutTransition {
+    None,
     TransferUndefToTransferDst,
     TransferDstToShaderReadOnly,
     TransferDstToTransferSrc,
     TransferUndefToDepthAttachement,
     TransferUndefToDepthStencilAttachement,
     TransferUndefToColorAttachement,
+    TransferUndefToColorAttachementWithTransferSrc
 }
 
 #[derive(Debug, Clone)]
@@ -133,6 +136,7 @@ impl<T> Default for TextureCreateInfo<T> {
             _enable_mipmap: false,
             _enable_anisotropy: false,
             _texture_initial_data_list: Vec::new(),
+            _image_layout_transition: ImageLayoutTransition::None
         }
     }
 }
@@ -200,9 +204,7 @@ impl TextureData {
     }
 }
 
-pub fn get_transition_dependent(
-    image_layout_transition: ImageLayoutTransition,
-) -> TransitionDependent {
+pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) -> TransitionDependent {
     match image_layout_transition {
         ImageLayoutTransition::TransferUndefToTransferDst => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
@@ -230,11 +232,11 @@ pub fn get_transition_dependent(
         },
         ImageLayoutTransition::TransferUndefToDepthAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
-            _new_layout: vk::ImageLayout::GENERAL, // vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL
+            _new_layout: vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
             _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
         },
         ImageLayoutTransition::TransferUndefToDepthStencilAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
@@ -242,15 +244,23 @@ pub fn get_transition_dependent(
             _src_access_mask: vk::AccessFlags::empty(),
             _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
         },
-        ImageLayoutTransition::TransferUndefToColorAttachement => TransitionDependent {
+        ImageLayoutTransition::None | ImageLayoutTransition::TransferUndefToColorAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
-            _new_layout: vk::ImageLayout::GENERAL, // vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL
+            _new_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
             _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
             _dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+        },
+        ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc => TransitionDependent {
+            _old_layout: vk::ImageLayout::UNDEFINED,
+            _new_layout: vk::ImageLayout::GENERAL,
+            _src_access_mask: vk::AccessFlags::empty(),
+            _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::TRANSFER_READ,
+            _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
+            _dst_stage_mask: vk::PipelineStageFlags::ALL_COMMANDS,
         },
     }
 }
@@ -760,7 +770,7 @@ pub fn transition_image_layout(
     device: &Device,
     command_buffer: vk::CommandBuffer,
     image: vk::Image,
-    format: vk::Format,
+    aspect_mask: vk::ImageAspectFlags,
     transition: ImageLayoutTransition,
     base_mip_level: u32,
     level_count: u32,
@@ -768,17 +778,6 @@ pub fn transition_image_layout(
     layer_count: u32,
 ) {
     let transition_dependent = get_transition_dependent(transition);
-    let aspect_mask = match transition_dependent._new_layout {
-        vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL => {
-            assert!(constants::DEPTH_FORMATS.contains(&format), "not contained depth format!");
-            vk::ImageAspectFlags::DEPTH
-        },
-        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL => {
-            assert!(constants::DEPTH_STENCIL_FORMATS.contains(&format), "not contained depth stencil format!");
-            vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL
-        },
-        _ => vk::ImageAspectFlags::COLOR
-    };
     let barriers: [vk::ImageMemoryBarrier; 1] = [vk::ImageMemoryBarrier {
         old_layout: transition_dependent._old_layout,
         new_layout: transition_dependent._new_layout,
@@ -1116,6 +1115,11 @@ fn create_texture_data_inner<T: Copy>(
              texture_create_info._texture_format,
              vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
         };
+    let image_layout_transition = if texture_create_info._image_layout_transition != ImageLayoutTransition::None {
+        texture_create_info._image_layout_transition
+    } else {
+        image_layout_transition
+    };
     let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
 
     // we don't need to access the vk::DeviceMemory of the image, copyBufferToImage works with the vk::Image
@@ -1154,7 +1158,7 @@ fn create_texture_data_inner<T: Copy>(
                 device,
                 command_buffer,
                 image,
-                image_format,
+                image_aspect,
                 image_layout_transition,
                 0,
                 mip_levels,
