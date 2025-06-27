@@ -686,7 +686,7 @@ pub fn parsing_meshes(
 
 impl GLTF {
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
-        log::info!("GLTF: {:?}", filename);
+        //log::info!("GLTF: {:?}", filename);
         let (document, buffers, _images) = gltf::import(filename).unwrap();
         let mut mesh_data_create_info = MeshDataCreateInfo::default();
         for skin in document.skins() {

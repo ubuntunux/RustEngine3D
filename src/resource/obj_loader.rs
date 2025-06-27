@@ -345,7 +345,7 @@ impl WaveFrontOBJ {
     // }
 
     pub fn get_mesh_data_create_infos(filename: &PathBuf) -> MeshDataCreateInfo {
-        log::info!("WaveFrontOBJ: {:?}", filename);
+        //log::info!("WaveFrontOBJ: {:?}", filename);
         let mut obj = WaveFrontOBJ::initialize(filename);
         //obj.parse_using_library(filename);
         let texcoord_y = true;

@@ -1,6 +1,6 @@
 use ash::vk;
 
-pub static mut PACKAGED: bool = false;
+pub static mut DEVELOPMENT: bool = false;
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub const DEPTH_FORMATS: [vk::Format; 2] = [
@@ -13,8 +13,7 @@ pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D16_UNORM_S8_UINT,
 ];
 pub const CUBE_LAYER_COUNT: usize = 6;
-pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] =
-    ["right", "left", "top", "bottom", "front", "back"];
+pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] = ["right", "left", "top", "bottom", "front", "back"];
 pub const INVALID_QUEUE_INDEX: u32 = u32::MAX;
 pub const WHOLE_LAYERS: u32 = u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = u32::MAX;
@@ -46,18 +45,18 @@ pub static mut IS_CONCURRENT_MODE: bool = true;
 pub static mut SHADER_CLIP_DISTANCE: bool = true;
 pub static mut METER_PER_UNIT: f32 = 1.0;
 pub static mut NEAR: f32 = 0.1;
-pub static mut FAR: f32 = 2000.0;
+pub static mut FAR: f32 = 200000.0;
 pub static mut FOV: f32 = 60.0;
 pub static MAX_BOUND_BOX_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_bound_box_common.glsl
 pub static MAX_DEBUG_LINE_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_debug_line_common.glsl
 pub static MAX_FONT_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_font_common.glsl
 pub static MAX_UI_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_ui_common.glsl
 pub static mut SHADOW_MAP_SIZE: u32 = 2048;
-pub static mut SHADOW_SAMPLES: i32 = 8;
-pub static mut SHADOW_DISTANCE: f32 = 50.0;
-pub static mut SHADOW_DEPTH: f32 = 1000.0;
+pub static mut SHADOW_SAMPLES: i32 = 12;
+pub static mut SHADOW_DISTANCE: f32 = 100.0;
+pub static mut SHADOW_DEPTH: f32 = 10000.0;
 pub static mut SHADOW_DEPTH_BIAS: f32 = 0.0;
-pub static mut SHADOW_DEPTH_SLOPE_BIAS: f32 = 1.0;
+pub static mut SHADOW_DEPTH_SLOPE_BIAS: f32 = 2.5;
 pub static mut SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;

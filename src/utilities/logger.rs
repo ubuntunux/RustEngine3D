@@ -5,7 +5,7 @@ use env_logger;
 use log::LevelFilter;
 #[cfg(not(target_os = "android"))]
 use std::io::Write;
-use crate::constants::PACKAGED;
+use crate::constants::DEVELOPMENT;
 
 #[cfg(target_os = "android")]
 pub fn initialize_logger(log_level: LevelFilter) {
@@ -36,12 +36,12 @@ pub fn initialize_logger(log_level: LevelFilter) {
     });
     builder.filter(None, log_level);
 
-    if unsafe { PACKAGED } {
+    if unsafe { DEVELOPMENT } {
+        builder.target(env_logger::Target::Stdout);
+    } else {
         let log_file = File::create(".log").expect("Could not create log file");
         let writer = std::io::BufWriter::new(log_file);
         builder.target(env_logger::Target::Pipe(Box::new(writer)));
-    } else {
-        builder.target(env_logger::Target::Stdout);
     }
 
     builder.init();
