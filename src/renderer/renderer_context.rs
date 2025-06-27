@@ -791,7 +791,7 @@ impl<'a> RendererContext<'a> {
         };
         unsafe {
             let render_pass_begin_info =
-                (*framebuffer_data)._render_pass_begin_infos[swapchain_index as usize];
+                (&(*framebuffer_data))._render_pass_begin_infos[swapchain_index as usize];
             let pipeline_bind_point = pipeline_data._pipeline_bind_point;
             let pipeline_dynamic_states = &pipeline_data._pipeline_dynamic_states;
             self._device.cmd_begin_render_pass(

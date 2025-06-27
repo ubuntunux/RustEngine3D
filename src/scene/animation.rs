@@ -288,7 +288,7 @@ impl AnimationData {
         unsafe {
             for (i, animation_node_create_info) in animation_node_create_infos.iter().enumerate() {
                 let animation_node = AnimationNodeData::create_animation_node_data(
-                    &(*animation_data._skeleton)._bones[i],
+                    &(&*animation_data._skeleton)._bones[i],
                     animation_node_create_info,
                 );
                 let frame_count = animation_node._frame_times.len();

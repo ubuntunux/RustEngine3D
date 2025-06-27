@@ -876,10 +876,10 @@ impl ColladaGeometry {
                     if false == self._controller.is_null() {
                         unsafe {
                             self._bone_indices.push(
-                                (*self._controller)._bone_indices[vertex_index as usize].into(),
+                                (&*self._controller)._bone_indices[vertex_index as usize].into(),
                             );
                             self._bone_weights.push(
-                                (*self._controller)._bone_weights[vertex_index as usize].into(),
+                                (&*self._controller)._bone_weights[vertex_index as usize].into(),
                             );
                         }
                     }
