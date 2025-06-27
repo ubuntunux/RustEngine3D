@@ -63,18 +63,15 @@ pub fn get_render_pass_data_create_info(
         });
     }
     let depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    let subpass_dependencies = vec![
-        vk::SubpassDependency {
-            src_subpass: 0,
-            dst_subpass: vk::SUBPASS_EXTERNAL,
-            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            dst_stage_mask: vk::PipelineStageFlags::ALL_GRAPHICS | vk::PipelineStageFlags::TRANSFER,
-            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::TRANSFER_READ,
-            dependency_flags: vk::DependencyFlags::BY_REGION,
-        },
-    ];
-
+    let subpass_dependencies = vec![vk::SubpassDependency {
+        src_subpass: vk::SUBPASS_EXTERNAL,
+        dst_subpass: 0,
+        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+        src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+        dependency_flags: vk::DependencyFlags::BY_REGION,
+    }];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from(pipeline_data_name),
         _pipeline_vertex_shader_file: PathBuf::from(vertex_shader_file),
