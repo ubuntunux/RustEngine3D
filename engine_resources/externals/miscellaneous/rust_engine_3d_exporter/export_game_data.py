@@ -19,6 +19,7 @@ from mathutils import Vector
 import bpy
 import bpy_extras
 
+global logger
 
 def create_logger(logger_name, log_dirname, level):
     # prepare log directory
@@ -102,8 +103,10 @@ class RustEngine3DExporter:
         log_dirname = '.'
         if self.asset_library:
             log_dirname = os.path.join(self.asset_library.path, '.log')
-        self.logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
-        self.logger.info(f'>>> Begin Export Library: {library_name}')
+            
+        global logger
+        logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
+        logger.info(f'>>> Begin Export Library: {library_name}')
     
     def convert_axis(self, axis):
         return [axis[0], axis[2], axis[1]]
@@ -134,17 +137,17 @@ class RustEngine3DExporter:
         return center / 8
 
     def copy_file(self, title, src_filepath, dst_filepath):
-        self.logger.info(f'{title}: {dst_filepath}')        
+        logger.info(f'{title}: {dst_filepath}')        
         try:
             dst_dirpath = os.path.split(dst_filepath)[0]
             if not os.path.exists(dst_dirpath):
                 os.makedirs(dst_dirpath)
             shutil.copy(src_filepath, dst_filepath)                                            
         except:
-            self.logger.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
     
     def write_to_file(self, title, data, export_filepath):
-        self.logger.info(f'{title}: {export_filepath}')        
+        logger.info(f'{title}: {export_filepath}')        
         export_path = os.path.split(export_filepath)[0]
         if not os.path.exists(export_path):
             os.makedirs(export_path)
@@ -249,12 +252,12 @@ class RustEngine3DExporter:
                 export_anim_single_armature=False,
                 export_reset_pose_bones=True
             )
-            self.logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
+            logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
         except:
-            self.logger.error(traceback.format_exc())
+            logger.error(traceback.format_exc())
 
     def export_models(self, asset, asset_info):
-        self.logger.info(f'export_models: {asset_info.asset_namepath}')
+        logger.info(f'export_models: {asset_info.asset_namepath}')
         
         if 0 < len(asset.children):
             mesh_collection = asset.children[0]
@@ -390,7 +393,7 @@ class RustEngine3DExporter:
                     'rotation': self.convert_asset_rotation(child, rx=90.0)
                 })
             elif 'EMPTY' == child.type and 'COLLECTION' == child.instance_type:
-                self.logger.info(f'child: {child.name, child.instance_collection.asset_data is None}')
+                logger.info(f'child: {child.name, child.instance_collection.asset_data is None}')
                 child_asset_info = AssetInfo(child.instance_collection)
                 if 'models' == child_asset_info.asset_type_name:
                     static_objects[child.name] = OrderedDict({
@@ -401,13 +404,13 @@ class RustEngine3DExporter:
                     })
                     # TODO - Skeletal Mesh
                 else:
-                    self.logger.error(f'not implemented asset type {(child.name, child_asset_info.asset_type_name)}')
+                    logger.error(f'not implemented asset type {(child.name, child_asset_info.asset_type_name)}')
             else:
-                self.logger.error(f'not implemented object type {(child.name, child.type)}')
+                logger.error(f'not implemented object type {(child.name, child.type)}')
         return scene_data
         
     def export_scenes(self, asset, asset_info):
-        self.logger.info(f'export_scenes: {asset_info.asset_namepath}')
+        logger.info(f'export_scenes: {asset_info.asset_namepath}')
         scene_data = self.get_scene_data(asset)
         export_filepath = asset_info.get_asset_filepath(self.resource_path, ".scene")
         self.write_to_file('export scene', scene_data, export_filepath)
@@ -424,7 +427,7 @@ class RustEngine3DExporter:
                         property_value_asset_info = AssetInfo(property_value)
                         game_data[key] = property_value_asset_info.asset_namepath
                 else:
-                    self.logger.error(f'get_game_data_character not implemented type: {key, property_type}')
+                    logger.error(f'get_game_data_character not implemented type: {key, property_type}')
 
         for child_property_asset in property_asset.children:
              child_game_data = OrderedDict()
@@ -439,8 +442,8 @@ class RustEngine3DExporter:
         return game_data
 
     def export_game_data(self, asset, asset_info):
-        self.logger.info(f'export_game_data: {asset_info.asset_namepath}')
-        self.logger.info(f'library_name: {self.library_name}, external_path: {self.external_path}, resource_path: {self.resource_path}')
+        logger.info(f'export_game_data: {asset_info.asset_namepath}')
+        logger.info(f'library_name: {self.library_name}, external_path: {self.external_path}, resource_path: {self.resource_path}')
         
         tokens = asset_info.asset_library_path.split('/')
         if 'game_data' == asset_info.asset_type_name and 2 < len(tokens):
@@ -469,13 +472,13 @@ class RustEngine3DExporter:
             elif 'game_scenes':
                 game_data = self.get_game_data_scenes(asset, asset_info)
             else:
-                self.logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
+                logger.error(f'not implemented game data: {asset_info.asset_fullpath}')
                 
             if game_data:
                 export_filepath = asset_info.get_asset_filepath(self.resource_path, game_data_ext)
                 self.write_to_file('export game_data', game_data, export_filepath)
                 return
-        self.logger.error(f'error export_game_data: {asset_info.asset_fullpath}')
+        logger.error(f'error export_game_data: {asset_info.asset_fullpath}')
 
     # export game asset
     def get_game_asset_data(self, asset_container, child_asset, asset_data_name):
@@ -523,13 +526,13 @@ class RustEngine3DExporter:
                 for child_object in child_asset.objects:
                     game_data['_start_point'] = self.convert_asset_location(child_object)
             else:
-                self.logger.error(f'not implemented object type {child_asset.name}')
+                logger.error(f'not implemented object type {child_asset.name}')
         return game_data
 
     # export asset
     def export_asset(self, asset):
         asset_info = AssetInfo(asset)
-        self.logger.info(f'export_object: {asset_info.asset_fullpath}')
+        logger.info(f'export_object: {asset_info.asset_fullpath}')
 
         if 'animation_layers' == asset_info.asset_type_name:
             self.export_animation_layers(asset, asset_info)
@@ -542,11 +545,11 @@ class RustEngine3DExporter:
         elif 'game_data' == asset_info.asset_type_name:
             self.export_game_data(asset, asset_info)
         else:
-            self.logger.error(f'error export_asset: {asset_info.asset_type_name}')
+            logger.error(f'error export_asset: {asset_info.asset_type_name}')
 
     def export_selected_objects(self):
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-        self.logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
+        logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
         selected_objects = bpy.context.selected_objects
         for asset in selected_objects:
             bpy.ops.object.select_all(action='DESELECT')
@@ -555,7 +558,7 @@ class RustEngine3DExporter:
             if 'EMPTY' == asset.type and 'COLLECTION' == asset.instance_type:
                 self.export_asset(asset.instance_collection)
             else:
-                self.logger.error(f'error export_selected_objects: {asset.type}')
+                logger.error(f'error export_selected_objects: {asset.type}')
 
     def load_blend_file(self, blend_file):
         if not os.path.exists(blend_file):
@@ -568,9 +571,9 @@ class RustEngine3DExporter:
             data_to.actions = data_from.actions
             data_to.armatures = data_from.armatures
             data_to.objects = data_from.objects
-            self.logger.info(f'collections: {len(data_to.collections)}')
-            self.logger.info(f'meshes: {len(data_to.meshes)}')
-            self.logger.info(f'objects: {len(data_to.objects)}')
+            logger.info(f'collections: {len(data_to.collections)}')
+            logger.info(f'meshes: {len(data_to.meshes)}')
+            logger.info(f'objects: {len(data_to.objects)}')
             return data_to
     
     def export_library_asset(self, asset, asset_data):        
@@ -591,7 +594,7 @@ class RustEngine3DExporter:
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
     def export_blend(self, blend_file):
-        self.logger.info(f"export_blend: {blend_file}")
+        logger.info(f"export_blend: {blend_file}")
         data = self.load_blend_file(blend_file)
         if data:
             for (i, collection) in enumerate(data.collections):
@@ -604,14 +607,14 @@ class RustEngine3DExporter:
                 
 
     def export_resources(self):
-        self.logger.info(f'>>> export_resource: {self.asset_library.path}')
+        logger.info(f'>>> export_resource: {self.asset_library.path}')
         for dirpath, dirnames, filenames in os.walk(self.asset_library.path):
             for filename in filenames:
                 if '.blend' == os.path.splitext(filename)[1].lower():
                     self.export_blend(os.path.join(dirpath, filename))
 
     def done(self):
-        self.logger.info('>>> Done.\n')
+        logger.info('>>> Done.\n')
 
 
 def run_export_resources():
