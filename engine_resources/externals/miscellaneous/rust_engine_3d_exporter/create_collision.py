@@ -16,9 +16,7 @@ def delete_mesh(collection, name):
         bpy.ops.object.delete()    
     
 def create_collision(collection):
-    delete_mesh(collection, 'COLLISION')
-    #delete_mesh(collection, 'BOUND_BOX')
-    
+    delete_mesh(collection, 'COLLISION')    
     m = sys.float_info.min
     M = sys.float_info.max
     pos_min = Vector((M,M,M))
@@ -29,10 +27,10 @@ def create_collision(collection):
             pos = mesh.matrix_world @ Vector(v)
             pos_min = Vector([min(z) for z in zip(pos, pos_min)])
             pos_max = Vector([max(z) for z in zip(pos, pos_max)])
+    
     location = (pos_min + pos_max) * 0.5
     dimensions = pos_max - pos_min
     create_mesh('COLLISION', location, dimensions)
-    #create_mesh('BOUND_BOX', location, dimensions)
         
 if bpy.context.collection:
     create_collision(bpy.context.collection)
