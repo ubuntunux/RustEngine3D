@@ -9,6 +9,7 @@ def create_animation_blend_mask(armature):
         target = armature.constraints["Armature"].targets.new()
         target.target = armature.override_library.reference
         target.subtarget = bone.name
+        target.weight = 1.0
         
         
 
