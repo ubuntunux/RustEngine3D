@@ -89,6 +89,7 @@ pub struct JoystickInputData {
     pub _btn_start: ButtonState,
     pub _btn_guide: ButtonState,
     pub _is_any_button_pressed: bool,
+    pub _is_any_button_hold: bool,
     pub _game_controller: Option<GameController>,
 }
 
@@ -191,6 +192,10 @@ impl MouseInputData {
 
     pub fn is_any_button_pressed(&self) -> bool {
         self._btn_l_pressed || self._btn_m_pressed || self._btn_r_pressed
+    }
+
+    pub fn is_any_button_hold(&self) -> bool {
+        self._btn_l_hold || self._btn_m_hold || self._btn_r_hold
     }
 }
 
@@ -316,6 +321,7 @@ impl JoystickInputData {
             _btn_start: ButtonState::None,
             _btn_guide: ButtonState::None,
             _is_any_button_pressed: false,
+            _is_any_button_hold: false,
             _game_controller: joystick,
         })
     }
@@ -347,10 +353,33 @@ impl JoystickInputData {
         JoystickInputData::reset_button_state(&mut self._btn_start);
         JoystickInputData::reset_button_state(&mut self._btn_guide);
         self._is_any_button_pressed = false;
+
+        self._is_any_button_hold =
+            self._btn_left_stick == ButtonState::Hold ||
+            self._btn_right_stick == ButtonState::Hold ||
+            self._btn_left == ButtonState::Hold ||
+            self._btn_right == ButtonState::Hold ||
+            self._btn_up == ButtonState::Hold ||
+            self._btn_down == ButtonState::Hold ||
+            self._btn_a == ButtonState::Hold ||
+            self._btn_b == ButtonState::Hold ||
+            self._btn_x == ButtonState::Hold ||
+            self._btn_y == ButtonState::Hold ||
+            self._btn_left_shoulder == ButtonState::Hold ||
+            self._btn_right_shoulder == ButtonState::Hold ||
+            self._btn_left_trigger == ButtonState::Hold ||
+            self._btn_right_trigger == ButtonState::Hold ||
+            self._btn_back == ButtonState::Hold ||
+            self._btn_start == ButtonState::Hold ||
+            self._btn_guide == ButtonState::Hold;
     }
 
     pub fn is_any_button_pressed(&self) -> bool {
         self._is_any_button_pressed
+    }
+
+    pub fn is_any_button_hold(&self) -> bool {
+        self._is_any_button_hold
     }
 
     pub fn has_game_controller(&self) -> bool {
