@@ -154,28 +154,27 @@ pub struct ResourceInfo {
     _meta_data: MetaData,
 }
 
-pub type ResourceDataMap<T> = HashMap<String, RcRefCell<T>>;
+pub type ResourceDataContainer<T> = HashMap<String, RcRefCell<T>>;
 pub type ResourceInfoMap = HashMap<String, ResourceInfo>;
 
-pub type AnimationLayerDataMap = ResourceDataMap<AnimationLayerData>;
-pub type AudioBankDataMap = ResourceDataMap<AudioBankData>;
-pub type EffectDataMap<'a> = ResourceDataMap<EffectData<'a>>;
-pub type FramebufferDataListMap<'a> = ResourceDataMap<FramebufferData<'a>>;
-pub type MaterialDataMap<'a> = ResourceDataMap<MaterialData<'a>>;
-pub type MaterialInstanceDataMap<'a> = ResourceDataMap<MaterialInstanceData<'a>>;
-pub type FontDataMap = ResourceDataMap<FontData>;
-pub type MeshDataMap = ResourceDataMap<MeshData>;
-pub type ModelDataMap<'a> = ResourceDataMap<ModelData<'a>>;
-pub type TextureDataMap = ResourceDataMap<TextureData>;
-pub type RenderPassDataMap<'a> = ResourceDataMap<RenderPassData<'a>>;
+pub type AnimationLayerDataMap = ResourceDataContainer<AnimationLayerData>;
+pub type AudioBankDataMap = ResourceDataContainer<AudioBankData>;
+pub type EffectDataMap<'a> = ResourceDataContainer<EffectData<'a>>;
+pub type FramebufferDataListMap<'a> = ResourceDataContainer<FramebufferData<'a>>;
+pub type MaterialDataMap<'a> = ResourceDataContainer<MaterialData<'a>>;
+pub type MaterialInstanceDataMap<'a> = ResourceDataContainer<MaterialInstanceData<'a>>;
+pub type FontDataMap = ResourceDataContainer<FontData>;
+pub type MeshDataMap = ResourceDataContainer<MeshData>;
+pub type ModelDataMap<'a> = ResourceDataContainer<ModelData<'a>>;
+pub type TextureDataMap = ResourceDataContainer<TextureData>;
+pub type RenderPassDataMap<'a> = ResourceDataContainer<RenderPassData<'a>>;
 pub type RenderPassDataCreateInfoMap = HashMap<String, RenderPassDataCreateInfo>;
-pub type SceneDataCreateInfoMap = ResourceDataMap<SceneDataCreateInfo>;
-pub type DescriptorDataMap<'a> = ResourceDataMap<DescriptorData<'a>>;
-pub type MetaDataMap = ResourceDataMap<MetaData>;
+pub type SceneDataCreateInfoMap = ResourceDataContainer<SceneDataCreateInfo>;
+pub type DescriptorDataMap<'a> = ResourceDataContainer<DescriptorData<'a>>;
+pub type MetaDataMap = ResourceDataContainer<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 
 
-#[derive(Clone)]
 pub struct EngineResources<'a> {
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _animation_layer_data_map: AnimationLayerDataMap,
@@ -224,24 +223,26 @@ pub fn walk_directory(dir: &Path, include_extensions: &[&str], ignore_extensions
 }
 
 pub fn get_resource_data_must<'a, T>(
-    resource_data_map: &'a ResourceDataMap<T>,
+    resource_type: &str,
+    resource_data_map: &'a ResourceDataContainer<T>,
     resource_name: &str,
 ) -> &'a RcRefCell<T> {
     if let Some(resource) = resource_data_map.get(resource_name) {
         return resource
     };
-    panic!("not found resource: {:?}", resource_name);
+    panic!("not found {}: {:?}", resource_type, resource_name);
 }
 
 pub fn get_resource_data<'a, T>(
-    resource_data_map: &'a ResourceDataMap<T>,
+    resource_type: &str,
+    resource_data_map: &'a ResourceDataContainer<T>,
     resource_name: &str,
     default_resource_name: &str,
 ) -> &'a RcRefCell<T> {
     let maybe_data = resource_data_map.get(resource_name);
     match maybe_data {
         None => {
-            log::error!("not found resource: {}", resource_name);
+            log::error!("not found {}: {}", resource_type, resource_name);
             resource_data_map.get(default_resource_name).unwrap()
         }
         _ => maybe_data.unwrap(),
@@ -341,21 +342,21 @@ impl<'a> EngineResources<'a> {
     ) -> Box<EngineResources<'a>> {
         let mut engine_resource = EngineResources {
             _relative_resource_file_path_map: HashMap::new(),
-            _animation_layer_data_map: AnimationLayerDataMap::new(),
+            _animation_layer_data_map: AnimationLayerDataMap::default(),
             _audio_data_map: ResourceInfoMap::new(),
             _audio_bank_data_map: ResourceInfoMap::new(),
-            _effect_data_map: EffectDataMap::new(),
-            _font_data_map: FontDataMap::new(),
-            _mesh_data_map: MeshDataMap::new(),
-            _model_data_map: ModelDataMap::new(),
-            _texture_data_map: TextureDataMap::new(),
-            _framebuffer_data_list_map: FramebufferDataListMap::new(),
-            _render_pass_data_map: RenderPassDataMap::new(),
+            _effect_data_map: EffectDataMap::default(),
+            _font_data_map: FontDataMap::default(),
+            _mesh_data_map: MeshDataMap::default(),
+            _model_data_map: ModelDataMap::default(),
+            _texture_data_map: TextureDataMap::default(),
+            _framebuffer_data_list_map: FramebufferDataListMap::default(),
+            _render_pass_data_map: RenderPassDataMap::default(),
             _render_pass_data_create_info_map: RenderPassDataCreateInfoMap::new(),
-            _scene_data_create_infos_map: SceneDataCreateInfoMap::new(),
-            _material_data_map: MaterialDataMap::new(),
-            _material_instance_data_map: MaterialInstanceDataMap::new(),
-            _descriptor_data_map: DescriptorDataMap::new(),
+            _scene_data_create_infos_map: SceneDataCreateInfoMap::default(),
+            _material_data_map: MaterialDataMap::default(),
+            _material_instance_data_map: MaterialInstanceDataMap::default(),
+            _descriptor_data_map: DescriptorDataMap::default(),
             _callback_load_render_pass_create_infos: callback_load_render_pass_create_info,
         };
 
@@ -626,7 +627,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_animation_layer_data(&self, resource_name: &str) -> &RcRefCell<AnimationLayerData> {
-        get_resource_data(&self._animation_layer_data_map, resource_name, DEFAULT_ANIMATION_LAYER_NAME)
+        get_resource_data("animation_layer_data", &self._animation_layer_data_map, resource_name, DEFAULT_ANIMATION_LAYER_NAME)
     }
 
     // Audio Data
@@ -852,7 +853,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData<'a>> {
-        get_resource_data(&self._effect_data_map, resource_name, DEFAULT_EFFECT_NAME)
+        get_resource_data("effect_data", &self._effect_data_map, resource_name, DEFAULT_EFFECT_NAME)
     }
 
     // FontData
@@ -1014,11 +1015,11 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_default_font_data(&self) -> &RcRefCell<FontData> {
-        get_resource_data_must(&self._font_data_map, DEFAULT_FONT_NAME)
+        get_resource_data_must("font_data", &self._font_data_map, DEFAULT_FONT_NAME)
     }
 
     pub fn get_font_data(&self, resource_name: &str) -> &RcRefCell<FontData> {
-        get_resource_data_must(&self._font_data_map, resource_name)
+        get_resource_data_must("font_data", &self._font_data_map, resource_name)
     }
 
     // ModelData
@@ -1067,7 +1068,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData<'a>> {
-        get_resource_data(&self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
+        get_resource_data("model_data", &self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
     }
 
     // Mesh Loader
@@ -1205,7 +1206,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_mesh_data(&self, resource_name: &str) -> &RcRefCell<MeshData> {
-        get_resource_data(&self._mesh_data_map, resource_name, DEFAULT_MESH_NAME)
+        get_resource_data("mesh_data", &self._mesh_data_map, resource_name, DEFAULT_MESH_NAME)
     }
 
     // TextureLoader
@@ -1478,7 +1479,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_texture_data(&self, resource_name: &str) -> &RcRefCell<TextureData> {
-        get_resource_data(&self._texture_data_map, resource_name, DEFAULT_TEXTURE_NAME)
+        get_resource_data("texture_data", &self._texture_data_map, resource_name, DEFAULT_TEXTURE_NAME)
     }
 
     // Framebuffer
@@ -1531,7 +1532,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData<'a>> {
-        get_resource_data_must(&self._framebuffer_data_list_map, resource_name)
+        get_resource_data_must("framebuffer_data", &self._framebuffer_data_list_map, resource_name)
     }
 
     // render pass data create info
@@ -1613,7 +1614,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData<'a>> {
-        get_resource_data_must(&self._render_pass_data_map, resource_name)
+        get_resource_data_must("render_pass_data", &self._render_pass_data_map, resource_name)
     }
 
     pub fn get_default_render_pass_data(&self) -> &RcRefCell<RenderPassData<'a>> {
@@ -1711,7 +1712,7 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_material_data(&self, resource_name: &str) -> &RcRefCell<MaterialData<'a>> {
-        get_resource_data_must(&self._material_data_map, resource_name)
+        get_resource_data_must("material_data", &self._material_data_map, resource_name)
     }
 
     // MaterialInstance_data_list
@@ -1884,7 +1885,7 @@ impl<'a> EngineResources<'a> {
         &self,
         resource_name: &str,
     ) -> &RcRefCell<MaterialInstanceData<'a>> {
-        get_resource_data_must(&self._material_instance_data_map, resource_name)
+        get_resource_data_must("material_instance_data", &self._material_instance_data_map, resource_name)
     }
 
     // Descriptor_data_list
@@ -1985,6 +1986,6 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_scene_data(&self, resource_name: &str) -> &RcRefCell<SceneDataCreateInfo> {
-        get_resource_data_must(&self._scene_data_create_infos_map, resource_name)
+        get_resource_data_must("scene_data", &self._scene_data_create_infos_map, resource_name)
     }
 }

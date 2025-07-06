@@ -130,6 +130,8 @@ impl<'a> RenderObjectData<'a> {
             _sockets: sockets
         };
 
+        log::info!("create_render_object_data: {}", render_object_name);
+
         render_object_data.initialize_render_object_data();
 
         render_object_data
