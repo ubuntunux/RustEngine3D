@@ -298,14 +298,14 @@ class RustEngine3DExporter:
 
             # extra objects
             for obj in asset.objects:
-                if 'COLLISION' == obj.name:
+                if obj.name.startswith('COLLISION'):
                     pos_min = obj.location - obj.dimensions * 0.5
                     pos_max = obj.location + obj.dimensions * 0.5
                     location = (pos_max + pos_min) * 0.5
                     collision['_collision_type'] = obj.display_bounds_type if obj.display_bounds_type in ['CYLINDER', 'SPHERE'] else 'BOX'
                     collision['_location'] = self.convert_axis(location)
                     collision['_extents'] = self.convert_axis(obj.dimensions * 0.5)
-                elif 'BOUND_BOX' == obj.name:
+                elif obj.name.startswith('BOUND_BOX'):
                     pos_min = obj.location - obj.dimensions * 0.5
                     pos_max = obj.location + obj.dimensions * 0.5
                     bounding_box['_min'] = self.convert_axis(pos_min)
