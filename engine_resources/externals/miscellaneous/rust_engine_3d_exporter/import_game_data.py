@@ -92,7 +92,19 @@ class AssetImportManager(bpy.types.Operator):
             elif node.label == 'textureMaterial':
                 pass
             elif node.label == 'textureNormal':
-                pass
+                pass            
+    
+    def make_textures(self):
+        textures_path = Path(self._asset_library.path, 'textures')
+        textures = self._asset_descriptor.get_textures()
+        for texture in textures.values():
+            dst_texture_filepath = textures_path / texture.get_asset_name()
+            if Util.get_mtime(dst_texture_filepath) < texture.get_mtime():
+                self.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
+                Util.copy(texture.get_filepath(), dst_texture_filepath)
+    
+    def make_materials(self):
+        pass
 
     def make_meshes(self):
         mesh_path = self._asset_descriptor.get_asset_path('MESH')
@@ -138,15 +150,6 @@ class AssetImportManager(bpy.types.Operator):
             
             # for test break
             return
-    
-    def make_textures(self):
-        textures_path = Path(self._asset_library.path, 'textures')
-        textures = self._asset_descriptor.get_textures()
-        for texture in textures.values():
-            dst_texture_filepath = textures_path / texture.get_asset_name()
-            if Util.get_mtime(dst_texture_filepath) < texture.get_mtime():
-                self.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
-                Util.copy(texture.get_filepath(), dst_texture_filepath)
 
     def execute(self, context):
         asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
@@ -160,6 +163,7 @@ class AssetImportManager(bpy.types.Operator):
         self.initialize('StoneAge', asset_descriptor_instance)
         
         self.make_textures()
+        self.make_materials()
         #self.make_meshes()
         return {'FINISHED'}
 
