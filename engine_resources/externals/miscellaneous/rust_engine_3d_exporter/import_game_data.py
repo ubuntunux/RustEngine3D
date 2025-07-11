@@ -1,6 +1,7 @@
 import bpy
 import os
 from pathlib import Path
+import sys
 
 class Util:
     @staticmethod
@@ -29,30 +30,14 @@ class Util:
         return c
 
     @staticmethod
-    def get_collection_index(collection):
-        return bpy.context.scene.collection.children.values().index(collection) + 1
+    def move_to_collection(collection, obj):
+        bpy.context.scene.collection.objects.unlink(obj)
+        collection.objects.link(obj)
     
     @staticmethod
     def save_as(filepath):
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
         
-        
-class Project:
-    def __init__(self, root_path):
-        self._root_path = Path(root_path)
-        self._project_name = self._root_path.stem
-        self._asset_paths = {}
-        self._asset_paths['MESH'] = self._root_path / 'Models'
-        
-    def get_project_name(self):
-        return self._project_name
-    
-    def get_root_path(self):
-        return self._root_path
-    
-    def get_asset_path(self, asset_type):
-        return self._asset_paths[asset_type]
-
     
 class SimpleOperator(bpy.types.Operator):
     bl_idname = "object.simple_operator"
@@ -110,7 +95,7 @@ class SimpleOperator(bpy.types.Operator):
     def make_meshes(self):
         mesh_path = self._project.get_asset_path('MESH')
         for filepath in mesh_path.glob('**/*.fbx'):
-            Util.clear_scene()
+            #Util.clear_scene()
 
             asset_name = self.get_asset_name('MESH', filepath)
             blend_filepath = self.get_blender_filepath('MESH', asset_name)
@@ -123,20 +108,19 @@ class SimpleOperator(bpy.types.Operator):
             
             # create collection
             collection = Util.create_collection(asset_name)
-            collection_index = Util.get_collection_index(collection)
             
             # default material
             default_material = self.get_default_material()
             
             # make mesh
             for obj in bpy.context.scene.objects:
-                # move to collection
-                bpy.ops.object.move_to_collection(collection_index=collection_index)
-                
                 # select object
                 bpy.ops.object.select_all(action='DESELECT')
                 obj.select_set(True)
                 bpy.context.view_layer.objects.active = obj
+                
+                # move to collection
+                Util.move_to_collection(collection, obj)
                 
                 # set material
                 for material_slot in obj.material_slots:
@@ -154,11 +138,27 @@ class SimpleOperator(bpy.types.Operator):
             return
 
     def execute(self, context):
-        project = Project('/mnt/Workspace/temp/PolygonNatureBiomes')
+        project_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
+        sys.path.append(project_path)
+        import importer
+        project = importer.Project(project_path)
         self.initialize('StoneAge', project)
         self.make_meshes()
         return {'FINISHED'}
 
+
+class TestOperator(bpy.types.Operator):
+    bl_idname = "object.test_operator"
+    bl_label = "Test"
+    bl_options = {'REGISTER', 'UNDO'}
+    
+    def info(self, msg):
+        self.report({'INFO'}, str(msg))
+    
+    def execute(self, context):
+        self.info(os.path.abspath('.'))
+        return {'FINISHED'}
+    
 
 class SimplePanel(bpy.types.Panel):
     bl_label = "My Custom Tools"
@@ -172,13 +172,16 @@ class SimplePanel(bpy.types.Panel):
 
         row = layout.row()
         row.operator("object.simple_operator")
+        row.operator("object.test_operator")
 
 def register():
     bpy.utils.register_class(SimpleOperator)
+    bpy.utils.register_class(TestOperator)
     bpy.utils.register_class(SimplePanel)
 
 def unregister():
     bpy.utils.unregister_class(SimplePanel)
+    bpy.utils.unregister_class(TestOperator)
     bpy.utils.unregister_class(SimpleOperator)
 
 if __name__ == "__main__":
