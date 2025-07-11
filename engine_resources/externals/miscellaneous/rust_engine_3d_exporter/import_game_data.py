@@ -2,8 +2,20 @@ import bpy
 import os
 from pathlib import Path
 import sys
+import shutil
 
 class Util:
+    @staticmethod
+    def copy(src_filepath, dst_filepath):
+        if src_filepath.exists():
+            if not dst_filepath.parent.exists():
+                os.makedirs(dst_filepath.parent.as_posix())
+            shutil.copy(src_filepath, dst_filepath)
+        
+    @staticmethod
+    def get_mtime(filepath):
+        return filepath.stat().st_mtime if filepath.exists() else 0
+    
     @staticmethod
     def clear_assets(bpy_data_type):
         assets = bpy_data_type.values()
@@ -39,33 +51,23 @@ class Util:
         bpy.ops.wm.save_as_mainfile(filepath=filepath)
         
     
-class SimpleOperator(bpy.types.Operator):
-    bl_idname = "object.simple_operator"
-    bl_label = "Run My Code"
+class AssetImportManager(bpy.types.Operator):
+    bl_idname = "object.asset_import_manager"
+    bl_label = "import assets"
     bl_options = {'REGISTER', 'UNDO'}
     
     def info(self, msg):
         self.report({'INFO'}, str(msg))
     
-    def initialize(self, library_name, project):
-        # initialize project
-        self._project = project
-        
-        # asset library
+    def initialize(self, library_name, asset_descriptor):
         self._asset_library = bpy.context.preferences.filepaths.asset_libraries[library_name]
-        
-        # initialize paths
-        self._importer_filepath = bpy.data.filepath
-        self._asset_paths = {}
-        self._asset_paths['MESH'] = Path(self._asset_library.path) / 'meshes'
-    
-    def get_asset_path(self, asset_type):
-        return self._asset_paths[asset_type]
+        self._asset_importer_filepath = bpy.data.filepath
+        self._asset_descriptor = asset_descriptor
     
     def get_asset_name(self, asset_type, filepath):
-        project_asset_path = self._project.get_asset_path(asset_type)
-        relative_filepath = filepath.relative_to(project_asset_path)
-        return Path(relative_filepath.parent, relative_filepath.stem).as_posix()
+        asset_root_path = self._asset_descriptor.get_root_path()
+        relative_filepath = filepath.relative_to(asset_root_path)
+        return relative_filepath.with_suffix().as_posix()
     
     def get_blender_filepath(self, asset_type, asset_name):
         return Path(self.get_asset_path('MESH'), asset_name).with_suffix('.blend').as_posix()
@@ -93,9 +95,9 @@ class SimpleOperator(bpy.types.Operator):
                 pass
 
     def make_meshes(self):
-        mesh_path = self._project.get_asset_path('MESH')
+        mesh_path = self._asset_descriptor.get_asset_path('MESH')
         for filepath in mesh_path.glob('**/*.fbx'):
-            #Util.clear_scene()
+            Util.clear_scene()
 
             asset_name = self.get_asset_name('MESH', filepath)
             blend_filepath = self.get_blender_filepath('MESH', asset_name)
@@ -132,18 +134,34 @@ class SimpleOperator(bpy.types.Operator):
             
             # save final
             Util.save_as(blend_filepath)
-            #bpy.ops.wm.open_mainfile(filepath=self._importer_filepath)
+            #bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
             
             # for test break
             return
+    
+    def make_textures(self):
+        textures_path = Path(self._asset_library.path, 'textures')
+        textures = self._asset_descriptor.get_textures()
+        for texture in textures.values():
+            dst_texture_filepath = textures_path / texture.get_asset_name()
+            if Util.get_mtime(dst_texture_filepath) < texture.get_mtime():
+                Util.copy(texture.get_filepath(), dst_texture_filepath)
+            else:
+                self.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
 
     def execute(self, context):
-        project_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
-        sys.path.append(project_path)
-        import importer
-        project = importer.Project(project_path)
-        self.initialize('StoneAge', project)
-        self.make_meshes()
+        asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
+        sys.path.append(asset_root_path)
+        
+        import importlib
+        import asset_descriptor
+        importlib.reload(asset_descriptor)
+        
+        asset_descriptor_instance = asset_descriptor.AssetDescriptor(self, asset_root_path)
+        self.initialize('StoneAge', asset_descriptor_instance)
+        
+        self.make_textures()
+        #self.make_meshes()
         return {'FINISHED'}
 
 
@@ -160,8 +178,8 @@ class TestOperator(bpy.types.Operator):
         return {'FINISHED'}
     
 
-class SimplePanel(bpy.types.Panel):
-    bl_label = "My Custom Tools"
+class AssetImporterPanel(bpy.types.Panel):
+    bl_label = "Asset Import Tools"
     bl_idname = "PT_SimplePanel"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -171,18 +189,18 @@ class SimplePanel(bpy.types.Panel):
         layout = self.layout
 
         row = layout.row()
-        row.operator("object.simple_operator")
+        row.operator("object.asset_import_manager")
         row.operator("object.test_operator")
 
 def register():
-    bpy.utils.register_class(SimpleOperator)
+    bpy.utils.register_class(AssetImportManager)
     bpy.utils.register_class(TestOperator)
-    bpy.utils.register_class(SimplePanel)
+    bpy.utils.register_class(AssetImporterPanel)
 
 def unregister():
-    bpy.utils.unregister_class(SimplePanel)
+    bpy.utils.unregister_class(AssetImporterPanel)
     bpy.utils.unregister_class(TestOperator)
-    bpy.utils.unregister_class(SimpleOperator)
+    bpy.utils.unregister_class(AssetImportManager)
 
 if __name__ == "__main__":
     register()
