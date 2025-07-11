@@ -145,9 +145,8 @@ class AssetImportManager(bpy.types.Operator):
         for texture in textures.values():
             dst_texture_filepath = textures_path / texture.get_asset_name()
             if Util.get_mtime(dst_texture_filepath) < texture.get_mtime():
-                Util.copy(texture.get_filepath(), dst_texture_filepath)
-            else:
                 self.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
+                Util.copy(texture.get_filepath(), dst_texture_filepath)
 
     def execute(self, context):
         asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
