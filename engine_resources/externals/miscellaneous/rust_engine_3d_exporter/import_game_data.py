@@ -187,7 +187,7 @@ class AssetImportManager(bpy.types.Operator):
                     self.override_material(material_slot.material, obj.name, blend_filepath)
             
             # save final
-            obj.asset_generate_preview()
+            collection.asset_generate_preview()
             Util.save_as(blend_filepath)
             bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
 
