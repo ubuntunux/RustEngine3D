@@ -93,7 +93,7 @@ class MaterialDescriptor(BaseDescriptor):
     _exts = ['.mat']
 
 class MeshDescriptor(BaseDescriptor):
-    _asset_class = MaterialInfo
+    _asset_class = MeshInfo
     _asset_path_names = ['Models']
     _exts = ['.fbx']
 
@@ -103,7 +103,7 @@ class ModelDescriptor(BaseDescriptor):
     _exts = ['.prefab']
 
 class SceneDescriptor(BaseDescriptor):
-    _asset_class = ModelInfo
+    _asset_class = SceneInfo
     _asset_path_names = ['Scenes']
     _exts = ['.unity']
 

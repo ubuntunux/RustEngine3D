@@ -13,7 +13,7 @@ class Util:
             if not dst_filepath.parent.exists():
                 os.makedirs(dst_filepath.parent.as_posix())
             shutil.copy(src_filepath, dst_filepath)
-        
+    
     @staticmethod
     def get_mtime(filepath):
         return filepath.stat().st_mtime if filepath.exists() else 0
@@ -24,7 +24,7 @@ class Util:
         for asset in assets:
             asset.use_fake_user = False
             bpy_data_type.remove(asset)
-        
+    
     @staticmethod
     def clear_scene():
         bpy.ops.wm.read_homefile(app_template="")        
@@ -36,14 +36,13 @@ class Util:
         
         # clean-up recursive unused data-blocks
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-
-            
+    
     @staticmethod
     def create_collection(name):
         c = bpy.data.collections.new(name)
         bpy.context.scene.collection.children.link(c)
         return c
-
+    
     @staticmethod
     def move_to_collection(collection, obj):
         bpy.context.scene.collection.objects.unlink(obj)
@@ -71,10 +70,12 @@ class AssetImportManager(bpy.types.Operator):
         self._asset_catalogs_filepath = Path(self._asset_library.path, 'blender_assets.cats.txt')
         self._asset_catalog_names = {}
         self._asset_catalog_ids = {}
+        self._assets = {}
         
         self.load_asset_catalogs()
+        self.load_assets()
     
-    def load_asset_catalogs(self):        
+    def load_asset_catalogs(self):  
         contents = self._asset_catalogs_filepath.read_text().split('\n')
         for content in contents:
             if content.startswith('#') or ':' not in content:
@@ -82,6 +83,33 @@ class AssetImportManager(bpy.types.Operator):
             uuid, catalog_name, catalog_simple_name = content.strip().split(':')
             self._asset_catalog_ids[catalog_name] = uuid
             self._asset_catalog_names[uuid] = catalog_name
+    
+    def load_assets(self):
+        Util.clear_scene()
+        asset_library_path = Path(self._asset_library.path)
+        for filepath in asset_library_path.glob('**/*.blend'):
+            self.info(filepath)
+            
+            with bpy.data.libraries.load(filepath.as_posix(), link=True, assets_only=True) as (data_from, data_to):
+                data_to.objects = data_from.objects
+                data_to.collections = data_from.collections
+                data_to.materials = data_from.materials
+                data_to.scenes = data_from.scenes
+            
+            for obj in bpy.data.objects:
+                if obj.instance_collection:
+                    library_path = os.path.abspath(bpy.path.abspath(obj.instance_collection.library.filepath))
+                    self.info(f'{type(obj)}: {obj.name}, {self.get_asset_catalog_name(obj.instance_collection.asset_data.catalog_id)}')
+                if obj.asset_data:
+                    library_path = os.path.abspath(bpy.path.abspath(obj.library.filepath))
+                    self.info(f'{type(obj)}: {obj.name}, {library_path}, {self.get_asset_catalog_name(obj.asset_data.catalog_id)}')
+            for obj in bpy.data.collections:
+                if obj.asset_data:
+                    library_path = os.path.abspath(bpy.path.abspath(obj.library.filepath))
+                    self.info(f'{type(obj)}: {obj.name}, {library_path}, {self.get_asset_catalog_name(obj.asset_data.catalog_id)}')
+                
+            break
+            
     
     def get_asset_catalog_id(self, catalog_simple_name):
         return self._asset_catalog_ids.get(catalog_simple_name, '')
@@ -102,6 +130,7 @@ class AssetImportManager(bpy.types.Operator):
             return catalog_id
         return ''
     
+    #
     def load_default_material(self):
         default_material_filepath = Path(self._asset_library.path, 'materials/common/render_static_object.blend')
         with bpy.data.libraries.load(default_material_filepath.as_posix(), link=True, assets_only=True) as (data_from, data_to):
@@ -148,7 +177,7 @@ class AssetImportManager(bpy.types.Operator):
                 continue
             
             # save
-            self.info(f'save: {blend_filepath}')
+            self.info(f'save mesh: {blend_filepath}')
             Util.save_as(blend_filepath)
             
             # import fbx
@@ -190,6 +219,59 @@ class AssetImportManager(bpy.types.Operator):
             collection.asset_generate_preview()
             Util.save_as(blend_filepath)
             bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
+    
+    def make_models(self):
+        model_path = Path(self._asset_library.path, 'models')
+        models = self._asset_descriptor.get_models().values()
+        descriptor_name = self._asset_descriptor.get_descriptor_name()
+        
+        for model in models:
+            Util.clear_scene()
+
+            asset_name = model.get_asset_name()
+            blend_filepath = Path(model_path, asset_name).with_suffix('.blend')
+            if model.get_mtime() <= Util.get_mtime(blend_filepath):
+                continue
+            
+            # save
+            self.info(f'save model: {blend_filepath}')
+            Util.save_as(blend_filepath)
+            
+            # create collection
+            collection = Util.create_collection(Path(asset_name).name)
+            collection.asset_mark()
+            catalog_name = '/'.join([self._asset_library.name, 'models', descriptor_name])
+            catalog_id = self.get_asset_catalog_id(catalog_name)
+            if catalog_id:
+                collection.asset_data.catalog_id = catalog_id
+            else:
+                catalog_id = self.register_asset_catalog_name(catalog_name)
+                collection.asset_data.catalog_id = catalog_id
+            
+            # make model
+            for obj in bpy.context.scene.objects:
+                # select object
+                bpy.ops.object.select_all(action='DESELECT')
+                obj.select_set(True)
+                bpy.context.view_layer.objects.active = obj
+                
+                # move to collection
+                Util.move_to_collection(collection, obj)
+                
+                # set material
+                for material_slot in obj.material_slots:
+                    material_slot.link = 'OBJECT'
+                    material_slot.material = default_material.copy()
+                    self.override_material(material_slot.material, obj.name, blend_filepath)
+            
+            # save final
+            collection.asset_generate_preview()
+            Util.save_as(blend_filepath)
+            bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
+            
+            # break for test
+            return
+        
 
     def execute(self, context):
         asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
@@ -202,8 +284,10 @@ class AssetImportManager(bpy.types.Operator):
         asset_descriptor_instance = asset_descriptor.AssetDescriptor(self, asset_root_path)
         self.initialize('StoneAge', asset_descriptor_instance)
         
-        self.make_textures()
-        self.make_meshes()
+        # import
+        #self.make_textures()
+        #self.make_meshes()
+        #self.make_models()
         return {'FINISHED'}
 
 
