@@ -123,17 +123,17 @@ class AssetImportManager(bpy.types.Operator):
         self._asset_descriptor = asset_descriptor.AssetDescriptor(self, asset_root_path)
         
     def process(self):        
-        self.register_asset_catalogs()
-        self.register_assets()
+        self.load_asset_catalogs()
+        self.load_assets()
         
         # process import
         self._asset_descriptor.process()
-        #self.import_textures()
-        #self.import_meshes()
+        self.import_textures()
+        self.import_meshes()
         #self.import_models()
     
-    def register_asset_catalogs(self):  
-        self.info('>>> register_asset_catalogs')
+    def load_asset_catalogs(self):  
+        self.info('>>> load_asset_catalogs')
         contents = self._asset_catalogs_filepath.read_text().split('\n')
         for content in contents:
             if content.startswith('#') or ':' not in content:
@@ -143,8 +143,8 @@ class AssetImportManager(bpy.types.Operator):
             self._asset_catalog_names[uuid] = catalog_name
             self.info(f'{uuid}: {catalog_name}')
     
-    def register_assets(self):
-        self.info('>>> register_assets')
+    def load_assets(self):
+        self.info('>>> load_assets')
         asset_library_path = Path(self._asset_library.path)
         for filepath in asset_library_path.glob('**/*.blend'):
             Util.clear_scene()
@@ -181,7 +181,7 @@ class AssetImportManager(bpy.types.Operator):
             self._asset_catalog_names[catalog_id] = catalog_name
             self._asset_catalog_ids[catalog_name] = catalog_id
             
-            contents = self._asset_catalogs_filepath.read_text()
+            contents = self._asset_catalogs_filepath.read_text().strip()
             contents += f'\n{catalog_id}:{catalog_name}:{catlog_simple_name}'
             self._asset_catalogs_filepath.write_text(contents)
             return catalog_id
