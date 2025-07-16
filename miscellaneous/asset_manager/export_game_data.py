@@ -1,3 +1,5 @@
+import bpy
+import bpy_extras
 from enum import Enum
 import datetime
 from collections import OrderedDict
@@ -5,48 +7,10 @@ import os
 import time
 import json
 import math
+from mathutils import Vector
 import shutil
 import sys
 import traceback
-
-import importlib
-import logging
-importlib.reload(logging)
-from logging.handlers import RotatingFileHandler
-
-from mathutils import Vector
-
-import bpy
-import bpy_extras
-
-global logger
-
-def create_logger(logger_name, log_dirname, level):
-    # prepare log directory
-    if not os.path.exists(log_dirname):
-        os.makedirs(log_dirname)
-    log_file_basename = datetime.datetime.fromtimestamp(time.time()).strftime(f'{logger_name}_%Y%m%d_%H%M%S.log')
-    log_filename = os.path.join(log_dirname, log_file_basename)
-
-    # create logger
-    logger = logging.getLogger(log_dirname)
-    logger.setLevel(level=level)
-
-    # add handler
-    stream_handler = logging.StreamHandler()
-    file_max_byte = 1024 * 1024 * 100 #100MB
-    backup_count = 10
-    file_handler = logging.handlers.RotatingFileHandler(log_filename, maxBytes=file_max_byte, backupCount=backup_count)
-
-    logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
-
-    # set formatter
-    formatter = logging.Formatter(fmt='%(asctime)s,%(msecs)03d [%(levelname)s|%(filename)s:%(lineno)d] %(message)s', datefmt='%Y-%m-%d:%H:%M:%S')
-    stream_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-    return logger
-
 
 def get_bound(collection):    
     m = sys.float_info.min
@@ -94,42 +58,38 @@ class AssetInfo:
         return os.path.join(resource_path, self.asset_relative_path, self.asset_name) + ext
 
 
-class RustEngine3DExporter:
-    def __init__(self, library_name):
+class AssetExportManager:
+    def __init__(self, __logger__, library_name):
+        global logger
+        logger = __logger__
+
         self.library_name = library_name
         self.asset_library = bpy.context.preferences.filepaths.asset_libraries.get(library_name)
         self.external_path = os.path.normpath(self.asset_library.path)
         self.resource_path = os.path.split(self.external_path)[0]
-        log_dirname = '.'
-        if self.asset_library:
-            log_dirname = os.path.join(os.path.split(bpy.data.filepath)[0], '.log')
-            
-        global logger
-        logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
-        logger.info(f'>>> Begin Export Library: {library_name}')
-    
+
     def convert_axis(self, axis):
         return [axis[0], axis[2], axis[1]]
-    
+
     def convert_asset_location(self, asset):
         return self.convert_axis(list(asset.location))
-    
+
     def convert_asset_rotation(self, asset, rx=0.0, ry=0.0, rz=0.0):
         rotation_euler = list(asset.rotation_euler)
         rotation_euler[0] = math.radians(rx) - rotation_euler[0]
         rotation_euler[1] = math.radians(ry) - rotation_euler[1]
         rotation_euler[2] = math.radians(rz) - rotation_euler[2]
         return self.convert_axis(rotation_euler)
-    
+
     def convert_asset_scale(self, asset):
         return self.convert_axis(list(asset.scale))
-    
+
     def convert_asset_dimensions(self, asset):
         return self.convert_axis(list(asset.dimensions))
-    
+
     def convert_light_color(self, asset):
         return [asset.data.energy * x for x in list(asset.data.color)]
-    
+
     def get_object_center(self, obj):
         center = Vector((0,0,0))
         for v in obj.bound_box:
@@ -137,37 +97,37 @@ class RustEngine3DExporter:
         return center / 8
 
     def copy_file(self, title, src_filepath, dst_filepath):
-        logger.info(f'{title}: {dst_filepath}')        
+        logger.info(f'{title}: {dst_filepath}')
         try:
             dst_dirpath = os.path.split(dst_filepath)[0]
             if not os.path.exists(dst_dirpath):
                 os.makedirs(dst_dirpath)
-            shutil.copy(src_filepath, dst_filepath)                                            
+            shutil.copy(src_filepath, dst_filepath)
         except:
             logger.error(traceback.format_exc())
-    
+
     def write_to_file(self, title, data, export_filepath):
-        logger.info(f'{title}: {export_filepath}')        
+        logger.info(f'{title}: {export_filepath}')
         export_path = os.path.split(export_filepath)[0]
         if not os.path.exists(export_path):
             os.makedirs(export_path)
-            
+
         with open(export_filepath, 'w') as f:
             f.write(json.dumps(data, sort_keys=True, indent=4))
-    
+
     def export_animation_layers(self, asset, asset_info):
         bone_blend_map = OrderedDict()
-        
+
         for child in asset.children:
             for child_object in [x for x in child.objects if 'ARMATURE' == x.type]:
                 for constraint in [x for x in child_object.constraints if 'ARMATURE' == x.type]:
                     for target in constraint.targets:
                         bone_blend_map[target.subtarget] = target.weight
-        
+
         animation_layers = OrderedDict({
             "_bone_blend_map": bone_blend_map
         })
-        
+
         # export animation_layers
         export_filepath = asset_info.get_asset_filepath(self.resource_path, '.layer')
         self.write_to_file('export animation_layers', animation_layers, export_filepath)
@@ -228,12 +188,12 @@ class RustEngine3DExporter:
 
     def export_selected_meshes(self, asset_info):
         export_filepath = asset_info.get_asset_filepath(self.resource_path, '.gltf')
-        
+
         try:
             export_dirpath = os.path.split(export_filepath)[0]
             if not os.path.exists(export_dirpath):
                 os.makedirs(export_dirpath)
-            
+
             bpy.ops.export_scene.gltf(
                 filepath=export_filepath,
                 export_format='GLTF_SEPARATE',
@@ -258,10 +218,10 @@ class RustEngine3DExporter:
 
     def export_models(self, asset, asset_info):
         logger.info(f'export_models: {asset_info.asset_namepath}')
-        
+
         if 0 < len(asset.children):
             mesh_collection = asset.children[0]
-            
+
             # mesh
             mesh_data = mesh_collection.override_library.reference
             mesh_asset_info = AssetInfo(mesh_data)
@@ -271,21 +231,21 @@ class RustEngine3DExporter:
 
             # material instance
             material_instances = self.export_material_instance(asset_info, mesh_collection)
-                    
+
             # local transform object
             position = [0.0, 0.0, 0.0]
             rotation = [0.0, 0.0, 0.0]
             scale = [1.0, 1.0, 1.0]
-            
+
             # default bound
             (default_pos_min, default_pos_max) = get_bound(mesh_collection)
-            
+
             # bounding box
             bounding_box = OrderedDict({
                 "_min": self.convert_axis(default_pos_min),
                 "_max": self.convert_axis(default_pos_max)
             })
-            
+
             # collision
             collision = OrderedDict({
                 "_collision_type": "NONE",
@@ -349,7 +309,7 @@ class RustEngine3DExporter:
             })
             export_model_filepath = asset_info.get_asset_filepath(self.resource_path, '.model')
             self.write_to_file('export model', model_info, export_model_filepath)
-    
+
     def get_scene_data(self, asset):
         cameras = OrderedDict()
         directional_lights = OrderedDict()
@@ -357,7 +317,7 @@ class RustEngine3DExporter:
         effects = OrderedDict()
         static_objects = OrderedDict()
         skeletal_objects = OrderedDict()
-        
+
         scene_data = OrderedDict({
             "_cameras": cameras,
             "_directional_lights": directional_lights,
@@ -366,12 +326,12 @@ class RustEngine3DExporter:
             "_static_objects": static_objects,
             "_skeletal_objects": skeletal_objects
         })
-        
+
         for child in asset.objects:
             if 'LIGHT' == child.type:
                 light_color = self.convert_light_color(child)
                 light_rotation = self.convert_asset_rotation(child, rx=90.0)
-                
+
                 if 'SUN' == child.data.type:
                     directional_lights[child.name] = OrderedDict({
                         "_rotation": light_rotation,
@@ -408,7 +368,7 @@ class RustEngine3DExporter:
             else:
                 logger.error(f'not implemented object type {(child.name, child.type)}')
         return scene_data
-        
+
     def export_scenes(self, asset, asset_info):
         logger.info(f'export_scenes: {asset_info.asset_namepath}')
         scene_data = self.get_scene_data(asset)
@@ -532,7 +492,7 @@ class RustEngine3DExporter:
     # export asset
     def export_asset(self, asset):
         asset_info = AssetInfo(asset)
-        logger.info(f'export_object: {asset_info.asset_fullpath}')
+        logger.info(f'export_asset: {asset_info.asset_fullpath}')
 
         if 'animation_layers' == asset_info.asset_type_name:
             self.export_animation_layers(asset, asset_info)
@@ -547,10 +507,11 @@ class RustEngine3DExporter:
         else:
             logger.error(f'error export_asset: {asset_info.asset_type_name}')
 
-    def export_selected_objects(self):
+    def export_assets(self):
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-        logger.info(f"export_selected_objects: {bpy.context.selected_objects}")
+        bpy.ops.object.select_all(action='SELECT')
         selected_objects = bpy.context.selected_objects
+        logger.info(f">>> export_assets: {selected_objects}")
         for asset in selected_objects:
             bpy.ops.object.select_all(action='DESELECT')
             asset.select_set(True)
@@ -559,6 +520,7 @@ class RustEngine3DExporter:
                 self.export_asset(asset.instance_collection)
             else:
                 logger.error(f'error export_selected_objects: {asset.type}')
+        logger.info(f'>>> End: export_assets')
 
     def load_blend_file(self, blend_file):
         if not os.path.exists(blend_file):
@@ -604,7 +566,6 @@ class RustEngine3DExporter:
                 empty.instance_collection = collection
                 # export
                 self.export_library_asset(empty, collection)
-                
 
     def export_resources(self):
         logger.info(f'>>> export_resource: {self.asset_library.path}')
@@ -613,26 +574,11 @@ class RustEngine3DExporter:
                 if '.blend' == os.path.splitext(filename)[1].lower():
                     self.export_blend(os.path.join(dirpath, filename))
 
-    def done(self):
-        logger.info('>>> Done.\n')
-
-
 def run_export_resources():
-    bpy.context.window.cursor_set('WAIT')
-
-    #exporter = RustEngine3DExporter('engine_resources')
-    exporter = RustEngine3DExporter('StoneAge')
-
-    exporter.export_selected_objects()
+    exporter = AssetExportManager('StoneAge')
+    exporter.export_assets()
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/environments/cactus.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/environments/cliff_grass.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/meshes/characters/jack/jack.blend')
     #exporter.export_blend('/home/ubuntunux/WorkSpace/StoneAge/resources/externals/models/characters/jack.blend')
     #exporter.export_resources()
-    exporter.done()
-
-    bpy.context.window.cursor_set('DEFAULT')
-    return {'FINISHED'}
-
-
-run_export_resources()

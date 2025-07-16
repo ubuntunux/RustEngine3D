@@ -72,7 +72,7 @@ class AssetInfo:
 class AssetDescriptor:
     def __init__(self, asset_descriptor, logger, asset_type):
         self._asset_descriptor = asset_descriptor
-        self._logger = logger
+        logger = logger
         self._asset_type = asset_type
         self._assets = {}
         self._assets_by_guid = {}
@@ -92,7 +92,7 @@ class AssetDescriptor:
         return None
 
     def process(self, asset_descriptor_data):
-        self._logger.info(f'AssetDescriptor::process::{self._asset_type}')
+        logger.info(f'AssetDescriptor::process::{self._asset_type}')
         root_path = self._asset_descriptor.get_root_path()
         my_asset_descriptor_data = asset_descriptor_data.get(self._asset_type, {})
         self._assets = {}
@@ -105,11 +105,13 @@ class AssetDescriptor:
                     asset_name = asset_base_name / relative_filepath.with_suffix('')
                     asset_info = AssetInfo(self._asset_type, asset_name.as_posix(), filepath)
                     self.register_asset(asset_info)
-                    self._logger.info(asset_info)
+                    logger.debug(asset_info)
 
 class AssetDescriptorManager:
-    def __init__(self, logger, root_path):
-        self._logger = logger
+    def __init__(self, __logger__, root_path):
+        global logger
+        logger = __logger__
+
         self._root_path = Path(root_path)
         self._descriptor_name = self._root_path.stem
         self._material_descriptor = AssetDescriptor(self, logger, asset_type='MATERIAL')

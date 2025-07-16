@@ -1,42 +1,13 @@
 import bpy
 import datetime
-import importlib
-import logging
-from logging.handlers import RotatingFileHandler
 import os
 from pathlib import Path
 import shutil
 import sys
 import time
+import traceback
 import uuid
 
-global logger
-
-def create_logger(logger_name, log_dirname, level):
-    # prepare log directory
-    if not os.path.exists(log_dirname):
-        os.makedirs(log_dirname)
-    log_file_basename = datetime.datetime.fromtimestamp(time.time()).strftime(f'{logger_name}_%Y%m%d_%H%M%S.log')
-    log_filename = os.path.join(log_dirname, log_file_basename)
-
-    # create logger
-    logger = logging.getLogger(log_dirname)
-    logger.setLevel(level=level)
-
-    # add handler
-    stream_handler = logging.StreamHandler()
-    file_max_byte = 1024 * 1024 * 100 #100MB
-    backup_count = 10
-    file_handler = logging.handlers.RotatingFileHandler(log_filename, maxBytes=file_max_byte, backupCount=backup_count)
-
-    logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
-
-    # set formatter
-    formatter = logging.Formatter(fmt='%(asctime)s,%(msecs)03d [%(levelname)s|%(filename)s:%(lineno)d] %(message)s', datefmt='%Y-%m-%d:%H:%M:%S')
-    stream_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-    return logger
 
 class Util:
     @staticmethod
@@ -87,35 +58,19 @@ class Util:
         bpy.ops.wm.save_as_mainfile(filepath=filepath.as_posix())
         
     
-class AssetImportManager(bpy.types.Operator):
-    bl_idname = "object.asset_import_manager"
-    bl_label = "import assets"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def initialize(self, asset_library_name, asset_root_path):        
-        asset_library = bpy.context.preferences.filepaths.asset_libraries['StoneAge']
-        
-        # logger
+class AssetImportManager:
+    def __init__(self, __logger__, asset_library_name, asset_descriptor_manager):
         global logger
-        logger = create_logger(
-            logger_name='log', 
-            log_dirname=Path(os.path.split(bpy.data.filepath)[0], '.log').as_posix(), 
-            level=logging.INFO
-        )
-        
-        # asset library
+        logger = __logger__
+
+        asset_library = bpy.context.preferences.filepaths.asset_libraries[asset_library_name]
         self._asset_library = asset_library
         self._asset_importer_filepath = bpy.data.filepath
-        self._asset_catalogs_filepath = Path(self._asset_library.path, 'blender_assets.cats.txt')
+        self._asset_catalogs_filepath = Path(asset_library.path, 'blender_assets.cats.txt')
         self._asset_catalog_names = {}
         self._asset_catalog_ids = {}
         self._assets = {}
-        
-        # load asset_descriptor
-        sys.path.append(asset_root_path)
-        import asset_descriptor
-        importlib.reload(asset_descriptor)        
-        self._asset_descriptor_manager = asset_descriptor.AssetDescriptorManager(logger, asset_root_path)
+        self._asset_descriptor_manager = asset_descriptor_manager
     
     def load_asset_catalogs(self):  
         logger.info('>>> load_asset_catalogs')
@@ -126,7 +81,7 @@ class AssetImportManager(bpy.types.Operator):
             uuid, catalog_name, catalog_simple_name = content.strip().split(':')
             self._asset_catalog_ids[catalog_name] = uuid
             self._asset_catalog_names[uuid] = catalog_name
-            logger.info(f'{uuid}: {catalog_name}')
+            logger.debug(f'{uuid}: {catalog_name}')
     
     def load_assets(self):
         logger.info('>>> load_assets')
@@ -148,7 +103,7 @@ class AssetImportManager(bpy.types.Operator):
                         if library_path == filepath.as_posix():
                             asset_name = self.get_asset_catalog_name(asset.asset_data.catalog_id) + '/' + asset.name                            
                             self._assets[asset_name] = asset
-                            logger.info(f'{type(asset)} {asset_name}')
+                            logger.debug(f'{type(asset)} {asset_name}')
     
     def get_asset_catalog_id(self, catalog_simple_name):
         catalog_id = self._asset_catalog_ids.get(catalog_simple_name, '')
@@ -192,7 +147,7 @@ class AssetImportManager(bpy.types.Operator):
                 image_data = bpy.data.images.load(filepath=texture_filepath, check_existing=True)
                 image_data.filepath = bpy.path.relpath(texture_filepath)
                 node.image = image_data
-                logger.info(node.image.filepath)
+                logger.debug(node.image.filepath)
             elif node.label == 'textureMaterial':
                 pass
             elif node.label == 'textureNormal':
@@ -202,6 +157,7 @@ class AssetImportManager(bpy.types.Operator):
     def import_textures(self):
         textures_path = Path(self._asset_library.path, 'textures')
         textures = self._asset_descriptor_manager.get_textures().values()
+        logger.info(f'>>> import_textures: {len(textures)}')
         for texture in textures:
             ext = texture.get_filepath().suffix
             dst_texture_filepath = Path(textures_path, texture.get_asset_name()).with_suffix(ext)
@@ -209,11 +165,12 @@ class AssetImportManager(bpy.types.Operator):
                 logger.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
                 Util.copy(texture.get_filepath(), dst_texture_filepath)
 
-    def import_meshes(self):        
+    def import_meshes(self):
         mesh_path = Path(self._asset_library.path, 'meshes')
         meshes = self._asset_descriptor_manager.get_meshes().values()
         descriptor_name = self._asset_descriptor_manager.get_descriptor_name()
-        
+
+        logger.info(f'>>> import_meshes: {len(meshes)}')
         for mesh in meshes:
             Util.clear_scene()
 
@@ -260,14 +217,12 @@ class AssetImportManager(bpy.types.Operator):
             collection.asset_generate_preview()
             Util.save_as(blend_filepath)
             bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
-            
-            # break for test
-            return            
     
     def import_models(self):
         model_path = Path(self._asset_library.path, 'models')
         models = self._asset_descriptor_manager.get_models().values()
         descriptor_name = self._asset_descriptor_manager.get_descriptor_name()
+        logger.info(f'>>> import_models: {len(models)}')
         
         for model in models:
             Util.clear_scene()
@@ -312,11 +267,13 @@ class AssetImportManager(bpy.types.Operator):
             collection.asset_generate_preview()
             Util.save_as(blend_filepath)
             bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
-            
+
             # break for test
             return
         
-    def process(self):
+    def import_assets(self):
+        logger.info(f'>>> Begin: import_assets')
+
         # load asset descriptor
         self._asset_descriptor_manager.process()
         
@@ -329,52 +286,4 @@ class AssetImportManager(bpy.types.Operator):
         self.import_meshes()
         #self.import_models()
 
-    def execute(self, context):
-        asset_library_name = 'StoneAge'
-        asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
-        
-        self.initialize(asset_library_name, asset_root_path)
-        self.process()
-        
-        return {'FINISHED'}
-
-
-class TestOperator(bpy.types.Operator):
-    bl_idname = "object.test_operator"
-    bl_label = "Test"
-    bl_options = {'REGISTER', 'UNDO'}
-    
-    def info(self, msg):
-        self.report({'INFO'}, str(msg))
-    
-    def execute(self, context):
-        logger.info(os.path.abspath('.'))
-        return {'FINISHED'}
-    
-
-class AssetImporterPanel(bpy.types.Panel):
-    bl_label = "Asset Import Tools"
-    bl_idname = "PT_SimplePanel"
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = 'Tool'
-
-    def draw(self, context):
-        layout = self.layout
-
-        row = layout.row()
-        row.operator("object.asset_import_manager")
-        row.operator("object.test_operator")
-
-def register():
-    bpy.utils.register_class(AssetImportManager)
-    bpy.utils.register_class(TestOperator)
-    bpy.utils.register_class(AssetImporterPanel)
-
-def unregister():
-    bpy.utils.unregister_class(AssetImporterPanel)
-    bpy.utils.unregister_class(TestOperator)
-    bpy.utils.unregister_class(AssetImportManager)
-
-if __name__ == "__main__":
-    register()
+        logger.info(f'>>> End: import_assets')
