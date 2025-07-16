@@ -99,7 +99,7 @@ class AssetImportManager(bpy.types.Operator):
         global logger
         logger = create_logger(
             logger_name='log', 
-            log_dirname=Path(asset_library.path, '.log').as_posix(), 
+            log_dirname=Path(os.path.split(bpy.data.filepath)[0], '.log').as_posix(), 
             level=logging.INFO
         )
         
