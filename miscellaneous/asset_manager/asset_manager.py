@@ -63,6 +63,7 @@ class AssetImportPanel(bpy.types.Operator):
             # AssetDescriptorManager
             import asset_descriptor
             importlib.reload(asset_descriptor)
+            
             asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
             asset_descriptor_manager = asset_descriptor.AssetDescriptorManager(logger, asset_root_path)
             
@@ -75,9 +76,11 @@ class AssetImportPanel(bpy.types.Operator):
         except:
             logger.info(traceback.format_exc())
         
+        bpy.context.window.cursor_set('DEFAULT')
+        logger.info('FINISHED')
+        
         # open log file
         open_text_file_in_blender_editor(logger._filepath)
-        bpy.context.window.cursor_set('DEFAULT')
         return {'FINISHED'}
 
 
@@ -92,15 +95,18 @@ class AssetExportPanel(bpy.types.Operator):
             # AssetExportManager
             import export_game_data
             importlib.reload(export_game_data)
+            
             asset_library_name = 'StoneAge'
             asset_export_manager = export_game_data.AssetExportManager(logger, asset_library_name)
             asset_export_manager.export_assets()
         except:
             logger.info(traceback.format_exc())
         
+        bpy.context.window.cursor_set('DEFAULT')
+        logger.info('FINISHED')
+                
         # open log file
         open_text_file_in_blender_editor(logger._filepath)
-        bpy.context.window.cursor_set('DEFAULT')
         return {'FINISHED'}
 
 
