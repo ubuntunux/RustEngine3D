@@ -92,11 +92,6 @@ class AssetImportManager(bpy.types.Operator):
     bl_label = "import assets"
     bl_options = {'REGISTER', 'UNDO'}
     
-    def info(self, msg):
-        msg = str(msg)
-        self.report({'INFO'}, msg)
-        logger.info(msg)
-    
     def initialize(self, asset_library_name, asset_root_path):        
         asset_library = bpy.context.preferences.filepaths.asset_libraries['StoneAge']
         
@@ -120,20 +115,10 @@ class AssetImportManager(bpy.types.Operator):
         sys.path.append(asset_root_path)
         import asset_descriptor
         importlib.reload(asset_descriptor)        
-        self._asset_descriptor = asset_descriptor.AssetDescriptor(self, asset_root_path)
-        
-    def process(self):        
-        self.load_asset_catalogs()
-        self.load_assets()
-        
-        # process import
-        self._asset_descriptor.process()
-        self.import_textures()
-        self.import_meshes()
-        #self.import_models()
+        self._asset_descriptor_manager = asset_descriptor.AssetDescriptorManager(logger, asset_root_path)
     
     def load_asset_catalogs(self):  
-        self.info('>>> load_asset_catalogs')
+        logger.info('>>> load_asset_catalogs')
         contents = self._asset_catalogs_filepath.read_text().split('\n')
         for content in contents:
             if content.startswith('#') or ':' not in content:
@@ -141,10 +126,10 @@ class AssetImportManager(bpy.types.Operator):
             uuid, catalog_name, catalog_simple_name = content.strip().split(':')
             self._asset_catalog_ids[catalog_name] = uuid
             self._asset_catalog_names[uuid] = catalog_name
-            self.info(f'{uuid}: {catalog_name}')
+            logger.info(f'{uuid}: {catalog_name}')
     
     def load_assets(self):
-        self.info('>>> load_assets')
+        logger.info('>>> load_assets')
         asset_library_path = Path(self._asset_library.path)
         for filepath in asset_library_path.glob('**/*.blend'):
             Util.clear_scene()
@@ -163,7 +148,7 @@ class AssetImportManager(bpy.types.Operator):
                         if library_path == filepath.as_posix():
                             asset_name = self.get_asset_catalog_name(asset.asset_data.catalog_id) + '/' + asset.name                            
                             self._assets[asset_name] = asset
-                            self.info(f'{type(asset)} {asset_name}')
+                            logger.info(f'{type(asset)} {asset_name}')
     
     def get_asset_catalog_id(self, catalog_simple_name):
         catalog_id = self._asset_catalog_ids.get(catalog_simple_name, '')
@@ -194,7 +179,7 @@ class AssetImportManager(bpy.types.Operator):
         return bpy.data.materials['render_static_object']    
 
     def override_material(self, material, material_name, blend_filepath):
-        descriptor_name = self._asset_descriptor.get_descriptor_name()
+        descriptor_name = self._asset_descriptor_manager.get_descriptor_name()
         catalog_name = '/'.join([self._asset_library.name, 'material_instances', descriptor_name])
         
         material.name = material_name
@@ -207,7 +192,7 @@ class AssetImportManager(bpy.types.Operator):
                 image_data = bpy.data.images.load(filepath=texture_filepath, check_existing=True)
                 image_data.filepath = bpy.path.relpath(texture_filepath)
                 node.image = image_data
-                self.info(node.image.filepath)
+                logger.info(node.image.filepath)
             elif node.label == 'textureMaterial':
                 pass
             elif node.label == 'textureNormal':
@@ -216,18 +201,18 @@ class AssetImportManager(bpy.types.Operator):
     # process import
     def import_textures(self):
         textures_path = Path(self._asset_library.path, 'textures')
-        textures = self._asset_descriptor.get_textures().values()
+        textures = self._asset_descriptor_manager.get_textures().values()
         for texture in textures:
             ext = texture.get_filepath().suffix
             dst_texture_filepath = Path(textures_path, texture.get_asset_name()).with_suffix(ext)
             if Util.get_mtime(dst_texture_filepath) < texture.get_mtime():
-                self.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
+                logger.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
                 Util.copy(texture.get_filepath(), dst_texture_filepath)
 
     def import_meshes(self):        
         mesh_path = Path(self._asset_library.path, 'meshes')
-        meshes = self._asset_descriptor.get_meshes().values()
-        descriptor_name = self._asset_descriptor.get_descriptor_name()
+        meshes = self._asset_descriptor_manager.get_meshes().values()
+        descriptor_name = self._asset_descriptor_manager.get_descriptor_name()
         
         for mesh in meshes:
             Util.clear_scene()
@@ -238,7 +223,7 @@ class AssetImportManager(bpy.types.Operator):
                 continue
             
             # save
-            self.info(f'save mesh: {blend_filepath}')
+            logger.info(f'save mesh: {blend_filepath}')
             Util.save_as(blend_filepath)
             
             # import fbx
@@ -275,11 +260,14 @@ class AssetImportManager(bpy.types.Operator):
             collection.asset_generate_preview()
             Util.save_as(blend_filepath)
             bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
+            
+            # break for test
+            return            
     
     def import_models(self):
         model_path = Path(self._asset_library.path, 'models')
-        models = self._asset_descriptor.get_models().values()
-        descriptor_name = self._asset_descriptor.get_descriptor_name()
+        models = self._asset_descriptor_manager.get_models().values()
+        descriptor_name = self._asset_descriptor_manager.get_descriptor_name()
         
         for model in models:
             Util.clear_scene()
@@ -290,7 +278,7 @@ class AssetImportManager(bpy.types.Operator):
                 continue
             
             # save
-            self.info(f'save model: {blend_filepath}')
+            logger.info(f'save model: {blend_filepath}')
             Util.save_as(blend_filepath)
             
             # create collection
@@ -327,6 +315,19 @@ class AssetImportManager(bpy.types.Operator):
             
             # break for test
             return
+        
+    def process(self):
+        # load asset descriptor
+        self._asset_descriptor_manager.process()
+        
+        # load asset library
+        self.load_asset_catalogs()
+        self.load_assets()
+        
+        # process import        
+        self.import_textures()
+        self.import_meshes()
+        #self.import_models()
 
     def execute(self, context):
         asset_library_name = 'StoneAge'
@@ -347,7 +348,7 @@ class TestOperator(bpy.types.Operator):
         self.report({'INFO'}, str(msg))
     
     def execute(self, context):
-        self.info(os.path.abspath('.'))
+        logger.info(os.path.abspath('.'))
         return {'FINISHED'}
     
 

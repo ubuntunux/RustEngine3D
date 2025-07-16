@@ -102,7 +102,7 @@ class RustEngine3DExporter:
         self.resource_path = os.path.split(self.external_path)[0]
         log_dirname = '.'
         if self.asset_library:
-            log_dirname = os.path.join(self.asset_library.path, '.log')
+            log_dirname = os.path.join(os.path.split(bpy.data.filepath)[0], '.log')
             
         global logger
         logger = create_logger(logger_name=library_name, log_dirname=log_dirname, level=logging.DEBUG)
