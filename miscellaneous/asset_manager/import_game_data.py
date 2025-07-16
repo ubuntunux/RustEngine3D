@@ -210,8 +210,7 @@ class AssetImportManager:
                     material_slot.link = 'DATA'
                     material_slot.material = default_material
                     material_slot.link = 'OBJECT'
-                    material_slot.material = default_material.copy()
-                    self.override_material(material_slot.material, obj.name, blend_filepath)
+                    material_slot.material = default_material
             
             # save final
             collection.asset_generate_preview()
