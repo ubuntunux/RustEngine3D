@@ -16,47 +16,62 @@ class Util:
             if not dst_filepath.parent.exists():
                 os.makedirs(dst_filepath.parent.as_posix())
             shutil.copy(src_filepath, dst_filepath)
-    
+
     @staticmethod
     def get_mtime(filepath):
         return filepath.stat().st_mtime if filepath.exists() else 0
-    
+
     @staticmethod
     def clear_assets(bpy_data_type):
         assets = bpy_data_type.values()
         for asset in assets:
             asset.use_fake_user = False
             bpy_data_type.remove(asset)
-    
+
     @staticmethod
     def clear_scene():
-        bpy.ops.wm.read_homefile(app_template="")        
+        bpy.ops.wm.read_homefile(app_template="")
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.delete(confirm=False)
-        
+
         Util.clear_assets(bpy.data.collections)
         Util.clear_assets(bpy.data.texts)
-        
+
         # clean-up recursive unused data-blocks
         bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-    
+
     @staticmethod
     def create_collection(name):
         c = bpy.data.collections.new(name)
         bpy.context.scene.collection.children.link(c)
         return c
-    
+
     @staticmethod
     def move_to_collection(collection, obj):
         bpy.context.scene.collection.objects.unlink(obj)
         collection.objects.link(obj)
-    
+
     @staticmethod
     def save_as(filepath):
         if not filepath.parent.exists():
             os.makedirs(filepath.parent.as_posix())
         bpy.ops.wm.save_as_mainfile(filepath=filepath.as_posix())
-        
+
+    @staticmethod
+    def open_text_file_in_blender_editor(filepath):
+        filepath = Path(filepath)
+        if filepath.name in bpy.data.texts:
+            text_data_block = bpy.data.texts[filepath.name]
+        else:
+            text_data_block = bpy.data.texts.load(filepath.as_posix())
+        for window in bpy.context.window_manager.windows:
+            for area in window.screen.areas:
+                if area.type == 'TEXT_EDITOR':
+                    if hasattr(area.spaces.active, 'text'):
+                        area.spaces.active.text = text_data_block
+                        bpy.context.window.screen = window.screen
+                        bpy.context.area = area
+                        return
     
 class AssetImportManager:
     def __init__(self, __logger__, asset_library_name, asset_descriptor_manager):
@@ -215,7 +230,7 @@ class AssetImportManager:
             # save final
             collection.asset_generate_preview()
             Util.save_as(blend_filepath)
-            bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
+            #bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
     
     def import_models(self):
         model_path = Path(self._asset_library.path, 'models')
@@ -265,7 +280,7 @@ class AssetImportManager:
             # save final
             collection.asset_generate_preview()
             Util.save_as(blend_filepath)
-            bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
+            #bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
 
             # break for test
             return

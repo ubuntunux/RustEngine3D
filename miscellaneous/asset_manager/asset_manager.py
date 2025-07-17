@@ -11,9 +11,26 @@ import traceback
 
 sys.path.append(os.path.split(bpy.data.filepath)[0])
 
-def open_text_file_in_blender_editor(filepath):
-    text_data_block = bpy.data.texts.load(filepath)
-    text_data_block.use_fake_user = False
+# --- Addon Information ---
+bl_info = {
+    "name": "RustEngine3D Asset Manager",
+    "author": "ubuntunux",
+    "version": (1, 0, 0),
+    "blender": (4, 5, 0),
+    "location": "File > Import/Export",
+    "description": "RustEngine3D Asset import/export addon.",
+    "warning": "",
+    "doc_url": "https://github.com/ubuntunux/RustEngine3D",
+    "category": "Import-Export",
+}
+
+def open_text_file_in_blender_editor(filepath, use_fake_user=True):
+    filepath = Path(filepath)
+    if filepath.name in bpy.data.texts:
+        text_data_block = bpy.data.texts[filepath.name]
+    else:
+        text_data_block = bpy.data.texts.load(filepath.as_posix())
+    text_data_block.use_fake_user = use_fake_user
     for window in bpy.context.window_manager.windows:
         screen = window.screen
         for area in screen.areas:
@@ -21,7 +38,8 @@ def open_text_file_in_blender_editor(filepath):
                 if hasattr(area.spaces.active, 'text'):
                     area.spaces.active.text = text_data_block
                     bpy.context.window.screen = screen
-                    bpy.context.area = area
+                    #bpy.context.area = area
+                    return
 
 
 def create_logger(logger_name, log_dirname, level):
@@ -58,7 +76,6 @@ class AssetImportPanel(bpy.types.Operator):
     bl_options = {'REGISTER', 'UNDO'}
     
     def execute(self, context):
-        bpy.context.window.cursor_set('WAIT')
         try:
             # AssetDescriptorManager
             import asset_descriptor
@@ -66,21 +83,25 @@ class AssetImportPanel(bpy.types.Operator):
             
             asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
             asset_descriptor_manager = asset_descriptor.AssetDescriptorManager(logger, asset_root_path)
+            if not asset_descriptor_manager.is_valid_asset_descritor():
+                asset_descritor_filepath = asset_descriptor_manager.create_default_asset_descritor_file()
+                open_text_file_in_blender_editor(asset_descritor_filepath, use_fake_user=False)
+                return {'FINISHED'}
             
             # AssetImportManager
             import import_game_data
             importlib.reload(import_game_data)
+            
             asset_library_name = 'StoneAge'
             asset_import_manager = import_game_data.AssetImportManager(logger, asset_library_name, asset_descriptor_manager)
             asset_import_manager.import_assets()
         except:
             logger.info(traceback.format_exc())
-        
-        bpy.context.window.cursor_set('DEFAULT')
+                    
         logger.info('FINISHED')
         
         # open log file
-        open_text_file_in_blender_editor(logger._filepath)
+        open_text_file_in_blender_editor(logger._filepath, use_fake_user=False)
         return {'FINISHED'}
 
 
@@ -119,17 +140,11 @@ class AssetManagerPanel(bpy.types.Panel):
 
     def draw(self, context):
         layout = self.layout
-        row = layout.row()
+        row = layout.column()
         row.operator("object.asset_import_panel")
         row.operator("object.asset_export_panel")
 
-def register():
-    bpy.types.Scene.shared_text_input = bpy.props.StringProperty(
-        name="Shared Text",
-        description="Text input shared between panels",
-        default="Default Shared Text"
-    )
-    
+def register():    
     bpy.utils.register_class(AssetImportPanel)
     bpy.utils.register_class(AssetExportPanel)
     bpy.utils.register_class(AssetManagerPanel)
@@ -138,8 +153,6 @@ def unregister():
     bpy.utils.unregister_class(AssetManagerPanel)
     bpy.utils.register_class(AssetExportPanel)
     bpy.utils.unregister_class(AssetImportPanel)
-    
-    del bpy.types.Scene.shared_text_input
 
 if __name__ == "__main__":
     global logger

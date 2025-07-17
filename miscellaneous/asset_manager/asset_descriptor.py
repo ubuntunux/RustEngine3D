@@ -114,18 +114,25 @@ class AssetDescriptorManager:
 
         self._root_path = Path(root_path)
         self._descriptor_name = self._root_path.stem
+        self._asset_descriptor_filepath = Path(self._root_path, 'asset_descriptor.json')
         self._material_descriptor = AssetDescriptor(self, logger, asset_type='MATERIAL')
         self._mesh_descriptor = AssetDescriptor(self, logger, asset_type='MESH')
         self._model_descriptor = AssetDescriptor(self, logger, asset_type='MODEL')
         self._scene_descriptor = AssetDescriptor(self, logger, asset_type='SCENE')
         self._texture_descriptor = AssetDescriptor(self, logger, asset_type='TEXTURE')
 
+    def get_asset_descriptor_filepath(self):
+        return self._asset_descriptor_filepath.as_posix()
+
+    def is_valid_asset_descritor(self):
+        return self._asset_descriptor_filepath.exists()
+
+    def create_default_asset_descritor_file(self):
+        self._asset_descriptor_filepath.write_text(asset_descriptor_template)
+        return self.get_asset_descriptor_filepath()
+
     def process(self):
-        # Load the asset descriptor JSON file
-        asset_descriptor_filepath = Path(self._root_path, 'asset_descriptor.json')
-        if not asset_descriptor_filepath.exists():
-            asset_descriptor_filepath.write_text(asset_descriptor_template)
-        asset_descriptor_data = json.loads(asset_descriptor_filepath.read_text())
+        asset_descriptor_data = json.loads(self._asset_descriptor_filepath.read_text())
 
         # Process each asset type
         self._texture_descriptor.process(asset_descriptor_data)
