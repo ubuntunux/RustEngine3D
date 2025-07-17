@@ -8,8 +8,14 @@ from pathlib import Path
 import sys
 import time
 import traceback
+from . import utilities
 
-sys.path.append(os.path.split(bpy.data.filepath)[0])
+global logger
+logger = utilities.create_logger(
+    logger_name='log',
+    log_dirname=Path(os.path.split(__file__)[0], '.log').as_posix(),
+    level=logging.INFO
+)
 
 # --- Addon Information ---
 bl_info = {
@@ -24,52 +30,6 @@ bl_info = {
     "category": "Import-Export",
 }
 
-def open_text_file_in_blender_editor(filepath, use_fake_user=True):
-    filepath = Path(filepath)
-    if filepath.name in bpy.data.texts:
-        text_data_block = bpy.data.texts[filepath.name]
-    else:
-        text_data_block = bpy.data.texts.load(filepath.as_posix())
-    text_data_block.use_fake_user = use_fake_user
-    for window in bpy.context.window_manager.windows:
-        screen = window.screen
-        for area in screen.areas:
-            if area.type == 'TEXT_EDITOR':
-                if hasattr(area.spaces.active, 'text'):
-                    area.spaces.active.text = text_data_block
-                    bpy.context.window.screen = screen
-                    #bpy.context.area = area
-                    return
-
-
-def create_logger(logger_name, log_dirname, level):
-    # prepare log directory
-    if not os.path.exists(log_dirname):
-        os.makedirs(log_dirname)
-    log_file_basename = datetime.datetime.fromtimestamp(time.time()).strftime(f'{logger_name}_%Y%m%d_%H%M%S.log')
-    log_filename = os.path.join(log_dirname, log_file_basename)
-
-    # create logger
-    logger = logging.getLogger(log_dirname)
-    logger.setLevel(level=level)
-    logger._filepath = log_filename
-
-    # add handler
-    stream_handler = logging.StreamHandler()
-    file_max_byte = 1024 * 1024 * 100 #100MB
-    backup_count = 10
-    file_handler = logging.handlers.RotatingFileHandler(log_filename, maxBytes=file_max_byte, backupCount=backup_count)
-
-    logger.addHandler(stream_handler)
-    logger.addHandler(file_handler)
-
-    # set formatter
-    formatter = logging.Formatter(fmt='%(asctime)s,%(msecs)03d [%(levelname)s|%(filename)s:%(lineno)d] %(message)s', datefmt='%Y-%m-%d:%H:%M:%S')
-    stream_handler.setFormatter(formatter)
-    file_handler.setFormatter(formatter)
-    return logger
-        
-
 class AssetImportPanel(bpy.types.Operator):
     bl_idname = "object.asset_import_panel"
     bl_label = "import assets"
@@ -78,18 +38,18 @@ class AssetImportPanel(bpy.types.Operator):
     def execute(self, context):
         try:
             # AssetDescriptorManager
-            import asset_descriptor
+            from . import asset_descriptor
             importlib.reload(asset_descriptor)
             
             asset_root_path = '/mnt/Workspace/temp/PolygonNatureBiomes'
             asset_descriptor_manager = asset_descriptor.AssetDescriptorManager(logger, asset_root_path)
             if not asset_descriptor_manager.is_valid_asset_descritor():
                 asset_descritor_filepath = asset_descriptor_manager.create_default_asset_descritor_file()
-                open_text_file_in_blender_editor(asset_descritor_filepath, use_fake_user=False)
+                utilities.open_text_file_in_blender_editor(asset_descritor_filepath, use_fake_user=False)
                 return {'FINISHED'}
             
             # AssetImportManager
-            import import_game_data
+            from . import import_game_data
             importlib.reload(import_game_data)
             
             asset_library_name = 'StoneAge'
@@ -101,7 +61,7 @@ class AssetImportPanel(bpy.types.Operator):
         logger.info('FINISHED')
         
         # open log file
-        open_text_file_in_blender_editor(logger._filepath, use_fake_user=False)
+        utilities.open_text_file_in_blender_editor(logger._filepath, use_fake_user=False)
         return {'FINISHED'}
 
 
@@ -114,7 +74,7 @@ class AssetExportPanel(bpy.types.Operator):
         bpy.context.window.cursor_set('WAIT')
         try:
             # AssetExportManager
-            import export_game_data
+            from . import export_game_data
             importlib.reload(export_game_data)
             
             asset_library_name = 'StoneAge'
@@ -127,12 +87,12 @@ class AssetExportPanel(bpy.types.Operator):
         logger.info('FINISHED')
                 
         # open log file
-        open_text_file_in_blender_editor(logger._filepath)
+        utilities.open_text_file_in_blender_editor(logger._filepath)
         return {'FINISHED'}
 
 
 class AssetManagerPanel(bpy.types.Panel):
-    bl_label = "Asset Manager"
+    bl_label = "RustEngine3D Asset Manager"
     bl_idname = "object.asset_manager"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
@@ -144,7 +104,7 @@ class AssetManagerPanel(bpy.types.Panel):
         row.operator("object.asset_import_panel")
         row.operator("object.asset_export_panel")
 
-def register():    
+def register():
     bpy.utils.register_class(AssetImportPanel)
     bpy.utils.register_class(AssetExportPanel)
     bpy.utils.register_class(AssetManagerPanel)
@@ -155,11 +115,4 @@ def unregister():
     bpy.utils.unregister_class(AssetImportPanel)
 
 if __name__ == "__main__":
-    global logger
-    logger = create_logger(
-        logger_name='log', 
-        log_dirname=Path(os.path.split(bpy.data.filepath)[0], '.log').as_posix(), 
-        level=logging.INFO
-    )
-    
     register()
