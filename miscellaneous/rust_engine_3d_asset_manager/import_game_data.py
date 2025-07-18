@@ -1,4 +1,3 @@
-import bpy
 import datetime
 import os
 from pathlib import Path
@@ -8,70 +7,9 @@ import time
 import traceback
 import uuid
 
+import bpy
 
-class Util:
-    @staticmethod
-    def copy(src_filepath, dst_filepath):
-        if src_filepath.exists():
-            if not dst_filepath.parent.exists():
-                os.makedirs(dst_filepath.parent.as_posix())
-            shutil.copy(src_filepath, dst_filepath)
-
-    @staticmethod
-    def get_mtime(filepath):
-        return filepath.stat().st_mtime if filepath.exists() else 0
-
-    @staticmethod
-    def clear_assets(bpy_data_type):
-        assets = bpy_data_type.values()
-        for asset in assets:
-            asset.use_fake_user = False
-            bpy_data_type.remove(asset)
-
-    @staticmethod
-    def clear_scene():
-        bpy.ops.wm.read_homefile(app_template="")
-        bpy.ops.object.select_all(action='SELECT')
-        bpy.ops.object.delete(confirm=False)
-
-        Util.clear_assets(bpy.data.collections)
-        Util.clear_assets(bpy.data.texts)
-
-        # clean-up recursive unused data-blocks
-        bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
-
-    @staticmethod
-    def create_collection(name):
-        c = bpy.data.collections.new(name)
-        bpy.context.scene.collection.children.link(c)
-        return c
-
-    @staticmethod
-    def move_to_collection(collection, obj):
-        bpy.context.scene.collection.objects.unlink(obj)
-        collection.objects.link(obj)
-
-    @staticmethod
-    def save_as(filepath):
-        if not filepath.parent.exists():
-            os.makedirs(filepath.parent.as_posix())
-        bpy.ops.wm.save_as_mainfile(filepath=filepath.as_posix())
-
-    @staticmethod
-    def open_text_file_in_blender_editor(filepath):
-        filepath = Path(filepath)
-        if filepath.name in bpy.data.texts:
-            text_data_block = bpy.data.texts[filepath.name]
-        else:
-            text_data_block = bpy.data.texts.load(filepath.as_posix())
-        for window in bpy.context.window_manager.windows:
-            for area in window.screen.areas:
-                if area.type == 'TEXT_EDITOR':
-                    if hasattr(area.spaces.active, 'text'):
-                        area.spaces.active.text = text_data_block
-                        bpy.context.window.screen = window.screen
-                        bpy.context.area = area
-                        return
+from . import utilities
     
 class AssetImportManager:
     def __init__(self, __logger__, asset_library_name, asset_descriptor_manager):
@@ -102,7 +40,7 @@ class AssetImportManager:
         logger.info('>>> load_assets')
         asset_library_path = Path(self._asset_library.path)
         for filepath in asset_library_path.glob('**/*.blend'):
-            Util.clear_scene()
+            utilities.clear_scene()
             
             with bpy.data.libraries.load(filepath.as_posix(), link=True, assets_only=True) as (data_from, data_to):
                 data_to.objects = data_from.objects
@@ -176,9 +114,9 @@ class AssetImportManager:
         for texture in textures:
             ext = texture.get_filepath().suffix
             dst_texture_filepath = Path(textures_path, texture.get_asset_name()).with_suffix(ext)
-            if Util.get_mtime(dst_texture_filepath) < texture.get_mtime():
+            if utilities.get_mtime(dst_texture_filepath) < texture.get_mtime():
                 logger.info(f'copy {dst_texture_filepath} -> {texture.get_filepath()}')
-                Util.copy(texture.get_filepath(), dst_texture_filepath)
+                utilities.copy(texture.get_filepath(), dst_texture_filepath)
 
     def import_meshes(self):
         mesh_path = Path(self._asset_library.path, 'meshes')
@@ -187,23 +125,23 @@ class AssetImportManager:
 
         logger.info(f'>>> import_meshes: {len(meshes)}')
         for mesh in meshes:
-            Util.clear_scene()
+            utilities.clear_scene()
 
             asset_name = mesh.get_asset_name()
             blend_filepath = Path(mesh_path, asset_name).with_suffix('.blend')
-            if mesh.get_mtime() <= Util.get_mtime(blend_filepath):
+            if mesh.get_mtime() <= utilities.get_mtime(blend_filepath):
                 continue
             
             # save
             logger.info(f'save mesh: {blend_filepath}')
-            Util.save_as(blend_filepath)
+            utilities.save_as(blend_filepath)
             
             # import fbx
             bpy.ops.import_scene.fbx(filepath=mesh.get_filepath().as_posix())
             
             # create collection
             catalog_name = '/'.join([self._asset_library.name, 'meshes', descriptor_name])
-            collection = Util.create_collection(Path(asset_name).name)
+            collection = utilities.create_collection(Path(asset_name).name)
             collection.asset_mark()
             collection.asset_data.catalog_id = self.get_asset_catalog_id(catalog_name)
             
@@ -218,7 +156,7 @@ class AssetImportManager:
                 bpy.context.view_layer.objects.active = obj
                 
                 # move to collection
-                Util.move_to_collection(collection, obj)
+                utilities.move_to_collection(collection, obj)
                 
                 # set material
                 for material_slot in obj.material_slots:
@@ -229,7 +167,7 @@ class AssetImportManager:
             
             # save final
             collection.asset_generate_preview()
-            Util.save_as(blend_filepath)
+            utilities.save_as(blend_filepath)
             #bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
     
     def import_models(self):
@@ -239,19 +177,19 @@ class AssetImportManager:
         logger.info(f'>>> import_models: {len(models)}')
         
         for model in models:
-            Util.clear_scene()
+            utilities.clear_scene()
 
             asset_name = model.get_asset_name()
             blend_filepath = Path(model_path, asset_name).with_suffix('.blend')
-            if model.get_mtime() <= Util.get_mtime(blend_filepath):
+            if model.get_mtime() <= utilities.get_mtime(blend_filepath):
                 continue
             
             # save
             logger.info(f'save model: {blend_filepath}')
-            Util.save_as(blend_filepath)
+            utilities.save_as(blend_filepath)
             
             # create collection
-            collection = Util.create_collection(Path(asset_name).name)
+            collection = utilities.create_collection(Path(asset_name).name)
             collection.asset_mark()
             catalog_name = '/'.join([self._asset_library.name, 'models', descriptor_name])
             catalog_id = self.get_asset_catalog_id(catalog_name)
@@ -269,7 +207,7 @@ class AssetImportManager:
                 bpy.context.view_layer.objects.active = obj
                 
                 # move to collection
-                Util.move_to_collection(collection, obj)
+                utilities.move_to_collection(collection, obj)
                 
                 # set material
                 for material_slot in obj.material_slots:
@@ -279,7 +217,7 @@ class AssetImportManager:
             
             # save final
             collection.asset_generate_preview()
-            Util.save_as(blend_filepath)
+            utilities.save_as(blend_filepath)
             #bpy.ops.wm.open_mainfile(filepath=self._asset_importer_filepath)
 
             # break for test
