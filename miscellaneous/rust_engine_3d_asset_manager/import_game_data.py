@@ -5,7 +5,7 @@ import uuid
 import bpy
 
 from . import utilities
-from .asset_descriptor import AssetMetadata, ASSET_DIR_PATH_NAMES
+from .asset_descriptor import AssetMetadata, AssetTypePath
 
     
 class AssetImportManager:
@@ -28,8 +28,8 @@ class AssetImportManager:
         self.load_asset_metadata()
 
     def initialize_asset_paths(self):
-        for asset_type_name, asset_path_name in ASSET_DIR_PATH_NAMES.items():
-            self._asset_paths[asset_type_name] = Path(self._asset_library.name, asset_path_name)
+        for asset_type_name in AssetTypePath.get_asset_type_names():
+            self._asset_paths[asset_type_name] = Path(self._asset_library.name, AssetTypePath.get_asset_type_path(asset_type_name))
 
     def get_asset_type_and_name_from_asset_path(self, target_asset_path):
         for asset_type_name, asset_path in self._asset_paths.items():

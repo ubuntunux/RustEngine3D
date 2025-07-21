@@ -5,21 +5,29 @@ import re
 global logger
 re_guid = re.compile('guid: (.+)')
 
-ASSET_DIR_PATH_NAMES = {
-    'ANIMATION_LAYER': 'animation_layers',
-    'GAME_CHARACTER': 'game_data/characters',
-    'GAME_DATA': 'game_data/data',
-    'GAME_SCENE': 'game_data/game_scenes',
-    'GAME_ITEM': 'game_data/items',
-    'GAME_PROP': 'game_data/props',
-    'GAME_WEAPON': 'game_data/weapons',
-    'MATERIAL_INSTANCE': 'material_instances',
-    'MATERIAL': 'materials',
-    'MESH': 'meshes',
-    'MODEL': 'models',
-    'SCENE': 'scenes',
-    'TEXTURE': 'textures',
-}
+class AssetTypePath:
+    ANIMATION_LAYER = 'animation_layers'
+    GAME_CHARACTER = 'game_data/characters'
+    GAME_DATA = 'game_data/data'
+    GAME_SCENE = 'game_data/game_scenes'
+    GAME_ITEM = 'game_data/items'
+    GAME_PROP = 'game_data/props'
+    GAME_WEAPON = 'game_data/weapons'
+    MATERIAL_INSTANCE = 'material_instances'
+    MATERIAL = 'materials'
+    MESH = 'meshes'
+    MODEL = 'models'
+    SCENE = 'scenes'
+    TEXTURE = 'textures'
+
+    @classmethod
+    def get_asset_type_names(cls):
+        return [t for t in cls.__dict__.keys() if not t.startswith('__') and t.isupper()]
+
+    @classmethod
+    def get_asset_type_path(cls, asset_type):
+        return getattr(cls, asset_type)
+
 
 
 ASSET_DESCRIPTOR_TEMPLATE = '''
