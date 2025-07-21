@@ -49,23 +49,23 @@ pub struct AudioManager<'a> {
     pub _volume: i32,
 }
 
-impl fmt::Debug for AudioData {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?}: {:?}", self._audio_name, self._sound_chunk.raw)
-    }
-}
-
-impl Clone for AudioData {
-    fn clone(&self) -> Self {
-        AudioData {
-            _audio_name: self._audio_name.clone(),
-            _sound_chunk: Chunk {
-                raw: self._sound_chunk.raw.clone(),
-                owned: self._sound_chunk.owned,
-            },
-        }
-    }
-}
+// impl fmt::Debug for AudioData {
+//     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+//         write!(f, "{:?}: {:?}", self._audio_name, self._sound_chunk.raw)
+//     }
+// }
+//
+// impl Clone for AudioData {
+//     fn clone(&self) -> Self {
+//         AudioData {
+//             _audio_name: self._audio_name.clone(),
+//             _sound_chunk: Chunk {
+//                 raw: self._sound_chunk.raw.clone(),
+//                 owned: self._sound_chunk.owned,
+//             },
+//         }
+//     }
+// }
 
 impl fmt::Debug for AudioBankData {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {

@@ -12,7 +12,7 @@ edition = "2021"
 ash = { version = "0.38", default-features = false, features = ["linked", "debug", "std"] }
 ash-window = "0.13"
 bincode = "1.3"
-bitflags = "2.8"
+bitflags = "2.9"
 byteorder = "1.5"
 cgmath = "0.18"
 chrono = "0.4"
@@ -27,7 +27,7 @@ regex = "1.11"
 rusttype = "0.9"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-sdl2 = { version = "0.37", features = ["mixer"] }
+sdl2 = { version = "0.38", features = ["mixer"] }
 strum = "0.27"
 strum_macros = "0.27"
 time = "0.3"

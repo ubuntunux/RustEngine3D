@@ -140,14 +140,14 @@ impl Default for MetaData {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub enum ResourceData {
     None,
     Audio(RcRefCell<AudioData>),
     AudioBank(RcRefCell<AudioBankData>),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ResourceInfo {
     _resource_name: String,
     _resource_data: ResourceData,
