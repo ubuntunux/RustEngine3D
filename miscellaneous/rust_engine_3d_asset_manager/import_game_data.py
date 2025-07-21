@@ -250,7 +250,6 @@ class AssetImportManager:
             
             # save final
             collection.asset_generate_preview()
-            bpy.ops.ed.lib_id_generate_preview()
             utilities.save_as(blend_filepath)
 
             # break for test
