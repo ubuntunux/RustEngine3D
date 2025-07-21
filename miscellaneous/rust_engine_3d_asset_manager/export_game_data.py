@@ -1,16 +1,15 @@
 import bpy
 import bpy_extras
-from enum import Enum
-import datetime
-from collections import OrderedDict
 import os
-import time
 import json
 import math
-from mathutils import Vector
 import shutil
 import sys
 import traceback
+
+from collections import OrderedDict
+from enum import Enum
+from mathutils import Vector
 
 def get_bound(collection):    
     m = sys.float_info.min
@@ -105,6 +104,7 @@ class AssetExportManager:
             shutil.copy(src_filepath, dst_filepath)
         except:
             logger.error(traceback.format_exc())
+            raise
 
     def write_to_file(self, title, data, export_filepath):
         logger.info(f'{title}: {export_filepath}')
@@ -134,7 +134,7 @@ class AssetExportManager:
 
     def export_material_instance(self, asset_info, mesh_collection):
         texture_dirpath = os.path.join(self.resource_path, 'textures')
-        material_instance_namepaths = []
+        material_instance_name_paths = []
         materials_list = [child.data.materials for child in mesh_collection.objects if 'MESH' == child.type]
         material_instance_slots_list = [child.material_slots for child in mesh_collection.objects if 'MESH' == child.type]
         for list_index in range(len(materials_list)):
@@ -146,7 +146,7 @@ class AssetExportManager:
 
                 material_asset_info = AssetInfo(material)
                 material_instance_asset_info = AssetInfo(material_instance)
-                material_instance_namepaths.append(material_instance_asset_info.asset_namepath)
+                material_instance_name_paths.append(material_instance_asset_info.asset_namepath)
 
                 # export material instance
                 material_parameters = OrderedDict()
@@ -184,7 +184,7 @@ class AssetExportManager:
                 # export material instance
                 export_filepath = material_instance_asset_info.get_asset_filepath(self.resource_path, ".matinst")
                 self.write_to_file('export material_instance', material_instance_info, export_filepath)
-        return material_instance_namepaths
+        return material_instance_name_paths
 
     def export_selected_meshes(self, asset_info):
         export_filepath = asset_info.get_asset_filepath(self.resource_path, '.gltf')
@@ -215,6 +215,7 @@ class AssetExportManager:
             logger.info(f'export_selected_meshes {asset_info.asset_namepath}: {export_filepath}')
         except:
             logger.error(traceback.format_exc())
+            raise
 
     def export_models(self, asset, asset_info):
         logger.info(f'export_models: {asset_info.asset_namepath}')

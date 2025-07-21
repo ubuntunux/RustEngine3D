@@ -2,9 +2,27 @@ import json
 from pathlib import Path
 import re
 
+global logger
 re_guid = re.compile('guid: (.+)')
 
-asset_descriptor_template = '''{
+ASSET_DIR_PATH_NAMES = {
+    'ANIMATION_LAYER': 'animation_layers',
+    'GAME_CHARACTER': 'game_data/characters',
+    'GAME_DATA': 'game_data/data',
+    'GAME_SCENE': 'game_data/game_scenes',
+    'GAME_ITEM': 'game_data/items',
+    'GAME_PROP': 'game_data/props',
+    'GAME_WEAPON': 'game_data/weapons',
+    'MATERIAL_INSTANCE': 'material_instances',
+    'MATERIAL': 'materials',
+    'MESH': 'meshes',
+    'MODEL': 'models',
+    'SCENE': 'scenes',
+    'TEXTURE': 'textures',
+}
+
+
+ASSET_DESCRIPTOR_TEMPLATE = '''
     "MATERIAL": {
         "_asset_path_infos": [
             {"_asset_path_name": "Materials", "_asset_base_name": "ProjectName"}
@@ -37,25 +55,32 @@ asset_descriptor_template = '''{
     }
 }'''
 
-class AssetInfo:
-    def __init__(self, asset_type, asset_name, filepath):
+class AssetMetadata:
+    def __init__(self, asset_type, asset_path, filepath):
         self._asset_type = asset_type
-        self._asset_name = asset_name
+        self._asset_path = asset_path
+        self._asset_name = Path(self._asset_path).name
         self._guid = self.extract_guid(filepath)
         self._filepath = filepath
+        logger.debug(str(self))
 
     def __str__(self):
-        return f'AssetInfo(asset_type={self._asset_type}, asset_name={self._asset_name}, guid={self._guid}, filepath={self._filepath})'
+        return f'AssetMetadata(asset_type={self._asset_type}, asset_path={self._asset_path}, asset_name={self._asset_name}, guid={self._guid}, filepath={self._filepath})'
 
     def extract_guid(self, filepath):
         meta_filepath = filepath.with_suffix(f'{filepath.suffix}.meta')
-        return re_guid.search(meta_filepath.read_text()).groups()[0]
+        if meta_filepath.exists():
+            return re_guid.search(meta_filepath.read_text()).groups()[0]
+        return ''
 
     def get_guid(self):
         return self._guid
 
     def get_asset_name(self):
         return self._asset_name
+
+    def get_asset_path(self):
+        return self._asset_path
 
     def get_asset_type(self):
         return self._asset_type
@@ -70,15 +95,14 @@ class AssetInfo:
         return self._filepath.stat().st_mtime if self._filepath.exists() else 0
 
 class AssetDescriptor:
-    def __init__(self, asset_descriptor, logger, asset_type):
+    def __init__(self, asset_descriptor, asset_type):
         self._asset_descriptor = asset_descriptor
-        logger = logger
         self._asset_type = asset_type
         self._assets = {}
         self._assets_by_guid = {}
 
-    def register_asset(self, asset):
-        self._assets[asset.get_asset_name()] = asset
+    def register_asset_metadata(self, asset):
+        self._assets[asset.get_asset_path()] = asset
         self._assets_by_guid[asset.get_guid()] = asset
 
     def get_assets(self):
@@ -97,15 +121,15 @@ class AssetDescriptor:
         my_asset_descriptor_data = asset_descriptor_data.get(self._asset_type, {})
         self._assets = {}
         for asset_path_info in my_asset_descriptor_data.get('_asset_path_infos', []):
-            asset_path = root_path / asset_path_info.get('_asset_path_name', '')
+            asset_directory_path = root_path / asset_path_info.get('_asset_path_name', '')
             asset_base_name = asset_path_info.get('_asset_base_name', '')
             for ext in my_asset_descriptor_data.get('_exts', []):
-                for filepath in asset_path.rglob(f'*{ext}'):
-                    relative_filepath = filepath.relative_to(asset_path)
-                    asset_name = asset_base_name / relative_filepath.with_suffix('')
-                    asset_info = AssetInfo(self._asset_type, asset_name.as_posix(), filepath)
-                    self.register_asset(asset_info)
-                    logger.debug(asset_info)
+                for filepath in asset_directory_path.rglob(f'*{ext}'):
+                    relative_filepath = filepath.relative_to(asset_directory_path)
+                    asset_path = asset_base_name / relative_filepath.with_suffix('')
+                    asset_metadata = AssetMetadata(self._asset_type, asset_path.as_posix(), filepath)
+                    self.register_asset_metadata(asset_metadata)
+                    logger.debug(asset_metadata)
 
 class AssetDescriptorManager:
     def __init__(self, __logger__, root_path):
@@ -115,20 +139,20 @@ class AssetDescriptorManager:
         self._root_path = Path(root_path)
         self._descriptor_name = self._root_path.stem
         self._asset_descriptor_filepath = Path(self._root_path, 'asset_descriptor.json')
-        self._material_descriptor = AssetDescriptor(self, logger, asset_type='MATERIAL')
-        self._mesh_descriptor = AssetDescriptor(self, logger, asset_type='MESH')
-        self._model_descriptor = AssetDescriptor(self, logger, asset_type='MODEL')
-        self._scene_descriptor = AssetDescriptor(self, logger, asset_type='SCENE')
-        self._texture_descriptor = AssetDescriptor(self, logger, asset_type='TEXTURE')
+        self._material_descriptor = AssetDescriptor(self, asset_type='MATERIAL')
+        self._mesh_descriptor = AssetDescriptor(self, asset_type='MESH')
+        self._model_descriptor = AssetDescriptor(self, asset_type='MODEL')
+        self._scene_descriptor = AssetDescriptor(self, asset_type='SCENE')
+        self._texture_descriptor = AssetDescriptor(self, asset_type='TEXTURE')
 
     def get_asset_descriptor_filepath(self):
         return self._asset_descriptor_filepath.as_posix()
 
-    def is_valid_asset_descritor(self):
+    def is_valid_asset_descriptor(self):
         return self._asset_descriptor_filepath.exists()
 
-    def create_default_asset_descritor_file(self):
-        self._asset_descriptor_filepath.write_text(asset_descriptor_template)
+    def create_default_asset_descriptor_file(self):
+        self._asset_descriptor_filepath.write_text(ASSET_DESCRIPTOR_TEMPLATE)
         return self.get_asset_descriptor_filepath()
 
     def process(self):

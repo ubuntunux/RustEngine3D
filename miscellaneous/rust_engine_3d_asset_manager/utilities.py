@@ -1,11 +1,12 @@
 import bpy
 import datetime
 import logging
-from logging.handlers import RotatingFileHandler
 import os
-from pathlib import Path
-import sys
+import shutil
 import time
+
+from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 def create_logger(logger_name, log_dirname, level='INFO'):
     # prepare log directory
@@ -57,9 +58,9 @@ def clear_assets(bpy_data_type):
         bpy_data_type.remove(asset)
 
 def clear_scene():
-    #bpy.ops.wm.read_homefile(app_template="")
-    #bpy.ops.object.select_all(action='SELECT')
-    #bpy.ops.object.delete(confirm=False)
+    bpy.ops.wm.read_homefile(app_template="")
+    bpy.ops.object.select_all(action='SELECT')
+    bpy.ops.object.delete(confirm=False)
 
     clear_assets(bpy.data.collections)
     clear_assets(bpy.data.objects)
