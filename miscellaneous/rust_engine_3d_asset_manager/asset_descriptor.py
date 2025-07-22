@@ -3,31 +3,32 @@ from pathlib import Path
 import re
 
 global logger
-re_guid = re.compile('guid: (.+)')
+re_guid = re.compile('guid: ([a-fA-F0-9]+)')
 
-class AssetTypePath:
-    ANIMATION_LAYER = 'animation_layers'
-    GAME_CHARACTER = 'game_data/characters'
-    GAME_DATA = 'game_data/data'
-    GAME_SCENE = 'game_data/game_scenes'
-    GAME_ITEM = 'game_data/items'
-    GAME_PROP = 'game_data/props'
-    GAME_WEAPON = 'game_data/weapons'
-    MATERIAL_INSTANCE = 'material_instances'
-    MATERIAL = 'materials'
-    MESH = 'meshes'
-    MODEL = 'models'
-    SCENE = 'scenes'
-    TEXTURE = 'textures'
+class AssetTypeCatalogNames:
+    asset_type_catalog_names = {
+        'ANIMATION_LAYER': 'animation_layers',
+        'GAME_CHARACTER': 'game_data/characters',
+        'GAME_DATA': 'game_data/data',
+        'GAME_SCENE': 'game_data/game_scenes',
+        'GAME_ITEM': 'game_data/items',
+        'GAME_PROP': 'game_data/props',
+        'GAME_WEAPON': 'game_data/weapons',
+        'MATERIAL_INSTANCE': 'material_instances',
+        'MATERIAL': 'materials',
+        'MESH': 'meshes',
+        'MODEL': 'models',
+        'SCENE': 'scenes',
+        'TEXTURE': 'textures'
+    }
 
     @classmethod
     def get_asset_type_names(cls):
-        return [t for t in cls.__dict__.keys() if not t.startswith('__') and t.isupper()]
+        return list(cls.asset_type_catalog_names.keys())
 
     @classmethod
-    def get_asset_type_path(cls, asset_type):
-        return getattr(cls, asset_type)
-
+    def get_asset_type_catalog_name(cls, asset_type):
+        return cls.asset_type_catalog_names.get(asset_type)
 
 
 ASSET_DESCRIPTOR_TEMPLATE = '''
@@ -78,8 +79,17 @@ class AssetMetadata:
     def extract_guid(self, filepath):
         meta_filepath = filepath.with_suffix(f'{filepath.suffix}.meta')
         if meta_filepath.exists():
-            return re_guid.search(meta_filepath.read_text()).groups()[0]
+            return re_guid.findall(meta_filepath.read_text())[0]
         return ''
+
+    def mesh_guid(self):
+        find_mesh_filter = False
+        for line in self._filepath.read_text().split('\n'):
+            if line.strip().startswith('MeshFilter:'):
+                find_mesh_filter = True
+            elif find_mesh_filter and line.strip().startswith('m_Mesh:'):
+                return re_guid.findall(line)[0]
+        return  ''
 
     def get_guid(self):
         return self._guid

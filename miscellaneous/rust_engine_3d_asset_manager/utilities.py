@@ -68,9 +68,11 @@ def clear_scene():
 
     bpy.ops.outliner.orphans_purge(do_local_ids=True, do_linked_ids=True, do_recursive=True)
 
-def create_collection(name):
-    c = bpy.data.collections.new(name)
+def create_collection_with_asset_mark(collection_name, catalog_id):
+    c = bpy.data.collections.new(collection_name)
     bpy.context.scene.collection.children.link(c)
+    c.asset_mark()
+    c.asset_data.catalog_id = catalog_id
     return c
 
 def move_to_collection(collection, obj):

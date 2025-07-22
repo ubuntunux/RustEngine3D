@@ -549,7 +549,7 @@ class AssetExportManager:
         # export asset data
         self.export_asset(asset_data)
 
-        # remove collection
+        # remove a collection
         bpy.context.scene.collection.objects.unlink(asset)
         bpy.data.objects.remove(asset)
 
@@ -561,7 +561,7 @@ class AssetExportManager:
         data = self.load_blend_file(blend_file)
         if data:
             for (i, collection) in enumerate(data.collections):
-                # create collection
+                # create a collection
                 empty = bpy.data.objects.new(collection.name, None)
                 empty.instance_type = 'COLLECTION'
                 empty.instance_collection = collection

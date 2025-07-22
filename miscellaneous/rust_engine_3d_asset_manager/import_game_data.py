@@ -5,7 +5,7 @@ import uuid
 import bpy
 
 from . import utilities
-from .asset_descriptor import AssetMetadata, AssetTypePath
+from .asset_descriptor import AssetMetadata, AssetTypeCatalogNames
 
     
 class AssetImportManager:
@@ -16,37 +16,37 @@ class AssetImportManager:
         asset_library = bpy.context.preferences.filepaths.asset_libraries[asset_library_name]
         self._asset_library = asset_library
         self._asset_catalogs_filepath = Path(asset_library.path, 'blender_assets.cats.txt')
-        self._asset_catalog_names = {}
+        self._asset_catalog_name_id_map = {}
+        self._asset_catalog_name_type_map = {}
         self._asset_catalog_ids = {}
         self._asset_metadata = {}
-        self._asset_paths = {}
         self._asset_descriptor_manager = asset_descriptor_manager
 
     def initialize(self):
-        self.initialize_asset_paths()
         self.load_asset_catalogs()
         self.load_asset_metadata()
 
-    def initialize_asset_paths(self):
-        for asset_type_name in AssetTypePath.get_asset_type_names():
-            self._asset_paths[asset_type_name] = Path(self._asset_library.name, AssetTypePath.get_asset_type_path(asset_type_name))
-
     def get_asset_type_and_name_from_asset_path(self, target_asset_path):
-        for asset_type_name, asset_path in self._asset_paths.items():
-            if target_asset_path.is_relative_to(asset_path):
-                return asset_type_name, target_asset_path.relative_to(asset_path).as_posix()
+        for asset_type_name, asset_catalog_name in self._asset_catalog_name_type_map.items():
+            if target_asset_path.is_relative_to(asset_catalog_name):
+                return asset_type_name, target_asset_path.relative_to(asset_catalog_name).as_posix()
         raise ValueError(f'Unknown asset type: {target_asset_path}')
 
     def load_asset_catalogs(self):  
         logger.info('>>> load_asset_catalogs')
+        # asset_catalog_name_id_map
         contents = self._asset_catalogs_filepath.read_text().split('\n')
         for content in contents:
             if content.startswith('#') or ':' not in content:
                 continue
             uuid, catalog_name, catalog_simple_name = content.strip().split(':')
             self._asset_catalog_ids[catalog_name] = uuid
-            self._asset_catalog_names[uuid] = catalog_name
+            self._asset_catalog_name_id_map[uuid] = catalog_name
             logger.debug(f'{uuid}: {catalog_name}')
+
+        # asset_catalog_name_type_map
+        for asset_type_name in AssetTypeCatalogNames.get_asset_type_names():
+            self._asset_catalog_name_type_map[asset_type_name] = Path(self._asset_library.name, AssetTypeCatalogNames.get_asset_type_catalog_name(asset_type_name))
 
     def get_asset_catalog_id(self, catalog_simple_name):
         catalog_id = self._asset_catalog_ids.get(catalog_simple_name, '')
@@ -54,14 +54,17 @@ class AssetImportManager:
             catalog_id = self.register_asset_catalog_name(catalog_simple_name)
         return catalog_id
 
-    def get_asset_catalog_name(self, catalog_id):
-        return self._asset_catalog_names.get(catalog_id, '')
+    def get_asset_catalog_name_by_id(self, catalog_id):
+        return self._asset_catalog_name_id_map.get(catalog_id)
+
+    def get_asset_catalog_name_by_type(self, asset_type_name):
+        return self._asset_catalog_name_type_map.get(asset_type_name)
 
     def register_asset_catalog_name(self, catalog_name):
-        if catalog_name not in self._asset_catalog_names:
+        if catalog_name not in self._asset_catalog_name_id_map:
             catalog_id = str(uuid.uuid4())
             catalog_simple_name = catalog_name.replace('/', '-')
-            self._asset_catalog_names[catalog_id] = catalog_name
+            self._asset_catalog_name_id_map[catalog_id] = catalog_name
             self._asset_catalog_ids[catalog_name] = catalog_id
 
             contents = self._asset_catalogs_filepath.read_text().strip()
@@ -87,7 +90,7 @@ class AssetImportManager:
                     if asset.asset_data:
                         library_path = os.path.abspath(bpy.path.abspath(asset.library.filepath))                        
                         if library_path == filepath.as_posix():
-                            abs_asset_path = Path(self.get_asset_catalog_name(asset.asset_data.catalog_id), asset.name)
+                            abs_asset_path = Path(self.get_asset_catalog_name_by_id(asset.asset_data.catalog_id), asset.name)
                             asset_type, asset_path = self.get_asset_type_and_name_from_asset_path(abs_asset_path)
                             asset_metadata = AssetMetadata(asset_type, asset_path, filepath)
                             if asset_type not in self._asset_metadata:
@@ -104,17 +107,22 @@ class AssetImportManager:
             asset_filepath = asset_metadata.get_filepath().as_posix()
             # link asset
             with bpy.data.libraries.load(asset_filepath, link=True, assets_only=True) as (data_from, data_to):
-                match asset_metadata.get_asset_type():
-                    case 'MATERIAL' | 'MATERIAL_INSTANCE':
-                        data_to.materials = [asset_name]
-                    case _:
-                        data_to.collections = [asset_name]
-            # return asset
+                data_to.materials = data_from.materials
+                data_to.meshes = data_from.meshes
+                data_to.collections = data_from.collections
+                data_to.actions = data_from.actions
+                data_to.armatures = data_from.armatures
+                data_to.objects = data_from.objects
+
             match asset_metadata.get_asset_type():
                 case 'MATERIAL' | 'MATERIAL_INSTANCE':
                     return bpy.data.materials[asset_name]
                 case _:
-                    return bpy.data.collections[asset_name]
+                    for collection in data_to.collections:
+                        if collection.name == asset_name:
+                            return collection
+            return None
+
         raise ValueError(f'Unknown asset: {asset_path}')
 
     def load_default_material(self):
@@ -122,7 +130,7 @@ class AssetImportManager:
 
     def override_material(self, material, material_name, blend_filepath):
         descriptor_name = self._asset_descriptor_manager.get_descriptor_name()
-        catalog_name = '/'.join([self._asset_library.name, 'material_instances', descriptor_name])
+        catalog_name = self.get_asset_catalog_name_by_type('MATERIAL_INSTANCE') / descriptor_name
         
         material.name = material_name
         material.asset_mark()
@@ -161,8 +169,8 @@ class AssetImportManager:
         for mesh in meshes:
             utilities.clear_scene()
 
-            asset_name = mesh.get_asset_path()
-            blend_filepath = Path(mesh_path, asset_name).with_suffix('.blend')
+            asset_path = mesh.get_asset_path()
+            blend_filepath = Path(mesh_path, asset_path).with_suffix('.blend')
             if mesh.get_mtime() <= utilities.get_mtime(blend_filepath):
                 continue
             
@@ -174,10 +182,10 @@ class AssetImportManager:
             bpy.ops.import_scene.fbx(filepath=mesh.get_filepath().as_posix())
             
             # create a collection
-            catalog_name = '/'.join([self._asset_library.name, 'meshes', descriptor_name])
-            collection = utilities.create_collection(Path(asset_name).name)
-            collection.asset_mark()
-            collection.asset_data.catalog_id = self.get_asset_catalog_id(catalog_name)
+            asset_name = Path(asset_path).name
+            catalog_name = Path(self.get_asset_catalog_name_by_type('MESH'), descriptor_name).as_posix()
+            catalog_id = self.get_asset_catalog_id(catalog_name)
+            collection = utilities.create_collection_with_asset_mark(asset_name, catalog_id)
             
             # default material
             default_material = self.load_default_material()
@@ -212,8 +220,8 @@ class AssetImportManager:
         for model in models:
             utilities.clear_scene()
 
-            asset_name = model.get_asset_path()
-            blend_filepath = Path(model_path, asset_name).with_suffix('.blend')
+            asset_path = model.get_asset_path()
+            blend_filepath = Path(model_path, asset_path).with_suffix('.blend')
             if model.get_mtime() <= utilities.get_mtime(blend_filepath):
                 continue
             
@@ -222,31 +230,31 @@ class AssetImportManager:
             utilities.save_as(blend_filepath)
             
             # create a collection
-            collection = utilities.create_collection(Path(asset_name).name)
-            collection.asset_mark()
-            catalog_name = '/'.join([self._asset_library.name, 'models', descriptor_name])
+            asset_name = Path(asset_path).name
+            catalog_name = Path(self.get_asset_catalog_name_by_type('MODEL'), descriptor_name).as_posix()
             catalog_id = self.get_asset_catalog_id(catalog_name)
-            if catalog_id:
-                collection.asset_data.catalog_id = catalog_id
-            else:
-                catalog_id = self.register_asset_catalog_name(catalog_name)
-                collection.asset_data.catalog_id = catalog_id
-            
-            # make a model
-            for obj in bpy.context.scene.objects:
-                # select object
-                bpy.ops.object.select_all(action='DESELECT')
-                obj.select_set(True)
-                bpy.context.view_layer.objects.active = obj
-                
-                # move to a collection
-                utilities.move_to_collection(collection, obj)
-                
-                # set material
-                for material_slot in obj.material_slots:
-                    material_slot.link = 'OBJECT'
-                    material_slot.material = default_material.copy()
-                    self.override_material(material_slot.material, obj.name, blend_filepath)
+            collection = utilities.create_collection_with_asset_mark(asset_name, catalog_id)
+
+            mesh_guid = model.mesh_guid()
+            mesh_asset_metadata = self._asset_descriptor_manager.get_mesh(guid=mesh_guid)
+
+            logger.info(f'asset_name: {asset_name}, catalog_name: {catalog_name}, catalog_id: {catalog_id}')
+            logger.info(f'model: {str(model)}, mesh_guid: {mesh_guid}, asset_path: {mesh_asset_metadata}')
+
+            mesh_asset_collection = self.load_asset('MESH', mesh_asset_metadata.get_asset_path())
+            override_collection = mesh_asset_collection.override_hierarchy_create(
+                bpy.context.scene,
+                bpy.context.view_layer,
+                do_fully_editable=True
+            )
+            bpy.context.scene.collection.children.unlink(override_collection)
+            collection.children.link(override_collection)
+
+            # set material
+            # for material_slot in obj.material_slots:
+            #     material_slot.link = 'OBJECT'
+            #     material_slot.material = default_material.copy()
+            #     self.override_material(material_slot.material, obj.name, blend_filepath)
             
             # save final
             collection.asset_generate_preview()
