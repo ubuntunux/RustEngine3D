@@ -1,0 +1,3 @@
+[submodule "miscellaneous/rust_engine_3d_asset_manager"]
+	path = miscellaneous/rust_engine_3d_asset_manager
+	url = https://github.com/ubuntunux/rust_engine_3d_asset_manager
