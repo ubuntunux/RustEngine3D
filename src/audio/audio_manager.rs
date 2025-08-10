@@ -109,9 +109,8 @@ impl<'a> AudioManager<'a> {
         let channels = DEFAULT_CHANNELS; // Stereo
         let chunk_size = 1_024;
         let result = sdl2::mixer::open_audio(frequency, format, channels, chunk_size);
-        let mixer_context =
-            sdl2::mixer::init(InitFlag::MP3 | InitFlag::FLAC | InitFlag::MOD | InitFlag::OGG)
-                .expect("sdl2::mixer::init");
+        // NOTE: InitFlag::MOD support error on SteamDeck
+        let mixer_context = sdl2::mixer::init(InitFlag::MP3 | InitFlag::FLAC | /*InitFlag::MOD |*/ InitFlag::OGG).expect("sdl2::mixer::init");
         let channel_count = sdl2::mixer::allocate_channels(MAX_AUDIO_CHANNEL_COUNT);
 
         // audio debug info
