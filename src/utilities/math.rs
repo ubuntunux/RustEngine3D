@@ -160,12 +160,7 @@ pub fn make_srt_transform(
     scale: &Vector3<f32>,
 ) -> Matrix4<f32> {
     let rotation_matrix = make_rotation_matrix(rotation.x, rotation.y, rotation.z);
-    Matrix4::from_columns(&[
-        rotation_matrix.column(0) * scale[0],
-        rotation_matrix.column(1) * scale[1],
-        rotation_matrix.column(2) * scale[2],
-        Vector4::new(translation[0], translation[1], translation[2], 1.0),
-    ])
+    combinate_matrix(translation, &rotation_matrix, scale)
 }
 
 pub fn make_location_quat_scale_transform(
@@ -174,12 +169,7 @@ pub fn make_location_quat_scale_transform(
     scale: &Vector3<f32>,
 ) -> Matrix4<f32> {
     let rotation_matrix = quaternion_to_matrix(quat);
-    Matrix4::from_columns(&[
-        rotation_matrix.column(0) * scale[0],
-        rotation_matrix.column(1) * scale[1],
-        rotation_matrix.column(2) * scale[2],
-        Vector4::new(translation[0], translation[1], translation[2], 1.0),
-    ])
+    combinate_matrix(translation, &rotation_matrix, scale)
 }
 
 pub fn combinate_matrix(
