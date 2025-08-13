@@ -27,7 +27,7 @@ impl<'a> ScopedDebugLabel<'a> {
         debug_utils_device: *const ext::debug_utils::Device,
         command_buffer: vk::CommandBuffer,
         label_name: &str,
-    ) -> ScopedDebugLabel {
+    ) -> ScopedDebugLabel<'_> {
         ScopedDebugLabel::create_scoped_label(
             debug_utils_device,
             label_name,
@@ -39,7 +39,7 @@ impl<'a> ScopedDebugLabel<'a> {
         debug_utils_device: *const ext::debug_utils::Device,
         command_queue: vk::Queue,
         label_name: &str,
-    ) -> ScopedDebugLabel {
+    ) -> ScopedDebugLabel<'_> {
         ScopedDebugLabel::create_scoped_label(
             debug_utils_device,
             label_name,
@@ -51,7 +51,7 @@ impl<'a> ScopedDebugLabel<'a> {
         debug_utils_device: *const ext::debug_utils::Device,
         label_name: &str,
         label_type: DebugLabelType,
-    ) -> ScopedDebugLabel {
+    ) -> ScopedDebugLabel<'_> {
         let label_text: CString = CString::new(label_name).unwrap();
         let label_name_ptr = label_text.as_ptr() as *const c_char;
         let label = ScopedDebugLabel {

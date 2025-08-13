@@ -239,7 +239,7 @@ pub fn find_memory_type_index(
     None
 }
 
-pub unsafe fn ptr_chain_iter<T>(ptr: &mut T) -> impl Iterator<Item = *mut BaseOutStructure> {
+pub unsafe fn ptr_chain_iter<T>(ptr: &mut T) -> impl Iterator<Item = *mut BaseOutStructure<'_>> {
     let ptr = <*mut T>::cast::<BaseOutStructure>(ptr);
     (0..).scan(ptr, |p_ptr, _| {
         if p_ptr.is_null() {

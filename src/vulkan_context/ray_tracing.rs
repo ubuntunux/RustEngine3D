@@ -397,7 +397,7 @@ impl<'a> RayTracingData<'a> {
         self._top_write_descriptor_set_accel_structs.clear();
     }
 
-    pub fn get_top_level_descriptor_resource_info(&self) -> DescriptorResourceInfo {
+    pub fn get_top_level_descriptor_resource_info(&self) -> DescriptorResourceInfo<'_> {
         DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
             self._top_write_descriptor_set_accel_structs.as_ptr(),
         )

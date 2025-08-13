@@ -445,7 +445,7 @@ impl<'a> RendererContext<'a> {
     pub fn get_ray_tracing(&self) -> &nv::ray_tracing::Device {
         &self._ray_tracing
     }
-    pub fn get_ray_tracing_properties(&self) -> &vk::PhysicalDeviceRayTracingPropertiesNV {
+    pub fn get_ray_tracing_properties(&self) -> &vk::PhysicalDeviceRayTracingPropertiesNV<'_> {
         &self._ray_tracing_properties
     }
 
@@ -1452,7 +1452,7 @@ impl<'a> RendererContext<'a> {
         self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
     }
 
-    pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
+    pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
         self.get_renderer_data().get_shader_buffer_data_from_str(buffer_data_name)
     }
 

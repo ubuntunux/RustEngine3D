@@ -349,7 +349,7 @@ impl<'a> RendererData<'a> {
         self._render_context_light_probe.destroy(device);
     }
 
-    pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData {
+    pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
         self.get_shader_buffer_data(&ShaderBufferDataType::from_str(buffer_data_name).unwrap())
     }
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
