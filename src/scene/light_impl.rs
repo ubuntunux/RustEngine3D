@@ -100,7 +100,7 @@ impl DirectionalLight {
 
     pub fn update_light_data(&mut self, view_position: &Vector3<f32>) {
         let delta: Vector3<f32> = (self._transform_object.get_position() - view_position).abs();
-        if self._shadow_update_distance < delta.max() {
+        if self._shadow_update_distance < delta.max() || self._updated_light_data {
             self._transform_object.set_position(&view_position);
         }
 

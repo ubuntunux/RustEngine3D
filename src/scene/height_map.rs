@@ -13,7 +13,7 @@ pub struct HeightMapData {
     _height: Vec<i32>,
     _normal_map_data: Vec<Vector3<f32>>,
     _height_map_data: Vec<Vec<f32>>,
-    _initialiezed: bool,
+    _initialized: bool,
 }
 
 impl HeightMapData {
@@ -109,7 +109,11 @@ impl HeightMapData {
                         vector_z.z = -vector_z.z;
                     }
 
-                    let normal_map = vector_x.cross(&vector_z).normalize();
+                    let mut normal_map = vector_x.cross(&vector_z).normalize();
+                    if height_r == 0.0 || height_l == 0.0 || height_t == 0.0 || height_b == 0.0 {
+                        normal_map.y = 0.0;
+                        math::safe_normalize_mut(&mut normal_map);
+                    }
                     self._normal_map_data.push(normal_map);
                 }
             }
@@ -125,7 +129,7 @@ impl HeightMapData {
                 }
             }
         }
-        self._initialiezed = true;
+        self._initialized = true;
     }
 
     pub fn convert_to_pixel_index(&self, width: i32, height: i32, x: i32, y: i32) -> usize {
@@ -172,21 +176,30 @@ impl HeightMapData {
     }
 
     pub fn get_height_bilinear_by_texcoord(&self, texcoord: &Vector2<f32>, lod: usize) -> f32 {
-        if self._initialiezed == false {
+        if self._initialized == false {
             return 0.0;
         }
 
         let lod = lod.min(self._lod_count as usize - 1);
         let (pixel_indices, blend_factors) = self.get_bilinear_pixel_pos_infos(texcoord, lod);
         let height_map_data = &self._height_map_data[lod];
-        let height_data_0 = math::lerp(height_map_data[pixel_indices.x], height_map_data[pixel_indices.y], blend_factors.x);
-        let height_data_1 = math::lerp(height_map_data[pixel_indices.z], height_map_data[pixel_indices.w], blend_factors.x);
-        let height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, blend_factors.y);
+        let height: f32;
+        if height_map_data[pixel_indices.x] <= self._dead_zone ||
+            height_map_data[pixel_indices.y] <= self._dead_zone ||
+            height_map_data[pixel_indices.z] <= self._dead_zone ||
+            height_map_data[pixel_indices.w] <= self._dead_zone {
+            height = self._dead_zone;
+        } else {
+            let height_data_0 = math::lerp(height_map_data[pixel_indices.x], height_map_data[pixel_indices.y], blend_factors.x);
+            let height_data_1 = math::lerp(height_map_data[pixel_indices.z], height_map_data[pixel_indices.w], blend_factors.x);
+            height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, blend_factors.y);
+        }
+
         self._dead_zone.max(height)
     }
 
     pub fn get_height_point_by_texcoord(&self, texcoord: &Vector2<f32>, lod: usize) -> f32 {
-        if self._initialiezed == false {
+        if self._initialized == false {
             return 0.0;
         }
 
@@ -201,19 +214,30 @@ impl HeightMapData {
     }
 
     pub fn get_normal_bilinear_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
-        if self._initialiezed == false {
+        if self._initialized == false {
             return Vector3::new(0.0, 1.0, 0.0);
         }
 
         let lod = 0;
         let (pixel_indices, blend_factors) = self.get_bilinear_pixel_pos_infos(texcoord, lod);
+        let height_map_data = &self._height_map_data[lod];
+        if height_map_data[pixel_indices.x] <= self._dead_zone {
+            return self._normal_map_data[pixel_indices.x];
+        } else if height_map_data[pixel_indices.y] <= self._dead_zone {
+            return self._normal_map_data[pixel_indices.y];
+        } else if height_map_data[pixel_indices.z] <= self._dead_zone {
+            return self._normal_map_data[pixel_indices.z];
+        } else if height_map_data[pixel_indices.w] <= self._dead_zone {
+            return self._normal_map_data[pixel_indices.w];
+        }
+
         let height_data_0: Vector3<f32> = self._normal_map_data[pixel_indices.x].lerp(&self._normal_map_data[pixel_indices.y], blend_factors.x);
         let height_data_1: Vector3<f32> = self._normal_map_data[pixel_indices.z].lerp(&self._normal_map_data[pixel_indices.w], blend_factors.x);
         height_data_0.lerp(&height_data_1, blend_factors.y).normalize()
     }
 
     pub fn get_normal_point_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
-        if self._initialiezed == false {
+        if self._initialized == false {
             return Vector3::new(0.0, 1.0, 0.0);
         }
 
@@ -235,7 +259,7 @@ impl HeightMapData {
     }
 
     pub fn get_collision_point(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
-        if self._initialiezed == false {
+        if self._initialized == false {
             return false;
         }
 
