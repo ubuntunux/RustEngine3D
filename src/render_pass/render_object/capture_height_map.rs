@@ -83,13 +83,17 @@ pub fn get_render_pass_data_create_info(
         ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        _pipeline_cull_mode: vk::CullModeFlags::BACK,
+        _pipeline_cull_mode: vk::CullModeFlags::NONE,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
         _pipeline_color_blend_modes: vec![
             vulkan_context::get_color_blend_mode(BlendMode::None),
             vulkan_context::get_color_blend_mode(BlendMode::MaxDepth)
         ],
-        _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
+        _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
+            _depth_write_enable: false,
+            _depth_test_enable: false,
+            ..Default::default()
+        },
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
             RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions()
