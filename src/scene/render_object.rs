@@ -324,7 +324,7 @@ impl<'a> RenderObjectData<'a> {
                 }
             }
 
-            if updated {
+            if true || updated {
                 for animation_play_info in self._animation_play_infos.iter_mut() {
                     if animation_play_info.is_valid() {
                         // update animation nodes

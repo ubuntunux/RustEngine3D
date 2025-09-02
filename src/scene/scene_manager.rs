@@ -299,7 +299,7 @@ impl<'a> SceneManager<'a> {
     pub fn get_sea_height(&self) -> f32 {
         self._sea_height
     }
-    pub fn get_dead_zone_height(&self) -> f32 { self._sea_height - 10.0 }
+    pub fn get_dead_zone_height(&self) -> f32 { self._sea_height - 5.0 }
     pub fn generate_object_id(&mut self) -> i64 {
         let _object_id_generator = self._object_id_generator;
         self._object_id_generator += 1;
