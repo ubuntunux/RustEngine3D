@@ -281,9 +281,10 @@ pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> b
     }
 
     let to_a = math::make_vector_xz(&(a._bounding_box._center - b._bounding_box._center));
-    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let to_a_dir = to_a.normalize();
+    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a_dir).abs();
     let a_radius: f32 = math::lerp(a._bounding_box._extents.z, a._bounding_box._extents.x, a_radius_dir);
-    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a_dir).abs();
     let b_radius: f32 = math::lerp(b._bounding_box._extents.z, b._bounding_box._extents.x, b_radius_dir);
     (to_a.x * to_a.x + to_a.z * to_a.z) <= (a_radius * a_radius + b_radius * b_radius)
 }
@@ -294,9 +295,10 @@ pub fn collide_cylinder_with_sphere(a: &CollisionData, b: &CollisionData) -> boo
     }
 
     let to_a = math::make_vector_xz(&(a._bounding_box._center - b._bounding_box._center));
-    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let to_a_dir = to_a.normalize();
+    let a_radius_dir = a._bounding_box._orientation.column(0).dot(&to_a_dir).abs();
     let a_radius: f32 = math::lerp(a._bounding_box._extents.z, a._bounding_box._extents.x, a_radius_dir);
-    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a.normalize()).abs();
+    let b_radius_dir = b._bounding_box._orientation.column(0).dot(&to_a_dir).abs();
     let b_radius: f32 = math::lerp(b._bounding_box._extents.z, b._bounding_box._extents.x, b_radius_dir);
     (to_a.x * to_a.x + to_a.z * to_a.z) <= (a_radius * a_radius + b_radius * b_radius)
 }
