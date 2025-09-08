@@ -136,6 +136,7 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
 
 pub fn get_render_pass_data_create_infos(
     renderer_data: &RendererData,
+    cull_mode: vk::CullModeFlags,
     pipeline_data_name: &str,
     vertex_shader_file: &str,
     pixel_shader_file: &str,
@@ -155,6 +156,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::depth_prepass::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
+            cull_mode,
             pipeline_data_name,
             vertex_shader_file,
             pixel_shader_file,
@@ -164,6 +166,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::depth_prepass::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             pipeline_data_name,
             vertex_shader_file,
             pixel_shader_file,
@@ -173,6 +176,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_gbuffer::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
+            cull_mode,
             pipeline_data_name,
             vertex_shader_file,
             pixel_shader_file,
@@ -182,6 +186,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_gbuffer::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             pipeline_data_name,
             vertex_shader_file,
             pixel_shader_file,
@@ -191,6 +196,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Skeletal,
+            cull_mode,
             pipeline_data_name,
             vertex_shader_file,
             pixel_shader_file,
@@ -200,6 +206,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             pipeline_data_name,
             vertex_shader_file,
             pixel_shader_file,
@@ -209,6 +216,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             0,
             pipeline_data_name,
             vertex_shader_file,
@@ -219,6 +227,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             1,
             pipeline_data_name,
             vertex_shader_file,
@@ -229,6 +238,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             2,
             pipeline_data_name,
             vertex_shader_file,
@@ -239,6 +249,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             3,
             pipeline_data_name,
             vertex_shader_file,
@@ -249,6 +260,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             4,
             pipeline_data_name,
             vertex_shader_file,
@@ -259,6 +271,7 @@ pub fn get_render_pass_data_create_infos(
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
             RenderObjectType::Static,
+            cull_mode,
             5,
             pipeline_data_name,
             vertex_shader_file,

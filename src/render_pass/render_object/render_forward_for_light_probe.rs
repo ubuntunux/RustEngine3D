@@ -64,6 +64,7 @@ pub fn get_render_pass_name(render_object_type: RenderObjectType, layer: u32) ->
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
     render_object_type: RenderObjectType,
+    cull_mode: vk::CullModeFlags,
     layer: u32,
     pipeline_data_name: &str,
     vertex_shader_file: &str,
@@ -121,7 +122,7 @@ pub fn get_render_pass_data_create_info(
         ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        _pipeline_cull_mode: vk::CullModeFlags::BACK,
+        _pipeline_cull_mode: cull_mode,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
         _pipeline_color_blend_modes: vec![
             vulkan_context::get_color_blend_mode(BlendMode::None);
