@@ -13,7 +13,7 @@ pub type MipLevels<T> = Vec<T>; // image mip level array
 
 #[allow(non_camel_case_types)]
 #[derive(Clone, Debug, Copy)]
-pub enum BlendMode {
+pub enum BlendOperation {
     None,
     AlphaBlend,
     Additive,
@@ -44,9 +44,9 @@ pub fn get_color32(r: u32, g: u32, b: u32, a: u32) -> u32 {
     min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24)
 }
 
-pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAttachmentState {
-    match blend_mode {
-        BlendMode::AlphaBlend => vk::PipelineColorBlendAttachmentState {
+pub fn get_color_blend_operation(blend_operation: BlendOperation) -> vk::PipelineColorBlendAttachmentState {
+    match blend_operation {
+        BlendOperation::AlphaBlend => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
             src_color_blend_factor: vk::BlendFactor::SRC_ALPHA,
             dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
@@ -58,7 +58,7 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
                 | vk::ColorComponentFlags::G
                 | vk::ColorComponentFlags::B,
         },
-        BlendMode::Additive => vk::PipelineColorBlendAttachmentState {
+        BlendOperation::Additive => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
             src_color_blend_factor: vk::BlendFactor::ONE,
             dst_color_blend_factor: vk::BlendFactor::ONE,
@@ -70,7 +70,7 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
                 | vk::ColorComponentFlags::G
                 | vk::ColorComponentFlags::B,
         },
-        BlendMode::MaxDepth => vk::PipelineColorBlendAttachmentState {
+        BlendOperation::MaxDepth => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
             src_color_blend_factor: vk::BlendFactor::ONE,
             dst_color_blend_factor: vk::BlendFactor::ONE,
@@ -80,7 +80,7 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
             alpha_blend_op: vk::BlendOp::MAX,
             color_write_mask: vk::ColorComponentFlags::R
         },
-        BlendMode::PreMultipliedAlpha => vk::PipelineColorBlendAttachmentState {
+        BlendOperation::PreMultipliedAlpha => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
             src_color_blend_factor: vk::BlendFactor::ONE,
             dst_color_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
@@ -92,7 +92,7 @@ pub fn get_color_blend_mode(blend_mode: BlendMode) -> vk::PipelineColorBlendAtta
                 | vk::ColorComponentFlags::G
                 | vk::ColorComponentFlags::B,
         },
-        BlendMode::None => vk::PipelineColorBlendAttachmentState {
+        BlendOperation::None => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::FALSE,
             src_color_blend_factor: vk::BlendFactor::ONE,
             dst_color_blend_factor: vk::BlendFactor::ZERO,

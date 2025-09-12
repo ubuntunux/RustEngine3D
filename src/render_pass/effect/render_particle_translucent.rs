@@ -8,13 +8,13 @@ use crate::vulkan_context::render_pass::{
     DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
     PipelinePushConstantData, RenderPassDataCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{self, BlendMode};
+use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
 
-use crate::effect::effect_data::{ParticleBlendMode, ParticleGeometryType};
+use crate::effect::effect_data::ParticleGeometryType;
 use crate::effect::effect_manager::PushConstant_RenderParticle;
 use crate::renderer::render_target::RenderTargetType;
-use crate::renderer::renderer_data::RendererData;
+use crate::renderer::renderer_data::{BlendMode, RendererData};
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
@@ -37,17 +37,14 @@ pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> Framebu
 
 pub fn get_render_pass_data_create_info(
     renderer_data: &RendererData,
-    particle_blend_mode: ParticleBlendMode,
+    blend_mode: BlendMode,
     geometry_type: ParticleGeometryType,
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = String::from("render_particle_translucent");
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_color_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -60,10 +57,7 @@ pub fn get_render_pass_data_create_info(
         });
     }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_depth_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -85,12 +79,10 @@ pub fn get_render_pass_data_create_info(
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
 
-    let (pipeline_data_name, blend_mode) = match particle_blend_mode {
-        ParticleBlendMode::AlphaBlend => {
-            (String::from("alpha_blend"), BlendMode::PreMultipliedAlpha)
-        }
-        ParticleBlendMode::Additive => (String::from("additive"), BlendMode::Additive),
-        ParticleBlendMode::Opaque => (String::from("opaque"), BlendMode::None),
+    let (pipeline_data_name, blend_operation) = match blend_mode {
+        BlendMode::AlphaBlend => (String::from("alpha_blend"), BlendOperation::PreMultipliedAlpha),
+        BlendMode::Additive => (String::from("additive"), BlendOperation::Additive),
+        BlendMode::Opaque => (String::from("opaque"), BlendOperation::None)
     };
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
@@ -99,15 +91,15 @@ pub fn get_render_pass_data_create_info(
         _pipeline_fragment_shader_file: PathBuf::from("effect/render_particle.frag"),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_shader_defines: vec![
-            format!("BlendMode={:?}", particle_blend_mode as i32),
+            format!("BlendMode={:?}", blend_mode as i32),
             format!("GeometryType={:?}", geometry_type as i32),
         ],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::NONE,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(blend_mode);
+        _pipeline_color_blend_operations: vec![
+            vulkan_context::get_color_blend_operation(blend_operation);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {

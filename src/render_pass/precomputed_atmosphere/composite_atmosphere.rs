@@ -7,7 +7,7 @@ use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
     ImageAttachmentDescription, PipelineDataCreateInfo, RenderPassDataCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{self, BlendMode};
+use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
 
 use crate::renderer::render_target::RenderTargetType;
@@ -63,9 +63,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             "precomputed_atmosphere/composite_atmosphere.frag",
         ),
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(
-                BlendMode::PreMultipliedAlpha
+        _pipeline_color_blend_operations: vec![
+            vulkan_context::get_color_blend_operation(
+                BlendOperation::PreMultipliedAlpha
             );
             color_attachment_descriptions.len()
         ],

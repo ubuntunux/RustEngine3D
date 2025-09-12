@@ -2,6 +2,7 @@ use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::effect::effect_manager::EffectManager;
+use crate::renderer::renderer_data::BlendMode;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
@@ -42,20 +43,6 @@ pub enum ParticleGeometryType {
 impl Default for ParticleGeometryType {
     fn default() -> Self {
         ParticleGeometryType::Mesh
-    }
-}
-
-// NOTE: Ensure enum values match in effect/common.glsl
-#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
-pub enum ParticleBlendMode {
-    AlphaBlend = 0,
-    Additive = 1,
-    Opaque = 2
-}
-
-impl Default for ParticleBlendMode {
-    fn default() -> Self {
-        ParticleBlendMode::AlphaBlend
     }
 }
 
@@ -123,7 +110,7 @@ pub struct EmitterDataCreateInfo {
     pub _particle_lifetime_min: f32,
     pub _particle_lifetime_max: f32,
     pub _align_mode: ParticleAlignMode,
-    pub _blend_mode: ParticleBlendMode,
+    pub _blend_mode: BlendMode,
     pub _geometry_type: ParticleGeometryType,
     pub _material_instance_name: String,
     pub _mesh_name: String,
@@ -158,7 +145,7 @@ impl Default for EmitterDataCreateInfo {
             _particle_lifetime_min: 1.0,
             _particle_lifetime_max: 1.0,
             _align_mode: ParticleAlignMode::Billboard,
-            _blend_mode: ParticleBlendMode::AlphaBlend,
+            _blend_mode: BlendMode::AlphaBlend,
             _geometry_type: ParticleGeometryType::Mesh,
             _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
             _mesh_name: String::from("quad"),
@@ -194,7 +181,7 @@ pub struct EmitterData<'a> {
     pub _particle_lifetime_min: f32,
     pub _particle_lifetime_max: f32,
     pub _align_mode: ParticleAlignMode,
-    pub _blend_mode: ParticleBlendMode,
+    pub _blend_mode: BlendMode,
     pub _geometry_type: ParticleGeometryType,
     pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>,
     pub _mesh_data: RcRefCell<MeshData>,

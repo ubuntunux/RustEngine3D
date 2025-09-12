@@ -8,10 +8,6 @@ const uint PARTICLE_STATE_DELAY = 1 << 0;
 const uint PARTICLE_STATE_ALIVE = 1 << 1;
 const uint PARTICLE_STATE_DEAD = 1 << 2;
 
-#define ParticleBlendMode_AlphaBlend 0
-#define ParticleBlendMode_Additive 1
-#define ParticleBlendMode_Opaque 2
-
 #define ParticleSpawnVolumeType_Box 0
 #define ParticleSpawnVolumeType_Sphere 1
 #define ParticleSpawnVolumeType_Cone 2

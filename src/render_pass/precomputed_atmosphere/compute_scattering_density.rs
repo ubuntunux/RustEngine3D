@@ -8,7 +8,7 @@ use crate::vulkan_context::render_pass::{
     ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData,
     RenderPassDataCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{self, BlendMode};
+use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
 
 use crate::renderer::render_target::RenderTargetType;
@@ -72,8 +72,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }
         )],
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(BlendMode::None);
+        _pipeline_color_blend_operations: vec![
+            vulkan_context::get_color_blend_operation(BlendOperation::None);
             color_attachment_descriptions.len()
         ],
         _pipeline_cull_mode: vk::CullModeFlags::BACK,

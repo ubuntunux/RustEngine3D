@@ -8,7 +8,7 @@ use crate::vulkan_context::render_pass::{
     DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
     RenderPassDataCreateInfo,
 };
-use crate::vulkan_context::vulkan_context::{self, BlendMode};
+use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
 
 pub fn get_framebuffer_data_create_info(
@@ -126,8 +126,8 @@ pub fn get_render_pass_data_create_info(
         )],
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(BlendMode::None);
+        _pipeline_color_blend_operations: vec![
+            vulkan_context::get_color_blend_operation(BlendOperation::None);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {

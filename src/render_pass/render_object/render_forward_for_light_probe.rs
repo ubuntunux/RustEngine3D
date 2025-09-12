@@ -4,7 +4,7 @@ use crate::render_pass::render_object::common;
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
-use crate::vulkan_context::vulkan_context::{self, BlendMode};
+use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_data::RendererData;
@@ -124,8 +124,8 @@ pub fn get_render_pass_data_create_info(
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: cull_mode,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(BlendMode::None);
+        _pipeline_color_blend_operations: vec![
+            vulkan_context::get_color_blend_operation(BlendOperation::None);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),

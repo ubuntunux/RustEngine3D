@@ -9,7 +9,7 @@ use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, Render
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
 use crate::vulkan_context::vulkan_context;
-use crate::vulkan_context::vulkan_context::BlendMode;
+use crate::vulkan_context::vulkan_context::BlendOperation;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
@@ -85,9 +85,9 @@ pub fn get_render_pass_data_create_info(
         _pipeline_sample_count: sample_count,
         _pipeline_cull_mode: vk::CullModeFlags::NONE,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
-        _pipeline_color_blend_modes: vec![
-            vulkan_context::get_color_blend_mode(BlendMode::None),
-            vulkan_context::get_color_blend_mode(BlendMode::MaxDepth)
+        _pipeline_color_blend_operations: vec![
+            vulkan_context::get_color_blend_operation(BlendOperation::None),
+            vulkan_context::get_color_blend_operation(BlendOperation::MaxDepth)
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
             _depth_write_enable: false,

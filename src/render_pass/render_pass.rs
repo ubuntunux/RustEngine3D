@@ -1,7 +1,7 @@
 use ash::vk;
-use crate::effect::effect_data::{ParticleBlendMode, ParticleGeometryType};
+use crate::effect::effect_data::ParticleGeometryType;
 use crate::render_pass::{common, effect, fft_ocean, precomputed_atmosphere, ray_tracing, render_object};
-use crate::renderer::renderer_data::RendererData;
+use crate::renderer::renderer_data::{BlendMode, RendererData};
 use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
 
 pub fn get_render_pass_data_create_infos(
@@ -74,7 +74,7 @@ pub fn get_render_pass_data_create_infos(
         common::render_taa::get_render_pass_data_create_info(renderer_data),
         common::render_ui::get_render_pass_data_create_info(renderer_data),
         effect::process_gpu_particle::get_render_pass_data_create_info(renderer_data),
-        effect::render_particle_translucent::get_render_pass_data_create_info(renderer_data, ParticleBlendMode::AlphaBlend, ParticleGeometryType::Mesh),
+        effect::render_particle_translucent::get_render_pass_data_create_info(renderer_data, BlendMode::AlphaBlend, ParticleGeometryType::Mesh),
         fft_ocean::render_fft_init::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_ocean::get_render_pass_data_create_info(renderer_data),
         fft_ocean::render_fft_variance::get_render_pass_data_create_info(renderer_data),

@@ -6,6 +6,7 @@ use std::vec::Vec;
 use ash::{Device, vk};
 use ash::ext;
 use nalgebra::{Matrix4, Vector2, Vector4};
+use serde::{Deserialize, Serialize};
 use crate::constants;
 use crate::constants::MAX_FRAME_COUNT;
 use crate::effect::effect_manager::EffectManager;
@@ -60,6 +61,21 @@ pub enum RenderMode {
     Shadow = 3,
     CaptureHeightMap = 4,
 }
+
+// NOTE: Ensure enum values match in effect/common.glsl
+#[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
+pub enum BlendMode {
+    AlphaBlend = 0,
+    Additive = 1,
+    Opaque = 2
+}
+
+impl Default for BlendMode {
+    fn default() -> Self {
+        BlendMode::AlphaBlend
+    }
+}
+
 
 // NOTE: Ensure enum values match in scene_constants.glsl
 #[derive(Clone, Debug, Copy, PartialEq)]

@@ -88,7 +88,7 @@ pub struct PipelineDataCreateInfo {
     pub _pipeline_line_width: f32,
     pub _pipeline_viewport: vk::Viewport,
     pub _pipeline_scissor_rect: vk::Rect2D,
-    pub _pipeline_color_blend_modes: Vec<vk::PipelineColorBlendAttachmentState>,
+    pub _pipeline_color_blend_operations: Vec<vk::PipelineColorBlendAttachmentState>,
     pub _depth_stencil_state_create_info: DepthStencilStateCreateInfo,
     pub _vertex_input_bind_descriptions: Vec<vk::VertexInputBindingDescription>,
     pub _vertex_input_attribute_descriptions: Vec<vk::VertexInputAttributeDescription>,
@@ -121,7 +121,7 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_line_width: 1.0,
             _pipeline_viewport: vk::Viewport::default(),
             _pipeline_scissor_rect: vk::Rect2D::default(),
-            _pipeline_color_blend_modes: Vec::new(),
+            _pipeline_color_blend_operations: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
             _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
@@ -662,9 +662,9 @@ pub fn create_graphics_pipeline_data<'a>(
     let color_blending = vk::PipelineColorBlendStateCreateInfo {
         logic_op_enable: 0,
         logic_op: vk::LogicOp::COPY,
-        attachment_count: pipeline_data_create_info._pipeline_color_blend_modes.len() as u32,
+        attachment_count: pipeline_data_create_info._pipeline_color_blend_operations.len() as u32,
         p_attachments: pipeline_data_create_info
-            ._pipeline_color_blend_modes
+            ._pipeline_color_blend_operations
             .as_ptr(),
         blend_constants,
         ..Default::default()

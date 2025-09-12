@@ -16,10 +16,9 @@
 #define RenderObjectType_Static 0
 #define RenderObjectType_Skeletal 1
 
-#define BLEND 0
-#define ADDITIVE 1
-#define MULTIPLY 2
-#define SUBTRACT 3
+#define BlendMode_AlphaBlend 0
+#define BlendMode_Additive 1
+#define BlendMode_Opaque 2
 
 // must match with constants.rs
 #define WORK_GROUP_SIZE 64
