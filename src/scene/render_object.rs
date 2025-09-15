@@ -275,15 +275,17 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn set_animation(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs, layer: AnimationLayer) {
-        if self._bone_count == animation_mesh.borrow()._animation_data_list.first().unwrap().get_bone_count() {
-            let animation_play_info = &mut self.get_animation_play_info_mut(layer);
-            let was_valid_animation = animation_play_info.is_valid();
-            let prev_animation_mesh_ptr: *mut MeshData =
-                (if was_valid_animation { animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() } else { std::ptr::null() }) as *mut MeshData;
-            if animation_args._force_animation_setting || animation_mesh.as_ptr() != prev_animation_mesh_ptr {
-                animation_play_info.set_animation_play_info(animation_mesh, animation_args, was_valid_animation);
-                if was_valid_animation && 0.0 < animation_play_info._animation_blend_time {
-                    animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
+        if let Some(first_animation_data) = animation_mesh.borrow()._animation_data_list.first() {
+            if self._bone_count == first_animation_data.get_bone_count() {
+                let animation_play_info = &mut self.get_animation_play_info_mut(layer);
+                let was_valid_animation = animation_play_info.is_valid();
+                let prev_animation_mesh_ptr: *mut MeshData =
+                    (if was_valid_animation { animation_play_info._animation_mesh.as_ref().unwrap().as_ptr() } else { std::ptr::null() }) as *mut MeshData;
+                if animation_args._force_animation_setting || animation_mesh.as_ptr() != prev_animation_mesh_ptr {
+                    animation_play_info.set_animation_play_info(animation_mesh, animation_args, was_valid_animation);
+                    if was_valid_animation && 0.0 < animation_play_info._animation_blend_time {
+                        animation_play_info._last_animation_transforms.clone_from(&animation_play_info._animation_transforms);
+                    }
                 }
             }
         }

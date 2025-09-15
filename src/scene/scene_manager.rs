@@ -311,6 +311,7 @@ impl<'a> SceneManager<'a> {
         camera_create_info: &CameraCreateInfo,
     ) -> Rc<CameraObjectData> {
         let object_id = self.generate_object_id();
+        log::info!("camera_create_info: {:?}", camera_create_info);
         let camera_object_data = Rc::new(CameraObjectData::create_camera_object_data(
             object_id,
             &String::from(object_name),
