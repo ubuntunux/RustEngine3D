@@ -3,6 +3,7 @@ use nalgebra::linalg;
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
+use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
 
@@ -37,7 +38,7 @@ impl Default for CameraCreateInfo {
 }
 
 pub struct CameraObjectData {
-    pub _object_id: i64,
+    pub _object_id: SceneObjectID,
     pub _name: String,
     pub _meter_per_unit: f32,
     pub _near: f32,
@@ -79,7 +80,7 @@ pub struct CameraObjectData {
 
 impl CameraObjectData {
     pub fn create_camera_object_data(
-        object_id: i64,
+        object_id: SceneObjectID,
         name: &String,
         camera_create_info: &CameraCreateInfo,
     ) -> CameraObjectData {

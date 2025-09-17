@@ -9,6 +9,7 @@ use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
+use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell, newRcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
@@ -42,7 +43,7 @@ impl Default for RenderObjectCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct RenderObjectData<'a> {
-    pub _object_id: i64,
+    pub _object_id: SceneObjectID,
     pub _is_visible: bool,
     pub _is_render_camera: bool,
     pub _is_render_shadow: bool,
@@ -66,7 +67,7 @@ pub struct RenderObjectData<'a> {
 
 impl<'a> RenderObjectData<'a> {
     pub fn create_render_object_data(
-        object_id: i64,
+        object_id: SceneObjectID,
         render_object_name: &String,
         model_data: &RcRefCell<ModelData<'a>>,
         render_object_create_data: &RenderObjectCreateInfo,
@@ -148,7 +149,15 @@ impl<'a> RenderObjectData<'a> {
         self._prev_transform = self._final_transform.clone();
     }
 
-    pub fn is_visbile(&self) -> bool {
+    pub fn get_object_id(&self) -> SceneObjectID {
+        self._object_id
+    }
+
+    pub fn set_object_id(&mut self, object_id: SceneObjectID) {
+        self._object_id = object_id;
+    }
+
+    pub fn is_visible(&self) -> bool {
         self._is_visible
     }
 

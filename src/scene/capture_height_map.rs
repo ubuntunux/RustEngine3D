@@ -8,6 +8,7 @@ use crate::scene::bounding_box::BoundingBox;
 use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{DirectionalLight, DirectionalLightCreateInfo};
 use crate::scene::render_element::RenderElementData;
+use crate::scene::scene_manager::SceneObjectID;
 use crate::utilities::math;
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::geometry_buffer::GeometryData;
@@ -30,7 +31,7 @@ pub struct CaptureHeightMap<'a> {
 }
 
 impl<'a> CaptureHeightMap<'a> {
-    pub fn create_capture_height_map(object_id: i64) -> CaptureHeightMap<'a> {
+    pub fn create_capture_height_map(object_id: SceneObjectID) -> CaptureHeightMap<'a> {
         let capture_height_map_view = DirectionalLight::create_directional_light(
             object_id,
             &String::from("capture_height_map"),

@@ -2,6 +2,7 @@ use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::transform_object::TransformObjectData;
 
 // scene_constants.glsl - struct LIGHT_DATA
@@ -31,7 +32,7 @@ pub struct DirectionalLightCreateInfo {
 
 #[derive(Clone, Debug, Default)]
 pub struct DirectionalLight {
-    pub _object_id: i64,
+    pub _object_id: SceneObjectID,
     pub _light_name: String,
     pub _light_data: LightData,
     pub _light_shadow_projection: Matrix4<f32>,
@@ -74,7 +75,7 @@ pub struct PointLightCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct PointLight {
-    pub _object_id: i64,
+    pub _object_id: SceneObjectID,
     pub _light_name: String,
     pub _light_data: PointLightData,
     pub _bounding_box: BoundingBox

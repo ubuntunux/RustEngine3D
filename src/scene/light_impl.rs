@@ -2,6 +2,7 @@ use nalgebra::{linalg, Matrix4, Vector3, Vector4};
 use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::light::{DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLightData};
+use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
 
@@ -46,11 +47,11 @@ impl Default for DirectionalLightCreateInfo {
 // DirectionalLight
 impl DirectionalLight {
     pub fn create_directional_light(
-        object_id: i64,
+        object_id: SceneObjectID,
         light_name: &String,
         light_create_info: &DirectionalLightCreateInfo,
     ) -> DirectionalLight {
-        log::debug!("    create_directional_light[{}]: {}, {:?}", object_id, light_name, light_create_info);
+        log::debug!("    create_directional_light[{:?}]: {}, {:?}", object_id, light_name, light_create_info);
         let mut light_data = DirectionalLight {
             _object_id: object_id,
             _light_name: light_name.clone(),
@@ -140,11 +141,11 @@ impl Default for PointLightCreateInfo {
 // PointLight
 impl PointLight {
     pub fn create_point_light(
-        object_id: i64,
+        object_id: SceneObjectID,
         light_name: &String,
         light_create_info: &PointLightCreateInfo,
     ) -> PointLight {
-        log::debug!("    create_point_light[{}]: {}, {:?}", object_id, light_name, light_create_info);
+        log::debug!("    create_point_light[{:?}]: {:?}, {:?}", object_id, light_name, light_create_info);
         let light_radius_offset = Vector3::new(light_create_info._radius, light_create_info._radius, light_create_info._radius);
         let mut light_data = PointLight {
             _object_id: object_id,

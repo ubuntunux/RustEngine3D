@@ -24,11 +24,14 @@ use crate::scene::height_map::HeightMapData;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
-pub type CameraObjectMap = HashMap<i64, Rc<CameraObjectData>>;
-pub type DirectionalLightObjectMap = HashMap<i64, RcRefCell<DirectionalLight>>;
-pub type PointLightObjectMap = HashMap<i64, RcRefCell<PointLight>>;
-pub type RenderObjectMap<'a> = HashMap<i64, RcRefCell<RenderObjectData<'a>>>;
+pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
+pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
+pub type PointLightObjectMap = HashMap<SceneObjectID, RcRefCell<PointLight>>;
+pub type RenderObjectMap<'a> = HashMap<SceneObjectID, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
+
+#[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
+pub struct SceneObjectID(i64);
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -65,7 +68,7 @@ pub struct SceneManager<'a> {
     pub _point_light_object_map: PointLightObjectMap,
     pub _render_point_lights: PointLights,
     pub _render_point_light_count: i32,
-    pub _object_id_generator: i64,
+    pub _object_id_generator: SceneObjectID,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
     pub _static_render_elements: Vec<RenderElementData<'a>>,
@@ -179,7 +182,7 @@ impl<'a> SceneManager<'a> {
             _point_light_object_map: HashMap::new(),
             _render_point_lights: PointLights::default(),
             _render_point_light_count: 0,
-            _object_id_generator: 0,
+            _object_id_generator: SceneObjectID(0),
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
             _static_render_elements: Vec::new(),
@@ -300,10 +303,9 @@ impl<'a> SceneManager<'a> {
         self._sea_height
     }
     pub fn get_dead_zone_height(&self) -> f32 { self._sea_height - 5.0 }
-    pub fn generate_object_id(&mut self) -> i64 {
-        let _object_id_generator = self._object_id_generator;
-        self._object_id_generator += 1;
-        self._object_id_generator
+    pub fn generate_object_id(&mut self) -> SceneObjectID {
+        self._object_id_generator = SceneObjectID(self._object_id_generator.0 + 1);
+        self._object_id_generator.clone()
     }
     pub fn add_camera_object(
         &mut self,
@@ -412,12 +414,12 @@ impl<'a> SceneManager<'a> {
 
     pub fn get_static_render_object(
         &self,
-        object_id: i64,
+        object_id: SceneObjectID,
     ) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._static_render_object_map.get(&object_id)
     }
 
-    pub fn remove_static_render_object(&mut self, object_id: i64) {
+    pub fn remove_static_render_object(&mut self, object_id: SceneObjectID) {
         self._static_render_object_map.remove(&object_id);
     }
 
@@ -427,12 +429,12 @@ impl<'a> SceneManager<'a> {
 
     pub fn get_skeletal_render_object(
         &self,
-        object_id: i64,
+        object_id: SceneObjectID,
     ) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._skeletal_render_object_map.get(&object_id)
     }
 
-    pub fn remove_skeletal_render_object(&mut self, object_id: i64) {
+    pub fn remove_skeletal_render_object(&mut self, object_id: SceneObjectID) {
         self._skeletal_render_object_map.remove(&object_id);
     }
 
