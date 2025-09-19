@@ -31,7 +31,7 @@ sdl2 = { version = "0.38", features = ["mixer"] }
 strum = "0.27"
 strum_macros = "0.27"
 time = "0.3"
-winit = { version = "0.29", features = ["rwh_06"] }
+winit = { version = "0.29.15", features = ["rwh_06"] }
 which = "8.0"
 xml-rs = "0.8"
 

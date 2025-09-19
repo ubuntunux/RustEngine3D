@@ -745,7 +745,10 @@ pub fn run_application(
                     device_id: _device_id,
                     ..
                 } => {}
+                WindowEvent::Ime(_event) => {
+                }
                 WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                    window.set_ime_allowed(false);
                     if run_application {
                         engine_core.update_keyboard_input(&event, is_synthetic);
                     }
