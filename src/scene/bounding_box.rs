@@ -61,6 +61,10 @@ impl BoundingBox {
         BoundingBox::create_bounding_box(&bound_min, &bound_max)
     }
 
+    pub fn get_center(&self) -> &Vector3<f32> {
+        &self._center
+    }
+
     pub fn get_mag_xz(&self) -> f32 {
         self._mag_xz
     }
