@@ -275,7 +275,7 @@ impl HeightMapData {
         let side_z: f32 = move_dir.z.abs() * limit_dist;
         let lod_x: usize = (bound_box_width / side_x).log2().ceil() as usize;
         let lod_z: usize = (bound_box_height / side_z).log2().ceil() as usize;
-        let mut lod: usize = max_lod - 1.max(max_lod.min(lod_x.max(lod_z)));
+        let mut lod: usize = 3;//max_lod - 1.max(max_lod.min(lod_x.max(lod_z)));
 
         collision_point.clone_from(start_pos);
         let mut ray_point: Vector3<f32> = start_pos.clone();
@@ -295,7 +295,7 @@ impl HeightMapData {
         while debug_loop_count < limit_loop_count {
             debug_loop_count += 1;
 
-            let height_value = self.get_height_point(&ray_point, lod);
+            let height_value = self.get_height_bilinear(&ray_point, lod);
 
             if ray_point.y <= height_value {
                 collision_point.clone_from(&ray_point);
