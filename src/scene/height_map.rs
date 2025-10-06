@@ -266,14 +266,17 @@ impl HeightMapData {
         let max_lod: usize = (self._lod_count - 2) as usize;
         let bound_box_width: f32 = self._bounding_box._extents.x * 2.0;
         let bound_box_height: f32 = self._bounding_box._extents.z * 2.0;
-        let max_ray_dist: f32 = bound_box_width.max(bound_box_height);
+        let max_ray_dist: f32 = self._bounding_box._mag_xz;
         if limit_dist < 0.0 || max_ray_dist < limit_dist {
             limit_dist = max_ray_dist;
         }
-        let texcoord_dir: Vector2<f32> = Vector2::new(move_dir.x, move_dir.z).normalize();
-        let max_dir: f32 = texcoord_dir.x.abs().max(texcoord_dir.y.abs());
-        let max_dist: f32 = max_dir * limit_dist;
-        let mut lod: usize = 0.max(max_lod - (max_ray_dist / max_dist).log2().ceil() as usize);
+
+        let step_dir: Vector2<f32> = Vector2::new(move_dir.x, move_dir.z).normalize();
+        let side_x: f32 = step_dir.x.abs() * limit_dist;
+        let side_y: f32 = step_dir.y.abs() * limit_dist;
+        let lod_x: usize = (bound_box_width / side_x).log2().ceil() as usize;
+        let lod_y: usize = (bound_box_height / side_y).log2().ceil() as usize;
+        let mut lod: usize = 0.max(max_lod.min(lod_x.max(lod_y)));
 
         collision_point.clone_from(start_pos);
         let mut ray_point: Vector3<f32> = start_pos.clone();
@@ -282,23 +285,38 @@ impl HeightMapData {
         let mut texcoord_prev: Vector2<f32> = texcoord.clone();
         let mut collision_texcoord: Vector2<f32> = texcoord.clone();
         let goal_texcoord: Vector2<f32> = Vector2::new(
-            texcoord.x + texcoord_dir.x * limit_dist / bound_box_width,
-            texcoord.y + texcoord_dir.y * limit_dist / bound_box_height
+            texcoord.x + step_dir.x * limit_dist / bound_box_width,
+            texcoord.y + step_dir.y * limit_dist / bound_box_height
         );
-        let mut step: f32 = 1.0 / self._width[lod as usize].max(self._height[lod as usize]) as f32;
+
+        let step_x: f32 = if 0.0 != step_dir.x {
+            1.0 / (step_dir.x.abs() * self._width[lod as usize] as f32)
+        } else {
+            0.0
+        };
+        let step_y: f32 = if 0.0 != step_dir.y {
+            1.0 / (step_dir.y.abs() * self._height[lod as usize] as f32)
+        } else {
+            0.0
+        };
+        let mut step: f32 = step_x.max(step_y);
 
         {
             let target_pos = start_pos + move_dir * limit_dist;
-            log::info!(">>> start_pos: {:?}, move_dir: {:?}, target_pos: {:?}, height: {:?}", start_pos, move_dir, target_pos, self.get_height_point(&target_pos, 0));
+            log::info!(">>> start_pos: {:?}, move_dir: {:?}, target_pos: {:?}, height: {:?}, lod_height: {:?}, limit_dist: {:?}, lod: {:?}, step: {:?}, step_dir: {:?}, step * step_dir: {:?}, texcoord: {:?}, goal_texcoord: {:?}", start_pos, move_dir, target_pos, self.get_height_point(&target_pos, 0), self.get_height_point(&target_pos, lod),  limit_dist, lod, step, step_dir, step *step_dir, texcoord, goal_texcoord);
+            log::info!("width: {:?}, height: {:?}, bound_box_size: {:?} {:?}, min: {:?}, max:{:?}", self._width[lod], self._height[lod], bound_box_width, bound_box_height, self._bounding_box._min, self._bounding_box._max);
         }
 
         let mut collided = false;
         let mut debug_loop_count: i32 = 0;
-        let limit_loop_count: i32 = max_ray_dist as i32;
+        let loop_count_limit_x = (max_ray_dist / bound_box_width * self._width[0] as f32) as i32;
+        let loop_count_limit_y = (max_ray_dist / bound_box_height * self._height[0] as f32) as i32;
+        let limit_loop_count: i32 = loop_count_limit_x.max(loop_count_limit_y);
         while debug_loop_count < limit_loop_count {
             debug_loop_count += 1;
+
             let height_value = self.get_height_point_by_texcoord(&texcoord, lod);
-            log::info!("\t[{:?}] check height value - lod: {:?}, step: {:?}, texcoord: {:?}, ray_point: {:?}, height: {:?}", debug_loop_count, lod, step, texcoord, ray_point, height_value);
+            log::info!("\t[{:?}] check height value - lod: {:?}, step: {:?}, texcoord: {:?}, ray_point: {:?}, height: {:?}", debug_loop_count, lod, step * step_dir, texcoord, ray_point, height_value);
 
             if ray_point.y <= height_value {
                 collision_texcoord.clone_from(&texcoord);
@@ -306,16 +324,16 @@ impl HeightMapData {
                 collided = true;
 
                 if lod == 0 {
-                    log::info!("\t[{:?}] Collided - lod: {:?}, step: {:?}, texcoord: {:?}, ray_point: {:?}, height: {:?}", debug_loop_count, lod, step, texcoord, ray_point, height_value);
+                    log::info!("\t[{:?}] Collided - lod: {:?}, step: {:?}, texcoord: {:?}, ray_point: {:?}, height: {:?}", debug_loop_count, lod, step * step_dir, texcoord, ray_point, height_value);
                     break;
                 }
 
                 // collided and go to higher lod
                 texcoord.clone_from(&texcoord_prev);
                 ray_point.clone_from(&ray_point_prev);
-                step *= 0.4;
+                step *= 0.5;
                 lod -= 1;
-                log::info!("\t[{:?}] collided and go to higher lod - lod: {:?}, step: {:?}", debug_loop_count, lod, step);
+                log::info!("\t[{:?}] collided and go to higher lod - lod: {:?}, step: {:?}", debug_loop_count, lod, step * step_dir);
                 continue;
             }
 
@@ -324,22 +342,45 @@ impl HeightMapData {
 
             // next step
             texcoord_prev.clone_from(&texcoord);
-            texcoord += &texcoord_dir * step;
+            texcoord += &step_dir * step;
             ray_point_prev.clone_from(&ray_point);
-            let ddx: f32 = (((texcoord.x * bound_box_width) + self._bounding_box._min.x - start_pos.x) / texcoord_dir.x).abs();
-            ray_point = start_pos + move_dir * ddx;
+            ray_point.x = (texcoord.x * bound_box_width) + self._bounding_box._min.x;
+            ray_point.z = (texcoord.y * bound_box_height) + self._bounding_box._min.z;
+            ray_point.y = if move_dir.x != 0.0 {
+                (ray_point.x - start_pos.x).abs() / move_dir.x.abs()
+            } else if move_dir.z != 0.0 {
+                (ray_point.z - start_pos.z).abs() / move_dir.z.abs()
+            } else {
+                0.0
+            } * move_dir.y;
 
             // arrive in goal
-            if texcoord_dir.dot(&(&goal_texcoord - &texcoord)) < 0.0 {
-                texcoord.clone_from(&goal_texcoord);
-                log::info!("\t[{:?}] arrive in goal - goal_texcoor: {:?}, ray_point: {:?}", debug_loop_count, goal_texcoord, ray_point);
-                break;
+            if step_dir.dot(&(&goal_texcoord - &texcoord)) <= 0.0 {
+                if lod == 0 {
+                    texcoord.clone_from(&goal_texcoord);
+                    log::info!("\t[{:?}] arrive in goal - goal_texcoord: {:?}, ray_point: {:?}", debug_loop_count, goal_texcoord, ray_point);
+                    break;
+                } else {
+                    texcoord.clone_from(&texcoord_prev);
+                    ray_point.clone_from(&ray_point_prev);
+                    step *= 0.5;
+                    lod -= 1;
+                    continue;
+                }
             }
 
             // out of range
             if texcoord.x < 0.0 || texcoord.y < 0.0 || 1.0 < texcoord.x || 1.0 < texcoord.y {
-                log::info!("\t[{:?}] out of range", debug_loop_count);
-                break;
+                if lod == 0 {
+                    log::info!("\t[{:?}] out of range", debug_loop_count);
+                    break;
+                } else {
+                    texcoord.clone_from(&texcoord_prev);
+                    ray_point.clone_from(&ray_point_prev);
+                    step *= 0.5;
+                    lod -= 1;
+                    continue;
+                }
             }
             log::info!("\t[{:?}] next step - texcoord_prev: {:?}, texcoord: {:?}, ray_point_prev: {:?}, ray_point: {:?}", debug_loop_count, texcoord_prev, texcoord, ray_point_prev, ray_point);
         }
