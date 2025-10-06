@@ -275,7 +275,7 @@ impl HeightMapData {
         let side_z: f32 = move_dir.z.abs() * limit_dist;
         let lod_x: usize = (bound_box_width / side_x).log2().ceil() as usize;
         let lod_z: usize = (bound_box_height / side_z).log2().ceil() as usize;
-        let mut lod: usize = 3;//max_lod - 1.max(max_lod.min(lod_x.max(lod_z)));
+        let mut lod: usize = 0;//max_lod - 1.max(max_lod.min(lod_x.max(lod_z)));
 
         collision_point.clone_from(start_pos);
         let mut ray_point: Vector3<f32> = start_pos.clone();
