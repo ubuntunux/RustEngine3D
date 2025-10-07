@@ -99,17 +99,17 @@ impl HeightMapData {
                         0.0
                     ).normalize();
 
-                    let mut vector_z: Vector3<f32> = Vector3::new(
+                    let vector_z: Vector3<f32> = Vector3::new(
                         0.0,
                         height_b - height_t,
                         step_size_z * 2.0
                     ).normalize();
 
-                    if HEIGHT_MAP_INVERT_TEXCOORD_Y {
-                        vector_z.z = -vector_z.z;
-                    }
-
-                    let mut normal_map = vector_x.cross(&vector_z).normalize();
+                    let mut normal_map = if HEIGHT_MAP_INVERT_TEXCOORD_Y {
+                        vector_z.cross(&vector_x).normalize()
+                    } else {
+                        vector_x.cross(&vector_z).normalize()
+                    };
                     if height_r == 0.0 || height_l == 0.0 || height_t == 0.0 || height_b == 0.0 {
                         normal_map.y = 0.0;
                         math::safe_normalize_mut(&mut normal_map);
@@ -133,11 +133,7 @@ impl HeightMapData {
     }
 
     pub fn convert_to_pixel_index(&self, width: i32, height: i32, x: i32, y: i32) -> usize {
-        if HEIGHT_MAP_INVERT_TEXCOORD_Y {
-            ((height - 1 - y) * width + x) as usize
-        } else {
-            (y * width + x) as usize
-        }
+        (y * width + x) as usize
     }
 
     pub fn get_bilinear_pixel_pos_infos(&self, texcoord: &Vector2<f32>, lod: usize) -> (Vector4<usize>, Vector2<f32>) {
@@ -163,7 +159,11 @@ impl HeightMapData {
     pub fn get_texcoord(&self, pos: &Vector3<f32>) -> Vector2<f32> {
         Vector2::new(
             (pos.x - &self._bounding_box._min.x) / (self._bounding_box._extents.x * 2.0),
-            (pos.z - &self._bounding_box._min.z) / (self._bounding_box._extents.z * 2.0)
+            if HEIGHT_MAP_INVERT_TEXCOORD_Y {
+                1.0 - ((pos.z - &self._bounding_box._min.z) / (self._bounding_box._extents.z * 2.0))
+            } else {
+                (pos.z - &self._bounding_box._min.z) / (self._bounding_box._extents.z * 2.0)
+            }
         )
     }
 
@@ -275,12 +275,13 @@ impl HeightMapData {
         let side_z: f32 = move_dir.z.abs() * limit_dist;
         let lod_x: usize = (bound_box_width / side_x).log2().ceil() as usize;
         let lod_z: usize = (bound_box_height / side_z).log2().ceil() as usize;
-        let mut lod: usize = 0;//max_lod - 1.max(max_lod.min(lod_x.max(lod_z)));
+        let mut lod: usize = 0.max((max_lod - 1).min(lod_x.max(lod_z)));
 
         collision_point.clone_from(start_pos);
         let mut ray_point: Vector3<f32> = start_pos.clone();
         let mut ray_point_prev: Vector3<f32> = start_pos.clone();
 
+        const MIN_STEP: f32 = 0.1;
         let step_x: f32 = bound_box_width / self._width[lod as usize] as f32;
         let step_y: f32 = bound_box_height / self._height[lod as usize] as f32;
         let mut step: f32 = step_x.min(step_y);
@@ -295,25 +296,29 @@ impl HeightMapData {
         while debug_loop_count < limit_loop_count {
             debug_loop_count += 1;
 
-            let height_value = self.get_height_bilinear(&ray_point, lod);
+            let height_value = if lod == 0 {
+                self.get_height_bilinear(&ray_point, lod)
+            } else {
+                self.get_height_point(&ray_point, lod)
+            };
 
             if ray_point.y <= height_value {
-                collision_point.clone_from(&ray_point);
+                collision_point.clone_from(&ray_point_prev);
                 collided = true;
-
-                if lod == 0 {
-                    break;
-                }
 
                 // collided and go to higher lod
                 ray_point.clone_from(&ray_point_prev);
                 distance = distance_prev;
                 step *= 0.5;
-                lod -= 1;
+                if 0 < lod {
+                    lod -= 1;
+                } else if step < MIN_STEP {
+                    break;
+                }
                 continue;
             }
 
-            // reset collided
+            //
             collided = false;
 
             // next step
@@ -323,26 +328,9 @@ impl HeightMapData {
             ray_point = start_pos + move_dir * distance;
 
             // arrive in goal
-            if limit_dist <= distance {
-                if lod == 0 {
-                    break;
-                } else {
-                    ray_point.clone_from(&ray_point_prev);
-                    distance = distance_prev;
-                    step *= 0.5;
-                    lod -= 1;
-                    continue;
-                }
+            if limit_dist <= distance_prev || ray_point_prev.x < self._bounding_box._min.x || ray_point_prev.z < self._bounding_box._min.z || self._bounding_box._max.x < ray_point_prev.x || self._bounding_box._max.z < ray_point_prev.z {
+                break;
             }
-        }
-
-        if collided {
-            let height_value = self.get_height_bilinear(&collision_point, 0);
-            collision_point.y = height_value;
-
-            // NOTE: result is smooth but not correct and position spike.
-            // let ddy: f32 = ((height_value - start_pos.y) / move_dir.y).abs();
-            // *collision_point = start_pos + move_dir * ddy;
         }
 
         //log::info!("\t[{:?}] Finish! collided: {:?}, lod: {:?}, start_pos: {:?}, collision_point: {:?}, move_dir: {:?}, dist: {:?}", debug_loop_count, collided, lod, start_pos, collision_point, move_dir, (start_pos - &*collision_point).norm());
