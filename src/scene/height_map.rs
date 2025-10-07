@@ -132,7 +132,7 @@ impl HeightMapData {
         self._initialized = true;
     }
 
-    pub fn convert_to_pixel_index(&self, width: i32, height: i32, x: i32, y: i32) -> usize {
+    pub fn convert_to_pixel_index(&self, width: i32, _height: i32, x: i32, y: i32) -> usize {
         (y * width + x) as usize
     }
 
