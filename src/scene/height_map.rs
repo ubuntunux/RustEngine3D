@@ -281,23 +281,24 @@ impl HeightMapData {
         let mut ray_point: Vector3<f32> = start_pos.clone();
         let mut ray_point_prev: Vector3<f32> = start_pos.clone();
 
-        const MIN_STEP: f32 = 0.01;
         let step_x: f32 = (bound_box_width / self._width[lod as usize] as f32) / if move_dir.x != 0.0 { move_dir.x.abs() } else { 1.0 };
         let step_z: f32 = (bound_box_height / self._height[lod as usize] as f32) / if move_dir.z != 0.0 { move_dir.z.abs() } else { 1.0 };
         let mut step: f32 = step_x.min(step_z);
 
         let mut distance: f32 = 0.0;
         let mut distance_prev: f32 = 0.0;
-
         let mut collided = false;
         let mut debug_loop_count: i32 = 0;
+        let mut height_value: f32 = start_pos.y;
+        let mut height_value_prev: f32 = height_value;
         let loop_count_limit_x = (max_ray_dist / bound_box_width * self._width[0] as f32) as i32;
         let loop_count_limit_y = (max_ray_dist / bound_box_height * self._height[0] as f32) as i32;
         let limit_loop_count: i32 = loop_count_limit_x.max(loop_count_limit_y);
         while debug_loop_count < limit_loop_count {
             debug_loop_count += 1;
 
-            let height_value = if lod == 0 {
+            height_value_prev = height_value;
+            height_value = if 0 == lod {
                 self.get_height_bilinear(&ray_point, lod)
             } else {
                 self.get_height_point(&ray_point, lod)
@@ -307,20 +308,32 @@ impl HeightMapData {
                 collision_point.clone_from(&ray_point_prev);
                 collided = true;
 
+                if lod == 0 {
+                    // calculate collision point
+                    let height_delta = height_value - height_value_prev;
+                    let height_diff = ray_point.y - ray_point_prev.y;
+                    let height_offset = ray_point_prev.y - height_value_prev;
+                    let step_xz = math::get_norm_xz(&(ray_point - ray_point_prev));
+                    let mut x = if height_delta != height_diff { (height_offset * step_xz) / (height_delta - height_diff) } else { 0.0 };
+                    if 0.0 != step_xz {
+                        x /= step_xz;
+                    }
+                    x = x.clamp(0.0, 1.0);
+                    *collision_point = ray_point_prev.lerp(&ray_point, x);
+                    break;
+                }
+
                 // collided and go to higher lod
                 ray_point.clone_from(&ray_point_prev);
                 distance = distance_prev;
                 step *= 0.5;
-
-                if lod == 0 && step < MIN_STEP {
-                    break;
-                } else if 0 < lod {
+                if 0 < lod {
                     lod -= 1;
                 }
                 continue;
             }
 
-            //
+            // reset
             collided = false;
 
             // next step
@@ -335,7 +348,7 @@ impl HeightMapData {
             }
         }
 
-        log::info!("\t[{:?}] Finish! collided: {:?}, lod: {:?}, start_pos: {:?}, collision_point: {:?}, move_dir: {:?}, dist: {:?}", debug_loop_count, collided, lod, start_pos, collision_point, move_dir, (start_pos - &*collision_point).norm());
+        //log::info!("\t[{:?}] Finish! collided: {:?}, lod: {:?}, start_pos: {:?}, collision_point: {:?}, move_dir: {:?}, dist: {:?}", debug_loop_count, collided, lod, start_pos, collision_point, move_dir, (start_pos - &*collision_point).norm());
         collided
     }
 }
