@@ -69,7 +69,7 @@ void main()
     atmosphere_constants,
     scene_linear_depth,
     view_constants.NEAR_FAR.y,
-    view_constants.CAMERA_POSITION.xyz,
+    vec3(0.0, 0.0, 0.0), // view_constants.CAMERA_POSITION.xyz,
     eye_direction,
     sun_direction,
     light_data.SHADOW_VIEW_PROJECTION,
