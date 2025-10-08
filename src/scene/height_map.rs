@@ -258,7 +258,7 @@ impl HeightMapData {
         self.get_normal_bilinear_by_texcoord(&self.get_texcoord(pos))
     }
 
-    pub fn get_collision_point(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
+    pub fn get_collision_point(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, padding: f32, collision_point: &mut Vector3<f32>) -> bool {
         if self._initialized == false {
             return false;
         }
@@ -346,6 +346,108 @@ impl HeightMapData {
             if limit_dist <= distance_prev || ray_point_prev.x < self._bounding_box._min.x || ray_point_prev.z < self._bounding_box._min.z || self._bounding_box._max.x < ray_point_prev.x || self._bounding_box._max.z < ray_point_prev.z {
                 break;
             }
+        }
+
+        if collided && 0.0 != padding {
+            *collision_point += self.get_normal_bilinear(&collision_point) * padding;
+        }
+
+        //log::info!("\t[{:?}] Finish! collided: {:?}, lod: {:?}, start_pos: {:?}, collision_point: {:?}, move_dir: {:?}, dist: {:?}", debug_loop_count, collided, lod, start_pos, collision_point, move_dir, (start_pos - &*collision_point).norm());
+        collided
+    }
+
+    pub fn get_collision_point2(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, padding: f32, collision_point: &mut Vector3<f32>) -> bool {
+        if self._initialized == false {
+            return false;
+        }
+
+        let bound_box_width: f32 = self._bounding_box._extents.x * 2.0;
+        let bound_box_height: f32 = self._bounding_box._extents.z * 2.0;
+        let max_ray_dist: f32 = self._bounding_box._mag_xz;
+        if limit_dist < 0.0 || max_ray_dist < limit_dist {
+            limit_dist = max_ray_dist;
+        }
+
+        let side_x: f32 = move_dir.x.abs() * limit_dist;
+        let side_z: f32 = move_dir.z.abs() * limit_dist;
+        let inv_lod_x: usize = if 0.0 < side_x { (bound_box_width / side_x).log2().floor() as usize } else { 0 };
+        let inv_lod_z: usize = if 0.0 < side_z { (bound_box_height / side_z).log2().floor() as usize } else { 0 };
+        let max_lod: usize = if 2 <= self._lod_count { (self._lod_count - 2) as usize } else { 0 };
+        let mut lod: usize = max_lod - max_lod.min(inv_lod_x.min(inv_lod_z));
+
+        collision_point.clone_from(start_pos);
+        let mut ray_point: Vector3<f32> = start_pos.clone();
+        let mut ray_point_prev: Vector3<f32> = start_pos.clone();
+
+        let step_x: f32 = (bound_box_width / self._width[lod as usize] as f32) / if move_dir.x != 0.0 { move_dir.x.abs() } else { 1.0 };
+        let step_z: f32 = (bound_box_height / self._height[lod as usize] as f32) / if move_dir.z != 0.0 { move_dir.z.abs() } else { 1.0 };
+        let mut step: f32 = step_x.min(step_z);
+
+        let mut distance: f32 = 0.0;
+        let mut distance_prev: f32 = 0.0;
+        let mut collided = false;
+        let mut debug_loop_count: i32 = 0;
+        let mut height_value: f32 = start_pos.y;
+        let mut height_value_prev: f32 = height_value;
+        let loop_count_limit_x = (max_ray_dist / bound_box_width * self._width[0] as f32) as i32;
+        let loop_count_limit_y = (max_ray_dist / bound_box_height * self._height[0] as f32) as i32;
+        let limit_loop_count: i32 = loop_count_limit_x.max(loop_count_limit_y);
+        while debug_loop_count < limit_loop_count {
+            debug_loop_count += 1;
+
+            height_value_prev = height_value;
+            height_value = if 0 == lod {
+                self.get_height_bilinear(&ray_point, lod)
+            } else {
+                self.get_height_point(&ray_point, lod)
+            };
+
+            if height_value < ray_point.y {
+                collision_point.clone_from(&ray_point_prev);
+                collided = true;
+
+                if lod == 0 {
+                    // calculate collision point
+                    let height_delta = height_value - height_value_prev;
+                    let height_diff = ray_point.y - ray_point_prev.y;
+                    let height_offset = ray_point_prev.y - height_value_prev;
+                    let step_xz = math::get_norm_xz(&(ray_point - ray_point_prev));
+                    let mut x = if height_delta != height_diff { (height_offset * step_xz) / (height_delta - height_diff) } else { 0.0 };
+                    if 0.0 != step_xz {
+                        x /= step_xz;
+                    }
+                    x = x.clamp(0.0, 1.0);
+                    *collision_point = ray_point_prev.lerp(&ray_point, x);
+                    break;
+                }
+
+                // collided and go to higher lod
+                ray_point.clone_from(&ray_point_prev);
+                distance = distance_prev;
+                step *= 0.5;
+                if 0 < lod {
+                    lod -= 1;
+                }
+                continue;
+            }
+
+            // reset
+            collided = false;
+
+            // next step
+            ray_point_prev.clone_from(&ray_point);
+            distance_prev = distance;
+            distance += step;
+            ray_point = start_pos + move_dir * distance;
+
+            // arrive in goal
+            if limit_dist <= distance_prev || ray_point_prev.x < self._bounding_box._min.x || ray_point_prev.z < self._bounding_box._min.z || self._bounding_box._max.x < ray_point_prev.x || self._bounding_box._max.z < ray_point_prev.z {
+                break;
+            }
+        }
+
+        if collided && 0.0 != padding {
+            *collision_point += self.get_normal_bilinear(&collision_point) * padding;
         }
 
         //log::info!("\t[{:?}] Finish! collided: {:?}, lod: {:?}, start_pos: {:?}, collision_point: {:?}, move_dir: {:?}, dist: {:?}", debug_loop_count, collided, lod, start_pos, collision_point, move_dir, (start_pos - &*collision_point).norm());

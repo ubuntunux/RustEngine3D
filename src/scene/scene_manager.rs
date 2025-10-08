@@ -131,8 +131,8 @@ impl<'a> SceneManager<'a> {
     pub fn get_height_map_data(&self) -> &HeightMapData {
         &self._capture_height_map._height_map_data
     }
-    pub fn get_height_map_collision_point(&self, start_pos: &Vector3<f32>, dir: &Vector3<f32>, limit_dist: f32, collision_point: &mut Vector3<f32>) -> bool {
-        self._capture_height_map._height_map_data.get_collision_point(start_pos, dir, limit_dist, collision_point)
+    pub fn get_height_map_collision_point(&self, start_pos: &Vector3<f32>, dir: &Vector3<f32>, limit_dist: f32, padding: f32, collision_point: &mut Vector3<f32>) -> bool {
+        self._capture_height_map._height_map_data.get_collision_point(start_pos, dir, limit_dist, padding, collision_point)
     }
     pub fn get_height_bilinear(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
         self._capture_height_map._height_map_data.get_height_bilinear(pos, lod)
