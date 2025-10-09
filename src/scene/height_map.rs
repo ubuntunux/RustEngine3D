@@ -180,6 +180,10 @@ impl HeightMapData {
             return 0.0;
         }
 
+        if texcoord.x < 0.0 || texcoord.x > 1.0 || texcoord.y < 0.0 || texcoord.y > 1.0 {
+            return self._dead_zone;
+        }
+
         let lod = lod.min(self._lod_count as usize - 1);
         let (pixel_indices, blend_factors) = self.get_bilinear_pixel_pos_infos(texcoord, lod);
         let height_map_data = &self._height_map_data[lod];
@@ -203,6 +207,10 @@ impl HeightMapData {
             return 0.0;
         }
 
+        if texcoord.x < 0.0 || texcoord.x > 1.0 || texcoord.y < 0.0 || texcoord.y > 1.0 {
+            return self._dead_zone;
+        }
+
         let lod = lod.min(self._lod_count as usize - 1);
         let width = self._width[lod];
         let height = self._height[lod];
@@ -214,7 +222,7 @@ impl HeightMapData {
     }
 
     pub fn get_normal_bilinear_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
-        if self._initialized == false {
+        if self._initialized == false || texcoord.x < 0.0 || texcoord.x > 1.0 || texcoord.y < 0.0 || texcoord.y > 1.0 {
             return Vector3::new(0.0, 1.0, 0.0);
         }
 
@@ -237,7 +245,7 @@ impl HeightMapData {
     }
 
     pub fn get_normal_point_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
-        if self._initialized == false {
+        if self._initialized == false || texcoord.x < 0.0 || texcoord.x > 1.0 || texcoord.y < 0.0 || texcoord.y > 1.0 {
             return Vector3::new(0.0, 1.0, 0.0);
         }
 
