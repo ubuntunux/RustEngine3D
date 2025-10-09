@@ -11,6 +11,7 @@ use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
 use crate::scene::scene_manager::{RenderObjectMap, SceneObjectID};
 use crate::scene::socket::Socket;
+use crate::utilities::math;
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell, newRcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
@@ -198,6 +199,35 @@ impl<'a> RenderObjectData<'a> {
         for bone in animation_data_list[0]._nodes.iter() {
             log::info!("bone: {:?}", bone._name);
         }
+    }
+
+    pub fn is_instancing_render_object(&self) -> bool {
+        0 < self._instance_objects.len()
+    }
+
+    pub fn get_instancing_render_object_count(&self) -> usize {
+        self._instance_objects.len()
+    }
+
+    pub fn get_instancing_render_object_transform(&self, index: usize) -> &Matrix4<f32> {
+        &self._instance_transforms[index]
+    }
+
+    pub fn get_instancing_render_object_transforms(&self) -> &Vec<Matrix4<f32>> {
+        &self._instance_transforms
+    }
+
+    pub fn register_instancing_render_object(&mut self, render_object_data: &RcRefCell<RenderObjectData<'a>>) {
+        let render_object_data_ref = render_object_data.borrow();
+        let bounding_box_min = math::get_min(&self._bounding_box._min, &render_object_data_ref._bounding_box._min);
+        let bounding_box_max = math::get_max(&self._bounding_box._max, &render_object_data_ref._bounding_box._max);
+        let collision_bounding_box_min = math::get_min(&self._collision._bounding_box._min, &render_object_data_ref._collision._bounding_box._min);
+        let collision_bounding_box_max = math::get_max(&self._collision._bounding_box._max, &render_object_data_ref._collision._bounding_box._max);
+        self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+        self._collision._bounding_box = BoundingBox::create_bounding_box(&collision_bounding_box_min, &collision_bounding_box_max);
+
+        self._instance_objects.insert(render_object_data_ref.get_object_id(), render_object_data.clone());
+        self._instance_transforms.push(render_object_data_ref._final_transform.clone());
     }
 
     pub fn initialize_animation_play_info(&mut self) {

@@ -23,7 +23,7 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui:: UIManager;
-use crate::utilities::scope_profiler::{ScopeTimer, TIME_PROFILER};
+use crate::utilities::scope_profiler::{TIME_PROFILER};
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -505,14 +505,18 @@ impl<'a> EngineCore<'a> {
                     scene_manager._collision_object_map.len()
                 ));
                 font_manager.log(format!(
-                    "RenderStaticMesh: {:?}, RenderStaticShadow: {:?}",
+                    "RenderStaticMesh(Instancing): {}({}), RenderStaticShadow(Instancing): {}({})",
                     scene_manager._static_render_elements.len(),
-                    scene_manager._static_shadow_render_elements.len()
+                    scene_manager._static_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>(),
+                    scene_manager._static_shadow_render_elements.len(),
+                    scene_manager._static_shadow_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>()
                 ));
                 font_manager.log(format!(
-                    "RenderSkeletalMesh: {:?}, RenderSkeletalShadow: {:?}",
+                    "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
                     scene_manager._skeletal_render_elements.len(),
-                    scene_manager._skeletal_shadow_render_elements.len()
+                    scene_manager._skeletal_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>(),
+                    scene_manager._skeletal_shadow_render_elements.len(),
+                    scene_manager._skeletal_shadow_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>(),
                 ));
                 font_manager.log(format!(
                     "PointLight: {:?}, Render PointLight: {:?}",

@@ -7,7 +7,6 @@ use crate::vulkan_context::render_pass::PipelinePushConstantData;
 
 #[derive(Clone, Debug)]
 pub struct RenderElementData<'a> {
-    //pub _render_object: RcRefCell<RenderObjectData<'a>>,
     pub _geometry_data: RcRefCell<GeometryData>,
     pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>,
     pub _push_constant_data_list: Vec<PipelinePushConstantData>, // possible multiple push-constants for a render element
