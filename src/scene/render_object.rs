@@ -74,6 +74,8 @@ impl<'a> RenderObjectData<'a> {
         render_object_name: &String,
         model_data: &RcRefCell<ModelData<'a>>,
         render_object_create_data: &RenderObjectCreateInfo,
+        custom_collision_type: Option<CollisionType>,
+        is_render_height_map: bool
     ) -> RenderObjectData<'a> {
         log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::create_transform_object_data();
@@ -107,7 +109,7 @@ impl<'a> RenderObjectData<'a> {
             _is_visible: true,
             _is_render_camera: model_data_ref.is_render_camera(),
             _is_render_shadow: model_data_ref.is_render_shadow(),
-            _is_render_height_map: false,
+            _is_render_height_map: is_render_height_map,
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
             _mesh_data: mesh_data.clone(),
@@ -126,6 +128,10 @@ impl<'a> RenderObjectData<'a> {
             _bone_count: 0,
             _sockets: sockets
         };
+
+        if let Some(collision_type) = custom_collision_type {
+            render_object_data.set_collision_type(collision_type);
+        }
 
         log::debug!("create_render_object_data: {}", render_object_name);
 
@@ -219,12 +225,20 @@ impl<'a> RenderObjectData<'a> {
 
     pub fn register_instancing_render_object(&mut self, render_object_data: &RcRefCell<RenderObjectData<'a>>) {
         let render_object_data_ref = render_object_data.borrow();
-        let bounding_box_min = math::get_min(&self._bounding_box._min, &render_object_data_ref._bounding_box._min);
-        let bounding_box_max = math::get_max(&self._bounding_box._max, &render_object_data_ref._bounding_box._max);
-        let collision_bounding_box_min = math::get_min(&self._collision._bounding_box._min, &render_object_data_ref._collision._bounding_box._min);
-        let collision_bounding_box_max = math::get_max(&self._collision._bounding_box._max, &render_object_data_ref._collision._bounding_box._max);
-        self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
-        self._collision._bounding_box = BoundingBox::create_bounding_box(&collision_bounding_box_min, &collision_bounding_box_max);
+        if self._instance_objects.is_empty() {
+            self._bounding_box = render_object_data_ref._bounding_box.clone();
+            self._collision._bounding_box = render_object_data_ref._collision._bounding_box.clone();
+        } else {
+            let bounding_box_min = math::get_min(&self._bounding_box._min, &render_object_data_ref._bounding_box._min);
+            let bounding_box_max = math::get_max(&self._bounding_box._max, &render_object_data_ref._bounding_box._max);
+            let collision_bounding_box_min = math::get_min(&self._collision._bounding_box._min, &render_object_data_ref._collision._bounding_box._min);
+            let collision_bounding_box_max = math::get_max(&self._collision._bounding_box._max, &render_object_data_ref._collision._bounding_box._max);
+            self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+            self._collision._bounding_box = BoundingBox::create_bounding_box(&collision_bounding_box_min, &collision_bounding_box_max);
+        }
+
+        self._transform_object.set_position(&self._bounding_box._center);
+        self._transform_object.update_transform_object();
 
         self._instance_objects.insert(render_object_data_ref.get_object_id(), render_object_data.clone());
         self._instance_transforms.push(render_object_data_ref._final_transform.clone());

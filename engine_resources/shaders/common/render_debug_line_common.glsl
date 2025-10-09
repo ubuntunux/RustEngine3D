@@ -1,7 +1,5 @@
 #include "scene_constants.glsl"
 
-const uint MAX_DEBUG_LINE_INSTANCE_COUNT = 1024;
-
 struct VERTEX_OUTPUT
 {
     vec4 color;

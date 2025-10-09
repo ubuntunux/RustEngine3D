@@ -40,6 +40,11 @@ const vec3 kGroundAlbedo = vec3(0.0, 0.0, 0.04);
 const int MAX_POINT_LIGHTS = 32; // MAX_POINT_LIGHTS must match with constants.rs
 const int MAX_LIGHT_COUNT_PER_CELL = 4; // MAX_LIGHT_COUNT_PER_CELL must match with constants.rs
 
+const uint MAX_BOUND_BOX_INSTANCE_COUNT = 65536; // NOTE: Ensure enum values match in constants.rs
+const uint MAX_DEBUG_LINE_INSTANCE_COUNT = 65536; // NOTE: Ensure enum values match in constants.rs
+const uint MAX_FONT_INSTANCE_COUNT = 65536; // NOTE: Ensure enum values match in constants.rs
+const uint MAX_UI_INSTANCE_COUNT = 65536; // NOTE: Ensure enum values match in constants.rs
+
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
 // uniform_buffer_data_list.rs - struct SceneConstants

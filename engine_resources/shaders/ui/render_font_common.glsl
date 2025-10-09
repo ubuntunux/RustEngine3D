@@ -1,5 +1,4 @@
-// MAX_FONT_INSTANCE_COUNT must match with font.rs
-const uint MAX_FONT_INSTANCE_COUNT = 1024;
+#include "../common/scene_constants.glsl"
 
 struct FontInstanceData {
     vec2 _font_texcoord;

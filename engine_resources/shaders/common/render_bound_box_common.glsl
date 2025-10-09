@@ -1,7 +1,5 @@
 #include "scene_constants.glsl"
 
-const uint MAX_BOUND_BOX_INSTANCE_COUNT = 1024;
-
 struct VERTEX_OUTPUT
 {
     vec4 color;

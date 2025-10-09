@@ -6,7 +6,7 @@ use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
 use crate::{begin_block, constants};
-use crate::constants::{MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
+use crate::constants::{INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
@@ -41,7 +41,8 @@ pub struct RenderObjectInstanceKey<'a> {
     pub _model_ptr: *const ModelData<'a>,
     pub _is_render_camera: bool,
     pub _is_render_shadow: bool,
-    pub _is_render_height_map: bool
+    pub _is_render_height_map: bool,
+    pub _instancing_block_indices: Vector3<i32>
 }
 
 #[repr(C)]
@@ -433,7 +434,7 @@ impl<'a> SceneManager<'a> {
         &mut self,
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
-        collision_type: Option<CollisionType>,
+        custom_collision_type: Option<CollisionType>,
         is_render_height_map: bool,
         is_dynamic_update_object: bool
     ) -> RcRefCell<RenderObjectData<'a>> {
@@ -443,17 +444,16 @@ impl<'a> SceneManager<'a> {
             &String::from(object_name),
             self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
             &render_object_create_info,
+            custom_collision_type,
+            is_render_height_map
         ));
-        if let Some(collision_type) = collision_type {
-            render_object_data.borrow_mut().set_collision_type(collision_type);
-        }
-        render_object_data.borrow_mut().set_render_height_map(is_render_height_map);
 
-        // register
+        // register collision object
         if render_object_data.borrow().get_collision_type() != CollisionType::NONE {
             self.register_collision_object(&render_object_data);
         }
 
+        // register render object
         if is_dynamic_update_object {
             self.register_dynamic_update_object(&render_object_data);
             self._static_render_object_map.insert(object_id, render_object_data.clone());
@@ -463,8 +463,13 @@ impl<'a> SceneManager<'a> {
             let instance_key = RenderObjectInstanceKey {
                 _model_ptr: render_object_data_ref.get_model_data().as_ptr(),
                 _is_render_camera: render_object_data_ref.is_render_camera(),
-                _is_render_shadow: render_object_data_ref.is_render_camera(),
-                _is_render_height_map: render_object_data_ref.is_render_camera(),
+                _is_render_shadow: render_object_data_ref.is_render_shadow(),
+                _is_render_height_map: render_object_data_ref.is_render_height_map(),
+                _instancing_block_indices: Vector3::new(
+                    (render_object_create_info._position.x / INSTANCING_BLOCK_SIZE) as i32,
+                    (render_object_create_info._position.y / INSTANCING_BLOCK_SIZE) as i32,
+                    (render_object_create_info._position.z / INSTANCING_BLOCK_SIZE) as i32
+                )
             };
 
             let instancing_render_object: RcRefCell<RenderObjectData<'a>> =
@@ -482,11 +487,10 @@ impl<'a> SceneManager<'a> {
                             _rotation: Vector3::zeros(),
                             _scale: Vector3::new(1.0, 1.0, 1.0),
                         },
+                        custom_collision_type,
+                        is_render_height_map
                     ));
-                    if let Some(collision_type) = collision_type {
-                        new_instancing_render_object.borrow_mut().set_collision_type(collision_type);
-                    }
-                    new_instancing_render_object.borrow_mut().set_render_height_map(is_render_height_map);
+
                     self._static_render_object_map.insert(new_instancing_object_id, new_instancing_render_object.clone());
                     self._static_render_object_instancing_map.insert(instance_key, new_instancing_render_object.clone());
                     new_instancing_render_object
@@ -510,6 +514,8 @@ impl<'a> SceneManager<'a> {
             &String::from(object_name),
             model_data,
             &render_object_create_info,
+            None,
+            false
         ));
         self.register_dynamic_update_object(&render_object_data);
         self._skeletal_render_object_map.insert(object_id, render_object_data.clone());
@@ -703,7 +709,7 @@ impl<'a> SceneManager<'a> {
                         _transform: math::combinate_matrix2(
                             &render_object_data._bounding_box._center,
                             &render_object_data._bounding_box._orientation,
-                            &(render_object_data._bounding_box._extents * 2.0)
+                            &(render_object_data._bounding_box._extents)
                         )
                     }
                 );

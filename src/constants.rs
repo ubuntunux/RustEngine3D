@@ -47,10 +47,10 @@ pub static mut METER_PER_UNIT: f32 = 1.0;
 pub static mut NEAR: f32 = 0.1;
 pub static mut FAR: f32 = 200000.0;
 pub static mut FOV: f32 = 60.0;
-pub static MAX_BOUND_BOX_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_bound_box_common.glsl
-pub static MAX_DEBUG_LINE_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_debug_line_common.glsl
-pub static MAX_FONT_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_font_common.glsl
-pub static MAX_UI_INSTANCE_COUNT: usize = 1024; // NOTE: Ensure enum values match in render_ui_common.glsl
+pub static MAX_BOUND_BOX_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
+pub static MAX_DEBUG_LINE_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
+pub static MAX_FONT_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
+pub static MAX_UI_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
 pub static mut SHADOW_MAP_SIZE: u32 = 2048;
 pub static mut SHADOW_SAMPLES: i32 = 12;
 pub static mut SHADOW_DISTANCE: f32 = 100.0;
@@ -72,6 +72,7 @@ pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;
 pub const MAX_TRANSFORM_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const COMBINED_INVERSE_BIND_MATRIX: bool = false; // combine animation matrix with inv_bind_matrix.
 pub const CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED: bool = true;
+pub const INSTANCING_BLOCK_SIZE: f32 = 30.0;
 
 // render option
 pub static mut RENDER_OCEAN: bool = true;
