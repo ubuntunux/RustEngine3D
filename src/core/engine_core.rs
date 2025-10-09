@@ -23,6 +23,7 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui:: UIManager;
+use crate::utilities::scope_profiler::{ScopeTimer, TIME_PROFILER};
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -523,6 +524,20 @@ impl<'a> EngineCore<'a> {
                     renderer_context._renderer_data._debug_render_target)
                 );
 
+                unsafe {
+                    if TIME_PROFILER.is_some() {
+                        let time_profiler = TIME_PROFILER.as_ref().unwrap();
+                        let mut keys: Vec<&String> = time_profiler.keys().collect();
+                        keys.sort();
+                        for key in keys {
+                            let value = time_profiler.get(key).unwrap();
+                            font_manager.log(format!("{}: {:.3}ms", key, value));
+                        }
+                    }
+                    TIME_PROFILER = None;
+                }
+
+
                 // render scene
                 let render_time = self._time_data.get_current_time();
                 renderer_context.render_scene(
@@ -539,8 +554,7 @@ impl<'a> EngineCore<'a> {
     }
 
     pub fn update_application(&self, delta_time: f64) {
-        self.get_application_mut()
-            .update_application(delta_time);
+        self.get_application_mut().update_application(delta_time);
     }
 }
 
