@@ -5,7 +5,7 @@ use std::rc::Rc;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
-use crate::constants;
+use crate::{begin_block, constants};
 use crate::constants::{MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
@@ -20,18 +20,29 @@ use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::capture_height_map::CaptureHeightMap;
+use crate::scene::collision::CollisionType;
 use crate::scene::height_map::HeightMapData;
+use crate::scene::model::ModelData;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
 pub type PointLightObjectMap = HashMap<SceneObjectID, RcRefCell<PointLight>>;
+pub type RenderObjectInstancingMap<'a> = HashMap<RenderObjectInstanceKey<'a>, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectMap<'a> = HashMap<SceneObjectID, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
 
 #[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
 pub struct SceneObjectID(i64);
+
+#[derive(Hash, Debug, Clone, PartialEq)]
+pub struct RenderObjectInstanceKey<'a> {
+    pub _model_ptr: *const ModelData<'a>,
+    pub _is_render_camera: bool,
+    pub _is_render_shadow: bool,
+    pub _is_render_height_map: bool
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -68,7 +79,10 @@ pub struct SceneManager<'a> {
     pub _point_light_object_map: PointLightObjectMap,
     pub _render_point_lights: PointLights,
     pub _render_point_light_count: i32,
+    pub _dynamic_update_object_map: RenderObjectMap<'a>,
+    pub _collision_object_map: RenderObjectMap<'a>,
     pub _object_id_generator: SceneObjectID,
+    pub _static_render_object_instancing_map: RenderObjectInstancingMap<'a>,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
     pub _static_render_elements: Vec<RenderElementData<'a>>,
@@ -182,7 +196,10 @@ impl<'a> SceneManager<'a> {
             _point_light_object_map: HashMap::new(),
             _render_point_lights: PointLights::default(),
             _render_point_light_count: 0,
+            _dynamic_update_object_map: HashMap::new(),
+            _collision_object_map: HashMap::new(),
             _object_id_generator: SceneObjectID(0),
+            _static_render_object_instancing_map: HashMap::new(),
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
             _static_render_elements: Vec::new(),
@@ -304,8 +321,9 @@ impl<'a> SceneManager<'a> {
     }
     pub fn get_dead_zone_height(&self) -> f32 { self._sea_height - 5.0 }
     pub fn generate_object_id(&mut self) -> SceneObjectID {
+        let object_id = self._object_id_generator.clone();
         self._object_id_generator = SceneObjectID(self._object_id_generator.0 + 1);
-        self._object_id_generator.clone()
+        object_id
     }
     pub fn add_camera_object(
         &mut self,
@@ -350,21 +368,97 @@ impl<'a> SceneManager<'a> {
         self._point_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
+    pub fn get_collision_objects(&self) -> &RenderObjectMap<'a> {
+        &self._collision_object_map
+    }
+    pub fn register_collision_object(&mut self, object: &RcRefCell<RenderObjectData<'a>>) {
+        if object.borrow().get_collision_type() != CollisionType::NONE {
+            self._collision_object_map.insert(object.borrow().get_object_id(), object.clone());
+        }
+    }
+    pub fn unregister_collision_object(&mut self, object_id: &SceneObjectID) {
+        self._collision_object_map.remove(&object_id);
+    }
+    pub fn get_dynamic_update_objects(&self) -> &RenderObjectMap<'a> {
+        &self._dynamic_update_object_map
+    }
+    pub fn register_dynamic_update_object(&mut self, object: &RcRefCell<RenderObjectData<'a>>) {
+        self._dynamic_update_object_map.insert(object.borrow().get_object_id(), object.clone());
+    }
+    pub fn unregister_dynamic_update_object(&mut self, object_id: &SceneObjectID) {
+        self._dynamic_update_object_map.remove(&object_id);
+    }
+    pub fn add_terrain_render_object(
+        &mut self,
+        object_name: &str,
+        render_object_create_info: &RenderObjectCreateInfo
+    ) -> RcRefCell<RenderObjectData<'a>> {
+        self.add_static_render_object_internal(
+            object_name,
+            render_object_create_info,
+            Some(CollisionType::NONE),
+            true,
+            false
+        )
+    }
+    pub fn add_dynamic_render_object(
+        &mut self,
+        object_name: &str,
+        render_object_create_info: &RenderObjectCreateInfo,
+        collision_type: Option<CollisionType>
+    ) -> RcRefCell<RenderObjectData<'a>> {
+        self.add_static_render_object_internal(
+            object_name,
+            render_object_create_info,
+            collision_type,
+            false,
+            true
+        )
+    }
     pub fn add_static_render_object(
         &mut self,
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
+        collision_type: Option<CollisionType>
+    ) -> RcRefCell<RenderObjectData<'a>> {
+        self.add_static_render_object_internal(
+            object_name,
+            render_object_create_info,
+            collision_type,
+            false,
+            false
+        )
+    }
+    pub fn add_static_render_object_internal(
+        &mut self,
+        object_name: &str,
+        render_object_create_info: &RenderObjectCreateInfo,
+        collision_type: Option<CollisionType>,
+        is_render_height_map: bool,
+        is_dynamic_update_object: bool
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
-        let model_data = self
-            .get_engine_resources()
-            .get_model_data(&render_object_create_info._model_data_name);
+        let model_data = self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
             model_data,
             &render_object_create_info,
         ));
+        if let Some(collision_type) = collision_type {
+            render_object_data.borrow_mut().set_collision_type(collision_type);
+        }
+        render_object_data.borrow_mut().set_render_height_map(is_render_height_map);
+
+        // register
+        if render_object_data.borrow().get_collision_type() != CollisionType::NONE {
+            self.register_collision_object(&render_object_data);
+        }
+
+        if is_dynamic_update_object {
+            self.register_dynamic_update_object(&render_object_data);
+        }
+
         self._static_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
     }
@@ -383,6 +477,7 @@ impl<'a> SceneManager<'a> {
             model_data,
             &render_object_create_info,
         ));
+        self.register_dynamic_update_object(&render_object_data);
         self._skeletal_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
     }
@@ -421,6 +516,8 @@ impl<'a> SceneManager<'a> {
 
     pub fn remove_static_render_object(&mut self, object_id: SceneObjectID) {
         self._static_render_object_map.remove(&object_id);
+        self.unregister_collision_object(&object_id);
+        self.unregister_dynamic_update_object(&object_id);
     }
 
     pub fn get_skeletal_render_object_map(&self) -> &RenderObjectMap<'a> {
@@ -436,6 +533,8 @@ impl<'a> SceneManager<'a> {
 
     pub fn remove_skeletal_render_object(&mut self, object_id: SceneObjectID) {
         self._skeletal_render_object_map.remove(&object_id);
+        self.unregister_collision_object(&object_id);
+        self.unregister_dynamic_update_object(&object_id);
     }
 
     pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance<'a>>> {
@@ -856,9 +955,7 @@ impl<'a> SceneManager<'a> {
         self.initialize_light_probe_cameras();
 
         self._sea_height = scene_data_create_info._sea_height;
-        self.get_renderer_data_mut()
-            ._fft_ocean
-            .set_height(scene_data_create_info._sea_height);
+        self.get_renderer_data_mut()._fft_ocean.set_height(scene_data_create_info._sea_height);
 
         // cameras
         for (index, (object_name, camera_create_info)) in scene_data_create_info._cameras.iter().enumerate() {
@@ -906,7 +1003,7 @@ impl<'a> SceneManager<'a> {
 
         // static objects
         for (object_name, render_object_create_info) in scene_data_create_info._static_objects.iter() {
-            self.add_static_render_object(object_name, render_object_create_info);
+            self.add_static_render_object(object_name, render_object_create_info, None);
         }
 
         // skeletal objects
@@ -920,6 +1017,8 @@ impl<'a> SceneManager<'a> {
 
     pub fn close_scene_data(&mut self) {
         self.get_effect_manager_mut().clear_effects();
+        self._dynamic_update_object_map.clear();
+        self._collision_object_map.clear();
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
         self._point_light_object_map.clear();
@@ -1034,16 +1133,11 @@ impl<'a> SceneManager<'a> {
         let mut main_light = self._main_light.as_ref().unwrap().borrow_mut();
         main_light.update_light_data(camera_position);
 
-        for (_key, render_object_data) in self._static_render_object_map.iter() {
-            render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
+        for (_key, update_object_data) in self._dynamic_update_object_map.iter() {
+            update_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
-        for (_key, render_object_data) in self._skeletal_render_object_map.iter() {
-            render_object_data.borrow_mut().update_render_object_data(delta_time as f32);
-        }
-
-        // gather point lights
-        {
+        begin_block!("gather point lights"); {
             // TODO: cull point light
             self._render_point_light_count = 0;
             for (i, point_light_data) in self._point_light_object_map.values().enumerate() {
@@ -1055,8 +1149,7 @@ impl<'a> SceneManager<'a> {
             }
         }
 
-        // gather render elements
-        {
+        begin_block!("gather render elements"); {
             self._static_render_elements.clear();
             self._static_shadow_render_elements.clear();
             self._skeletal_render_elements.clear();

@@ -497,12 +497,19 @@ impl<'a> EngineCore<'a> {
                     self._time_data._average_present_time
                 ));
                 font_manager.log(format!(
-                    "StaticMesh: {:?}, Shadow: {:?}",
+                    "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}",
+                    scene_manager._static_render_object_map.len(),
+                    scene_manager._skeletal_render_object_map.len(),
+                    scene_manager._dynamic_update_object_map.len(),
+                    scene_manager._collision_object_map.len()
+                ));
+                font_manager.log(format!(
+                    "RenderStaticMesh: {:?}, RenderStaticShadow: {:?}",
                     scene_manager._static_render_elements.len(),
                     scene_manager._static_shadow_render_elements.len()
                 ));
                 font_manager.log(format!(
-                    "SkeletalMesh: {:?}, Shadow: {:?}",
+                    "RenderSkeletalMesh: {:?}, RenderSkeletalShadow: {:?}",
                     scene_manager._skeletal_render_elements.len(),
                     scene_manager._skeletal_shadow_render_elements.len()
                 ));

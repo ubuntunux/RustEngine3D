@@ -9,7 +9,7 @@ use crate::scene::model::ModelData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
-use crate::scene::scene_manager::SceneObjectID;
+use crate::scene::scene_manager::{RenderObjectMap, SceneObjectID};
 use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, ptr_as_mut, RcRefCell, newRcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
@@ -59,6 +59,8 @@ pub struct RenderObjectData<'a> {
     pub _transform_object: TransformObjectData,
     pub _prev_transform: Matrix4<f32>,
     pub _final_transform: Matrix4<f32>,
+    pub _instance_objects: RenderObjectMap<'a>,
+    pub _instance_transforms: Vec<Matrix4<f32>>,
     pub _animation_play_infos: Vec<AnimationPlayInfo>,
     pub _animation_buffer: Option<AnimationBuffer>,
     pub _bone_count: usize,
@@ -79,18 +81,9 @@ impl<'a> RenderObjectData<'a> {
         transform_object_data.set_scale(&render_object_create_data._scale);
 
         let model_data_ref = model_data.borrow();
-        let push_constant_data_list_group = model_data_ref
-            ._material_instance_data_list
-            .iter()
-            .map(|material_instance_data| {
-                material_instance_data
-                    .borrow()
-                    .get_default_pipeline_binding_data()
-                    ._push_constant_data_list
-                    .clone()
-            })
-            .collect();
-
+        let push_constant_data_list_group = model_data_ref._material_instance_data_list.iter().map(|material_instance_data| {
+                material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_data_list.clone()
+            }).collect();
         let mesh_data = model_data_ref._mesh_data.clone();
         let geometry_bound_boxes = mesh_data
             .borrow()
@@ -124,6 +117,8 @@ impl<'a> RenderObjectData<'a> {
             _transform_object: transform_object_data,
             _prev_transform: Matrix4::identity(),
             _final_transform: Matrix4::identity(),
+            _instance_objects: HashMap::new(),
+            _instance_transforms: Vec::new(),
             _push_constant_data_list_group: push_constant_data_list_group,
             _animation_play_infos: Vec::new(),
             _animation_buffer: None,
@@ -320,7 +315,7 @@ impl<'a> RenderObjectData<'a> {
 
             // update collision
             if self._collision.is_valid_collision() {
-                self._collision._bounding_box.update_oriented_bouding_box(
+                self._collision._bounding_box.update_aixs_aligned_bounding_box(
                     &self._model_data.borrow()._collision._bounding_box,
                     self._transform_object.get_matrix()
                 )
