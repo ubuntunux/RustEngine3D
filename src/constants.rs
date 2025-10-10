@@ -73,6 +73,7 @@ pub const MAX_TRANSFORM_COUNT: usize = 65536; // NOTE: Ensure enum values match 
 pub const COMBINED_INVERSE_BIND_MATRIX: bool = false; // combine animation matrix with inv_bind_matrix.
 pub const CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED: bool = true;
 pub const INSTANCING_BLOCK_SIZE: f32 = 30.0;
+pub const COLLISION_BLOCK_SIZE: f32 = 10.0;
 
 // render option
 pub static mut RENDER_OCEAN: bool = true;

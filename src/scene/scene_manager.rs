@@ -1,12 +1,12 @@
 use std::cmp::Ordering::{Greater, Less};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
 use crate::{begin_block, constants};
-use crate::constants::{INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
+use crate::constants::{COLLISION_BLOCK_SIZE, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
@@ -32,9 +32,33 @@ pub type PointLightObjectMap = HashMap<SceneObjectID, RcRefCell<PointLight>>;
 pub type RenderObjectInstancingMap<'a> = HashMap<RenderObjectInstanceKey<'a>, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectMap<'a> = HashMap<SceneObjectID, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
+pub type CollisionObjectMap<'a> = HashMap<CollisionObjectKey, Vec<RcRefCell<RenderObjectData<'a>>>>;
 
 #[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
 pub struct SceneObjectID(i64);
+
+#[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
+pub struct CollisionObjectKey {
+    pub _indices: Vector3<i32>
+}
+
+impl CollisionObjectKey {
+    pub fn new(x: i32, y: i32, z: i32) -> Self {
+        CollisionObjectKey {
+            _indices: Vector3::new(x, y, z)
+        }
+    }
+
+    pub fn from_position(position: &Vector3<f32>) -> Self {
+        CollisionObjectKey {
+            _indices: Vector3::new(
+                (position.x / COLLISION_BLOCK_SIZE) as i32,
+                (position.y / COLLISION_BLOCK_SIZE) as i32,
+                (position.z / COLLISION_BLOCK_SIZE) as i32,
+            )
+        }
+    }
+}
 
 #[derive(Hash, Debug, Clone, Eq, PartialEq)]
 pub struct RenderObjectInstanceKey<'a> {
@@ -81,7 +105,8 @@ pub struct SceneManager<'a> {
     pub _render_point_lights: PointLights,
     pub _render_point_light_count: i32,
     pub _dynamic_update_object_map: RenderObjectMap<'a>,
-    pub _collision_object_map: RenderObjectMap<'a>,
+    pub _collision_object_map: CollisionObjectMap<'a>,
+    pub _collision_object_key_map: HashMap<SceneObjectID, Vec<CollisionObjectKey>>,
     pub _object_id_generator: SceneObjectID,
     pub _static_render_object_instancing_map: RenderObjectInstancingMap<'a>,
     pub _static_render_object_map: RenderObjectMap<'a>,
@@ -199,6 +224,7 @@ impl<'a> SceneManager<'a> {
             _render_point_light_count: 0,
             _dynamic_update_object_map: HashMap::new(),
             _collision_object_map: HashMap::new(),
+            _collision_object_key_map: HashMap::new(),
             _object_id_generator: SceneObjectID(0),
             _static_render_object_instancing_map: HashMap::new(),
             _static_render_object_map: HashMap::new(),
@@ -369,16 +395,61 @@ impl<'a> SceneManager<'a> {
         self._point_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
-    pub fn get_collision_objects(&self) -> &RenderObjectMap<'a> {
-        &self._collision_object_map
+    pub fn collect_collision_objects(&self, bound_min: &Vector3<f32>, bound_max: &Vector3<f32>) -> RenderObjectMap<'a> {
+        let mut collision_objectm_map: RenderObjectMap<'a> = HashMap::new();
+        let key_min = CollisionObjectKey::from_position(&bound_min);
+        let key_max = CollisionObjectKey::from_position(&bound_max);
+        for z in (key_min._indices.z)..(key_max._indices.z + 1) {
+            for y in (key_min._indices.y)..(key_max._indices.y + 1) {
+                for x in (key_min._indices.x)..(key_max._indices.x + 1) {
+                    if let Some(collision_objects) = self._collision_object_map.get(&CollisionObjectKey::new(x, y, z)) {
+                        for collision_object in collision_objects.iter() {
+                            collision_objectm_map.insert(collision_object.borrow().get_object_id(), collision_object.clone());
+                        }
+                    }
+                }
+            }
+        }
+        collision_objectm_map
     }
     pub fn register_collision_object(&mut self, object: &RcRefCell<RenderObjectData<'a>>) {
         if object.borrow().get_collision_type() != CollisionType::NONE {
-            self._collision_object_map.insert(object.borrow().get_object_id(), object.clone());
+            let key_min = CollisionObjectKey::from_position(&object.borrow()._collision._bounding_box._min);
+            let key_max = CollisionObjectKey::from_position(&object.borrow()._collision._bounding_box._max);
+            for z in (key_min._indices.z)..(key_max._indices.z + 1) {
+                for y in (key_min._indices.y)..(key_max._indices.y + 1) {
+                    for x in (key_min._indices.x)..(key_max._indices.x + 1) {
+                        let new_key = CollisionObjectKey::new(x, y, z);
+                        if let Some(collision_objects) = self._collision_object_map.get_mut(&new_key) {
+                            collision_objects.push(object.clone());
+                        } else {
+                            self._collision_object_map.insert(new_key, vec![object.clone()]);
+                        }
+
+                        let scene_object_id = object.borrow().get_object_id();
+                        if let Some(collision_object_keys) = self._collision_object_key_map.get_mut(&scene_object_id) {
+                            collision_object_keys.push(new_key);
+                        } else {
+                            self._collision_object_key_map.insert(scene_object_id, vec![new_key]);
+                        }
+                    }
+                }
+            }
         }
     }
     pub fn unregister_collision_object(&mut self, object_id: &SceneObjectID) {
-        self._collision_object_map.remove(&object_id);
+        if let Some(keys) = self._collision_object_key_map.remove(&object_id) {
+            for key in keys {
+                if let Some(collision_objects) = self._collision_object_map.get_mut(&key) {
+                    for (i, collision_object) in collision_objects.iter().enumerate() {
+                        if collision_object.borrow().get_object_id() == *object_id {
+                            collision_objects.remove(i);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
     }
     pub fn get_dynamic_update_objects(&self) -> &RenderObjectMap<'a> {
         &self._dynamic_update_object_map
@@ -797,7 +868,7 @@ impl<'a> SceneManager<'a> {
             }
         }
 
-        // update height map bouding box
+        // update height map bounding box
         if enable_capture_height_map {
             *height_map_bounding_box = BoundingBox::create_bounding_box(&bound_min, &bound_max);
         }
@@ -1073,6 +1144,7 @@ impl<'a> SceneManager<'a> {
         self.get_effect_manager_mut().clear_effects();
         self._dynamic_update_object_map.clear();
         self._collision_object_map.clear();
+        self._dynamic_update_object_map.clear();
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
         self._point_light_object_map.clear();
