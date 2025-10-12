@@ -69,6 +69,10 @@ impl BoundingBox {
         self._mag_xz
     }
 
+    pub fn get_orientation(&self) -> &Matrix3<f32> {
+        &self._orientation
+    }
+
     pub fn collide_in_radius(&self, pos: &Vector3<f32>) -> bool {
         (self._center - pos).magnitude_squared() < self._radius * self._radius
     }

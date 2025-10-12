@@ -1,5 +1,5 @@
 use std::cmp::Ordering::{Greater, Less};
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap};
 use std::rc::Rc;
 
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
@@ -1141,19 +1141,27 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn close_scene_data(&mut self) {
+        self._capture_height_map.clear_static_render_elements();
         self.get_effect_manager_mut().clear_effects();
-        self._dynamic_update_object_map.clear();
-        self._collision_object_map.clear();
-        self._dynamic_update_object_map.clear();
+
+        self._main_camera = None;
+        self._main_light = None;
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
         self._point_light_object_map.clear();
+        self._render_point_light_count = 0;
+        self._dynamic_update_object_map.clear();
+        self._collision_object_map.clear();
+        self._collision_object_key_map.clear();
+        self._static_render_object_instancing_map.clear();
         self._static_render_object_map.clear();
         self._skeletal_render_object_map.clear();
         self._static_render_elements.clear();
         self._static_shadow_render_elements.clear();
         self._skeletal_render_elements.clear();
         self._skeletal_shadow_render_elements.clear();
+        self._render_element_transform_count = 0;
+        self._bound_boxes.clear();
     }
 
     pub fn save_scene_data(&mut self) {
