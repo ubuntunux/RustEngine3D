@@ -519,7 +519,7 @@ impl<'a> SceneManager<'a> {
             is_render_height_map
         ));
 
-        // register collision object
+        // register a collision object
         if render_object_data.borrow().get_collision_type() != CollisionType::NONE {
             self.register_collision_object(&render_object_data);
         }
