@@ -35,7 +35,7 @@ pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
 pub type CollisionObjectMap<'a> = HashMap<CollisionObjectKey, Vec<RcRefCell<RenderObjectData<'a>>>>;
 
 #[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
-pub struct SceneObjectID(i64);
+pub struct SceneObjectID(u64);
 
 #[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
 pub struct CollisionObjectKey {
