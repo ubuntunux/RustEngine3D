@@ -256,7 +256,7 @@ impl<'a> RenderObjectData<'a> {
         for i in 0..AnimationLayer::COUNT {
             let mesh_data = if base_layer_index == i { Some(self._mesh_data.clone()) } else { None };
             self._animation_play_infos.push(
-                AnimationPlayInfo::create_animation_play_info(mesh_data, bone_count)
+                AnimationPlayInfo::create_animation_play_info(unsafe { std::mem::transmute(i as i32) }, mesh_data, bone_count)
             );
         }
         self._animation_buffer = Some(AnimationBuffer::create_animation_buffer(bone_count));
@@ -397,7 +397,7 @@ impl<'a> RenderObjectData<'a> {
 
                 // update additive animation
                 let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::ActionLayer));
-                if additive_animation.is_valid() /* && false == additive_animation._is_animation_end */ {
+                if additive_animation.is_valid() {
                     let base_animation = ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
                     base_animation.combine_additive_animation(additive_animation);
                 }

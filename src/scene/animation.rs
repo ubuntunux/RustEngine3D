@@ -8,6 +8,7 @@ use crate::scene::transform_object::{SimpleTransform, TransformObjectData};
 
 use nalgebra_glm as glm;
 use crate::constants;
+use crate::scene::render_object::AnimationLayer;
 use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, RcRefCell};
 
@@ -111,10 +112,10 @@ pub struct AnimationBuffer {
 
 #[derive(Clone, Debug)]
 pub struct AnimationPlayInfo {
+    pub _animation_layer: AnimationLayer,
     pub _is_animation_reset: bool,
     pub _is_animation_start: bool,
     pub _is_animation_end: bool,
-    pub _is_last_animation_frame: bool,
     pub _animation_loop: bool,
     pub _animation_blend_ratio: f32,
     pub _animation_blend_time: f32,
@@ -145,11 +146,9 @@ pub struct AnimationPlayArgs {
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
     pub _animation_layers: *const AnimationLayerData
-
 }
 
 // Implementations
-
 impl Default for AnimationNodeCreateInfo {
     fn default() -> AnimationNodeCreateInfo {
         AnimationNodeCreateInfo {
@@ -463,6 +462,7 @@ impl AnimationBuffer {
 impl Default for AnimationPlayInfo {
     fn default() -> AnimationPlayInfo {
         AnimationPlayInfo {
+            _animation_layer: AnimationLayer::BaseLayer,
             _animation_loop: true,
             _animation_blend_ratio: 0.0,
             _animation_blend_time: 0.1,
@@ -478,7 +478,6 @@ impl Default for AnimationPlayInfo {
             _is_animation_reset: false,
             _is_animation_start: false,
             _is_animation_end: false,
-            _is_last_animation_frame: false,
             _animation_transforms: Vec::new(),
             _last_animation_transforms: Vec::new(),
             _animation_index: 0,
@@ -489,8 +488,9 @@ impl Default for AnimationPlayInfo {
 }
 
 impl AnimationPlayInfo {
-    pub fn create_animation_play_info(mesh_data: Option<RcRefCell<MeshData>>, bone_count: usize) -> AnimationPlayInfo {
+    pub fn create_animation_play_info(animation_layer: AnimationLayer, mesh_data: Option<RcRefCell<MeshData>>, bone_count: usize) -> AnimationPlayInfo {
         AnimationPlayInfo {
+            _animation_layer: animation_layer,
             _animation_transforms: vec![SimpleTransform::default(); bone_count],
             _last_animation_transforms: vec![SimpleTransform::default(); bone_count],
             _animation_mesh: mesh_data,
@@ -506,7 +506,7 @@ impl AnimationPlayInfo {
         if self._prev_animation_play_time <= event_time && event_time < self._animation_play_time {
             return true;
         }
-        else if self._is_animation_end && self._animation_play_time < event_time {
+        else if self._is_animation_end && self._animation_play_time <= event_time {
             // unreachable event time
             return true
         }
@@ -523,11 +523,6 @@ impl AnimationPlayInfo {
             self._is_animation_start = true;
         } else {
             self._is_animation_start = false;
-        }
-
-        if self._is_last_animation_frame {
-            self._is_animation_end = true;
-            return false;
         }
 
         let animation_data_list: &Vec<AnimationData> = &self._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
@@ -550,7 +545,7 @@ impl AnimationPlayInfo {
             } else {
                 if animation_end_time <= self._animation_play_time {
                     self._animation_play_time = animation_end_time;
-                    self._is_last_animation_frame = true;
+                    self._is_animation_end = true;
                 }
             }
 
@@ -570,6 +565,7 @@ impl AnimationPlayInfo {
             } else {
                 self._animation_fade_out_ratio = 1f32.min(0f32.max((animation_end_time - self._animation_elapsed_time) / self._animation_fade_out_time));
             }
+
         } else {
             self._animation_frame = 0.0;
         }
@@ -579,7 +575,8 @@ impl AnimationPlayInfo {
         if self._prev_animation_frame != self._animation_frame {
             return true;
         }
-        return false;
+
+        false
     }
 
     pub fn combine_additive_animation(&mut self, additive_animation_play_info: &AnimationPlayInfo) {
@@ -587,17 +584,20 @@ impl AnimationPlayInfo {
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
         if additive_animation_play_info._animation_layers.is_null() {
             for (bone_index, additive_animation_transform) in additive_animation_play_info._animation_transforms.iter().enumerate() {
-                self._animation_transforms[bone_index] =
-                    self._animation_transforms[bone_index].lerp(additive_animation_transform, additive_animation_play_info._animation_fade_out_ratio);
+                self._animation_transforms[bone_index] = self._animation_transforms[bone_index].lerp(
+                    additive_animation_transform,
+                    additive_animation_play_info._animation_fade_out_ratio
+                );
             }
         } else {
             for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_layers)._bone_blend_map.iter() {
                 if 0.0 < *blend_ratio {
                     if let Some(bone_index) = skeleton_data._bone_index_map.get(bone_name) {
-                        let blend_ratio = *blend_ratio * additive_animation_play_info._animation_fade_out_ratio;
-                        let base_animation_transform = self._animation_transforms[*bone_index].clone();
                         let additive_animation_transform = &additive_animation_play_info._animation_transforms[*bone_index];
-                        self._animation_transforms[*bone_index] = base_animation_transform.lerp(additive_animation_transform, blend_ratio);
+                        self._animation_transforms[*bone_index] = self._animation_transforms[*bone_index].lerp(
+                            additive_animation_transform,
+                            *blend_ratio * additive_animation_play_info._animation_fade_out_ratio
+                        );
                     }
                 }
             }
@@ -616,7 +616,6 @@ impl AnimationPlayInfo {
             self._is_animation_reset = true;
             self._is_animation_start = true;
             self._is_animation_end = false;
-            self._is_last_animation_frame = false;
             self._animation_elapsed_time = 0.0;
             self._prev_animation_play_time = animation_args._animation_start_time;
             self._animation_play_time = animation_args._animation_start_time;
