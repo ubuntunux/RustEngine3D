@@ -499,8 +499,8 @@ impl<'a> EngineCore<'a> {
                 ));
                 font_manager.log(format!(
                     "Camera Position: {:?}, Rotation: {:?}",
-                    scene_manager.get_main_camera().get_camera_position(),
-                    scene_manager.get_main_camera().get_camera_front()
+                    scene_manager.get_main_camera()._transform_object.get_position(),
+                    scene_manager.get_main_camera()._transform_object.get_rotation(),
                 ));
                 font_manager.log(format!(
                     "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
