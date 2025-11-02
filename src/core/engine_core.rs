@@ -498,6 +498,11 @@ impl<'a> EngineCore<'a> {
                     self._time_data._average_present_time
                 ));
                 font_manager.log(format!(
+                    "Camera Position: {:?}, Rotation: {:?}",
+                    scene_manager.get_main_camera().get_camera_position(),
+                    scene_manager.get_main_camera().get_camera_front()
+                ));
+                font_manager.log(format!(
                     "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
                     scene_manager._static_render_object_map.len(),
                     scene_manager._skeletal_render_object_map.len(),
