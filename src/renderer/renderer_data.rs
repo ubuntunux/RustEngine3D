@@ -801,7 +801,7 @@ impl<'a> RendererData<'a> {
     }
 
     pub fn reset_render_light_probe_time(&mut self) {
-        self._render_context_light_probe._next_refresh_time = 0.0;
+        self._render_context_light_probe.reset_light_probe_data()
     }
 
     pub fn render_light_probe(
@@ -1889,9 +1889,7 @@ impl<'a> RendererData<'a> {
         }
 
         // light probe
-        if self._render_context_light_probe._next_refresh_time <= elapsed_time
-            || self._render_context_light_probe._light_probe_capture_count < MAX_FRAME_COUNT
-        {
+        if self._render_context_light_probe._next_refresh_time <= elapsed_time || self._render_context_light_probe._light_probe_capture_count < MAX_FRAME_COUNT {
             let _label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
@@ -1908,8 +1906,7 @@ impl<'a> RendererData<'a> {
                 capture_height_map,
                 static_render_elements,
             );
-            self._render_context_light_probe._next_refresh_time =
-                elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
+            self._render_context_light_probe._next_refresh_time = elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
             self._render_context_light_probe._light_probe_blend_time = 0.0;
             self._render_context_light_probe._light_probe_capture_count += 1;
         }

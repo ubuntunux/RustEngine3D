@@ -496,16 +496,12 @@ impl<'a> EngineCore<'a> {
                     "Present Time: {:.3}ms",
                     self._time_data._average_present_time
                 ));
+                let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
+                let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
                 font_manager.log(format!(
-                    "Camera Position: {:?}, Rotation: {:?}",
-                    scene_manager
-                        .get_main_camera()
-                        ._transform_object
-                        .get_position(),
-                    scene_manager
-                        .get_main_camera()
-                        ._transform_object
-                        .get_rotation(),
+                    "Camera Position: [{:.2}, {:.2}, {:.2}], Rotation: [{:.2}, {:.2}, {:.2}]",
+                    camera_position.x, camera_position.y, camera_position.z,
+                    camera_rotation.x, camera_rotation.y, camera_rotation.z,
                 ));
                 font_manager.log(format!(
                     "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",

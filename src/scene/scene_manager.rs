@@ -1396,6 +1396,10 @@ impl<'a> SceneManager<'a> {
         self._frame_count_for_refresh_light_probe = MAX_FRAME_COUNT as i32 + 1;
     }
 
+    pub fn reset_render_light_probe_time(&mut self) {
+        self.get_renderer_data_mut().reset_render_light_probe_time();
+    }
+
     pub fn update_scene_manager(&mut self, delta_time: f64) {
         // refresh environment map
         if 0 <= self._frame_count_for_refresh_light_probe {

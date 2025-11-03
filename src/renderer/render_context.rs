@@ -37,14 +37,10 @@ pub struct RenderContext_LightProbe<'a> {
     pub _composite_atmosphere_framebuffer_data_list_only_sky: CubeMapArray<FramebufferData<'a>>,
     pub _composite_atmosphere_framebuffer_data_list: CubeMapArray<FramebufferData<'a>>,
     pub _composite_atmosphere_descriptor_sets: CubeMapArray<SwapchainArray<vk::DescriptorSet>>,
-    pub _only_sky_downsampling_descriptor_sets:
-        CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
-    pub _light_probe_downsampling_descriptor_sets:
-        CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
-    pub _light_probe_blend_from_only_sky_descriptor_sets:
-        MipLevels<SwapchainArray<vk::DescriptorSet>>,
-    pub _light_probe_blend_from_forward_descriptor_sets:
-        MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _only_sky_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
+    pub _light_probe_downsampling_descriptor_sets: CubeMapArray<MipLevels<SwapchainArray<vk::DescriptorSet>>>,
+    pub _light_probe_blend_from_only_sky_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
+    pub _light_probe_blend_from_forward_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _only_sky_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
     pub _light_probe_forward_copy_descriptor_sets: MipLevels<SwapchainArray<vk::DescriptorSet>>,
 }
@@ -726,6 +722,12 @@ impl<'a> RenderContext_ClearRenderTargets<'a> {
 }
 
 impl<'a> RenderContext_LightProbe<'a> {
+    pub fn reset_light_probe_data(&mut self) {
+        self._next_refresh_time = 0.0;
+        self._light_probe_blend_time = 0.0;
+        self._light_probe_capture_count = 0;
+    }
+
     pub fn initialize(
         &mut self,
         device: &Device,
@@ -750,22 +752,13 @@ impl<'a> RenderContext_LightProbe<'a> {
                 .get_default_image_info()
                 .clone(),
         );
-        let render_atmosphere_pipeline_binding_data =
-            material_instance.get_pipeline_binding_data("render_atmosphere/default");
-        let composite_atmosphere_pipeline_binding_data =
-            material_instance.get_pipeline_binding_data("composite_atmosphere/default");
-        let downsampling_material_instance = engine_resources
-            .get_material_instance_data("common/downsampling")
-            .borrow();
-        let downsampling_pipeline_binding_data =
-            downsampling_material_instance.get_default_pipeline_binding_data();
-        let copy_cube_map_material_instance = engine_resources
-            .get_material_instance_data("common/copy_cube_map")
-            .borrow();
-        let copy_cube_map_pipeline_binding_data =
-            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/copy");
-        let blend_cube_map_pipeline_binding_data =
-            copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
+        let render_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("render_atmosphere/default");
+        let composite_atmosphere_pipeline_binding_data = material_instance.get_pipeline_binding_data("composite_atmosphere/default");
+        let downsampling_material_instance = engine_resources.get_material_instance_data("common/downsampling").borrow();
+        let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
+        let copy_cube_map_material_instance = engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
+        let copy_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/copy");
+        let blend_cube_map_pipeline_binding_data = copy_cube_map_material_instance.get_pipeline_binding_data("copy_cube_map/blend");
 
         self._next_refresh_time = 0.0;
         self._light_probe_blend_time = 0.0;
@@ -1092,10 +1085,7 @@ impl<'a> RenderContext_LightProbe<'a> {
             framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
 
-        for framebuffer_data in self
-            ._composite_atmosphere_framebuffer_data_list_only_sky
-            .iter()
-        {
+        for framebuffer_data in self._composite_atmosphere_framebuffer_data_list_only_sky.iter() {
             framebuffer::destroy_framebuffer_data(device, &framebuffer_data);
         }
 
@@ -1104,15 +1094,13 @@ impl<'a> RenderContext_LightProbe<'a> {
         }
 
         self._render_atmosphere_framebuffer_data_list.clear();
-        self._composite_atmosphere_framebuffer_data_list_only_sky
-            .clear();
+        self._composite_atmosphere_framebuffer_data_list_only_sky.clear();
         self._composite_atmosphere_framebuffer_data_list.clear();
         self._render_atmosphere_descriptor_sets.clear();
         self._composite_atmosphere_descriptor_sets.clear();
         self._only_sky_downsampling_descriptor_sets.clear();
         self._light_probe_downsampling_descriptor_sets.clear();
-        self._light_probe_blend_from_only_sky_descriptor_sets
-            .clear();
+        self._light_probe_blend_from_only_sky_descriptor_sets.clear();
         self._light_probe_blend_from_forward_descriptor_sets.clear();
         self._only_sky_copy_descriptor_sets.clear();
         self._light_probe_forward_copy_descriptor_sets.clear();
