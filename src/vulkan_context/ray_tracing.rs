@@ -30,10 +30,12 @@ pub struct RayTracingData<'a> {
     pub _instance_data: Vec<GeometryInstance>,
     pub _bottom_accel_structs: Vec<vk::AccelerationStructureNV>,
     pub _bottom_accel_struct_memories: Vec<vk::DeviceMemory>,
-    pub _bottom_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
+    pub _bottom_write_descriptor_set_accel_structs:
+        Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
     pub _top_accel_structs: Vec<vk::AccelerationStructureNV>,
     pub _top_accel_struct_memories: Vec<vk::DeviceMemory>,
-    pub _top_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
+    pub _top_write_descriptor_set_accel_structs:
+        Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
     pub _scratch_buffer_data: BufferData,
 }
 
@@ -129,7 +131,7 @@ pub fn create_acceleration_structure(
             .bind_acceleration_structure_memory(&[memory_info])
             .unwrap();
 
-        return (vec![accel_struct], vec![accel_struct_memory]);
+        (vec![accel_struct], vec![accel_struct_memory])
     }
 }
 
@@ -173,7 +175,7 @@ impl<'a> RayTracingData<'a> {
                 Vector3::new(0.0, 0.5, 0.0),
                 Vector3::new(0.5, -0.5, 0.0),
             ];
-            let vertex_stride = std::mem::size_of::<Vector3<f32>>();
+            let vertex_stride = size_of::<Vector3<f32>>();
             self._vertex_buffer_data = buffer::create_buffer_data_with_uploads(
                 device,
                 command_pool,
@@ -366,7 +368,11 @@ impl<'a> RayTracingData<'a> {
         } // End - create_acceleration_structure_data_list
     }
 
-    pub fn destroy_ray_tracing_data(&mut self, device: &Device, ray_tracing: &nv::ray_tracing::Device) {
+    pub fn destroy_ray_tracing_data(
+        &mut self,
+        device: &Device,
+        ray_tracing: &nv::ray_tracing::Device,
+    ) {
         log::info!("destroy_ray_tracing_data");
         buffer::destroy_buffer_data(device, &self._vertex_buffer_data);
         buffer::destroy_buffer_data(device, &self._index_buffer_data);

@@ -6,24 +6,24 @@ use sdl2::event;
 use sdl2::Sdl;
 use winit::dpi;
 use winit::event::{
-    DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, Touch,
-    TouchPhase, WindowEvent,
+    DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, Touch, TouchPhase,
+    WindowEvent,
 };
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::keyboard::{ KeyCode, PhysicalKey };
+use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
-use crate::core::input::{self, ButtonState};
 use crate::audio::audio_manager::AudioManager;
+use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::resource::{EngineResources, CallbackLoadRenderPassCreateInfo};
+use crate::resource::resource::{CallbackLoadRenderPassCreateInfo, EngineResources};
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::scene_manager::SceneManager;
-use crate::scene::ui:: UIManager;
-use crate::utilities::scope_profiler::{TIME_PROFILER};
+use crate::scene::ui::UIManager;
+use crate::utilities::scope_profiler::TIME_PROFILER;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -208,7 +208,7 @@ impl<'a> EngineCore<'a> {
         app_version: u32,
         window: &Window,
         sdl: &Sdl,
-        application: *const dyn ApplicationBase<'a>
+        application: *const dyn ApplicationBase<'a>,
     ) -> Box<EngineCore<'a>> {
         let window_size: Vector2<i32> = Vector2::new(
             window.inner_size().width as i32,
@@ -216,8 +216,10 @@ impl<'a> EngineCore<'a> {
         );
 
         // create managers
-        let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo = ptr_as_ref(application).get_render_pass_create_info_callback();
-        let engine_resources = EngineResources::create_engine_resources(callback_load_render_pass_create_info);
+        let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo =
+            ptr_as_ref(application).get_render_pass_create_info_callback();
+        let engine_resources =
+            EngineResources::create_engine_resources(callback_load_render_pass_create_info);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
@@ -271,18 +273,14 @@ impl<'a> EngineCore<'a> {
         engine_core
             .get_debug_line_manager_mut()
             .initialize_debug_line_manager(engine_core.get_renderer_context());
-        engine_core
-            .get_font_manager_mut()
-            .initialize_font_manager(
-                engine_core.get_renderer_context(),
-                engine_core.get_engine_resources(),
-            );
-        engine_core
-            .get_ui_manager_mut()
-            .initialize_ui_manager(
-                engine_core.get_renderer_context(),
-                engine_core.get_engine_resources(),
-            );
+        engine_core.get_font_manager_mut().initialize_font_manager(
+            engine_core.get_renderer_context(),
+            engine_core.get_engine_resources(),
+        );
+        engine_core.get_ui_manager_mut().initialize_ui_manager(
+            engine_core.get_renderer_context(),
+            engine_core.get_engine_resources(),
+        );
         engine_core
             .get_audio_manager_mut()
             .initialize_audio_manager();
@@ -309,21 +307,27 @@ impl<'a> EngineCore<'a> {
         self.get_application_mut().terminate_application();
         self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
-        self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
-        self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
-        self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
-        self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
+        self.get_ui_manager_mut()
+            .destroy_ui_manager(renderer_context.get_device());
+        self.get_debug_line_manager_mut()
+            .destroy_debug_line_manager(renderer_context.get_device());
+        self.get_font_manager_mut()
+            .destroy_font_manager(renderer_context.get_device());
+        self.get_engine_resources_mut()
+            .destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
     }
 
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;
         self._window_size.y = size.height as i32;
-        self.get_scene_manager_mut().update_window_size(size.width as i32, size.height as i32);
+        self.get_scene_manager_mut()
+            .update_window_size(size.width as i32, size.height as i32);
 
         let renderer_context = self.get_renderer_context_mut();
         let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
-        let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
+        let need_recreate_swapchain =
+            swapchain_extent.width != size.width || swapchain_extent.height != size.height;
         log::info!(
             "need_recreate_swapchain: {}, swapchain_extent: {:?}",
             need_recreate_swapchain,
@@ -416,8 +420,7 @@ impl<'a> EngineCore<'a> {
             if TouchPhase::Started == touch.phase {
                 self._keyboard_input_data.set_key_pressed(KeyCode::KeyW);
             } else if TouchPhase::Ended == touch.phase {
-                self._keyboard_input_data
-                    .set_key_released(KeyCode::KeyW);
+                self._keyboard_input_data.set_key_released(KeyCode::KeyW);
             }
         }
     }
@@ -450,10 +453,7 @@ impl<'a> EngineCore<'a> {
                 renderer_context.resize_window();
 
                 // recreate
-                font_manager.create_font_descriptor_sets(
-                    renderer_context,
-                    engine_resource,
-                );
+                font_manager.create_font_descriptor_sets(renderer_context, engine_resource);
                 ui_manager.create_ui_graphics_data(&renderer_context.get_engine_resources());
                 renderer_context.set_need_recreate_swapchain(false);
 
@@ -482,8 +482,7 @@ impl<'a> EngineCore<'a> {
                 // debug text
                 font_manager.log(format!(
                     "{:.2}fps / {:.3}ms",
-                    self._time_data._average_fps,
-                    self._time_data._average_frame_time
+                    self._time_data._average_fps, self._time_data._average_frame_time
                 ));
                 font_manager.log(format!(
                     "Game Time: {:.3}ms",
@@ -499,8 +498,14 @@ impl<'a> EngineCore<'a> {
                 ));
                 font_manager.log(format!(
                     "Camera Position: {:?}, Rotation: {:?}",
-                    scene_manager.get_main_camera()._transform_object.get_position(),
-                    scene_manager.get_main_camera()._transform_object.get_rotation(),
+                    scene_manager
+                        .get_main_camera()
+                        ._transform_object
+                        .get_position(),
+                    scene_manager
+                        .get_main_camera()
+                        ._transform_object
+                        .get_rotation(),
                 ));
                 font_manager.log(format!(
                     "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
@@ -513,9 +518,17 @@ impl<'a> EngineCore<'a> {
                 font_manager.log(format!(
                     "RenderStaticMesh(Instancing): {}({}), RenderStaticShadow(Instancing): {}({})",
                     scene_manager._static_render_elements.len(),
-                    scene_manager._static_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>(),
+                    scene_manager
+                        ._static_render_elements
+                        .iter()
+                        .map(|element| element._num_render_instances)
+                        .sum::<u32>(),
                     scene_manager._static_shadow_render_elements.len(),
-                    scene_manager._static_shadow_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>()
+                    scene_manager
+                        ._static_shadow_render_elements
+                        .iter()
+                        .map(|element| element._num_render_instances)
+                        .sum::<u32>()
                 ));
                 font_manager.log(format!(
                     "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
@@ -531,8 +544,8 @@ impl<'a> EngineCore<'a> {
                 ));
                 font_manager.log(format!(
                     "RenderTarget: {:?}",
-                    renderer_context._renderer_data._debug_render_target)
-                );
+                    renderer_context._renderer_data._debug_render_target
+                ));
 
                 unsafe {
                     if TIME_PROFILER.is_some() {
@@ -547,7 +560,6 @@ impl<'a> EngineCore<'a> {
                     TIME_PROFILER = None;
                 }
 
-
                 // render scene
                 let render_time = self._time_data.get_current_time();
                 renderer_context.render_scene(
@@ -558,7 +570,8 @@ impl<'a> EngineCore<'a> {
                     delta_time,
                     &mut self._time_data,
                 );
-                self._time_data._acc_render_time += self._time_data.get_current_time() - render_time;
+                self._time_data._acc_render_time +=
+                    self._time_data.get_current_time() - render_time;
             }
         }
     }
@@ -573,7 +586,7 @@ pub fn run_application(
     app_version: u32,
     initial_window_size: Option<Vector2<u32>>,
     window_mode: WindowMode,
-    application: *const dyn ApplicationBase
+    application: *const dyn ApplicationBase,
 ) {
     log::info!("run_application");
 
@@ -599,10 +612,18 @@ pub fn run_application(
 
     // choose video mode
     let primary_monitor = event_loop.primary_monitor().unwrap();
-    log::info!("Monitor: {:?}, {:?}, {:?}hz", primary_monitor.name(), primary_monitor.size(), primary_monitor.refresh_rate_millihertz());
+    log::info!(
+        "Monitor: {:?}, {:?}, {:?}hz",
+        primary_monitor.name(),
+        primary_monitor.size(),
+        primary_monitor.refresh_rate_millihertz()
+    );
     let mut current_video_mode = primary_monitor.video_modes().nth(0).unwrap();
     for (_video_index, video_mode) in primary_monitor.video_modes().enumerate() {
-        if video_mode.size() == primary_monitor.size() && video_mode.refresh_rate_millihertz() == primary_monitor.refresh_rate_millihertz().unwrap() {
+        if video_mode.size() == primary_monitor.size()
+            && video_mode.refresh_rate_millihertz()
+                == primary_monitor.refresh_rate_millihertz().unwrap()
+        {
             current_video_mode = video_mode.clone();
             log::info!(
                 "Matched Video Mode: {:?}, {:?} bit, {:?} hz",
@@ -614,26 +635,27 @@ pub fn run_application(
         }
     }
 
-    let window_size: dpi::PhysicalSize<u32> =
-        if let Some(window_size) = initial_window_size {
-            dpi::PhysicalSize {
-                width: window_size.x,
-                height: window_size.y
-            }
-        } else {
-            current_video_mode.size()
-        };
+    let window_size: dpi::PhysicalSize<u32> = if let Some(window_size) = initial_window_size {
+        dpi::PhysicalSize {
+            width: window_size.x,
+            height: window_size.y,
+        }
+    } else {
+        current_video_mode.size()
+    };
 
     // create window
     log::info!("Window Mode: {:?}", window_mode);
     let window: Window = WindowBuilder::new()
         .with_title(app_name.clone())
-        .with_position(dpi::PhysicalPosition {x: 0, y:0})
+        .with_position(dpi::PhysicalPosition { x: 0, y: 0 })
         .with_inner_size(dpi::Size::Physical(window_size))
         .build(&event_loop)
         .unwrap();
 
-    if WindowMode::FullScreenExclusiveMode == window_mode || WindowMode::FullScreenBorderlessMode == window_mode {
+    if WindowMode::FullScreenExclusiveMode == window_mode
+        || WindowMode::FullScreenBorderlessMode == window_mode
+    {
         if WindowMode::FullScreenExclusiveMode == window_mode {
             window.set_fullscreen(Some(Fullscreen::Exclusive(current_video_mode)));
         } else if WindowMode::FullScreenBorderlessMode == window_mode {
@@ -653,161 +675,174 @@ pub fn run_application(
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
     //event_loop.run(move |event, window_target| {
-    event_loop.run_on_demand(|event, window_target| {
-        window_target.set_control_flow(ControlFlow::Poll);
+    event_loop
+        .run_on_demand(|event, window_target| {
+            window_target.set_control_flow(ControlFlow::Poll);
 
-        if need_initialize {
-            if maybe_engine_core.is_some() {
-                let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
-                engine_core.terminate_application();
-            }
-
-            let engine_core = EngineCore::create_application(
-                app_name.as_str(),
-                app_version,
-                &window,
-                &sdl,
-                application,
-            );
-
-            // set managers
-            maybe_engine_core = Some(engine_core);
-            run_application = true;
-            need_initialize = false;
-            initialize_done = true;
-        }
-
-        let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
-
-        // winit event
-        match event {
-            Event::Resumed => {
-                log::info!("Application was resumed");
-                #[cfg(target_os = "android")]
-                if false == initialize_done {
-                    need_initialize = true;
+            if need_initialize {
+                if maybe_engine_core.is_some() {
+                    let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
+                    engine_core.terminate_application();
                 }
-            }
-            Event::Suspended => {
-                log::info!("Application was suspended");
-                #[cfg(target_os = "android")]
-                if initialize_done {
-                    run_application = false;
-                    initialize_done = false;
-                }
-            }
-            Event::NewEvents(_) => {
-                // reset input states on new frame
-                if run_application {
-                    engine_core.clear_and_update_input_data_list();
 
-                    // process sdl event
-                    for event in sdl.event_pump().unwrap().poll_iter() {
-                        match event {
-                            event::Event::ControllerAxisMotion { axis, value, .. } => {
-                                engine_core
-                                    ._joystick_input_data
-                                    .update_controller_axis_motion(axis, value);
+                let engine_core = EngineCore::create_application(
+                    app_name.as_str(),
+                    app_version,
+                    &window,
+                    &sdl,
+                    application,
+                );
+
+                // set managers
+                maybe_engine_core = Some(engine_core);
+                run_application = true;
+                need_initialize = false;
+                initialize_done = true;
+            }
+
+            let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
+
+            // winit event
+            match event {
+                Event::Resumed => {
+                    log::info!("Application was resumed");
+                    #[cfg(target_os = "android")]
+                    if false == initialize_done {
+                        need_initialize = true;
+                    }
+                }
+                Event::Suspended => {
+                    log::info!("Application was suspended");
+                    #[cfg(target_os = "android")]
+                    if initialize_done {
+                        run_application = false;
+                        initialize_done = false;
+                    }
+                }
+                Event::NewEvents(_) => {
+                    // reset input states on new frame
+                    if run_application {
+                        engine_core.clear_and_update_input_data_list();
+
+                        // process sdl event
+                        for event in sdl.event_pump().unwrap().poll_iter() {
+                            match event {
+                                event::Event::ControllerAxisMotion { axis, value, .. } => {
+                                    engine_core
+                                        ._joystick_input_data
+                                        .update_controller_axis_motion(axis, value);
+                                }
+                                event::Event::ControllerButtonDown { button, .. } => {
+                                    engine_core
+                                        ._joystick_input_data
+                                        .update_controller_button_state(
+                                            button,
+                                            ButtonState::Pressed,
+                                        );
+                                }
+                                event::Event::ControllerButtonUp { button, .. } => {
+                                    engine_core
+                                        ._joystick_input_data
+                                        .update_controller_button_state(
+                                            button,
+                                            ButtonState::Released,
+                                        );
+                                }
+                                event::Event::Quit { .. } => break,
+                                _ => (),
                             }
-                            event::Event::ControllerButtonDown { button, .. } => {
-                                engine_core
-                                    ._joystick_input_data
-                                    .update_controller_button_state(button, ButtonState::Pressed);
-                            }
-                            event::Event::ControllerButtonUp { button, .. } => {
-                                engine_core
-                                    ._joystick_input_data
-                                    .update_controller_button_state(button, ButtonState::Released);
-                            }
-                            event::Event::Quit { .. } => break,
-                            _ => (),
                         }
                     }
-                }
 
-                if !run_application {
-                    engine_core.terminate_application();
-                    window_target.exit();
-                }
-            }
-            Event::DeviceEvent {
-                device_id: _device_id,
-                event,
-            } => match event {
-                DeviceEvent::MouseMotion { delta } => {
-                    engine_core.update_mouse_motion(&delta);
-                }
-                _ => {}
-            },
-            Event::WindowEvent { event, .. } => match event {
-                WindowEvent::CloseRequested => {
-                    run_application = false;
-                }
-                WindowEvent::Resized(size) => {
-                    log::info!(
-                        "WindowEvent::Resized: {:?}, initialize_done: {}",
-                        size,
-                        initialize_done
-                    );
-                    if initialize_done {
-                        engine_core.resized_window(size);
+                    if !run_application {
+                        engine_core.terminate_application();
+                        window_target.exit();
                     }
                 }
-                WindowEvent::MouseInput { button, state, .. } => {
-                    engine_core.update_mouse_input(button, state);
-                }
-                WindowEvent::CursorMoved { position, .. } => {
-                    engine_core.update_cursor_moved(position);
-                }
-                WindowEvent::MouseWheel {
-                    delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y),
-                    ..
-                } => {
-                    engine_core.update_mouse_wheel(scroll_x, scroll_y);
-                }
-                WindowEvent::Focused(focused) => {
-                    engine_core.get_application_mut().focused(focused);
-                }
-                WindowEvent::CursorEntered {
+                Event::DeviceEvent {
                     device_id: _device_id,
-                    ..
-                } => {}
-                WindowEvent::CursorLeft {
-                    device_id: _device_id,
-                    ..
-                } => {}
-                WindowEvent::Ime(_event) => {
-                }
-                WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
-                    window.set_ime_allowed(false);
-                    if run_application {
-                        engine_core.update_keyboard_input(&event, is_synthetic);
+                    event,
+                } => match event {
+                    DeviceEvent::MouseMotion { delta } => {
+                        engine_core.update_mouse_motion(&delta);
                     }
-
-                    // exit
-                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) ||
-                        engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
+                    _ => {}
+                },
+                Event::WindowEvent { event, .. } => match event {
+                    WindowEvent::CloseRequested => {
                         run_application = false;
                     }
-                }
-                WindowEvent::Touch(touch) => {
-                    engine_core.update_touch(&touch);
-                }
-                _ => (),
-            },
-            Event::LoopExiting => {
-                log::info!("Application destroyed");
-            },
-            Event::AboutToWait => {
-                if run_application {
-                    // update application
-                    engine_core.update_event_and_render_scene();
-                }
-            },
-            _ => {
-                //log::info!("Unknown event: {:?}", event);
-            }
-        }
+                    WindowEvent::Resized(size) => {
+                        log::info!(
+                            "WindowEvent::Resized: {:?}, initialize_done: {}",
+                            size,
+                            initialize_done
+                        );
+                        if initialize_done {
+                            engine_core.resized_window(size);
+                        }
+                    }
+                    WindowEvent::MouseInput { button, state, .. } => {
+                        engine_core.update_mouse_input(button, state);
+                    }
+                    WindowEvent::CursorMoved { position, .. } => {
+                        engine_core.update_cursor_moved(position);
+                    }
+                    WindowEvent::MouseWheel {
+                        delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y),
+                        ..
+                    } => {
+                        engine_core.update_mouse_wheel(scroll_x, scroll_y);
+                    }
+                    WindowEvent::Focused(focused) => {
+                        engine_core.get_application_mut().focused(focused);
+                    }
+                    WindowEvent::CursorEntered {
+                        device_id: _device_id,
+                        ..
+                    } => {}
+                    WindowEvent::CursorLeft {
+                        device_id: _device_id,
+                        ..
+                    } => {}
+                    WindowEvent::Ime(_event) => {}
+                    WindowEvent::KeyboardInput {
+                        event,
+                        is_synthetic,
+                        ..
+                    } => {
+                        window.set_ime_allowed(false);
+                        if run_application {
+                            engine_core.update_keyboard_input(&event, is_synthetic);
+                        }
 
-    }).expect("TODO: panic message");
+                        // exit
+                        if engine_core
+                            ._keyboard_input_data
+                            .get_key_pressed(KeyCode::Escape)
+                            || engine_core._joystick_input_data._btn_back == ButtonState::Pressed
+                        {
+                            run_application = false;
+                        }
+                    }
+                    WindowEvent::Touch(touch) => {
+                        engine_core.update_touch(&touch);
+                    }
+                    _ => (),
+                },
+                Event::LoopExiting => {
+                    log::info!("Application destroyed");
+                }
+                Event::AboutToWait => {
+                    if run_application {
+                        // update application
+                        engine_core.update_event_and_render_scene();
+                    }
+                }
+                _ => {
+                    //log::info!("Unknown event: {:?}", event);
+                }
+            }
+        })
+        .expect("TODO: panic message");
 }

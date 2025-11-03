@@ -33,7 +33,10 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
+    for format in framebuffer_data_create_info
+        ._framebuffer_color_attachment_formats
+        .iter()
+    {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -61,7 +64,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(BlendOperation::None);
+            vulkan_context::get_color_blend_operation(
+                BlendOperation::None
+            );
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
@@ -132,7 +137,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
                     | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
-            }
+            },
         ],
         ..Default::default()
     }];

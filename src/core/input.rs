@@ -354,24 +354,23 @@ impl JoystickInputData {
         JoystickInputData::reset_button_state(&mut self._btn_guide);
         self._is_any_button_pressed = false;
 
-        self._is_any_button_hold =
-            self._btn_left_stick == ButtonState::Hold ||
-            self._btn_right_stick == ButtonState::Hold ||
-            self._btn_left == ButtonState::Hold ||
-            self._btn_right == ButtonState::Hold ||
-            self._btn_up == ButtonState::Hold ||
-            self._btn_down == ButtonState::Hold ||
-            self._btn_a == ButtonState::Hold ||
-            self._btn_b == ButtonState::Hold ||
-            self._btn_x == ButtonState::Hold ||
-            self._btn_y == ButtonState::Hold ||
-            self._btn_left_shoulder == ButtonState::Hold ||
-            self._btn_right_shoulder == ButtonState::Hold ||
-            self._btn_left_trigger == ButtonState::Hold ||
-            self._btn_right_trigger == ButtonState::Hold ||
-            self._btn_back == ButtonState::Hold ||
-            self._btn_start == ButtonState::Hold ||
-            self._btn_guide == ButtonState::Hold;
+        self._is_any_button_hold = self._btn_left_stick == ButtonState::Hold
+            || self._btn_right_stick == ButtonState::Hold
+            || self._btn_left == ButtonState::Hold
+            || self._btn_right == ButtonState::Hold
+            || self._btn_up == ButtonState::Hold
+            || self._btn_down == ButtonState::Hold
+            || self._btn_a == ButtonState::Hold
+            || self._btn_b == ButtonState::Hold
+            || self._btn_x == ButtonState::Hold
+            || self._btn_y == ButtonState::Hold
+            || self._btn_left_shoulder == ButtonState::Hold
+            || self._btn_right_shoulder == ButtonState::Hold
+            || self._btn_left_trigger == ButtonState::Hold
+            || self._btn_right_trigger == ButtonState::Hold
+            || self._btn_back == ButtonState::Hold
+            || self._btn_start == ButtonState::Hold
+            || self._btn_guide == ButtonState::Hold;
     }
 
     pub fn is_any_button_pressed(&self) -> bool {
@@ -407,11 +406,19 @@ impl JoystickInputData {
             match axis {
                 Axis::TriggerLeft => {
                     self._btn_left_trigger_value = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
-                    self.set_rumble(self._btn_left_trigger_value, self._btn_right_trigger_value, 15000);
+                    self.set_rumble(
+                        self._btn_left_trigger_value,
+                        self._btn_right_trigger_value,
+                        15000,
+                    );
                 }
                 Axis::TriggerRight => {
                     self._btn_right_trigger_value = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
-                    self.set_rumble(self._btn_left_trigger_value, self._btn_right_trigger_value, 15000);
+                    self.set_rumble(
+                        self._btn_left_trigger_value,
+                        self._btn_right_trigger_value,
+                        15000,
+                    );
                 }
                 Axis::LeftX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {
@@ -481,7 +488,7 @@ impl JoystickInputData {
             Button::DPadDown => self._btn_down = button_state,
             Button::DPadLeft => self._btn_left = button_state,
             Button::DPadRight => self._btn_right = button_state,
-            _ => log::debug!("unknown button: {:?}", button)
+            _ => log::debug!("unknown button: {:?}", button),
         }
     }
 }

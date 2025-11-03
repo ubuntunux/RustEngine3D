@@ -7,12 +7,12 @@ use crate::constants;
 use crate::scene::animation::{
     AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree,
 };
-use crate::scene::mesh::MeshDataCreateInfo;
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::math;
 use crate::utilities::system;
-use crate::vulkan_context::{geometry_buffer, vulkan_context};
 use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, SkeletalVertexData, VertexData};
+use crate::vulkan_context::{geometry_buffer, vulkan_context};
 
 pub const SHOW_GLTF_LOG: bool = false;
 
@@ -65,18 +65,24 @@ pub fn parsing_index_buffer(
     let stride = match data_type {
         gltf::accessor::DataType::U16 => 2,
         gltf::accessor::DataType::U32 => 4,
-        _ => panic!("unimplemented type: {:?}", data_type)
+        _ => panic!("unimplemented type: {:?}", data_type),
     };
     let index_count = bytes.len() / stride;
     let mut indices: Vec<u32> = vec![0; index_count];
     for i in 0..index_count {
         let base_index = i * stride;
-        let index_value =
-            match accessor.data_type() {
-                gltf::accessor::DataType::U16 => (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8),
-                gltf::accessor::DataType::U32 => (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8) | ((bytes[base_index + 2] as u32) << 16) | ((bytes[base_index + 3] as u32) << 24),
-                _ => panic!("unimplemented type: {:?}", accessor.data_type())
-            };
+        let index_value = match accessor.data_type() {
+            gltf::accessor::DataType::U16 => {
+                (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8)
+            }
+            gltf::accessor::DataType::U32 => {
+                (bytes[base_index] as u32)
+                    | ((bytes[base_index + 1] as u32) << 8)
+                    | ((bytes[base_index + 2] as u32) << 16)
+                    | ((bytes[base_index + 3] as u32) << 24)
+            }
+            _ => panic!("unimplemented type: {:?}", accessor.data_type()),
+        };
 
         let remainder = i % 3;
         let mut index_of_indices = i;
@@ -90,7 +96,7 @@ pub fn parsing_index_buffer(
         indices[index_of_indices] = index_value;
     }
 
-    return indices;
+    indices
 }
 
 pub fn parsing_vertex_buffer(
@@ -180,7 +186,9 @@ pub fn parsing_vertex_buffer(
             }
             gltf::Semantic::Colors(color_index) => {
                 if 0 == *color_index {
-                    if gltf::accessor::Dimensions::Vec3 != accessor.dimensions() && gltf::accessor::Dimensions::Vec4 != accessor.dimensions() {
+                    if gltf::accessor::Dimensions::Vec3 != accessor.dimensions()
+                        && gltf::accessor::Dimensions::Vec4 != accessor.dimensions()
+                    {
                         panic!("unimplemented dimension: {:?}", accessor.dimensions());
                     }
 
@@ -197,15 +205,19 @@ pub fn parsing_vertex_buffer(
                                 linear_color.w = (data.w >> 8) as u32;
                             }
 
-                            let color = vulkan_context::get_color32(linear_color.x, linear_color.y, linear_color.z, linear_color.w);
+                            let color = vulkan_context::get_color32(
+                                linear_color.x,
+                                linear_color.y,
+                                linear_color.z,
+                                linear_color.w,
+                            );
                             if is_skeletal_mesh {
                                 skeletal_vertex_data_list[i]._color = color;
                             } else {
                                 vertex_data_list[i]._color = color;
                             }
                         }
-                    }
-                    else if gltf::accessor::DataType::F32 == accessor.data_type() {
+                    } else if gltf::accessor::DataType::F32 == accessor.data_type() {
                         let buffer_data: Vec<Vector4<f32>> = system::convert_vec(bytes);
                         for (i, data) in buffer_data.iter().enumerate() {
                             let mut linear_color: Vector4<u32> = Vector4::new(255, 255, 255, 255);
@@ -218,15 +230,19 @@ pub fn parsing_vertex_buffer(
                                 linear_color.w = (data.w * 255.0) as u32;
                             }
 
-                            let color = vulkan_context::get_color32(linear_color.x, linear_color.y, linear_color.z, linear_color.w);
+                            let color = vulkan_context::get_color32(
+                                linear_color.x,
+                                linear_color.y,
+                                linear_color.z,
+                                linear_color.w,
+                            );
                             if is_skeletal_mesh {
                                 skeletal_vertex_data_list[i]._color = color;
                             } else {
                                 vertex_data_list[i]._color = color;
                             }
                         }
-                    }
-                    else {
+                    } else {
                         panic!("unimplemented data type: {:?}", accessor.data_type());
                     }
                 }
@@ -276,11 +292,11 @@ pub fn parsing_vertex_buffer(
         }
     }
 
-    return (
+    (
         vertex_data_list,
         skeletal_vertex_data_list,
         find_tangent_data,
-    );
+    )
 }
 
 pub fn compute_tangent(
@@ -304,9 +320,17 @@ pub fn compute_tangent(
     // gather vertex data_list
     for vertex_data_index in 0..vertex_count {
         if is_skeletal_mesh {
-            positions.push(skeletal_vertex_data_list[vertex_data_index]._position.clone());
+            positions.push(
+                skeletal_vertex_data_list[vertex_data_index]
+                    ._position
+                    .clone(),
+            );
             normals.push(skeletal_vertex_data_list[vertex_data_index]._normal.clone());
-            texcoords.push(skeletal_vertex_data_list[vertex_data_index]._texcoord.clone());
+            texcoords.push(
+                skeletal_vertex_data_list[vertex_data_index]
+                    ._texcoord
+                    .clone(),
+            );
         } else {
             positions.push(vertex_data_list[vertex_data_index]._position.clone());
             normals.push(vertex_data_list[vertex_data_index]._normal.clone());
@@ -319,9 +343,13 @@ pub fn compute_tangent(
         geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
     for (vertex_data_index, tangent) in tangents.iter().enumerate() {
         if is_skeletal_mesh {
-            skeletal_vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
+            skeletal_vertex_data_list[vertex_data_index]
+                ._tangent
+                .clone_from(&tangent);
         } else {
-            vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
+            vertex_data_list[vertex_data_index]
+                ._tangent
+                .clone_from(&tangent);
         }
     }
 }
@@ -340,7 +368,7 @@ pub fn parsing_inverse_bind_matrices(
     assert_eq!(gltf::accessor::DataType::F32, accessor.data_type());
     assert_eq!(gltf::accessor::Dimensions::Mat4, accessor.dimensions());
     let inverse_bind_matrices: Vec<Matrix4<f32>> = system::convert_vec(bytes);
-    return inverse_bind_matrices;
+    inverse_bind_matrices
 }
 
 pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHierarchyTree) {
@@ -348,7 +376,9 @@ pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHi
         assert!(child_node.mesh().is_none());
         let mut child_hierarchy = SkeletonHierarchyTree::default();
         parsing_bone_hierarchy(&child_node, &mut child_hierarchy);
-        hierarchy._children.insert(child_node.name().unwrap().to_string(), child_hierarchy);
+        hierarchy
+            ._children
+            .insert(child_node.name().unwrap().to_string(), child_hierarchy);
     }
 }
 
@@ -362,10 +392,8 @@ pub fn parsing_skins(
         if armature_node.name().unwrap() == skin.name().unwrap() {
             let m: &[[f32; 4]; 4] = &armature_node.transform().matrix();
             let mut parent_transform: Matrix4<f32> = Matrix4::new(
-                m[0][0], m[1][0], m[2][0], m[3][0],
-                m[0][1], m[1][1], m[2][1], m[3][1],
-                m[0][2], m[1][2], m[2][2], m[3][2],
-                m[0][3], m[1][3], m[2][3], m[3][3]
+                m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2],
+                m[1][2], m[2][2], m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
             );
 
             // inverse bind matrices
@@ -563,7 +591,10 @@ pub fn precompute_animation(
     animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
 
     for (child_bone_name, child_hierarchy) in hierarchy._children.iter() {
-        let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
+        let child_bone_index = bone_names
+            .iter()
+            .position(|bone_name| bone_name == child_bone_name)
+            .unwrap();
         precompute_animation(
             frame_index,
             &transform,
@@ -604,10 +635,8 @@ pub fn parsing_meshes(
         let mesh = node.mesh().unwrap();
         let m: &[[f32; 4]; 4] = &node.transform().matrix();
         let mut parent_transform: Matrix4<f32> = Matrix4::new(
-            m[0][0], m[1][0], m[2][0], m[3][0],
-            m[0][1], m[1][1], m[2][1], m[3][1],
-            m[0][2], m[1][2], m[2][2], m[3][2],
-            m[0][3], m[1][3], m[2][3], m[3][3]
+            m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2],
+            m[1][2], m[2][2], m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
         );
 
         if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
@@ -650,7 +679,8 @@ pub fn parsing_meshes(
                 ),
                 1.0,
             );
-            let bounding_box: BoundingBox = BoundingBox::create_bounding_box(&bound_min, &bound_max);
+            let bounding_box: BoundingBox =
+                BoundingBox::create_bounding_box(&bound_min, &bound_max);
 
             // parsing vertex buffer
             let indices = parsing_index_buffer(&primitive, buffers);
@@ -706,13 +736,20 @@ impl GLTF {
 
             if constants::COMBINED_INVERSE_BIND_MATRIX {
                 let n = mesh_data_create_info._animation_node_create_infos.len();
-                let animation_node_data_list = &mut mesh_data_create_info._animation_node_create_infos[n - 1];
-                let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
+                let animation_node_data_list =
+                    &mut mesh_data_create_info._animation_node_create_infos[n - 1];
+                let skeleton_create_info =
+                    &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
                 let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
-                for (child_bone_name, child_hierarchy) in skeleton_create_info._hierarchy._children.iter() {
-                    let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
+                for (child_bone_name, child_hierarchy) in
+                    skeleton_create_info._hierarchy._children.iter()
+                {
+                    let child_bone_index = bone_names
+                        .iter()
+                        .position(|bone_name| bone_name == child_bone_name)
+                        .unwrap();
                     let total_frame_count = animation_node_data_list[child_bone_index]._times.len();
                     for frame_index in 0..total_frame_count {
                         precompute_animation(

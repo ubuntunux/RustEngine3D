@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_data::BlendMode;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
+use crate::scene::bounding_box::BoundingBox;
 use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::scene::transform_object::TransformObjectData;
-use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
@@ -21,7 +21,7 @@ pub enum ParticleSpawnVolumeType {
     Box = 0,
     Sphere = 1,
     Cone = 2,
-    Cylinder = 3
+    Cylinder = 3,
 }
 
 impl Default for ParticleSpawnVolumeType {
@@ -51,7 +51,7 @@ impl Default for ParticleGeometryType {
 pub enum ParticleAlignMode {
     None = 0,
     Billboard = 1,
-    VelocityAlign = 2
+    VelocityAlign = 2,
 }
 
 impl Default for ParticleAlignMode {
@@ -66,7 +66,7 @@ impl Default for ParticleAlignMode {
 pub enum ParticleVelocityType {
     Local = 0,
     WorldY_LocalXZ = 1,
-    NormalDirection = 2
+    NormalDirection = 2,
 }
 
 impl Default for ParticleVelocityType {
@@ -353,8 +353,12 @@ impl<'a> EffectInstance<'a> {
         }
     }
 
-    pub fn get_effect_id(&self) -> i64 { self._effect_id }
-    pub fn get_effect_name(&self) -> &String { &self._effect_name }
+    pub fn get_effect_id(&self) -> i64 {
+        self._effect_id
+    }
+    pub fn get_effect_name(&self) -> &String {
+        &self._effect_name
+    }
 
     pub fn get_effect_manager(&self) -> &EffectManager<'a> {
         ptr_as_ref(self._effect_manager)
@@ -471,15 +475,22 @@ impl<'a> EmitterInstance<'a> {
                 self._is_alive = false;
             } else {
                 if false == self.is_infinite_emitter()
-                    && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime) < self._elapsed_time {
+                    && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime)
+                        < self._elapsed_time
+                {
                     self._ready_to_destroy = true;
                 } else {
-                    let updated_emitter_transform = self._emitter_transform.update_transform_object();
+                    let updated_emitter_transform =
+                        self._emitter_transform.update_transform_object();
                     if updated_effect_transform || updated_emitter_transform {
-                        self._emitter_world_transform = self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
+                        self._emitter_world_transform =
+                            self.get_parent_effect().get_effect_world_transform()
+                                * &self._emitter_transform._matrix;
                     }
 
-                    if self.is_infinite_emitter() || self._elapsed_time <= emitter_data._emitter_lifetime {
+                    if self.is_infinite_emitter()
+                        || self._elapsed_time <= emitter_data._emitter_lifetime
+                    {
                         if self._remained_spawn_term <= 0.0 {
                             // particle spawn
                             self._particle_spawn_count = self.get_emitter_data()._spawn_count;

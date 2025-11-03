@@ -2,15 +2,15 @@ use std::cmp::{max, min};
 use std::mem::align_of;
 use std::os::raw::c_void;
 
+use crate::constants;
+use crate::renderer::utility::find_memory_type_index;
+use crate::vulkan_context::vulkan_context::{run_commands_once, Layers, MipLevels};
+use crate::vulkan_context::{buffer, debug_utils};
 use ash::ext;
 use ash::util::Align;
 use ash::vk::{Format, Handle};
 use ash::{vk, Device, Instance};
 use nalgebra::Vector4;
-use crate::constants;
-use crate::renderer::utility::find_memory_type_index;
-use crate::vulkan_context::vulkan_context::{run_commands_once, Layers, MipLevels};
-use crate::vulkan_context::{buffer, debug_utils};
 
 #[allow(non_camel_case_types)]
 #[derive(Clone)]
@@ -42,7 +42,7 @@ pub struct TextureCreateInfo<T> {
     pub _enable_mipmap: bool,
     pub _enable_anisotropy: bool,
     pub _texture_initial_data_list: Vec<T>,
-    pub _image_layout_transition: ImageLayoutTransition
+    pub _image_layout_transition: ImageLayoutTransition,
 }
 
 #[derive(Debug, Clone)]
@@ -106,7 +106,7 @@ pub enum ImageLayoutTransition {
     TransferUndefToDepthAttachement,
     TransferUndefToDepthStencilAttachement,
     TransferUndefToColorAttachement,
-    TransferUndefToColorAttachementWithTransferSrc
+    TransferUndefToColorAttachementWithTransferSrc,
 }
 
 #[derive(Debug, Clone)]
@@ -136,7 +136,7 @@ impl<T> Default for TextureCreateInfo<T> {
             _enable_mipmap: false,
             _enable_anisotropy: false,
             _texture_initial_data_list: Vec::new(),
-            _image_layout_transition: ImageLayoutTransition::None
+            _image_layout_transition: ImageLayoutTransition::None,
         }
     }
 }
@@ -204,7 +204,9 @@ impl TextureData {
     }
 }
 
-pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) -> TransitionDependent {
+pub fn get_transition_dependent(
+    image_layout_transition: ImageLayoutTransition,
+) -> TransitionDependent {
     match image_layout_transition {
         ImageLayoutTransition::TransferUndefToTransferDst => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
@@ -234,34 +236,45 @@ pub fn get_transition_dependent(image_layout_transition: ImageLayoutTransition) 
             _old_layout: vk::ImageLayout::UNDEFINED,
             _new_layout: vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
-            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+                | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
         },
         ImageLayoutTransition::TransferUndefToDepthStencilAttachement => TransitionDependent {
             _old_layout: vk::ImageLayout::UNDEFINED,
             _new_layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             _src_access_mask: vk::AccessFlags::empty(),
-            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+            _dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
             _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+            _dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+                | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
         },
-        ImageLayoutTransition::None | ImageLayoutTransition::TransferUndefToColorAttachement => TransitionDependent {
-            _old_layout: vk::ImageLayout::UNDEFINED,
-            _new_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            _src_access_mask: vk::AccessFlags::empty(),
-            _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-            _dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        },
-        ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc => TransitionDependent {
-            _old_layout: vk::ImageLayout::UNDEFINED,
-            _new_layout: vk::ImageLayout::GENERAL,
-            _src_access_mask: vk::AccessFlags::empty(),
-            _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::TRANSFER_READ,
-            _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-            _dst_stage_mask: vk::PipelineStageFlags::ALL_COMMANDS,
-        },
+        ImageLayoutTransition::None | ImageLayoutTransition::TransferUndefToColorAttachement => {
+            TransitionDependent {
+                _old_layout: vk::ImageLayout::UNDEFINED,
+                _new_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                _src_access_mask: vk::AccessFlags::empty(),
+                _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
+                    | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+                _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
+                _dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            }
+        }
+        ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc => {
+            TransitionDependent {
+                _old_layout: vk::ImageLayout::UNDEFINED,
+                _new_layout: vk::ImageLayout::GENERAL,
+                _src_access_mask: vk::AccessFlags::empty(),
+                _dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
+                    | vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+                    | vk::AccessFlags::TRANSFER_READ,
+                _src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
+                _dst_stage_mask: vk::PipelineStageFlags::ALL_COMMANDS,
+            }
+        }
     }
 }
 
@@ -1074,52 +1087,72 @@ fn create_texture_data_inner<T: Copy>(
         1
     };
 
-    let common_usage = vk::ImageUsageFlags::SAMPLED | vk::ImageUsageFlags::TRANSFER_SRC | vk::ImageUsageFlags::TRANSFER_DST;
+    let common_usage = vk::ImageUsageFlags::SAMPLED
+        | vk::ImageUsageFlags::TRANSFER_SRC
+        | vk::ImageUsageFlags::TRANSFER_DST;
     let (image_usage, image_aspect, image_layout_transition, image_format, image_layout) =
         if is_render_target {
             if constants::DEPTH_FORMATS.contains(&texture_create_info._texture_format) {
-                (common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-                 vk::ImageAspectFlags::DEPTH,
-                 ImageLayoutTransition::TransferUndefToDepthAttachement,
-                 find_supported_format(
-                     instance,
-                     physical_device,
-                     texture_create_info._texture_format,
-                     vk::ImageTiling::OPTIMAL,
-                     vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
-                 ),
-                 vk::ImageLayout::GENERAL)
-            } else if constants::DEPTH_STENCIL_FORMATS.contains(&texture_create_info._texture_format) {
-                (common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-                 vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL,
-                 ImageLayoutTransition::TransferUndefToDepthStencilAttachement,
-                 find_supported_format(
-                     instance,
-                     physical_device,
-                     texture_create_info._texture_format,
-                     vk::ImageTiling::OPTIMAL,
-                     vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
-                 ),
-                 vk::ImageLayout::GENERAL)
+                (
+                    common_usage
+                        | vk::ImageUsageFlags::INPUT_ATTACHMENT
+                        | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                    vk::ImageAspectFlags::DEPTH,
+                    ImageLayoutTransition::TransferUndefToDepthAttachement,
+                    find_supported_format(
+                        instance,
+                        physical_device,
+                        texture_create_info._texture_format,
+                        vk::ImageTiling::OPTIMAL,
+                        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+                    ),
+                    vk::ImageLayout::GENERAL,
+                )
+            } else if constants::DEPTH_STENCIL_FORMATS
+                .contains(&texture_create_info._texture_format)
+            {
+                (
+                    common_usage
+                        | vk::ImageUsageFlags::INPUT_ATTACHMENT
+                        | vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+                    vk::ImageAspectFlags::DEPTH | vk::ImageAspectFlags::STENCIL,
+                    ImageLayoutTransition::TransferUndefToDepthStencilAttachement,
+                    find_supported_format(
+                        instance,
+                        physical_device,
+                        texture_create_info._texture_format,
+                        vk::ImageTiling::OPTIMAL,
+                        vk::FormatFeatureFlags::DEPTH_STENCIL_ATTACHMENT,
+                    ),
+                    vk::ImageLayout::GENERAL,
+                )
             } else {
-                (common_usage | vk::ImageUsageFlags::INPUT_ATTACHMENT | vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::STORAGE,
-                 vk::ImageAspectFlags::COLOR,
-                 ImageLayoutTransition::TransferUndefToColorAttachement,
-                 texture_create_info._texture_format,
-                 vk::ImageLayout::GENERAL)
+                (
+                    common_usage
+                        | vk::ImageUsageFlags::INPUT_ATTACHMENT
+                        | vk::ImageUsageFlags::COLOR_ATTACHMENT
+                        | vk::ImageUsageFlags::STORAGE,
+                    vk::ImageAspectFlags::COLOR,
+                    ImageLayoutTransition::TransferUndefToColorAttachement,
+                    texture_create_info._texture_format,
+                    vk::ImageLayout::GENERAL,
+                )
             }
         } else {
-            (common_usage,
-             vk::ImageAspectFlags::COLOR,
-             ImageLayoutTransition::TransferUndefToTransferDst,
-             texture_create_info._texture_format,
-             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL)
+            (
+                common_usage,
+                vk::ImageAspectFlags::COLOR,
+                ImageLayoutTransition::TransferUndefToTransferDst,
+                texture_create_info._texture_format,
+                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            )
         };
-    let image_layout_transition = if texture_create_info._image_layout_transition != ImageLayoutTransition::None {
-        texture_create_info._image_layout_transition
-    } else {
-        image_layout_transition
-    };
+    let image_layout_transition =
+        if texture_create_info._image_layout_transition != ImageLayoutTransition::None {
+            texture_create_info._image_layout_transition
+        } else {
+            image_layout_transition
+        };
     let image_type = image_view_type_to_image_type(texture_create_info._texture_view_type);
 
     // we don't need to access the vk::DeviceMemory of the image, copyBufferToImage works with the vk::Image
@@ -1344,10 +1377,12 @@ pub fn read_texture_data(
     command_queue: vk::Queue,
     memory_properties: &vk::PhysicalDeviceMemoryProperties,
     debug_utils_device: &ext::debug_utils::Device,
-    texture_data: &TextureData
+    texture_data: &TextureData,
 ) -> TextureRawData {
     let buffer_size = unsafe {
-        device.get_image_memory_requirements(texture_data._image).size
+        device
+            .get_image_memory_requirements(texture_data._image)
+            .size
     };
 
     // create temporary staging buffer
@@ -1390,12 +1425,12 @@ pub fn read_texture_data(
             let mut read_data: Vec<f32> = vec![0.0; element_count as usize];
             buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
             texture_raw_data = TextureRawData::R32(read_data);
-        },
+        }
         Format::R8G8B8A8_UNORM => {
             let mut read_data: Vec<Vector4<u8>> = vec![Vector4::zeros(); element_count as usize];
             buffer::read_buffer_data(device, &staging_buffer_data, 0, &mut *read_data);
             texture_raw_data = TextureRawData::R8G8B8A8_UNORM(read_data);
-        },
+        }
         _ => {
             panic!("Not implemented yet: {:?}", texture_data._image_format);
         }

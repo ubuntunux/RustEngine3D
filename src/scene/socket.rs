@@ -1,14 +1,14 @@
-use nalgebra::{Matrix4, Vector3};
-use serde::{Deserialize, Serialize};
 use crate::utilities::math;
 use crate::utilities::system::RcRefCell;
+use nalgebra::{Matrix4, Vector3};
+use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 pub struct SocketDataCreateInfo {
     pub _parent_bone: String,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
-    pub _scale: Vector3<f32>
+    pub _scale: Vector3<f32>,
 }
 
 impl Default for SocketDataCreateInfo {
@@ -26,19 +26,23 @@ impl Default for SocketDataCreateInfo {
 pub struct SocketData {
     pub _socket_name: String,
     pub _parent_bone_index: usize,
-    pub _local_transform: Matrix4<f32>
+    pub _local_transform: Matrix4<f32>,
 }
 
 impl SocketData {
-    pub fn create_socket_data(socket_name: &String, socket_data_info: &SocketDataCreateInfo, parent_bone_index: usize) -> SocketData {
+    pub fn create_socket_data(
+        socket_name: &String,
+        socket_data_info: &SocketDataCreateInfo,
+        parent_bone_index: usize,
+    ) -> SocketData {
         SocketData {
             _socket_name: socket_name.clone(),
             _parent_bone_index: parent_bone_index,
             _local_transform: math::make_srt_transform(
                 &socket_data_info._position,
                 &socket_data_info._rotation,
-                &socket_data_info._scale
-            )
+                &socket_data_info._scale,
+            ),
         }
     }
 }
@@ -46,11 +50,14 @@ impl SocketData {
 #[derive(Debug, Clone)]
 pub struct Socket {
     pub _socket_data: RcRefCell<SocketData>,
-    pub _transform: Matrix4<f32>
+    pub _transform: Matrix4<f32>,
 }
 
 impl Socket {
-    pub fn create_socket(socket_data: &RcRefCell<SocketData>, parent_bone_transform: &Matrix4<f32>) -> Socket {
+    pub fn create_socket(
+        socket_data: &RcRefCell<SocketData>,
+        parent_bone_transform: &Matrix4<f32>,
+    ) -> Socket {
         let mut socket = Socket {
             _socket_data: socket_data.clone(),
             _transform: Default::default(),

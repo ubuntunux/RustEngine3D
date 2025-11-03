@@ -1,6 +1,6 @@
-use ash::{Device, vk};
 use ash::ext;
 use ash::vk::BaseOutStructure;
+use ash::{vk, Device};
 
 use crate::constants;
 use crate::scene::material_instance::PipelineBindingData;
@@ -10,7 +10,8 @@ use crate::vulkan_context::render_pass::RenderPassData;
 use crate::vulkan_context::texture::TextureData;
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
-pub type DescriptorResourceInfoBySemantic<'a> = (String, SwapchainArray<DescriptorResourceInfo<'a>>);
+pub type DescriptorResourceInfoBySemantic<'a> =
+    (String, SwapchainArray<DescriptorResourceInfo<'a>>);
 
 pub fn create_swapchain_array<T: Clone>(a: T) -> SwapchainArray<T> {
     vec![a; constants::SWAPCHAIN_IMAGE_COUNT]
@@ -122,12 +123,22 @@ pub fn create_descriptor_sets_by_semantic<'a>(
         .iter()
         .map(|descriptor_data_create_info| descriptor_data_create_info._descriptor_binding_index)
         .collect();
-    let mut new_descriptor_resource_infos_list = pipeline_binding_data._descriptor_resource_infos_list.clone();
+    let mut new_descriptor_resource_infos_list = pipeline_binding_data
+        ._descriptor_resource_infos_list
+        .clone();
     for (descriptor_semantic, descriptor_resource_infos) in descriptor_resource_infos_by_semantic {
-        for (index, descriptor_data_create_info) in descriptor_data._descriptor_data_create_infos.iter().enumerate() {
-            if descriptor_data_create_info._descriptor_semantic.eq(descriptor_semantic) {
+        for (index, descriptor_data_create_info) in descriptor_data
+            ._descriptor_data_create_infos
+            .iter()
+            .enumerate()
+        {
+            if descriptor_data_create_info
+                ._descriptor_semantic
+                .eq(descriptor_semantic)
+            {
                 for swapchain_index in constants::SWAPCHAIN_IMAGE_INDICES.iter() {
-                    new_descriptor_resource_infos_list[*swapchain_index][index] = descriptor_resource_infos[*swapchain_index].clone();
+                    new_descriptor_resource_infos_list[*swapchain_index][index] =
+                        descriptor_resource_infos[*swapchain_index].clone();
                 }
             }
         }
@@ -172,7 +183,7 @@ pub fn create_framebuffer_and_descriptor_sets<'a>(
         device,
         debug_utils_device,
         pipeline_binding_data,
-        descriptor_resource_infos_by_semantic
+        descriptor_resource_infos_by_semantic,
     );
     (framebuffer_data, descriptor_sets)
 }

@@ -1,7 +1,6 @@
 use std::cmp::max;
 use std::num::Wrapping;
 
-use ash::{Device, vk};
 use crate::render_pass::common::downsampling;
 use crate::render_pass::fft_ocean::render_fft_waves;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
@@ -16,6 +15,7 @@ use crate::vulkan_context::framebuffer::{self, FramebufferData};
 use crate::vulkan_context::geometry_buffer::{self, GeometryData};
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::vulkan_context::{Layers, MipLevels, SwapchainArray};
+use ash::{vk, Device};
 
 const CM: f64 = 0.23;
 const KM: f64 = 370.0;
@@ -365,12 +365,15 @@ impl<'a> FFTOcean<'a> {
 
         // fft waves
         let mip_level = 0;
-        let material_instance = engine_resources.get_material_instance_data("fft_ocean/render_fft_ocean").borrow();
+        let material_instance = engine_resources
+            .get_material_instance_data("fft_ocean/render_fft_ocean")
+            .borrow();
         let texture_fft_a = renderer_data.get_render_target(RenderTargetType::FFT_A);
         let texture_fft_b = renderer_data.get_render_target(RenderTargetType::FFT_B);
 
         // fft wave x
-        let pipeline_binding_data = material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
+        let pipeline_binding_data =
+            material_instance.get_pipeline_binding_data("render_fft_waves/render_fft_x");
         self._fft_wave_x_fft_a_framebuffer = utility::create_framebuffer_2d_array(
             device,
             debug_utils_device,
@@ -468,8 +471,18 @@ impl<'a> FFTOcean<'a> {
                     debug_utils_device,
                     pipeline_binding_data,
                     &[
-                        (downsampling::SEMANTIC_IMAGE_INPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_sub_image_info(layer, mip_level))),
-                        (downsampling::SEMANTIC_IMAGE_OUTPUT.to_string(), utility::create_descriptor_image_info_swapchain_array(texture_fft_a.get_sub_image_info(layer, mip_level + 1)))
+                        (
+                            downsampling::SEMANTIC_IMAGE_INPUT.to_string(),
+                            utility::create_descriptor_image_info_swapchain_array(
+                                texture_fft_a.get_sub_image_info(layer, mip_level),
+                            ),
+                        ),
+                        (
+                            downsampling::SEMANTIC_IMAGE_OUTPUT.to_string(),
+                            utility::create_descriptor_image_info_swapchain_array(
+                                texture_fft_a.get_sub_image_info(layer, mip_level + 1),
+                            ),
+                        ),
                     ],
                 );
                 self._fft_a_generate_mips_descriptor_sets
@@ -522,7 +535,7 @@ impl<'a> FFTOcean<'a> {
         let sigma = 0.08 * (1.0 + 4.0 / Omega.powf(3.0));
         let Gamma = (-1.0 / (2.0 * sqr(sigma)) * sqr((k / kp).sqrt() - 1.0)).exp();
         let Jp = gamma.powf(Gamma);
-        let Fp = Lpm * Jp * (-Omega / (10.0f64).sqrt() * ((k / kp).sqrt() - 1.0)).exp();
+        let Fp = Lpm * Jp * (-Omega / 10.0f64.sqrt() * ((k / kp).sqrt() - 1.0)).exp();
         let alphap = 0.006 * Omega.sqrt();
         let mut Bl = 0.5 * alphap * cp / c * Fp;
         let mut alpham = 0.01;
@@ -574,8 +587,8 @@ impl<'a> FFTOcean<'a> {
 
     fn compute_butterfly_lookup_texture(&self, butterfly_data: &mut Vec<f32>) {
         for i in 0..PASSES {
-            let blocks: i32 = (2.0f64).powf((PASSES - 1 - i) as f64) as i32;
-            let inputs: i32 = (2.0f64).powf(i as f64) as i32;
+            let blocks: i32 = 2.0f64.powf((PASSES - 1 - i) as f64) as i32;
+            let inputs: i32 = 2.0f64.powf(i as f64) as i32;
             for j in 0..blocks {
                 for k in 0..inputs {
                     let i1: i32;

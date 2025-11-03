@@ -74,7 +74,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(BlendOperation::None);
+            vulkan_context::get_color_blend_operation(
+                BlendOperation::None
+            );
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {

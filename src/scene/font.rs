@@ -1,7 +1,7 @@
 use std::cmp::max;
 
-use ash::{Device, vk};
 use ash::ext;
+use ash::{vk, Device};
 use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +10,7 @@ use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
-use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
+use crate::resource::resource::{EngineResources, DEFAULT_FONT_NAME};
 use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{newRcRefCell, RcRefCell};
 use crate::vulkan_context::buffer;
@@ -181,7 +181,7 @@ pub struct FontManager {
     pub _show: bool,
     pub _logs: Vec<String>,
     pub _text_render_data: TextRenderData,
-    pub _quad_mesh: GeometryData
+    pub _quad_mesh: GeometryData,
 }
 
 impl FontVertexData {
@@ -204,7 +204,7 @@ impl VertexDataBase for FontVertexData {
     fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: std::mem::size_of::<FontVertexData>() as u32,
+            stride: size_of::<FontVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX,
         }]
     }
@@ -256,7 +256,10 @@ impl TextRenderData {
             device,
             debug_utils_device,
             render_font_pipeline_binding_data,
-            &[(render_font::SEMANTIC_TEXTURE_FONT.to_string(), utility::create_swapchain_array(font_texture_image_info.clone()))],
+            &[(
+                render_font::SEMANTIC_TEXTURE_FONT.to_string(),
+                utility::create_swapchain_array(font_texture_image_info.clone()),
+            )],
         );
     }
 
@@ -345,7 +348,7 @@ impl FontManager {
             _show: true,
             _logs: Vec::new(),
             _text_render_data: TextRenderData::default(),
-            _quad_mesh: GeometryData::default()
+            _quad_mesh: GeometryData::default(),
         })
     }
 
@@ -494,10 +497,15 @@ impl FontManager {
                 skip_check,
             );
             let font_data = self._ascii.borrow();
-            let framebuffer_data = engine_resources.get_framebuffer_data("render_font").borrow();
-            let material_instance_data = engine_resources.get_material_instance_data("ui/render_font").borrow();
+            let framebuffer_data = engine_resources
+                .get_framebuffer_data("render_font")
+                .borrow();
+            let material_instance_data = engine_resources
+                .get_material_instance_data("ui/render_font")
+                .borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-            let render_font_descriptor_sets = Some(&self._text_render_data._render_font_descriptor_sets);
+            let render_font_descriptor_sets =
+                Some(&self._text_render_data._render_font_descriptor_sets);
             let font_width_ratio = font_data._font_size.x / font_data._font_size.y;
             let font_size = Vector2::new(
                 render_text_info._render_font_size as f32 * font_width_ratio,
@@ -516,8 +524,10 @@ impl FontManager {
 
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
-            let upload_data = &self._text_render_data._font_instance_data_list[0..text_count as usize];
-            let shader_buffer = renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
+            let upload_data =
+                &self._text_render_data._font_instance_data_list[0..text_count as usize];
+            let shader_buffer =
+                renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
             renderer_context.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,

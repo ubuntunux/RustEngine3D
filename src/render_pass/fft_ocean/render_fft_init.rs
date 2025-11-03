@@ -67,7 +67,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_cull_mode: vk::CullModeFlags::BACK,
         _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(BlendOperation::None);
+            vulkan_context::get_color_blend_operation(
+                BlendOperation::None
+            );
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),

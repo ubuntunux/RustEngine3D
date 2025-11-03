@@ -1,8 +1,12 @@
-use ash::{ext, vk, Device};
-use nalgebra::{Vector2, Vector3};
 use crate::constants;
-use crate::effect::effect_manager::{GpuParticleCountBufferData, GpuParticleDynamicConstants, GpuParticleStaticConstants, GpuParticleUpdateBufferData};
-use crate::renderer::shader_buffer_data::{AtmosphereConstants, RegisterShaderBufferCreateInfo, SceneConstants, ShaderBufferDataMap, ShaderBufferDataType, ShadowAOConstants, TransformMatrices, TransformOffsets, ViewConstants};
+use crate::effect::effect_manager::{
+    GpuParticleCountBufferData, GpuParticleDynamicConstants, GpuParticleStaticConstants,
+    GpuParticleUpdateBufferData,
+};
+use crate::renderer::shader_buffer_data::{
+    AtmosphereConstants, RegisterShaderBufferCreateInfo, SceneConstants, ShaderBufferDataMap,
+    ShaderBufferDataType, ShadowAOConstants, TransformMatrices, TransformOffsets, ViewConstants,
+};
 use crate::scene::camera::CameraObjectData;
 use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::scene::debug_line::DebugLineInstanceData;
@@ -11,6 +15,8 @@ use crate::scene::light::{LightData, LightIndicesCell, PointLights};
 use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer;
+use ash::{ext, vk, Device};
+use nalgebra::{Vector2, Vector3};
 
 impl SceneConstants {
     pub fn update_scene_constants(
@@ -35,15 +41,21 @@ impl SceneConstants {
         self._max_emitter_count = unsafe { constants::MAX_EMITTER_COUNT };
         self._gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset;
         self._gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset;
-        self._prev_gpu_particle_count_buffer_offset = unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
-        self._prev_gpu_particle_update_buffer_offset = unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
+        self._prev_gpu_particle_count_buffer_offset =
+            unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
+        self._prev_gpu_particle_update_buffer_offset =
+            unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
         self._render_point_light_count = render_point_light_count;
         self._elapsed_frame = elapsed_frame as u32;
     }
 }
 
 impl ViewConstants {
-    pub fn update_view_constants<'a>(&mut self, camera_data: &CameraObjectData, capture_height_map: &CaptureHeightMap<'a>) {
+    pub fn update_view_constants<'a>(
+        &mut self,
+        camera_data: &CameraObjectData,
+        capture_height_map: &CaptureHeightMap<'a>,
+    ) {
         self._view = camera_data._view.into();
         self._inv_view = camera_data._inv_view.into();
         self._view_origin = camera_data._view_origin.into();
@@ -60,15 +72,21 @@ impl ViewConstants {
         self._view_projection_jitter = camera_data._view_projection_jitter.into();
         self._inv_view_projection_jitter = camera_data._inv_view_projection_jitter.into();
         self._view_origin_projection_jitter = camera_data._view_origin_projection_jitter.into();
-        self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
-        self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
-        self._camera_position = camera_data._transform_object.get_position().clone() as Vector3<f32>;
+        self._inv_view_origin_projection_jitter =
+            camera_data._inv_view_origin_projection_jitter.into();
+        self._view_origin_projection_prev_jitter =
+            camera_data._view_origin_projection_prev_jitter.into();
+        self._camera_position =
+            camera_data._transform_object.get_position().clone() as Vector3<f32>;
         if capture_height_map.need_to_render_height_map() {
-            self._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
-            self._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
+            self._capture_height_map_view_projection =
+                capture_height_map.get_shadow_view_projection().clone();
+            self._inv_capture_height_map_view_projection =
+                capture_height_map.get_inv_shadow_view_projection().clone();
         }
         self._jitter_frame = camera_data._jitter_frame;
-        self._camera_position_prev = camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
+        self._camera_position_prev =
+            camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
         self._view_constants_dummy0 = 0.0;
         self._near_far = Vector2::new(camera_data._near, camera_data._far);
         self._jitter_delta = camera_data._jitter_delta.into();
@@ -84,7 +102,8 @@ impl ShaderBufferDataType {
         shader_buffer_create_info: &mut RegisterShaderBufferCreateInfo,
     ) {
         unsafe {
-            let buffer_data_size = shader_buffer_create_info._shader_buffer_data_stride * shader_buffer_create_info._shader_buffer_data_count;
+            let buffer_data_size = shader_buffer_create_info._shader_buffer_data_stride
+                * shader_buffer_create_info._shader_buffer_data_count;
             let uniform_buffer_data = buffer::create_shader_buffer_data(
                 &*shader_buffer_create_info._device,
                 &*shader_buffer_create_info._memory_properties,
@@ -380,7 +399,17 @@ impl ShaderBufferDataType {
         debug_utils_device: &ext::debug_utils::Device,
         shader_buffer_data_map: &mut ShaderBufferDataMap,
     ) {
-        ShaderBufferDataType::register_uniform_buffers(device, memory_properties, debug_utils_device, shader_buffer_data_map);
-        ShaderBufferDataType::register_storage_buffers(device, memory_properties, debug_utils_device, shader_buffer_data_map);
+        ShaderBufferDataType::register_uniform_buffers(
+            device,
+            memory_properties,
+            debug_utils_device,
+            shader_buffer_data_map,
+        );
+        ShaderBufferDataType::register_storage_buffers(
+            device,
+            memory_properties,
+            debug_utils_device,
+            shader_buffer_data_map,
+        );
     }
 }

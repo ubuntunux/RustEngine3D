@@ -109,7 +109,7 @@ pub const DEFAULT_RENDER_PASS_NAME: &str = "render_pass_static_opaque";
 
 pub type CallbackLoadRenderPassCreateInfo = fn(
     renderer_context: &RendererContext,
-    render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap
+    render_pass_data_create_info_map: &mut RenderPassDataCreateInfoMap,
 );
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -174,7 +174,6 @@ pub type DescriptorDataMap<'a> = ResourceDataContainer<DescriptorData<'a>>;
 pub type MetaDataMap = ResourceDataContainer<MetaData>;
 type LoadImageInfoType = (u32, u32, u32, Vec<u8>, vk::Format);
 
-
 pub struct EngineResources<'a> {
     pub _relative_resource_file_path_map: HashMap<PathBuf, PathBuf>,
     pub _animation_layer_data_map: AnimationLayerDataMap,
@@ -195,18 +194,33 @@ pub struct EngineResources<'a> {
     pub _callback_load_render_pass_create_infos: *const CallbackLoadRenderPassCreateInfo,
 }
 
-fn walk_directory_recursive(dir: &Path, include_extensions: &[&str], ignore_extensions: &[&str], out_contents: &mut Vec<PathBuf>) {
+fn walk_directory_recursive(
+    dir: &Path,
+    include_extensions: &[&str],
+    ignore_extensions: &[&str],
+    out_contents: &mut Vec<PathBuf>,
+) {
     let contents = fs::read_dir(dir).unwrap();
     for content in contents {
         let content = content.unwrap().path();
         if content.is_dir() {
-            walk_directory_recursive(&content, include_extensions, ignore_extensions, out_contents);
+            walk_directory_recursive(
+                &content,
+                include_extensions,
+                ignore_extensions,
+                out_contents,
+            );
         } else {
             let ext = content.extension();
-            if !ignore_extensions.is_empty() && ext.is_some() && ignore_extensions.contains(&ext.unwrap().to_str().unwrap()) {
+            if !ignore_extensions.is_empty()
+                && ext.is_some()
+                && ignore_extensions.contains(&ext.unwrap().to_str().unwrap())
+            {
                 continue;
-            }
-            else if !include_extensions.is_empty() && ext.is_some() && !include_extensions.contains(&ext.unwrap().to_str().unwrap()) {
+            } else if !include_extensions.is_empty()
+                && ext.is_some()
+                && !include_extensions.contains(&ext.unwrap().to_str().unwrap())
+            {
                 continue;
             }
 
@@ -216,9 +230,18 @@ fn walk_directory_recursive(dir: &Path, include_extensions: &[&str], ignore_exte
     }
 }
 
-pub fn walk_directory(dir: &Path, include_extensions: &[&str], ignore_extensions: &[&str]) -> Vec<PathBuf> {
+pub fn walk_directory(
+    dir: &Path,
+    include_extensions: &[&str],
+    ignore_extensions: &[&str],
+) -> Vec<PathBuf> {
     let mut out_contents: Vec<PathBuf> = Vec::new();
-    walk_directory_recursive(dir, include_extensions, ignore_extensions, &mut out_contents);
+    walk_directory_recursive(
+        dir,
+        include_extensions,
+        ignore_extensions,
+        &mut out_contents,
+    );
     out_contents
 }
 
@@ -228,7 +251,7 @@ pub fn get_resource_data_must<'a, T>(
     resource_name: &str,
 ) -> &'a RcRefCell<T> {
     if let Some(resource) = resource_data_map.get(resource_name) {
-        return resource
+        return resource;
     };
     panic!("not found {}: {:?}", resource_type, resource_name);
 }
@@ -326,9 +349,12 @@ impl MetaData {
             };
 
             let mut write_meta_file = File::create(&meta_file_path).expect("Failed to create file");
-            let mut write_meta_contents: String = serde_json::to_string(&meta_data).expect("Failed to serialize.");
+            let mut write_meta_contents: String =
+                serde_json::to_string(&meta_data).expect("Failed to serialize.");
             write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
-            write_meta_file.write(write_meta_contents.as_bytes()).expect("Failed to write");
+            write_meta_file
+                .write(write_meta_contents.as_bytes())
+                .expect("Failed to write");
             meta_data
         };
 
@@ -338,7 +364,7 @@ impl MetaData {
 
 impl<'a> EngineResources<'a> {
     pub fn create_engine_resources(
-        callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo
+        callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo,
     ) -> Box<EngineResources<'a>> {
         let mut engine_resource = EngineResources {
             _relative_resource_file_path_map: HashMap::new(),
@@ -374,10 +400,15 @@ impl<'a> EngineResources<'a> {
 
             // create resources.txt file
             let include_extensions: &[&str] = &[];
-            let ignore_extensions: &[&str] = &[ "log" ];
-            let mut application_resource_files = walk_directory(&Path::new(APPLICATION_RESOURCE_PATH), include_extensions, ignore_extensions);
+            let ignore_extensions: &[&str] = &["log"];
+            let mut application_resource_files = walk_directory(
+                &Path::new(APPLICATION_RESOURCE_PATH),
+                include_extensions,
+                ignore_extensions,
+            );
             application_resource_files.sort();
-            let mut write_file = File::create(&resource_list_file_path).expect("Failed to create file");
+            let mut write_file =
+                File::create(&resource_list_file_path).expect("Failed to create file");
             for file_path in application_resource_files {
                 if let Some(filename) = file_path.file_name() {
                     if "empty" == filename {
@@ -437,11 +468,14 @@ impl<'a> EngineResources<'a> {
         let mut engine_resource_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_path.is_dir() {
             let engine_font_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_DIRECTORY);
-            let engine_font_texture_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
-            let engine_shader_cache_path = PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_font_texture_path =
+                PathBuf::from(ENGINE_RESOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_path =
+                PathBuf::from(ENGINE_RESOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
             let include_extensions: &[&str] = &[];
-            let ignore_extensions: &[&str] = &[ "log" ];
-            let engine_resource_files = walk_directory(&engine_resource_path, include_extensions, ignore_extensions);
+            let ignore_extensions: &[&str] = &["log"];
+            let engine_resource_files =
+                walk_directory(&engine_resource_path, include_extensions, ignore_extensions);
             for file_path in engine_resource_files.iter() {
                 if false == file_path.starts_with(&engine_font_path)
                     && false == file_path.starts_with(&engine_font_texture_path)
@@ -455,12 +489,19 @@ impl<'a> EngineResources<'a> {
         // build engine_resource_source_file_map
         let mut engine_resource_source_file_map: HashMap<PathBuf, PathBuf> = HashMap::new();
         if engine_resource_source_path.is_dir() {
-            let engine_font_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
-            let engine_font_texture_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
-            let engine_shader_cache_source_path = PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
+            let engine_font_source_path =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_DIRECTORY);
+            let engine_font_texture_source_path =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(FONT_TEXTURE_DIRECTORY);
+            let engine_shader_cache_source_path =
+                PathBuf::from(ENGINE_RESOURCE_SOURCE_PATH).join(SHADER_CACHE_DIRECTORY);
             let include_extensions: &[&str] = &[];
-            let ignore_extensions: &[&str] = &[ "log" ];
-            let engine_resource_source_files = walk_directory(&engine_resource_source_path, include_extensions, ignore_extensions);
+            let ignore_extensions: &[&str] = &["log"];
+            let engine_resource_source_files = walk_directory(
+                &engine_resource_source_path,
+                include_extensions,
+                ignore_extensions,
+            );
             for file_path in engine_resource_source_files.iter() {
                 if false == file_path.starts_with(&engine_font_source_path)
                     && false == file_path.starts_with(&engine_font_texture_source_path)
@@ -594,7 +635,10 @@ impl<'a> EngineResources<'a> {
         for (relative_filepath, resource_filename) in self._relative_resource_file_path_map.iter() {
             if relative_filepath.starts_with(directory) {
                 let ext = resource_filename.extension();
-                if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap().to_lowercase().as_str()))
+                if extensions.is_empty()
+                    || (ext.is_some()
+                        && extensions
+                            .contains(&ext.unwrap().to_str().unwrap().to_lowercase().as_str()))
                 {
                     out_engine_resources.push(PathBuf::from(resource_filename));
                 }
@@ -607,12 +651,17 @@ impl<'a> EngineResources<'a> {
     pub fn load_animation_layer_data_list(&mut self) {
         log::info!("    load_animation_layer_data_list");
         let animation_layer_directory = PathBuf::from(ANIMATION_LAYER_DIRECTORY);
-        let animation_layer_files: Vec<PathBuf> = self.collect_resources(&animation_layer_directory, &[EXT_ANIMATION_LAYER]);
+        let animation_layer_files: Vec<PathBuf> =
+            self.collect_resources(&animation_layer_directory, &[EXT_ANIMATION_LAYER]);
         for animation_layer_file in animation_layer_files {
-            let animation_layer_name =
-                get_unique_resource_name(&self._animation_layer_data_map, &animation_layer_directory, &animation_layer_file);
+            let animation_layer_name = get_unique_resource_name(
+                &self._animation_layer_data_map,
+                &animation_layer_directory,
+                &animation_layer_file,
+            );
             let loaded_contents = system::load(&animation_layer_file);
-            let contents: AnimationLayerData = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let contents: AnimationLayerData =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             self._animation_layer_data_map
                 .insert(animation_layer_name.clone(), newRcRefCell(contents));
         }
@@ -627,7 +676,12 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_animation_layer_data(&self, resource_name: &str) -> &RcRefCell<AnimationLayerData> {
-        get_resource_data("animation_layer_data", &self._animation_layer_data_map, resource_name, DEFAULT_ANIMATION_LAYER_NAME)
+        get_resource_data(
+            "animation_layer_data",
+            &self._animation_layer_data_map,
+            resource_name,
+            DEFAULT_ANIMATION_LAYER_NAME,
+        )
     }
 
     // Audio Data
@@ -661,12 +715,22 @@ impl<'a> EngineResources<'a> {
             if unsafe { DEVELOPMENT } {
                 if false == default_audio_bank_file_path.is_file() {
                     let mut default_audio_bank_data_create_info = AudioBankCreateInfo::default();
-                    default_audio_bank_data_create_info._audio_names.push(DEFAULT_AUDIO_NAME.to_string());
-                    log::info!("default_audio_bank_file_path: {:?}", default_audio_bank_file_path);
-                    let mut write_file = File::create(&default_audio_bank_file_path).expect("Failed to create file");
-                    let mut write_contents: String = serde_json::to_string(&default_audio_bank_data_create_info).expect("Failed to serialize.");
+                    default_audio_bank_data_create_info
+                        ._audio_names
+                        .push(DEFAULT_AUDIO_NAME.to_string());
+                    log::info!(
+                        "default_audio_bank_file_path: {:?}",
+                        default_audio_bank_file_path
+                    );
+                    let mut write_file =
+                        File::create(&default_audio_bank_file_path).expect("Failed to create file");
+                    let mut write_contents: String =
+                        serde_json::to_string(&default_audio_bank_data_create_info)
+                            .expect("Failed to serialize.");
                     write_contents = write_contents.replace(",\"", ",\n\"");
-                    write_file.write(write_contents.as_bytes()).expect("Failed to write");
+                    write_file
+                        .write(write_contents.as_bytes())
+                        .expect("Failed to write");
                 }
             }
         }
@@ -742,7 +806,8 @@ impl<'a> EngineResources<'a> {
                                 .expect("Failed to deserialize.");
                         let mut audio_data_list: Vec<RcRefCell<AudioData>> = Vec::new();
                         for audio_name in audio_bank_create_info._audio_names.iter() {
-                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name) {
+                            if let ResourceData::Audio(audio_data) = self.get_audio_data(audio_name)
+                            {
                                 audio_data_list.push(audio_data.clone());
                             }
                         }
@@ -787,7 +852,9 @@ impl<'a> EngineResources<'a> {
                         _velocity_max: Vector3::new(1.0, 15.0, 1.0),
                         _force_min: Vector3::new(0.0, -7.0, 0.0),
                         _force_max: Vector3::new(0.0, -8.0, 0.0),
-                        _material_instance_name: String::from(DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME),
+                        _material_instance_name: String::from(
+                            DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME,
+                        ),
                         _mesh_name: String::from(DEFAULT_MESH_NAME),
                         ..Default::default()
                     }],
@@ -853,7 +920,12 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_effect_data(&self, resource_name: &str) -> &RcRefCell<EffectData<'a>> {
-        get_resource_data("effect_data", &self._effect_data_map, resource_name, DEFAULT_EFFECT_NAME)
+        get_resource_data(
+            "effect_data",
+            &self._effect_data_map,
+            resource_name,
+            DEFAULT_EFFECT_NAME,
+        )
     }
 
     // FontData
@@ -903,7 +975,7 @@ impl<'a> EngineResources<'a> {
         log::info!("    load_font_data_list");
         let mut unicode_blocks: HashMap<String, (u32, u32)> = HashMap::new();
         unicode_blocks.insert(String::from("Basic_Latin"), (0x20, 0x7F)); // 32 ~ 127
-        //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
+                                                                          //unicode_blocks.insert(String::from("Hangul_Syllables"), (0xAC00, 0xD7AF)); // 44032 ~ 55215
 
         // gather font files
         let font_directory = PathBuf::from(FONT_DIRECTORY);
@@ -917,7 +989,8 @@ impl<'a> EngineResources<'a> {
         // load font textures
         let font_texture_directory = PathBuf::from(FONT_TEXTURE_DIRECTORY);
         let font_source_directory = PathBuf::from(FONT_SOURCE_DIRECTORY);
-        let font_source_files: Vec<PathBuf> = self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
+        let font_source_files: Vec<PathBuf> =
+            self.collect_resources(&font_source_directory, &EXT_FONT_SOURCE);
         for font_source_file in font_source_files {
             let is_engine_resource = font_source_file.starts_with(ENGINE_RESOURCE_PATH);
             let resource_root_path: PathBuf;
@@ -937,7 +1010,10 @@ impl<'a> EngineResources<'a> {
 
                 // Gets FontDataCreateInfo and also creates font texture files if needed.
                 let maybe_font_file = font_file_map.get(&font_data_name);
-                let font_data_create_info: FontDataCreateInfo = if unsafe { DEVELOPMENT } && (maybe_font_file.is_none() || false == self.has_texture_data(&font_texture_name)) {
+                let font_data_create_info: FontDataCreateInfo = if unsafe { DEVELOPMENT }
+                    && (maybe_font_file.is_none()
+                        || false == self.has_texture_data(&font_texture_name))
+                {
                     self.get_font_data_create_info(
                         &resource_root_path,
                         &font_directory,
@@ -1028,19 +1104,26 @@ impl<'a> EngineResources<'a> {
         let model_directory = PathBuf::from(MODEL_DIRECTORY);
         let model_files: Vec<PathBuf> = self.collect_resources(&model_directory, &[EXT_MODEL]);
         for model_file in model_files {
-            let model_name = get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
+            let model_name =
+                get_unique_resource_name(&self._model_data_map, &model_directory, &model_file);
             let loaded_contents = system::load(&model_file);
-            let model_data_info: ModelDataInfo = serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
+            let model_data_info: ModelDataInfo =
+                serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
             let material_instance_count = model_data_info._material_instances.len();
             let mesh_data = self.get_mesh_data(model_data_info._mesh.as_str());
             let geometry_data_count = mesh_data.borrow().get_geometry_data_count();
-            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> =
-                (0..geometry_data_count).map(|index| {
+            let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData>> = (0
+                ..geometry_data_count)
+                .map(|index| {
                     if 0 < material_instance_count {
                         let material_index = 0.max(index.min(material_instance_count - 1));
-                        self.get_material_instance_data(&model_data_info._material_instances[material_index]).clone()
+                        self.get_material_instance_data(
+                            &model_data_info._material_instances[material_index],
+                        )
+                        .clone()
                     } else {
-                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME).clone()
+                        self.get_material_instance_data(DEFAULT_MATERIAL_INSTANCE_NAME)
+                            .clone()
                     }
                 })
                 .collect();
@@ -1049,10 +1132,11 @@ impl<'a> EngineResources<'a> {
                 &model_name,
                 &mesh_data,
                 material_instance_data_list,
-                &model_data_info
+                &model_data_info,
             );
 
-            self._model_data_map.insert(model_name.clone(), newRcRefCell(model_data));
+            self._model_data_map
+                .insert(model_name.clone(), newRcRefCell(model_data));
         }
     }
 
@@ -1068,7 +1152,12 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_model_data(&self, resource_name: &str) -> &RcRefCell<ModelData<'a>> {
-        get_resource_data("model_data", &self._model_data_map, resource_name, DEFAULT_MODEL_NAME)
+        get_resource_data(
+            "model_data",
+            &self._model_data_map,
+            resource_name,
+            DEFAULT_MODEL_NAME,
+        )
     }
 
     // Mesh Loader
@@ -1206,7 +1295,12 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_mesh_data(&self, resource_name: &str) -> &RcRefCell<MeshData> {
-        get_resource_data("mesh_data", &self._mesh_data_map, resource_name, DEFAULT_MESH_NAME)
+        get_resource_data(
+            "mesh_data",
+            &self._mesh_data_map,
+            resource_name,
+            DEFAULT_MESH_NAME,
+        )
     }
 
     // TextureLoader
@@ -1325,7 +1419,9 @@ impl<'a> EngineResources<'a> {
             let image_view_type = if EXT_TEXTURE_CUBE == ext {
                 if let Value::Object(texture_cube_faces) = contents {
                     for face in constants::CUBE_TEXTURE_FACES.iter() {
-                        if let Value::String(face_texture_name) = texture_cube_faces.get(*face).unwrap() {
+                        if let Value::String(face_texture_name) =
+                            texture_cube_faces.get(*face).unwrap()
+                        {
                             texture_file_names.push(face_texture_name.clone());
                         }
                     }
@@ -1363,7 +1459,8 @@ impl<'a> EngineResources<'a> {
         }
 
         // load texture from external files
-        let texture_src_files = self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
+        let texture_src_files =
+            self.collect_resources(texture_source_directory.as_path(), &EXT_IMAGE_SOURCE);
         for texture_src_file in texture_src_files.iter() {
             let combined_texture_name = combined_textures_name_map.get(texture_src_file);
             let texture_data_name: String = match combined_texture_name {
@@ -1479,7 +1576,12 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_texture_data(&self, resource_name: &str) -> &RcRefCell<TextureData> {
-        get_resource_data("texture_data", &self._texture_data_map, resource_name, DEFAULT_TEXTURE_NAME)
+        get_resource_data(
+            "texture_data",
+            &self._texture_data_map,
+            resource_name,
+            DEFAULT_TEXTURE_NAME,
+        )
     }
 
     // Framebuffer
@@ -1532,7 +1634,11 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_framebuffer_data(&self, resource_name: &str) -> &RcRefCell<FramebufferData<'a>> {
-        get_resource_data_must("framebuffer_data", &self._framebuffer_data_list_map, resource_name)
+        get_resource_data_must(
+            "framebuffer_data",
+            &self._framebuffer_data_list_map,
+            resource_name,
+        )
     }
 
     // render pass data create info
@@ -1551,7 +1657,7 @@ impl<'a> EngineResources<'a> {
             unsafe {
                 (*self._callback_load_render_pass_create_infos)(
                     renderer_context,
-                    &mut self._render_pass_data_create_info_map
+                    &mut self._render_pass_data_create_info_map,
                 );
             }
         }
@@ -1561,9 +1667,12 @@ impl<'a> EngineResources<'a> {
         self._render_pass_data_create_info_map.clear();
     }
 
-    pub fn get_render_pass_data_create_info(&self, resource_name: &str) -> &RenderPassDataCreateInfo {
+    pub fn get_render_pass_data_create_info(
+        &self,
+        resource_name: &str,
+    ) -> &RenderPassDataCreateInfo {
         if let Some(resource) = self._render_pass_data_create_info_map.get(resource_name) {
-            return resource
+            return resource;
         };
         panic!("not found resource: {:?}", resource_name);
     }
@@ -1579,13 +1688,11 @@ impl<'a> EngineResources<'a> {
                 ._pipeline_data_create_infos
                 .iter()
             {
-                descriptor_data_list.push(
-                    self.get_descriptor_data(
-                        renderer_context,
-                        &render_pass_data_create_info._render_pass_create_info_name,
-                        pipeline_data_create_info,
-                    )
-                );
+                descriptor_data_list.push(self.get_descriptor_data(
+                    renderer_context,
+                    &render_pass_data_create_info._render_pass_create_info_name,
+                    pipeline_data_create_info,
+                ));
             }
             let default_render_pass_data = render_pass::create_render_pass_data(
                 renderer_context,
@@ -1614,7 +1721,11 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_render_pass_data(&self, resource_name: &str) -> &RcRefCell<RenderPassData<'a>> {
-        get_resource_data_must("render_pass_data", &self._render_pass_data_map, resource_name)
+        get_resource_data_must(
+            "render_pass_data",
+            &self._render_pass_data_map,
+            resource_name,
+        )
     }
 
     pub fn get_default_render_pass_data(&self) -> &RcRefCell<RenderPassData<'a>> {
@@ -1767,10 +1878,12 @@ impl<'a> EngineResources<'a> {
             }
 
             // replace texture_font parameter as a matched to default font.
-            if material_instance_name == DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME || material_instance_name == DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME {
+            if material_instance_name == DEFAULT_RENDER_FONT_MATERIAL_INSTANCE_NAME
+                || material_instance_name == DEFAULT_RENDER_UI_MATERIAL_INSTANCE_NAME
+            {
                 material_parameters.insert(
                     String::from(TEXTURE_FONT_MATERIAL_PARAMETER_NAME),
-                    Value::String(String::from("fonts/") + &String::from(DEFAULT_FONT_NAME))
+                    Value::String(String::from("fonts/") + &String::from(DEFAULT_FONT_NAME)),
                 );
             }
 
@@ -1885,7 +1998,11 @@ impl<'a> EngineResources<'a> {
         &self,
         resource_name: &str,
     ) -> &RcRefCell<MaterialInstanceData<'a>> {
-        get_resource_data_must("material_instance_data", &self._material_instance_data_map, resource_name)
+        get_resource_data_must(
+            "material_instance_data",
+            &self._material_instance_data_map,
+            resource_name,
+        )
     }
 
     // Descriptor_data_list
@@ -1915,7 +2032,8 @@ impl<'a> EngineResources<'a> {
                     descriptor_data_create_infos,
                     max_descriptor_pool_count,
                 ));
-                self._descriptor_data_map.insert(descriptor_name, descriptor_data.clone());
+                self._descriptor_data_map
+                    .insert(descriptor_name, descriptor_data.clone());
                 descriptor_data
             }
         }
@@ -1986,6 +2104,10 @@ impl<'a> EngineResources<'a> {
     }
 
     pub fn get_scene_data(&self, resource_name: &str) -> &RcRefCell<SceneDataCreateInfo> {
-        get_resource_data_must("scene_data", &self._scene_data_create_infos_map, resource_name)
+        get_resource_data_must(
+            "scene_data",
+            &self._scene_data_create_infos_map,
+            resource_name,
+        )
     }
 }

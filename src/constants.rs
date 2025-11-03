@@ -3,17 +3,15 @@ use ash::vk;
 pub static mut DEVELOPMENT: bool = false;
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
-pub const DEPTH_FORMATS: [vk::Format; 2] = [
-    vk::Format::D32_SFLOAT,
-    vk::Format::D16_UNORM,
-];
+pub const DEPTH_FORMATS: [vk::Format; 2] = [vk::Format::D32_SFLOAT, vk::Format::D16_UNORM];
 pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D32_SFLOAT_S8_UINT,
     vk::Format::D24_UNORM_S8_UINT,
     vk::Format::D16_UNORM_S8_UINT,
 ];
 pub const CUBE_LAYER_COUNT: usize = 6;
-pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] = ["right", "left", "top", "bottom", "front", "back"];
+pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] =
+    ["right", "left", "top", "bottom", "front", "back"];
 pub const INVALID_QUEUE_INDEX: u32 = u32::MAX;
 pub const WHOLE_LAYERS: u32 = u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = u32::MAX;
@@ -34,7 +32,8 @@ pub const FRAME_INDICES: [u64; MAX_FRAME_COUNT as usize] = [0, 1];
 
 // application configs - default values
 pub static mut VULKAN_API_VERSION: u32 = vk::make_api_version(0, 1, 3, 0);
-pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT = vk::DebugUtilsMessageSeverityFlagsEXT::empty();
+pub static mut DEBUG_MESSAGE_LEVEL: vk::DebugUtilsMessageSeverityFlagsEXT =
+    vk::DebugUtilsMessageSeverityFlagsEXT::empty();
 pub static mut REQUIRED_INSTANCE_LAYERS: Vec<String> = Vec::new();
 pub static mut REQUIRED_DEVICE_EXTENSIONS: Vec<String> = Vec::new();
 pub static mut USE_RAY_TRACING: bool = false;
@@ -64,8 +63,9 @@ pub static mut ENABLE_UPSCALE: bool = false;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const MAX_POINT_LIGHTS: usize = 32; // NOTE: Ensure enum values match in scene_constants.glsl
-pub const LIGHT_GRID_DIMENSION: [usize; 3] = [ 10, 10, 10 ];
-pub const LIGHT_GRID_CELL_COUNT: usize = LIGHT_GRID_DIMENSION[0] * LIGHT_GRID_DIMENSION[1] * LIGHT_GRID_DIMENSION[2];
+pub const LIGHT_GRID_DIMENSION: [usize; 3] = [10, 10, 10];
+pub const LIGHT_GRID_CELL_COUNT: usize =
+    LIGHT_GRID_DIMENSION[0] * LIGHT_GRID_DIMENSION[1] * LIGHT_GRID_DIMENSION[2];
 pub const MAX_LIGHT_COUNT_PER_CELL: usize = 4;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;

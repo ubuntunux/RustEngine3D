@@ -45,56 +45,46 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
 
     let mut copy_cube_map_descriptor_data_create_infos: Vec<DescriptorDataCreateInfo> = Vec::new();
     for layer in 0..6 {
-        copy_cube_map_descriptor_data_create_infos.push(
-            DescriptorDataCreateInfo {
-                _descriptor_semantic: String::from(format!("IMAGE_INPUT_{}", layer)),
-                _descriptor_binding_index: layer,
-                _descriptor_image_layer: layer,
-                ..image_input.clone()
-            }
-        )
+        copy_cube_map_descriptor_data_create_infos.push(DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from(format!("IMAGE_INPUT_{}", layer)),
+            _descriptor_binding_index: layer,
+            _descriptor_image_layer: layer,
+            ..image_input.clone()
+        })
     }
     for layer in 0..6 {
-        copy_cube_map_descriptor_data_create_infos.push(
-            DescriptorDataCreateInfo {
-                _descriptor_semantic: String::from(format!("IMAGE_OUTPUT_{}", layer)),
-                _descriptor_binding_index: 6 + layer,
-                _descriptor_image_layer: layer,
-                ..image_output.clone()
-            }
-        )
+        copy_cube_map_descriptor_data_create_infos.push(DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from(format!("IMAGE_OUTPUT_{}", layer)),
+            _descriptor_binding_index: 6 + layer,
+            _descriptor_image_layer: layer,
+            ..image_output.clone()
+        })
     }
 
     let mut blend_cube_map_descriptor_data_create_infos: Vec<DescriptorDataCreateInfo> = Vec::new();
     for layer in 0..6 {
-        blend_cube_map_descriptor_data_create_infos.push(
-            DescriptorDataCreateInfo {
-                _descriptor_semantic: String::from(format!("IMAGE_INPUT_0_{}", layer)),
-                _descriptor_binding_index: layer,
-                _descriptor_image_layer: layer,
-                ..blend_input_0.clone()
-            }
-        )
+        blend_cube_map_descriptor_data_create_infos.push(DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from(format!("IMAGE_INPUT_0_{}", layer)),
+            _descriptor_binding_index: layer,
+            _descriptor_image_layer: layer,
+            ..blend_input_0.clone()
+        })
     }
     for layer in 0..6 {
-        blend_cube_map_descriptor_data_create_infos.push(
-            DescriptorDataCreateInfo {
-                _descriptor_semantic: String::from(format!("IMAGE_INPUT_1_{}", layer)),
-                _descriptor_binding_index: 6 + layer,
-                _descriptor_image_layer: layer,
-                ..blend_input_1.clone()
-            }
-        )
+        blend_cube_map_descriptor_data_create_infos.push(DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from(format!("IMAGE_INPUT_1_{}", layer)),
+            _descriptor_binding_index: 6 + layer,
+            _descriptor_image_layer: layer,
+            ..blend_input_1.clone()
+        })
     }
     for layer in 0..6 {
-        blend_cube_map_descriptor_data_create_infos.push(
-            DescriptorDataCreateInfo {
-                _descriptor_semantic: String::from(format!("IMAGE_OUTPUT_{}", layer)),
-                _descriptor_binding_index: 12 + layer,
-                _descriptor_image_layer: layer,
-                ..blend_output.clone()
-            }
-        )
+        blend_cube_map_descriptor_data_create_infos.push(DescriptorDataCreateInfo {
+            _descriptor_semantic: String::from(format!("IMAGE_OUTPUT_{}", layer)),
+            _descriptor_binding_index: 12 + layer,
+            _descriptor_image_layer: layer,
+            ..blend_output.clone()
+        })
     }
 
     let pipeline_data_create_infos = vec![

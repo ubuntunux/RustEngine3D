@@ -1,4 +1,3 @@
-use ash::vk;
 use crate::render_pass::render_object;
 use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
@@ -7,6 +6,7 @@ use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
 use crate::vulkan_context::render_pass::RenderPassDataCreateInfo;
+use ash::vk;
 
 pub const USER_BINDING_INDEX0: u32 = 14;
 pub const USER_BINDING_INDEX1: u32 = 15;
@@ -122,14 +122,19 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
         },
         DescriptorDataCreateInfo {
             _descriptor_binding_index: 13,
-            _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
+            _descriptor_name: enum_to_string(
+                &RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+            ),
             _descriptor_resource_type: DescriptorResourceType::RenderTarget,
             _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
-        }
+        },
     ];
 
-    assert_eq!(descriptor_data_create_infos.len(), USER_BINDING_INDEX0 as usize);
+    assert_eq!(
+        descriptor_data_create_infos.len(),
+        USER_BINDING_INDEX0 as usize
+    );
 
     descriptor_data_create_infos
 }
@@ -141,7 +146,7 @@ pub fn get_render_pass_data_create_infos(
     vertex_shader_file: &str,
     pixel_shader_file: &str,
     push_constant_data: &Box<dyn PushConstant>,
-    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>
+    descriptor_data_create_infos: &Vec<DescriptorDataCreateInfo>,
 ) -> Vec<RenderPassDataCreateInfo> {
     vec![
         render_object::capture_height_map::get_render_pass_data_create_info(
@@ -151,7 +156,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::depth_prepass::get_render_pass_data_create_info(
             renderer_data,
@@ -161,7 +166,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::depth_prepass::get_render_pass_data_create_info(
             renderer_data,
@@ -171,7 +176,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_gbuffer::get_render_pass_data_create_info(
             renderer_data,
@@ -181,7 +186,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_gbuffer::get_render_pass_data_create_info(
             renderer_data,
@@ -191,7 +196,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward::get_render_pass_data_create_info(
             renderer_data,
@@ -201,7 +206,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward::get_render_pass_data_create_info(
             renderer_data,
@@ -211,7 +216,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
@@ -222,7 +227,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
@@ -233,7 +238,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
@@ -244,7 +249,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
@@ -255,7 +260,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
@@ -266,7 +271,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_forward_for_light_probe::get_render_pass_data_create_info(
             renderer_data,
@@ -277,7 +282,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_shadow::get_render_pass_data_create_info(
             renderer_data,
@@ -286,7 +291,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
+            descriptor_data_create_infos.clone(),
         ),
         render_object::render_shadow::get_render_pass_data_create_info(
             renderer_data,
@@ -295,7 +300,7 @@ pub fn get_render_pass_data_create_infos(
             vertex_shader_file,
             pixel_shader_file,
             push_constant_data.clone(),
-            descriptor_data_create_infos.clone()
-        )
+            descriptor_data_create_infos.clone(),
+        ),
     ]
 }

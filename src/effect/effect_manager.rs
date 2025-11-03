@@ -1,5 +1,5 @@
-use std::cmp::{max, min};
 use std::cmp::Ordering::{Greater, Less};
+use std::cmp::{max, min};
 use std::collections::HashMap;
 
 use ash::vk;
@@ -423,23 +423,47 @@ impl<'a> EffectManager<'a> {
 
             // update static constants
             if need_to_upload_static_constant_buffer {
-                let gpu_particle_static_constant = &mut self._gpu_particle_static_constants[process_emitter_count as usize];
-                gpu_particle_static_constant._spawn_volume_transform.clone_from(&emitter_data._spawn_volume_transform);
-                gpu_particle_static_constant._spawn_volume_info.clone_from(&emitter_data._spawn_volume_info);
-                gpu_particle_static_constant._spawn_volume_type = emitter_data._spawn_volume_type as i32;
-                gpu_particle_static_constant._rotation_min.clone_from(&emitter_data._rotation_min);
-                gpu_particle_static_constant._rotation_max.clone_from(&emitter_data._rotation_max);
-                gpu_particle_static_constant._particle_lifetime_min = emitter_data._particle_lifetime_min;
-                gpu_particle_static_constant._particle_lifetime_max = emitter_data._particle_lifetime_max;
-                gpu_particle_static_constant._scale_min.clone_from(&emitter_data._scale_min);
-                gpu_particle_static_constant._scale_max.clone_from(&emitter_data._scale_max);
+                let gpu_particle_static_constant =
+                    &mut self._gpu_particle_static_constants[process_emitter_count as usize];
+                gpu_particle_static_constant
+                    ._spawn_volume_transform
+                    .clone_from(&emitter_data._spawn_volume_transform);
+                gpu_particle_static_constant
+                    ._spawn_volume_info
+                    .clone_from(&emitter_data._spawn_volume_info);
+                gpu_particle_static_constant._spawn_volume_type =
+                    emitter_data._spawn_volume_type as i32;
+                gpu_particle_static_constant
+                    ._rotation_min
+                    .clone_from(&emitter_data._rotation_min);
+                gpu_particle_static_constant
+                    ._rotation_max
+                    .clone_from(&emitter_data._rotation_max);
+                gpu_particle_static_constant._particle_lifetime_min =
+                    emitter_data._particle_lifetime_min;
+                gpu_particle_static_constant._particle_lifetime_max =
+                    emitter_data._particle_lifetime_max;
+                gpu_particle_static_constant
+                    ._scale_min
+                    .clone_from(&emitter_data._scale_min);
+                gpu_particle_static_constant
+                    ._scale_max
+                    .clone_from(&emitter_data._scale_max);
                 gpu_particle_static_constant._max_particle_count = emitter_data._max_particle_count;
                 gpu_particle_static_constant._align_mode = emitter_data._align_mode as i32;
                 gpu_particle_static_constant._geometry_type = emitter_data._geometry_type as i32;
-                gpu_particle_static_constant._velocity_min.clone_from(&emitter_data._velocity_min);
-                gpu_particle_static_constant._velocity_max.clone_from(&emitter_data._velocity_max);
-                gpu_particle_static_constant._force_min.clone_from(&emitter_data._force_min);
-                gpu_particle_static_constant._force_max.clone_from(&emitter_data._force_max);
+                gpu_particle_static_constant
+                    ._velocity_min
+                    .clone_from(&emitter_data._velocity_min);
+                gpu_particle_static_constant
+                    ._velocity_max
+                    .clone_from(&emitter_data._velocity_max);
+                gpu_particle_static_constant
+                    ._force_min
+                    .clone_from(&emitter_data._force_min);
+                gpu_particle_static_constant
+                    ._force_max
+                    .clone_from(&emitter_data._force_max);
                 emitter._need_to_upload_static_constant_buffer = false;
             }
 
@@ -447,27 +471,38 @@ impl<'a> EffectManager<'a> {
             let gpu_particle_dynamic_constant =
                 &mut self._gpu_particle_dynamic_constants[process_emitter_count as usize];
             {
-                gpu_particle_dynamic_constant._gpu_particle_constant_flags = GPU_PARTICLE_CONSTANT_FLAG_NONE;
+                gpu_particle_dynamic_constant._gpu_particle_constant_flags =
+                    GPU_PARTICLE_CONSTANT_FLAG_NONE;
                 if is_first_update {
-                    gpu_particle_dynamic_constant._gpu_particle_constant_flags |= GPU_PARTICLE_CONSTANT_FLAG_FIRST_UPDATE;
+                    gpu_particle_dynamic_constant._gpu_particle_constant_flags |=
+                        GPU_PARTICLE_CONSTANT_FLAG_FIRST_UPDATE;
                 }
                 if emitter._ready_to_destroy {
-                    gpu_particle_dynamic_constant._gpu_particle_constant_flags |= GPU_PARTICLE_CONSTANT_FLAG_CLEAR;
+                    gpu_particle_dynamic_constant._gpu_particle_constant_flags |=
+                        GPU_PARTICLE_CONSTANT_FLAG_CLEAR;
                 }
-                gpu_particle_dynamic_constant._emitter_transform.clone_from(&emitter._emitter_world_transform);
+                gpu_particle_dynamic_constant
+                    ._emitter_transform
+                    .clone_from(&emitter._emitter_world_transform);
                 gpu_particle_dynamic_constant._spawn_count = emitter._particle_spawn_count;
-                gpu_particle_dynamic_constant._prev_allocated_emitter_index = emitter._allocated_emitter_index;
-                gpu_particle_dynamic_constant._prev_allocated_particle_offset = emitter._allocated_particle_offset;
+                gpu_particle_dynamic_constant._prev_allocated_emitter_index =
+                    emitter._allocated_emitter_index;
+                gpu_particle_dynamic_constant._prev_allocated_particle_offset =
+                    emitter._allocated_particle_offset;
                 gpu_particle_dynamic_constant._allocated_emitter_index = process_emitter_count;
-                gpu_particle_dynamic_constant._allocated_particle_offset = process_gpu_particle_count;
+                gpu_particle_dynamic_constant._allocated_particle_offset =
+                    process_gpu_particle_count;
                 emitter._allocated_emitter_index = process_emitter_count;
                 emitter._allocated_particle_offset = process_gpu_particle_count;
                 emitter._allocated_particle_count = available_particle_count;
             }
 
             // fill gpu particle allocated emitter index
-            for gpu_particle_offset in process_gpu_particle_count..(process_gpu_particle_count + available_particle_count) {
-                self._gpu_particle_emitter_indices[gpu_particle_offset as usize] = process_emitter_count;
+            for gpu_particle_offset in
+                process_gpu_particle_count..(process_gpu_particle_count + available_particle_count)
+            {
+                self._gpu_particle_emitter_indices[gpu_particle_offset as usize] =
+                    process_emitter_count;
             }
             process_gpu_particle_count += available_particle_count;
             process_emitter_count += 1;
@@ -477,11 +512,16 @@ impl<'a> EffectManager<'a> {
 
         // process and render effects
         {
-            let gpu_particle_static_constants_buffer = renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleStaticConstants);
-            let gpu_particle_dynamic_constants_buffer = renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleDynamicConstants);
-            let gpu_particle_emitter_index_buffer = renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer);
-            let gpu_particle_count_buffer = renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleCountBuffer);
-            let gpu_particle_update_buffer = renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleUpdateBuffer);
+            let gpu_particle_static_constants_buffer = renderer_data
+                .get_shader_buffer_data(&ShaderBufferDataType::GpuParticleStaticConstants);
+            let gpu_particle_dynamic_constants_buffer = renderer_data
+                .get_shader_buffer_data(&ShaderBufferDataType::GpuParticleDynamicConstants);
+            let gpu_particle_emitter_index_buffer = renderer_data
+                .get_shader_buffer_data(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer);
+            let gpu_particle_count_buffer =
+                renderer_data.get_shader_buffer_data(&ShaderBufferDataType::GpuParticleCountBuffer);
+            let gpu_particle_update_buffer = renderer_data
+                .get_shader_buffer_data(&ShaderBufferDataType::GpuParticleUpdateBuffer);
 
             if 0 < process_emitter_count && 0 < process_gpu_particle_count {
                 renderer_context.upload_shader_buffer_data_list(
@@ -505,8 +545,10 @@ impl<'a> EffectManager<'a> {
             }
 
             // barrier for compute gpu particle count pipeline
-            let gpu_particle_static_constants_buffer_data = &gpu_particle_static_constants_buffer._buffers[swapchain_index as usize];
-            let gpu_particle_dynamic_constants_buffer_data = &gpu_particle_dynamic_constants_buffer._buffers[swapchain_index as usize];
+            let gpu_particle_static_constants_buffer_data =
+                &gpu_particle_static_constants_buffer._buffers[swapchain_index as usize];
+            let gpu_particle_dynamic_constants_buffer_data =
+                &gpu_particle_dynamic_constants_buffer._buffers[swapchain_index as usize];
             let buffer_memory_barriers: [vk::BufferMemoryBarrier; 2] = [
                 vk::BufferMemoryBarrier {
                     src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
@@ -544,10 +586,14 @@ impl<'a> EffectManager<'a> {
             );
 
             // compute gpu particle count
-            let material_instance_data = &engine_resources.get_material_instance_data("effect/process_gpu_particle").borrow();
-            let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
+            let material_instance_data = &engine_resources
+                .get_material_instance_data("effect/process_gpu_particle")
+                .borrow();
+            let pipeline_binding_data: &PipelineBindingData = material_instance_data
+                .get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
             let dispatch_count = process_emitter_count;
-            let thread_group_count = (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
+            let thread_group_count = (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1)
+                / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
             renderer_context.dispatch_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -564,7 +610,8 @@ impl<'a> EffectManager<'a> {
             );
 
             // barrier for update gpu particles pipeline
-            let gpu_particle_count_buffer_data = &gpu_particle_count_buffer._buffers[swapchain_index as usize];
+            let gpu_particle_count_buffer_data =
+                &gpu_particle_count_buffer._buffers[swapchain_index as usize];
             let buffer_memory_barriers: [vk::BufferMemoryBarrier; 1] = [vk::BufferMemoryBarrier {
                 src_access_mask: vk::AccessFlags::SHADER_WRITE,
                 dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE,
@@ -572,7 +619,9 @@ impl<'a> EffectManager<'a> {
                 dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                 buffer: gpu_particle_count_buffer_data._buffer,
                 offset: 0,
-                size: gpu_particle_count_buffer_data._buffer_memory_requirements.size,
+                size: gpu_particle_count_buffer_data
+                    ._buffer_memory_requirements
+                    .size,
                 ..Default::default()
             }];
             renderer_context.pipeline_barrier(
@@ -586,9 +635,11 @@ impl<'a> EffectManager<'a> {
             );
 
             // update gpu particles
-            let pipeline_binding_data: &PipelineBindingData = material_instance_data.get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
+            let pipeline_binding_data: &PipelineBindingData = material_instance_data
+                .get_pipeline_binding_data("process_gpu_particle/update_gpu_particle");
             let dispatch_count = process_gpu_particle_count;
-            let thread_group_count = (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1) / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
+            let thread_group_count = (dispatch_count + PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE - 1)
+                / PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE;
             renderer_context.dispatch_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
@@ -605,7 +656,8 @@ impl<'a> EffectManager<'a> {
             );
 
             // barrier for render gpu particles pipeline
-            let gpu_particle_update_buffer_data = &gpu_particle_update_buffer._buffers[swapchain_index as usize];
+            let gpu_particle_update_buffer_data =
+                &gpu_particle_update_buffer._buffers[swapchain_index as usize];
             let buffer_memory_barriers: [vk::BufferMemoryBarrier; 2] = [
                 vk::BufferMemoryBarrier {
                     src_access_mask: vk::AccessFlags::SHADER_WRITE,
@@ -614,7 +666,9 @@ impl<'a> EffectManager<'a> {
                     dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                     buffer: gpu_particle_count_buffer_data._buffer,
                     offset: 0,
-                    size: gpu_particle_count_buffer_data._buffer_memory_requirements.size,
+                    size: gpu_particle_count_buffer_data
+                        ._buffer_memory_requirements
+                        .size,
                     ..Default::default()
                 },
                 vk::BufferMemoryBarrier {
@@ -624,7 +678,9 @@ impl<'a> EffectManager<'a> {
                     dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
                     buffer: gpu_particle_update_buffer_data._buffer,
                     offset: 0,
-                    size: gpu_particle_update_buffer_data._buffer_memory_requirements.size,
+                    size: gpu_particle_update_buffer_data
+                        ._buffer_memory_requirements
+                        .size,
                     ..Default::default()
                 },
             ];
@@ -690,14 +746,24 @@ impl<'a> EffectManager<'a> {
             let emitter: &EmitterInstance = ptr_as_ref(*emitter);
             let emitter_data = emitter.get_emitter_data();
             let material_instance_data = ptr_as_ref(emitter_data._material_instance_data.as_ptr());
-            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
-            let render_pass_data = ptr_as_ref(pipeline_binding_data.get_render_pass_data().as_ptr());
+            let pipeline_binding_data =
+                material_instance_data.get_pipeline_binding_data(render_pass_pipeline_data_name);
+            let render_pass_data =
+                ptr_as_ref(pipeline_binding_data.get_render_pass_data().as_ptr());
             let pipeline_data = ptr_as_ref(pipeline_binding_data.get_pipeline_data().as_ptr());
 
             if ParticleGeometryType::Mesh == emitter_data._geometry_type {
-                geometry_data = emitter_data._mesh_data.borrow().get_default_geometry_data().as_ptr();
+                geometry_data = emitter_data
+                    ._mesh_data
+                    .borrow()
+                    .get_default_geometry_data()
+                    .as_ptr();
             } else {
-                assert!(false, "Not Implemented ParticleGeometryType: {:?}", emitter_data._geometry_type);
+                assert!(
+                    false,
+                    "Not Implemented ParticleGeometryType: {:?}",
+                    emitter_data._geometry_type
+                );
             }
             assert_ne!(geometry_data, std::ptr::null(), "Unknown GeometryData");
 
@@ -716,7 +782,8 @@ impl<'a> EffectManager<'a> {
             }
 
             if prev_pipeline_binding_data != pipeline_binding_data {
-                prev_pipeline_binding_data = (pipeline_binding_data as *const PipelineBindingData).clone();
+                prev_pipeline_binding_data =
+                    (pipeline_binding_data as *const PipelineBindingData).clone();
                 renderer_context.bind_descriptor_sets(
                     command_buffer,
                     swapchain_index,

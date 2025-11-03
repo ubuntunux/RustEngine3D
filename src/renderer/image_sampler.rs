@@ -1,19 +1,19 @@
 use std::collections::HashMap;
 
-use ash::{Device, vk};
 use ash::ext;
+use ash::{vk, Device};
 
 use crate::vulkan_context::texture;
 
 #[derive(Clone, Debug)]
 pub struct ImageSamplerData {
-    _samplers: HashMap<String, vk::Sampler>
+    _samplers: HashMap<String, vk::Sampler>,
 }
 
 impl Default for ImageSamplerData {
     fn default() -> ImageSamplerData {
         ImageSamplerData {
-            _samplers: HashMap::new()
+            _samplers: HashMap::new(),
         }
     }
 }
@@ -46,7 +46,11 @@ impl ImageSamplerData {
         sampler
     }
 
-    pub fn initialize_image_samplers(&mut self, device: &Device, debug_utils_device: &ext::debug_utils::Device) {
+    pub fn initialize_image_samplers(
+        &mut self,
+        device: &Device,
+        debug_utils_device: &ext::debug_utils::Device,
+    ) {
         let mip_levels = 16; // log2(65536)
         self.create_image_sampler(
             device,
@@ -102,7 +106,10 @@ impl ImageSamplerData {
     }
 }
 
-pub fn create_image_samplers(device: &Device, debug_utils_device: &ext::debug_utils::Device) -> ImageSamplerData {
+pub fn create_image_samplers(
+    device: &Device,
+    debug_utils_device: &ext::debug_utils::Device,
+) -> ImageSamplerData {
     let mut image_sampler_data = ImageSamplerData::default();
     image_sampler_data.initialize_image_samplers(device, debug_utils_device);
     image_sampler_data

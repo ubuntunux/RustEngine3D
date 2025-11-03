@@ -1,11 +1,11 @@
-use std::fs::File;
+use crate::constants::DEVELOPMENT;
 #[cfg(not(target_os = "android"))]
 use chrono::Local;
 use env_logger;
 use log::LevelFilter;
+use std::fs::File;
 #[cfg(not(target_os = "android"))]
 use std::io::Write;
-use crate::constants::DEVELOPMENT;
 
 #[cfg(target_os = "android")]
 pub fn initialize_logger(log_level: LevelFilter) {

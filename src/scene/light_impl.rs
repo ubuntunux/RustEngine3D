@@ -1,10 +1,13 @@
-use nalgebra::{linalg, Matrix4, Vector3, Vector4};
 use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
-use crate::scene::light::{DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLightData};
+use crate::scene::light::{
+    DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo,
+    PointLightData,
+};
 use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
+use nalgebra::{linalg, Matrix4, Vector3, Vector4};
 
 // LightData
 impl Default for LightData {
@@ -51,7 +54,12 @@ impl DirectionalLight {
         light_name: &String,
         light_create_info: &DirectionalLightCreateInfo,
     ) -> DirectionalLight {
-        log::debug!("    create_directional_light[{:?}]: {}, {:?}", object_id, light_name, light_create_info);
+        log::debug!(
+            "    create_directional_light[{:?}]: {}, {:?}",
+            object_id,
+            light_name,
+            light_create_info
+        );
         let mut light_data = DirectionalLight {
             _object_id: object_id,
             _light_name: light_name.clone(),
@@ -61,8 +69,12 @@ impl DirectionalLight {
             _updated_light_data: true,
             _shadow_update_distance: light_create_info._shadow_update_distance,
         };
-        light_data._transform_object.set_position(&light_create_info._position);
-        light_data._transform_object.set_rotation(&light_create_info._rotation);
+        light_data
+            ._transform_object
+            .set_position(&light_create_info._position);
+        light_data
+            ._transform_object
+            .set_rotation(&light_create_info._rotation);
         light_data.update_shadow_orthogonal(&light_create_info._shadow_dimensions);
         light_data.update_light_data(&Vector3::zeros());
         light_data
@@ -107,8 +119,12 @@ impl DirectionalLight {
 
         let updated_transform = self._transform_object.update_transform_object();
         if self._updated_light_data || updated_transform {
-            self._light_data._shadow_view_projection = &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
-            linalg::try_invert_to(self._light_data._shadow_view_projection.into(), &mut self._light_data._inv_shadow_view_projection);
+            self._light_data._shadow_view_projection =
+                &self._light_shadow_projection * self._transform_object.get_inverse_matrix();
+            linalg::try_invert_to(
+                self._light_data._shadow_view_projection.into(),
+                &mut self._light_data._inv_shadow_view_projection,
+            );
             self._light_data._light_direction = self.get_light_direction().clone() as Vector3<f32>;
         }
         self._updated_light_data = false;
@@ -133,7 +149,7 @@ impl Default for PointLightCreateInfo {
         PointLightCreateInfo {
             _light_position: Vector3::zeros(),
             _radius: 1.0,
-            _light_color: Vector3::new(1.0, 1.0, 1.0)
+            _light_color: Vector3::new(1.0, 1.0, 1.0),
         }
     }
 }
@@ -145,8 +161,17 @@ impl PointLight {
         light_name: &String,
         light_create_info: &PointLightCreateInfo,
     ) -> PointLight {
-        log::debug!("    create_point_light[{:?}]: {:?}, {:?}", object_id, light_name, light_create_info);
-        let light_radius_offset = Vector3::new(light_create_info._radius, light_create_info._radius, light_create_info._radius);
+        log::debug!(
+            "    create_point_light[{:?}]: {:?}, {:?}",
+            object_id,
+            light_name,
+            light_create_info
+        );
+        let light_radius_offset = Vector3::new(
+            light_create_info._radius,
+            light_create_info._radius,
+            light_create_info._radius,
+        );
         let mut light_data = PointLight {
             _object_id: object_id,
             _light_name: light_name.clone(),
@@ -159,7 +184,7 @@ impl PointLight {
             _bounding_box: BoundingBox::create_bounding_box(
                 &(light_create_info._light_position - light_radius_offset),
                 &(light_create_info._light_position + light_radius_offset),
-            )
+            ),
         };
 
         light_data.initialize_point_light();
@@ -182,6 +207,5 @@ impl PointLight {
         &self._light_data._light_color
     }
 
-    pub fn update_light_data(&mut self) {
-    }
+    pub fn update_light_data(&mut self) {}
 }

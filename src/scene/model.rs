@@ -1,6 +1,3 @@
-use std::collections::HashMap;
-use nalgebra::{Matrix4, Vector3};
-use serde::{Deserialize, Serialize};
 use crate::scene::animation::INVALID_BONE_INDEX;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionCreateInfo, CollisionData};
@@ -9,6 +6,9 @@ use crate::scene::mesh::MeshData;
 use crate::scene::socket::{SocketData, SocketDataCreateInfo};
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, RcRefCell};
+use nalgebra::{Matrix4, Vector3};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
@@ -22,7 +22,7 @@ pub struct ModelDataInfo {
     pub _material_instances: Vec<String>,
     pub _bounding_box: BoundingBox,
     pub _collision: CollisionCreateInfo,
-    pub _sockets: HashMap<String, SocketDataCreateInfo>
+    pub _sockets: HashMap<String, SocketDataCreateInfo>,
 }
 
 impl Default for ModelDataInfo {
@@ -37,7 +37,7 @@ impl Default for ModelDataInfo {
             _material_instances: Vec::new(),
             _bounding_box: BoundingBox::default(),
             _collision: CollisionCreateInfo::default(),
-            _sockets: HashMap::new()
+            _sockets: HashMap::new(),
         }
     }
 }
@@ -51,7 +51,7 @@ pub struct ModelData<'a> {
     pub _is_render_shadow: bool,
     pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
     pub _collision: CollisionData,
-    pub _socket_data_map: HashMap<String, RcRefCell<SocketData>>
+    pub _socket_data_map: HashMap<String, RcRefCell<SocketData>>,
 }
 
 impl<'a> ModelData<'a> {
@@ -63,14 +63,22 @@ impl<'a> ModelData<'a> {
     ) -> ModelData<'a> {
         log::debug!("new_model_data: {}", model_name);
         for (i, x) in material_instance_data_list.iter().enumerate() {
-            log::debug!("    material_instance[{:?}]{:?}: {:?}", i, model_name, x.borrow()._material_instance_data_name);
+            log::debug!(
+                "    material_instance[{:?}]{:?}: {:?}",
+                i,
+                model_name,
+                x.borrow()._material_instance_data_name
+            );
         }
 
         let mut socket_data_map = HashMap::new();
         for (socket_name, socket_data_create_info) in model_data_info._sockets.iter() {
             let mut parent_bone_index: usize = INVALID_BONE_INDEX;
             for skeleton_data in mesh_data.borrow()._skeleton_data_list.iter() {
-                if let Some(bone_index) = skeleton_data._bone_index_map.get(&socket_data_create_info._parent_bone) {
+                if let Some(bone_index) = skeleton_data
+                    ._bone_index_map
+                    .get(&socket_data_create_info._parent_bone)
+                {
                     parent_bone_index = *bone_index;
                     break;
                 }
@@ -79,10 +87,18 @@ impl<'a> ModelData<'a> {
             if parent_bone_index != INVALID_BONE_INDEX {
                 socket_data_map.insert(
                     socket_name.clone(),
-                    newRcRefCell(SocketData::create_socket_data(socket_name, socket_data_create_info, parent_bone_index))
+                    newRcRefCell(SocketData::create_socket_data(
+                        socket_name,
+                        socket_data_create_info,
+                        parent_bone_index,
+                    )),
                 );
             } else {
-                log::info!("Failed to create socket: {:?}, parent bone: {:?}", socket_name, socket_data_create_info._parent_bone);
+                log::info!(
+                    "Failed to create socket: {:?}, parent bone: {:?}",
+                    socket_name,
+                    socket_data_create_info._parent_bone
+                );
             }
         }
 
@@ -92,18 +108,17 @@ impl<'a> ModelData<'a> {
             _local_transform: math::make_srt_transform(
                 &model_data_info._position,
                 &model_data_info._rotation,
-                &model_data_info._scale
+                &model_data_info._scale,
             ),
             _is_render_camera: model_data_info._is_render_camera,
             _is_render_shadow: model_data_info._is_render_shadow,
             _material_instance_data_list: material_instance_data_list,
             _collision: CollisionData::create_collision(&model_data_info._collision),
-            _socket_data_map: socket_data_map
+            _socket_data_map: socket_data_map,
         }
     }
 
-    pub fn destroy_model_data(&self) {
-    }
+    pub fn destroy_model_data(&self) {}
 
     pub fn is_render_camera(&self) -> bool {
         self._is_render_camera

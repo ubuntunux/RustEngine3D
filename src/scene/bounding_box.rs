@@ -1,8 +1,8 @@
-use std::ops::Index;
+use crate::utilities::math;
 use nalgebra;
 use nalgebra::{Matrix3, Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
-use crate::utilities::math;
+use std::ops::Index;
 
 #[repr(C)]
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -14,14 +14,14 @@ pub struct BoundingBox {
     pub _mag_xz: f32,
     pub _center: Vector3<f32>,
     pub _extents: Vector3<f32>,
-    pub _orientation: Matrix3<f32>
+    pub _orientation: Matrix3<f32>,
 }
 
 impl Default for BoundingBox {
     fn default() -> BoundingBox {
         BoundingBox::create_bounding_box(
             &Vector3::new(-1.0, -1.0, -1.0),
-            &Vector3::new(1.0, 1.0, 1.0)
+            &Vector3::new(1.0, 1.0, 1.0),
         )
     }
 }
@@ -37,7 +37,7 @@ impl BoundingBox {
             _mag_xz: extents.magnitude(),
             _center: center.clone(),
             _extents: extents,
-            _orientation: Matrix3::identity()
+            _orientation: Matrix3::identity(),
         }
     }
 
@@ -78,30 +78,33 @@ impl BoundingBox {
     }
 
     pub fn collide_bound_box(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
-        self._min.x < max.x && min.x < self._max.x &&
-        self._min.y < max.y && min.y < self._max.y &&
-        self._min.z < max.z && min.z < self._max.z
+        self._min.x < max.x
+            && min.x < self._max.x
+            && self._min.y < max.y
+            && min.y < self._max.y
+            && self._min.z < max.z
+            && min.z < self._max.z
     }
 
     pub fn collide_bound_box_xy(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
-        self._min.x < max.x && min.x < self._max.x &&
-        self._min.y < max.y && min.y < self._max.y
+        self._min.x < max.x && min.x < self._max.x && self._min.y < max.y && min.y < self._max.y
     }
 
     pub fn collide_bound_box_xz(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
-        self._min.x < max.x && min.x < self._max.x &&
-        self._min.z < max.z && min.z < self._max.z
+        self._min.x < max.x && min.x < self._max.x && self._min.z < max.z && min.z < self._max.z
     }
 
     pub fn collide_bound_box_yz(&self, min: &Vector3<f32>, max: &Vector3<f32>) -> bool {
-        self._min.y < max.y && min.y < self._max.y &&
-        self._min.z < max.z && min.z < self._max.z
+        self._min.y < max.y && min.y < self._max.y && self._min.z < max.z && min.z < self._max.z
     }
 
     pub fn collide_point(&self, pos: &Vector3<f32>) -> bool {
-        self._min.x <= pos.x && pos.x <= self._max.x &&
-        self._min.y <= pos.y && pos.y <= self._max.y &&
-        self._min.z <= pos.z && pos.z <= self._max.z
+        self._min.x <= pos.x
+            && pos.x <= self._max.x
+            && self._min.y <= pos.y
+            && pos.y <= self._max.y
+            && self._min.z <= pos.z
+            && pos.z <= self._max.z
     }
 
     pub fn collide_point_x(&self, pos: &Vector3<f32>) -> bool {
@@ -117,23 +120,26 @@ impl BoundingBox {
     }
 
     pub fn collide_point_xy(&self, pos: &Vector3<f32>) -> bool {
-        self._min.x <= pos.x && pos.x <= self._max.x &&
-        self._min.y <= pos.y && pos.y <= self._max.y
+        self._min.x <= pos.x && pos.x <= self._max.x && self._min.y <= pos.y && pos.y <= self._max.y
     }
 
     pub fn collide_point_xz(&self, pos: &Vector3<f32>) -> bool {
-        self._min.x <= pos.x && pos.x <= self._max.x &&
-        self._min.z <= pos.z && pos.z <= self._max.z
+        self._min.x <= pos.x && pos.x <= self._max.x && self._min.z <= pos.z && pos.z <= self._max.z
     }
 
     pub fn collide_point_yz(&self, pos: &Vector3<f32>) -> bool {
-        self._min.y <= pos.y && pos.y <= self._max.y &&
-        self._min.z <= pos.z && pos.z <= self._max.z
+        self._min.y <= pos.y && pos.y <= self._max.y && self._min.z <= pos.z && pos.z <= self._max.z
     }
 
-    pub fn update_aixs_aligned_bounding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
-        let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
-        let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
+    pub fn update_aixs_aligned_bounding_box(
+        &mut self,
+        bound_box: &BoundingBox,
+        matrix: &Matrix4<f32>,
+    ) {
+        let pos_min =
+            matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
+        let pos_max =
+            matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
 
         self._min.x = pos_min.x.min(pos_max.x);
         self._min.y = pos_min.y.min(pos_max.y);
@@ -147,7 +153,8 @@ impl BoundingBox {
 
         self._extents = (self._max - self._min) * 0.5;
         self._radius = self._extents.magnitude();
-        self._mag_xz = (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
+        self._mag_xz =
+            (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
 
         self._orientation = math::extract_axes(matrix) * bound_box._orientation;
     }
@@ -163,7 +170,8 @@ impl BoundingBox {
 
         self._extents = bound_box._extents.component_mul(&scale);
         self._radius = self._extents.magnitude();
-        self._mag_xz = (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
+        self._mag_xz =
+            (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
 
         self._orientation = rotation * bound_box._orientation;
     }

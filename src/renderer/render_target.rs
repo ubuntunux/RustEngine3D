@@ -1,10 +1,10 @@
-use ash::vk;
-use strum_macros::{Display, EnumString};
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::fft_ocean;
 use crate::scene::precomputed_atmosphere;
 use crate::vulkan_context::texture::{ImageLayoutTransition, TextureCreateInfo};
+use ash::vk;
+use strum_macros::{Display, EnumString};
 
 #[repr(i32)]
 #[allow(non_camel_case_types)]
@@ -65,8 +65,20 @@ pub fn get_render_target_create_infos(
     let swapchain_data = &renderer_context._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
-    let render_viewport_width = unsafe { if constants::ENABLE_UPSCALE { ((window_width as f32 * 0.75) as u32 / 4) * 4  } else { window_width }  };
-    let render_viewport_height = unsafe { if constants::ENABLE_UPSCALE { ((window_height as f32 * 0.75) as u32 / 4) * 4 } else { window_height } };
+    let render_viewport_width = unsafe {
+        if constants::ENABLE_UPSCALE {
+            ((window_width as f32 * 0.75) as u32 / 4) * 4
+        } else {
+            window_width
+        }
+    };
+    let render_viewport_height = unsafe {
+        if constants::ENABLE_UPSCALE {
+            ((window_height as f32 * 0.75) as u32 / 4) * 4
+        } else {
+            window_height
+        }
+    };
     let samples = vk::SampleCountFlags::TYPE_1;
     //let samples = min(vk::SampleCountFlags::TYPE_4, renderer_context._render_features._msaa_samples);
     let hdr_texture_create_info = TextureCreateInfo {
@@ -306,7 +318,8 @@ pub fn get_render_target_create_infos(
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
+            _image_layout_transition:
+                ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -315,7 +328,8 @@ pub fn get_render_target_create_infos(
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::R32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
+            _image_layout_transition:
+                ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
         TextureCreateInfo {

@@ -1,5 +1,3 @@
-use std::path::PathBuf;
-use ash::vk;
 use crate::render_pass::render_object::common;
 use crate::renderer::push_constants::PushConstant;
 use crate::renderer::render_target::RenderTargetType;
@@ -7,8 +5,13 @@ use crate::renderer::renderer_data::{RenderMode, RenderObjectType, RendererData}
 use crate::vulkan_context::descriptor::DescriptorDataCreateInfo;
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
-use crate::vulkan_context::render_pass::{DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
+use crate::vulkan_context::render_pass::{
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
+    PipelinePushConstantData, RenderPassDataCreateInfo,
+};
 use crate::vulkan_context::vulkan_context;
+use ash::vk;
+use std::path::PathBuf;
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
@@ -38,13 +41,16 @@ pub fn get_render_pass_data_create_info(
     vertex_shader_file: &str,
     pixel_shader_file: &str,
     push_constant_data: Box<dyn PushConstant>,
-    descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>
+    descriptor_data_create_infos: Vec<DescriptorDataCreateInfo>,
 ) -> RenderPassDataCreateInfo {
     let render_pass_name = get_render_pass_name(render_object_type);
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
+    for format in framebuffer_data_create_info
+        ._framebuffer_depth_attachment_formats
+        .iter()
+    {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -61,7 +67,8 @@ pub fn get_render_pass_data_create_info(
         dst_subpass: 0,
         src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
         src_access_mask: vk::AccessFlags::empty(),
-        dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+        dst_stage_mask: vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+            | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
         dst_access_mask: vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
@@ -99,7 +106,11 @@ pub fn get_render_pass_data_create_info(
             _offset: 0,
             _push_constant: push_constant_data,
         }],
-        _descriptor_data_create_infos: [common::get_descriptor_data_create_infos(), descriptor_data_create_infos].concat(),
+        _descriptor_data_create_infos: [
+            common::get_descriptor_data_create_infos(),
+            descriptor_data_create_infos,
+        ]
+        .concat(),
         ..Default::default()
     }];
 

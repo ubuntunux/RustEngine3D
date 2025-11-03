@@ -1,5 +1,3 @@
-use ash::vk;
-use nalgebra::{Matrix4, Vector4};
 use crate::render_pass::render_object::capture_height_map;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_context::RendererContext;
@@ -14,6 +12,8 @@ use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::geometry_buffer::GeometryData;
 use crate::vulkan_context::texture;
 use crate::vulkan_context::texture::TextureRawData;
+use ash::vk;
+use nalgebra::{Matrix4, Vector4};
 
 #[derive(Default)]
 pub struct CaptureHeightMap<'a> {
@@ -27,7 +27,7 @@ pub struct CaptureHeightMap<'a> {
     pub _dead_zone: f32,
     pub _stretch_height_map_xz: bool,
     pub _bounding_box: BoundingBox,
-    pub _height_map_data: HeightMapData
+    pub _height_map_data: HeightMapData,
 }
 
 impl<'a> CaptureHeightMap<'a> {
@@ -38,7 +38,7 @@ impl<'a> CaptureHeightMap<'a> {
             &DirectionalLightCreateInfo {
                 _rotation: math::get_top_down_view(),
                 ..Default::default()
-            }
+            },
         );
 
         CaptureHeightMap {
@@ -52,7 +52,7 @@ impl<'a> CaptureHeightMap<'a> {
             _dead_zone: 0.0,
             _stretch_height_map_xz: false,
             _bounding_box: BoundingBox::default(),
-            _height_map_data: HeightMapData::default()
+            _height_map_data: HeightMapData::default(),
         }
     }
     pub fn is_capture_height_map_complete(&self) -> bool {
@@ -101,7 +101,8 @@ impl<'a> CaptureHeightMap<'a> {
         self._capture_height_map_view.get_shadow_view_projection()
     }
     pub fn get_inv_shadow_view_projection(&self) -> &Matrix4<f32> {
-        self._capture_height_map_view.get_inv_shadow_view_projection()
+        self._capture_height_map_view
+            .get_inv_shadow_view_projection()
     }
     pub fn render_capture_height_map(
         &mut self,
@@ -109,7 +110,7 @@ impl<'a> CaptureHeightMap<'a> {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         renderer_context: &RendererContext<'a>,
-        renderer_data: &RendererData<'a>
+        renderer_data: &RendererData<'a>,
     ) {
         let _label_capture_height_map = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
@@ -134,50 +135,53 @@ impl<'a> CaptureHeightMap<'a> {
             command_buffer,
             swapchain_index,
             capture_height_map::get_render_pass_name(RenderObjectType::Static),
-            self.get_static_render_elements()
+            self.get_static_render_elements(),
         );
         self.clear_static_render_elements();
 
         // be able to read back at next frame
-        self._read_back_frames.push(renderer_context.get_render_frame() + 1);
+        self._read_back_frames
+            .push(renderer_context.get_render_frame() + 1);
     }
 
     pub fn read_back_height_map(
         &mut self,
         command_buffer: vk::CommandBuffer,
         renderer_context: &RendererContext<'a>,
-        renderer_data: &RendererData<'a>
+        renderer_data: &RendererData<'a>,
     ) {
         let _label_render_debug = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
-            "render_debug"
+            "render_debug",
         );
 
         let mut normal_map_raw_data: Vec<Vector4<u8>> = Vec::new();
         if self._enable_capture_normal_map {
-            let normal_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
+            let normal_map_texture =
+                renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
             if let TextureRawData::R8G8B8A8_UNORM(texture_raw_data) = texture::read_texture_data(
                 renderer_context.get_device(),
                 renderer_context.get_command_pool(),
                 renderer_context.get_graphics_queue(),
                 renderer_context.get_device_memory_properties(),
                 renderer_context.get_debug_utils(),
-                normal_map_texture
+                normal_map_texture,
             ) {
                 normal_map_raw_data = texture_raw_data;
             }
         }
 
         let mut height_map_raw_data: Vec<f32> = Vec::new();
-        let height_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
+        let height_map_texture =
+            renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
         if let TextureRawData::R32(texture_raw_data) = texture::read_texture_data(
             renderer_context.get_device(),
             renderer_context.get_command_pool(),
             renderer_context.get_graphics_queue(),
             renderer_context.get_device_memory_properties(),
             renderer_context.get_debug_utils(),
-            height_map_texture
+            height_map_texture,
         ) {
             height_map_raw_data = texture_raw_data;
         }
@@ -188,7 +192,7 @@ impl<'a> CaptureHeightMap<'a> {
             height_map_texture._image_height as i32,
             &normal_map_raw_data,
             &height_map_raw_data,
-            self._dead_zone
+            self._dead_zone,
         );
         self.set_capture_height_map_complete();
     }
@@ -203,7 +207,8 @@ impl<'a> CaptureHeightMap<'a> {
             bounding_box_max.x = bounding_box_max.x.max(bounding_box_max.z);
             bounding_box_min.z = bounding_box_min.x;
             bounding_box_max.z = bounding_box_max.x;
-            self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+            self._bounding_box =
+                BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
         }
 
         let shadow_dimensions = Vector4::new(
@@ -212,7 +217,9 @@ impl<'a> CaptureHeightMap<'a> {
             -self._bounding_box._extents.y,
             self._bounding_box._extents.y,
         );
-        self._capture_height_map_view.update_shadow_orthogonal(&shadow_dimensions);
-        self._capture_height_map_view.update_light_data(&self._bounding_box._center);
+        self._capture_height_map_view
+            .update_shadow_orthogonal(&shadow_dimensions);
+        self._capture_height_map_view
+            .update_light_data(&self._bounding_box._center);
     }
 }

@@ -23,6 +23,5 @@ pub struct RenderElementInfo<'a> {
     pub _is_render_height_map: bool,
     pub _geometry_index: usize,
     pub _geometry_data: RcRefCell<GeometryData>,
-    pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>
+    pub _material_instance_data: RcRefCell<MaterialInstanceData<'a>>,
 }
-

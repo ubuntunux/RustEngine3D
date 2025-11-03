@@ -26,9 +26,15 @@ pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName 
         false
     }
 
-    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
+    fn update_material_parameters(
+        &mut self,
+        material_parameters: &serde_json::Map<String, serde_json::Value>,
+    ) {
         for (key, value) in material_parameters {
-            self.set_push_constant_parameter(key, &convert_json_value_to_push_constant_parameter(value));
+            self.set_push_constant_parameter(
+                key,
+                &convert_json_value_to_push_constant_parameter(value),
+            );
         }
     }
 }
@@ -81,7 +87,7 @@ pub struct PushConstant_RenderObjectBase {
     pub _transform_offset_index: u32,
     pub _bone_count: u32,
     pub _bound_height: f32,
-    pub _reserved0: u32
+    pub _reserved0: u32,
 }
 
 impl Default for PushConstant_RenderObjectBase {

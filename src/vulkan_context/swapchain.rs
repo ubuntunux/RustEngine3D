@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 
-use ash::{ext, khr, vk, Device};
 use ash::vk::Handle;
+use ash::{ext, khr, vk, Device};
 
 use crate::constants;
 use crate::vulkan_context::debug_utils;
@@ -49,7 +49,9 @@ pub fn choose_swapchain_surface_format(
         }
     }
     let mut surface_format = require_surface_formats[0].clone();
-    if 0 < swap_chain_support_details._formats.len() && vk::Format::UNDEFINED != swap_chain_support_details._formats[0].format {
+    if 0 < swap_chain_support_details._formats.len()
+        && vk::Format::UNDEFINED != swap_chain_support_details._formats[0].format
+    {
         surface_format = swap_chain_support_details._formats[0].clone();
     }
     surface_format
@@ -58,13 +60,25 @@ pub fn choose_swapchain_surface_format(
 pub fn choose_swapchain_present_mode(
     swapchain_support_details: &SwapchainSupportDetails,
 ) -> vk::PresentModeKHR {
-    if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO) {
+    if swapchain_support_details
+        ._present_modes
+        .contains(&vk::PresentModeKHR::FIFO)
+    {
         return vk::PresentModeKHR::FIFO;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
+    } else if swapchain_support_details
+        ._present_modes
+        .contains(&vk::PresentModeKHR::FIFO_RELAXED)
+    {
         return vk::PresentModeKHR::FIFO_RELAXED;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
+    } else if swapchain_support_details
+        ._present_modes
+        .contains(&vk::PresentModeKHR::MAILBOX)
+    {
         return vk::PresentModeKHR::MAILBOX;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
+    } else if swapchain_support_details
+        ._present_modes
+        .contains(&vk::PresentModeKHR::IMMEDIATE)
+    {
         return vk::PresentModeKHR::IMMEDIATE;
     }
     vk::PresentModeKHR::FIFO
@@ -208,7 +222,7 @@ pub fn create_swapchain_data(
                 debug_utils_device,
                 "swapchain",
                 vk::ObjectType::IMAGE,
-                image.as_raw()
+                image.as_raw(),
             );
         }
         let swapchain_image_views = create_swapchain_image_views(

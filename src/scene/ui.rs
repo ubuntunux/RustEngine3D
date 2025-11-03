@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::os::raw::c_void;
 use std::rc::Rc;
 
-use ash::{Device, vk};
 use ash::ext;
+use ash::{vk, Device};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
@@ -14,18 +14,17 @@ use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::EngineResources;
+use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
-use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{self, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
 use crate::vulkan_context::render_pass::PipelineData;
 use crate::vulkan_context::vulkan_context::get_color32;
-
 
 pub type CallbackTouchEvent<'a> = fn(
     ui_component: &UIComponentInstance<'a>,
@@ -417,7 +416,11 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             if self._callback_touch_down.is_some() {
-                touched = self._callback_touch_down.as_ref().unwrap()(ptr_as_mut(self), touched_pos, touched_pos_delta);
+                touched = self._callback_touch_down.as_ref().unwrap()(
+                    ptr_as_mut(self),
+                    touched_pos,
+                    touched_pos_delta,
+                );
             }
 
             self._changed_render_data = true;
@@ -461,7 +464,11 @@ impl<'a> UIComponentInstance<'a> {
                 }
 
                 if self._callback_touch_move.is_some() {
-                    self._callback_touch_move.as_ref().unwrap()(ptr_as_mut(self), touched_pos, touched_pos_delta);
+                    self._callback_touch_move.as_ref().unwrap()(
+                        ptr_as_mut(self),
+                        touched_pos,
+                        touched_pos_delta,
+                    );
                 }
                 self._changed_render_data = true;
             }
@@ -521,7 +528,10 @@ impl<'a> UIComponentInstance<'a> {
         self.set_pos_y(y);
     }
     pub fn set_pos_x(&mut self, x: f32) {
-        if x != self._ui_component_data._pos.x || self._ui_component_data._center_hint_x.is_some() || self._ui_component_data._pos_hint_x.is_some() {
+        if x != self._ui_component_data._pos.x
+            || self._ui_component_data._center_hint_x.is_some()
+            || self._ui_component_data._pos_hint_x.is_some()
+        {
             self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = None;
             self._ui_component_data._pos.x = x;
@@ -530,7 +540,10 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
     pub fn set_pos_y(&mut self, y: f32) {
-        if y != self._ui_component_data._pos.y || self._ui_component_data._center_hint_y.is_some() || self._ui_component_data._pos_hint_y.is_some() {
+        if y != self._ui_component_data._pos.y
+            || self._ui_component_data._center_hint_y.is_some()
+            || self._ui_component_data._pos_hint_y.is_some()
+        {
             self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = None;
             self._ui_component_data._pos.y = y;
@@ -553,7 +566,10 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn set_center_x(&mut self, x: f32) {
         let left_x = x - self._ui_component_data._size.x * 0.5;
-        if left_x != self._ui_component_data._pos.x || self._ui_component_data._center_hint_x.is_some() || self._ui_component_data._pos_hint_x.is_some() {
+        if left_x != self._ui_component_data._pos.x
+            || self._ui_component_data._center_hint_x.is_some()
+            || self._ui_component_data._pos_hint_x.is_some()
+        {
             self._ui_component_data._center_hint_x = None;
             self._ui_component_data._pos_hint_x = None;
             self._ui_component_data._pos.x = left_x;
@@ -563,7 +579,10 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn set_center_y(&mut self, y: f32) {
         let top_y = y - self._ui_component_data._size.y * 0.5;
-        if top_y != self._ui_component_data._pos.y || self._ui_component_data._center_hint_y.is_some() || self._ui_component_data._pos_hint_y.is_some() {
+        if top_y != self._ui_component_data._pos.y
+            || self._ui_component_data._center_hint_y.is_some()
+            || self._ui_component_data._pos_hint_y.is_some()
+        {
             self._ui_component_data._center_hint_y = None;
             self._ui_component_data._pos_hint_y = None;
             self._ui_component_data._pos.y = top_y;
@@ -629,7 +648,9 @@ impl<'a> UIComponentInstance<'a> {
         self.set_size_y(size_y);
     }
     pub fn set_size_x(&mut self, size_x: f32) {
-        if size_x != self._ui_component_data._size.x || self._ui_component_data._size_hint_x.is_some() {
+        if size_x != self._ui_component_data._size.x
+            || self._ui_component_data._size_hint_x.is_some()
+        {
             self._ui_component_data._size_hint_x = None;
             self._ui_component_data._size.x = size_x;
             self.set_changed_layout(true);
@@ -637,7 +658,9 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
     pub fn set_size_y(&mut self, size_y: f32) {
-        if size_y != self._ui_component_data._size.y || self._ui_component_data._size_hint_y.is_some() {
+        if size_y != self._ui_component_data._size.y
+            || self._ui_component_data._size_hint_y.is_some()
+        {
             self._ui_component_data._size_hint_y = None;
             self._ui_component_data._size.y = size_y;
             self.set_changed_layout(true);
@@ -877,7 +900,10 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_material_instance(&self) -> &Option<RcRefCell<MaterialInstanceData<'a>>> {
         &self._ui_component_data._material_instance
     }
-    pub fn set_material_instance(&mut self, material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>) {
+    pub fn set_material_instance(
+        &mut self,
+        material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>,
+    ) {
         self._ui_component_data._material_instance = material_instance;
     }
     pub fn get_round(&self) -> f32 {
@@ -900,13 +926,22 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("{:?}: set_border", self.get_owner_widget().get_ui_widget_name());
         }
     }
-    pub fn set_callback_touch_down(&mut self, callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>) {
+    pub fn set_callback_touch_down(
+        &mut self,
+        callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>,
+    ) {
         self._callback_touch_down = callback_touch_down;
     }
-    pub fn set_callback_touch_move(&mut self, callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>) {
+    pub fn set_callback_touch_move(
+        &mut self,
+        callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>,
+    ) {
         self._callback_touch_move = callback_touch_move;
     }
-    pub fn set_callback_touch_up(&mut self, callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>) {
+    pub fn set_callback_touch_up(
+        &mut self,
+        callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>,
+    ) {
         self._callback_touch_up = callback_touch_up;
     }
     pub fn get_user_data(&self) -> *const c_void {
@@ -979,7 +1014,10 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
     pub fn get_resizable(&self) -> (bool, bool) {
-        (self._ui_component_data._resizable_x, self._ui_component_data._resizable_y)
+        (
+            self._ui_component_data._resizable_x,
+            self._ui_component_data._resizable_y,
+        )
     }
     pub fn set_resizable(&mut self, resizable: bool) {
         self.set_resizable_x(resizable);
@@ -1109,7 +1147,7 @@ impl<'a> UIComponentInstance<'a> {
                                       contents_area_size_x: f32,
                                       contents_area_x: f32,
                                       column_count: usize|
-                                      -> f32 {
+         -> f32 {
             let text_render_size_x = column_count as f32 * font_size.x;
             match halign {
                 HorizontalAlign::LEFT => contents_area_x,
@@ -1317,7 +1355,9 @@ impl<'a> UIComponentInstance<'a> {
             inherit_changed_layout = true;
 
             let border = self.get_border();
-            let spaces = self.get_margin() + self.get_padding() + &Vector4::new(border, border, border, border);
+            let spaces = self.get_margin()
+                + self.get_padding()
+                + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
             let size_hint_y = self.get_size_hint_y();
             let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
@@ -1336,11 +1376,15 @@ impl<'a> UIComponentInstance<'a> {
 
             // expandable
             if self.get_expandable_x() {
-                ui_size.x = ui_size.x.max(self._text_contents_size.x + spaces.x + spaces.z);
+                ui_size.x = ui_size
+                    .x
+                    .max(self._text_contents_size.x + spaces.x + spaces.z);
             }
 
             if self.get_expandable_y() {
-                ui_size.y = ui_size.y.max(self._text_contents_size.y + spaces.y + spaces.w);
+                ui_size.y = ui_size
+                    .y
+                    .max(self._text_contents_size.y + spaces.y + spaces.w);
             }
 
             self._spaces.clone_from(&spaces);
@@ -1365,10 +1409,12 @@ impl<'a> UIComponentInstance<'a> {
                     match self.get_layout_orientation() {
                         Orientation::HORIZONTAL => {
                             required_contents_size.x += child_ui_instance._ui_size.x;
-                            required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
+                            required_contents_size.y =
+                                required_contents_size.y.max(child_ui_instance._ui_size.y);
                         }
                         Orientation::VERTICAL => {
-                            required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
+                            required_contents_size.x =
+                                required_contents_size.x.max(child_ui_instance._ui_size.x);
                             required_contents_size.y += child_ui_instance._ui_size.y;
                         }
                     }
@@ -1377,14 +1423,30 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             // update expandable size
-            if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
-                self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
-                self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
+            if self.get_expandable_x()
+                && self._contents_area_size.x < self._required_contents_size.x
+            {
+                self._contents_area_size.x = self
+                    ._contents_area_size
+                    .x
+                    .max(self._required_contents_size.x);
+                self._ui_size.x = self
+                    ._ui_size
+                    .x
+                    .max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
             }
 
-            if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
-                self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
-                self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
+            if self.get_expandable_y()
+                && self._contents_area_size.y < self._required_contents_size.y
+            {
+                self._contents_area_size.y = self
+                    ._contents_area_size
+                    .y
+                    .max(self._required_contents_size.y);
+                self._ui_size.y = self
+                    ._ui_size
+                    .y
+                    .max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
             }
         }
     }
@@ -1405,23 +1467,23 @@ impl<'a> UIComponentInstance<'a> {
         match parent_layout_type {
             UILayoutType::FloatLayout => {
                 if let Some(pos_hint_x) = self.get_pos_hint_x() {
-                    self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
-                } else if let Some(center_hint_x) = self.get_center_hint_x() {
                     self._ui_area.x =
-                        parent_contents_area.x +
-                        parent_contents_area_size.x * center_hint_x +
-                        (required_contents_size.x - self._ui_size.x) * 0.5;
+                        parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
+                } else if let Some(center_hint_x) = self.get_center_hint_x() {
+                    self._ui_area.x = parent_contents_area.x
+                        + parent_contents_area_size.x * center_hint_x
+                        + (required_contents_size.x - self._ui_size.x) * 0.5;
                 } else {
                     self._ui_area.x = parent_contents_area.x + self.get_pos_x();
                 }
 
                 if let Some(pos_hint_y) = self.get_pos_hint_y() {
-                    self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
-                } else if let Some(center_hint_y) = self.get_center_hint_y() {
                     self._ui_area.y =
-                        parent_contents_area.y +
-                        parent_contents_area_size.y * center_hint_y +
-                        (required_contents_size.y - self._ui_size.y) * 0.5;
+                        parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
+                } else if let Some(center_hint_y) = self.get_center_hint_y() {
+                    self._ui_area.y = parent_contents_area.y
+                        + parent_contents_area_size.y * center_hint_y
+                        + (required_contents_size.y - self._ui_size.y) * 0.5;
                 } else {
                     self._ui_area.y = parent_contents_area.y + self.get_pos_y();
                 }
@@ -1433,10 +1495,12 @@ impl<'a> UIComponentInstance<'a> {
                     match parent_valign {
                         VerticalAlign::TOP => self._ui_area.y = ui_area_pos.y,
                         VerticalAlign::CENTER => {
-                            self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
+                            self._ui_area.y =
+                                ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
                         }
                         VerticalAlign::BOTTOM => {
-                            self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y)
+                            self._ui_area.y =
+                                ui_area_pos.y + (required_contents_size.y - self._ui_size.y)
                         }
                     }
                 }
@@ -1446,10 +1510,12 @@ impl<'a> UIComponentInstance<'a> {
                     match parent_halign {
                         HorizontalAlign::LEFT => self._ui_area.x = ui_area_pos.x,
                         HorizontalAlign::CENTER => {
-                            self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5
+                            self._ui_area.x =
+                                ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5
                         }
                         HorizontalAlign::RIGHT => {
-                            self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x)
+                            self._ui_area.x =
+                                ui_area_pos.x + (required_contents_size.x - self._ui_size.x)
                         }
                     }
                 }
@@ -1713,7 +1779,7 @@ impl<'a> WidgetDefault<'a> {
     }
     pub fn remove_widget(&mut self, widget: *const WidgetDefault<'a>) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
-            if  std::ptr::addr_eq(child_widget.as_ref(), widget) {
+            if std::ptr::addr_eq(child_widget.as_ref(), widget) {
                 let widget_instance = ptr_as_mut(widget);
                 widget_instance.clear_parent();
                 widget_instance.clear_widgets();
@@ -1760,7 +1826,7 @@ impl VertexDataBase for UIVertexData {
     fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: std::mem::size_of::<UIVertexData>() as u32,
+            stride: size_of::<UIVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX,
         }]
     }
@@ -1851,7 +1917,6 @@ impl<'a> UIManager<'a> {
     pub fn destroy_ui_manager(&mut self, device: &Device) {
         log::info!("destroy_ui_manager");
         ptr_as_mut(self._root.as_ref()).clear_widgets();
-        drop(self._root.as_ref());
         geometry_buffer::destroy_geometry_data(device, &self._quad_mesh);
     }
 
@@ -2007,7 +2072,7 @@ impl<'a> UIManager<'a> {
                         command_buffer,
                         &self._quad_mesh,
                         &[],
-                        render_count
+                        render_count,
                     );
                     push_constant_data._instance_id_offset =
                         render_group_data._accumulated_render_count;
@@ -2031,12 +2096,19 @@ impl<'a> UIManager<'a> {
         // update world axis
         let main_camera = engine_core.get_scene_manager().get_main_camera();
         let debug_line_manager = engine_core.get_debug_line_manager_mut();
-        self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera, debug_line_manager);
+        self._ui_world_axis
+            .as_mut()
+            .unwrap()
+            .update_world_axis(main_camera, debug_line_manager);
 
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         if *window_size != self._window_size {
-            log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
+            log::info!(
+                "changed window size: {:?} -> {:?}",
+                self._window_size,
+                window_size
+            );
             self._window_size = window_size.clone() as Vector2<i32>;
             root_ui_component.set_changed_layout(true);
         }
@@ -2073,7 +2145,9 @@ impl<'a> UIManager<'a> {
         let inherit_changed_layout: bool = false;
         let update_depth: u32 = 0;
 
-        if root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout() {
+        if root_ui_component.get_changed_layout()
+            || root_ui_component.get_changed_deep_child_layout()
+        {
             root_ui_component.update_layout_size(
                 inherit_changed_layout,
                 &contents_area_size,
@@ -2185,14 +2259,24 @@ impl<'a> UIWorldAxis<'a> {
 
     pub fn set_visible(&mut self, visible: bool) {
         self._visible = visible;
-        ptr_as_mut(self._widget_axis_x.as_ref()).get_ui_component_mut().set_visible(visible);
-        ptr_as_mut(self._widget_axis_y.as_ref()).get_ui_component_mut().set_visible(visible);
-        ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut().set_visible(visible);
+        ptr_as_mut(self._widget_axis_x.as_ref())
+            .get_ui_component_mut()
+            .set_visible(visible);
+        ptr_as_mut(self._widget_axis_y.as_ref())
+            .get_ui_component_mut()
+            .set_visible(visible);
+        ptr_as_mut(self._widget_axis_z.as_ref())
+            .get_ui_component_mut()
+            .set_visible(visible);
     }
 
-    pub fn update_world_axis(&mut self, main_camera: &CameraObjectData, debug_line_manager: &mut DebugLineManager) {
+    pub fn update_world_axis(
+        &mut self,
+        main_camera: &CameraObjectData,
+        debug_line_manager: &mut DebugLineManager,
+    ) {
         if false == self.get_visible() {
-            return
+            return;
         }
 
         let window_height: f32 = main_camera._window_size.y as f32;

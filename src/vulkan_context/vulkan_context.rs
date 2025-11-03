@@ -44,7 +44,9 @@ pub fn get_color32(r: u32, g: u32, b: u32, a: u32) -> u32 {
     min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24)
 }
 
-pub fn get_color_blend_operation(blend_operation: BlendOperation) -> vk::PipelineColorBlendAttachmentState {
+pub fn get_color_blend_operation(
+    blend_operation: BlendOperation,
+) -> vk::PipelineColorBlendAttachmentState {
     match blend_operation {
         BlendOperation::AlphaBlend => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
@@ -78,7 +80,7 @@ pub fn get_color_blend_operation(blend_operation: BlendOperation) -> vk::Pipelin
             src_alpha_blend_factor: vk::BlendFactor::ONE,
             dst_alpha_blend_factor: vk::BlendFactor::ONE,
             alpha_blend_op: vk::BlendOp::MAX,
-            color_write_mask: vk::ColorComponentFlags::R
+            color_write_mask: vk::ColorComponentFlags::R,
         },
         BlendOperation::PreMultipliedAlpha => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,

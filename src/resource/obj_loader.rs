@@ -5,8 +5,8 @@ use std::path::PathBuf;
 use nalgebra::{self, Vector2, Vector3};
 
 use crate::constants;
-use crate::scene::mesh::MeshDataCreateInfo;
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::system;
 use crate::vulkan_context::geometry_buffer::{self, GeometryCreateInfo, VertexData};
 use crate::vulkan_context::vulkan_context;

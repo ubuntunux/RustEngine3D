@@ -6,11 +6,11 @@ use serde::{Deserialize, Serialize};
 use crate::scene::mesh::MeshData;
 use crate::scene::transform_object::{SimpleTransform, TransformObjectData};
 
-use nalgebra_glm as glm;
 use crate::constants;
 use crate::scene::render_object::AnimationLayer;
 use crate::scene::socket::Socket;
 use crate::utilities::system::{ptr_as_ref, RcRefCell};
+use nalgebra_glm as glm;
 
 pub const INVALID_BONE_INDEX: usize = usize::MAX;
 
@@ -82,9 +82,8 @@ pub struct AnimationData {
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
 #[serde(default)]
 pub struct AnimationLayerData {
-    pub _bone_blend_map: HashMap<String, f32>
+    pub _bone_blend_map: HashMap<String, f32>,
 }
-
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(default)]
@@ -102,13 +101,11 @@ pub struct SkeletonDataCreateInfo {
     pub _inv_bind_matrices: Vec<Matrix4<f32>>, // inverse matrix of bone
 }
 
-
 #[derive(Clone, Debug)]
 pub struct AnimationBuffer {
     pub _prev_animation_buffer: Vec<Matrix4<f32>>,
-    pub _animation_buffer: Vec<Matrix4<f32>>
+    pub _animation_buffer: Vec<Matrix4<f32>>,
 }
-
 
 #[derive(Clone, Debug)]
 pub struct AnimationPlayInfo {
@@ -132,7 +129,7 @@ pub struct AnimationPlayInfo {
     pub _last_animation_transforms: Vec<SimpleTransform>,
     pub _animation_index: usize,
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
-    pub _animation_layers: *const AnimationLayerData
+    pub _animation_layers: *const AnimationLayerData,
 }
 
 #[derive(Clone, Debug)]
@@ -145,7 +142,7 @@ pub struct AnimationPlayArgs {
     pub _animation_fade_out_time: f32,
     pub _force_animation_setting: bool,
     pub _reset_animation_time: bool,
-    pub _animation_layers: *const AnimationLayerData
+    pub _animation_layers: *const AnimationLayerData,
 }
 
 // Implementations
@@ -227,7 +224,9 @@ impl SkeletonData {
         };
 
         for (bone_index, bone_name) in skeleton_data_create_info._bone_names.iter().enumerate() {
-            skeleton_data._bone_index_map.insert(bone_name.clone(), bone_index);
+            skeleton_data
+                ._bone_index_map
+                .insert(bone_name.clone(), bone_index);
         }
 
         skeleton_data.build_bone(
@@ -311,7 +310,7 @@ impl AnimationData {
     }
 
     pub fn get_bone_count(&self) -> usize {
-        return self._nodes.len();
+        self._nodes.len()
     }
 
     pub fn get_time_to_frame(&self, current_frame: f32, current_time: f32) -> f32 {
@@ -326,7 +325,7 @@ impl AnimationData {
             loop {
                 if (0 == frame && current_time <= self._frame_times[frame])
                     || (self._frame_times[frame] <= current_time
-                    && current_time <= self._frame_times[frame + 1])
+                        && current_time <= self._frame_times[frame + 1])
                 {
                     break;
                 }
@@ -363,54 +362,74 @@ impl AnimationNodeData {
         }
     }
 
-    pub fn calc_animation_transform(&self, frame: f32) -> SimpleTransform{
+    pub fn calc_animation_transform(&self, frame: f32) -> SimpleTransform {
         if (frame as usize) < self._frame_count {
             let rate = frame.fract();
             let frame: usize = (frame as usize) % self._frame_count;
             let next_frame: usize = (frame + 1) % self._frame_count;
             if frame < self._frame_count {
                 return SimpleTransform {
-                    _position: glm::lerp(&self._locations[frame], &self._locations[next_frame], rate),
-                    _rotation: glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate),
-                    _scale: glm::lerp(&self._scales[frame], &self._scales[next_frame], rate)
-                }
+                    _position: glm::lerp(
+                        &self._locations[frame],
+                        &self._locations[next_frame],
+                        rate,
+                    ),
+                    _rotation: glm::quat_slerp(
+                        &self._rotations[frame],
+                        &self._rotations[next_frame],
+                        rate,
+                    ),
+                    _scale: glm::lerp(&self._scales[frame], &self._scales[next_frame], rate),
+                };
             }
         }
         SimpleTransform::default()
     }
 }
 
-
 impl AnimationBuffer {
     pub fn create_animation_buffer(bone_count: usize) -> AnimationBuffer {
         AnimationBuffer {
             _animation_buffer: vec![Matrix4::identity(); bone_count],
-            _prev_animation_buffer: vec![Matrix4::identity(); bone_count]
+            _prev_animation_buffer: vec![Matrix4::identity(); bone_count],
         }
     }
 
     pub fn swap_animation_buffer(&mut self) {
         std::mem::swap(
             &mut self._prev_animation_buffer,
-            &mut self._animation_buffer
+            &mut self._animation_buffer,
         );
     }
 
-    pub fn update_animation_buffer(&mut self, animation_play_info: &AnimationPlayInfo, sockets: &mut HashMap<String, RcRefCell<Socket>>) {
-        let animation_transforms: &Vec<SimpleTransform> = &animation_play_info._animation_transforms;
-        let animation_data_list: &Vec<AnimationData> = &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
-        let animation_data: &AnimationData = &animation_data_list[animation_play_info._animation_index];
+    pub fn update_animation_buffer(
+        &mut self,
+        animation_play_info: &AnimationPlayInfo,
+        sockets: &mut HashMap<String, RcRefCell<Socket>>,
+    ) {
+        let animation_transforms: &Vec<SimpleTransform> =
+            &animation_play_info._animation_transforms;
+        let animation_data_list: &Vec<AnimationData> = &animation_play_info
+            ._animation_mesh
+            .as_ref()
+            .unwrap()
+            .borrow()
+            ._animation_data_list;
+        let animation_data: &AnimationData =
+            &animation_data_list[animation_play_info._animation_index];
         for bone_data in ptr_as_ref(animation_data._skeleton)._hierarchy.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
-            let transform = ptr_as_ref(animation_data._skeleton)._transform * animation_transforms[bone_index].to_matrix();
-            self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
+            let transform = ptr_as_ref(animation_data._skeleton)._transform
+                * animation_transforms[bone_index].to_matrix();
+            self._animation_buffer[bone_index] =
+                transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
             self.update_hierarchical_animation_transform(
                 *bone_data,
                 &transform,
                 animation_data,
                 animation_transforms,
-                sockets
+                sockets,
             );
 
             // update sockets
@@ -430,19 +449,21 @@ impl AnimationBuffer {
         parent_matrix: *const Matrix4<f32>,
         animation_data: &AnimationData,
         animation_transforms: &Vec<SimpleTransform>,
-        sockets: &mut HashMap<String, RcRefCell<Socket>>
+        sockets: &mut HashMap<String, RcRefCell<Socket>>,
     ) {
         for bone_data in ptr_as_ref(parent_bone)._children.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
-            let transform = ptr_as_ref(parent_matrix) * animation_transforms[bone_index].to_matrix();
-            self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
+            let transform =
+                ptr_as_ref(parent_matrix) * animation_transforms[bone_index].to_matrix();
+            self._animation_buffer[bone_index] =
+                transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
             self.update_hierarchical_animation_transform(
                 *bone_data,
                 &transform,
                 animation_data,
                 animation_transforms,
-                sockets
+                sockets,
             );
 
             // update sockets
@@ -456,8 +477,6 @@ impl AnimationBuffer {
         }
     }
 }
-
-
 
 impl Default for AnimationPlayInfo {
     fn default() -> AnimationPlayInfo {
@@ -482,13 +501,17 @@ impl Default for AnimationPlayInfo {
             _last_animation_transforms: Vec::new(),
             _animation_index: 0,
             _animation_mesh: None,
-            _animation_layers: std::ptr::null()
+            _animation_layers: std::ptr::null(),
         }
     }
 }
 
 impl AnimationPlayInfo {
-    pub fn create_animation_play_info(animation_layer: AnimationLayer, mesh_data: Option<RcRefCell<MeshData>>, bone_count: usize) -> AnimationPlayInfo {
+    pub fn create_animation_play_info(
+        animation_layer: AnimationLayer,
+        mesh_data: Option<RcRefCell<MeshData>>,
+        bone_count: usize,
+    ) -> AnimationPlayInfo {
         AnimationPlayInfo {
             _animation_layer: animation_layer,
             _animation_transforms: vec![SimpleTransform::default(); bone_count],
@@ -505,10 +528,9 @@ impl AnimationPlayInfo {
     pub fn check_animation_event_time(&self, event_time: f32) -> bool {
         if self._prev_animation_play_time <= event_time && event_time < self._animation_play_time {
             return true;
-        }
-        else if self._is_animation_end && self._animation_play_time <= event_time {
+        } else if self._is_animation_end && self._animation_play_time <= event_time {
             // unreachable event time
-            return true
+            return true;
         }
         false
     }
@@ -525,7 +547,12 @@ impl AnimationPlayInfo {
             self._is_animation_start = false;
         }
 
-        let animation_data_list: &Vec<AnimationData> = &self._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
+        let animation_data_list: &Vec<AnimationData> = &self
+            ._animation_mesh
+            .as_ref()
+            .unwrap()
+            .borrow()
+            ._animation_data_list;
         let animation_data = &animation_data_list[self._animation_index];
 
         // update animation time
@@ -549,23 +576,24 @@ impl AnimationPlayInfo {
                 }
             }
 
-            self._animation_frame = animation_data.get_time_to_frame(
-                self._animation_frame,
-                self._animation_play_time,
-            );
+            self._animation_frame =
+                animation_data.get_time_to_frame(self._animation_frame, self._animation_play_time);
 
             if 0.0 == self._animation_blend_time {
                 self._animation_blend_ratio = 1.0;
             } else {
-                self._animation_blend_ratio = 1f32.min(self._animation_elapsed_time / self._animation_blend_time);
+                self._animation_blend_ratio =
+                    1f32.min(self._animation_elapsed_time / self._animation_blend_time);
             }
 
             if self._animation_loop || 0.0 == self._animation_fade_out_time {
                 self._animation_fade_out_ratio = 1.0;
             } else {
-                self._animation_fade_out_ratio = 1f32.min(0f32.max((animation_end_time - self._animation_elapsed_time) / self._animation_fade_out_time));
+                self._animation_fade_out_ratio = 1f32.min(0f32.max(
+                    (animation_end_time - self._animation_elapsed_time)
+                        / self._animation_fade_out_time,
+                ));
             }
-
         } else {
             self._animation_frame = 0.0;
         }
@@ -583,32 +611,53 @@ impl AnimationPlayInfo {
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
         if additive_animation_play_info._animation_layers.is_null() {
-            for (bone_index, additive_animation_transform) in additive_animation_play_info._animation_transforms.iter().enumerate() {
-                self._animation_transforms[bone_index] = self._animation_transforms[bone_index].lerp(
-                    additive_animation_transform,
-                    additive_animation_play_info._animation_fade_out_ratio
-                );
+            for (bone_index, additive_animation_transform) in additive_animation_play_info
+                ._animation_transforms
+                .iter()
+                .enumerate()
+            {
+                self._animation_transforms[bone_index] = self._animation_transforms[bone_index]
+                    .lerp(
+                        additive_animation_transform,
+                        additive_animation_play_info._animation_fade_out_ratio,
+                    );
             }
         } else {
-            for (bone_name, blend_ratio) in ptr_as_ref(additive_animation_play_info._animation_layers)._bone_blend_map.iter() {
+            for (bone_name, blend_ratio) in
+                ptr_as_ref(additive_animation_play_info._animation_layers)
+                    ._bone_blend_map
+                    .iter()
+            {
                 if 0.0 < *blend_ratio {
                     if let Some(bone_index) = skeleton_data._bone_index_map.get(bone_name) {
-                        let additive_animation_transform = &additive_animation_play_info._animation_transforms[*bone_index];
-                        self._animation_transforms[*bone_index] = self._animation_transforms[*bone_index].lerp(
-                            additive_animation_transform,
-                            *blend_ratio * additive_animation_play_info._animation_fade_out_ratio
-                        );
+                        let additive_animation_transform =
+                            &additive_animation_play_info._animation_transforms[*bone_index];
+                        self._animation_transforms[*bone_index] =
+                            self._animation_transforms[*bone_index].lerp(
+                                additive_animation_transform,
+                                *blend_ratio
+                                    * additive_animation_play_info._animation_fade_out_ratio,
+                            );
                     }
                 }
             }
         }
     }
 
-    pub fn set_animation_play_info(&mut self, animation_mesh: &RcRefCell<MeshData>, animation_args: &AnimationPlayArgs, enable_blend_animatioin: bool) {
+    pub fn set_animation_play_info(
+        &mut self,
+        animation_mesh: &RcRefCell<MeshData>,
+        animation_args: &AnimationPlayArgs,
+        enable_blend_animatioin: bool,
+    ) {
         self._animation_mesh = Some(animation_mesh.clone());
         self._animation_speed = animation_args._animation_speed;
         self._animation_loop = animation_args._animation_loop;
-        self._animation_blend_time = if enable_blend_animatioin { animation_args._animation_blend_time } else { 0.0 };
+        self._animation_blend_time = if enable_blend_animatioin {
+            animation_args._animation_blend_time
+        } else {
+            0.0
+        };
         self._animation_fade_out_time = animation_args._animation_fade_out_time;
         self._animation_end_time = animation_args._animation_end_time;
         self._animation_layers = animation_args._animation_layers.clone();
@@ -636,7 +685,7 @@ impl Default for AnimationPlayArgs {
             _animation_fade_out_time: 0.0,
             _force_animation_setting: false,
             _reset_animation_time: true,
-            _animation_layers: std::ptr::null()
+            _animation_layers: std::ptr::null(),
         }
     }
 }

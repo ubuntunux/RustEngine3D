@@ -19,7 +19,6 @@ use crate::renderer::shader_buffer_data::ShaderBufferDataType;
 pub const SEMANTIC_TEXTURE_SHADOW_AO: &str = "TEXTURE_SHADOW_AO";
 pub const SEMANTIC_TEXTURE_SCENE_REFLECT: &str = "TEXTURE_SCENE_REFLECT";
 
-
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
     framebuffer::create_framebuffer_data_create_info(
         &[RenderTargetInfo {
@@ -71,7 +70,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(BlendOperation::None);
+            vulkan_context::get_color_blend_operation(
+                BlendOperation::None
+            );
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
@@ -213,7 +214,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             },
             DescriptorDataCreateInfo {
                 _descriptor_binding_index: 17,
-                _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
+                _descriptor_name: enum_to_string(
+                    &RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
+                ),
                 _descriptor_resource_type: DescriptorResourceType::RenderTarget,
                 _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
                     | vk::ShaderStageFlags::FRAGMENT,

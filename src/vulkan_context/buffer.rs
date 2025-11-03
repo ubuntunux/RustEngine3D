@@ -1,3 +1,5 @@
+#![allow(unused_qualifications)]
+
 use std::mem;
 
 use ash::ext;
@@ -362,17 +364,19 @@ pub fn create_shader_buffer_data<'a>(
         vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT
     };
     let buffers: SwapchainArray<BufferData> = if create_buffer_per_swapchain_count {
-        (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-            create_buffer_data(
-                device,
-                memory_properties,
-                debug_utils_device,
-                buffer_name.as_str(),
-                buffer_size,
-                buffer_usage_flags,
-                memory_property_flags,
-            )
-        }).collect()
+        (0..constants::SWAPCHAIN_IMAGE_COUNT)
+            .map(|_i| {
+                create_buffer_data(
+                    device,
+                    memory_properties,
+                    debug_utils_device,
+                    buffer_name.as_str(),
+                    buffer_size,
+                    buffer_usage_flags,
+                    memory_property_flags,
+                )
+            })
+            .collect()
     } else {
         let buffer = create_buffer_data(
             device,
@@ -392,17 +396,19 @@ pub fn create_shader_buffer_data<'a>(
         let staging_memory_property_flags =
             vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
         Some(if create_buffer_per_swapchain_count {
-            (0..constants::SWAPCHAIN_IMAGE_COUNT).map(|_i| {
-                create_buffer_data(
-                    device,
-                    memory_properties,
-                    debug_utils_device,
-                    buffer_name,
-                    buffer_size,
-                    staging_buffer_usage_flags,
-                    staging_memory_property_flags,
-                )
-            }).collect()
+            (0..constants::SWAPCHAIN_IMAGE_COUNT)
+                .map(|_i| {
+                    create_buffer_data(
+                        device,
+                        memory_properties,
+                        debug_utils_device,
+                        buffer_name,
+                        buffer_size,
+                        staging_buffer_usage_flags,
+                        staging_memory_property_flags,
+                    )
+                })
+                .collect()
         } else {
             let buffer = create_buffer_data(
                 device,

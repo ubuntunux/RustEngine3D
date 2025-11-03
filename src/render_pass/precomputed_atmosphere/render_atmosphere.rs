@@ -204,15 +204,31 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("default"),
-        _pipeline_vertex_shader_file: PathBuf::from("precomputed_atmosphere/render_atmosphere.vert"),
-        _pipeline_fragment_shader_file: PathBuf::from("precomputed_atmosphere/render_atmosphere.frag"),
+        _pipeline_vertex_shader_file: PathBuf::from(
+            "precomputed_atmosphere/render_atmosphere.vert",
+        ),
+        _pipeline_fragment_shader_file: PathBuf::from(
+            "precomputed_atmosphere/render_atmosphere.frag",
+        ),
         _pipeline_shader_defines: vec![
-            format!("USE_LUMINANCE={:?}", if Luminance::NONE != DEFAULT_LUMINANCE_TYPE { 1 } else { 0 }),
-            format!("COMBINED_SCATTERING_TEXTURES={:?}", if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }),
+            format!(
+                "USE_LUMINANCE={:?}",
+                if Luminance::NONE != DEFAULT_LUMINANCE_TYPE {
+                    1
+                } else {
+                    0
+                }
+            ),
+            format!(
+                "COMBINED_SCATTERING_TEXTURES={:?}",
+                if DEFAULT_USE_COMBINED_TEXTURES { 1 } else { 0 }
+            ),
         ],
         _pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(BlendOperation::None);
+            vulkan_context::get_color_blend_operation(
+                BlendOperation::None
+            );
             color_attachment_descriptions.len()
         ],
         _pipeline_cull_mode: vk::CullModeFlags::BACK,

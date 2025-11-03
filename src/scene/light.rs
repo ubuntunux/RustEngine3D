@@ -1,9 +1,9 @@
-use nalgebra::{Matrix4, Vector3, Vector4};
-use serde::{Deserialize, Serialize};
 use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::transform_object::TransformObjectData;
+use nalgebra::{Matrix4, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
 
 // scene_constants.glsl - struct LIGHT_DATA
 #[repr(C)]
@@ -62,7 +62,7 @@ pub struct PointLights {
 #[repr(C)]
 #[derive(Default, Debug, Clone)]
 pub struct LightIndicesCell {
-    pub _light_indices: [i32; constants::MAX_LIGHT_COUNT_PER_CELL]
+    pub _light_indices: [i32; constants::MAX_LIGHT_COUNT_PER_CELL],
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -78,5 +78,5 @@ pub struct PointLight {
     pub _object_id: SceneObjectID,
     pub _light_name: String,
     pub _light_data: PointLightData,
-    pub _bounding_box: BoundingBox
+    pub _bounding_box: BoundingBox,
 }

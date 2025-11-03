@@ -1,5 +1,5 @@
-use ash::{Device, vk};
 use ash::ext;
+use ash::{vk, Device};
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
@@ -72,7 +72,7 @@ impl VertexDataBase for DebugLineVertexData {
     fn get_vertex_input_binding_descriptions() -> Vec<vk::VertexInputBindingDescription> {
         vec![vk::VertexInputBindingDescription {
             binding: 0,
-            stride: std::mem::size_of::<DebugLineVertexData>() as u32,
+            stride: size_of::<DebugLineVertexData>() as u32,
             input_rate: vk::VertexInputRate::VERTEX,
         }]
     }

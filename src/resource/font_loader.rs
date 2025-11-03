@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use image::{DynamicImage, Rgba};
 use nalgebra::{self, Vector2};
-use rusttype::{Font, point, PositionedGlyph, Scale};
+use rusttype::{point, Font, PositionedGlyph, Scale};
 
 use crate::scene::font::{self, FontDataCreateInfo};
 use crate::utilities::system;

@@ -4,12 +4,12 @@ use std::os::raw::c_char;
 use std::rc::Rc;
 use std::vec::Vec;
 
-use ash::{Device, Entry, Instance, vk};
 use ash::ext;
 use ash::khr;
 use ash::nv;
 use ash::prelude::VkResult;
 use ash::vk::CommandBuffer;
+use ash::{vk, Device, Entry, Instance};
 use nalgebra::Vector2;
 use winit;
 use winit::raw_window_handle::HasDisplayHandle;
@@ -29,7 +29,6 @@ use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui::UIManager;
 use crate::utilities::system;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
-use crate::vulkan_context::{buffer, command_buffer, device, queue, sync, texture};
 use crate::vulkan_context::buffer::ShaderBufferData;
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::descriptor::{self, DescriptorResourceInfo};
@@ -40,6 +39,7 @@ use crate::vulkan_context::render_pass::{PipelineData, RenderPassData, RenderPas
 use crate::vulkan_context::swapchain::{self, SwapchainData};
 use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 use crate::vulkan_context::vulkan_context::{FrameArray, RenderFeatures, SwapchainArray};
+use crate::vulkan_context::{buffer, command_buffer, device, queue, sync, texture};
 
 pub unsafe extern "system" fn vulkan_debug_callback(
     message_severity: vk::DebugUtilsMessageSeverityFlagsEXT,
@@ -147,30 +147,36 @@ impl<'a> RendererContext<'a> {
                 window_size.y
             );
             let entry = Entry::linked();
-            let surface_extensions =
-                ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap();
-            let required_layer_names =
-                device::get_instance_layers(&entry, &*&raw const constants::REQUIRED_INSTANCE_LAYERS);
+            let surface_extensions = ash_window::enumerate_required_extensions(
+                window.display_handle().unwrap().as_raw(),
+            )
+            .unwrap();
+            let required_layer_names = device::get_instance_layers(
+                &entry,
+                &*&raw const constants::REQUIRED_INSTANCE_LAYERS,
+            );
             let required_instance_layers: Vec<*const c_char> = required_layer_names
                 .iter()
                 .map(|layer| layer.as_ptr())
                 .collect();
-            let device_extensions: Vec<CString> = (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
-                .iter()
-                .map(|str| CString::new(str.as_str()).unwrap())
-                .collect();
+            let device_extensions: Vec<CString> =
+                (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
+                    .iter()
+                    .map(|str| CString::new(str.as_str()).unwrap())
+                    .collect();
             let mut device_extension_names_raw: Vec<*const c_char> = device_extensions
                 .iter()
                 .map(|extension| extension.as_ptr())
                 .collect();
-            let device_extensions_for_ray_tracing: Vec<CString> = if *&raw const constants::USE_RAY_TRACING {
-                (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
-                    .iter()
-                    .map(|str| CString::new(str.as_str()).unwrap())
-                    .collect()
-            } else {
-                Vec::new()
-            };
+            let device_extensions_for_ray_tracing: Vec<CString> =
+                if *&raw const constants::USE_RAY_TRACING {
+                    (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
+                        .iter()
+                        .map(|str| CString::new(str.as_str()).unwrap())
+                        .collect()
+                } else {
+                    Vec::new()
+                };
             let instance: Instance = device::create_vk_instance(
                 &entry,
                 &app_name,
@@ -178,11 +184,7 @@ impl<'a> RendererContext<'a> {
                 &surface_extensions,
                 &required_instance_layers,
             );
-            let surface = device::create_vk_surface(
-                &entry,
-                &instance,
-                window
-            );
+            let surface = device::create_vk_surface(&entry, &instance, window);
             let surface_instance = khr::surface::Instance::new(&entry, &instance);
             let (
                 physical_device,
@@ -195,10 +197,14 @@ impl<'a> RendererContext<'a> {
                 surface,
                 &device_extensions,
                 &device_extensions_for_ray_tracing,
-            ).unwrap();
-            let device_properties: vk::PhysicalDeviceProperties = instance.get_physical_device_properties(physical_device);
-            let device_memory_properties: vk::PhysicalDeviceMemoryProperties = instance.get_physical_device_memory_properties(physical_device);
-            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
+            )
+            .unwrap();
+            let device_properties: vk::PhysicalDeviceProperties =
+                instance.get_physical_device_properties(physical_device);
+            let device_memory_properties: vk::PhysicalDeviceMemoryProperties =
+                instance.get_physical_device_memory_properties(physical_device);
+            let device_name =
+                CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
             let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
 
             log::info!("PhysicalDeviceProperties");
@@ -227,11 +233,15 @@ impl<'a> RendererContext<'a> {
             let ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV = {
                 let mut props_rt = vk::PhysicalDeviceRayTracingPropertiesNV::default();
                 {
-                    let mut props = vk::PhysicalDeviceProperties2::default().push_next(&mut props_rt);
+                    let mut props =
+                        vk::PhysicalDeviceProperties2::default().push_next(&mut props_rt);
                     instance.get_physical_device_properties2(physical_device, &mut props);
                 }
                 log::info!("NV Ray Tracing Properties:");
-                log::info!("    has_ray_tracing_extensions: {:?}", has_ray_tracing_extensions);
+                log::info!(
+                    "    has_ray_tracing_extensions: {:?}",
+                    has_ray_tracing_extensions
+                );
                 log::info!("    ray_tracing_properties: {:?}", props_rt);
                 props_rt
             };
@@ -391,7 +401,8 @@ impl<'a> RendererContext<'a> {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
-        self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
+        self._image_samplers =
+            image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
         self.get_renderer_data_mut().initialize_renderer_data(
             self,
             engine_resources,
@@ -586,7 +597,10 @@ impl<'a> RendererContext<'a> {
         device::destroy_vk_surface(&self._surface_instance, self._surface);
         unsafe {
             if self._debug_utils_instance.is_some() {
-                self._debug_utils_instance.as_ref().unwrap().destroy_debug_utils_messenger(self._debug_call_back, None);
+                self._debug_utils_instance
+                    .as_ref()
+                    .unwrap()
+                    .destroy_debug_utils_messenger(self._debug_call_back, None);
             }
         }
         device::destroy_vk_instance(&self._instance);
@@ -686,7 +700,9 @@ impl<'a> RendererContext<'a> {
         push_constant_data: Option<&dyn PushConstant>,
     ) {
         let engine_resources = self.get_engine_resources();
-        let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
+        let material_instance_data = engine_resources
+            .get_material_instance_data(material_instance_name)
+            .borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
         } else {
@@ -756,7 +772,12 @@ impl<'a> RendererContext<'a> {
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(command_buffer, pipeline_data, push_constant_data);
         }
-        self.draw_elements_instanced(command_buffer, geometry_data, instance_buffers, instance_count);
+        self.draw_elements_instanced(
+            command_buffer,
+            geometry_data,
+            instance_buffers,
+            instance_count,
+        );
         self.end_render_pass(command_buffer);
     }
 
@@ -1338,7 +1359,8 @@ impl<'a> RendererContext<'a> {
                     vk::Fence::null(),
                 );
 
-            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok() {
+            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok()
+            {
                 acquire_next_image_result.unwrap()
             } else {
                 (self._swapchain_index, true)
@@ -1356,7 +1378,9 @@ impl<'a> RendererContext<'a> {
                     flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
                     ..Default::default()
                 };
-                self._device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("vkBeginCommandBuffer failed!");
+                self._device
+                    .begin_command_buffer(command_buffer, &command_buffer_begin_info)
+                    .expect("vkBeginCommandBuffer failed!");
 
                 // renderer - render_scene
                 self.get_renderer_data_mut().render_scene(
@@ -1415,7 +1439,9 @@ impl<'a> RendererContext<'a> {
                 log::error!("present swapchain result: {:?}", present_result);
             }
 
-            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
+            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result
+                || vk::Result::SUBOPTIMAL_KHR == present_result
+            {
                 self.set_need_recreate_swapchain(true);
             }
 
@@ -1440,20 +1466,23 @@ impl<'a> RendererContext<'a> {
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::prepare_framebuffer_and_descriptors");
-        self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(
-            self.get_device(),
-            self.get_debug_utils(),
-            &self.get_engine_resources(),
-        );
+        self.get_renderer_data_mut()
+            .prepare_framebuffer_and_descriptors(
+                self.get_device(),
+                self.get_debug_utils(),
+                &self.get_engine_resources(),
+            );
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::destroy_framebuffer_and_descriptors");
-        self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
+        self.get_renderer_data_mut()
+            .destroy_framebuffer_and_descriptors(self.get_device());
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
-        self.get_renderer_data().get_shader_buffer_data_from_str(buffer_data_name)
+        self.get_renderer_data()
+            .get_shader_buffer_data_from_str(buffer_data_name)
     }
 
     pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
@@ -1461,7 +1490,8 @@ impl<'a> RendererContext<'a> {
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
-        self.get_renderer_data().get_render_target_from_str(render_target_type_str)
+        self.get_renderer_data()
+            .get_render_target_from_str(render_target_type_str)
     }
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
@@ -1470,7 +1500,8 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_image_samplers(&self) {
         log::info!("destroy_image_samplers");
-        self.get_image_sampler_data_mut().destroy_image_samplers(self.get_device());
+        self.get_image_sampler_data_mut()
+            .destroy_image_samplers(self.get_device());
     }
 
     pub fn create_render_targets(&self) {
@@ -1480,10 +1511,12 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self.get_renderer_data_mut().destroy_render_targets(self.get_device());
+        self.get_renderer_data_mut()
+            .destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {
-        self.get_renderer_data_mut().destroy_uniform_buffers(self.get_device());
+        self.get_renderer_data_mut()
+            .destroy_uniform_buffers(self.get_device());
     }
 }

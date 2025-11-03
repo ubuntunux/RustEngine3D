@@ -124,7 +124,8 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_color_blend_operations: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_attribute_descriptions:
+                VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_data_list: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
@@ -307,42 +308,37 @@ pub fn create_render_pass_data<'a>(
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
     let mut default_pipeline_data_name: String = String::new();
     for i in 0..count {
-        let binding_point = render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
+        let binding_point =
+            render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
         let pipeline_data = match binding_point {
-             vk::PipelineBindPoint::GRAPHICS => {
-                create_graphics_pipeline_data(
-                    device,
-                    debug_utils_device,
-                    render_pass,
-                    &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    false
+            vk::PipelineBindPoint::GRAPHICS => create_graphics_pipeline_data(
+                device,
+                debug_utils_device,
+                render_pass,
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                false
                     == render_pass_data_create_info
-                    ._depth_attachment_descriptions
-                    .is_empty(),
-                    &descriptor_data_list[i].borrow()
-                )
-            }
-            vk::PipelineBindPoint::COMPUTE => {
-                create_compute_pipeline_data(
-                    device,
-                    debug_utils_device,
-                    &render_pass_data_create_info._pipeline_data_create_infos[i],
-                    &descriptor_data_list[i].borrow()
-                )
-            }
-            vk::PipelineBindPoint::RAY_TRACING_KHR => {
-                    create_ray_tracing_pipeline_data(
-                        device,
-                        renderer_context.get_command_pool(),
-                        renderer_context.get_graphics_queue(),
-                        renderer_context.get_device_memory_properties(),
-                        debug_utils_device,
-                        renderer_context.get_ray_tracing(),
-                        renderer_context.get_ray_tracing_properties(),
-                        &render_pass_data_create_info._pipeline_data_create_infos[i],
-                        &descriptor_data_list[i].borrow()
-                    )
-            }
+                        ._depth_attachment_descriptions
+                        .is_empty(),
+                &descriptor_data_list[i].borrow(),
+            ),
+            vk::PipelineBindPoint::COMPUTE => create_compute_pipeline_data(
+                device,
+                debug_utils_device,
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                &descriptor_data_list[i].borrow(),
+            ),
+            vk::PipelineBindPoint::RAY_TRACING_KHR => create_ray_tracing_pipeline_data(
+                device,
+                renderer_context.get_command_pool(),
+                renderer_context.get_graphics_queue(),
+                renderer_context.get_device_memory_properties(),
+                debug_utils_device,
+                renderer_context.get_ray_tracing(),
+                renderer_context.get_ray_tracing_properties(),
+                &render_pass_data_create_info._pipeline_data_create_infos[i],
+                &descriptor_data_list[i].borrow(),
+            ),
             _ => {
                 log::error!("Unknown binding point: {:?}", binding_point);
                 panic!("Unknown binding point: {:?}", binding_point);
@@ -662,7 +658,9 @@ pub fn create_graphics_pipeline_data<'a>(
     let color_blending = vk::PipelineColorBlendStateCreateInfo {
         logic_op_enable: 0,
         logic_op: vk::LogicOp::COPY,
-        attachment_count: pipeline_data_create_info._pipeline_color_blend_operations.len() as u32,
+        attachment_count: pipeline_data_create_info
+            ._pipeline_color_blend_operations
+            .len() as u32,
         p_attachments: pipeline_data_create_info
             ._pipeline_color_blend_operations
             .as_ptr(),
@@ -723,16 +721,20 @@ pub fn create_graphics_pipeline_data<'a>(
     }];
 
     unsafe {
-        let graphics_pipelines = device.create_graphics_pipelines(
+        let graphics_pipelines = device
+            .create_graphics_pipelines(
                 vk::PipelineCache::null(),
                 &graphics_pipeline_create_info,
                 None,
-            ).expect("vkCreateGraphicsPipelines failed!");
+            )
+            .expect("vkCreateGraphicsPipelines failed!");
         assert_eq!(1, graphics_pipelines.len());
 
         debug_utils::set_object_debug_info(
             debug_utils_device,
-            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .as_str(),
             vk::ObjectType::PIPELINE,
             graphics_pipelines[0].as_raw(),
         );
@@ -757,7 +759,9 @@ pub fn create_graphics_pipeline_data<'a>(
         );
 
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
+            _pipeline_data_name: pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .clone(),
             _vertex_shader_create_info: vertex_shader_create_info,
             _fragment_shader_create_info: fragment_shader_create_info,
             _pipeline: graphics_pipelines[0],
@@ -945,16 +949,36 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             pipeline.as_raw(),
         );
 
-        log::info!("    create_ray_tracing_pipeline_data: {} ({:?})", pipeline_data_create_info._pipeline_data_create_info_name, pipeline);
-        log::info!("    shader defines: {:?}", pipeline_data_create_info._pipeline_shader_defines);
+        log::info!(
+            "    create_ray_tracing_pipeline_data: {} ({:?})",
+            pipeline_data_create_info._pipeline_data_create_info_name,
+            pipeline
+        );
+        log::info!(
+            "    shader defines: {:?}",
+            pipeline_data_create_info._pipeline_shader_defines
+        );
         for shader_create_info in shader_create_infos {
-            log::info!("    ray generation shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_generation_shader_file);
-            log::info!("    ray closet-hit shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_closet_hit_shader_file);
-            log::info!("    ray miss shader: {:#X} {:?}", shader_create_info.module.as_raw(), pipeline_data_create_info._pipeline_ray_miss_shader_file);
+            log::info!(
+                "    ray generation shader: {:#X} {:?}",
+                shader_create_info.module.as_raw(),
+                pipeline_data_create_info._pipeline_ray_generation_shader_file
+            );
+            log::info!(
+                "    ray closet-hit shader: {:#X} {:?}",
+                shader_create_info.module.as_raw(),
+                pipeline_data_create_info._pipeline_ray_closet_hit_shader_file
+            );
+            log::info!(
+                "    ray miss shader: {:#X} {:?}",
+                shader_create_info.module.as_raw(),
+                pipeline_data_create_info._pipeline_ray_miss_shader_file
+            );
         }
 
         // create shader binding table
-        let table_size = (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
+        let table_size =
+            (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
         //let table_size = (ray_tracing_properties.shader_group_base_alignment * shader_group_count) as u64;
         let mut table_data: Vec<u8> = vec![0u8; table_size as usize];
         ray_tracing
@@ -967,7 +991,9 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             command_queue,
             device_memory_properties,
             debug_utils_device,
-            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
+            pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .as_str(),
             vk::BufferUsageFlags::TRANSFER_SRC,
             &table_data,
         );
@@ -976,7 +1002,9 @@ pub fn create_ray_tracing_pipeline_data<'a>(
         log::info!("    create_ray_tracing_pipeline_data.");
         log::info!("    CHECK :: do i need present_queue or graphics queue ??");
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
+            _pipeline_data_name: pipeline_data_create_info
+                ._pipeline_data_create_info_name
+                .clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,
             _pipeline: pipeline,
             _pipeline_layout: pipeline_layout,

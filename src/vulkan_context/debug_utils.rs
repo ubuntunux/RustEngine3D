@@ -71,12 +71,10 @@ impl<'a> ScopedDebugLabel<'a> {
     fn call_begin_debug_utils_label(&self) {
         unsafe {
             match self._label_type {
-                DebugLabelType::CmdDebugLabel(command_buffer) => {
-                    (*self._debug_utils_device).cmd_begin_debug_utils_label(command_buffer, &self._label)
-                }
-                DebugLabelType::QueueDebugLabel(command_queue) => {
-                    (*self._debug_utils_device).queue_begin_debug_utils_label(command_queue, &self._label)
-                }
+                DebugLabelType::CmdDebugLabel(command_buffer) => (*self._debug_utils_device)
+                    .cmd_begin_debug_utils_label(command_buffer, &self._label),
+                DebugLabelType::QueueDebugLabel(command_queue) => (*self._debug_utils_device)
+                    .queue_begin_debug_utils_label(command_queue, &self._label),
             }
         }
     }

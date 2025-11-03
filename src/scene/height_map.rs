@@ -1,6 +1,6 @@
-use nalgebra::{Vector2, Vector3, Vector4};
-use crate::utilities::math;
 use crate::scene::bounding_box::BoundingBox;
+use crate::utilities::math;
+use nalgebra::{Vector2, Vector3, Vector4};
 
 const HEIGHT_MAP_INVERT_TEXCOORD_Y: bool = true;
 
@@ -24,7 +24,7 @@ impl HeightMapData {
         height: i32,
         normal_map_data: &Vec<Vector4<u8>>,
         height_map_data: &Vec<f32>,
-        dead_zone: f32
+        dead_zone: f32,
     ) {
         self._dead_zone = dead_zone;
         self._bounding_box = bounding_box.clone();
@@ -64,11 +64,14 @@ impl HeightMapData {
             let parent_width = self._width[lod - 1];
             let parent_height = self._height[lod - 1];
             let last_height_map_data = &self._height_map_data.last().unwrap();
-            let mut lod_height_map_data: Vec<f32> = Vec::with_capacity(((parent_width / 2) * (parent_height / 2)) as usize);
+            let mut lod_height_map_data: Vec<f32> =
+                Vec::with_capacity(((parent_width / 2) * (parent_height / 2)) as usize);
             for y in (0..parent_height).step_by(2) {
                 for x in (0..parent_width).step_by(2) {
-                    let tex_coord_0 = self.convert_to_pixel_index(parent_width, parent_height, x, y);
-                    let tex_coord_1 = self.convert_to_pixel_index(parent_width, parent_height, x, y + 1);
+                    let tex_coord_0 =
+                        self.convert_to_pixel_index(parent_width, parent_height, x, y);
+                    let tex_coord_1 =
+                        self.convert_to_pixel_index(parent_width, parent_height, x, y + 1);
                     let height_00 = last_height_map_data[tex_coord_0];
                     let height_01 = last_height_map_data[tex_coord_0 + 1];
                     let height_10 = last_height_map_data[tex_coord_1];
@@ -88,22 +91,18 @@ impl HeightMapData {
         if normal_map_data.is_empty() {
             for y in 0..height {
                 for x in 0..width {
-                    let height_r = self._height_map_data[0][(y * width + (x + 1).min(width - 1)) as usize];
+                    let height_r =
+                        self._height_map_data[0][(y * width + (x + 1).min(width - 1)) as usize];
                     let height_l = self._height_map_data[0][(y * width + (x - 1).max(0)) as usize];
-                    let height_t = self._height_map_data[0][((y + 1).min(height - 1) * width + x) as usize];
+                    let height_t =
+                        self._height_map_data[0][((y + 1).min(height - 1) * width + x) as usize];
                     let height_b = self._height_map_data[0][((y - 1).max(0) * width + x) as usize];
 
-                    let vector_x: Vector3<f32> = Vector3::new(
-                        step_size_x * 2.0,
-                        height_r - height_l,
-                        0.0
-                    ).normalize();
+                    let vector_x: Vector3<f32> =
+                        Vector3::new(step_size_x * 2.0, height_r - height_l, 0.0).normalize();
 
-                    let vector_z: Vector3<f32> = Vector3::new(
-                        0.0,
-                        height_b - height_t,
-                        step_size_z * 2.0
-                    ).normalize();
+                    let vector_z: Vector3<f32> =
+                        Vector3::new(0.0, height_b - height_t, step_size_z * 2.0).normalize();
 
                     let mut normal_map = if HEIGHT_MAP_INVERT_TEXCOORD_Y {
                         vector_z.cross(&vector_x).normalize()
@@ -121,11 +120,14 @@ impl HeightMapData {
             for y in 0..height {
                 for x in 0..width {
                     let normal_vector = normal_map_data[(y * width + x) as usize];
-                    self._normal_map_data.push(Vector3::new(
-                        normal_vector.x as f32 * 2.0 - 1.0,
-                        normal_vector.y as f32 * 2.0 - 1.0,
-                        normal_vector.z as f32 * 2.0 - 1.0
-                    ).normalize());
+                    self._normal_map_data.push(
+                        Vector3::new(
+                            normal_vector.x as f32 * 2.0 - 1.0,
+                            normal_vector.y as f32 * 2.0 - 1.0,
+                            normal_vector.z as f32 * 2.0 - 1.0,
+                        )
+                        .normalize(),
+                    );
                 }
             }
         }
@@ -136,7 +138,11 @@ impl HeightMapData {
         (y * width + x) as usize
     }
 
-    pub fn get_bilinear_pixel_pos_infos(&self, texcoord: &Vector2<f32>, lod: usize) -> (Vector4<usize>, Vector2<f32>) {
+    pub fn get_bilinear_pixel_pos_infos(
+        &self,
+        texcoord: &Vector2<f32>,
+        lod: usize,
+    ) -> (Vector4<usize>, Vector2<f32>) {
         let width = self._width[lod];
         let height = self._height[lod];
         let pixel_pos_x: f32 = 0f32.max(1f32.min(texcoord.x)) * (width - 1) as f32;
@@ -151,9 +157,12 @@ impl HeightMapData {
             (pixel_pos_y_min + pixel_pos_x_min) as usize,
             (pixel_pos_y_min + pixel_pos_x_max) as usize,
             (pixel_pos_y_max + pixel_pos_x_min) as usize,
-            (pixel_pos_y_max + pixel_pos_x_max) as usize
+            (pixel_pos_y_max + pixel_pos_x_max) as usize,
         );
-        (pixel_indices, Vector2::new(pixel_pos_x_frac, pixel_pos_y_frac))
+        (
+            pixel_indices,
+            Vector2::new(pixel_pos_x_frac, pixel_pos_y_frac),
+        )
     }
 
     pub fn get_texcoord(&self, pos: &Vector3<f32>) -> Vector2<f32> {
@@ -163,7 +172,7 @@ impl HeightMapData {
                 1.0 - ((pos.z - &self._bounding_box._min.z) / (self._bounding_box._extents.z * 2.0))
             } else {
                 (pos.z - &self._bounding_box._min.z) / (self._bounding_box._extents.z * 2.0)
-            }
+            },
         )
     }
 
@@ -188,15 +197,25 @@ impl HeightMapData {
         let (pixel_indices, blend_factors) = self.get_bilinear_pixel_pos_infos(texcoord, lod);
         let height_map_data = &self._height_map_data[lod];
         let height: f32;
-        if height_map_data[pixel_indices.x] <= self._dead_zone ||
-            height_map_data[pixel_indices.y] <= self._dead_zone ||
-            height_map_data[pixel_indices.z] <= self._dead_zone ||
-            height_map_data[pixel_indices.w] <= self._dead_zone {
+        if height_map_data[pixel_indices.x] <= self._dead_zone
+            || height_map_data[pixel_indices.y] <= self._dead_zone
+            || height_map_data[pixel_indices.z] <= self._dead_zone
+            || height_map_data[pixel_indices.w] <= self._dead_zone
+        {
             height = self._dead_zone;
         } else {
-            let height_data_0 = math::lerp(height_map_data[pixel_indices.x], height_map_data[pixel_indices.y], blend_factors.x);
-            let height_data_1 = math::lerp(height_map_data[pixel_indices.z], height_map_data[pixel_indices.w], blend_factors.x);
-            height = self._bounding_box._min.y + math::lerp(height_data_0, height_data_1, blend_factors.y);
+            let height_data_0 = math::lerp(
+                height_map_data[pixel_indices.x],
+                height_map_data[pixel_indices.y],
+                blend_factors.x,
+            );
+            let height_data_1 = math::lerp(
+                height_map_data[pixel_indices.z],
+                height_map_data[pixel_indices.w],
+                blend_factors.x,
+            );
+            height = self._bounding_box._min.y
+                + math::lerp(height_data_0, height_data_1, blend_factors.y);
         }
 
         self._dead_zone.max(height)
@@ -214,15 +233,22 @@ impl HeightMapData {
         let lod = lod.min(self._lod_count as usize - 1);
         let width = self._width[lod];
         let height = self._height[lod];
-        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width as f32 - 1.0)).round() as i32;
-        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height as f32 - 1.0)).round() as i32;
+        let pixel_pos_x: i32 =
+            (0f32.max(1f32.min(texcoord.x)) * (width as f32 - 1.0)).round() as i32;
+        let pixel_pos_y: i32 =
+            (0f32.max(1f32.min(texcoord.y)) * (height as f32 - 1.0)).round() as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         let height_map_value = self._bounding_box._min.y + self._height_map_data[lod][pixel_index];
         self._dead_zone.max(height_map_value)
     }
 
     pub fn get_normal_bilinear_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
-        if self._initialized == false || texcoord.x < 0.0 || texcoord.x > 1.0 || texcoord.y < 0.0 || texcoord.y > 1.0 {
+        if self._initialized == false
+            || texcoord.x < 0.0
+            || texcoord.x > 1.0
+            || texcoord.y < 0.0
+            || texcoord.y > 1.0
+        {
             return Vector3::new(0.0, 1.0, 0.0);
         }
 
@@ -239,21 +265,32 @@ impl HeightMapData {
             return self._normal_map_data[pixel_indices.w];
         }
 
-        let height_data_0: Vector3<f32> = self._normal_map_data[pixel_indices.x].lerp(&self._normal_map_data[pixel_indices.y], blend_factors.x);
-        let height_data_1: Vector3<f32> = self._normal_map_data[pixel_indices.z].lerp(&self._normal_map_data[pixel_indices.w], blend_factors.x);
-        height_data_0.lerp(&height_data_1, blend_factors.y).normalize()
+        let height_data_0: Vector3<f32> = self._normal_map_data[pixel_indices.x]
+            .lerp(&self._normal_map_data[pixel_indices.y], blend_factors.x);
+        let height_data_1: Vector3<f32> = self._normal_map_data[pixel_indices.z]
+            .lerp(&self._normal_map_data[pixel_indices.w], blend_factors.x);
+        height_data_0
+            .lerp(&height_data_1, blend_factors.y)
+            .normalize()
     }
 
     pub fn get_normal_point_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {
-        if self._initialized == false || texcoord.x < 0.0 || texcoord.x > 1.0 || texcoord.y < 0.0 || texcoord.y > 1.0 {
+        if self._initialized == false
+            || texcoord.x < 0.0
+            || texcoord.x > 1.0
+            || texcoord.y < 0.0
+            || texcoord.y > 1.0
+        {
             return Vector3::new(0.0, 1.0, 0.0);
         }
 
         let lod = 0;
         let width = self._width[lod];
         let height = self._height[lod];
-        let pixel_pos_x: i32 = (0f32.max(1f32.min(texcoord.x)) * (width as f32 - 1.0)).round() as i32;
-        let pixel_pos_y: i32 = (0f32.max(1f32.min(texcoord.y)) * (height as f32 - 1.0)).round() as i32;
+        let pixel_pos_x: i32 =
+            (0f32.max(1f32.min(texcoord.x)) * (width as f32 - 1.0)).round() as i32;
+        let pixel_pos_y: i32 =
+            (0f32.max(1f32.min(texcoord.y)) * (height as f32 - 1.0)).round() as i32;
         let pixel_index: usize = (pixel_pos_x + pixel_pos_y * width) as usize;
         self._normal_map_data[pixel_index]
     }
@@ -266,7 +303,14 @@ impl HeightMapData {
         self.get_normal_bilinear_by_texcoord(&self.get_texcoord(pos))
     }
 
-    pub fn get_collision_point(&self, start_pos: &Vector3<f32>, move_dir: &Vector3<f32>, mut limit_dist: f32, padding: f32, collision_point: &mut Vector3<f32>) -> bool {
+    pub fn get_collision_point(
+        &self,
+        start_pos: &Vector3<f32>,
+        move_dir: &Vector3<f32>,
+        mut limit_dist: f32,
+        padding: f32,
+        collision_point: &mut Vector3<f32>,
+    ) -> bool {
         if self._initialized == false {
             return false;
         }
@@ -280,17 +324,39 @@ impl HeightMapData {
 
         let side_x: f32 = move_dir.x.abs() * limit_dist;
         let side_z: f32 = move_dir.z.abs() * limit_dist;
-        let inv_lod_x: usize = if 0.0 < side_x { (bound_box_width / side_x).log2().floor() as usize } else { 0 };
-        let inv_lod_z: usize = if 0.0 < side_z { (bound_box_height / side_z).log2().floor() as usize } else { 0 };
-        let max_lod: usize = if 2 <= self._lod_count { (self._lod_count - 2) as usize } else { 0 };
+        let inv_lod_x: usize = if 0.0 < side_x {
+            (bound_box_width / side_x).log2().floor() as usize
+        } else {
+            0
+        };
+        let inv_lod_z: usize = if 0.0 < side_z {
+            (bound_box_height / side_z).log2().floor() as usize
+        } else {
+            0
+        };
+        let max_lod: usize = if 2 <= self._lod_count {
+            (self._lod_count - 2) as usize
+        } else {
+            0
+        };
         let mut lod: usize = max_lod - max_lod.min(inv_lod_x.min(inv_lod_z));
 
         collision_point.clone_from(start_pos);
         let mut ray_point: Vector3<f32> = start_pos.clone();
         let mut ray_point_prev: Vector3<f32> = start_pos.clone();
 
-        let step_x: f32 = (bound_box_width / self._width[lod as usize] as f32) / if move_dir.x != 0.0 { move_dir.x.abs() } else { 1.0 };
-        let step_z: f32 = (bound_box_height / self._height[lod as usize] as f32) / if move_dir.z != 0.0 { move_dir.z.abs() } else { 1.0 };
+        let step_x: f32 = (bound_box_width / self._width[lod] as f32)
+            / if move_dir.x != 0.0 {
+                move_dir.x.abs()
+            } else {
+                1.0
+            };
+        let step_z: f32 = (bound_box_height / self._height[lod] as f32)
+            / if move_dir.z != 0.0 {
+                move_dir.z.abs()
+            } else {
+                1.0
+            };
         let mut step: f32 = step_x.min(step_z);
 
         let mut distance: f32 = 0.0;
@@ -322,7 +388,11 @@ impl HeightMapData {
                     let height_diff = ray_point.y - ray_point_prev.y;
                     let height_offset = ray_point_prev.y - height_value_prev;
                     let step_xz = math::get_norm_xz(&(ray_point - ray_point_prev));
-                    let mut x = if height_delta != height_diff { (height_offset * step_xz) / (height_delta - height_diff) } else { 0.0 };
+                    let mut x = if height_delta != height_diff {
+                        (height_offset * step_xz) / (height_delta - height_diff)
+                    } else {
+                        0.0
+                    };
                     if 0.0 != step_xz {
                         x /= step_xz;
                     }
@@ -351,7 +421,12 @@ impl HeightMapData {
             ray_point = start_pos + move_dir * distance;
 
             // arrive in goal
-            if limit_dist <= distance_prev || ray_point_prev.x < self._bounding_box._min.x || ray_point_prev.z < self._bounding_box._min.z || self._bounding_box._max.x < ray_point_prev.x || self._bounding_box._max.z < ray_point_prev.z {
+            if limit_dist <= distance_prev
+                || ray_point_prev.x < self._bounding_box._min.x
+                || ray_point_prev.z < self._bounding_box._min.z
+                || self._bounding_box._max.x < ray_point_prev.x
+                || self._bounding_box._max.z < ray_point_prev.z
+            {
                 break;
             }
         }

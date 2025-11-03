@@ -1,5 +1,5 @@
-use nalgebra_glm as glm;
 use nalgebra::{linalg, Matrix4, Quaternion, Vector3};
+use nalgebra_glm as glm;
 
 use crate::utilities::math;
 use crate::utilities::system::ptr_as_ref;
@@ -8,7 +8,7 @@ use crate::utilities::system::ptr_as_ref;
 pub struct SimpleTransform {
     pub _position: Vector3<f32>,
     pub _rotation: Quaternion<f32>,
-    pub _scale: Vector3<f32>
+    pub _scale: Vector3<f32>,
 }
 
 impl Default for SimpleTransform {
@@ -16,7 +16,7 @@ impl Default for SimpleTransform {
         SimpleTransform {
             _position: Vector3::zeros(),
             _rotation: Quaternion::new(1.0, 0.0, 0.0, 0.0),
-            _scale: Vector3::new(1.0, 1.0, 1.0)
+            _scale: Vector3::new(1.0, 1.0, 1.0),
         }
     }
 }
@@ -194,7 +194,12 @@ impl TransformObjectData {
     pub fn set_scale_z(&mut self, scale: f32) {
         self._scale.z = scale;
     }
-    pub fn set_position_rotation_scale(&mut self, position: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) {
+    pub fn set_position_rotation_scale(
+        &mut self,
+        position: &Vector3<f32>,
+        rotation: &Vector3<f32>,
+        scale: &Vector3<f32>,
+    ) {
         self.set_position(position);
         self.set_rotation(rotation);
         self.set_scale(scale);
@@ -213,8 +218,11 @@ impl TransformObjectData {
         let updated = updated_position || updated_rotation || updated_scale;
         if updated {
             if updated_rotation {
-                self._rotation_matrix =
-                    math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
+                self._rotation_matrix = math::make_rotation_matrix(
+                    self._rotation.x,
+                    self._rotation.y,
+                    self._rotation.z,
+                );
                 //          look at algorithm
                 //             let sin_pitch = self._rotation._x.sin();
                 //             let cos_pitch = self._rotation._x.cos();
@@ -231,30 +239,37 @@ impl TransformObjectData {
                 //             ]);
 
                 unsafe {
-                    let left: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
-                    let up: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
-                    let front: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
+                    let left: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
+                    let up: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
+                    let front: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
                     left.normalize_mut();
                     up.normalize_mut();
                     front.normalize_mut();
                 }
             }
 
-            self._matrix.copy_from(
-                &math::combinate_matrix(
-                    &self._position,
-                    &self._rotation_matrix,
-                    &self._scale
-                )
-            );
+            self._matrix.copy_from(&math::combinate_matrix(
+                &self._position,
+                &self._rotation_matrix,
+                &self._scale,
+            ));
             //self._inverse_matrix.copy_from(&inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale));
             linalg::try_invert_to(self._matrix.into(), &mut self._inverse_matrix);
             self._updated = true;
 
             // update prev transform
-            if updated_position { self._prev_position.clone_from(&self._position); }
-            if updated_rotation { self._prev_rotation.clone_from(&self._rotation); }
-            if updated_scale { self._prev_scale.clone_from(&self._scale); }
+            if updated_position {
+                self._prev_position.clone_from(&self._position);
+            }
+            if updated_rotation {
+                self._prev_rotation.clone_from(&self._rotation);
+            }
+            if updated_scale {
+                self._prev_scale.clone_from(&self._scale);
+            }
         }
         updated
     }
@@ -262,7 +277,8 @@ impl TransformObjectData {
     pub fn update_transform_object(&mut self) -> bool {
         if self._prev_updated {
             self._prev_matrix.copy_from(&self._matrix_store);
-            self._prev_inverse_matrix.copy_from(&self._inverse_matrix_store);
+            self._prev_inverse_matrix
+                .copy_from(&self._inverse_matrix_store);
             self._prev_updated = false;
         }
 

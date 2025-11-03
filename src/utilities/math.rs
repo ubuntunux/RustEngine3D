@@ -614,7 +614,7 @@ pub fn extract_axes(matrix: &Matrix4<f32>) -> Matrix3<f32> {
     Matrix3::from_columns(&[
         matrix.column(0).xyz().normalize(),
         matrix.column(1).xyz().normalize(),
-        matrix.column(2).xyz().normalize()
+        matrix.column(2).xyz().normalize(),
     ])
 }
 
@@ -629,8 +629,14 @@ pub fn extract_scale(matrix: &Matrix4<f32>) -> Vector3<f32> {
     Vector3::new(sx, sy, sz)
 }
 
-pub fn extract_location_rotation_scale(matrix: &Matrix4<f32>) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
-    (extract_location(matrix), matrix_decompose_pitch_yaw_roll(matrix), extract_scale(matrix))
+pub fn extract_location_rotation_scale(
+    matrix: &Matrix4<f32>,
+) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
+    (
+        extract_location(matrix),
+        matrix_decompose_pitch_yaw_roll(matrix),
+        extract_scale(matrix),
+    )
 }
 
 pub fn convert_triangulate(quad: &Vec<u32>) -> Vec<u32> {

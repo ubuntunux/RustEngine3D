@@ -1,11 +1,11 @@
 use std::cmp::{Eq, PartialEq};
 use std::collections::HashMap;
 
-use ash::{Device, vk};
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
-use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 use crate::constants;
 use crate::vulkan_context::buffer::ShaderBufferData;
+use ash::{vk, Device};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 
 pub type ShaderBufferDataMap<'a> = HashMap<ShaderBufferDataType, ShaderBufferData<'a>>;
 
@@ -167,5 +167,5 @@ pub struct RegisterShaderBufferCreateInfo<'a> {
     pub _shader_buffer_data_count: usize,
     pub _create_buffer_per_swapchain_count: bool,
     pub _has_staging_buffer: bool,
-    pub _is_device_local: bool
+    pub _is_device_local: bool,
 }

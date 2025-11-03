@@ -57,7 +57,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         src_stage_mask: vk::PipelineStageFlags::BOTTOM_OF_PIPE,
         src_access_mask: vk::AccessFlags::empty(),
         dst_stage_mask: vk::PipelineStageFlags::ALL_GRAPHICS,
-        dst_access_mask: vk::AccessFlags::SHADER_READ | vk::AccessFlags::SHADER_WRITE | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+        dst_access_mask: vk::AccessFlags::SHADER_READ
+            | vk::AccessFlags::SHADER_WRITE
+            | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
     let pipeline_data_create_infos = vec![
@@ -73,7 +75,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _pipeline_color_blend_operations: vec![
-                vulkan_context::get_color_blend_operation(BlendOperation::None);
+                vulkan_context::get_color_blend_operation(
+                    BlendOperation::None
+                );
                 color_attachment_descriptions.len()
             ],
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
@@ -114,7 +118,9 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             _pipeline_cull_mode: vk::CullModeFlags::BACK,
             _pipeline_front_face: vk::FrontFace::COUNTER_CLOCKWISE,
             _pipeline_color_blend_operations: vec![
-                vulkan_context::get_color_blend_operation(BlendOperation::None);
+                vulkan_context::get_color_blend_operation(
+                    BlendOperation::None
+                );
                 color_attachment_descriptions.len()
             ],
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),

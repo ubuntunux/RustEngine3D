@@ -14,7 +14,9 @@ pub enum DescriptorResourceInfo<'a> {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
     DescriptorImageInfo(vk::DescriptorImageInfo),
     DescriptorSamplerInfo(vk::Sampler),
-    WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV<'a>),
+    WriteDescriptorSetAccelerationStructure(
+        *const vk::WriteDescriptorSetAccelerationStructureNV<'a>,
+    ),
     InvalidDescriptorInfo,
 }
 
@@ -22,7 +24,7 @@ pub enum DescriptorResourceInfo<'a> {
 pub enum DescriptorResourceType {
     UniformBuffer,
     StorageBuffer,
-    Image, // todo
+    Image,   // todo
     Sampler, // todo
     Texture,
     RenderTarget,
@@ -98,7 +100,9 @@ pub fn write_descriptor_set_push_next<T: vk::ExtendsWriteDescriptorSet>(
     }
 }
 
-pub fn convert_resource_type_to_descriptor_type(resource_type: &DescriptorResourceType) -> vk::DescriptorType {
+pub fn convert_resource_type_to_descriptor_type(
+    resource_type: &DescriptorResourceType,
+) -> vk::DescriptorType {
     match resource_type {
         DescriptorResourceType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
         DescriptorResourceType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
@@ -216,7 +220,7 @@ pub fn create_descriptor_data<'a>(
             |descriptor_data_create_info| vk::DescriptorSetLayoutBinding {
                 binding: descriptor_data_create_info._descriptor_binding_index,
                 descriptor_type: convert_resource_type_to_descriptor_type(
-                    &descriptor_data_create_info._descriptor_resource_type
+                    &descriptor_data_create_info._descriptor_resource_type,
                 ),
                 descriptor_count: 1,
                 stage_flags: descriptor_data_create_info._descriptor_shader_stage,
@@ -345,7 +349,9 @@ pub fn create_write_descriptor_sets_with_update<'a>(
                     DescriptorResourceInfo::DescriptorSamplerInfo(_sampler) => {
                         // todo: image sampler
                     }
-                    DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(write_descriptor_set_accel_struct) => {
+                    DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
+                        write_descriptor_set_accel_struct,
+                    ) => {
                         write_descriptor_set_push_next(
                             &mut write_descriptor_set,
                             *write_descriptor_set_accel_struct,

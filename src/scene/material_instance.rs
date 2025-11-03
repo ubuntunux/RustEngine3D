@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
-use ash::{Device, vk};
 use ash::ext;
+use ash::{vk, Device};
 
 use crate::scene::material::MaterialData;
 use crate::utilities::system::RcRefCell;

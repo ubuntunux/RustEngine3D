@@ -6,8 +6,8 @@ use ash::{vk, Device};
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
-use crate::scene::mesh::MeshDataCreateInfo;
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::math;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::vulkan_context::{get_color32, get_format_size};

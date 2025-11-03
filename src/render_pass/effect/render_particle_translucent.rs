@@ -44,7 +44,10 @@ pub fn get_render_pass_data_create_info(
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
+    for format in framebuffer_data_create_info
+        ._framebuffer_color_attachment_formats
+        .iter()
+    {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -57,7 +60,10 @@ pub fn get_render_pass_data_create_info(
         });
     }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
+    for format in framebuffer_data_create_info
+        ._framebuffer_depth_attachment_formats
+        .iter()
+    {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -74,15 +80,21 @@ pub fn get_render_pass_data_create_info(
         dst_subpass: 0,
         src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
         src_access_mask: vk::AccessFlags::empty(),
-        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+            | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+            | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
 
     let (pipeline_data_name, blend_operation) = match blend_mode {
-        BlendMode::AlphaBlend => (String::from("alpha_blend"), BlendOperation::PreMultipliedAlpha),
+        BlendMode::AlphaBlend => (
+            String::from("alpha_blend"),
+            BlendOperation::PreMultipliedAlpha,
+        ),
         BlendMode::Additive => (String::from("additive"), BlendOperation::Additive),
-        BlendMode::Opaque => (String::from("opaque"), BlendOperation::None)
+        BlendMode::Opaque => (String::from("opaque"), BlendOperation::None),
     };
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
@@ -99,7 +111,9 @@ pub fn get_render_pass_data_create_info(
         _pipeline_cull_mode: vk::CullModeFlags::NONE,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(blend_operation);
+            vulkan_context::get_color_blend_operation(
+                blend_operation
+            );
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {

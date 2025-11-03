@@ -12,8 +12,8 @@ use crate::constants;
 use crate::scene::animation::{
     AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree,
 };
-use crate::scene::mesh::MeshDataCreateInfo;
 use crate::scene::bounding_box::BoundingBox;
+use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::math;
 use crate::utilities::xml::{self, XmlTree};
 use crate::vulkan_context::geometry_buffer::{
@@ -109,10 +109,7 @@ pub enum ColladaSourceData {
 }
 
 pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
-    match data.parse::<T>() {
-        Ok(value) => value,
-        Err(_) => default_value,
-    }
+    data.parse::<T>().unwrap_or_else(|_| default_value)
 }
 
 pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(data_list: &str) -> Vec<T> {
@@ -1000,10 +997,9 @@ impl Collada {
         let empty_xml_animations: Vec<XmlTree> = Vec::new();
         let xml_animations: &Vec<XmlTree> =
             match xml_root.get_elements("library_animations/animation") {
-                Some(xml_animations) => match xml_animations[0].get_elements("animation") {
-                    Some(xml_animations) => xml_animations,
-                    None => xml_animations,
-                },
+                Some(xml_animations) => xml_animations[0]
+                    .get_elements("animation")
+                    .unwrap_or_else(|| xml_animations),
                 None => &empty_xml_animations,
             };
 
@@ -1103,8 +1099,7 @@ impl Collada {
             for i in 0..animations.len() {
                 if *child == animations[i]._target {
                     // just Transpose child bones, no swap y-z.
-                    let child_transform: Matrix4<f32> =
-                        animations[i]._outputs[frame].transpose();
+                    let child_transform: Matrix4<f32> = animations[i]._outputs[frame].transpose();
 
                     if constants::COMBINED_INVERSE_BIND_MATRIX {
                         let child_bone_index = bone_names
