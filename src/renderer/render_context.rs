@@ -6,6 +6,7 @@ use nalgebra::{Vector3, Vector4};
 use rand;
 
 use crate::constants;
+use crate::constants::MAX_FRAME_COUNT;
 use crate::render_pass::common::{
     composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy,
     render_gaussian_blur, render_taa,
@@ -724,8 +725,7 @@ impl<'a> RenderContext_ClearRenderTargets<'a> {
 impl<'a> RenderContext_LightProbe<'a> {
     pub fn reset_light_probe_data(&mut self) {
         self._next_refresh_time = 0.0;
-        self._light_probe_blend_time = 0.0;
-        self._light_probe_capture_count = 0;
+        self._light_probe_blend_term = 0.0;
     }
 
     pub fn initialize(
