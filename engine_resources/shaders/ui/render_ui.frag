@@ -44,7 +44,7 @@ void main()
     // texture color
     if(check_flags_any(UI_RENDER_FLAG_RENDER_TEXTURE, ui_render_data._ui_render_flags))
     {
-        vec4 texture_color = texture(texture_color, vs_output._texcoord);
+        vec4 texture_color = texture(texture_color, vs_output._texcoord * pushConstant._uv_size + pushConstant._uv_offset);
         texture_color.xyz = pow(texture_color.xyz, vec3(2.2));
         color *= texture_color;
     }

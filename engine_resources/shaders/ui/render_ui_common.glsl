@@ -38,6 +38,8 @@ layout(binding = 2) buffer UIRenderDataBuffer
 layout( push_constant ) uniform PushConstant_RenderUI
 {
     vec2 _inv_canvas_size;
+    vec2 _uv_size;
+    vec2 _uv_offset;
     uint _instance_id_offset;
     uint _reserved0;
 } pushConstant;

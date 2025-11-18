@@ -1,3 +1,4 @@
+use std::cmp::min;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
 
@@ -11,7 +12,7 @@ use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use crate::constants;
 use crate::core::engine_core::{EngineCore, TimeData};
 use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
-use crate::renderer::push_constants::{PushConstant, PushConstantName};
+use crate::renderer::push_constants::{PushConstant, PushConstantName, PushConstantParameter};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::resource::EngineResources;
 use crate::scene::bounding_box::BoundingBox;
@@ -53,9 +54,11 @@ pub const DEFAULT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone)]
 pub struct PushConstant_RenderUI {
     pub _inv_canvas_size: Vector2<f32>,
+    pub _uv_size: Vector2<f32>,
+    pub _uv_offset: Vector2<f32>,
     pub _instance_id_offset: u32,
     pub _color: u32,
 }
@@ -240,13 +243,58 @@ pub struct UIWorldAxis<'a> {
 }
 
 // Implementations
+impl Default for PushConstant_RenderUI {
+    fn default() -> PushConstant_RenderUI {
+        PushConstant_RenderUI {
+            _inv_canvas_size: Vector2::new(1.0, 1.0),
+            _uv_size: Vector2::new(1.0, 1.0),
+            _uv_offset: Vector2::new(0.0, 0.0),
+            _instance_id_offset: 0,
+            _color: get_color32(255, 255, 255, 255),
+        }
+    }
+}
+
 impl PushConstantName for PushConstant_RenderUI {
     fn get_push_constant_name(&self) -> &str {
         "PushConstant_RenderUI"
     }
 }
 
-impl PushConstant for PushConstant_RenderUI {}
+impl PushConstant for PushConstant_RenderUI {
+    fn get_push_constant_parameter(&self, key: &str) -> PushConstantParameter {
+        if "_uv_size" == key {
+            return PushConstantParameter::Float2(self._uv_size);
+        } else if "_uv_offset" == key {
+            return PushConstantParameter::Float2(self._uv_offset);
+        }
+        PushConstantParameter::None
+    }
+
+    fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) -> bool {
+        if "_uv_size" == key {
+            if let PushConstantParameter::Float2(value) = value {
+                self._uv_size = *value;
+            }
+        } else if "_uv_offset" == key {
+            if let PushConstantParameter::Float2(value) = value {
+                self._uv_offset = *value;
+            }
+        } else if "_color" == key {
+            if let PushConstantParameter::Float4(value) = value {
+                let r = min((value[0] * 255.0) as u32, 255);
+                let g = min((value[1] * 255.0) as u32, 255);
+                let b = min((value[2] * 255.0) as u32, 255);
+                let a = min((value[3] * 255.0) as u32, 255);
+                self._color = get_color32(r, g, b, a);
+            }
+        } else {
+            // not found parameter
+            return false;
+        }
+        true
+    }
+}
 
 impl Default for UICornerFlags {
     fn default() -> UICornerFlags {
@@ -1997,14 +2045,15 @@ impl<'a> UIManager<'a> {
                     1.0 / framebuffer_data._framebuffer_info._framebuffer_width as f32,
                     1.0 / framebuffer_data._framebuffer_info._framebuffer_height as f32,
                 ),
+                _uv_size: Vector2::new(1.0, 1.0),
+                _uv_offset: Vector2::new(0.0, 0.0),
                 _instance_id_offset: 0,
                 _color: get_color32(255, 255, 255, 255),
             };
 
             // upload storage buffer
             let upload_data = &self._ui_render_data_list[0..self._render_ui_count as usize];
-            let shader_buffer_data =
-                renderer_context.get_shader_buffer_data_from_str("UIRenderDataBuffer");
+            let shader_buffer_data = renderer_context.get_shader_buffer_data_from_str("UIRenderDataBuffer");
             renderer_context.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,
@@ -2018,8 +2067,7 @@ impl<'a> UIManager<'a> {
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_group_data in self._render_ui_group.iter() {
                 unsafe {
-                    let render_count = render_group_data._accumulated_render_count
-                        - push_constant_data._instance_id_offset;
+                    let render_count = render_group_data._accumulated_render_count - push_constant_data._instance_id_offset;
                     let material_instance_data = if render_group_data._material_instance.is_null() {
                         self._default_render_ui_material.as_ref().unwrap().as_ptr()
                     } else {
@@ -2027,10 +2075,8 @@ impl<'a> UIManager<'a> {
                     };
 
                     if prev_material_instance_data != material_instance_data {
-                        let pipeline_binding_data: &PipelineBindingData =
-                            (*material_instance_data).get_default_pipeline_binding_data();
-                        let render_pass_data =
-                            pipeline_binding_data.get_render_pass_data().borrow();
+                        let pipeline_binding_data: &PipelineBindingData = (*material_instance_data).get_default_pipeline_binding_data();
+                        let render_pass_data = pipeline_binding_data.get_render_pass_data().borrow();
                         let pipeline_data = pipeline_binding_data.get_pipeline_data();
                         let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
                         let pipeline_data: &PipelineData = &pipeline_data.borrow();
@@ -2051,14 +2097,21 @@ impl<'a> UIManager<'a> {
 
                         if prev_pipeline_binding_data != pipeline_binding_data {
                             prev_pipeline_binding_data = pipeline_binding_data;
-                            let render_ui_descriptor_sets =
-                                Some(&pipeline_binding_data._descriptor_sets);
+                            let render_ui_descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
                             renderer_context.bind_descriptor_sets(
                                 command_buffer,
                                 swapchain_index,
                                 &(*pipeline_binding_data),
                                 render_ui_descriptor_sets,
                             );
+                        }
+
+                        let push_constant = &pipeline_binding_data._push_constant_data_list.first().unwrap()._push_constant;
+                        if let PushConstantParameter::Float2(uv_size) = push_constant.get_push_constant_parameter("_uv_size") {
+                            push_constant_data._uv_size = uv_size;
+                        }
+                        if let PushConstantParameter::Float2(uv_offset) = push_constant.get_push_constant_parameter("_uv_offset") {
+                            push_constant_data._uv_offset = uv_offset;
                         }
                         prev_material_instance_data = material_instance_data;
                     }
@@ -2074,8 +2127,7 @@ impl<'a> UIManager<'a> {
                         &[],
                         render_count,
                     );
-                    push_constant_data._instance_id_offset =
-                        render_group_data._accumulated_render_count;
+                    push_constant_data._instance_id_offset = render_group_data._accumulated_render_count;
                 }
             }
             renderer_context.end_render_pass(command_buffer);

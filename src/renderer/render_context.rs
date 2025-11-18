@@ -6,7 +6,6 @@ use nalgebra::{Vector3, Vector4};
 use rand;
 
 use crate::constants;
-use crate::constants::MAX_FRAME_COUNT;
 use crate::render_pass::common::{
     composite_gbuffer, downsampling, generate_min_z, render_bloom, render_copy,
     render_gaussian_blur, render_taa,

@@ -8,6 +8,7 @@ use serde_json;
 
 use crate::utilities::json::convert_json_value_to_push_constant_parameter;
 
+#[derive(Debug, Clone)]
 pub enum PushConstantParameter {
     None,
     Int(i32),
