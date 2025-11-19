@@ -186,10 +186,9 @@ impl CameraObjectData {
     }
 
     pub fn convert_world_to_screen(&self, world_pos: &Vector3<f32>, clamp: bool) -> Vector2<f32> {
-        let mut screen_pos =
-            math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
+        let mut screen_pos = math::convert_to_screen_texcoord(&self._view_projection, world_pos, clamp);
         screen_pos.x *= self._window_size.x as f32;
-        screen_pos.y *= self._window_size.y as f32;
+        screen_pos.y = (1.0 - screen_pos.y) * self._window_size.y as f32;
         screen_pos
     }
 
