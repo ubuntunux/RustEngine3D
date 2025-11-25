@@ -427,6 +427,16 @@ impl<'a> UIComponentInstance<'a> {
         }
         self._parent = parent;
     }
+    pub fn get_num_children(&self) -> usize {
+        self._children.len()
+    }
+    pub fn get_child(&self, index: usize) -> *const UIComponentInstance<'a> {
+        if index < self.get_num_children() {
+            self._children[index]
+        } else {
+            std::ptr::null()
+        }
+    }
     pub fn clear_children(&mut self) {
         for child in self._children.iter() {
             ptr_as_mut(*child).clear_children();
