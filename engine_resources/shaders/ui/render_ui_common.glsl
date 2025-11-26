@@ -17,7 +17,7 @@ struct VERTEX_OUTPUT
 struct UIRenderData {
     vec4 _ui_texcoord;
     vec4 _ui_render_area;
-    vec4 _ui_parent_render_area;
+    vec4 _ui_renderable_area;
     uint _ui_color;
     float _ui_round;
     float _ui_border;

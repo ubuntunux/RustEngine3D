@@ -39,6 +39,7 @@ pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
 pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
 pub const UI_RENDER_FLAG_TOUCHED: u32 = 1 << 2;
+pub const UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA: u32 = 1 << 3;
 
 pub const UI_INDEX_LEFT: usize = 0; // x
 pub const UI_INDEX_TOP: usize = 1; // y
@@ -204,6 +205,7 @@ pub struct UIComponentInstance<'a> {
     pub _opacity: f32,
     pub _renderable: bool,
     pub _visible: bool, // hierarchical visible flag
+    pub _enable_renderable_area: bool,
     pub _touched: bool,
     pub _touch_start_pos: Vector2<f32>,
     pub _touch_corner_flags: UICornerFlags,
@@ -397,6 +399,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _opacity: 1.0,
             _renderable: true,
             _visible: true,
+            _enable_renderable_area: false,
             _touched: false,
             _touch_start_pos: Vector2::zeros(),
             _touch_corner_flags: UICornerFlags::NONE,
@@ -692,6 +695,9 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("set_center_hint_y");
         }
     }
+    pub fn get_ui_size(&self) -> &Vector2<f32> {
+        &self._ui_size
+    }
     pub fn get_size(&self) -> &Vector2<f32> {
         &self._ui_component_data._size
     }
@@ -706,8 +712,7 @@ impl<'a> UIComponentInstance<'a> {
         self.set_size_y(size_y);
     }
     pub fn set_size_x(&mut self, size_x: f32) {
-        if size_x != self._ui_component_data._size.x
-            || self._ui_component_data._size_hint_x.is_some()
+        if size_x != self._ui_component_data._size.x || self._ui_component_data._size_hint_x.is_some()
         {
             self._ui_component_data._size_hint_x = None;
             self._ui_component_data._size.x = size_x;
@@ -716,9 +721,7 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
     pub fn set_size_y(&mut self, size_y: f32) {
-        if size_y != self._ui_component_data._size.y
-            || self._ui_component_data._size_hint_y.is_some()
-        {
+        if size_y != self._ui_component_data._size.y || self._ui_component_data._size_hint_y.is_some() {
             self._ui_component_data._size_hint_y = None;
             self._ui_component_data._size.y = size_y;
             self.set_changed_layout(true);
@@ -881,6 +884,12 @@ impl<'a> UIComponentInstance<'a> {
             self._changed_render_data = true;
             // log::info!("{:?}: set_renderable", self.get_owner_widget().get_ui_widget_name());
         }
+    }
+    pub fn get_enable_renderable_area(&self) -> bool {
+        self._enable_renderable_area
+    }
+    pub fn set_enable_renderable_area(&mut self, enable_renderable_area: bool) {
+        self._enable_renderable_area = enable_renderable_area;
     }
     pub fn get_visible(&self) -> bool {
         self._visible
@@ -1337,15 +1346,16 @@ impl<'a> UIComponentInstance<'a> {
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
+                render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
                 render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
-                render_ui_instance_data
-                    ._ui_texcoord
-                    .clone_from(&self._ui_component_data._texcoord);
                 if self.get_material_instance().is_some() {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_RENDER_TEXTURE;
                 }
                 if self._touched {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                }
+                if self._enable_renderable_area {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                 }
             }
 
@@ -1413,9 +1423,7 @@ impl<'a> UIComponentInstance<'a> {
             inherit_changed_layout = true;
 
             let border = self.get_border();
-            let spaces = self.get_margin()
-                + self.get_padding()
-                + &Vector4::new(border, border, border, border);
+            let spaces = self.get_margin() + self.get_padding() + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
             let size_hint_y = self.get_size_hint_y();
             let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
@@ -1434,16 +1442,14 @@ impl<'a> UIComponentInstance<'a> {
 
             // expandable
             if self.get_expandable_x() {
-                ui_size.x = ui_size
-                    .x
-                    .max(self._text_contents_size.x + spaces.x + spaces.z);
+                ui_size.x = ui_size.x.max(self._text_contents_size.x);
             }
 
             if self.get_expandable_y() {
-                ui_size.y = ui_size
-                    .y
-                    .max(self._text_contents_size.y + spaces.y + spaces.w);
+                ui_size.y = ui_size.y.max(self._text_contents_size.y);
             }
+            ui_size.x += spaces.x + spaces.z;
+            ui_size.y += spaces.y + spaces.w;
 
             self._spaces.clone_from(&spaces);
             self._ui_size.clone_from(&ui_size);
@@ -1467,44 +1473,26 @@ impl<'a> UIComponentInstance<'a> {
                     match self.get_layout_orientation() {
                         Orientation::HORIZONTAL => {
                             required_contents_size.x += child_ui_instance._ui_size.x;
-                            required_contents_size.y =
-                                required_contents_size.y.max(child_ui_instance._ui_size.y);
+                            required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
                         }
                         Orientation::VERTICAL => {
-                            required_contents_size.x =
-                                required_contents_size.x.max(child_ui_instance._ui_size.x);
+                            required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
                             required_contents_size.y += child_ui_instance._ui_size.y;
                         }
                     }
                 }
-                self._required_contents_size = required_contents_size;
             }
+            self._required_contents_size = required_contents_size;
 
             // update expandable size
-            if self.get_expandable_x()
-                && self._contents_area_size.x < self._required_contents_size.x
-            {
-                self._contents_area_size.x = self
-                    ._contents_area_size
-                    .x
-                    .max(self._required_contents_size.x);
-                self._ui_size.x = self
-                    ._ui_size
-                    .x
-                    .max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
+            if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
+                self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
+                self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
             }
 
-            if self.get_expandable_y()
-                && self._contents_area_size.y < self._required_contents_size.y
-            {
-                self._contents_area_size.y = self
-                    ._contents_area_size
-                    .y
-                    .max(self._required_contents_size.y);
-                self._ui_size.y = self
-                    ._ui_size
-                    .y
-                    .max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
+            if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
+                self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
+                self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
             }
         }
     }
@@ -1553,12 +1541,10 @@ impl<'a> UIComponentInstance<'a> {
                     match parent_valign {
                         VerticalAlign::TOP => self._ui_area.y = ui_area_pos.y,
                         VerticalAlign::CENTER => {
-                            self._ui_area.y =
-                                ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
+                            self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y) * 0.5;
                         }
                         VerticalAlign::BOTTOM => {
-                            self._ui_area.y =
-                                ui_area_pos.y + (required_contents_size.y - self._ui_size.y)
+                            self._ui_area.y = ui_area_pos.y + (required_contents_size.y - self._ui_size.y)
                         }
                     }
                 }
@@ -1568,12 +1554,10 @@ impl<'a> UIComponentInstance<'a> {
                     match parent_halign {
                         HorizontalAlign::LEFT => self._ui_area.x = ui_area_pos.x,
                         HorizontalAlign::CENTER => {
-                            self._ui_area.x =
-                                ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5
+                            self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x) * 0.5
                         }
                         HorizontalAlign::RIGHT => {
-                            self._ui_area.x =
-                                ui_area_pos.x + (required_contents_size.x - self._ui_size.x)
+                            self._ui_area.x = ui_area_pos.x + (required_contents_size.x - self._ui_size.x)
                         }
                     }
                 }
@@ -1636,23 +1620,19 @@ impl<'a> UIComponentInstance<'a> {
                     match self.get_halign() {
                         HorizontalAlign::LEFT => {}
                         HorizontalAlign::CENTER => {
-                            child_ui_pos.x +=
-                                (self._contents_area_size.x - self._required_contents_size.x) * 0.5
+                            child_ui_pos.x += (self._contents_area_size.x - self._required_contents_size.x) * 0.5
                         }
                         HorizontalAlign::RIGHT => {
-                            child_ui_pos.x +=
-                                self._contents_area_size.x - self._required_contents_size.x
+                            child_ui_pos.x += self._contents_area_size.x - self._required_contents_size.x
                         }
                     }
                     match self.get_valign() {
                         VerticalAlign::TOP => {}
                         VerticalAlign::CENTER => {
-                            child_ui_pos.y +=
-                                (self._contents_area_size.y - self._required_contents_size.y) * 0.5
+                            child_ui_pos.y += (self._contents_area_size.y - self._required_contents_size.y) * 0.5
                         }
                         VerticalAlign::BOTTOM => {
-                            child_ui_pos.y +=
-                                self._contents_area_size.y - self._required_contents_size.y
+                            child_ui_pos.y += self._contents_area_size.y - self._required_contents_size.y
                         }
                     }
                 }
@@ -1733,8 +1713,7 @@ impl<'a> UIComponentInstance<'a> {
             if child_ui_instance.get_changed_layout() {
                 self._changed_child_layout = true;
             }
-            if child_ui_instance.get_changed_layout()
-                || child_ui_instance.get_changed_deep_child_layout()
+            if child_ui_instance.get_changed_layout() || child_ui_instance.get_changed_deep_child_layout()
             {
                 self._changed_deep_child_layout = true;
             }

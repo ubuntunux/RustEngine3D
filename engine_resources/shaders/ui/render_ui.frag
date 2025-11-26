@@ -15,10 +15,13 @@ void main()
 {
     UIRenderData ui_render_data = ui_render_data_list[vs_out_instanceIndex];
 
-    if(gl_FragCoord.x < ui_render_data._ui_parent_render_area.x || ui_render_data._ui_parent_render_area.z <= gl_FragCoord.x ||
-       gl_FragCoord.y < ui_render_data._ui_parent_render_area.y || ui_render_data._ui_parent_render_area.w <= gl_FragCoord.y)
+    if(check_flags_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
     {
-        discard;
+        if(gl_FragCoord.x < ui_render_data._ui_renderable_area.x || ui_render_data._ui_renderable_area.z <= gl_FragCoord.x ||
+        gl_FragCoord.y < ui_render_data._ui_renderable_area.y || ui_render_data._ui_renderable_area.w <= gl_FragCoord.y)
+        {
+            discard;
+        }
     }
 
     const float ui_round = ui_render_data._ui_round;
