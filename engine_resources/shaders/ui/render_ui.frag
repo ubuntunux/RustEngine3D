@@ -15,8 +15,26 @@ void main()
 {
     UIRenderData ui_render_data = ui_render_data_list[vs_out_instanceIndex];
 
-    if(check_flags_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
+    if(check_flags_any(UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA, ui_render_data._ui_render_flags))
     {
+        // disacrd with parent round
+        const float ui_round = ui_render_data._ui_renderable_area_round;
+        const vec2 half_size = (ui_render_data._ui_renderable_area.zw - ui_render_data._ui_renderable_area.xy) * 0.5 + max(0.0, ui_render_data._ui_renderable_area_border - 1.0);
+        const vec2 ui_center = (ui_render_data._ui_renderable_area.xy + ui_render_data._ui_renderable_area.zw) * 0.5;
+        const vec2 offset_from_center = gl_FragCoord.xy - ui_center;
+        const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
+        if(0.0 != ui_round)
+        {
+            if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
+            {
+                vec2 round_offset = dist_from_outer - vec2(ui_round);
+                if((ui_round * ui_round) < dot(round_offset, round_offset))
+                {
+                    discard;
+                }
+            }
+        }
+
         if(gl_FragCoord.x < ui_render_data._ui_renderable_area.x || ui_render_data._ui_renderable_area.z <= gl_FragCoord.x ||
         gl_FragCoord.y < ui_render_data._ui_renderable_area.y || ui_render_data._ui_renderable_area.w <= gl_FragCoord.y)
         {
@@ -24,14 +42,12 @@ void main()
         }
     }
 
+    // disacrd round
     const float ui_round = ui_render_data._ui_round;
     const vec2 half_size = (ui_render_data._ui_render_area.zw - ui_render_data._ui_render_area.xy) * 0.5;
     const vec2 ui_center = (ui_render_data._ui_render_area.xy + ui_render_data._ui_render_area.zw) * 0.5;
     const vec2 offset_from_center = gl_FragCoord.xy - ui_center;
     const vec2 dist_from_outer = max(vec2(0.0), half_size - abs(offset_from_center));
-    vec4 color = vs_output._color;
-
-    // disacrd border
     if(0.0 != ui_round)
     {
         if(dist_from_outer.x < ui_round && dist_from_outer.y < ui_round)
@@ -45,6 +61,7 @@ void main()
     }
 
     // texture color
+    vec4 color = vs_output._color;
     if(check_flags_any(UI_RENDER_FLAG_RENDER_TEXTURE, ui_render_data._ui_render_flags))
     {
         vec4 texture_color = textureLod(texture_color, vs_output._texcoord * pushConstant._uv_size + pushConstant._uv_offset, 0.0);

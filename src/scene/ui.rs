@@ -131,14 +131,14 @@ pub struct UIRenderData {
     pub _ui_texcoord: Vector4<f32>,
     pub _ui_render_area: Vector4<f32>,
     pub _ui_renderable_area: Vector4<f32>,
+    pub _ui_renderable_area_round: f32,
+    pub _ui_renderable_area_border: f32,
     pub _ui_color: u32,
     pub _ui_round: f32,
     pub _ui_border: f32,
     pub _ui_border_color: u32,
     pub _ui_render_flags: u32,
-    pub _ui_opacity: f32,
-    pub _reserved0: u32,
-    pub _reserved1: u32,
+    pub _ui_opacity: f32
 }
 
 pub struct UIComponentData<'a> {
@@ -199,6 +199,8 @@ pub struct UIComponentInstance<'a> {
     pub _text_counts: Vec<usize>,              // text column count, text row count
     pub _render_area: Vector4<f32>,            // border + _ui_component_data._size
     pub _renderable_area: Vector4<f32>,        // inherit _render_area
+    pub _renderable_area_round: f32,           // parent round size
+    pub _renderable_area_border: f32,           // parent border size
     pub _ui_area: Vector4<f32>,
     pub _ui_size: Vector2<f32>, // margie + border + padding + _ui_component_data._size
     pub _ui_layout_state: UILayoutState,
@@ -318,14 +320,14 @@ impl Default for UIRenderData {
             _ui_texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _ui_render_area: Vector4::zeros(),
             _ui_renderable_area: Vector4::zeros(),
+            _ui_renderable_area_round: 0.0,
+            _ui_renderable_area_border: 0.0,
             _ui_color: 0xFFFFFFFF,
             _ui_round: 0.0,
             _ui_border: 0.0,
             _ui_border_color: 0x00000000,
             _ui_render_flags: UI_RENDER_FLAG_NONE,
-            _ui_opacity: 1.0,
-            _reserved0: 0,
-            _reserved1: 0,
+            _ui_opacity: 1.0
         }
     }
 }
@@ -393,6 +395,8 @@ impl<'a> Default for UIComponentInstance<'a> {
             _required_contents_size: Vector2::zeros(),
             _render_area: Vector4::zeros(),
             _renderable_area: Vector4::zeros(),
+            _renderable_area_round: 0.0,
+            _renderable_area_border: 0.0,
             _ui_area: Vector4::zeros(),
             _ui_size: Vector2::zeros(),
             _ui_layout_state: UILayoutState::Unknown,
@@ -885,6 +889,18 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("{:?}: set_renderable", self.get_owner_widget().get_ui_widget_name());
         }
     }
+    pub fn get_renderable_area_border(&self) -> f32 {
+        self._renderable_area_border
+    }
+    pub fn set_renderable_area_border(&mut self, renderable_area_border: f32) {
+        self._renderable_area_border = renderable_area_border;
+    }
+    pub fn get_renderable_area_round(&self) -> f32 {
+        self._renderable_area_round
+    }
+    pub fn set_renderable_area_round(&mut self, renderable_area_round: f32) {
+        self._renderable_area_round = renderable_area_round;
+    }
     pub fn get_enable_renderable_area(&self) -> bool {
         self._enable_renderable_area
     }
@@ -1283,17 +1299,23 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_texcoord.y = texcoord_y;
                     render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
                     render_ui_instance_data._ui_texcoord.w = texcoord_y + inv_count_of_side;
-                    render_ui_instance_data._ui_render_area =
-                        ui_render_area.clone() as Vector4<f32>;
-                    render_ui_instance_data
-                        ._ui_renderable_area
-                        .clone_from(&text_renderable_area);
+                    render_ui_instance_data._ui_render_area = ui_render_area.clone() as Vector4<f32>;
+                    render_ui_instance_data._ui_renderable_area.clone_from(&text_renderable_area);
+                    render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
+                    render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
                     render_ui_instance_data._ui_color = self.get_font_color();
                     render_ui_instance_data._ui_round = 0.0;
                     render_ui_instance_data._ui_border = 0.0;
                     render_ui_instance_data._ui_border_color = 0;
                     render_ui_instance_data._ui_opacity = 1.0;
                     render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
+                    if self._touched {
+                        render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                    }
+                    if self._enable_renderable_area {
+                        render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
+                    }
+
                     render_ui_instance_data._ui_opacity = opacity;
                     render_ui_index += 1;
                     self._render_text_count += 1;
@@ -1333,14 +1355,11 @@ impl<'a> UIComponentInstance<'a> {
             if need_to_collect_render_data {
                 opacity *= self.get_opacity();
 
-                let render_ui_instance_data =
-                    &mut render_ui_instance_data_list[render_ui_index as usize];
-                render_ui_instance_data
-                    ._ui_render_area
-                    .clone_from(&self._render_area);
-                render_ui_instance_data
-                    ._ui_renderable_area
-                    .clone_from(&self._renderable_area);
+                let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
+                render_ui_instance_data._ui_render_area.clone_from(&self._render_area);
+                render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
+                render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
+                render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
                 render_ui_instance_data._ui_opacity = opacity;
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
@@ -1422,8 +1441,8 @@ impl<'a> UIComponentInstance<'a> {
         if inherit_changed_layout || self._changed_layout {
             inherit_changed_layout = true;
 
-            let border = self.get_border();
-            let spaces = self.get_margin() + self.get_padding() + &Vector4::new(border, border, border, border);
+            //let border = self.get_border() * 0.5;
+            let spaces = self.get_margin() + self.get_padding();// + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
             let size_hint_y = self.get_size_hint_y();
             let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
@@ -1507,29 +1526,25 @@ impl<'a> UIComponentInstance<'a> {
         parent_contents_area_size: &Vector2<f32>,
         required_contents_size: &Vector2<f32>,
         parent_renderable_area: &Vector4<f32>,
+        border: f32,
+        parent_round: f32,
         ui_area_pos: &mut Vector2<f32>,
         _update_depth: u32,
     ) {
         match parent_layout_type {
             UILayoutType::FloatLayout => {
                 if let Some(pos_hint_x) = self.get_pos_hint_x() {
-                    self._ui_area.x =
-                        parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
+                    self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
                 } else if let Some(center_hint_x) = self.get_center_hint_x() {
-                    self._ui_area.x = parent_contents_area.x
-                        + parent_contents_area_size.x * center_hint_x
-                        + (required_contents_size.x - self._ui_size.x) * 0.5;
+                    self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * center_hint_x + (required_contents_size.x - self._ui_size.x) * 0.5;
                 } else {
                     self._ui_area.x = parent_contents_area.x + self.get_pos_x();
                 }
 
                 if let Some(pos_hint_y) = self.get_pos_hint_y() {
-                    self._ui_area.y =
-                        parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
+                    self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
                 } else if let Some(center_hint_y) = self.get_center_hint_y() {
-                    self._ui_area.y = parent_contents_area.y
-                        + parent_contents_area_size.y * center_hint_y
-                        + (required_contents_size.y - self._ui_size.y) * 0.5;
+                    self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * center_hint_y + (required_contents_size.y - self._ui_size.y) * 0.5;
                 } else {
                     self._ui_area.y = parent_contents_area.y + self.get_pos_y();
                 }
@@ -1573,10 +1588,13 @@ impl<'a> UIComponentInstance<'a> {
         self._render_area.z = self._ui_area.z - self.get_margin_right();
         self._render_area.w = self._ui_area.w - self.get_margin_bottom();
 
-        self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x);
-        self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y);
-        self._renderable_area.z = self._render_area.z.min(parent_renderable_area.z);
-        self._renderable_area.w = self._render_area.w.min(parent_renderable_area.w);
+        let renderable_area_border = 0f32.max(border - 2.0);
+        self._renderable_area_border = renderable_area_border;
+        self._renderable_area_round = parent_round;
+        self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x + renderable_area_border);
+        self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y + renderable_area_border);
+        self._renderable_area.z = self._render_area.z.min(parent_renderable_area.z - renderable_area_border);
+        self._renderable_area.w = self._render_area.w.min(parent_renderable_area.w - renderable_area_border);
 
         self._contents_area.x = self._ui_area.x + self._spaces.x;
         self._contents_area.y = self._ui_area.y + self._spaces.y;
@@ -1649,6 +1667,8 @@ impl<'a> UIComponentInstance<'a> {
                         &self._contents_area_size,
                         &self._required_contents_size,
                         &inherit_renderable_area,
+                        self.get_border(),
+                        self.get_round(),
                         &mut child_ui_pos,
                         update_depth + 1,
                     );
@@ -2185,15 +2205,16 @@ impl<'a> UIManager<'a> {
         let mut child_ui_pos = Vector2::<f32>::zeros();
         let inherit_changed_layout: bool = false;
         let update_depth: u32 = 0;
+        let border: f32 = 0.0;
+        let round: f32 = 0.0;
 
-        if root_ui_component.get_changed_layout()
-            || root_ui_component.get_changed_deep_child_layout()
-        {
+        if root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout() {
             root_ui_component.update_layout_size(
                 inherit_changed_layout,
                 &contents_area_size,
                 &self._font_data.borrow(),
             );
+
             root_ui_component.update_layout_area(
                 UILayoutType::FloatLayout,
                 Orientation::HORIZONTAL,
@@ -2203,9 +2224,12 @@ impl<'a> UIManager<'a> {
                 &contents_area_size,
                 &required_contents_size,
                 &contents_area,
+                border,
+                round,
                 &mut child_ui_pos,
                 update_depth,
             );
+
             root_ui_component.update_layout(
                 inherit_changed_layout,
                 update_depth,
