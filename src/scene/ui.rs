@@ -699,6 +699,9 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("set_center_hint_y");
         }
     }
+    pub fn get_ui_area(&self) -> &Vector4<f32> {
+        &self._ui_area
+    }
     pub fn get_ui_size(&self) -> &Vector2<f32> {
         &self._ui_size
     }
@@ -878,6 +881,9 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn set_changed_deep_child_layout(&mut self, changed_deep_child_layout: bool) {
         self._changed_deep_child_layout = changed_deep_child_layout;
+    }
+    pub fn get_render_area(&self) -> &Vector4<f32> {
+        &self._render_area
     }
     pub fn get_renderable(&self) -> bool {
         self._renderable
