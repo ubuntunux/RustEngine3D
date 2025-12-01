@@ -64,8 +64,12 @@ void main()
     vec4 color = vs_output._color;
     if(check_flags_any(UI_RENDER_FLAG_RENDER_TEXTURE, ui_render_data._ui_render_flags))
     {
-        vec4 texture_color = textureLod(texture_color, vs_output._texcoord * pushConstant._uv_size + pushConstant._uv_offset, 0.0);
+        const vec2 texcoord = vs_output._texcoord * pushConstant._uv_size + pushConstant._uv_offset;
+        vec4 texture_color = textureLod(texture_color, texcoord, 0.0);
         texture_color.xyz = pow(texture_color.xyz, vec3(2.2));
+
+        if(check_flags_any(UI_RENDER_FLAG_CLAMP_TEXTURE, ui_render_data._ui_render_flags) && (texcoord.x < 0.0 || 1.0 < texcoord.x || texcoord.y < 0.0 || 1.0 < texcoord.y))
+            texture_color.a = 0.0;
         color *= texture_color;
     }
 

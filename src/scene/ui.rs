@@ -39,6 +39,7 @@ pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
 pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
 pub const UI_RENDER_FLAG_TOUCHED: u32 = 1 << 2;
 pub const UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA: u32 = 1 << 3;
+pub const UI_RENDER_FLAG_CLAMP_TEXTURE: u32 = 1 << 4;
 
 pub const UI_INDEX_LEFT: usize = 0; // x
 pub const UI_INDEX_TOP: usize = 1; // y
@@ -153,7 +154,11 @@ pub struct UIRenderData {
     pub _ui_border: f32,
     pub _ui_border_color: u32,
     pub _ui_render_flags: u32,
-    pub _ui_opacity: f32
+    pub _ui_opacity: f32,
+    pub _ui_rotation: f32,
+    pub _reserved0: u32,
+    pub _reserved1: u32,
+    pub _reserved2: u32,
 }
 
 pub struct UIComponentData<'a> {
@@ -161,6 +166,7 @@ pub struct UIComponentData<'a> {
     pub _layout_orientation: Orientation,
     pub _pos: Vector2<f32>,
     pub _size: Vector2<f32>,
+    pub _rotation: f32,
     pub _halign: HorizontalAlign,
     pub _valign: VerticalAlign,
     pub _pos_hint_x: PosHintX,
@@ -221,6 +227,7 @@ pub struct UIComponentInstance<'a> {
     pub _renderable: bool,
     pub _visible: bool, // hierarchical visible flag
     pub _enable_renderable_area: bool,
+    pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _touched: bool,
     pub _touch_start_pos: Vector2<f32>,
     pub _touch_corner_flags: UICornerFlags,
@@ -340,7 +347,11 @@ impl Default for UIRenderData {
             _ui_border: 0.0,
             _ui_border_color: 0x00000000,
             _ui_render_flags: UI_RENDER_FLAG_NONE,
-            _ui_opacity: 1.0
+            _ui_opacity: 1.0,
+            _ui_rotation: 0.0,
+            _reserved0: 0,
+            _reserved1: 0,
+            _reserved2: 0,
         }
     }
 }
@@ -352,6 +363,7 @@ impl<'a> Default for UIComponentData<'a> {
             _layout_orientation: Orientation::HORIZONTAL,
             _pos: Vector2::new(0.0, 0.0),
             _size: Vector2::new(100.0, 100.0),
+            _rotation: 0.0,
             _halign: DEFAULT_HORIZONTAL_ALIGN,
             _valign: DEFAULT_VERTICAL_ALIGN,
             _pos_hint_x: PosHintX::None,
@@ -415,6 +427,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _renderable: true,
             _visible: true,
             _enable_renderable_area: false,
+            _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _touched: false,
             _touch_start_pos: Vector2::zeros(),
             _touch_corner_flags: UICornerFlags::NONE,
@@ -710,15 +723,20 @@ impl<'a> UIComponentInstance<'a> {
         if size_hint_x != self._ui_component_data._size_hint_x {
             self._ui_component_data._size_hint_x = size_hint_x;
             self.set_changed_layout(true);
-            // log::info!("set_size_hint_x");
         }
     }
     pub fn set_size_hint_y(&mut self, size_hint_y: Option<f32>) {
         if size_hint_y != self._ui_component_data._size_hint_y {
             self._ui_component_data._size_hint_y = size_hint_y;
             self.set_changed_layout(true);
-            // log::info!("set_size_hint_y");
         }
+    }
+    pub fn get_rotation(&self) -> f32 {
+        self._ui_component_data._rotation
+    }
+    pub fn set_rotation(&mut self, rotation: f32) {
+        self._ui_component_data._rotation = rotation;
+        self._changed_render_data = true;
     }
     pub fn set_margin(&mut self, margin: f32) {
         self.set_margins(Vector4::new(margin, margin, margin, margin));
@@ -877,6 +895,12 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn set_enable_renderable_area(&mut self, enable_renderable_area: bool) {
         self._enable_renderable_area = enable_renderable_area;
+    }
+    pub fn get_texture_wrap_mode(&self) -> vk::SamplerAddressMode {
+        self._texture_wrap_mode
+    }
+    pub fn set_texture_wrap_mode(&mut self, texture_wrap_mode: vk::SamplerAddressMode) {
+        self._texture_wrap_mode = texture_wrap_mode;
     }
     pub fn get_visible(&self) -> bool {
         self._visible
@@ -1264,8 +1288,7 @@ impl<'a> UIComponentInstance<'a> {
                     && ui_render_area.x < self._contents_area.z
                     && ui_render_area.y < self._contents_area.w
                 {
-                    let render_ui_instance_data =
-                        &mut render_ui_instance_data_list[render_ui_index as usize];
+                    let render_ui_instance_data = &mut render_ui_instance_data_list[render_ui_index as usize];
                     render_ui_instance_data._ui_texcoord.x = texcoord_x;
                     render_ui_instance_data._ui_texcoord.y = texcoord_y;
                     render_ui_instance_data._ui_texcoord.z = texcoord_x + inv_count_of_side;
@@ -1278,7 +1301,7 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_round = 0.0;
                     render_ui_instance_data._ui_border = 0.0;
                     render_ui_instance_data._ui_border_color = 0;
-                    render_ui_instance_data._ui_opacity = 1.0;
+                    render_ui_instance_data._ui_opacity = opacity;
                     render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
                     if self._touched {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
@@ -1287,7 +1310,6 @@ impl<'a> UIComponentInstance<'a> {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                     }
 
-                    render_ui_instance_data._ui_opacity = opacity;
                     render_ui_index += 1;
                     self._render_text_count += 1;
                 }
@@ -1337,6 +1359,7 @@ impl<'a> UIComponentInstance<'a> {
                 render_ui_instance_data._ui_border = self.get_border();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
                 render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
+                render_ui_instance_data._ui_rotation = self.get_rotation();
                 render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
                 if self.get_material_instance().is_some() {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_RENDER_TEXTURE;
@@ -1346,6 +1369,9 @@ impl<'a> UIComponentInstance<'a> {
                 }
                 if self._enable_renderable_area {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
+                }
+                if self._texture_wrap_mode != vk::SamplerAddressMode::REPEAT  {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_CLAMP_TEXTURE;
                 }
             }
 

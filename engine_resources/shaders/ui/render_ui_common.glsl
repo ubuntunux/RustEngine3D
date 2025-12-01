@@ -7,6 +7,7 @@ const uint UI_RENDER_FLAG_RENDER_TEXT = 1 << 0;
 const uint UI_RENDER_FLAG_RENDER_TEXTURE = 1 << 1;
 const uint UI_RENDER_FLAG_TOUCHED = 1 << 2;
 const uint UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA = 1 << 3;
+const uint UI_RENDER_FLAG_CLAMP_TEXTURE = 1 << 4;
 
 struct VERTEX_OUTPUT
 {
@@ -27,6 +28,10 @@ struct UIRenderData {
     uint _ui_border_color;
     uint _ui_render_flags;
     float _ui_opacity;
+    float _ui_rotation;
+    uint _reserved0;
+    uint _reserved1;
+    uint _reserved2;
 };
 
 layout(binding = 0) uniform sampler2D texture_font;
