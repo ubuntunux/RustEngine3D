@@ -56,12 +56,13 @@ void main()
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
 
     vec3 camera = vec3(0.0, max(10.0, view_constants.CAMERA_POSITION.y), 0.0) * ATMOSPHERE_RATIO;
-
     float world_pos_y = max(0.0, view_constants.CAMERA_POSITION.y);
-
     vec3 sun_direction = -light_data.LIGHT_DIRECTION.xyz;
     vec3 eye_direction = normalize(vs_output.eye_ray);
     float VdotL = dot(eye_direction, sun_direction);
+
+    vec3 moon_light_sky_color = scene_constants.MOON_LIGHT_COLOR * 0.05;
+    vec3 moon_light_color = moon_light_sky_color * 0.2;
 
     float device_depth = texture(texture_depth, vs_output.uv).x;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
@@ -90,6 +91,7 @@ void main()
         sun_direction,
         transmittance
     );
+    radiance = max(radiance, moon_light_color);
 
     vec3 solar_radiance = GetSolarRadiance(ATMOSPHERE, atmosphere_constants);
 
@@ -97,10 +99,12 @@ void main()
     vec3 sun_disc = vec3(0.0);
     const float sun_absorption = 0.9;
     const float sun_disc_intensity = 20.0;
-    if (false == is_render_light_probe_mode && atmosphere_constants.sun_size.y < VdotL && 0.0 == device_depth)
+    const float sun_size = atmosphere_constants.sun_size.y;
+    const vec3 sun_disc_color = 0.0 < VdotL ? light_data.LIGHT_COLOR.xyz : scene_constants.MOON_LIGHT_COLOR.xyz;
+    if (false == is_render_light_probe_mode && sun_size < abs(VdotL) && 0.0 == device_depth)
     {
-        sun_disc = transmittance * solar_radiance.x * light_data.LIGHT_COLOR.xyz * sun_disc_intensity;
-        sun_disc *= pow(clamp((VdotL - atmosphere_constants.sun_size.y) / (1.0 - atmosphere_constants.sun_size.y), 0.0, 1.0), 2.0);
+        sun_disc = transmittance * solar_radiance.x * sun_disc_color * sun_disc_intensity;
+        sun_disc *= pow(clamp((abs(VdotL) - sun_size) / (1.0 - sun_size), 0.0, 1.0), 2.0);
     }
 
     // distance from earch center
@@ -189,6 +193,9 @@ void main()
             cloud_sky_irradiance,
             cloud_inscatter
         );
+
+        cloud_sun_irradiance = max(cloud_sun_irradiance, moon_light_sky_color);
+        cloud_sky_irradiance = max(cloud_sky_irradiance, moon_light_sky_color);
 
         if(in_the_cloud || above_the_cloud)
         {

@@ -405,11 +405,10 @@ vec4 surface_shading(
     }
 
     // Moon Light
-    const vec3 moon_light_color = vec3(0.68, 0.72, 0.85) * 0.2;
     {
         vec3 moon_light_dir = -L;
         const float moon_light_NoL = max(0.0, dot(N, moon_light_dir) * 0.5 + 0.5);
-        diffuse_light += moon_light_NoL * moon_light_color;
+        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR;
     }
 
 

@@ -160,6 +160,13 @@ void main()
         specular_light
     );
 
+    // Moon Light;
+    {
+        vec3 moon_light_dir = -L;
+        const float moon_light_NoL = max(0.0, dot(N, moon_light_dir) * 0.5 + 0.5);
+        diffuse_light += moon_light_NoL * scene_constants.MOON_LIGHT_COLOR;
+    }
+
     // Directional Light
     {
         const vec3 F = fresnelSchlick(VoH, F0);

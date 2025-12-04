@@ -33,7 +33,7 @@ impl SceneConstants {
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._back_buffer_size = self._screen_size.into();
-        self._moon_light_color = Vector3::new(0.796, 0.723, 0.618);
+        self._moon_light_color = Vector3::new(0.6, 0.5, 0.85) * 0.2;
         self._time = elapsed_time as f32;
         self._delta_time = delta_time as f32;
         self._sea_height = sea_height;
