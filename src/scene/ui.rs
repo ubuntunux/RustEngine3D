@@ -1302,6 +1302,7 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_border = 0.0;
                     render_ui_instance_data._ui_border_color = 0;
                     render_ui_instance_data._ui_opacity = opacity;
+                    render_ui_instance_data._ui_rotation = 0.0;
                     render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
                     if self._touched {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
@@ -1927,9 +1928,7 @@ impl<'a> UIManager<'a> {
             _default_render_ui_material: None,
             _ui_world_axis: None,
         };
-        ui_manager
-            ._ui_render_data_list
-            .resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
+        ui_manager._ui_render_data_list.resize(constants::MAX_UI_INSTANCE_COUNT, UIRenderData::default());
         let ui_component = ptr_as_mut(ui_manager._root.as_ref()).get_ui_component_mut();
         ui_component.set_layout_type(UILayoutType::FloatLayout);
         ui_component.set_size_hint_x(Some(1.0));
