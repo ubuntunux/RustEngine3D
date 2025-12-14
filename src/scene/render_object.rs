@@ -144,9 +144,7 @@ impl<'a> RenderObjectData<'a> {
         }
 
         log::debug!("create_render_object_data: {}", render_object_name);
-
         render_object_data.initialize_render_object_data();
-
         render_object_data
     }
 
@@ -173,7 +171,7 @@ impl<'a> RenderObjectData<'a> {
         self._is_visible
     }
 
-    pub fn set_is_visible(&mut self, visible: bool) {
+    pub fn set_visible(&mut self, visible: bool) {
         self._is_visible = visible;
     }
 
@@ -417,10 +415,10 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn update_render_object_data(&mut self, delta_time: f32) {
+        let mut need_to_update_socket = false;
         self._prev_transform = self._final_transform.clone();
         if self._transform_object.update_transform_object() {
-            self._final_transform =
-                ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
+            self._final_transform = ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
             // update bound box
             self._bounding_box.update_aixs_aligned_bounding_box(
                 &self._mesh_data.borrow()._bound_box,
@@ -429,13 +427,16 @@ impl<'a> RenderObjectData<'a> {
 
             // update collision
             if self._collision.is_valid_collision() {
-                self._collision
-                    ._bounding_box
-                    .update_aixs_aligned_bounding_box(
-                        &self._model_data.borrow()._collision._bounding_box,
-                        self._transform_object.get_matrix(),
-                    )
+                self._collision._bounding_box.update_aixs_aligned_bounding_box(
+                    &self._model_data.borrow()._collision._bounding_box,
+                    self._transform_object.get_matrix(),
+                )
             }
+
+            for (_socket_name, socket) in self._sockets.iter_mut() {
+                socket.borrow_mut()._transform = Matrix4::identity();
+            }
+            need_to_update_socket = true;
         }
 
         if self.has_animation() {
@@ -447,6 +448,8 @@ impl<'a> RenderObjectData<'a> {
             }
 
             if true || updated {
+                need_to_update_socket = true;
+
                 for animation_play_info in self._animation_play_infos.iter_mut() {
                     if animation_play_info.is_valid() {
                         // update animation nodes
@@ -456,8 +459,7 @@ impl<'a> RenderObjectData<'a> {
                             .unwrap()
                             .borrow()
                             ._animation_data_list;
-                        let animation_data =
-                            &animation_data_list[animation_play_info._animation_index];
+                        let animation_data = &animation_data_list[animation_play_info._animation_index];
                         for bone_node in animation_data._nodes.iter() {
                             let bone_index = ptr_as_ref(bone_node._bone)._index;
                             animation_play_info._animation_transforms[bone_index] = bone_node
@@ -492,23 +494,19 @@ impl<'a> RenderObjectData<'a> {
                 }
 
                 // transform to matrix
-                let base_animation =
-                    ptr_as_ref(self.get_animation_play_info(AnimationLayer::BaseLayer));
+                let base_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::BaseLayer));
                 let animation_buffer = self._animation_buffer.as_mut().unwrap();
                 animation_buffer.swap_animation_buffer();
                 animation_buffer.update_animation_buffer(base_animation, &mut self._sockets);
+            }
+        }
 
-                // update sockets
-                for (_socket_name, socket) in self._sockets.iter_mut() {
-                    let mut socket_borrowed = socket.borrow_mut();
-                    let parent_bon_index = socket_borrowed._socket_data.borrow()._parent_bone_index;
-                    if parent_bon_index < self._bone_count {
-                        let local_transform =
-                            socket_borrowed._socket_data.borrow()._local_transform;
-                        socket_borrowed._transform =
-                            self._final_transform * socket_borrowed._transform * local_transform;
-                    }
-                }
+        // update sockets
+        if need_to_update_socket {
+            for (_socket_name, socket) in self._sockets.iter_mut() {
+                let mut socket_borrowed = socket.borrow_mut();
+                let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
+                socket_borrowed._transform = self._final_transform * socket_borrowed._transform * local_transform;
             }
         }
     }

@@ -454,10 +454,8 @@ impl AnimationBuffer {
         for bone_data in ptr_as_ref(parent_bone)._children.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
-            let transform =
-                ptr_as_ref(parent_matrix) * animation_transforms[bone_index].to_matrix();
-            self._animation_buffer[bone_index] =
-                transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
+            let transform = ptr_as_ref(parent_matrix) * animation_transforms[bone_index].to_matrix();
+            self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
             self.update_hierarchical_animation_transform(
                 *bone_data,
                 &transform,

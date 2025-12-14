@@ -75,31 +75,20 @@ impl<'a> ModelData<'a> {
         for (socket_name, socket_data_create_info) in model_data_info._sockets.iter() {
             let mut parent_bone_index: usize = INVALID_BONE_INDEX;
             for skeleton_data in mesh_data.borrow()._skeleton_data_list.iter() {
-                if let Some(bone_index) = skeleton_data
-                    ._bone_index_map
-                    .get(&socket_data_create_info._parent_bone)
-                {
+                if let Some(bone_index) = skeleton_data._bone_index_map.get(&socket_data_create_info._parent_bone) {
                     parent_bone_index = *bone_index;
                     break;
                 }
             }
 
-            if parent_bone_index != INVALID_BONE_INDEX {
-                socket_data_map.insert(
-                    socket_name.clone(),
-                    newRcRefCell(SocketData::create_socket_data(
-                        socket_name,
-                        socket_data_create_info,
-                        parent_bone_index,
-                    )),
-                );
-            } else {
-                log::info!(
-                    "Failed to create socket: {:?}, parent bone: {:?}",
+            socket_data_map.insert(
+                socket_name.clone(),
+                newRcRefCell(SocketData::create_socket_data(
                     socket_name,
-                    socket_data_create_info._parent_bone
-                );
-            }
+                    socket_data_create_info,
+                    parent_bone_index,
+                )),
+            );
         }
 
         ModelData {
