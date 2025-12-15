@@ -349,8 +349,7 @@ impl<'a> EngineCore<'a> {
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
         if self._is_grab_mode {
             let window_size = self._window_size.clone();
-            self._mouse_move_data
-                .update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
+            self._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
             // window.set_cursor_position(dpi::PhysicalPosition { x: window_size.x / 2, y: window_size.y / 2 }).expect("failed to set_cursor_position");
         }
     }
@@ -374,8 +373,7 @@ impl<'a> EngineCore<'a> {
     pub fn update_cursor_moved(&mut self, position: dpi::PhysicalPosition<f64>) {
         if false == self._is_grab_mode {
             let window_size = self._window_size.clone();
-            self._mouse_move_data
-                .update_mouse_pos(&position.into(), &window_size);
+            self._mouse_move_data.update_mouse_pos(&position.into(), &window_size);
         }
     }
 
@@ -813,12 +811,10 @@ pub fn run_application(
                         }
 
                         // exit
-                        if engine_core
-                            ._keyboard_input_data
-                            .get_key_pressed(KeyCode::Escape)
-                            || engine_core._joystick_input_data._btn_back == ButtonState::Pressed
-                        {
-                            run_application = false;
+                        if engine_core._is_grab_mode == false {
+                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) || engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
+                                run_application = false;
+                            }
                         }
                     }
                     WindowEvent::Touch(touch) => {

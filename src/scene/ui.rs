@@ -1839,9 +1839,7 @@ impl<'a> WidgetDefault<'a> {
         let widget_instance = ptr_as_mut(widget.as_ref());
         widget_instance.set_parent(self);
         self._widgets.push(widget.clone());
-        self._ui_component
-            ._children
-            .push(widget_instance.get_ui_component());
+        self._ui_component._children.push(widget_instance.get_ui_component());
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
         // log::info!("add_widget");
