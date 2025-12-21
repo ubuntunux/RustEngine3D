@@ -1845,11 +1845,19 @@ impl<'a> WidgetDefault<'a> {
         // log::info!("add_widget");
     }
     pub fn remove_widget(&mut self, widget: *const WidgetDefault<'a>) {
+        self.inner_remove_widget(widget, false);
+    }
+    pub fn remove_widget_recursive(&mut self, widget: *const WidgetDefault<'a>) {
+        self.inner_remove_widget(widget, true);
+    }
+    pub fn inner_remove_widget(&mut self, widget: *const WidgetDefault<'a>, recursive: bool) {
         for (i, child_widget) in self._widgets.iter().enumerate() {
             if std::ptr::addr_eq(child_widget.as_ref(), widget) {
                 let widget_instance = ptr_as_mut(widget);
                 widget_instance.clear_parent();
-                widget_instance.clear_widgets();
+                if recursive {
+                    widget_instance.clear_widgets();
+                }
                 self._widgets.remove(i);
                 self._ui_component._children.remove(i);
                 self._ui_component.set_changed_child_layout(true);
