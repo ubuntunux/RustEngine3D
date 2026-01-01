@@ -161,9 +161,7 @@ impl TransformObjectData {
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
         self._rotation.z = (self._rotation.z + rotation_speed) % math::TWO_PI;
     }
-    pub fn get_pitch(&self) -> f32 {
-        self._rotation.x
-    }
+    pub fn get_pitch(&self) -> f32 { self._rotation.x }
     pub fn get_yaw(&self) -> f32 {
         self._rotation.y
     }
