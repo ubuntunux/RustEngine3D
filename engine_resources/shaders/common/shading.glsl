@@ -282,7 +282,9 @@ vec4 surface_shading(
     const vec3 R = reflect(-V, N);
     const vec3 H = normalize(V + L);
 
-    const float NoL = dot(N, L);
+    float NoL = dot(N, L);
+    if(HALF_LAMBERT_LIGHTING)
+        NoL = pow(saturate(NoL * 0.5 + 0.5), 2.0);
     const float clampled_NoL = clamp(NoL, 0.0, 1.0);
     const float NoV = clamp(dot(N, V), 0.001, 1.0);
     const float NoH = clamp(dot(N, H), 0.001, 1.0);
@@ -290,6 +292,7 @@ vec4 surface_shading(
     const float VoL = clamp(dot(L, V), 0.001, 1.0);
 
     // Atmosphere
+    const bool doLambertianReflectance = false;
     vec3 scene_in_scatter = vec3(0.0);
     vec3 scene_sun_irradiance = vec3(1.0);
     vec3 scene_sky_irradiance = vec3(0.0);
@@ -307,6 +310,7 @@ vec4 surface_shading(
         -V,
         L,
         N,
+        doLambertianReflectance,
         scene_sun_irradiance,
         scene_sky_irradiance,
         scene_in_scatter

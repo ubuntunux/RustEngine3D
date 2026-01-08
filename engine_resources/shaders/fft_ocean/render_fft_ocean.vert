@@ -97,6 +97,7 @@ void main()
     );
 
     // Atmosphere
+    const bool doLambertianReflectance = false;
     vec3 in_scatter = vec3(0.0);
     vec3 sun_irradiance = vec3(0.0);
     vec3 sky_irradiance = vec3(0.0);
@@ -112,6 +113,7 @@ void main()
         eye_direction,
         -light_data.LIGHT_DIRECTION.xyz,
         vertex_normal,
+        doLambertianReflectance,
         sun_irradiance,
         sky_irradiance,
         in_scatter

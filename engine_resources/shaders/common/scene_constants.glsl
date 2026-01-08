@@ -27,6 +27,8 @@
 #define MAX_BONES_PER_VERTEX 4
 #define MAX_TRANSFORM_COUNT 65536 // MAX_TRANSFORM_COUNT must match with constants.rs
 
+const bool HALF_LAMBERT_LIGHTING = true;
+
 const float PI = 3.14159265358979323846;
 const float HALF_PI = PI * 0.5;
 const float TWO_PI = PI * 2.0;

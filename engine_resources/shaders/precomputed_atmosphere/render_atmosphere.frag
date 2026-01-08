@@ -54,6 +54,7 @@ void main()
 
     const bool is_render_light_probe_mode = 0 != pushConstant._render_light_probe_mode;
     const float far_dist = view_constants.NEAR_FAR.y * 4.0;
+    const bool doLambertianReflectance = true;
 
     vec3 camera = vec3(0.0, max(10.0, view_constants.CAMERA_POSITION.y), 0.0) * ATMOSPHERE_RATIO;
     float world_pos_y = max(0.0, view_constants.CAMERA_POSITION.y);
@@ -188,6 +189,7 @@ void main()
             view_constants.CAMERA_POSITION.xyz,
             eye_direction,
             sun_direction,
+            doLambertianReflectance,
             scene_shadow_length,
             cloud_sun_irradiance,
             cloud_sky_irradiance,

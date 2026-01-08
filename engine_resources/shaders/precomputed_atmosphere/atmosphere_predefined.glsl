@@ -1008,13 +1008,15 @@ const in sampler2D irradiance_texture,
 const in vec3 point,
 const in vec3 normal,
 const in vec3 sun_direction,
+const in bool doLambertianReflectance,
 out vec3 sky_irradiance
 )
 {
     float r = length(point);
     float mu_s = dot(point, sun_direction) / r;
+    const float NdotL = doLambertianReflectance ? dot(normal, sun_direction) : 1;
     sky_irradiance = GetIrradiance(atmosphere, irradiance_texture, r, mu_s) * (1.0 + dot(normal, point) / r) * 0.5;
-    return atmosphere.solar_irradiance * GetTransmittanceToSun(atmosphere, transmittance_texture, r, mu_s) * max(dot(normal, sun_direction), 0.0);
+    return atmosphere.solar_irradiance * GetTransmittanceToSun(atmosphere, transmittance_texture, r, mu_s) * max(NdotL, 0.0);
 }
 
 vec3 GetSolarRadiance(const in AtmosphereParameters atmosphere, const in ATMOSPHERE_CONSTANTS atmosphere_constants)
@@ -1085,6 +1087,7 @@ vec3 GetSunAndSkyIrradiance(
     vec3 p,
     vec3 normal,
     vec3 sun_direction,
+    bool doLambertianReflectance,
     out vec3 sky_irradiance
 )
 {
@@ -1095,6 +1098,7 @@ vec3 GetSunAndSkyIrradiance(
         p,
         normal,
         sun_direction,
+        doLambertianReflectance,
         sky_irradiance
     );
 
@@ -1259,6 +1263,7 @@ void GetSceneRadiance(
     const in vec3 eye_direction,
     const in vec3 sun_direction,
     const in vec3 normal,
+    const bool doLambertianReflectance,
     out vec3 sun_irradiance,
     out vec3 sky_irradiance,
     out vec3 in_scatter
@@ -1282,6 +1287,7 @@ void GetSceneRadiance(
         relative_point.xyz - atmosphere_constants.earth_center,
         normal,
         sun_direction,
+        doLambertianReflectance,
         sky_irradiance
     );
 
@@ -1317,6 +1323,7 @@ void GetSceneRadianceWithShadow(
     const in vec3 sun_direction,
     const in mat4 shadow_view_projection,
     const in vec3 normal,
+    const bool doLambertianReflectance,
     sampler2D texture_shadow,
     out vec3 sun_irradiance,
     out vec3 sky_irradiance,
@@ -1350,6 +1357,7 @@ void GetSceneRadianceWithShadow(
         relative_point.xyz - atmosphere_constants.earth_center,
         normal,
         sun_direction,
+        doLambertianReflectance,
         sky_irradiance
     );
 
@@ -1383,6 +1391,7 @@ void GetCloudRadiance(
     const in vec3 camera_position,
     const in vec3 eye_direction,
     const in vec3 sun_direction,
+    const bool doLambertianReflectance,
     float scene_shadow_length,
     out vec3 sun_irradiance,
     out vec3 sky_irradiance,
@@ -1400,6 +1409,7 @@ void GetCloudRadiance(
         point.xyz - atmosphere_constants.earth_center,
         sun_direction,
         sun_direction,
+        doLambertianReflectance,
         sky_irradiance
     );
 
