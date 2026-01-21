@@ -9,6 +9,15 @@ pub fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a * (1.0 - t) + b * t
 }
 
+pub fn get_normalized_diff_radian(a: f32, b: f32) -> f32 {
+    let diff = b - a;
+    (diff + HALF_PI) % TWO_PI - HALF_PI
+}
+
+pub fn lerp_radian(a: f32, b: f32, t: f32) -> f32 {
+    a + get_normalized_diff_radian(a, b) * t
+}
+
 // https://github.com/TheRealMJP/SamplePattern/blob/master/SamplePattern.cpp
 // Computes a radical inverse with base 2 using crazy bit-twiddling from "Hacker's Delight"
 pub fn radical_inverse_base2(bits: u32) -> f32 {
