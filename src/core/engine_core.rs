@@ -4,7 +4,7 @@ use log;
 use nalgebra::Vector2;
 use sdl2::event;
 use sdl2::Sdl;
-use winit::dpi;
+use winit::{dpi, keyboard};
 use winit::event::{
     DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, Touch, TouchPhase,
     WindowEvent,
@@ -326,8 +326,7 @@ impl<'a> EngineCore<'a> {
 
         let renderer_context = self.get_renderer_context_mut();
         let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
-        let need_recreate_swapchain =
-            swapchain_extent.width != size.width || swapchain_extent.height != size.height;
+        let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
         log::info!(
             "need_recreate_swapchain: {}, swapchain_extent: {:?}",
             need_recreate_swapchain,
@@ -344,6 +343,10 @@ impl<'a> EngineCore<'a> {
         self._keyboard_input_data.clear_key_pressed();
         self._keyboard_input_data.clear_key_released();
         self._joystick_input_data.update_joystick_button_state();
+    }
+
+    pub fn clear_key_hold(&mut self) {
+        self._keyboard_input_data.clear_key_hold();
     }
 
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
@@ -366,8 +369,7 @@ impl<'a> EngineCore<'a> {
     }
 
     pub fn update_mouse_wheel(&mut self, scroll_x: f32, scroll_y: f32) {
-        self._mouse_move_data
-            .update_scroll_move(&(scroll_x as i32, scroll_y as i32));
+        self._mouse_move_data.update_scroll_move(&(scroll_x as i32, scroll_y as i32));
     }
 
     pub fn update_cursor_moved(&mut self, position: dpi::PhysicalPosition<f64>) {
@@ -387,17 +389,17 @@ impl<'a> EngineCore<'a> {
         self.get_window().set_cursor_visible(!is_grab_mode);
     }
 
-    pub fn update_keyboard_input(&mut self, input: &KeyEvent, _is_synthetic: bool) {
-        match input.physical_key {
+    pub fn update_keyboard_input(&mut self, input_physical_key: PhysicalKey, input_key_state: ElementState) {
+        match input_physical_key {
             PhysicalKey::Code(key) => {
-                if ElementState::Pressed == input.state {
+                if ElementState::Pressed == input_key_state {
                     self._keyboard_input_data.set_key_pressed(key);
                 } else {
                     self._keyboard_input_data.set_key_released(key);
                 }
             }
             _ => {
-                log::info!("Unknown key: {:?}", input.physical_key);
+                log::info!("Unknown key: {:?}", input_physical_key);
             }
         }
     }
@@ -647,9 +649,9 @@ pub fn run_application(
         .build(&event_loop)
         .unwrap();
 
-    if WindowMode::FullScreenExclusiveMode == window_mode
-        || WindowMode::FullScreenBorderlessMode == window_mode
-    {
+    window.set_ime_allowed(false);
+
+    if WindowMode::FullScreenExclusiveMode == window_mode || WindowMode::FullScreenBorderlessMode == window_mode {
         if WindowMode::FullScreenExclusiveMode == window_mode {
             window.set_fullscreen(Some(Fullscreen::Exclusive(current_video_mode)));
         } else if WindowMode::FullScreenBorderlessMode == window_mode {
@@ -669,8 +671,7 @@ pub fn run_application(
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
     //event_loop.run(move |event, window_target| {
-    event_loop
-        .run_on_demand(|event, window_target| {
+    event_loop.run_on_demand(|event, window_target| {
             window_target.set_control_flow(ControlFlow::Poll);
 
             if need_initialize {
@@ -760,6 +761,18 @@ pub fn run_application(
                     DeviceEvent::MouseMotion { delta } => {
                         engine_core.update_mouse_motion(&delta);
                     }
+                    DeviceEvent::Key(raw_key) => {
+                        if run_application {
+                            engine_core.update_keyboard_input(raw_key.physical_key, raw_key.state);
+                        }
+
+                        // exit
+                        if engine_core._is_grab_mode == false {
+                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) || engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
+                                run_application = false;
+                            }
+                        }
+                    }
                     _ => {}
                 },
                 Event::WindowEvent { event, .. } => match event {
@@ -767,11 +780,7 @@ pub fn run_application(
                         run_application = false;
                     }
                     WindowEvent::Resized(size) => {
-                        log::info!(
-                            "WindowEvent::Resized: {:?}, initialize_done: {}",
-                            size,
-                            initialize_done
-                        );
+                        log::info!("WindowEvent::Resized: {:?}, initialize_done: {}", size, initialize_done);
                         if initialize_done {
                             engine_core.resized_window(size);
                         }
@@ -790,6 +799,9 @@ pub fn run_application(
                     }
                     WindowEvent::Focused(focused) => {
                         engine_core.get_application_mut().focused(focused);
+                        if focused == false {
+                            engine_core.clear_key_hold();
+                        }
                     }
                     WindowEvent::CursorEntered {
                         device_id: _device_id,
@@ -799,23 +811,11 @@ pub fn run_application(
                         device_id: _device_id,
                         ..
                     } => {}
-                    WindowEvent::Ime(_event) => {}
-                    WindowEvent::KeyboardInput {
-                        event,
-                        is_synthetic,
-                        ..
-                    } => {
-                        window.set_ime_allowed(false);
-                        if run_application {
-                            engine_core.update_keyboard_input(&event, is_synthetic);
-                        }
-
-                        // exit
-                        if engine_core._is_grab_mode == false {
-                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) || engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
-                                run_application = false;
-                            }
-                        }
+                    WindowEvent::Ime(_event) => {
+                        // nothing
+                    }
+                    WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                        // nothing
                     }
                     WindowEvent::Touch(touch) => {
                         engine_core.update_touch(&touch);
