@@ -4,9 +4,9 @@ use log;
 use nalgebra::Vector2;
 use sdl2::event;
 use sdl2::Sdl;
-use winit::{dpi, keyboard};
+use winit::{dpi};
 use winit::event::{
-    DeviceEvent, ElementState, Event, KeyEvent, MouseButton, MouseScrollDelta, Touch, TouchPhase,
+    DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase,
     WindowEvent,
 };
 use winit::event_loop::{ControlFlow, EventLoop};
@@ -814,7 +814,7 @@ pub fn run_application(
                     WindowEvent::Ime(_event) => {
                         // nothing
                     }
-                    WindowEvent::KeyboardInput { event, is_synthetic, .. } => {
+                    WindowEvent::KeyboardInput { .. } => {
                         // nothing
                     }
                     WindowEvent::Touch(touch) => {

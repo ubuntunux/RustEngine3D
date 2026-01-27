@@ -661,16 +661,14 @@ impl<'a> SceneManager<'a> {
             .create_effect(object_name, effect_create_info, &effect_data)
     }
 
-    pub fn play_audio_bank(&self, audio_name_bank: &str) {
-        self.get_audio_manager_mut()
-            .play_audio_bank(audio_name_bank, AudioLoop::ONCE, None);
+    pub fn play_audio_bank(&self, audio_name_bank: &str) -> Option<RcRefCell<AudioInstance>> {
+        self.get_audio_manager_mut().play_audio_bank(audio_name_bank, AudioLoop::ONCE, None)
     }
 
     pub fn play_audio(&self, audio_resource: &ResourceData) -> Option<RcRefCell<AudioInstance>> {
         match audio_resource {
             Audio(audio_data) => {
-                self.get_audio_manager_mut()
-                    .play_audio_data(&audio_data, AudioLoop::ONCE, None)
+                self.get_audio_manager_mut().play_audio_data(&audio_data, AudioLoop::ONCE, None)
             }
             AudioBank(audio_bank_data) => self.get_audio_manager_mut().play_audio_bank_data(
                 &audio_bank_data,
@@ -686,9 +684,12 @@ impl<'a> SceneManager<'a> {
         audio_name_bank: &str,
         audio_loop: AudioLoop,
         volume: Option<f32>,
-    ) {
-        self.get_audio_manager_mut()
-            .play_audio_bank(audio_name_bank, audio_loop, volume);
+    ) -> Option<RcRefCell<AudioInstance>> {
+        self.get_audio_manager_mut().play_audio_bank(audio_name_bank, audio_loop, volume)
+    }
+
+    pub fn stop_audio_instance(&self, audio_instance: &RcRefCell<AudioInstance>) {
+        self.get_audio_manager_mut().stop_audio_instance(audio_instance)
     }
 
     pub fn get_static_render_object_map(&self) -> &RenderObjectMap<'a> {
