@@ -286,6 +286,7 @@ vec4 surface_shading(
     if(HALF_LAMBERT_LIGHTING)
         NoL = pow(saturate(NoL * 0.5 + 0.5), 2.0);
     const float clampled_NoL = clamp(NoL, 0.0, 1.0);
+    const float specular_clampled_NoL = clamp(dot(N, L), 0.0, 1.0);
     const float NoV = clamp(dot(N, V), 0.001, 1.0);
     const float NoH = clamp(dot(N, H), 0.001, 1.0);
     const float VoH = clamp(dot(H, V), 0.001, 1.0);
@@ -378,7 +379,7 @@ vec4 surface_shading(
     {
         const vec3 F = fresnelSchlick(VoH, F0);
         diffuse_light += diffuse_burley(roughness, NoV, NoL, VoH ) * clampled_NoL * (vec3(1.0) - F) * light_color;
-        specular_light += cooktorrance_specular(F, clampled_NoL, NoV, NoH, roughness) * clampled_NoL * light_color;
+        specular_light += cooktorrance_specular(F, specular_clampled_NoL, NoV, NoH, roughness) * specular_clampled_NoL * light_color;
     }
 
     // apply sea ratio
@@ -398,13 +399,16 @@ vec4 surface_shading(
             float point_light_attenuation = clamp(1.0 - point_light_dist / point_light_radius, 0.0, 1.0);
             point_light_attenuation *= point_light_attenuation;
             const vec3 point_light_color = point_lights.point_light_data[i].LIGHT_COLOR * point_light_attenuation;
-            const float point_light_NoL = max(0.01, dot(N, point_light_dir));
+            float point_light_NoL = max(0.01, dot(N, point_light_dir));
+            if(HALF_LAMBERT_LIGHTING)
+                point_light_NoL = pow(saturate(point_light_NoL * 0.5 + 0.5), 2.0);
+            const float specular_point_light_NoL = max(0.01, dot(N, point_light_dir));
             const float point_light_NoH = max(0.01, dot(N, point_light_half));
             const float point_light_VoH = max(0.01, dot(V, point_light_half));
             const vec3 point_light_F = fresnelSchlick(point_light_VoH, F0);
 
             diffuse_light += diffuse_burley(roughness, NoV, point_light_NoL, point_light_VoH) * point_light_NoL * (vec3(1.0) - point_light_F) * point_light_color;
-            specular_light += cooktorrance_specular(point_light_F, point_light_NoL, NoV, point_light_NoH, roughness) * point_light_NoL * point_light_color;
+            specular_light += cooktorrance_specular(point_light_F, specular_point_light_NoL, NoV, point_light_NoH, roughness) * specular_point_light_NoL * point_light_color;
         }
     }
 
