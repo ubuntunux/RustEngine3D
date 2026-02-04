@@ -12,13 +12,6 @@ macro_rules! begin_block {
     };
 }
 
-#[macro_export]
-macro_rules! end_block {
-    () => {
-        // EndBlock()
-    };
-}
-
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 

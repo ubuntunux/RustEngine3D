@@ -1068,8 +1068,7 @@ impl<'a> SceneManager<'a> {
                         );
                 }
 
-                begin_block!("render element");
-                {
+                begin_block!("render element"); {
                     if 0 < render_element_count {
                         render_elements.push(RenderElementData {
                             _geometry_data: render_element_info._geometry_data.clone(),
