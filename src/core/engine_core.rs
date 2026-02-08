@@ -543,17 +543,15 @@ impl<'a> EngineCore<'a> {
                     renderer_context._renderer_data._debug_render_target
                 ));
 
-                unsafe {
-                    if TIME_PROFILER.is_some() {
-                        let time_profiler = TIME_PROFILER.as_ref().unwrap();
-                        let mut keys: Vec<&String> = time_profiler.keys().collect();
-                        keys.sort();
-                        for key in keys {
-                            let value = time_profiler.get(key).unwrap();
-                            font_manager.log(format!("{}: {:.3}ms", key, value));
-                        }
+                if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
+                    let mut time_profiler = time_profiler_mutex.lock().unwrap();
+                    let mut keys: Vec<&String> = time_profiler.keys().collect();
+                    keys.sort();
+                    for key in keys {
+                        let value = time_profiler.get(key).unwrap();
+                        font_manager.log(format!("{}: {:.3}ms", key, value));
                     }
-                    TIME_PROFILER = None;
+                    time_profiler.clear(); // Clear the HashMap for the next frame
                 }
 
                 // render scene
