@@ -52,8 +52,8 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let subpass_dependencies = vec![vk::SubpassDependency {
         src_subpass: vk::SUBPASS_EXTERNAL,
         dst_subpass: 0,
-        src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-        src_access_mask: vk::AccessFlags::empty(),
+        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT, // SceneColor was written as color attachment
+        src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE, // SceneColor was written to
         dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
         dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,

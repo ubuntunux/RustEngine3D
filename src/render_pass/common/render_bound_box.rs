@@ -51,8 +51,13 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let subpass_dependencies = vec![vk::SubpassDependency {
         src_subpass: vk::SUBPASS_EXTERNAL,
         dst_subpass: 0,
-        src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-        src_access_mask: vk::AccessFlags::empty(),
+        src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT // For PostProcessedColor writes
+            | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS // For SceneDepth writes
+            | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS // For SceneDepth writes
+            | vk::PipelineStageFlags::FRAGMENT_SHADER, // For reading SceneDepth in fragment shader
+        src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE // For PostProcessedColor writes
+            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE // For SceneDepth writes
+            | vk::AccessFlags::SHADER_READ, // For reading SceneDepth
         dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
         dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_READ
             | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
