@@ -51,15 +51,35 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ..Default::default()
         });
     }
-    let subpass_dependencies = vec![vk::SubpassDependency {
-        src_subpass: vk::SUBPASS_EXTERNAL,
-        dst_subpass: 0,
-        src_stage_mask: vk::PipelineStageFlags::TOP_OF_PIPE,
-        src_access_mask: vk::AccessFlags::empty(),
-        dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-        dependency_flags: vk::DependencyFlags::BY_REGION,
-    }];
+    let subpass_dependencies = vec![
+        vk::SubpassDependency {
+            src_subpass: vk::SUBPASS_EXTERNAL,
+            dst_subpass: 0,
+            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
+                | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS
+                | vk::PipelineStageFlags::FRAGMENT_SHADER
+                | vk::PipelineStageFlags::COMPUTE_SHADER,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+                | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE
+                | vk::AccessFlags::SHADER_READ
+                | vk::AccessFlags::SHADER_WRITE,
+            dst_stage_mask: vk::PipelineStageFlags::FRAGMENT_SHADER,
+            dst_access_mask: vk::AccessFlags::SHADER_READ
+                | vk::AccessFlags::INPUT_ATTACHMENT_READ,
+            dependency_flags: vk::DependencyFlags::BY_REGION,
+        },
+        vk::SubpassDependency {
+            src_subpass: 0,
+            dst_subpass: vk::SUBPASS_EXTERNAL,
+            src_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            src_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            dst_stage_mask: vk::PipelineStageFlags::FRAGMENT_SHADER
+                | vk::PipelineStageFlags::COMPUTE_SHADER,
+            dst_access_mask: vk::AccessFlags::SHADER_READ,
+            dependency_flags: vk::DependencyFlags::BY_REGION,
+        },
+    ];
 
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
         _pipeline_data_create_info_name: String::from("composite_gbuffer"),
