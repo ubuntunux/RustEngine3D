@@ -106,6 +106,37 @@ pub fn make_normalize_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
     (Vector3::zeros(), 0.0)
 }
 
+pub fn make_vector_xy(vec: &Vector3<f32>) -> Vector3<f32> {
+    Vector3::new(vec.x, vec.y, 0.0)
+}
+
+pub fn make_vector_xy_mut(vec: &mut Vector3<f32>) {
+    vec.z = 0.0;
+}
+
+pub fn get_norm_xy(vec: &Vector3<f32>) -> f32 {
+    (vec.x * vec.x + vec.y * vec.y).sqrt()
+}
+
+pub fn make_normalize_xy(vec: &Vector3<f32>) -> Vector3<f32> {
+    let distance = (vec.x * vec.x + vec.y * vec.y).sqrt();
+    if 0.0 < distance {
+        return Vector3::new(vec.x / distance, vec.y / distance, 0.0);
+    }
+    Vector3::zeros()
+}
+
+pub fn make_normalize_xy_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
+    let distance = get_norm_xy(vec);
+    if 0.0 < distance {
+        return (
+            Vector3::new(vec.x / distance, vec.y / distance, 0.0),
+            distance,
+        );
+    }
+    (Vector3::zeros(), 0.0)
+}
+
 pub fn make_vector_xz(vec: &Vector3<f32>) -> Vector3<f32> {
     Vector3::new(vec.x, 0.0, vec.z)
 }
