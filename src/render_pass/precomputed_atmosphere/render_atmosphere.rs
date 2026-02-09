@@ -20,22 +20,20 @@ use crate::scene::precomputed_atmosphere::{
 };
 
 pub fn get_framebuffer_data_create_info(renderer_data: &RendererData) -> FramebufferDataCreateInfo {
-    let render_target0 =
-        renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR);
-    let render_target1 =
-        renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER);
+    let render_target0 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR);
+    let render_target1 = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_INSCATTER);
     let render_target_infos: [RenderTargetInfo; 2] = [
         RenderTargetInfo {
             _texture_data: render_target0,
             _target_layer: 0,
             _target_mip_level: 0,
-            _clear_value: None,
+            _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 0.0)),
         },
         RenderTargetInfo {
             _texture_data: render_target1,
             _target_layer: 0,
             _target_mip_level: 0,
-            _clear_value: None,
+            _clear_value: Some(vulkan_context::get_color_clear_value(0.0, 0.0, 0.0, 1.0)),
         },
     ];
     framebuffer::create_framebuffer_data_create_info(&render_target_infos, &[], &[])
@@ -51,7 +49,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
-            _attachment_load_operation: vk::AttachmentLoadOp::DONT_CARE,
+            _attachment_load_operation: vk::AttachmentLoadOp::CLEAR,
             _attachment_store_operation: vk::AttachmentStoreOp::STORE,
             _attachment_final_layout: vk::ImageLayout::GENERAL,
             _attachment_reference_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
