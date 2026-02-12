@@ -33,9 +33,9 @@ impl BoundingBox {
         BoundingBox {
             _min: min.clone(),
             _max: max.clone(),
-            _radius: (extents.x * extents.x + extents.z * extents.z).sqrt(),
-            _mag_xz: extents.magnitude(),
-            _center: center.clone(),
+            _radius: extents.magnitude(),
+            _mag_xz: (extents.x * extents.x + extents.z * extents.z).sqrt(),
+            _center: center,
             _extents: extents,
             _orientation: Matrix3::identity(),
         }
@@ -153,8 +153,7 @@ impl BoundingBox {
 
         self._extents = (self._max - self._min) * 0.5;
         self._radius = self._extents.magnitude();
-        self._mag_xz =
-            (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
+        self._mag_xz = (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
 
         self._orientation = math::extract_axes(matrix) * bound_box._orientation;
     }
@@ -170,8 +169,7 @@ impl BoundingBox {
 
         self._extents = bound_box._extents.component_mul(&scale);
         self._radius = self._extents.magnitude();
-        self._mag_xz =
-            (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
+        self._mag_xz = (self._extents.x * self._extents.x + self._extents.z * self._extents.z).sqrt();
 
         self._orientation = rotation * bound_box._orientation;
     }

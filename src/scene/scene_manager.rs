@@ -3,10 +3,7 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
-use crate::constants::{
-    COLLISION_BLOCK_SIZE, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS,
-    MAX_TRANSFORM_COUNT,
-};
+use crate::constants::{COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
@@ -758,8 +755,13 @@ impl<'a> SceneManager<'a> {
     pub fn view_frustum_culling_geometry(
         camera: &CameraObjectData,
         geometry_bound_box: &BoundingBox,
+        distance_cull: bool
     ) -> bool {
         let to_geometry = &geometry_bound_box._center - camera.get_camera_position();
+        if distance_cull && geometry_bound_box._radius * DISTANCE_CULL_FACTOR <= to_geometry.dot(&to_geometry) {
+            return true;
+        }
+
         for plane in camera._view_frustum_planes.iter() {
             let d = plane.dot(&to_geometry);
             if geometry_bound_box._radius < d {
@@ -833,15 +835,11 @@ impl<'a> SceneManager<'a> {
             let render_object_data = ptr_as_ref(render_object_refcell.as_ptr());
             let is_render_camera = render_object_data._is_visible
                 && render_object_data._is_render_camera
-                && false
-                    == SceneManager::view_frustum_culling_geometry(
-                        camera,
-                        &render_object_data._bounding_box,
-                    );
+                && SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box, !render_object_data._is_render_height_map) == false;
 
             let is_render_shadow = render_object_data._is_visible
                 && render_object_data._is_render_shadow
-                && false == SceneManager::shadow_culling(light, &render_object_data._bounding_box);
+                && SceneManager::shadow_culling(light, &render_object_data._bounding_box) == false;
 
             let is_render_height_map = enable_capture_height_map
                 && render_object_data._is_visible

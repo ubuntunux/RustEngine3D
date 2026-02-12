@@ -46,6 +46,7 @@ pub static mut METER_PER_UNIT: f32 = 1.0;
 pub static mut NEAR: f32 = 0.1;
 pub static mut FAR: f32 = 200000.0;
 pub static mut FOV: f32 = 60.0;
+pub const DISTANCE_CULL_FACTOR: f32 = 3000.0;
 pub static MAX_BOUND_BOX_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
 pub static MAX_DEBUG_LINE_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
 pub static MAX_FONT_INSTANCE_COUNT: usize = 65536; // NOTE: Ensure enum values match in scene_constants.glsl
