@@ -26,7 +26,7 @@ use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::{begin_block, constants};
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix4, Vector, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
@@ -755,13 +755,8 @@ impl<'a> SceneManager<'a> {
     pub fn view_frustum_culling_geometry(
         camera: &CameraObjectData,
         geometry_bound_box: &BoundingBox,
-        distance_cull: bool
+        to_geometry: &Vector3<f32>
     ) -> bool {
-        let to_geometry = &geometry_bound_box._center - camera.get_camera_position();
-        if distance_cull && geometry_bound_box._radius * DISTANCE_CULL_FACTOR <= to_geometry.dot(&to_geometry) {
-            return true;
-        }
-
         for plane in camera._view_frustum_planes.iter() {
             let d = plane.dot(&to_geometry);
             if geometry_bound_box._radius < d {
@@ -833,9 +828,13 @@ impl<'a> SceneManager<'a> {
         // gather render object
         for (_key, render_object_refcell) in render_object_map.iter() {
             let render_object_data = ptr_as_ref(render_object_refcell.as_ptr());
+
+            let to_geometry = &render_object_data._bounding_box._center - camera.get_camera_position();
+            let is_distance_culled = render_object_data._is_render_height_map == false && render_object_data._bounding_box._radius * DISTANCE_CULL_FACTOR <= to_geometry.dot(&to_geometry);
+
             let is_render_camera = render_object_data._is_visible
                 && render_object_data._is_render_camera
-                && SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box, !render_object_data._is_render_height_map) == false;
+                && SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box, &to_geometry) == false;
 
             let is_render_shadow = render_object_data._is_visible
                 && render_object_data._is_render_shadow
@@ -892,8 +891,8 @@ impl<'a> SceneManager<'a> {
                             _render_object: render_object_refcell.clone(),
                             _mesh_data: mesh_data_refcell.clone(),
                             _transform_offset: *render_element_transform_count,
-                            _is_render_camera: is_render_camera,
-                            _is_render_shadow: is_render_shadow,
+                            _is_render_camera: is_render_camera && is_distance_culled == false,
+                            _is_render_shadow: is_render_shadow && is_distance_culled == false,
                             _is_render_height_map: is_render_height_map,
                             _geometry_index: geometry_index,
                             _geometry_data: mesh_data.get_geometry_data(geometry_index).clone(),
