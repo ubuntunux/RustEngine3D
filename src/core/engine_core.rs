@@ -544,11 +544,12 @@ impl<'a> EngineCore<'a> {
                     renderer_context._renderer_data._debug_render_target
                 ));
                 font_manager.log(format!(
-                    "RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}",
+                    "RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderSSAO: {:?}",
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
+                    renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
                 ));
 
                 if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
@@ -784,6 +785,8 @@ pub fn run_application(
                                 engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderAtmosphere)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
                                 engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSky)
+                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
+                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSSAO)
                             }
                         }
                     }

@@ -54,6 +54,7 @@ const uint RenderOption_RenderSSR = 1 << 0;
 const uint RenderOption_RenderOcean = 1 << 1;
 const uint RenderOption_RenderAtmosphere = 1 << 2;
 const uint RenderOption_RenderSky = 1 << 3;
+const uint RenderOption_RenderSSAO = 1 << 4;
 
 // uniform_buffer_data_list.rs - struct SceneConstants
 struct SCENE_CONSTANTS

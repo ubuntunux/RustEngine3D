@@ -49,56 +49,56 @@ void main() {
     const vec2 inv_depth_size = 1.0 / textureSize(textureSceneDepth, 0).xy;
     const ivec2 screen_pos = ivec2(vs_output.texCoord * scene_constants.SCREEN_SIZE);
     const int timeIndex = int(mod(scene_constants.TIME, 1.0) * 65535.0);
-
     const vec4 relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, texCoord, device_depth);
-    const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
-    const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
-    const vec3 randomVec = normalize(texture(ssaoNoise, texCoord).xyz * 2.0 - 1.0);
-    const vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
-    const vec3 bitangent = normalize(cross(normal, tangent));
-    const mat3 tnb = mat3(tangent, normal, bitangent);
 
-    const float occlusion_distance_min = 0.05;
-    const float occlusion_distance_max = 5.0;
-    const float ssao_contrast = 1.0;
-
-    const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * inv_depth_size * 2.0;
-    const int sample_count = SSAO_KERNEL_SIZE;
-    const float occlusion_factor = 4.0 * sample_count / 64;
     float acc_occlusion = 1.0;
-    for (int i = 0; i < sample_count; ++i)
+    if((scene_constants.RENDER_OPTION & RenderOption_RenderSSAO) != 0)
     {
-        // ray
-        const float t = float(i) / float(sample_count - 1);
-        const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, t*t);
-        float kernel_radius = float(i + 1) / float(sample_count);
-        vec3 ray = normalize(uboSSAOKernel.SSAO_KERNEL_SAPLES[i].xyz * vec3(kernel_radius, 1.0, kernel_radius));
-        vec3 pos = normalize(tnb * ray) * occlusion_distance + relative_pos.xyz;
-
-        // project sample position:
-        vec4 offset = vec4(pos, 1.0);
-        offset = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * offset;
-        offset.xyz /= offset.w;
-        offset.xy = offset.xy * 0.5 + 0.5 + noise;
-
-        if(offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0 || 1.0 < offset.z)
+        const vec3 normal = normalize(texture(textureSceneNormal, texCoord).xyz * 2.0 - 1.0);
+        const vec3 randomVec = normalize(texture(ssaoNoise, texCoord).xyz * 2.0 - 1.0);
+        const vec3 tangent = normalize(randomVec - normal * dot(randomVec, normal));
+        const vec3 bitangent = normalize(cross(normal, tangent));
+        const mat3 tnb = mat3(tangent, normal, bitangent);
+        const float occlusion_distance_min = 0.05;
+        const float occlusion_distance_max = 5.0;
+        const vec2 noise = vec2(interleaved_gradient_noise(screen_pos + timeIndex) * 2.0 - 1.0) * inv_depth_size * 2.0;
+        const int sample_count = SSAO_KERNEL_SIZE;
+        const float occlusion_factor = 4.0 * sample_count / 64;
+        for (int i = 0; i < sample_count; ++i)
         {
-            break;
-        }
+            // ray
+            const float t = float(i) / float(sample_count - 1);
+            const float occlusion_distance = mix(occlusion_distance_min, occlusion_distance_max, t*t);
+            float kernel_radius = float(i + 1) / float(sample_count);
+            vec3 ray = normalize(uboSSAOKernel.SSAO_KERNEL_SAPLES[i].xyz * vec3(kernel_radius, 1.0, kernel_radius));
+            vec3 pos = normalize(tnb * ray) * occlusion_distance + relative_pos.xyz;
 
-        const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
-        if(occlusion_depth <= offset.z)
-        {
-            continue;
-        }
+            // project sample position:
+            vec4 offset = vec4(pos, 1.0);
+            offset = view_constants.VIEW_ORIGIN_PROJECTION_JITTER * offset;
+            offset.xyz /= offset.w;
+            offset.xy = offset.xy * 0.5 + 0.5 + noise;
 
-        const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
-        const float distance = length(occlusion_relative_pos - relative_pos);
-        float occlusion = 1.0 - exp(-distance * occlusion_factor);
-        acc_occlusion *= occlusion;
+            if(offset.x < 0.0 || offset.x > 1.0 || offset.y < 0.0 || offset.y > 1.0 || 1.0 < offset.z)
+            {
+                break;
+            }
+
+            const float occlusion_depth = texture(textureSceneDepth, offset.xy).x;
+            if(occlusion_depth <= offset.z)
+            {
+                continue;
+            }
+
+            const vec4 occlusion_relative_pos = relative_world_from_device_depth(view_constants.INV_VIEW_ORIGIN_PROJECTION_JITTER, offset.xy, occlusion_depth);
+            const float distance = length(occlusion_relative_pos - relative_pos);
+            const float occlusion = 1.0 - exp(-distance * occlusion_factor);
+            acc_occlusion *= occlusion;
+        }
     }
 
-    float shadow_factor = get_shadow_factor(
+    const vec3 world_position = relative_pos.xyz + view_constants.CAMERA_POSITION;
+    const float shadow_factor = get_shadow_factor(
         scene_constants.TIME,
         screen_pos,
         world_position,
@@ -109,5 +109,5 @@ void main() {
         texture_shadow
     );
 
-    outColor = saturate(1 * shadow_factor);
+    outColor = saturate(acc_occlusion * shadow_factor);
 }

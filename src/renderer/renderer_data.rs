@@ -91,6 +91,8 @@ pub enum RenderOption {
     RenderOcean = 1 << 1,
     RenderAtmosphere = 1 << 2,
     RenderSky = 1 << 3,
+    RenderSSAO = 1 << 4,
+    ALL = 0xffffffff
 }
 
 pub struct RendererData<'a> {
@@ -560,10 +562,7 @@ impl<'a> RendererData<'a> {
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
-            _render_option: RenderOption::RenderSSR as u32
-                | RenderOption::RenderOcean as u32
-                | RenderOption::RenderAtmosphere as u32
-                | RenderOption::RenderSky as u32,
+            _render_option: RenderOption::ALL as u32
         }
     }
 
