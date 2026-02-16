@@ -26,7 +26,7 @@ use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::{begin_block, constants};
-use nalgebra::{Matrix4, Vector, Vector2, Vector3, Vector4};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
