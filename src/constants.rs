@@ -77,7 +77,6 @@ pub const INSTANCING_BLOCK_SIZE: f32 = 30.0;
 pub const COLLISION_BLOCK_SIZE: f32 = 10.0;
 
 // render option
-pub static mut RENDER_OCEAN: bool = true;
 pub static mut RENDER_BOUND_BOX: bool = false;
 
 // application

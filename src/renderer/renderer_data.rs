@@ -85,6 +85,14 @@ pub enum RenderObjectType {
     Skeletal = 1,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RenderOption {
+    RenderSSR = 1 << 0,
+    RenderOcean = 1 << 1,
+    RenderAtmosphere = 1 << 2,
+    RenderSky = 1 << 3,
+}
+
 pub struct RendererData<'a> {
     pub _renderer_context: *const RendererContext<'a>,
     pub _engine_resources: *const EngineResources<'a>,
@@ -107,6 +115,7 @@ pub struct RendererData<'a> {
     pub _render_context_light_probe: RenderContext_LightProbe<'a>,
     pub _fft_ocean: FFTOcean<'a>,
     pub _atmosphere: Atmosphere<'a>,
+    pub _render_option: u32,
 }
 
 impl<'a> RendererData<'a> {
@@ -130,10 +139,8 @@ impl<'a> RendererData<'a> {
         );
 
         self.create_render_targets(renderer_context_ref);
-        if unsafe { constants::RENDER_OCEAN } {
-            self.get_fft_ocean_mut()
-                .register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
-        }
+
+        self.get_fft_ocean_mut().register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
     }
 
     pub fn prepare_framebuffer_and_descriptors(
@@ -297,12 +304,13 @@ impl<'a> RendererData<'a> {
             ],
         );
 
-        if unsafe { constants::RENDER_OCEAN } {
-            self.get_fft_ocean_mut()
-                .prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+        if self.has_render_option(RenderOption::RenderOcean) {
+            self.get_fft_ocean_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
         }
-        self.get_atmosphere_mut()
-            .prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+
+        if self.has_render_option(RenderOption::RenderAtmosphere) {
+            self.get_atmosphere_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+        }
 
         // TEST CODE
         if self.get_renderer_context().get_use_ray_tracing() {
@@ -358,22 +366,33 @@ impl<'a> RendererData<'a> {
     }
 
     pub fn destroy_framebuffer_and_descriptors(&mut self, device: &Device) {
-        if unsafe { constants::RENDER_OCEAN } {
-            self.get_fft_ocean_mut()
-                .destroy_fft_ocean(self.get_renderer_context().get_device());
-        }
-        self.get_atmosphere_mut()
-            .destroy_atmosphere(self.get_renderer_context().get_device());
+        self.get_fft_ocean_mut().destroy_fft_ocean(self.get_renderer_context().get_device());
+        self.get_atmosphere_mut().destroy_atmosphere(self.get_renderer_context().get_device());
         self._render_context_bloom.destroy(device);
         self._render_context_taa.destroy(device);
         self._render_context_shadow_ao.destroy(device);
         self._render_context_hiz.destroy(device);
-        self._render_context_scene_color_downsampling
-            .destroy(device);
+        self._render_context_scene_color_downsampling.destroy(device);
         self._render_context_ssr.destroy(device);
         self._render_context_composite_gbuffer.destroy(device);
         self._render_context_clear_render_targets.destroy(device);
         self._render_context_light_probe.destroy(device);
+    }
+
+    pub fn has_render_option(&self, option: RenderOption) -> bool {
+        (self._render_option & (option as u32)) != 0
+    }
+
+    pub fn toggle_render_option(&mut self, option: RenderOption) {
+        self._render_option ^= option as u32;
+    }
+
+    pub fn set_render_option(&mut self, option: RenderOption, enable: bool) {
+        if enable {
+            self._render_option |= option as u32;
+        } else {
+            self._render_option &= !(option as u32);
+        }
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
@@ -413,12 +432,19 @@ impl<'a> RendererData<'a> {
     }
 
     pub fn pre_update_render_scene(&mut self, delta_time: f64) {
-        self._atmosphere.update();
-        if unsafe { constants::RENDER_OCEAN } {
+        if self.has_render_option(RenderOption::RenderAtmosphere) {
+            self._atmosphere.update();
+        }
+
+        if self.has_render_option(RenderOption::RenderOcean) {
             self._fft_ocean.update(delta_time);
         }
+
         self._render_context_shadow_ao.update();
-        self._render_context_ssr.update();
+
+        if self.has_render_option(RenderOption::RenderSSR) {
+            self._render_context_ssr.update();
+        }
     }
 
     pub fn upload_uniform_buffers(
@@ -443,11 +469,10 @@ impl<'a> RendererData<'a> {
             elapsed_time,
             delta_time,
             self._fft_ocean.get_height(),
-            self.get_effect_manager()
-                .get_gpu_particle_count_buffer_offset(frame_index),
-            self.get_effect_manager()
-                .get_gpu_particle_update_buffer_offset(frame_index),
+            self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
+            self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
             scene_manager.get_render_point_light_count(),
+            self._render_option
         );
         self._view_constants
             .update_view_constants(&main_camera, capture_height_map);
@@ -528,14 +553,17 @@ impl<'a> RendererData<'a> {
             _render_context_shadow_ao: RenderContext_ShadowAO::default(),
             _render_context_taa: RenderContext_TAA::default(),
             _render_context_hiz: RenderContext_HierarchicalMinZ::default(),
-            _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(
-            ),
+            _render_context_scene_color_downsampling: RenderContext_SceneColorDownSampling::default(),
             _render_context_ssr: RenderContext_TAA_Simple::default(),
             _render_context_composite_gbuffer: RenderContext_CompositeGBuffer::default(),
             _render_context_clear_render_targets: RenderContext_ClearRenderTargets::default(),
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
+            _render_option: RenderOption::RenderSSR as u32
+                | RenderOption::RenderOcean as u32
+                | RenderOption::RenderAtmosphere as u32
+                | RenderOption::RenderSky as u32,
         }
     }
 
@@ -1625,12 +1653,14 @@ impl<'a> RendererData<'a> {
         );
 
         // Screen Space Reflection
-        self.render_ssr(
-            renderer_context,
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-        );
+        if self.has_render_option(RenderOption::RenderSSR) {
+            self.render_ssr(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                quad_geometry_data,
+            );
+        }
 
         // ShadowAO
         self.render_shadow_ao(
@@ -1755,6 +1785,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "precompute_environment",
             );
+
             self.clear_render_targets(
                 command_buffer,
                 swapchain_index,
@@ -1762,7 +1793,8 @@ impl<'a> RendererData<'a> {
                 &engine_resources,
                 &quad_geometry_data,
             );
-            if unsafe { constants::RENDER_OCEAN } {
+
+            if self.has_render_option(RenderOption::RenderOcean) {
                 self._fft_ocean.compute_slope_variance_texture(
                     command_buffer,
                     swapchain_index,
@@ -1771,12 +1803,15 @@ impl<'a> RendererData<'a> {
                     &engine_resources,
                 );
             }
-            self._atmosphere.precompute(
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                renderer_context,
-            );
+
+            if self.has_render_option(RenderOption::RenderAtmosphere) {
+                self._atmosphere.precompute(
+                    command_buffer,
+                    swapchain_index,
+                    &quad_geometry_data,
+                    renderer_context,
+                );
+            }
         }
 
         // capture height map
@@ -1873,7 +1908,7 @@ impl<'a> RendererData<'a> {
         }
 
         // fft-simulation
-        if unsafe { constants::RENDER_OCEAN } {
+        if self.has_render_option(RenderOption::RenderOcean) {
             let _label_fft_simulation = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
@@ -2013,7 +2048,7 @@ impl<'a> RendererData<'a> {
         }
 
         // render ocean
-        if unsafe { constants::RENDER_OCEAN } {
+        if self.has_render_option(RenderOption::RenderOcean) {
             let _label_render_ocean = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
@@ -2028,7 +2063,7 @@ impl<'a> RendererData<'a> {
         }
 
         // render atmosphere
-        {
+        if self.has_render_option(RenderOption::RenderAtmosphere) {
             let _label_render_atmosphere = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,

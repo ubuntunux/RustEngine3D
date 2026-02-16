@@ -18,6 +18,7 @@ use crate::audio::audio_manager::AudioManager;
 use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
+use crate::renderer::renderer_data::RenderOption;
 use crate::resource::resource::{CallbackLoadRenderPassCreateInfo, EngineResources};
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
@@ -542,6 +543,13 @@ impl<'a> EngineCore<'a> {
                     "RenderTarget: {:?}",
                     renderer_context._renderer_data._debug_render_target
                 ));
+                font_manager.log(format!(
+                    "RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}",
+                    renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
+                    renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
+                    renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
+                    renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
+                ));
 
                 if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
                     let mut time_profiler = time_profiler_mutex.lock().unwrap();
@@ -768,6 +776,14 @@ pub fn run_application(
                         if engine_core._is_grab_mode == false {
                             if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) || engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
                                 run_application = false;
+                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
+                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSSR)
+                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
+                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderOcean)
+                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
+                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderAtmosphere)
+                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
+                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSky)
                             }
                         }
                     }

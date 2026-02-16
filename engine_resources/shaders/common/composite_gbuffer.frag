@@ -69,7 +69,8 @@ void main() {
     float metallic = material.y;
     float reflectance = 0.0;
     float shadow_resolved = texture(textureShadowResolved, vs_output.texCoord).x;
-    vec4 scene_reflect_color = texture(textureSceneReflect, vs_output.texCoord);
+
+    vec4 scene_reflect_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0) ? texture(textureSceneReflect, vs_output.texCoord) : vec4(0.0);
     vec3 vertexNormal = normalize(vec3(material.z, material.w, normal.w) * 2.0 - 1.0);
     vec3 N = normalize(normal.xyz * 2.0 - 1.0);
     vec3 V = normalize(-relative_position.xyz);

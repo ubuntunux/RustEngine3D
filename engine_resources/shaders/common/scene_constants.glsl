@@ -49,6 +49,12 @@ const uint MAX_UI_INSTANCE_COUNT = 65536; // NOTE: Ensure enum values match in c
 
 const float SEA_COASTLINE_THICKNESS = 1.0;
 
+// enum RenderOption
+const uint RenderOption_RenderSSR = 1 << 0;
+const uint RenderOption_RenderOcean = 1 << 1;
+const uint RenderOption_RenderAtmosphere = 1 << 2;
+const uint RenderOption_RenderSky = 1 << 3;
+
 // uniform_buffer_data_list.rs - struct SceneConstants
 struct SCENE_CONSTANTS
 {
@@ -66,6 +72,7 @@ struct SCENE_CONSTANTS
     int PREV_GPU_PARTICLE_UPDATE_BUFFER_OFFSET;
     int RENDER_POINT_LIGHT_COUNT;
     uint ELAPSED_FRAME;
+    uint RENDER_OPTION;
 };
 
 // uniform_buffer_data_list.rs - struct ViewConstants

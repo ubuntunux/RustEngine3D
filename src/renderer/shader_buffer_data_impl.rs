@@ -30,6 +30,7 @@ impl SceneConstants {
         gpu_particle_count_buffer_offset: i32,
         gpu_particle_update_buffer_offset: i32,
         render_point_light_count: i32,
+        render_option: u32,
     ) {
         self._screen_size = Vector2::new(screen_width as f32, screen_height as f32);
         self._back_buffer_size = self._screen_size.into();
@@ -41,12 +42,11 @@ impl SceneConstants {
         self._max_emitter_count = unsafe { constants::MAX_EMITTER_COUNT };
         self._gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset;
         self._gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset;
-        self._prev_gpu_particle_count_buffer_offset =
-            unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
-        self._prev_gpu_particle_update_buffer_offset =
-            unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
+        self._prev_gpu_particle_count_buffer_offset = unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
+        self._prev_gpu_particle_update_buffer_offset = unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
         self._render_point_light_count = render_point_light_count;
         self._elapsed_frame = elapsed_frame as u32;
+        self._render_option = render_option as u32;
     }
 }
 

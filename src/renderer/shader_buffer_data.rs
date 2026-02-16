@@ -57,6 +57,7 @@ pub struct SceneConstants {
     pub _prev_gpu_particle_update_buffer_offset: i32,
     pub _render_point_light_count: i32,
     pub _elapsed_frame: u32,
+    pub _render_option: u32,
 }
 
 // scene_constants.glsl - struct VIEW_CONSTANTS

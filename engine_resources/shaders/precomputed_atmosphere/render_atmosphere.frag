@@ -115,7 +115,7 @@ void main()
     float altitude_diff = atmosphere_constants.cloud_altitude - world_pos_y;
     const bool in_the_cloud = -atmosphere_constants.cloud_height < altitude_diff && altitude_diff < 0.0;
     bool above_the_cloud = false;
-    bool render_cloud = true;
+    bool render_cloud = ((scene_constants.RENDER_OPTION & RenderOption_RenderSky) != 0);
 
     // relative ray march start pos from the camera
     vec3 ray_start_pos;
@@ -305,23 +305,23 @@ void main()
         // atmosphere
         out_color.xyz += cloud_color * cloud_opacity * 20.0 + (radiance + sun_disc) * (1.0 - cloud_opacity);
         out_color.w = clamp(cloud_opacity, 0.0, 1.0);
-
-        // inscattering
-        vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
-        vec3 scene_transmittance;
-        vec3 scene_inscatter = GetSkyRadianceToPoint(
-            ATMOSPHERE,
-            atmosphere_constants,
-            transmittance_texture,
-            scattering_texture,
-            single_mie_scattering_texture,
-            camera - atmosphere_constants.earth_center,
-            far_point.xyz - atmosphere_constants.earth_center,
-            scene_shadow_length,
-            sun_direction,
-            scene_transmittance
-        );
-
-        out_inscatter.xyz = max(vec3(0.0), scene_inscatter);
     }
+
+    // inscattering
+    vec3 far_point = camera + eye_direction.xyz * max(view_constants.NEAR_FAR.x, scene_linear_depth) * ATMOSPHERE_RATIO;
+    vec3 scene_transmittance;
+    vec3 scene_inscatter = GetSkyRadianceToPoint(
+    ATMOSPHERE,
+    atmosphere_constants,
+    transmittance_texture,
+    scattering_texture,
+    single_mie_scattering_texture,
+    camera - atmosphere_constants.earth_center,
+    far_point.xyz - atmosphere_constants.earth_center,
+    scene_shadow_length,
+    sun_direction,
+    scene_transmittance
+    );
+
+    out_inscatter.xyz = max(vec3(0.0), scene_inscatter);
 }
