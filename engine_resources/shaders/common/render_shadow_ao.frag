@@ -109,5 +109,5 @@ void main() {
         texture_shadow
     );
 
-    outColor = saturate(acc_occlusion * shadow_factor);
+    outColor = saturate(min(acc_occlusion, shadow_factor));
 }
