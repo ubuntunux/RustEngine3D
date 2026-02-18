@@ -91,7 +91,8 @@ pub enum RenderOption {
     RenderOcean = 1 << 1,
     RenderAtmosphere = 1 << 2,
     RenderSky = 1 << 3,
-    RenderSSAO = 1 << 4,
+    RenderShadow = 1 << 4,
+    RenderSSAO = 1 << 5,
     ALL = 0xffffffff
 }
 
@@ -442,7 +443,9 @@ impl<'a> RendererData<'a> {
             self._fft_ocean.update(delta_time);
         }
 
-        self._render_context_shadow_ao.update();
+        if self.has_render_option(RenderOption::RenderShadow) {
+            self._render_context_shadow_ao.update();
+        }
 
         if self.has_render_option(RenderOption::RenderSSR) {
             self._render_context_ssr.update();
@@ -1662,12 +1665,14 @@ impl<'a> RendererData<'a> {
         }
 
         // ShadowAO
-        self.render_shadow_ao(
-            renderer_context,
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-        );
+        if self.has_render_option(RenderOption::RenderShadow) {
+            self.render_shadow_ao(
+                renderer_context,
+                command_buffer,
+                swapchain_index,
+                quad_geometry_data,
+            );
+        }
 
         // Composite GBuffer
         self.composite_gbuffer(

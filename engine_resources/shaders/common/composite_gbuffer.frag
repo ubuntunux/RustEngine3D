@@ -68,12 +68,13 @@ void main() {
     float roughness = material.x;
     float metallic = material.y;
     float reflectance = 0.0;
-    float shadow_resolved = texture(textureShadowResolved, vs_output.texCoord).x;
-
+    float shadow_resolved = ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0) ? texture(textureShadowResolved, vs_output.texCoord).x : 1.0;
     vec4 scene_reflect_color = ((scene_constants.RENDER_OPTION & RenderOption_RenderSSR) != 0) ? texture(textureSceneReflect, vs_output.texCoord) : vec4(0.0);
+
     vec3 vertexNormal = normalize(vec3(material.z, material.w, normal.w) * 2.0 - 1.0);
     vec3 N = normalize(normal.xyz * 2.0 - 1.0);
     vec3 V = normalize(-relative_position.xyz);
+    const bool IS_COMBINED_SHADOW = true;
 
     outColor = surface_shading(
         ATMOSPHERE,
@@ -102,7 +103,7 @@ void main() {
         N,
         V,
         depth,
-        true
+        IS_COMBINED_SHADOW
     );
     outColor.xyz += emissive_color;
     outColor.w = 1.0;

@@ -322,7 +322,7 @@ vec4 surface_shading(
     vec3 diffuse_light = vec3(0.0, 0.0, 0.0);
     vec3 specular_light = vec3(0.0, 0.0, 0.0);
 
-    if(!IS_COMBINED_SHADOW) {
+    if(!IS_COMBINED_SHADOW && ((scene_constants.RENDER_OPTION & RenderOption_RenderShadow) != 0)) {
         shadow_factor *= get_shadow_factor(
             scene_constants.TIME,
             ivec2(screen_texcoord * scene_constants.SCREEN_SIZE),

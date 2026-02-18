@@ -41,6 +41,7 @@ void main() {
     float shadow_factor = 1.0;
     vec4 scene_reflect_color = vec4(0.0);
     vec3 V = normalize(-in_vertex_output._relative_position.xyz);
+    const bool IS_COMBINED_SHADOW = false;
 
     outColor = surface_shading(
         ATMOSPHERE,
@@ -69,7 +70,7 @@ void main() {
         normal.xyz,
         V,
         depth,
-        false
+        IS_COMBINED_SHADOW
     );
     outColor.xyz += emissive_color;
     outColor.w = 1.0;
