@@ -22,7 +22,7 @@ use crate::scene::light::{
 };
 use crate::scene::model::ModelData;
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
-use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData};
+use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData, SceneObjectType};
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::{begin_block, constants};
@@ -503,45 +503,42 @@ impl<'a> SceneManager<'a> {
     pub fn unregister_dynamic_update_object(&mut self, object_id: &SceneObjectID) {
         self._dynamic_update_object_map.remove(&object_id);
     }
-    pub fn add_terrain_render_object(
-        &mut self,
-        object_name: &str,
-        render_object_create_info: &RenderObjectCreateInfo,
-    ) -> RcRefCell<RenderObjectData<'a>> {
-        self.add_static_render_object_internal(
-            object_name,
-            render_object_create_info,
-            Some(CollisionType::NONE),
-            true,
-            false,
-        )
-    }
     pub fn add_dynamic_render_object(
         &mut self,
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
         collision_type: Option<CollisionType>,
     ) -> RcRefCell<RenderObjectData<'a>> {
+        let is_dynamic_update_object: bool = true;
         self.add_static_render_object_internal(
             object_name,
             render_object_create_info,
             collision_type,
-            false,
-            true,
+            is_dynamic_update_object
         )
     }
     pub fn add_static_render_object(
         &mut self,
         object_name: &str,
-        render_object_create_info: &RenderObjectCreateInfo,
-        collision_type: Option<CollisionType>,
+        render_object_create_info: &RenderObjectCreateInfo
     ) -> RcRefCell<RenderObjectData<'a>> {
+        let custom_collision_type: Option<CollisionType>;
+        let is_dynamic_update_object: bool = false;
+
+        match render_object_create_info._scene_object_type {
+            SceneObjectType::Default | SceneObjectType::Collision => {
+                custom_collision_type = None;
+            }
+            SceneObjectType::NoCollision | SceneObjectType::Terrain => {
+                custom_collision_type = Some(CollisionType::NONE);
+            }
+        }
+
         self.add_static_render_object_internal(
             object_name,
             render_object_create_info,
-            collision_type,
-            false,
-            false,
+            custom_collision_type,
+            is_dynamic_update_object,
         )
     }
     pub fn add_static_render_object_internal(
@@ -549,18 +546,15 @@ impl<'a> SceneManager<'a> {
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
         custom_collision_type: Option<CollisionType>,
-        is_render_height_map: bool,
-        is_dynamic_update_object: bool,
+        is_dynamic_update_object: bool
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
-            self.get_engine_resources()
-                .get_model_data(&render_object_create_info._model_data_name),
+            self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
             &render_object_create_info,
-            custom_collision_type,
-            is_render_height_map,
+            custom_collision_type
         ));
 
         // register a collision object
@@ -571,8 +565,7 @@ impl<'a> SceneManager<'a> {
         // register render object
         if is_dynamic_update_object {
             self.register_dynamic_update_object(&render_object_data);
-            self._static_render_object_map
-                .insert(object_id, render_object_data.clone());
+            self._static_render_object_map.insert(object_id, render_object_data.clone());
         } else {
             // auto instancing
             let render_object_data_ref = render_object_data.borrow();
@@ -589,9 +582,7 @@ impl<'a> SceneManager<'a> {
             };
 
             let instancing_render_object: RcRefCell<RenderObjectData<'a>> =
-                if let Some(find_object) =
-                    self._static_render_object_instancing_map.get(&instance_key)
-                {
+                if let Some(find_object) = self._static_render_object_instancing_map.get(&instance_key) {
                     find_object.clone()
                 } else {
                     let new_instancing_object_id = self.generate_object_id();
@@ -601,23 +592,22 @@ impl<'a> SceneManager<'a> {
                             &String::from(object_name),
                             render_object_data_ref.get_model_data(),
                             &RenderObjectCreateInfo {
-                                _model_data_name: render_object_create_info
-                                    ._model_data_name
-                                    .clone(),
+                                _scene_object_type: render_object_create_info._scene_object_type,
+                                _model_data_name: render_object_create_info._model_data_name.clone(),
                                 _position: Vector3::zeros(),
                                 _rotation: Vector3::zeros(),
                                 _scale: Vector3::new(1.0, 1.0, 1.0),
                             },
-                            custom_collision_type,
-                            is_render_height_map,
+                            custom_collision_type
                         ));
 
                     self._static_render_object_map.insert(
                         new_instancing_object_id,
                         new_instancing_render_object.clone(),
                     );
-                    self._static_render_object_instancing_map
-                        .insert(instance_key, new_instancing_render_object.clone());
+
+                    self._static_render_object_instancing_map.insert(instance_key, new_instancing_render_object.clone());
+
                     new_instancing_render_object
                 };
             instancing_render_object
@@ -633,20 +623,16 @@ impl<'a> SceneManager<'a> {
         render_object_create_info: &RenderObjectCreateInfo,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
-        let model_data = self
-            .get_engine_resources()
-            .get_model_data(&render_object_create_info._model_data_name);
+        let model_data = self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
             model_data,
             &render_object_create_info,
-            None,
-            false,
+            None
         ));
         self.register_dynamic_update_object(&render_object_data);
-        self._skeletal_render_object_map
-            .insert(object_id, render_object_data.clone());
+        self._skeletal_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
     }
 
@@ -1211,14 +1197,10 @@ impl<'a> SceneManager<'a> {
         self.initialize_light_probe_cameras();
 
         self._sea_height = scene_data_create_info._sea_height;
-        self.get_renderer_data_mut()
-            ._fft_ocean
-            .set_height(scene_data_create_info._sea_height);
+        self.get_renderer_data_mut()._fft_ocean.set_height(scene_data_create_info._sea_height);
 
         // cameras
-        for (index, (object_name, camera_create_info)) in
-            scene_data_create_info._cameras.iter().enumerate()
-        {
+        for (index, (object_name, camera_create_info)) in scene_data_create_info._cameras.iter().enumerate() {
             let camera_create_info = CameraCreateInfo {
                 window_size: self._window_size.into(),
                 ..camera_create_info.clone()
@@ -1230,11 +1212,7 @@ impl<'a> SceneManager<'a> {
         }
 
         // directional lights
-        for (index, (object_name, light_create_info)) in scene_data_create_info
-            ._directional_lights
-            .iter()
-            .enumerate()
-        {
+        for (index, (object_name, light_create_info)) in scene_data_create_info._directional_lights.iter().enumerate() {
             let light_create_info = DirectionalLightCreateInfo {
                 _position: light_create_info._position.clone() as Vector3<f32>,
                 _rotation: light_create_info._rotation.clone() as Vector3<f32>,
@@ -1263,16 +1241,12 @@ impl<'a> SceneManager<'a> {
         }
 
         // static objects
-        for (object_name, render_object_create_info) in
-            scene_data_create_info._static_objects.iter()
-        {
-            self.add_static_render_object(object_name, render_object_create_info, None);
+        for (object_name, render_object_create_info) in scene_data_create_info._static_objects.iter() {
+            self.add_static_render_object(object_name, render_object_create_info);
         }
 
         // skeletal objects
-        for (object_name, render_object_create_info) in
-            scene_data_create_info._skeletal_objects.iter()
-        {
+        for (object_name, render_object_create_info) in scene_data_create_info._skeletal_objects.iter() {
             self.add_skeletal_render_object(object_name, render_object_create_info);
         }
 
@@ -1358,6 +1332,7 @@ impl<'a> SceneManager<'a> {
         for static_object in self._static_render_object_map.values() {
             let object = static_object.borrow();
             let static_object_create_info = RenderObjectCreateInfo {
+                _scene_object_type: object._scene_object_type,
                 _model_data_name: object._model_data.borrow()._model_data_name.clone(),
                 _position: object._transform_object.get_position().clone() as Vector3<f32>,
                 _rotation: object._transform_object.get_rotation().clone() as Vector3<f32>,
@@ -1372,6 +1347,7 @@ impl<'a> SceneManager<'a> {
         for skeletal_object in self._skeletal_render_object_map.values() {
             let object = skeletal_object.borrow();
             let skeletal_object_create_info = RenderObjectCreateInfo {
+                _scene_object_type: object._scene_object_type,
                 _model_data_name: object._model_data.borrow()._model_data_name.clone(),
                 _position: object._transform_object.get_position().clone() as Vector3<f32>,
                 _rotation: object._transform_object.get_rotation().clone() as Vector3<f32>,

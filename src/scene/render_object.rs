@@ -24,9 +24,18 @@ pub enum AnimationLayer {
     ActionLayer,
 }
 
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount)]
+pub enum SceneObjectType {
+    Default,
+    Collision,
+    NoCollision,
+    Terrain,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(default)]
 pub struct RenderObjectCreateInfo {
+    pub _scene_object_type: SceneObjectType,
     pub _model_data_name: String,
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
@@ -36,6 +45,7 @@ pub struct RenderObjectCreateInfo {
 impl Default for RenderObjectCreateInfo {
     fn default() -> RenderObjectCreateInfo {
         RenderObjectCreateInfo {
+            _scene_object_type: SceneObjectType::Default,
             _model_data_name: String::new(),
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
@@ -46,6 +56,7 @@ impl Default for RenderObjectCreateInfo {
 
 #[derive(Clone, Debug)]
 pub struct RenderObjectData<'a> {
+    pub _scene_object_type: SceneObjectType,
     pub _object_id: SceneObjectID,
     pub _is_visible: bool,
     pub _is_render_camera: bool,
@@ -76,8 +87,7 @@ impl<'a> RenderObjectData<'a> {
         render_object_name: &String,
         model_data: &RcRefCell<ModelData<'a>>,
         render_object_create_data: &RenderObjectCreateInfo,
-        custom_collision_type: Option<CollisionType>,
-        is_render_height_map: bool,
+        custom_collision_type: Option<CollisionType>
     ) -> RenderObjectData<'a> {
         log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::create_transform_object_data();
@@ -115,11 +125,12 @@ impl<'a> RenderObjectData<'a> {
         }
 
         let mut render_object_data = RenderObjectData {
+            _scene_object_type: render_object_create_data._scene_object_type,
             _object_id: object_id,
-            _is_visible: true,
+            _is_visible: render_object_create_data._scene_object_type != SceneObjectType::Collision,
             _is_render_camera: model_data_ref.is_render_camera(),
             _is_render_shadow: model_data_ref.is_render_shadow(),
-            _is_render_height_map: is_render_height_map,
+            _is_render_height_map: render_object_create_data._scene_object_type == SceneObjectType::Terrain,
             _render_object_name: render_object_name.clone(),
             _model_data: model_data.clone(),
             _mesh_data: mesh_data.clone(),
