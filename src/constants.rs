@@ -1,4 +1,5 @@
 use ash::vk;
+use crate::renderer::renderer_data::RenderOption;
 
 pub static mut DEVELOPMENT: bool = false;
 pub const ENGINE_NAME: &str = "RustEngine3D";
@@ -61,6 +62,7 @@ pub static mut SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
 pub static mut ENABLE_UPSCALE: bool = false;
+pub static mut CURRENT_RENDER_OPTION: RenderOption = RenderOption::ALL;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const MAX_POINT_LIGHTS: usize = 32; // NOTE: Ensure enum values match in scene_constants.glsl

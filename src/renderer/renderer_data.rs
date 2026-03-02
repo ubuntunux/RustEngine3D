@@ -4,7 +4,7 @@ use std::str::FromStr;
 use std::vec::Vec;
 
 use crate::constants;
-use crate::constants::MAX_FRAME_COUNT;
+use crate::constants::{CURRENT_RENDER_OPTION, MAX_FRAME_COUNT};
 use crate::effect::effect_manager::EffectManager;
 use crate::render_pass::ray_tracing::ray_tracing;
 use crate::render_pass::render_object::{
@@ -83,6 +83,13 @@ impl Default for BlendMode {
 pub enum RenderObjectType {
     Static = 0,
     Skeletal = 1,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum RenderQualityLevel {
+    Low,
+    Medium,
+    High,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -565,7 +572,7 @@ impl<'a> RendererData<'a> {
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
-            _render_option: RenderOption::ALL as u32
+            _render_option: unsafe { CURRENT_RENDER_OPTION as u32 }
         }
     }
 
