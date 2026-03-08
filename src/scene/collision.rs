@@ -114,6 +114,57 @@ impl CollisionData {
         }
     }
 
+    pub fn collide_ray(&self, origin: &Vector3<f32>, dir: &Vector3<f32>) -> Option<f32> {
+        match self._collision_type {
+            CollisionType::BOX => self.collide_box_with_ray(origin, dir),
+            _ => None
+        }
+    }
+
+    pub fn collide_box_with_ray(&self, origin: &Vector3<f32>, dir: &Vector3<f32>) -> Option<f32> {
+        let to_origin = origin - self._bounding_box._center;
+        let mut t_min = 0.0f32;
+        let mut t_max = f32::MAX;
+
+        let axes = [
+            self._bounding_box._orientation.column(0),
+            self._bounding_box._orientation.column(1),
+            self._bounding_box._orientation.column(2),
+        ];
+        let extents = [
+            self._bounding_box._extents.x,
+            self._bounding_box._extents.y,
+            self._bounding_box._extents.z,
+        ];
+
+        for i in 0..3 {
+            let axis = axes[i];
+            let e = extents[i];
+            let f = axis.dot(dir);
+            let s = axis.dot(&to_origin);
+
+            if f.abs() > 1e-6 {
+                let t1 = (-e - s) / f;
+                let t2 = (e - s) / f;
+                let (t1, t2) = if t1 > t2 { (t2, t1) } else { (t1, t2) };
+
+                t_min = t_min.max(t1);
+                t_max = t_max.min(t2);
+
+                if t_min > t_max { return None; }
+                if t_max < 0.0 { return None; }
+            } else {
+                if s.abs() > e { return None; }
+            }
+        }
+
+        if t_min >= 0.0 {
+            Some(t_min)
+        } else {
+            None
+        }
+    }
+
     pub fn collide_collision(&self, other: &CollisionData) -> bool {
         if other._collision_type == CollisionType::BOX {
             if self._collision_type == CollisionType::BOX {
@@ -141,6 +192,80 @@ impl CollisionData {
             }
         }
         false
+    }
+
+    pub fn push_by_collide(&self, other: &CollisionData) -> Vector3<f32> {
+        let mut push_vec = Vector3::zeros();
+        let char_center_xz = Vector3::new(self._bounding_box._center.x, 0.0, self._bounding_box._center.z);
+        let block_center_xz = Vector3::new(other._bounding_box._center.x, 0.0, other._bounding_box._center.z);
+
+        match other._collision_type {
+            CollisionType::BOX => {
+                let to_char = char_center_xz - block_center_xz;
+                let box_rot_inv = other._bounding_box._orientation.transpose();
+                let local_char = box_rot_inv * to_char;
+                let ext = other._bounding_box._extents;
+
+                let is_inside = local_char.x.abs() < ext.x && local_char.z.abs() < ext.z;
+                let mut normal_world = Vector3::zeros();
+                let mut dist_to_surface = 0.0;
+
+                if is_inside {
+                    let d_x_pos = ext.x - local_char.x;
+                    let d_x_neg = local_char.x - (-ext.x);
+                    let d_z_pos = ext.z - local_char.z;
+                    let d_z_neg = local_char.z - (-ext.z);
+
+                    let min_d = d_x_pos.min(d_x_neg).min(d_z_pos).min(d_z_neg);
+                    let normal_local: Vector3<f32> = if min_d == d_x_pos {
+                        Vector3::new(1.0, 0.0, 0.0)
+                    } else if min_d == d_x_neg {
+                        Vector3::new(-1.0, 0.0, 0.0)
+                    } else if min_d == d_z_pos {
+                        Vector3::new(0.0, 0.0, 1.0)
+                    } else {
+                        Vector3::new(0.0, 0.0, -1.0)
+                    };
+
+                    normal_world = other._bounding_box._orientation * normal_local;
+                    dist_to_surface = min_d;
+                } else {
+                    let closest_local = Vector3::new(
+                        local_char.x.clamp(-ext.x, ext.x),
+                        0.0,
+                        local_char.z.clamp(-ext.z, ext.z)
+                    );
+                    let normal_local = local_char - closest_local;
+                    let dist = normal_local.norm();
+                    if dist > 1e-6 {
+                        normal_world = (other._bounding_box._orientation * normal_local).normalize();
+                        dist_to_surface = -dist;
+                    }
+                }
+
+                if normal_world.magnitude_squared() > 0.0 {
+                    let penetration = self._bounding_box._mag_xz * 0.5 + dist_to_surface;
+                    if penetration > 0.0 {
+                        push_vec = normal_world * penetration;
+                    }
+                }
+            },
+            CollisionType::CYLINDER | CollisionType::SPHERE => {
+                let diff = char_center_xz - block_center_xz;
+                let dist = diff.norm();
+                let dir = if dist < 1e-6 { Vector3::new(1.0, 0.0, 0.0) } else { diff / dist };
+
+                let r_char = self._bounding_box._mag_xz * 0.5;
+                let r_block = other._bounding_box._mag_xz * 0.5;
+
+                let penetration = (r_char + r_block) - dist;
+                if penetration > 0.0 {
+                    push_vec = dir * penetration;
+                }
+            },
+            _ => {}
+        }
+        push_vec
     }
 }
 
