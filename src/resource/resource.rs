@@ -815,8 +815,7 @@ impl<'a> EngineResources<'a> {
                             _audio_bank_name: resource_info._resource_name.clone(),
                             _audio_data_list: audio_data_list,
                         };
-                        resource_info._resource_data =
-                            ResourceData::AudioBank(newRcRefCell(audio_bank_data));
+                        resource_info._resource_data = ResourceData::AudioBank(newRcRefCell(audio_bank_data));
                     }
                 }
                 _ => (),
