@@ -978,10 +978,7 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_material_instance(&self) -> &Option<RcRefCell<MaterialInstanceData<'a>>> {
         &self._ui_component_data._material_instance
     }
-    pub fn set_material_instance(
-        &mut self,
-        material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>,
-    ) {
+    pub fn set_material_instance(&mut self, material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>) {
         self._ui_component_data._material_instance = material_instance;
     }
     pub fn get_round(&self) -> f32 {
@@ -991,7 +988,6 @@ impl<'a> UIComponentInstance<'a> {
         if round != self._ui_component_data._round {
             self._ui_component_data._round = round;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_round", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_border(&self) -> f32 {
@@ -1001,7 +997,6 @@ impl<'a> UIComponentInstance<'a> {
         if border != self._ui_component_data._border {
             self._ui_component_data._border = border;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_border", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn set_callback_touch_down(
