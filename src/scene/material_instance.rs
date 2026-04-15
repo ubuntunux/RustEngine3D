@@ -190,18 +190,14 @@ impl<'a> MaterialInstanceData<'a> {
     }
 
     pub fn get_default_pipeline_binding_data_mut(&mut self) -> &mut PipelineBindingData<'a> {
-        self._pipeline_binding_data_map
-            .get_mut(self._default_pipeline_binding_name.as_str())
-            .unwrap()
+        self._pipeline_binding_data_map.get_mut(self._default_pipeline_binding_name.as_str()).unwrap()
     }
 
     pub fn get_pipeline_binding_data(
         &self,
         render_pass_pipeline_data_name: &str,
     ) -> &PipelineBindingData<'a> {
-        self._pipeline_binding_data_map
-            .get(render_pass_pipeline_data_name)
-            .unwrap()
+        self._pipeline_binding_data_map.get(render_pass_pipeline_data_name).unwrap()
     }
 
     pub fn get_pipeline_binding_data_mut(
@@ -214,8 +210,6 @@ impl<'a> MaterialInstanceData<'a> {
     }
 
     pub fn get_render_pass_pipeline_data_names(&self, render_pass_name: &str) -> &Vec<String> {
-        self._render_pass_pipeline_data_names_map
-            .get(render_pass_name)
-            .unwrap()
+        self._render_pass_pipeline_data_names_map.get(render_pass_name).unwrap()
     }
 }
