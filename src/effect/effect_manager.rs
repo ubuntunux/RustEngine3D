@@ -171,7 +171,20 @@ impl<'a> EffectManager<'a> {
     }
 
     pub fn clear_effects(&mut self) {
-        self._effects.clear();
+        unsafe {
+            self._effect_id_generator = 0;
+            self._effects.clear();
+            self._dead_effect_ids.clear();
+            self._effect_render_group.clear();
+            self._allocated_emitters = vec![std::ptr::null(); MAX_EMITTER_COUNT as usize];
+            self._allocated_emitter_count = 0;
+            self._allocated_particle_count = 0;
+            self._effect_render_group.clear();
+            self._gpu_particle_static_constants = vec![GpuParticleStaticConstants::default(); MAX_EMITTER_COUNT as usize];
+            self._gpu_particle_dynamic_constants = vec![GpuParticleDynamicConstants::default(); MAX_EMITTER_COUNT as usize];
+            self._gpu_particle_emitter_indices = vec![INVALID_ALLOCATED_EMITTER_INDEX; MAX_PARTICLE_COUNT as usize];
+            self._need_to_clear_gpu_particle_buffer = true;
+        }
     }
 
     pub fn generate_effect_id(&mut self) -> i64 {
