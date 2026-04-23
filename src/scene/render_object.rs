@@ -210,6 +210,18 @@ impl<'a> RenderObjectData<'a> {
         self._is_render_height_map = render;
     }
 
+    pub fn get_position(&self) -> &Vector3<f32> {
+        &self._transform_object._position
+    }
+
+    pub fn get_bounding_box(&self) -> &BoundingBox {
+        &self._bounding_box
+    }
+
+    pub fn get_collision(&self) -> &CollisionData {
+        &self._collision
+    }
+
     pub fn get_collision_type(&self) -> CollisionType {
         self._collision._collision_type
     }
