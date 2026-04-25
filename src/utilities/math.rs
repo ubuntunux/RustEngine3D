@@ -696,22 +696,27 @@ pub fn convert_to_screen_texcoord(
     clamp: bool,
 ) -> Vector2<f32> {
     let ndc = view_projection * Vector4::new(world_pos.x, world_pos.y, world_pos.z, 1.0);
-    let mut texcoord = Vector2::new(ndc.x / ndc.w * 0.5 + 0.5, 0.5 - ndc.y / ndc.w * 0.5);
-    if clamp {
-        if ndc.w < 0.0 {
-            texcoord.x = 1.0 - texcoord.x;
-            texcoord.y = 1.0 - texcoord.y;
+    let mut texcoord = if ndc.w != 0.0 {
+        Vector2::new(ndc.x / ndc.w, ndc.y / ndc.w)
+    } else {
+        Vector2::zeros()
+    };
 
-            if ndc.x.abs() < ndc.y.abs() {
-                texcoord.y = ndc.y.signum() * 0.5 + 0.5;
+    if clamp && texcoord.x != 0.0 && texcoord.y != 0.0 {
+        if ndc.w < 0.0 || 1.0 < texcoord.x || texcoord.x < -1.0 || 1.0 < texcoord.y || texcoord.y < -1.0 {
+            if ndc.w < 0.0 {
+                texcoord = -texcoord;
+            }
+
+            if texcoord.x.abs() < texcoord.y.abs() {
+                texcoord /= texcoord.y.abs();
             } else {
-                texcoord.x = ndc.x.signum() * 0.5 + 0.5;
+                texcoord /= texcoord.x.abs();
             }
         }
-
-        texcoord.x = texcoord.x.max(0.0).min(1.0);
-        texcoord.y = texcoord.y.max(0.0).min(1.0);
     }
 
+    texcoord.x = texcoord.x * 0.5 + 0.5;
+    texcoord.y = 0.5 - texcoord.y * 0.5;
     texcoord
 }
