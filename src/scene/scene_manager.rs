@@ -826,9 +826,7 @@ impl<'a> SceneManager<'a> {
                 && render_object_data._is_render_shadow
                 && SceneManager::shadow_culling(light, &render_object_data._bounding_box) == false;
 
-            let is_render_height_map = enable_capture_height_map
-                && render_object_data._is_visible
-                && render_object_data._is_render_height_map;
+            let is_render_height_map = enable_capture_height_map && render_object_data._is_render_height_map;
 
             if is_render_height_map {
                 bound_min = math::get_min(&bound_min, &render_object_data._bounding_box._min);
