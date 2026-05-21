@@ -379,14 +379,12 @@ impl<'a> SceneManager<'a> {
         camera_create_info: &CameraCreateInfo,
     ) -> Rc<CameraObjectData> {
         let object_id = self.generate_object_id();
-        log::info!("camera_create_info: {:?}", camera_create_info);
         let camera_object_data = Rc::new(CameraObjectData::create_camera_object_data(
             object_id,
             &String::from(object_name),
             camera_create_info,
         ));
-        self._camera_object_map
-            .insert(object_id, camera_object_data.clone());
+        self._camera_object_map.insert(object_id, camera_object_data.clone());
         camera_object_data
     }
     pub fn add_light_object(
@@ -1250,6 +1248,7 @@ impl<'a> SceneManager<'a> {
 
         // refresh light probe
         self.reset_frame_count_for_refresh_light_probe();
+        self.set_start_capture_height_map(true);
     }
 
     pub fn close_scene_data(&mut self) {

@@ -131,15 +131,9 @@ impl CameraObjectData {
             camera_create_info.window_size.x,
             camera_create_info.window_size.y,
         );
-        camera_object_data
-            ._transform_object
-            .set_position(&camera_create_info.position);
-        camera_object_data
-            ._transform_object
-            .set_rotation(&camera_create_info.rotation);
-        camera_object_data
-            ._transform_object
-            .update_transform_object();
+        camera_object_data._transform_object.set_position(&camera_create_info.position);
+        camera_object_data._transform_object.set_rotation(&camera_create_info.rotation);
+        camera_object_data._transform_object.update_transform_object();
         camera_object_data._jitter_mode_uniform2x = [
             Vector2::new(0.25, 0.75) * 2.0 - Vector2::new(1.0, 1.0),
             Vector2::new(0.5, 0.5) * 2.0 - Vector2::new(1.0, 1.0),
