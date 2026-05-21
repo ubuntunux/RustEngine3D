@@ -225,7 +225,7 @@ pub struct UIComponentInstance<'a> {
     pub _ui_layout_state: UILayoutState,
     pub _opacity: f32,
     pub _renderable: bool,
-    pub _visible: bool, // hierarchical visible flag
+    pub _visible: bool,
     pub _enable_renderable_area: bool,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _touched: bool,
@@ -1721,8 +1721,10 @@ impl<'a> UIComponentInstance<'a> {
         mouse_pos_delta: &Vector2<f32>,
         mouse_moved: bool,
         mouse_input_data: &MouseInputData,
+        mut hierarchical_visibility: bool,
         touch_event: &mut bool,
     ) {
+        hierarchical_visibility = hierarchical_visibility && self._visible;
         let mut child_index: isize = self._children.len() as isize - 1;
         while 0 <= child_index {
             let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
@@ -1735,19 +1737,22 @@ impl<'a> UIComponentInstance<'a> {
                 mouse_pos_delta,
                 mouse_moved,
                 mouse_input_data,
+                hierarchical_visibility,
                 touch_event,
             );
+
             if child_ui_instance.get_changed_layout() {
                 self._changed_child_layout = true;
             }
-            if child_ui_instance.get_changed_layout() || child_ui_instance.get_changed_deep_child_layout()
-            {
+
+            if child_ui_instance.get_changed_layout() || child_ui_instance.get_changed_deep_child_layout() {
                 self._changed_deep_child_layout = true;
             }
+
             child_index -= 1;
         }
 
-        if false == *touch_event && self.get_touchable() {
+        if false == *touch_event && self.get_touchable() && hierarchical_visibility {
             if self._touched {
                 if mouse_input_data._btn_l_hold {
                     if mouse_moved {
@@ -2186,7 +2191,6 @@ impl<'a> UIManager<'a> {
         }
 
         // update ui component
-        let mut touch_event: bool = false;
         let mouse_pos: Vector2<f32> = Vector2::new(
             mouse_move_data._mouse_pos.x as f32,
             mouse_move_data._mouse_pos.y as f32,
@@ -2195,8 +2199,9 @@ impl<'a> UIManager<'a> {
             mouse_move_data._mouse_pos_delta.x as f32,
             mouse_move_data._mouse_pos_delta.y as f32,
         );
-        let mouse_moved: bool =
-            0 != mouse_move_data._mouse_pos_delta.x || 0 != mouse_move_data._mouse_pos_delta.y;
+        let mouse_moved: bool = 0 != mouse_move_data._mouse_pos_delta.x || 0 != mouse_move_data._mouse_pos_delta.y;
+        let hierarchical_visibility: bool = true;
+        let mut touch_event: bool = false;
         root_ui_component.update_ui_component(
             delta_time,
             window_size,
@@ -2206,6 +2211,7 @@ impl<'a> UIManager<'a> {
             &mouse_pos_delta,
             mouse_moved,
             mouse_input_data,
+            hierarchical_visibility,
             &mut touch_event,
         );
 
