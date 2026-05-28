@@ -45,19 +45,9 @@ pub struct TransformObjectData {
     pub _position: Vector3<f32>,
     pub _rotation: Vector3<f32>,
     pub _scale: Vector3<f32>,
-    pub _euler_to_quaternion: Quaternion<f32>,
-    pub _quaternion: Quaternion<f32>,
-    pub _fianl_quaternion: Quaternion<f32>,
-
     pub _prev_position: Vector3<f32>,
     pub _prev_rotation: Vector3<f32>,
     pub _prev_scale: Vector3<f32>,
-
-    pub _prev_euler_to_quaternion: Quaternion<f32>,
-    pub _prev_quaternion: Quaternion<f32>,
-    pub _prev_fianl_quaternion: Quaternion<f32>,
-    pub _quaternion_matrix: Matrix4<f32>,
-    pub _euler_matrix: Matrix4<f32>,
     pub _rotation_matrix: Matrix4<f32>,
     pub _matrix: Matrix4<f32>,
     pub _inverse_matrix: Matrix4<f32>,
@@ -75,17 +65,9 @@ impl TransformObjectData {
             _position: Vector3::zeros(),
             _rotation: Vector3::zeros(),
             _scale: Vector3::new(1.0, 1.0, 1.0),
-            _euler_to_quaternion: Quaternion::identity(),
-            _quaternion: Quaternion::identity(),
-            _fianl_quaternion: Quaternion::identity(),
             _prev_position: Vector3::zeros(),
             _prev_rotation: Vector3::zeros(),
             _prev_scale: Vector3::new(1.0, 1.0, 1.0),
-            _prev_euler_to_quaternion: Quaternion::identity(),
-            _prev_quaternion: Quaternion::identity(),
-            _prev_fianl_quaternion: Quaternion::identity(),
-            _quaternion_matrix: Matrix4::identity(),
-            _euler_matrix: Matrix4::identity(),
             _rotation_matrix: Matrix4::identity(),
             _matrix: Matrix4::identity(),
             _inverse_matrix: Matrix4::identity(),
@@ -237,12 +219,9 @@ impl TransformObjectData {
                 //             ]);
 
                 unsafe {
-                    let left: &mut Vector3<f32> =
-                        &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
-                    let up: &mut Vector3<f32> =
-                        &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
-                    let front: &mut Vector3<f32> =
-                        &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
+                    let left: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
+                    let up: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
+                    let front: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
                     left.normalize_mut();
                     up.normalize_mut();
                     front.normalize_mut();
