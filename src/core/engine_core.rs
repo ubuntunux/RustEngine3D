@@ -15,6 +15,7 @@ use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 use crate::audio::audio_manager::AudioManager;
+use crate::constants::DEVELOPMENT;
 use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
@@ -50,6 +51,7 @@ pub struct TimeData {
     pub _elapsed_time_prev: f64,
     pub _elapsed_time: f64,
     pub _delta_time: f64,
+    pub _delta_time_with_scale: f64,
 }
 
 pub fn create_time_data() -> TimeData {
@@ -70,11 +72,12 @@ pub fn create_time_data() -> TimeData {
         _elapsed_time_prev: 0.0,
         _elapsed_time: 0.0,
         _delta_time: 0.0,
+        _delta_time_with_scale: 0.0,
     }
 }
 
 impl TimeData {
-    pub fn update_time_data(&mut self) {
+    pub fn update_time_data(&mut self, delta_time_scale: f64) {
         let current_time = self._time_instance.elapsed().as_secs_f64();
         let previous_time = self._current_time;
         let delta_time = current_time - previous_time;
@@ -104,6 +107,7 @@ impl TimeData {
         self._current_time = current_time;
         self._elapsed_time = elapsed_time;
         self._delta_time = delta_time;
+        self._delta_time_with_scale = delta_time * delta_time_scale;
     }
 
     pub fn get_current_time(&self) -> f64 {
@@ -437,12 +441,15 @@ impl<'a> EngineCore<'a> {
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
         // update timer
-        self._time_data.update_time_data();
+        let delta_time_scale: f64 = unsafe {
+            if DEVELOPMENT && self._keyboard_input_data.get_key_hold(KeyCode::CapsLock) { 10.0 } else { 1.0 }
+        };
+        self._time_data.update_time_data(delta_time_scale);
 
         // update application event
         self.get_application_mut().update_event();
 
-        let delta_time = self._time_data._delta_time;
+        let delta_time = self._time_data._delta_time_with_scale;
         if renderer_context.get_need_recreate_swapchain() {
             #[cfg(not(target_os = "android"))]
             {

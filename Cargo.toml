@@ -6,7 +6,7 @@ license = "BSD 2-Clause"
 homepage = "https://github.com/ubuntunux/RustEngine3D"
 repository = "https://github.com/ubuntunux/RustEngine3D"
 readme = "README.md"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 ash = { version = "0.38", default-features = false, features = ["linked", "debug", "std"] }
