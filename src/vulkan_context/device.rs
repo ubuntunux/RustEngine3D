@@ -101,13 +101,14 @@ pub unsafe fn get_instance_layers(
     entry: &Entry,
     required_instance_layers: &Vec<String>,
 ) -> Vec<CString> {
-    let available_layers: Vec<vk::LayerProperties> =
-        entry.enumerate_instance_layer_properties().unwrap();
+    let available_layers: Vec<vk::LayerProperties> = unsafe { entry.enumerate_instance_layer_properties().unwrap() };
     let mut available_layer_names: Vec<CString> = Vec::new();
     log::info!("available layers:");
-    for layer in available_layers.iter() {
-        log::info!("    {:?}", layer);
-        available_layer_names.push(CString::from(CStr::from_ptr(layer.layer_name.as_ptr())));
+    unsafe {
+        for layer in available_layers.iter() {
+            log::info!("    {:?}", layer);
+            available_layer_names.push(CString::from(CStr::from_ptr(layer.layer_name.as_ptr())));
+        }
     }
 
     log::info!("required layers:");

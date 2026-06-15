@@ -256,7 +256,7 @@ pub unsafe fn ptr_chain_iter<T>(ptr: &mut T) -> impl Iterator<Item = *mut BaseOu
         if p_ptr.is_null() {
             return None;
         }
-        let n_ptr = (**p_ptr).p_next;
+        let n_ptr = unsafe { (**p_ptr).p_next };
         let old = *p_ptr;
         *p_ptr = n_ptr;
         Some(old)

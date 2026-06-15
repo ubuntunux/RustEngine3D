@@ -635,11 +635,8 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> i64 {
-        let effect_data = self
-            .get_engine_resources()
-            .get_effect_data(&effect_create_info._effect_data_name);
-        self.get_effect_manager_mut()
-            .create_effect(object_name, effect_create_info, &effect_data)
+        let effect_data = self.get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
+        self.get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
     }
 
     pub fn play_audio_bank(&self, audio_name_bank: &str) -> Option<RcRefCell<AudioInstance>> {
