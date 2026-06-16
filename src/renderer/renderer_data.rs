@@ -11,10 +11,7 @@ use crate::render_pass::render_object::{
     depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow,
 };
 use crate::render_pass::render_pass;
-use crate::renderer::push_constants::{
-    PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy,
-    PushConstant_RenderDebug,
-};
+use crate::renderer::push_constants::{PushConstantParameter, PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy, PushConstant_RenderDebug};
 use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
     RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SceneColorDownSampling,
@@ -1101,13 +1098,10 @@ impl<'a> RendererData<'a> {
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
                 let material_instance = render_element._material_instance_data.borrow();
-                let render_pass_pipeline_data_names =
-                    material_instance.get_render_pass_pipeline_data_names(render_pass_name);
+                let render_pass_pipeline_data_names = material_instance.get_render_pass_pipeline_data_names(render_pass_name);
                 for render_pass_pipeline_data_name in render_pass_pipeline_data_names.iter() {
-                    let pipeline_binding_data: *const PipelineBindingData = material_instance
-                        .get_pipeline_binding_data(&render_pass_pipeline_data_name);
-                    let render_pass_data =
-                        &(*pipeline_binding_data).get_render_pass_data().borrow();
+                    let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
+                    let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
                     let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
                     let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
                     let pipeline_data: &PipelineData = &pipeline_data.borrow();

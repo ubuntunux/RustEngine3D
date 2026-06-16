@@ -875,9 +875,7 @@ impl<'a> SceneManager<'a> {
                             _is_render_height_map: is_render_height_map,
                             _geometry_index: geometry_index,
                             _geometry_data: mesh_data.get_geometry_data(geometry_index).clone(),
-                            _material_instance_data: model_data
-                                .get_material_instance_data(geometry_index)
-                                .clone(),
+                            _material_instance_data: model_data.get_material_instance_data(geometry_index).clone(),
                         });
                     }
 
@@ -1012,45 +1010,31 @@ impl<'a> SceneManager<'a> {
                 }
             }
 
-            let next_render_element_info = &render_element_info_list
-                [(num_render_element_info - 1).min(render_element_index + 1)];
-            let is_changed = render_element_info._mesh_data.as_ptr()
-                != next_render_element_info._mesh_data.as_ptr()
-                || render_element_info._geometry_data.as_ptr()
-                    != next_render_element_info._geometry_data.as_ptr()
-                || render_element_info._material_instance_data.as_ptr()
-                    != next_render_element_info._material_instance_data.as_ptr();
+            let next_render_element_info = &render_element_info_list[(num_render_element_info - 1).min(render_element_index + 1)];
+            let is_changed = render_element_info._mesh_data.as_ptr() != next_render_element_info._mesh_data.as_ptr()
+                || render_element_info._geometry_data.as_ptr() != next_render_element_info._geometry_data.as_ptr()
+                || render_element_info._material_instance_data.as_ptr() != next_render_element_info._material_instance_data.as_ptr();
             let is_last = render_element_index == (num_render_element_info - 1);
 
             // update push constants data
             if is_last || is_changed {
-                let mut push_constant_data_list = render_object_data
-                    .get_push_constant_data_list(render_element_info._geometry_index)
-                    .clone();
+                let mut push_constant_data_list = render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
                 for push_constant_data_mut in push_constant_data_list.iter_mut() {
-                    push_constant_data_mut
-                        ._push_constant
-                        .set_push_constant_parameter(
-                            "_transform_offset_index",
-                            &PushConstantParameter::Int(
-                                (*transform_offset_index - render_element_count) as i32,
-                            ),
-                        );
-                    push_constant_data_mut
-                        ._push_constant
-                        .set_push_constant_parameter(
-                            "_bone_count",
-                            &PushConstantParameter::Int(render_object_data.get_bone_count() as i32),
-                        );
+                    push_constant_data_mut._push_constant.set_push_constant_parameter(
+                        "_transform_offset_index",
+                        &PushConstantParameter::Int((*transform_offset_index - render_element_count) as i32),
+                    );
+                    push_constant_data_mut._push_constant.set_push_constant_parameter(
+                        "_bone_count",
+                        &PushConstantParameter::Int(render_object_data.get_bone_count() as i32),
+                    );
                 }
 
                 begin_block!("render element"); {
                     if 0 < render_element_count {
                         render_elements.push(RenderElementData {
                             _geometry_data: render_element_info._geometry_data.clone(),
-                            _material_instance_data: render_element_info
-                                ._material_instance_data
-                                .clone(),
+                            _material_instance_data: render_element_info._material_instance_data.clone(),
                             _push_constant_data_list: push_constant_data_list.clone(),
                             _num_render_instances: render_element_count as u32,
                         });
@@ -1062,16 +1046,10 @@ impl<'a> SceneManager<'a> {
                 {
                     // update push constants data for shadow
                     for push_constant_data_mut in push_constant_data_list.iter_mut() {
-                        push_constant_data_mut
-                            ._push_constant
-                            .set_push_constant_parameter(
-                                "_transform_offset_index",
-                                &PushConstantParameter::Int(
-                                    (*transform_offset_index_for_shadow
-                                        - render_shadow_element_count)
-                                        as i32,
-                                ),
-                            );
+                        push_constant_data_mut._push_constant.set_push_constant_parameter(
+                            "_transform_offset_index",
+                            &PushConstantParameter::Int((*transform_offset_index_for_shadow - render_shadow_element_count) as i32)
+                        );
                     }
 
                     // add render shadow element
@@ -1092,25 +1070,17 @@ impl<'a> SceneManager<'a> {
                 {
                     // update push constants data for shadow
                     for push_constant_data_mut in push_constant_data_list.iter_mut() {
-                        push_constant_data_mut
-                            ._push_constant
-                            .set_push_constant_parameter(
-                                "_transform_offset_index",
-                                &PushConstantParameter::Int(
-                                    (*transform_offset_index_for_height_map
-                                        - capture_height_map_element_count)
-                                        as i32,
-                                ),
-                            );
+                        push_constant_data_mut._push_constant.set_push_constant_parameter(
+                            "_transform_offset_index",
+                            &PushConstantParameter::Int((*transform_offset_index_for_height_map - capture_height_map_element_count) as i32)
+                        );
                     }
 
                     // add capture height map element
                     if 0 < capture_height_map_element_count {
                         capture_height_map_elements.push(RenderElementData {
                             _geometry_data: render_element_info._geometry_data.clone(),
-                            _material_instance_data: render_element_info
-                                ._material_instance_data
-                                .clone(),
+                            _material_instance_data: render_element_info._material_instance_data.clone(),
                             _push_constant_data_list: push_constant_data_list.clone(),
                             _num_render_instances: capture_height_map_element_count as u32,
                         });

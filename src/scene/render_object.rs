@@ -1,3 +1,8 @@
+use nalgebra::{Matrix4, Vector3};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use strum::EnumCount;
+use strum_macros::EnumCount;
 use crate::scene::animation::{
     AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo,
 };
@@ -11,11 +16,7 @@ use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
-use nalgebra::{Matrix4, Vector3};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use strum::EnumCount;
-use strum_macros::EnumCount;
+use crate::renderer::push_constants::PushConstantParameter;
 
 #[repr(i32)]
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount)]
@@ -345,6 +346,14 @@ impl<'a> RenderObjectData<'a> {
         model_index: usize,
     ) -> &mut Vec<PipelinePushConstantData> {
         &mut self._push_constant_data_list_group[model_index]
+    }
+
+    pub fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) {
+        for push_constant_data_list in self._push_constant_data_list_group.iter_mut() {
+            for push_constant_data in push_constant_data_list.iter_mut() {
+                push_constant_data._push_constant.set_push_constant_parameter(key, value);
+            }
+        }
     }
 
     pub fn get_transform_object_data(&self) -> &TransformObjectData {

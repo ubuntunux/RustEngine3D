@@ -21,7 +21,8 @@ pub enum PushConstantParameter {
 pub type PushConstantsMap = HashMap<String, Vec<Box<dyn PushConstant>>>;
 pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName + Debug {
     fn get_push_constant_parameter(&self, _key: &str) -> PushConstantParameter {
-        panic!("Not implemented.")
+        PushConstantParameter::None
+        //panic!("Not implemented.")
     }
     fn set_push_constant_parameter(&mut self, _key: &str, _value: &PushConstantParameter) -> bool {
         false
@@ -32,10 +33,7 @@ pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName 
         material_parameters: &serde_json::Map<String, serde_json::Value>,
     ) {
         for (key, value) in material_parameters {
-            self.set_push_constant_parameter(
-                key,
-                &convert_json_value_to_push_constant_parameter(value),
-            );
+            self.set_push_constant_parameter(key, &convert_json_value_to_push_constant_parameter(value));
         }
     }
 }
@@ -110,6 +108,13 @@ impl PushConstantName for PushConstant_RenderObjectBase {
 }
 
 impl PushConstant for PushConstant_RenderObjectBase {
+    fn get_push_constant_parameter(&self, key: &str) -> PushConstantParameter {
+        if "_color" == key {
+            return PushConstantParameter::Float4(self._color.clone());
+        }
+        PushConstantParameter::None
+    }
+
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) -> bool {
         if "_transform_offset_index" == key {
             if let PushConstantParameter::Int(transform_offset_index) = value {

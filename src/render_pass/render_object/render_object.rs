@@ -34,9 +34,11 @@ impl PushConstantName for PushConstant_RenderObject {
 }
 
 impl PushConstant for PushConstant_RenderObject {
+    fn get_push_constant_parameter(&self, key: &str) -> PushConstantParameter {
+        self.push_constant_base.get_push_constant_parameter(key)
+    }
     fn set_push_constant_parameter(&mut self, key: &str, value: &PushConstantParameter) -> bool {
-        self.push_constant_base
-            .set_push_constant_parameter(key, value)
+        self.push_constant_base.set_push_constant_parameter(key, value)
     }
 }
 
