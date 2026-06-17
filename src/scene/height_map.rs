@@ -98,16 +98,13 @@ impl HeightMapData {
                         self._height_map_data[0][((y + 1).min(height - 1) * width + x) as usize];
                     let height_b = self._height_map_data[0][((y - 1).max(0) * width + x) as usize];
 
-                    let vector_x: Vector3<f32> =
-                        Vector3::new(step_size_x * 2.0, height_r - height_l, 0.0).normalize();
-
-                    let vector_z: Vector3<f32> =
-                        Vector3::new(0.0, height_b - height_t, step_size_z * 2.0).normalize();
+                    let vector_x: Vector3<f32> = math::safe_normalize(&Vector3::new(step_size_x * 2.0, height_r - height_l, 0.0));
+                    let vector_z: Vector3<f32> = math::safe_normalize(&Vector3::new(0.0, height_b - height_t, step_size_z * 2.0));
 
                     let mut normal_map = if HEIGHT_MAP_INVERT_TEXCOORD_Y {
-                        vector_z.cross(&vector_x).normalize()
+                        math::safe_normalize(&vector_z.cross(&vector_x))
                     } else {
-                        vector_x.cross(&vector_z).normalize()
+                        math::safe_normalize(&vector_x.cross(&vector_z))
                     };
                     if height_r == 0.0 || height_l == 0.0 || height_t == 0.0 || height_b == 0.0 {
                         normal_map.y = 0.0;
@@ -121,12 +118,11 @@ impl HeightMapData {
                 for x in 0..width {
                     let normal_vector = normal_map_data[(y * width + x) as usize];
                     self._normal_map_data.push(
-                        Vector3::new(
+                        math::safe_normalize(&Vector3::new(
                             normal_vector.x as f32 * 2.0 - 1.0,
                             normal_vector.y as f32 * 2.0 - 1.0,
                             normal_vector.z as f32 * 2.0 - 1.0,
-                        )
-                        .normalize(),
+                        ))
                     );
                 }
             }
@@ -265,13 +261,9 @@ impl HeightMapData {
             return self._normal_map_data[pixel_indices.w];
         }
 
-        let height_data_0: Vector3<f32> = self._normal_map_data[pixel_indices.x]
-            .lerp(&self._normal_map_data[pixel_indices.y], blend_factors.x);
-        let height_data_1: Vector3<f32> = self._normal_map_data[pixel_indices.z]
-            .lerp(&self._normal_map_data[pixel_indices.w], blend_factors.x);
-        height_data_0
-            .lerp(&height_data_1, blend_factors.y)
-            .normalize()
+        let height_data_0: Vector3<f32> = self._normal_map_data[pixel_indices.x].lerp(&self._normal_map_data[pixel_indices.y], blend_factors.x);
+        let height_data_1: Vector3<f32> = self._normal_map_data[pixel_indices.z].lerp(&self._normal_map_data[pixel_indices.w], blend_factors.x);
+        math::safe_normalize(&height_data_0.lerp(&height_data_1, blend_factors.y))
     }
 
     pub fn get_normal_point_by_texcoord(&self, texcoord: &Vector2<f32>) -> Vector3<f32> {

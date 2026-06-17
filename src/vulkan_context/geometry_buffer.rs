@@ -349,10 +349,10 @@ pub fn compute_tangent(
         let tangent_sq: Vector3<f32> =
             ((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r;
         let result_tangent = if 0.0 == tangent_sq.dot(&tangent_sq) {
-            let avg_normal: Vector3<f32> = (&normals[i0] + &normals[i1] + &normals[i2]).normalize();
+            let avg_normal: Vector3<f32> = math::safe_normalize(&(&normals[i0] + &normals[i1] + &normals[i2]));
             avg_normal.cross(&math::get_world_up())
         } else {
-            tangent_sq.normalize()
+            math::safe_normalize(&tangent_sq)
         };
         tangent_map.insert(i0, result_tangent.clone());
         tangent_map.insert(i1, result_tangent.clone());

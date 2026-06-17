@@ -9,6 +9,7 @@ use rand;
 
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
+use crate::utilities::math;
 use crate::vulkan_context::texture::{TextureCreateInfo, TextureData};
 use crate::vulkan_context::vulkan_context;
 
@@ -80,13 +81,11 @@ pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vecto
     image_data_list.resize((image_width * image_height) as usize, Vector4::zeros());
     for image_data in image_data_list.iter_mut() {
         let scale = rand::random::<f32>();
-        let normal = Vector3::new(
+        let normal = math::safe_normalize(&Vector3::new(
             rand::random::<f32>() * 2.0 - 1.0,
             rand::random::<f32>() * 2.0 - 1.0,
             rand::random::<f32>(),
-        )
-        .normalize()
-            * scale;
+        )) * scale;
         image_data.x = normal.x;
         image_data.y = normal.y;
         image_data.z = normal.z;

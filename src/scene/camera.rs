@@ -226,40 +226,28 @@ impl CameraObjectData {
 
     pub fn update_view_frustum_planes(&mut self) {
         // Left
-        self._view_frustum_planes[0].x =
-            self._view_origin_projection.m41 + self._view_origin_projection.m11;
-        self._view_frustum_planes[0].y =
-            self._view_origin_projection.m42 + self._view_origin_projection.m12;
-        self._view_frustum_planes[0].z =
-            self._view_origin_projection.m43 + self._view_origin_projection.m13;
-        self._view_frustum_planes[0] = -self._view_frustum_planes[0].normalize();
+        self._view_frustum_planes[0].x = self._view_origin_projection.m41 + self._view_origin_projection.m11;
+        self._view_frustum_planes[0].y = self._view_origin_projection.m42 + self._view_origin_projection.m12;
+        self._view_frustum_planes[0].z = self._view_origin_projection.m43 + self._view_origin_projection.m13;
+        self._view_frustum_planes[0] = -math::safe_normalize(&self._view_frustum_planes[0]);
 
         // Right
-        self._view_frustum_planes[1].x =
-            self._view_origin_projection.m41 - self._view_origin_projection.m11;
-        self._view_frustum_planes[1].y =
-            self._view_origin_projection.m42 - self._view_origin_projection.m12;
-        self._view_frustum_planes[1].z =
-            self._view_origin_projection.m43 - self._view_origin_projection.m13;
-        self._view_frustum_planes[1] = -self._view_frustum_planes[1].normalize();
+        self._view_frustum_planes[1].x = self._view_origin_projection.m41 - self._view_origin_projection.m11;
+        self._view_frustum_planes[1].y = self._view_origin_projection.m42 - self._view_origin_projection.m12;
+        self._view_frustum_planes[1].z = self._view_origin_projection.m43 - self._view_origin_projection.m13;
+        self._view_frustum_planes[1] = -math::safe_normalize(&self._view_frustum_planes[1]);
 
         // Bottom
-        self._view_frustum_planes[2].x =
-            self._view_origin_projection.m41 - self._view_origin_projection.m21;
-        self._view_frustum_planes[2].y =
-            self._view_origin_projection.m42 - self._view_origin_projection.m22;
-        self._view_frustum_planes[2].z =
-            self._view_origin_projection.m43 - self._view_origin_projection.m23;
-        self._view_frustum_planes[2] = -self._view_frustum_planes[2].normalize();
+        self._view_frustum_planes[2].x = self._view_origin_projection.m41 - self._view_origin_projection.m21;
+        self._view_frustum_planes[2].y = self._view_origin_projection.m42 - self._view_origin_projection.m22;
+        self._view_frustum_planes[2].z = self._view_origin_projection.m43 - self._view_origin_projection.m23;
+        self._view_frustum_planes[2] = -math::safe_normalize(&self._view_frustum_planes[2]);
 
         // Top
-        self._view_frustum_planes[3].x =
-            self._view_origin_projection.m41 + self._view_origin_projection.m21;
-        self._view_frustum_planes[3].y =
-            self._view_origin_projection.m42 + self._view_origin_projection.m22;
-        self._view_frustum_planes[3].z =
-            self._view_origin_projection.m43 + self._view_origin_projection.m23;
-        self._view_frustum_planes[3] = -self._view_frustum_planes[3].normalize();
+        self._view_frustum_planes[3].x = self._view_origin_projection.m41 + self._view_origin_projection.m21;
+        self._view_frustum_planes[3].y = self._view_origin_projection.m42 + self._view_origin_projection.m22;
+        self._view_frustum_planes[3].z = self._view_origin_projection.m43 + self._view_origin_projection.m23;
+        self._view_frustum_planes[3] = -math::safe_normalize(&self._view_frustum_planes[3]);
     }
 
     pub fn update_camera_object_data(&mut self) {

@@ -1253,8 +1253,7 @@ impl Collada {
                     geometry._normals[normal_index].z,
                     0.0,
                 );
-                geometry._normals[normal_index] =
-                    glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &normal)).normalize();
+                geometry._normals[normal_index] = math::safe_normalize(&glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &normal)));
             }
 
             let tangents = geometry_buffer::compute_tangent(

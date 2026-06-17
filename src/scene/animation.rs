@@ -587,10 +587,7 @@ impl AnimationPlayInfo {
             if self._animation_loop || 0.0 == self._animation_fade_out_time {
                 self._animation_fade_out_ratio = 1.0;
             } else {
-                self._animation_fade_out_ratio = 1f32.min(0f32.max(
-                    (animation_end_time - self._animation_elapsed_time)
-                        / self._animation_fade_out_time,
-                ));
+                self._animation_fade_out_ratio = 1f32.min(0f32.max((animation_end_time - self._animation_elapsed_time) / self._animation_fade_out_time));
             }
         } else {
             self._animation_frame = 0.0;

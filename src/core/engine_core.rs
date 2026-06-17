@@ -107,7 +107,8 @@ impl TimeData {
         self._current_time = current_time;
         self._elapsed_time = elapsed_time;
         self._delta_time = delta_time;
-        self._delta_time_with_scale = delta_time * delta_time_scale;
+        // prevent lower fps.
+        self._delta_time_with_scale = 0.1f64.min(delta_time) * delta_time_scale;
     }
 
     pub fn get_current_time(&self) -> f64 {

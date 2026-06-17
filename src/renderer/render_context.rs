@@ -16,6 +16,7 @@ use crate::renderer::shader_buffer_data::ShadowAOConstants;
 use crate::renderer::utility;
 use crate::renderer::utility::DescriptorResourceInfoBySemantic;
 use crate::resource::resource::EngineResources;
+use crate::utilities::math;
 use crate::vulkan_context::buffer::ShaderBufferData;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::framebuffer::{self, FramebufferData, RenderTargetInfo};
@@ -162,13 +163,11 @@ impl Default for RenderContext_ShadowAO {
             [Vector4::new(0.0, 0.0, 0.0, 0.0); constants::SSAO_KERNEL_SIZE];
         for i in 0..constants::SSAO_KERNEL_SIZE {
             let scale = rand::random::<f32>();
-            let normal = Vector3::new(
+            let normal = math::safe_normalize(&Vector3::new(
                 rand::random::<f32>() * 2.0 - 1.0,
                 rand::random::<f32>() * 0.5 + 0.5,
                 rand::random::<f32>() * 2.0 - 1.0,
-            )
-            .normalize()
-                * scale;
+            )) * scale;
             random_normals[i] = Vector4::new(normal.x, normal.y, normal.z, 0.0);
         }
 

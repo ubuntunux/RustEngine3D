@@ -168,6 +168,19 @@ pub fn make_normalize_xz_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
     (Vector3::zeros(), 0.0)
 }
 
+pub fn check_arrival_with_radius(position_before: &Vector3<f32>, position: &Vector3<f32>, target_position: &Vector3<f32>, radius: f32, ignore_y_axis: bool) -> bool {
+    let mut to_target_before = target_position - position_before;
+    let mut to_target = target_position - position;
+    if ignore_y_axis {
+        to_target_before.y = 0.0;
+        to_target.y = 0.0;
+    }
+    if to_target_before.dot(&to_target) < 0.0 {
+        return true;
+    }
+    to_target.magnitude_squared() <= (radius * radius)
+}
+
 pub fn apply_matrix_to_vector(matrix: &Matrix4<f32>, vec: &Vector3<f32>, w: f32) -> Vector3<f32> {
     let vec: Vector4<f32> = Vector4::new(vec.x, vec.y, vec.z, w);
     let vec = matrix * &vec;
@@ -266,7 +279,7 @@ pub fn inverse_transform_matrix(
 }
 
 pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> Matrix4<f32> {
-    let f: Vector3<f32> = (target - eye).normalize();
+    let f: Vector3<f32> = safe_normalize(&(target - eye));
     let s: Vector3<f32> = f.cross(&up);
     let u: Vector3<f32> = s.cross(&f);
     Matrix4::from_columns(&[

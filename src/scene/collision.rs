@@ -1,6 +1,7 @@
 use nalgebra::{Vector3};
 use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
+use crate::utilities::math;
 
 #[repr(i32)]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -238,7 +239,7 @@ impl CollisionData {
                     let normal_local = local_char - closest_local;
                     let dist = normal_local.norm();
                     if dist > 1e-6 {
-                        normal_world = (other._bounding_box._orientation * normal_local).normalize();
+                        normal_world = math::safe_normalize(&(other._bounding_box._orientation * normal_local));
                         dist_to_surface = -dist;
                     }
                 }
@@ -303,7 +304,7 @@ pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
         let axis_xz = Vector3::new(axis.x, 0.0, axis.z);
         let axis_len_sq = axis_xz.magnitude_squared();
         if axis_len_sq < 1e-6 { continue; }
-        let axis_norm = axis_xz.normalize();
+        let axis_norm = math::safe_normalize(&axis_xz);
 
         let proj_dist = center_dist.dot(&axis_norm).abs();
 
@@ -387,10 +388,10 @@ pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> b
     let dist_sq = diff_xz.magnitude_squared();
     if dist_sq < 1e-9 { return true; }
 
-    let dir_a = (a._bounding_box._orientation.transpose() * diff_xz).normalize();
+    let dir_a = math::safe_normalize(&(a._bounding_box._orientation.transpose() * diff_xz));
     let ra = get_ellipse_radius_xz(&dir_a, &a._bounding_box._extents);
 
-    let dir_b = (b._bounding_box._orientation.transpose() * diff_xz).normalize();
+    let dir_b = math::safe_normalize(&(b._bounding_box._orientation.transpose() * diff_xz));
     let rb = get_ellipse_radius_xz(&dir_b, &b._bounding_box._extents);
 
     let total_r = ra + rb;
@@ -407,10 +408,10 @@ pub fn collide_cylinder_with_sphere(a_cyl: &CollisionData, b_sphere: &CollisionD
     let dist_sq = diff_xz.magnitude_squared();
     if dist_sq < 1e-9 { return true; }
 
-    let dir_a = (a_cyl._bounding_box._orientation.transpose() * diff_xz).normalize();
+    let dir_a = math::safe_normalize(&(a_cyl._bounding_box._orientation.transpose() * diff_xz));
     let ra = get_ellipse_radius_xz(&dir_a, &a_cyl._bounding_box._extents);
 
-    let dir_b = (b_sphere._bounding_box._orientation.transpose() * diff_xz).normalize();
+    let dir_b = math::safe_normalize(&(b_sphere._bounding_box._orientation.transpose() * diff_xz));
     let rb = get_ellipse_radius_xz(&dir_b, &b_sphere._bounding_box._extents);
 
     let total_r = ra + rb;
@@ -426,10 +427,10 @@ pub fn collide_sphere_with_sphere(a: &CollisionData, b: &CollisionData) -> bool 
     let dist_sq = diff.magnitude_squared();
     if dist_sq < 1e-9 { return true; }
 
-    let dir_a = (a._bounding_box._orientation.transpose() * diff).normalize();
+    let dir_a = math::safe_normalize(&(a._bounding_box._orientation.transpose() * diff));
     let ra = get_ellipsoid_radius(&dir_a, &a._bounding_box._extents);
 
-    let dir_b = (b._bounding_box._orientation.transpose() * diff).normalize();
+    let dir_b = math::safe_normalize(&(b._bounding_box._orientation.transpose() * diff));
     let rb = get_ellipsoid_radius(&dir_b, &b._bounding_box._extents);
 
     let total_r = ra + rb;
