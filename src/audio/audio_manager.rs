@@ -275,8 +275,7 @@ impl<'a> AudioManager<'a> {
             self.stop_bgm();
 
             self._bgm_audio_bank_data = Some(audio_bank_data.clone());
-            self._bgm_audio_instance =
-                self.play_audio_bank_data(audio_bank_data, AudioLoop::ONCE, audio_volume);
+            self._bgm_audio_instance = self.play_audio_bank_data(audio_bank_data, AudioLoop::ONCE, audio_volume);
             self._bgm_volume = audio_volume;
         }
     }
