@@ -468,6 +468,9 @@ impl<'a> UIComponentInstance<'a> {
             std::ptr::null()
         }
     }
+    pub fn get_children(&self) -> &Vec<*const UIComponentInstance<'a>> {
+        &self._children
+    }
     pub fn clear_children(&mut self) {
         for child in self._children.iter() {
             ptr_as_mut(*child).clear_children();
