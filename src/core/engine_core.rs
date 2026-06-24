@@ -136,6 +136,7 @@ pub struct EngineCore<'a> {
     pub _is_grab_mode_backup: bool,
     pub _time_data: TimeData,
     pub _camera_move_speed: f32,
+    pub _is_keyboard_input_mode: bool,
     pub _keyboard_input_data: Box<input::KeyboardInputData>,
     pub _mouse_move_data: Box<input::MouseMoveData>,
     pub _mouse_input_data: Box<input::MouseInputData>,
@@ -250,6 +251,7 @@ impl<'a> EngineCore<'a> {
             _is_grab_mode_backup: false,
             _time_data: create_time_data(),
             _camera_move_speed: 1.0,
+            _is_keyboard_input_mode: false,
             _keyboard_input_data: keyboard_input_data,
             _mouse_move_data: mouse_move_data,
             _mouse_input_data: mouse_input_data,
@@ -353,6 +355,14 @@ impl<'a> EngineCore<'a> {
 
     pub fn clear_key_hold(&mut self) {
         self._keyboard_input_data.clear_key_hold();
+    }
+
+    pub fn is_keyboard_input_mode(&self) -> bool {
+        self._is_keyboard_input_mode
+    }
+
+    pub fn set_keyboard_input_mode(&mut self, keyboard_input_mode: bool) {
+        self._is_keyboard_input_mode = keyboard_input_mode;
     }
 
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
@@ -739,25 +749,16 @@ pub fn run_application(
                         for event in sdl.event_pump().unwrap().poll_iter() {
                             match event {
                                 event::Event::ControllerAxisMotion { axis, value, .. } => {
-                                    engine_core
-                                        ._joystick_input_data
-                                        .update_controller_axis_motion(axis, value);
+                                    engine_core._joystick_input_data.update_controller_axis_motion(axis, value);
+                                    engine_core.set_keyboard_input_mode(false);
                                 }
                                 event::Event::ControllerButtonDown { button, .. } => {
-                                    engine_core
-                                        ._joystick_input_data
-                                        .update_controller_button_state(
-                                            button,
-                                            ButtonState::Pressed,
-                                        );
+                                    engine_core._joystick_input_data.update_controller_button_state(button, ButtonState::Pressed);
+                                    engine_core.set_keyboard_input_mode(false);
                                 }
                                 event::Event::ControllerButtonUp { button, .. } => {
-                                    engine_core
-                                        ._joystick_input_data
-                                        .update_controller_button_state(
-                                            button,
-                                            ButtonState::Released,
-                                        );
+                                    engine_core._joystick_input_data.update_controller_button_state(button, ButtonState::Released);
+                                    engine_core.set_keyboard_input_mode(false);
                                 }
                                 event::Event::Quit { .. } => break,
                                 _ => (),
@@ -776,10 +777,12 @@ pub fn run_application(
                 } => match event {
                     DeviceEvent::MouseMotion { delta } => {
                         engine_core.update_mouse_motion(&delta);
+                        engine_core.set_keyboard_input_mode(true);
                     }
                     DeviceEvent::Key(raw_key) => {
                         if run_application {
                             engine_core.update_keyboard_input(raw_key.physical_key, raw_key.state);
+                            engine_core.set_keyboard_input_mode(true);
                         }
 
                         // exit
@@ -815,6 +818,7 @@ pub fn run_application(
                     }
                     WindowEvent::MouseInput { button, state, .. } => {
                         engine_core.update_mouse_input(button, state);
+                        engine_core.set_keyboard_input_mode(true);
                     }
                     WindowEvent::CursorMoved { position, .. } => {
                         engine_core.update_cursor_moved(position);
@@ -824,6 +828,7 @@ pub fn run_application(
                         ..
                     } => {
                         engine_core.update_mouse_wheel(scroll_x, scroll_y);
+                        engine_core.set_keyboard_input_mode(true);
                     }
                     WindowEvent::Focused(focused) => {
                         engine_core.get_application_mut().focused(focused);

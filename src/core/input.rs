@@ -150,10 +150,8 @@ impl MouseMoveData {
     pub fn update_mouse_move(&mut self, delta: &(i32, i32), window_size: &Vector2<i32>) {
         self._mouse_pos_delta.x += delta.0;
         self._mouse_pos_delta.y += delta.1;
-        self._mouse_pos.x =
-            MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.x);
-        self._mouse_pos.y =
-            MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.y);
+        self._mouse_pos.x = MouseMoveData::clamp_mouse_pos(self._mouse_pos.x + delta.0, window_size.x);
+        self._mouse_pos.y = MouseMoveData::clamp_mouse_pos(self._mouse_pos.y + delta.1, window_size.y);
     }
 
     pub fn update_scroll_move(&mut self, delta: &(i32, i32)) {
