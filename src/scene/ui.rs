@@ -1428,7 +1428,7 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
 
-    fn update_layout_size(
+    fn recursive_update_layout_size(
         &mut self,
         mut inherit_changed_layout: bool,
         parent_contents_size: &Vector2<f32>,
@@ -1477,7 +1477,7 @@ impl<'a> UIComponentInstance<'a> {
             let mut required_contents_size = Vector2::<f32>::zeros();
             for child in self._children.iter() {
                 let child_ui_instance = ptr_as_mut(*child);
-                child_ui_instance.update_layout_size(
+                child_ui_instance.recursive_update_layout_size(
                     inherit_changed_layout,
                     &self._contents_area_size,
                     font_data,
@@ -1622,7 +1622,7 @@ impl<'a> UIComponentInstance<'a> {
         self._changed_render_data = true;
     }
 
-    fn update_layout(
+    fn recursive_update_layout(
         &mut self,
         mut inherit_changed_layout: bool,
         update_depth: u32,
@@ -1699,7 +1699,7 @@ impl<'a> UIComponentInstance<'a> {
 
             // recursive update_layout
             for child in self._children.iter() {
-                ptr_as_mut(*child).update_layout(
+                ptr_as_mut(*child).recursive_update_layout(
                     inherit_changed_layout,
                     update_depth + 1,
                     font_data,
@@ -1714,7 +1714,7 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_layout_state = UILayoutState::Complete;
     }
 
-    fn update_ui_component(
+    fn recursive_update_ui_component(
         &mut self,
         delta_time: f64,
         window_size: &Vector2<i32>,
@@ -1731,7 +1731,7 @@ impl<'a> UIComponentInstance<'a> {
         let mut child_index: isize = self._children.len() as isize - 1;
         while 0 <= child_index {
             let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
-            child_ui_instance.update_ui_component(
+            child_ui_instance.recursive_update_ui_component(
                 delta_time,
                 window_size,
                 time_data,
@@ -2205,7 +2205,7 @@ impl<'a> UIManager<'a> {
         let mouse_moved: bool = 0 != mouse_move_data._mouse_pos_delta.x || 0 != mouse_move_data._mouse_pos_delta.y;
         let hierarchical_visibility: bool = true;
         let mut touch_event: bool = false;
-        root_ui_component.update_ui_component(
+        root_ui_component.recursive_update_ui_component(
             delta_time,
             window_size,
             time_data,
@@ -2229,7 +2229,7 @@ impl<'a> UIManager<'a> {
         let round: f32 = 0.0;
 
         if root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout() {
-            root_ui_component.update_layout_size(
+            root_ui_component.recursive_update_layout_size(
                 inherit_changed_layout,
                 &contents_area_size,
                 &self._font_data.borrow(),
@@ -2250,7 +2250,7 @@ impl<'a> UIManager<'a> {
                 update_depth,
             );
 
-            root_ui_component.update_layout(
+            root_ui_component.recursive_update_layout(
                 inherit_changed_layout,
                 update_depth,
                 &self._font_data.borrow(),
