@@ -226,6 +226,7 @@ pub struct UIComponentInstance<'a> {
     pub _opacity: f32,
     pub _renderable: bool,
     pub _visible: bool,
+    pub _enable: bool,
     pub _enable_renderable_area: bool,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _touched: bool,
@@ -426,6 +427,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _opacity: 1.0,
             _renderable: true,
             _visible: true,
+            _enable: true,
             _enable_renderable_area: false,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _touched: false,
@@ -905,6 +907,16 @@ impl<'a> UIComponentInstance<'a> {
     pub fn set_texture_wrap_mode(&mut self, texture_wrap_mode: vk::SamplerAddressMode) {
         self._texture_wrap_mode = texture_wrap_mode;
     }
+    pub fn get_enable(&self) -> bool {
+        self._enable
+    }
+    pub fn set_enable(&mut self, enable: bool) {
+        if enable != self._enable {
+            self._enable = enable;
+            self._changed_render_data = true;
+            // log::info!("{:?}: set_visible", self.get_owner_widget().get_ui_widget_name());
+        }
+    }
     pub fn get_visible(&self) -> bool {
         self._visible
     }
@@ -1333,7 +1345,7 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("    _changed_render_data");
         }
 
-        if self._visible && self._renderable {
+        if self._enable && self._visible && self._renderable {
             let render_ui_index = *render_ui_count;
             *render_ui_count += 1;
 
@@ -1413,7 +1425,7 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("    render_ui_count: {:?}", render_ui_count);
         }
 
-        if self._visible {
+        if self._enable && self._visible {
             for child_ui_component in self._children.iter() {
                 ptr_as_mut(*child_ui_component).collect_ui_render_data(
                     font_data,
@@ -1434,9 +1446,12 @@ impl<'a> UIComponentInstance<'a> {
         parent_contents_size: &Vector2<f32>,
         font_data: &FontData,
     ) {
+        if self._enable == false {
+            return;
+        }
+
         if inherit_changed_layout || self._changed_layout {
             inherit_changed_layout = true;
-
             //let border = self.get_border() * 0.5;
             let spaces = self.get_margin() + self.get_padding();// + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
@@ -1628,6 +1643,10 @@ impl<'a> UIComponentInstance<'a> {
         update_depth: u32,
         font_data: &FontData,
     ) {
+        if self._enable == false {
+            return;
+        }
+
         if self._changed_layout {
             inherit_changed_layout = true;
         }
@@ -1727,7 +1746,11 @@ impl<'a> UIComponentInstance<'a> {
         mut hierarchical_visibility: bool,
         touch_event: &mut bool,
     ) {
-        hierarchical_visibility = hierarchical_visibility && self._visible;
+        if self._enable == false {
+            return;
+        }
+
+        hierarchical_visibility = hierarchical_visibility && self._visible && self._enable;
         let mut child_index: isize = self._children.len() as isize - 1;
         while 0 <= child_index {
             let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
@@ -2228,7 +2251,7 @@ impl<'a> UIManager<'a> {
         let border: f32 = 0.0;
         let round: f32 = 0.0;
 
-        if root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout() {
+        if root_ui_component.get_enable() && (root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout()) {
             root_ui_component.recursive_update_layout_size(
                 inherit_changed_layout,
                 &contents_area_size,
@@ -2344,15 +2367,9 @@ impl<'a> UIWorldAxis<'a> {
 
     pub fn set_visible(&mut self, visible: bool) {
         self._visible = visible;
-        ptr_as_mut(self._widget_axis_x.as_ref())
-            .get_ui_component_mut()
-            .set_visible(visible);
-        ptr_as_mut(self._widget_axis_y.as_ref())
-            .get_ui_component_mut()
-            .set_visible(visible);
-        ptr_as_mut(self._widget_axis_z.as_ref())
-            .get_ui_component_mut()
-            .set_visible(visible);
+        ptr_as_mut(self._widget_axis_x.as_ref()).get_ui_component_mut().set_visible(visible);
+        ptr_as_mut(self._widget_axis_y.as_ref()).get_ui_component_mut().set_visible(visible);
+        ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut().set_visible(visible);
     }
 
     pub fn update_world_axis(
