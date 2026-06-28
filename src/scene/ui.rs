@@ -37,9 +37,10 @@ pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
 pub const UI_RENDER_FLAG_NONE: u32 = 0;
 pub const UI_RENDER_FLAG_RENDER_TEXT: u32 = 1 << 0;
 pub const UI_RENDER_FLAG_RENDER_TEXTURE: u32 = 1 << 1;
-pub const UI_RENDER_FLAG_TOUCHED: u32 = 1 << 2;
-pub const UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA: u32 = 1 << 3;
-pub const UI_RENDER_FLAG_CLAMP_TEXTURE: u32 = 1 << 4;
+pub const UI_RENDER_FLAG_TOUCHED_OVER: u32 = 1 << 2;
+pub const UI_RENDER_FLAG_TOUCHED: u32 = 1 << 3;
+pub const UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA: u32 = 1 << 4;
+pub const UI_RENDER_FLAG_CLAMP_TEXTURE: u32 = 1 << 5;
 
 pub const UI_INDEX_LEFT: usize = 0; // x
 pub const UI_INDEX_TOP: usize = 1; // y
@@ -149,10 +150,14 @@ pub struct UIRenderData {
     pub _ui_renderable_area: Vector4<f32>,
     pub _ui_renderable_area_round: f32,
     pub _ui_renderable_area_border: f32,
-    pub _ui_color: u32,
     pub _ui_round: f32,
     pub _ui_border: f32,
+    pub _ui_color: u32,
+    pub _ui_touched_over_color: u32,
+    pub _ui_touched_color: u32,
     pub _ui_border_color: u32,
+    pub _ui_touched_over_border_color: u32,
+    pub _ui_touched_border_color: u32,
     pub _ui_render_flags: u32,
     pub _ui_opacity: f32,
     pub _ui_rotation: f32,
@@ -186,10 +191,13 @@ pub struct UIComponentData<'a> {
     pub _resizable_x: bool,
     pub _resizable_y: bool,
     pub _color: u32,
-    pub _pressed_color: u32,
+    pub _touched_color: u32,
+    pub _touched_over_color: u32,
     pub _round: f32,
     pub _border: f32,
     pub _border_color: u32,
+    pub _touched_over_border_color: u32,
+    pub _touched_border_color: u32,
     pub _font_size: f32,
     pub _font_color: u32,
     pub _material_instance: Option<RcRefCell<MaterialInstanceData<'a>>>,
@@ -230,6 +238,7 @@ pub struct UIComponentInstance<'a> {
     pub _enable_renderable_area: bool,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _touched: bool,
+    pub _touched_over: bool,
     pub _touch_start_pos: Vector2<f32>,
     pub _touch_corner_flags: UICornerFlags,
     pub _text: String,
@@ -237,6 +246,8 @@ pub struct UIComponentInstance<'a> {
     pub _callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>,
     pub _callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>,
     pub _callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>,
+    pub _callback_touch_over: Option<Box<CallbackTouchEvent<'a>>>,
+    pub _callback_touch_out: Option<Box<CallbackTouchEvent<'a>>>,
     pub _user_data: *const c_void,
 }
 
@@ -343,10 +354,14 @@ impl Default for UIRenderData {
             _ui_renderable_area: Vector4::zeros(),
             _ui_renderable_area_round: 0.0,
             _ui_renderable_area_border: 0.0,
-            _ui_color: 0xFFFFFFFF,
             _ui_round: 0.0,
             _ui_border: 0.0,
+            _ui_color: 0xFFFFFFFF,
+            _ui_touched_over_color: 0xFFFFFFFF,
+            _ui_touched_color: 0xFFFFFFFF,
             _ui_border_color: 0x00000000,
+            _ui_touched_over_border_color: 0x00000000,
+            _ui_touched_border_color: 0x00000000,
             _ui_render_flags: UI_RENDER_FLAG_NONE,
             _ui_opacity: 1.0,
             _ui_rotation: 0.0,
@@ -376,6 +391,8 @@ impl<'a> Default for UIComponentData<'a> {
             _round: 0.0,
             _border: 0.0,
             _border_color: get_color32(0, 0, 0, 255),
+            _touched_over_border_color: get_color32(255, 255, 255, 255),
+            _touched_border_color: get_color32(128, 128, 128, 255),
             _texcoord: Vector4::new(0.0, 0.0, 1.0, 1.0),
             _draggable: false,
             _touchable: false,
@@ -387,7 +404,8 @@ impl<'a> Default for UIComponentData<'a> {
             _resizable_x: false,
             _resizable_y: false,
             _color: get_color32(255, 255, 255, 255),
-            _pressed_color: get_color32(128, 128, 255, 255),
+            _touched_color: get_color32(200, 200, 255, 255),
+            _touched_over_color: get_color32(150, 150, 200, 255),
             _font_size: 20.0,
             _font_color: get_color32(0, 0, 0, 255),
             _material_instance: None,
@@ -431,6 +449,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _enable_renderable_area: false,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _touched: false,
+            _touched_over: false,
             _touch_start_pos: Vector2::zeros(),
             _touch_corner_flags: UICornerFlags::NONE,
             _text: String::new(),
@@ -439,6 +458,8 @@ impl<'a> Default for UIComponentInstance<'a> {
             _callback_touch_down: None,
             _callback_touch_move: None,
             _callback_touch_up: None,
+            _callback_touch_over: None,
+            _callback_touch_out: None,
             _user_data: std::ptr::null(),
         }
     }
@@ -557,12 +578,8 @@ impl<'a> UIComponentInstance<'a> {
                     }
                 }
 
-                if self._callback_touch_move.is_some() {
-                    self._callback_touch_move.as_ref().unwrap()(
-                        ptr_as_mut(self),
-                        touched_pos,
-                        touched_pos_delta,
-                    );
+                if let Some(callback_touch_move) = self._callback_touch_move.as_ref() {
+                    callback_touch_move(self, touched_pos, touched_pos_delta);
                 }
                 self._changed_render_data = true;
             }
@@ -582,12 +599,30 @@ impl<'a> UIComponentInstance<'a> {
                     }
                 }
 
-                if self._callback_touch_up.is_some() {
-                    self._callback_touch_up.as_ref().unwrap()(self, touched_pos, touched_pos_delta);
+                if let Some(callback_touch_up) = self._callback_touch_up.as_ref() {
+                    callback_touch_up(self, touched_pos, touched_pos_delta);
                 }
                 self._changed_render_data = true;
             }
             self._touched = false;
+        }
+    }
+    pub fn on_touch_over(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
+        if self.get_touchable() || self.get_draggable() {
+            if let Some(callback) = &self._callback_touch_over {
+                callback(self, touched_pos, touched_pos_delta);
+            }
+            self._changed_render_data = true;
+            self._touched_over = true;
+        }
+    }
+    pub fn on_touch_out(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
+        if self.get_touchable() || self.get_draggable() {
+            if let Some(callback) = &self._callback_touch_out {
+                callback(self, touched_pos, touched_pos_delta);
+            }
+            self._changed_render_data = true;
+            self._touched_over = false;
         }
     }
     pub fn get_pivot(&self) -> &Vector3<f32> {
@@ -940,21 +975,28 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_color(&self) -> u32 {
         self._ui_component_data._color
     }
+    pub fn get_touched_color(&self) -> u32 {
+        self._ui_component_data._touched_color
+    }
+    pub fn get_touched_over_color(&self) -> u32 {
+        self._ui_component_data._touched_over_color
+    }
     pub fn set_color(&mut self, color: u32) {
         if color != self._ui_component_data._color {
             self._ui_component_data._color = color;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_color", self.get_owner_widget().get_ui_widget_name());
         }
     }
-    pub fn get_pressed_color(&self) -> u32 {
-        self._ui_component_data._pressed_color
-    }
-    pub fn set_pressed_color(&mut self, color: u32) {
-        if color != self._ui_component_data._pressed_color {
-            self._ui_component_data._pressed_color = color;
+    pub fn set_touched_color(&mut self, color: u32) {
+        if color != self._ui_component_data._touched_color {
+            self._ui_component_data._touched_color = color;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_pressed_color", self.get_owner_widget().get_ui_widget_name());
+        }
+    }
+    pub fn set_touched_over_color(&mut self, color: u32) {
+        if color != self._ui_component_data._touched_over_color {
+            self._ui_component_data._touched_over_color = color;
+            self._changed_render_data = true;
         }
     }
     pub fn get_border_color(&self) -> u32 {
@@ -964,7 +1006,24 @@ impl<'a> UIComponentInstance<'a> {
         if color != self._ui_component_data._border_color {
             self._ui_component_data._border_color = color;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_border_color", self.get_owner_widget().get_ui_widget_name());
+        }
+    }
+    pub fn get_touched_border_color(&self) -> u32 {
+        self._ui_component_data._touched_border_color
+    }
+    pub fn set_touched_border_color(&mut self, color: u32) {
+        if color != self._ui_component_data._touched_border_color {
+            self._ui_component_data._touched_border_color = color;
+            self._changed_render_data = true;
+        }
+    }
+    pub fn get_touched_over_border_color(&self) -> u32 {
+        self._ui_component_data._touched_over_border_color
+    }
+    pub fn set_touched_over_border_color(&mut self, color: u32) {
+        if color != self._ui_component_data._touched_over_border_color {
+            self._ui_component_data._touched_over_border_color = color;
+            self._changed_render_data = true;
         }
     }
     pub fn get_font_size(&self) -> f32 {
@@ -974,7 +1033,6 @@ impl<'a> UIComponentInstance<'a> {
         if font_size != self._ui_component_data._font_size {
             self._ui_component_data._font_size = font_size;
             self.set_changed_layout(true);
-            // log::info!("set_font_size");
         }
     }
     pub fn get_font_color(&self) -> u32 {
@@ -984,7 +1042,6 @@ impl<'a> UIComponentInstance<'a> {
         if color != self._ui_component_data._font_color {
             self._ui_component_data._font_color = color;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_font_color", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_texcoord(&self) -> &Vector4<f32> {
@@ -1014,23 +1071,20 @@ impl<'a> UIComponentInstance<'a> {
             self._changed_render_data = true;
         }
     }
-    pub fn set_callback_touch_down(
-        &mut self,
-        callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>,
-    ) {
+    pub fn set_callback_touch_down(&mut self, callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>) {
         self._callback_touch_down = callback_touch_down;
     }
-    pub fn set_callback_touch_move(
-        &mut self,
-        callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>,
-    ) {
+    pub fn set_callback_touch_move(&mut self, callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>) {
         self._callback_touch_move = callback_touch_move;
     }
-    pub fn set_callback_touch_up(
-        &mut self,
-        callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>,
-    ) {
+    pub fn set_callback_touch_up(&mut self, callback_touch_up: Option<Box<CallbackTouchEvent<'a>>>) {
         self._callback_touch_up = callback_touch_up;
+    }
+    pub fn set_callback_touch_over(&mut self, callback_touch_over: Option<Box<CallbackTouchEvent<'a>>>) {
+        self._callback_touch_over = callback_touch_over;
+    }
+    pub fn set_callback_touch_out(&mut self, callback_touch_out: Option<Box<CallbackTouchEvent<'a>>>) {
+        self._callback_touch_out = callback_touch_out;
     }
     pub fn get_user_data(&self) -> *const c_void {
         self._user_data
@@ -1316,6 +1370,8 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;
                     if self._touched {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                    } else if self._touched_over {
+                        render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
                     }
                     if self._enable_renderable_area {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
@@ -1364,23 +1420,33 @@ impl<'a> UIComponentInstance<'a> {
                 render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
                 render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
                 render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
-                render_ui_instance_data._ui_opacity = opacity;
-                render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_round = self.get_round();
                 render_ui_instance_data._ui_border = self.get_border();
+                render_ui_instance_data._ui_opacity = opacity;
+                render_ui_instance_data._ui_color = self.get_color();
+                render_ui_instance_data._ui_touched_over_color = self.get_touched_over_color();
+                render_ui_instance_data._ui_touched_color = self.get_touched_color();
                 render_ui_instance_data._ui_border_color = self.get_border_color();
+                render_ui_instance_data._ui_touched_over_border_color = self.get_touched_over_border_color();
+                render_ui_instance_data._ui_touched_border_color = self.get_touched_border_color();
                 render_ui_instance_data._ui_texcoord.clone_from(&self._ui_component_data._texcoord);
                 render_ui_instance_data._ui_rotation = self.get_rotation();
                 render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_NONE;
+
                 if self.get_material_instance().is_some() {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_RENDER_TEXTURE;
                 }
+
                 if self._touched {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
+                } else if self._touched_over {
+                    render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
                 }
+
                 if self._enable_renderable_area {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                 }
+
                 if self._texture_wrap_mode != vk::SamplerAddressMode::REPEAT  {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_CLAMP_TEXTURE;
                 }
@@ -1790,17 +1856,28 @@ impl<'a> UIComponentInstance<'a> {
                         //self._viewport_manager.focused_widget = None;
                     }
                 }
-            } else if mouse_input_data._btn_l_pressed {
-                if self.check_collide(mouse_pos) {
-                    //self._viewport_manager.focused_widget = self
-                    self.on_touch_down(mouse_pos, mouse_pos_delta);
-                } else if self.get_has_cursor() {
-                    //self._viewport_manager.focused_widget = None
+            } else {
+                let collided = self.check_collide(mouse_pos);
+                if mouse_moved {
+                    if collided && self._touched_over == false {
+                        self.on_touch_over(mouse_pos, mouse_pos_delta);
+                    } else if collided == false && self._touched_over {
+                        self._touched_over = false;
+                    }
+                }
+
+                if mouse_input_data._btn_l_pressed {
+                    if collided {
+                        //self._viewport_manager.focused_widget = self
+                        self.on_touch_down(mouse_pos, mouse_pos_delta);
+                    } else if self.get_has_cursor() {
+                        //self._viewport_manager.focused_widget = None
+                    }
                 }
             }
         }
 
-        if self._touched {
+        if self._touched || self._touched_over {
             *touch_event = true;
         }
     }

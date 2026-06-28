@@ -19,6 +19,17 @@ void main()
 
     vec4 color = uint_color_to_float_color(ui_render_data._ui_color);
     vec4 border_color = uint_color_to_float_color(ui_render_data._ui_border_color);
+    if(check_flags_any(UI_RENDER_FLAG_TOUCHED_OVER, ui_render_data._ui_render_flags))
+    {
+        color = uint_color_to_float_color(ui_render_data._ui_touched_over_color);
+        border_color = uint_color_to_float_color(ui_render_data._ui_touched_over_border_color);
+    }
+    else if(check_flags_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
+    {
+        color = uint_color_to_float_color(ui_render_data._ui_touched_color);
+        border_color = uint_color_to_float_color(ui_render_data._ui_touched_border_color);
+    }
+
     vec2 position = mix(ui_render_data._ui_render_area.xy, ui_render_data._ui_render_area.zw, vs_in_position.xy) * pushConstant._inv_canvas_size;
 
     vec2 texcoord = vs_in_position.xy;
@@ -31,12 +42,6 @@ void main()
         texcoord = vec2(0.5, 0.5) + offset * c + vec2(offset.y, -offset.x) * s;
     }
     texcoord = mix(ui_render_data._ui_texcoord.xy, ui_render_data._ui_texcoord.zw, texcoord);
-
-    if(check_flags_any(UI_RENDER_FLAG_TOUCHED, ui_render_data._ui_render_flags))
-    {
-        color.xyz = mix(color.xyz, vec3(0.5, 0.5, 1.0), 0.75);
-        border_color.xyz = mix(border_color.xyz, vec3(0.5, 0.5, 1.0), 0.75);
-    }
 
     vs_output._color = color;
     vs_output._border_color = border_color;

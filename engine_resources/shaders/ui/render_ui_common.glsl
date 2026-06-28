@@ -5,9 +5,10 @@
 const uint UI_RENDER_FLAG_NONE = 0;
 const uint UI_RENDER_FLAG_RENDER_TEXT = 1 << 0;
 const uint UI_RENDER_FLAG_RENDER_TEXTURE = 1 << 1;
-const uint UI_RENDER_FLAG_TOUCHED = 1 << 2;
-const uint UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA = 1 << 3;
-const uint UI_RENDER_FLAG_CLAMP_TEXTURE = 1 << 4;
+const uint UI_RENDER_FLAG_TOUCHED_OVER = 1 << 2;
+const uint UI_RENDER_FLAG_TOUCHED = 1 << 3;
+const uint UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA = 1 << 4;
+const uint UI_RENDER_FLAG_CLAMP_TEXTURE = 1 << 5;
 
 struct VERTEX_OUTPUT
 {
@@ -22,10 +23,14 @@ struct UIRenderData {
     vec4 _ui_renderable_area;
     float _ui_renderable_area_round;
     float _ui_renderable_area_border;
-    uint _ui_color;
     float _ui_round;
     float _ui_border;
+    uint _ui_color;
+    uint _ui_touched_over_color;
+    uint _ui_touched_color;
     uint _ui_border_color;
+    uint _ui_touched_over_border_color;
+    uint _ui_touched_border_color;
     uint _ui_render_flags;
     float _ui_opacity;
     float _ui_rotation;
