@@ -1362,9 +1362,13 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
                     render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
                     render_ui_instance_data._ui_color = self.get_font_color();
+                    render_ui_instance_data._ui_touched_over_color = self.get_font_color();
+                    render_ui_instance_data._ui_touched_color = self.get_font_color();
                     render_ui_instance_data._ui_round = 0.0;
                     render_ui_instance_data._ui_border = 0.0;
                     render_ui_instance_data._ui_border_color = 0;
+                    render_ui_instance_data._ui_touched_over_border_color = 0;
+                    render_ui_instance_data._ui_touched_border_color = 0;
                     render_ui_instance_data._ui_opacity = opacity;
                     render_ui_instance_data._ui_rotation = 0.0;
                     render_ui_instance_data._ui_render_flags = UI_RENDER_FLAG_RENDER_TEXT;

@@ -122,6 +122,7 @@ pub trait ApplicationBase<'a> {
         engine_core: &EngineCore<'a>,
         window_size: &Vector2<i32>,
     );
+    fn will_terminate_application(&self) -> bool;
     fn terminate_application(&mut self);
     fn get_render_pass_create_info_callback(&self) -> *const CallbackLoadRenderPassCreateInfo;
     fn focused(&mut self, focused: bool);
@@ -269,18 +270,12 @@ impl<'a> EngineCore<'a> {
 
         // initialize managers
         let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
-        engine_core
-            .get_renderer_context_mut()
-            .initialize_renderer_context(
-                engine_core.get_engine_resources(),
-                engine_core.get_effect_manager(),
-            );
-        engine_core
-            .get_engine_resources_mut()
-            .load_engine_resources(engine_core.get_renderer_context());
-        engine_core
-            .get_debug_line_manager_mut()
-            .initialize_debug_line_manager(engine_core.get_renderer_context());
+        engine_core.get_renderer_context_mut().initialize_renderer_context(
+            engine_core.get_engine_resources(),
+            engine_core.get_effect_manager(),
+        );
+        engine_core.get_engine_resources_mut().load_engine_resources(engine_core.get_renderer_context());
+        engine_core.get_debug_line_manager_mut().initialize_debug_line_manager(engine_core.get_renderer_context());
         engine_core.get_font_manager_mut().initialize_font_manager(
             engine_core.get_renderer_context(),
             engine_core.get_engine_resources(),
@@ -289,22 +284,14 @@ impl<'a> EngineCore<'a> {
             engine_core.get_renderer_context(),
             engine_core.get_engine_resources(),
         );
-        engine_core
-            .get_audio_manager_mut()
-            .initialize_audio_manager();
-        engine_core
-            .get_effect_manager_mut()
-            .initialize_effect_manager();
+        engine_core.get_audio_manager_mut().initialize_audio_manager();
+        engine_core.get_effect_manager_mut().initialize_effect_manager();
 
         // initialize graphics data
-        engine_core
-            .get_renderer_context()
-            .prepare_framebuffer_and_descriptors();
+        engine_core.get_renderer_context().prepare_framebuffer_and_descriptors();
 
         // initialize application
-        engine_core
-            .get_application_mut()
-            .initialize_application(&engine_core, &window_size);
+        engine_core.get_application_mut().initialize_application(&engine_core, &window_size);
         engine_core_ptr
     }
 
@@ -315,14 +302,10 @@ impl<'a> EngineCore<'a> {
         self.get_application_mut().terminate_application();
         self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
-        self.get_ui_manager_mut()
-            .destroy_ui_manager(renderer_context.get_device());
-        self.get_debug_line_manager_mut()
-            .destroy_debug_line_manager(renderer_context.get_device());
-        self.get_font_manager_mut()
-            .destroy_font_manager(renderer_context.get_device());
-        self.get_engine_resources_mut()
-            .destroy_engine_resources(renderer_context);
+        self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
+        self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
+        self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
+        self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
     }
 
@@ -592,8 +575,7 @@ impl<'a> EngineCore<'a> {
                     delta_time,
                     &mut self._time_data,
                 );
-                self._time_data._acc_render_time +=
-                    self._time_data.get_current_time() - render_time;
+                self._time_data._acc_render_time += self._time_data.get_current_time() - render_time;
             }
         }
     }
@@ -862,6 +844,9 @@ pub fn run_application(
                     if run_application {
                         // update application
                         engine_core.update_event_and_render_scene();
+                        if engine_core.get_application().will_terminate_application() {
+                            run_application = false;
+                        }
                     }
                 }
                 _ => {
