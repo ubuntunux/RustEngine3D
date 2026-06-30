@@ -237,6 +237,7 @@ pub struct UIComponentInstance<'a> {
     pub _enable: bool,
     pub _enable_renderable_area: bool,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
+    pub _selected: bool,
     pub _touched: bool,
     pub _touched_over: bool,
     pub _touch_start_pos: Vector2<f32>,
@@ -448,6 +449,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _enable: true,
             _enable_renderable_area: false,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
+            _selected: false,
             _touched: false,
             _touched_over: false,
             _touch_start_pos: Vector2::zeros(),
@@ -538,8 +540,7 @@ impl<'a> UIComponentInstance<'a> {
                 );
             }
 
-            self._changed_render_data = true;
-            self._touched = touched;
+            self.set_touched(touched);
         }
     }
     pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
@@ -602,9 +603,8 @@ impl<'a> UIComponentInstance<'a> {
                 if let Some(callback_touch_up) = self._callback_touch_up.as_ref() {
                     callback_touch_up(self, touched_pos, touched_pos_delta);
                 }
-                self._changed_render_data = true;
             }
-            self._touched = false;
+            self.set_touched(false);
         }
     }
     pub fn on_touch_over(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
@@ -949,7 +949,6 @@ impl<'a> UIComponentInstance<'a> {
         if enable != self._enable {
             self._enable = enable;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_visible", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_visible(&self) -> bool {
@@ -959,7 +958,6 @@ impl<'a> UIComponentInstance<'a> {
         if visible != self._visible {
             self._visible = visible;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_visible", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_opacity(&self) -> f32 {
@@ -969,7 +967,6 @@ impl<'a> UIComponentInstance<'a> {
         if opacity != self._opacity {
             self._opacity = opacity;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_opacity", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_color(&self) -> u32 {
@@ -1092,8 +1089,23 @@ impl<'a> UIComponentInstance<'a> {
     pub fn set_user_data(&mut self, user_data: *const c_void) {
         self._user_data = user_data;
     }
+    pub fn get_selected(&self) -> bool {
+        self._selected
+    }
+    pub fn set_selected(&mut self, selected: bool) {
+        if selected != self._selected {
+            self._selected = selected;
+            self._changed_render_data = true;
+        }
+    }
     pub fn get_touched(&self) -> bool {
         self._touched
+    }
+    pub fn set_touched(&mut self, touched: bool) {
+        if touched != self._touched {
+            self._touched = touched;
+            self._changed_render_data = true;
+        }
     }
     pub fn get_touch_start_pos(&self) -> &Vector2<f32> {
         &self._touch_start_pos
@@ -1126,10 +1138,7 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_component_data._scroll_y
     }
     pub fn get_expandable(&self) -> (bool, bool) {
-        (
-            self._ui_component_data._expandable_x,
-            self._ui_component_data._expandable_y,
-        )
+        (self._ui_component_data._expandable_x, self._ui_component_data._expandable_y)
     }
     pub fn set_expandable(&mut self, expandable: bool) {
         self.set_expandable_x(expandable);
@@ -1443,7 +1452,7 @@ impl<'a> UIComponentInstance<'a> {
 
                 if self._touched {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED;
-                } else if self._touched_over {
+                } else if self._touched_over || self._selected {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
                 }
 
