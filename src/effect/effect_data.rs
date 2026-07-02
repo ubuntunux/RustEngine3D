@@ -1,6 +1,6 @@
 use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
-
+use uuid::Uuid;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_data::BlendMode;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
@@ -11,7 +11,6 @@ use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
 use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 
-pub const INVALID_EFFECT_ID: i64 = -1;
 pub const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
 pub const INVALID_ALLOCATED_PARTICLE_OFFSET: i32 = -1;
 
@@ -217,7 +216,7 @@ impl Default for EffectCreateInfo {
 
 pub struct EffectInstance<'a> {
     pub _effect_manager: *const EffectManager<'a>,
-    pub _effect_id: i64,
+    pub _effect_id: Uuid,
     pub _effect_name: String,
     pub _update_first_time: bool,
     pub _is_alive: bool,
@@ -309,7 +308,7 @@ impl<'a> EmitterData<'a> {
 impl<'a> EffectInstance<'a> {
     pub fn create_effect_instance(
         effect_manager: *const EffectManager<'a>,
-        effect_id: i64,
+        effect_id: Uuid,
         effect_name: &String,
         effect_create_info: &EffectCreateInfo,
         effect_data: &RcRefCell<EffectData<'a>>,
@@ -353,7 +352,7 @@ impl<'a> EffectInstance<'a> {
         }
     }
 
-    pub fn get_effect_id(&self) -> i64 {
+    pub fn get_effect_id(&self) -> Uuid {
         self._effect_id
     }
     pub fn get_effect_name(&self) -> &String {
@@ -370,10 +369,6 @@ impl<'a> EffectInstance<'a> {
 
     pub fn get_effect_world_transform(&self) -> &Matrix4<f32> {
         &self._effect_transform._matrix
-    }
-
-    pub fn is_valid_effect(&self) -> bool {
-        INVALID_EFFECT_ID != self._effect_id
     }
 
     pub fn play_effect(&mut self) {

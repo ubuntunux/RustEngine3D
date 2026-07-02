@@ -4,7 +4,7 @@ use std::collections::HashMap;
 
 use ash::vk;
 use nalgebra::{Matrix4, Vector3, Vector4};
-
+use uuid::Uuid;
 use crate::constants::{
     MAX_EMITTER_COUNT, MAX_PARTICLE_COUNT, PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE,
 };
@@ -128,9 +128,8 @@ impl PushConstant for PushConstant_RenderParticle {}
 
 // interfaces
 pub struct EffectManager<'a> {
-    pub _effect_id_generator: i64,
-    pub _effects: HashMap<i64, RcRefCell<EffectInstance<'a>>>,
-    pub _dead_effect_ids: Vec<i64>,
+    pub _effects: HashMap<Uuid, RcRefCell<EffectInstance<'a>>>,
+    pub _dead_effect_ids: Vec<Uuid>,
     pub _allocated_emitters: Vec<*const EmitterInstance<'a>>,
     pub _allocated_emitter_count: i32,
     pub _allocated_particle_count: i32,
@@ -144,7 +143,6 @@ pub struct EffectManager<'a> {
 impl<'a> EffectManager<'a> {
     pub fn create_effect_manager() -> Box<EffectManager<'a>> {
         Box::new(EffectManager {
-            _effect_id_generator: 0,
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
             _allocated_emitters: unsafe { vec![std::ptr::null(); MAX_EMITTER_COUNT as usize] },
@@ -172,7 +170,6 @@ impl<'a> EffectManager<'a> {
 
     pub fn clear_effects(&mut self) {
         unsafe {
-            self._effect_id_generator = 0;
             self._effects.clear();
             self._dead_effect_ids.clear();
             self._effect_render_group.clear();
@@ -187,17 +184,15 @@ impl<'a> EffectManager<'a> {
         }
     }
 
-    pub fn generate_effect_id(&mut self) -> i64 {
-        let effect_id_generator = self._effect_id_generator;
-        self._effect_id_generator += 1;
-        effect_id_generator
+    pub fn generate_effect_id(&self) -> Uuid {
+        Uuid::new_v4()
     }
 
-    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance<'a>>> {
+    pub fn get_effect(&self, effect_id: Uuid) -> Option<&RcRefCell<EffectInstance<'a>>> {
         self._effects.get(&effect_id)
     }
 
-    pub fn get_effects(&self) -> &HashMap<i64, RcRefCell<EffectInstance<'a>>> {
+    pub fn get_effects(&self) -> &HashMap<Uuid, RcRefCell<EffectInstance<'a>>> {
         &self._effects
     }
 
@@ -236,7 +231,7 @@ impl<'a> EffectManager<'a> {
         object_name: &str,
         effect_create_info: &EffectCreateInfo,
         effect_data: &RcRefCell<EffectData<'a>>,
-    ) -> i64 {
+    ) -> Uuid {
         let effect_id = self.generate_effect_id();
         let effect_instance = EffectInstance::create_effect_instance(
             self,

@@ -28,6 +28,7 @@ use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
 use crate::{begin_block, constants};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
@@ -38,8 +39,7 @@ pub type RenderObjectMap<'a> = HashMap<SceneObjectID, RcRefCell<RenderObjectData
 pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
 pub type CollisionObjectMap<'a> = HashMap<CollisionObjectKey, Vec<RcRefCell<RenderObjectData<'a>>>>;
 
-#[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
-pub struct SceneObjectID(u64);
+pub type SceneObjectID = Uuid;
 
 #[derive(Copy, Clone, Debug, Default, Hash, Eq, PartialEq)]
 pub struct CollisionObjectKey {
@@ -111,7 +111,6 @@ pub struct SceneManager<'a> {
     pub _dynamic_update_object_map: RenderObjectMap<'a>,
     pub _collision_object_map: CollisionObjectMap<'a>,
     pub _collision_object_key_map: HashMap<SceneObjectID, Vec<CollisionObjectKey>>,
-    pub _object_id_generator: SceneObjectID,
     pub _static_render_object_instancing_map: RenderObjectInstancingMap<'a>,
     pub _static_render_object_map: RenderObjectMap<'a>,
     pub _skeletal_render_object_map: RenderObjectMap<'a>,
@@ -242,7 +241,6 @@ impl<'a> SceneManager<'a> {
             _dynamic_update_object_map: HashMap::new(),
             _collision_object_map: HashMap::new(),
             _collision_object_key_map: HashMap::new(),
-            _object_id_generator: SceneObjectID(0),
             _static_render_object_instancing_map: HashMap::new(),
             _static_render_object_map: HashMap::new(),
             _skeletal_render_object_map: HashMap::new(),
@@ -368,10 +366,8 @@ impl<'a> SceneManager<'a> {
     pub fn get_dead_zone_height(&self) -> f32 {
         self._sea_height - 5.0
     }
-    pub fn generate_object_id(&mut self) -> SceneObjectID {
-        let object_id = self._object_id_generator.clone();
-        self._object_id_generator = SceneObjectID(self._object_id_generator.0 + 1);
-        object_id
+    pub fn generate_object_id(&self) -> Uuid {
+        Uuid::new_v4()
     }
     pub fn add_camera_object(
         &mut self,
@@ -634,7 +630,7 @@ impl<'a> SceneManager<'a> {
         render_object_data
     }
 
-    pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> i64 {
+    pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> Uuid {
         let effect_data = self.get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
         self.get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
     }
@@ -704,7 +700,7 @@ impl<'a> SceneManager<'a> {
         self.unregister_dynamic_update_object(&object_id);
     }
 
-    pub fn get_effect(&self, effect_id: i64) -> Option<&RcRefCell<EffectInstance<'a>>> {
+    pub fn get_effect(&self, effect_id: Uuid) -> Option<&RcRefCell<EffectInstance<'a>>> {
         self.get_effect_manager().get_effect(effect_id)
     }
 
