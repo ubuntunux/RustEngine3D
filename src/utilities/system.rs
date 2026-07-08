@@ -4,6 +4,14 @@ use std::fs;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
+use strum_macros::EnumIter;
+
+#[derive(Clone, Copy, Debug, Hash, PartialEq, EnumIter)]
+pub enum State {
+    End,
+    Begin,
+    Update
+}
 
 #[macro_export]
 macro_rules! begin_block {
