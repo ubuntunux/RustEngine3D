@@ -353,7 +353,7 @@ impl MetaData {
                 serde_json::to_string(&meta_data).expect("Failed to serialize.");
             write_meta_contents = write_meta_contents.replace(",\"", ",\n\"");
             write_meta_file
-                .write(write_meta_contents.as_bytes())
+                .write_all(write_meta_contents.as_bytes())
                 .expect("Failed to write");
             meta_data
         };
@@ -418,7 +418,7 @@ impl<'a> EngineResources<'a> {
 
                 if resource_list_file_path != file_path {
                     write_file
-                        .write(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
+                        .write_all(format!("{}\n", file_path.to_str().unwrap()).as_bytes())
                         .expect("Failed to write");
                 }
             }
@@ -729,7 +729,7 @@ impl<'a> EngineResources<'a> {
                             .expect("Failed to serialize.");
                     write_contents = write_contents.replace(",\"", ",\n\"");
                     write_file
-                        .write(write_contents.as_bytes())
+                        .write_all(write_contents.as_bytes())
                         .expect("Failed to write");
                 }
             }
@@ -866,7 +866,7 @@ impl<'a> EngineResources<'a> {
                         .expect("Failed to serialize.");
                 write_contents = write_contents.replace(",\"", ",\n\"");
                 write_file
-                    .write(write_contents.as_bytes())
+                    .write_all(write_contents.as_bytes())
                     .expect("Failed to write");
             }
         }
@@ -965,7 +965,7 @@ impl<'a> EngineResources<'a> {
         let write_contents: String =
             serde_json::to_string(&font_data_create_info).expect("Failed to serialize.");
         write_file
-            .write(write_contents.as_bytes())
+            .write_all(write_contents.as_bytes())
             .expect("Failed to write");
         font_data_create_info
     }
@@ -1264,12 +1264,12 @@ impl<'a> EngineResources<'a> {
                                     serde_json::to_string(&mesh_data_create_info)
                                         .expect("Failed to serialize.");
                                 write_file
-                                    .write(write_contents.as_bytes())
+                                    .write_all(write_contents.as_bytes())
                                     .expect("Failed to write");
                             } else {
                                 let write_contents: Vec<u8> =
                                     bincode::serialize(&mesh_data_create_info).unwrap();
-                                write_file.write(&write_contents).expect("Failed to write");
+                                write_file.write_all(&write_contents).expect("Failed to write");
                             }
                         }
 
@@ -2087,7 +2087,7 @@ impl<'a> EngineResources<'a> {
             serde_json::to_string(&scene_data_create_info).expect("Failed to serialize.");
         write_contents = write_contents.replace(",\"", ",\n\"");
         write_file
-            .write(write_contents.as_bytes())
+            .write_all(write_contents.as_bytes())
             .expect("Failed to write");
 
         self._scene_data_create_infos_map.insert(
