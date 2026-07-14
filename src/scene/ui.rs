@@ -1,13 +1,10 @@
-use std::cmp::min;
 use bitflags::bitflags;
 use serde::{Deserialize, Serialize};
+use std::cmp::min;
 
 use std::os::raw::c_void;
 use std::rc::Rc;
 
-use ash::ext;
-use ash::{vk, Device};
-use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use crate::constants;
 use crate::core::engine_core::{EngineCore, TimeData};
 use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
@@ -20,17 +17,17 @@ use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
-use crate::utilities::system::{self, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{self, RcRefCell, ptr_as_mut, ptr_as_ref};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
 use crate::vulkan_context::render_pass::PipelineData;
 use crate::vulkan_context::vulkan_context::get_color32;
+use ash::ext;
+use ash::{Device, vk};
+use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
-pub type CallbackTouchEvent<'a> = fn(
-    ui_component: &UIComponentInstance<'a>,
-    touched_pos: &Vector2<f32>,
-    touched_pos_delta: &Vector2<f32>,
-) -> bool;
+pub type CallbackTouchEvent<'a> =
+    fn(ui_component: &UIComponentInstance<'a>, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) -> bool;
 
 pub const UI_RENDER_FONT_PADDING_RATIO: f32 = 0.7;
 
@@ -59,7 +56,7 @@ pub enum PosHintX {
     None,
     Left(f32),
     Center(f32),
-    Right(f32)
+    Right(f32),
 }
 
 #[derive(Copy, Clone, PartialEq)]
@@ -227,7 +224,7 @@ pub struct UIComponentInstance<'a> {
     pub _render_area: Vector4<f32>,            // border + _ui_component_data._size
     pub _renderable_area: Vector4<f32>,        // inherit _render_area
     pub _renderable_area_round: f32,           // parent round size
-    pub _renderable_area_border: f32,           // parent border size
+    pub _renderable_area_border: f32,          // parent border size
     pub _ui_area: Vector4<f32>,
     pub _ui_size: Vector2<f32>, // margie + border + padding + _ui_component_data._size
     pub _ui_layout_state: UILayoutState,
@@ -533,11 +530,7 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             if self._callback_touch_down.is_some() {
-                touched = self._callback_touch_down.as_ref().unwrap()(
-                    ptr_as_mut(self),
-                    touched_pos,
-                    touched_pos_delta,
-                );
+                touched = self._callback_touch_down.as_ref().unwrap()(ptr_as_mut(self), touched_pos, touched_pos_delta);
             }
 
             self.set_touched(touched);
@@ -737,8 +730,7 @@ impl<'a> UIComponentInstance<'a> {
         self.set_size_y(size_y);
     }
     pub fn set_size_x(&mut self, size_x: f32) {
-        if size_x != self._ui_component_data._size.x || self._ui_component_data._size_hint_x.is_some()
-        {
+        if size_x != self._ui_component_data._size.x || self._ui_component_data._size_hint_x.is_some() {
             self._ui_component_data._size_hint_x = None;
             self._ui_component_data._size.x = size_x;
             self.set_changed_layout(true);
@@ -1138,7 +1130,10 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_component_data._scroll_y
     }
     pub fn get_expandable(&self) -> (bool, bool) {
-        (self._ui_component_data._expandable_x, self._ui_component_data._expandable_y)
+        (
+            self._ui_component_data._expandable_x,
+            self._ui_component_data._expandable_y,
+        )
     }
     pub fn set_expandable(&mut self, expandable: bool) {
         self.set_expandable_x(expandable);
@@ -1280,8 +1275,7 @@ impl<'a> UIComponentInstance<'a> {
         let count_of_side: u32 = font_data._count_of_side;
         let inv_count_of_side: f32 = 1.0 / font_data._count_of_side as f32;
         let font_size_ratio: f32 = self.get_font_size() / font_data._font_size.y;
-        let font_size: Vector2<f32> =
-            &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
+        let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
         let mut column: i32 = 0;
         let mut row: i32 = 0;
         self._render_text_count = 0;
@@ -1294,22 +1288,15 @@ impl<'a> UIComponentInstance<'a> {
         );
 
         // text_render_size_x
-        let get_text_render_area_x = |halign: HorizontalAlign,
-                                      contents_area_size_x: f32,
-                                      contents_area_x: f32,
-                                      column_count: usize|
-         -> f32 {
-            let text_render_size_x = column_count as f32 * font_size.x;
-            match halign {
-                HorizontalAlign::LEFT => contents_area_x,
-                HorizontalAlign::CENTER => {
-                    contents_area_x + (contents_area_size_x - text_render_size_x) * 0.5
+        let get_text_render_area_x =
+            |halign: HorizontalAlign, contents_area_size_x: f32, contents_area_x: f32, column_count: usize| -> f32 {
+                let text_render_size_x = column_count as f32 * font_size.x;
+                match halign {
+                    HorizontalAlign::LEFT => contents_area_x,
+                    HorizontalAlign::CENTER => contents_area_x + (contents_area_size_x - text_render_size_x) * 0.5,
+                    HorizontalAlign::RIGHT => contents_area_x + contents_area_size_x - text_render_size_x,
                 }
-                HorizontalAlign::RIGHT => {
-                    contents_area_x + contents_area_size_x - text_render_size_x
-                }
-            }
-        };
+            };
         let mut text_render_area_x: f32 = get_text_render_area_x(
             self.get_halign(),
             self._contents_area_size.x,
@@ -1322,12 +1309,8 @@ impl<'a> UIComponentInstance<'a> {
         let text_render_size_y = row_count as f32 * font_size.y;
         let text_render_area_y: f32 = match self.get_valign() {
             VerticalAlign::TOP => self._contents_area.y,
-            VerticalAlign::CENTER => {
-                self._contents_area.y + (self._contents_area_size.y - text_render_size_y) * 0.5
-            }
-            VerticalAlign::BOTTOM => {
-                self._contents_area.y + self._contents_area_size.y - text_render_size_y
-            }
+            VerticalAlign::CENTER => self._contents_area.y + (self._contents_area_size.y - text_render_size_y) * 0.5,
+            VerticalAlign::BOTTOM => self._contents_area.y + self._contents_area_size.y - text_render_size_y,
         };
 
         let mut ui_render_area: Vector4<f32> = Vector4::zeros();
@@ -1460,16 +1443,14 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                 }
 
-                if self._texture_wrap_mode != vk::SamplerAddressMode::REPEAT  {
+                if self._texture_wrap_mode != vk::SamplerAddressMode::REPEAT {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_CLAMP_TEXTURE;
                 }
             }
 
             // add_ui_render_group_data
             let material_instance = match self.get_material_instance() {
-                Some(material_instance) => {
-                    material_instance.as_ptr() as *const MaterialInstanceData
-                }
+                Some(material_instance) => material_instance.as_ptr() as *const MaterialInstanceData,
                 None => std::ptr::null(),
             };
             if prev_render_group_data._material_instance != material_instance {
@@ -1532,7 +1513,7 @@ impl<'a> UIComponentInstance<'a> {
         if inherit_changed_layout || self._changed_layout {
             inherit_changed_layout = true;
             //let border = self.get_border() * 0.5;
-            let spaces = self.get_margin() + self.get_padding();// + &Vector4::new(border, border, border, border);
+            let spaces = self.get_margin() + self.get_padding(); // + &Vector4::new(border, border, border, border);
             let size_hint_x = self.get_size_hint_x();
             let size_hint_y = self.get_size_hint_y();
             let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
@@ -1631,10 +1612,14 @@ impl<'a> UIComponentInstance<'a> {
                         self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
                     }
                     PosHintX::Center(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x + (required_contents_size.x - self._ui_size.x) * 0.5;
+                        self._ui_area.x = parent_contents_area.x
+                            + parent_contents_area_size.x * pos_hint_x
+                            + (required_contents_size.x - self._ui_size.x) * 0.5;
                     }
                     PosHintX::Right(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x + (required_contents_size.x - self._ui_size.x);
+                        self._ui_area.x = parent_contents_area.x
+                            + parent_contents_area_size.x * pos_hint_x
+                            + (required_contents_size.x - self._ui_size.x);
                     }
                 }
 
@@ -1646,10 +1631,14 @@ impl<'a> UIComponentInstance<'a> {
                         self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
                     }
                     PosHintY::Center(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y + (required_contents_size.y - self._ui_size.y) * 0.5;
+                        self._ui_area.y = parent_contents_area.y
+                            + parent_contents_area_size.y * pos_hint_y
+                            + (required_contents_size.y - self._ui_size.y) * 0.5;
                     }
                     PosHintY::Bottom(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y + (required_contents_size.y - self._ui_size.y);
+                        self._ui_area.y = parent_contents_area.y
+                            + parent_contents_area_size.y * pos_hint_y
+                            + (required_contents_size.y - self._ui_size.y);
                     }
                 }
             }
@@ -1716,12 +1705,7 @@ impl<'a> UIComponentInstance<'a> {
         self._changed_render_data = true;
     }
 
-    fn recursive_update_layout(
-        &mut self,
-        mut inherit_changed_layout: bool,
-        update_depth: u32,
-        font_data: &FontData,
-    ) {
+    fn recursive_update_layout(&mut self, mut inherit_changed_layout: bool, update_depth: u32, font_data: &FontData) {
         if self._enable == false {
             return;
         }
@@ -1740,8 +1724,7 @@ impl<'a> UIComponentInstance<'a> {
                 );
 
                 // calculate child_ui_pos
-                let mut child_ui_pos =
-                    Vector2::<f32>::new(self._contents_area.x, self._contents_area.y);
+                let mut child_ui_pos = Vector2::<f32>::new(self._contents_area.x, self._contents_area.y);
                 if UILayoutType::BoxLayout == self.get_layout_type() {
                     match self.get_halign() {
                         HorizontalAlign::LEFT => {}
@@ -1797,11 +1780,7 @@ impl<'a> UIComponentInstance<'a> {
 
             // recursive update_layout
             for child in self._children.iter() {
-                ptr_as_mut(*child).recursive_update_layout(
-                    inherit_changed_layout,
-                    update_depth + 1,
-                    font_data,
-                );
+                ptr_as_mut(*child).recursive_update_layout(inherit_changed_layout, update_depth + 1, font_data);
             }
         }
 
@@ -2003,8 +1982,7 @@ impl UIVertexData {
 
 impl VertexDataBase for UIVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions =
-            Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         geometry_buffer::add_vertex_input_attribute_description(
             &mut vertex_input_attribute_descriptions,
@@ -2076,10 +2054,7 @@ impl<'a> UIManager<'a> {
 
         // create widgets
         let root_widget_mut = ptr_as_mut(self.get_root_ptr());
-        self._ui_world_axis = Some(UIWorldAxis::create_ui_world_axis(
-            engine_resources,
-            root_widget_mut,
-        ));
+        self._ui_world_axis = Some(UIWorldAxis::create_ui_world_axis(engine_resources, root_widget_mut));
     }
 
     pub fn get_root_ptr(&self) -> *const WidgetDefault<'a> {
@@ -2091,11 +2066,7 @@ impl<'a> UIManager<'a> {
     }
 
     pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources<'a>) {
-        self._default_render_ui_material = Some(
-            engine_resources
-                .get_material_instance_data("ui/render_ui")
-                .clone(),
-        );
+        self._default_render_ui_material = Some(engine_resources.get_material_instance_data("ui/render_ui").clone());
     }
 
     pub fn destroy_ui_graphics_data(&mut self) {
@@ -2208,7 +2179,8 @@ impl<'a> UIManager<'a> {
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_group_data in self._render_ui_group.iter() {
                 unsafe {
-                    let render_count = render_group_data._accumulated_render_count - push_constant_data._instance_id_offset;
+                    let render_count =
+                        render_group_data._accumulated_render_count - push_constant_data._instance_id_offset;
                     let material_instance_data = if render_group_data._material_instance.is_null() {
                         self._default_render_ui_material.as_ref().unwrap().as_ptr()
                     } else {
@@ -2216,7 +2188,8 @@ impl<'a> UIManager<'a> {
                     };
 
                     if prev_material_instance_data != material_instance_data {
-                        let pipeline_binding_data: &PipelineBindingData = (*material_instance_data).get_default_pipeline_binding_data();
+                        let pipeline_binding_data: &PipelineBindingData =
+                            (*material_instance_data).get_default_pipeline_binding_data();
                         let render_pass_data = pipeline_binding_data.get_render_pass_data().borrow();
                         let pipeline_data = pipeline_binding_data.get_pipeline_data();
                         let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
@@ -2247,11 +2220,16 @@ impl<'a> UIManager<'a> {
                             );
                         }
 
-                        let push_constant = &pipeline_binding_data._push_constant_data_list.first().unwrap()._push_constant;
-                        if let PushConstantParameter::Float2(uv_size) = push_constant.get_push_constant_parameter("_uv_size") {
+                        let push_constant =
+                            &pipeline_binding_data._push_constant_data_list.first().unwrap()._push_constant;
+                        if let PushConstantParameter::Float2(uv_size) =
+                            push_constant.get_push_constant_parameter("_uv_size")
+                        {
                             push_constant_data._uv_size = uv_size;
                         }
-                        if let PushConstantParameter::Float2(uv_offset) = push_constant.get_push_constant_parameter("_uv_offset") {
+                        if let PushConstantParameter::Float2(uv_offset) =
+                            push_constant.get_push_constant_parameter("_uv_offset")
+                        {
                             push_constant_data._uv_offset = uv_offset;
                         }
                         prev_material_instance_data = material_instance_data;
@@ -2262,12 +2240,7 @@ impl<'a> UIManager<'a> {
                         &(*prev_pipeline_data),
                         &push_constant_data,
                     );
-                    renderer_context.draw_elements_instanced(
-                        command_buffer,
-                        &self._quad_mesh,
-                        &[],
-                        render_count,
-                    );
+                    renderer_context.draw_elements_instanced(command_buffer, &self._quad_mesh, &[], render_count);
                     push_constant_data._instance_id_offset = render_group_data._accumulated_render_count;
                 }
             }
@@ -2289,28 +2262,19 @@ impl<'a> UIManager<'a> {
         // update world axis
         let main_camera = engine_core.get_scene_manager().get_main_camera();
         let debug_line_manager = engine_core.get_debug_line_manager_mut();
-        self._ui_world_axis
-            .as_mut()
-            .unwrap()
-            .update_world_axis(main_camera, debug_line_manager);
+        self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera, debug_line_manager);
 
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
         if *window_size != self._window_size {
-            log::info!(
-                "changed window size: {:?} -> {:?}",
-                self._window_size,
-                window_size
-            );
+            log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
             self._window_size = window_size.clone() as Vector2<i32>;
             root_ui_component.set_changed_layout(true);
         }
 
         // update ui component
-        let mouse_pos: Vector2<f32> = Vector2::new(
-            mouse_move_data._mouse_pos.x as f32,
-            mouse_move_data._mouse_pos.y as f32,
-        );
+        let mouse_pos: Vector2<f32> =
+            Vector2::new(mouse_move_data._mouse_pos.x as f32, mouse_move_data._mouse_pos.y as f32);
         let mouse_pos_delta: Vector2<f32> = Vector2::new(
             mouse_move_data._mouse_pos_delta.x as f32,
             mouse_move_data._mouse_pos_delta.y as f32,
@@ -2341,7 +2305,9 @@ impl<'a> UIManager<'a> {
         let border: f32 = 0.0;
         let round: f32 = 0.0;
 
-        if root_ui_component.get_enable() && (root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout()) {
+        if root_ui_component.get_enable()
+            && (root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout())
+        {
             root_ui_component.recursive_update_layout_size(
                 inherit_changed_layout,
                 &contents_area_size,
@@ -2363,11 +2329,7 @@ impl<'a> UIManager<'a> {
                 update_depth,
             );
 
-            root_ui_component.recursive_update_layout(
-                inherit_changed_layout,
-                update_depth,
-                &self._font_data.borrow(),
-            );
+            root_ui_component.recursive_update_layout(inherit_changed_layout, update_depth, &self._font_data.borrow());
         }
 
         // collect_ui_render_data
@@ -2462,11 +2424,7 @@ impl<'a> UIWorldAxis<'a> {
         ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut().set_visible(visible);
     }
 
-    pub fn update_world_axis(
-        &mut self,
-        main_camera: &CameraObjectData,
-        debug_line_manager: &mut DebugLineManager,
-    ) {
+    pub fn update_world_axis(&mut self, main_camera: &CameraObjectData, debug_line_manager: &mut DebugLineManager) {
         if false == self.get_visible() {
             return;
         }

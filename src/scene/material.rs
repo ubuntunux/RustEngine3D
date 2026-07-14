@@ -1,8 +1,7 @@
 use serde_json;
 
 use crate::vulkan_context::render_pass::{
-    get_render_pass_pipeline_data_name, PipelinePushConstantData, RenderPassPipelineData,
-    RenderPassPipelineDataMap,
+    PipelinePushConstantData, RenderPassPipelineData, RenderPassPipelineDataMap, get_render_pass_pipeline_data_name,
 };
 
 #[derive(Clone, Debug)]
@@ -26,14 +25,8 @@ impl<'a> MaterialData<'a> {
             if maybe_render_pass_pipeline_data.is_some() {
                 let render_pass_pipeline_data = maybe_render_pass_pipeline_data.as_ref().unwrap();
                 let render_pass_pipeline_data_name = get_render_pass_pipeline_data_name(
-                    &render_pass_pipeline_data
-                        ._render_pass_data
-                        .borrow()
-                        ._render_pass_data_name,
-                    &render_pass_pipeline_data
-                        ._pipeline_data
-                        .borrow()
-                        ._pipeline_data_name,
+                    &render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name,
+                    &render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name,
                 );
 
                 // check matched push constant
@@ -58,17 +51,12 @@ impl<'a> MaterialData<'a> {
                         })
                         .collect();
 
-                    for push_constant_data in render_pass_pipeline_data
-                        ._pipeline_data
-                        .borrow()
-                        ._push_constant_data_list
-                        .iter()
+                    for push_constant_data in
+                        render_pass_pipeline_data._pipeline_data.borrow()._push_constant_data_list.iter()
                     {
                         let mut find_push_constant = false;
                         for check_push_consant_name in check_push_consant_names.iter() {
-                            if check_push_consant_name
-                                == push_constant_data._push_constant.get_push_constant_name()
-                            {
+                            if check_push_consant_name == push_constant_data._push_constant.get_push_constant_name() {
                                 find_push_constant = true;
                                 break;
                             }
@@ -77,21 +65,13 @@ impl<'a> MaterialData<'a> {
                         assert!(
                             find_push_constant,
                             "not matched push constants. material name: {:?}, push_constant_names: {:?}, check_push_consant_names: {:?}",
-                            material_data_name,
-                            push_constant_names,
-                            check_push_consant_names
+                            material_data_name, push_constant_names, check_push_consant_names
                         );
                     }
                 }
 
-                log::trace!(
-                    "    renderPass/pipeline: {:?}",
-                    render_pass_pipeline_data_name
-                );
-                render_pass_pipeline_data_map.insert(
-                    render_pass_pipeline_data_name,
-                    render_pass_pipeline_data.clone(),
-                );
+                log::trace!("    renderPass/pipeline: {:?}", render_pass_pipeline_data_name);
+                render_pass_pipeline_data_map.insert(render_pass_pipeline_data_name, render_pass_pipeline_data.clone());
             }
         }
 
@@ -106,12 +86,7 @@ impl<'a> MaterialData<'a> {
         log::debug!("create_material: {}", self._material_data_name);
     }
 
-    pub fn get_render_pass_pipeline_data(
-        &self,
-        render_pass_pipeline_data_name: &str,
-    ) -> &RenderPassPipelineData<'a> {
-        self._render_pass_pipeline_data_map
-            .get(render_pass_pipeline_data_name)
-            .unwrap()
+    pub fn get_render_pass_pipeline_data(&self, render_pass_pipeline_data_name: &str) -> &RenderPassPipelineData<'a> {
+        self._render_pass_pipeline_data_map.get(render_pass_pipeline_data_name).unwrap()
     }
 }

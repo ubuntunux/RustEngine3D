@@ -3,7 +3,7 @@ use std::collections::HashMap;
 
 use crate::constants;
 use crate::vulkan_context::buffer::ShaderBufferData;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use strum_macros::{Display, EnumCount, EnumIter, EnumString};
 

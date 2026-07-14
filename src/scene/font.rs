@@ -1,7 +1,7 @@
 use std::cmp::max;
 
 use ash::ext;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
@@ -10,9 +10,9 @@ use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
-use crate::resource::resource::{EngineResources, DEFAULT_FONT_NAME};
+use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
 use crate::scene::bounding_box::BoundingBox;
-use crate::utilities::system::{newRcRefCell, RcRefCell};
+use crate::utilities::system::{RcRefCell, newRcRefCell};
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
@@ -190,8 +190,7 @@ impl FontVertexData {
 
 impl VertexDataBase for FontVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions =
-            Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         geometry_buffer::add_vertex_input_attribute_description(
             &mut vertex_input_attribute_descriptions,
@@ -221,15 +220,10 @@ impl TextRenderData {
             _font_data: font_data.clone(),
             ..Default::default()
         };
-        text_render_data._font_instance_data_list.resize(
-            constants::MAX_FONT_INSTANCE_COUNT,
-            FontInstanceData::default(),
-        );
-        text_render_data.create_texture_render_data_descriptor_sets(
-            device,
-            debug_utils_device,
-            engine_resources,
-        );
+        text_render_data
+            ._font_instance_data_list
+            .resize(constants::MAX_FONT_INSTANCE_COUNT, FontInstanceData::default());
+        text_render_data.create_texture_render_data_descriptor_sets(device, debug_utils_device, engine_resources);
         text_render_data
     }
 
@@ -239,18 +233,10 @@ impl TextRenderData {
         debug_utils_device: &ext::debug_utils::Device,
         engine_resources: &EngineResources,
     ) {
-        let material_instance = engine_resources
-            .get_material_instance_data("ui/render_font")
-            .borrow();
-        let render_font_pipeline_binding_data =
-            material_instance.get_default_pipeline_binding_data();
+        let material_instance = engine_resources.get_material_instance_data("ui/render_font").borrow();
+        let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
         let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(
-            self._font_data
-                .borrow()
-                ._texture
-                .borrow()
-                .get_default_image_info()
-                .clone(),
+            self._font_data.borrow()._texture.borrow().get_default_image_info().clone(),
         );
         self._render_font_descriptor_sets = utility::create_descriptor_sets_by_semantic(
             device,
@@ -352,11 +338,7 @@ impl FontManager {
         })
     }
 
-    pub fn initialize_font_manager(
-        &mut self,
-        renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
-    ) {
+    pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
         let ascii_font_data = engine_resources.get_font_data(DEFAULT_FONT_NAME);
         self._ascii = ascii_font_data.clone();
         self._text_render_data = TextRenderData::create_text_render_data(
@@ -379,17 +361,15 @@ impl FontManager {
         renderer_context: &RendererContext,
         engine_resources: &EngineResources,
     ) {
-        self._text_render_data
-            .create_texture_render_data_descriptor_sets(
-                renderer_context.get_device(),
-                renderer_context.get_debug_utils(),
-                engine_resources,
-            );
+        self._text_render_data.create_texture_render_data_descriptor_sets(
+            renderer_context.get_device(),
+            renderer_context.get_debug_utils(),
+            engine_resources,
+        );
     }
 
     pub fn destroy_font_descriptor_sets(&mut self) {
-        self._text_render_data
-            .destroy_text_render_data_descriptor_sets();
+        self._text_render_data.destroy_text_render_data_descriptor_sets();
     }
 
     pub fn destroy_font_manager(&mut self, device: &Device) {
@@ -456,14 +436,7 @@ impl FontManager {
 
     pub fn clear_logs(&mut self) {
         self._logs.clear();
-        self._text_render_data.set_text_render_data(
-            String::from(""),
-            &self._ascii,
-            12,
-            0,
-            0,
-            false,
-        );
+        self._text_render_data.set_text_render_data(String::from(""), &self._ascii, 12, 0, 0, false);
     }
 
     pub fn toggle(&mut self) {
@@ -497,15 +470,10 @@ impl FontManager {
                 skip_check,
             );
             let font_data = self._ascii.borrow();
-            let framebuffer_data = engine_resources
-                .get_framebuffer_data("render_font")
-                .borrow();
-            let material_instance_data = engine_resources
-                .get_material_instance_data("ui/render_font")
-                .borrow();
+            let framebuffer_data = engine_resources.get_framebuffer_data("render_font").borrow();
+            let material_instance_data = engine_resources.get_material_instance_data("ui/render_font").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
-            let render_font_descriptor_sets =
-                Some(&self._text_render_data._render_font_descriptor_sets);
+            let render_font_descriptor_sets = Some(&self._text_render_data._render_font_descriptor_sets);
             let font_width_ratio = font_data._font_size.x / font_data._font_size.y;
             let font_size = Vector2::new(
                 render_text_info._render_font_size as f32 * font_width_ratio,
@@ -524,10 +492,8 @@ impl FontManager {
 
             // upload storage buffer
             let text_count = self._text_render_data._render_count;
-            let upload_data =
-                &self._text_render_data._font_instance_data_list[0..text_count as usize];
-            let shader_buffer =
-                renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
+            let upload_data = &self._text_render_data._font_instance_data_list[0..text_count as usize];
+            let shader_buffer = renderer_context.get_shader_buffer_data_from_str("FontInstanceDataBuffer");
             renderer_context.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,

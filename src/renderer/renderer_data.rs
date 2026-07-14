@@ -7,11 +7,11 @@ use crate::constants;
 use crate::constants::{CURRENT_RENDER_OPTION, MAX_FRAME_COUNT};
 use crate::effect::effect_manager::EffectManager;
 use crate::render_pass::ray_tracing::ray_tracing;
-use crate::render_pass::render_object::{
-    depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow,
-};
+use crate::render_pass::render_object::{depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
 use crate::render_pass::render_pass;
-use crate::renderer::push_constants::{PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy, PushConstant_RenderDebug};
+use crate::renderer::push_constants::{
+    PushConstant_BlendCubeMap, PushConstant_GaussianBlur, PushConstant_RenderCopy, PushConstant_RenderDebug,
+};
 use crate::renderer::render_context::{
     RenderContext_Bloom, RenderContext_ClearRenderTargets, RenderContext_CompositeGBuffer,
     RenderContext_HierarchicalMinZ, RenderContext_LightProbe, RenderContext_SceneColorDownSampling,
@@ -42,7 +42,7 @@ use crate::vulkan_context::render_pass::{PipelineData, RenderPassDataCreateInfo}
 use crate::vulkan_context::texture::{self, TextureData};
 use crate::vulkan_context::vulkan_context::{self, MipLevels, SwapchainArray};
 use ash::ext;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector4};
 use serde::{Deserialize, Serialize};
 
@@ -97,7 +97,7 @@ pub enum RenderOption {
     RenderSky = 1 << 3,
     RenderShadow = 1 << 4,
     RenderSSAO = 1 << 5,
-    ALL = 0xffffffff
+    ALL = 0xffffffff,
 }
 
 pub struct RendererData<'a> {
@@ -147,7 +147,8 @@ impl<'a> RendererData<'a> {
 
         self.create_render_targets(renderer_context_ref);
 
-        self.get_fft_ocean_mut().register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
+        self.get_fft_ocean_mut()
+            .register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
     }
 
     pub fn prepare_framebuffer_and_descriptors(
@@ -161,14 +162,8 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::Bloom0)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::BloomTemp0)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::BloomTemp0).as_ref().unwrap(),
         );
 
         // Temporal AA
@@ -176,14 +171,8 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::PostProcessedColor)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::TAAResolve)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
         );
 
         // Hierarchical Min
@@ -191,10 +180,7 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::HierarchicalMinZ)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
         );
 
         // SceneColor Down sampling
@@ -202,10 +188,7 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::SceneColor)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
         );
 
         // SSR
@@ -213,18 +196,9 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::SSR)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::SSRResolved)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::SSRResolvedPrev)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSR).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
             RenderTargetType::SSRResolved,
             RenderTargetType::SSRResolvedPrev,
         );
@@ -234,14 +208,8 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::SSRResolved)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::SSRResolvedPrev)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
         );
 
         // RenderContext_LightProbe
@@ -249,65 +217,20 @@ impl<'a> RendererData<'a> {
             device,
             debug_utils_device,
             engine_resources,
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeColor)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeColorOnlySky)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeColorOnlySkyPrev)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeColorForward)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeColorForwardPrev)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeAtmosphereColor)
-                .as_ref()
-                .unwrap(),
-            self._render_target_data_map
-                .get(&RenderTargetType::LightProbeAtmosphereInscatter)
-                .as_ref()
-                .unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereColor).as_ref().unwrap(),
+            self._render_target_data_map.get(&RenderTargetType::LightProbeAtmosphereInscatter).as_ref().unwrap(),
             &[
-                &self
-                    ._shader_buffer_data_map
-                    .get(&ShaderBufferDataType::LightProbeViewConstants0)
-                    .as_ref()
-                    .unwrap(),
-                &self
-                    ._shader_buffer_data_map
-                    .get(&ShaderBufferDataType::LightProbeViewConstants1)
-                    .as_ref()
-                    .unwrap(),
-                &self
-                    ._shader_buffer_data_map
-                    .get(&ShaderBufferDataType::LightProbeViewConstants2)
-                    .as_ref()
-                    .unwrap(),
-                &self
-                    ._shader_buffer_data_map
-                    .get(&ShaderBufferDataType::LightProbeViewConstants3)
-                    .as_ref()
-                    .unwrap(),
-                &self
-                    ._shader_buffer_data_map
-                    .get(&ShaderBufferDataType::LightProbeViewConstants4)
-                    .as_ref()
-                    .unwrap(),
-                &self
-                    ._shader_buffer_data_map
-                    .get(&ShaderBufferDataType::LightProbeViewConstants5)
-                    .as_ref()
-                    .unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants0).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants1).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants2).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants3).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants4).as_ref().unwrap(),
+                &self._shader_buffer_data_map.get(&ShaderBufferDataType::LightProbeViewConstants5).as_ref().unwrap(),
             ],
         );
 
@@ -322,15 +245,10 @@ impl<'a> RendererData<'a> {
         // TEST CODE
         if self.get_renderer_context().get_use_ray_tracing() {
             log::info!(">>> TEST CODE: RayTracing create_descriptor_sets");
-            let material_instance = engine_resources
-                .get_material_instance_data("ray_tracing/ray_tracing")
-                .borrow();
-            let render_ray_tracing_pipeline_binding_data =
-                material_instance.get_default_pipeline_binding_data();
-            let top_level_descriptor_resource_info = self
-                .get_renderer_context()
-                ._ray_tracing_test_data
-                .get_top_level_descriptor_resource_info();
+            let material_instance = engine_resources.get_material_instance_data("ray_tracing/ray_tracing").borrow();
+            let render_ray_tracing_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
+            let top_level_descriptor_resource_info =
+                self.get_renderer_context()._ray_tracing_test_data.get_top_level_descriptor_resource_info();
             let _render_ray_tracing_descriptor_sets = utility::create_descriptor_sets_by_semantic(
                 device,
                 debug_utils_device,
@@ -348,27 +266,99 @@ impl<'a> RendererData<'a> {
             debug_utils_device,
             engine_resources,
             &[
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING).as_ref().unwrap(), vulkan_context::get_color_clear_zero()),
-                (*self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(), vulkan_context::get_default_depth_clear_value()),
-                (*self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(), vulkan_context::get_default_depth_clear_value()),
-                (*self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(), vulkan_context::get_default_depth_clear_value()),
-            ]
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::LightProbeColor).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySky).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::LightProbeColorOnlySkyPrev).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::LightProbeColorForward).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::LightProbeColorForwardPrev).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::Bloom0).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::SceneColor).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::PostProcessedColor).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::SSRResolved).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::SSRResolvedPrev).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::TAAResolve).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::FFT_A).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::FFT_B).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::HierarchicalMinZ).as_ref().unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self
+                        ._render_target_data_map
+                        .get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED)
+                        .as_ref()
+                        .unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self
+                        ._render_target_data_map
+                        .get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV)
+                        .as_ref()
+                        .unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self
+                        ._render_target_data_map
+                        .get(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING)
+                        .as_ref()
+                        .unwrap(),
+                    vulkan_context::get_color_clear_zero(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::SceneDepth).as_ref().unwrap(),
+                    vulkan_context::get_default_depth_clear_value(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::Shadow).as_ref().unwrap(),
+                    vulkan_context::get_default_depth_clear_value(),
+                ),
+                (
+                    *self._render_target_data_map.get(&RenderTargetType::LightProbeDepth).as_ref().unwrap(),
+                    vulkan_context::get_default_depth_clear_value(),
+                ),
+            ],
         );
     }
 
@@ -413,15 +403,12 @@ impl<'a> RendererData<'a> {
     }
     pub fn create_render_targets(&mut self, renderer_context: &RendererContext) {
         log::info!("create_render_targets");
-        let render_target_create_infos =
-            render_target::get_render_target_create_infos(renderer_context);
+        let render_target_create_infos = render_target::get_render_target_create_infos(renderer_context);
         for render_target_create_info in render_target_create_infos.iter() {
             let render_target_type: RenderTargetType =
-                RenderTargetType::from_str(render_target_create_info._texture_name.as_str())
-                    .unwrap();
+                RenderTargetType::from_str(render_target_create_info._texture_name.as_str()).unwrap();
             let texture_data = renderer_context.create_render_target(render_target_create_info);
-            self._render_target_data_map
-                .insert(render_target_type, texture_data);
+            self._render_target_data_map.insert(render_target_type, texture_data);
         }
     }
     pub fn destroy_render_targets(&mut self, device: &Device) {
@@ -481,10 +468,9 @@ impl<'a> RendererData<'a> {
             self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
             self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
             scene_manager.get_render_point_light_count(),
-            self._render_option
+            self._render_option,
         );
-        self._view_constants
-            .update_view_constants(&main_camera, capture_height_map);
+        self._view_constants.update_view_constants(&main_camera, capture_height_map);
 
         // upload constants
         self.upload_shader_buffer_data(
@@ -569,7 +555,7 @@ impl<'a> RendererData<'a> {
             _render_context_light_probe: RenderContext_LightProbe::default(),
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
-            _render_option: unsafe { CURRENT_RENDER_OPTION as u32 }
+            _render_option: unsafe { CURRENT_RENDER_OPTION as u32 },
         }
     }
 
@@ -597,10 +583,7 @@ impl<'a> RendererData<'a> {
     pub fn get_atmosphere_mut(&self) -> &mut Atmosphere<'a> {
         ptr_as_mut(&self._atmosphere)
     }
-    pub fn get_shader_buffer_data(
-        &self,
-        buffer_data_type: &ShaderBufferDataType,
-    ) -> &ShaderBufferData<'a> {
+    pub fn get_shader_buffer_data(&self, buffer_data_type: &ShaderBufferDataType) -> &ShaderBufferData<'a> {
         &self._shader_buffer_data_map.get(buffer_data_type).unwrap()
     }
 
@@ -637,9 +620,7 @@ impl<'a> RendererData<'a> {
 
     pub fn next_debug_render_target_miplevel(&mut self) {
         let texture_data: &TextureData = self.get_render_target(self._debug_render_target);
-        self._debug_render_target_miplevel = texture_data
-            ._image_mip_levels
-            .min(self._debug_render_target_miplevel + 1);
+        self._debug_render_target_miplevel = texture_data._image_mip_levels.min(self._debug_render_target_miplevel + 1);
         log::info!(
             "Current DebugRenderTarget: {:?} mip({})",
             self._debug_render_target,
@@ -659,10 +640,7 @@ impl<'a> RendererData<'a> {
     }
 
     pub fn get_render_target(&self, render_target_type: RenderTargetType) -> &TextureData {
-        &self
-            ._render_target_data_map
-            .get(&render_target_type)
-            .unwrap()
+        &self._render_target_data_map.get(&render_target_type).unwrap()
     }
 
     pub fn upload_shader_buffer_data<T>(
@@ -706,14 +684,13 @@ impl<'a> RendererData<'a> {
         offset: vk::DeviceSize,
     ) {
         let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
-        self.get_renderer_context()
-            .upload_shader_buffer_data_offset(
-                command_buffer,
-                swapchain_index,
-                shader_buffer_data,
-                upload_data,
-                offset,
-            );
+        self.get_renderer_context().upload_shader_buffer_data_offset(
+            command_buffer,
+            swapchain_index,
+            shader_buffer_data,
+            upload_data,
+            offset,
+        );
     }
 
     pub fn upload_shader_buffer_data_list_offset<T: Copy>(
@@ -725,14 +702,13 @@ impl<'a> RendererData<'a> {
         offset: vk::DeviceSize,
     ) {
         let shader_buffer_data = self.get_shader_buffer_data(shader_buffer_data_type);
-        self.get_renderer_context()
-            .upload_shader_buffer_data_list_offset(
-                command_buffer,
-                swapchain_index,
-                shader_buffer_data,
-                upload_data,
-                offset,
-            );
+        self.get_renderer_context().upload_shader_buffer_data_list_offset(
+            command_buffer,
+            swapchain_index,
+            shader_buffer_data,
+            upload_data,
+            offset,
+        );
     }
 
     pub fn clear_render_targets(
@@ -748,33 +724,20 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "clear_render_targets",
         );
-        let material_instance_data = engine_resources
-            .get_material_instance_data("common/clear_render_target")
-            .borrow();
-        for (_, framebuffers) in self
-            ._render_context_clear_render_targets
-            ._color_framebuffer_data_list
-            .iter()
-        {
+        let material_instance_data = engine_resources.get_material_instance_data("common/clear_render_target").borrow();
+        for (_, framebuffers) in self._render_context_clear_render_targets._color_framebuffer_data_list.iter() {
             let default_frame_buffer = &framebuffers[0][0];
             let mut render_pass_pipeline_name = String::from("clear");
-            for attachment_format in default_frame_buffer
-                ._framebuffer_info
-                ._framebuffer_color_attachment_formats
-                .iter()
+            for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_color_attachment_formats.iter()
             {
                 render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
             }
-            for attachment_format in default_frame_buffer
-                ._framebuffer_info
-                ._framebuffer_depth_attachment_formats
-                .iter()
+            for attachment_format in default_frame_buffer._framebuffer_info._framebuffer_depth_attachment_formats.iter()
             {
                 render_pass_pipeline_name.push_str(&format!("_{:?}", attachment_format));
             }
             render_pass_pipeline_name.push_str("/clear");
-            let pipeline_binding_data =
-                material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
+            let pipeline_binding_data = material_instance_data.get_pipeline_binding_data(&render_pass_pipeline_name);
             for layer in 0..framebuffers.len() {
                 for mip_level in 0..framebuffers[layer].len() {
                     renderer_context.begin_render_pass_pipeline(
@@ -801,21 +764,16 @@ impl<'a> RendererData<'a> {
         image_width: u32,
         push_constant_data: Option<&PushConstant_BlendCubeMap>,
     ) {
-        let copy_cube_map_material_instance = engine_resources
-            .get_material_instance_data("common/copy_cube_map")
-            .borrow();
-        let pipeline_binding_data = copy_cube_map_material_instance
-            .get_pipeline_binding_data(render_pass_pipeline_data_name);
+        let copy_cube_map_material_instance =
+            engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
+        let pipeline_binding_data =
+            copy_cube_map_material_instance.get_pipeline_binding_data(render_pass_pipeline_data_name);
         let pipeline_data = pipeline_binding_data.get_pipeline_data().borrow();
         renderer_context.begin_compute_pipeline(command_buffer, &pipeline_data);
         let mip_levels = mip_level_descriptor_sets.len();
         for mip_level in 0..mip_levels {
             if let Some(push_constant_data) = push_constant_data {
-                renderer_context.upload_push_constant_data(
-                    command_buffer,
-                    &pipeline_data,
-                    push_constant_data,
-                );
+                renderer_context.upload_push_constant_data(command_buffer, &pipeline_data, push_constant_data);
             }
             let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
             renderer_context.bind_descriptor_sets(
@@ -825,12 +783,7 @@ impl<'a> RendererData<'a> {
                 descriptor_sets,
             );
             let dispatch_count: u32 = (Wrapping(image_width) >> mip_level).0;
-            renderer_context.dispatch_compute_pipeline(
-                command_buffer,
-                dispatch_count,
-                dispatch_count,
-                1,
-            );
+            renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
         }
     }
 
@@ -857,11 +810,9 @@ impl<'a> RendererData<'a> {
             material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
         let composite_atmosphere_pipeline_binding_data =
             material_instance_data.get_pipeline_binding_data("composite_atmosphere/default");
-        let downsampling_material_instance = engine_resources
-            .get_material_instance_data("common/downsampling")
-            .borrow();
-        let downsampling_pipeline_binding_data =
-            downsampling_material_instance.get_default_pipeline_binding_data();
+        let downsampling_material_instance =
+            engine_resources.get_material_instance_data("common/downsampling").borrow();
+        let downsampling_pipeline_binding_data = downsampling_material_instance.get_default_pipeline_binding_data();
         let mut light_probe_view_constants = shader_buffer_data::ViewConstants::default();
         let light_probe_view_constant_types = [
             ShaderBufferDataType::LightProbeViewConstants0,
@@ -884,24 +835,17 @@ impl<'a> RendererData<'a> {
             swapchain_index,
             engine_resources,
             "copy_cube_map/copy",
-            &self
-                ._render_context_light_probe
-                ._only_sky_copy_descriptor_sets,
+            &self._render_context_light_probe._only_sky_copy_descriptor_sets,
             constants::LIGHT_PROBE_SIZE,
             None,
         );
 
         // render atmosphere, inscatter
         for layer_index in 0..constants::CUBE_LAYER_COUNT {
-            let mut light_probe_camera = scene_manager
-                .get_light_probe_camera(layer_index)
-                .borrow_mut();
-            light_probe_camera
-                ._transform_object
-                .set_position(main_camera_position);
+            let mut light_probe_camera = scene_manager.get_light_probe_camera(layer_index).borrow_mut();
+            light_probe_camera._transform_object.set_position(main_camera_position);
             light_probe_camera.update_camera_object_data();
-            light_probe_view_constants
-                .update_view_constants(&light_probe_camera, capture_height_map);
+            light_probe_view_constants.update_view_constants(&light_probe_camera, capture_height_map);
             self.upload_shader_buffer_data(
                 command_buffer,
                 swapchain_index,
@@ -915,16 +859,8 @@ impl<'a> RendererData<'a> {
                 swapchain_index,
                 render_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
-                Some(
-                    &self
-                        ._render_context_light_probe
-                        ._render_atmosphere_framebuffer_data_list[layer_index],
-                ),
-                Some(
-                    &self
-                        ._render_context_light_probe
-                        ._render_atmosphere_descriptor_sets[layer_index],
-                ),
+                Some(&self._render_context_light_probe._render_atmosphere_framebuffer_data_list[layer_index]),
+                Some(&self._render_context_light_probe._render_atmosphere_descriptor_sets[layer_index]),
                 Some(&render_atmosphere_push_constants),
             );
 
@@ -935,28 +871,19 @@ impl<'a> RendererData<'a> {
                 composite_atmosphere_pipeline_binding_data,
                 quad_geometry_data,
                 Some(
-                    &self
-                        ._render_context_light_probe
-                        ._composite_atmosphere_framebuffer_data_list_only_sky[layer_index],
+                    &self._render_context_light_probe._composite_atmosphere_framebuffer_data_list_only_sky[layer_index],
                 ),
-                Some(
-                    &self
-                        ._render_context_light_probe
-                        ._composite_atmosphere_descriptor_sets[layer_index],
-                ),
+                Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
                 None,
             );
 
             // downsampling for only sky
             renderer_context.begin_compute_pipeline(
                 command_buffer,
-                &downsampling_pipeline_binding_data
-                    .get_pipeline_data()
-                    .borrow(),
+                &downsampling_pipeline_binding_data.get_pipeline_data().borrow(),
             );
-            let mip_level_descriptor_sets = &self
-                ._render_context_light_probe
-                ._only_sky_downsampling_descriptor_sets[layer_index];
+            let mip_level_descriptor_sets =
+                &self._render_context_light_probe._only_sky_downsampling_descriptor_sets[layer_index];
             let mip_levels = mip_level_descriptor_sets.len();
             for mip_level in 0..mip_levels {
                 let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
@@ -967,12 +894,7 @@ impl<'a> RendererData<'a> {
                     descriptor_sets,
                 );
                 let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
-                renderer_context.dispatch_compute_pipeline(
-                    command_buffer,
-                    dispatch_count,
-                    dispatch_count,
-                    1,
-                );
+                renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
             }
         }
 
@@ -985,9 +907,7 @@ impl<'a> RendererData<'a> {
                 swapchain_index,
                 engine_resources,
                 "copy_cube_map/copy",
-                &self
-                    ._render_context_light_probe
-                    ._light_probe_forward_copy_descriptor_sets,
+                &self._render_context_light_probe._light_probe_forward_copy_descriptor_sets,
                 constants::LIGHT_PROBE_SIZE,
                 None,
             );
@@ -1019,16 +939,8 @@ impl<'a> RendererData<'a> {
                     swapchain_index,
                     composite_atmosphere_pipeline_binding_data,
                     quad_geometry_data,
-                    Some(
-                        &self
-                            ._render_context_light_probe
-                            ._composite_atmosphere_framebuffer_data_list[layer_index],
-                    ),
-                    Some(
-                        &self
-                            ._render_context_light_probe
-                            ._composite_atmosphere_descriptor_sets[layer_index],
-                    ),
+                    Some(&self._render_context_light_probe._composite_atmosphere_framebuffer_data_list[layer_index]),
+                    Some(&self._render_context_light_probe._composite_atmosphere_descriptor_sets[layer_index]),
                     None,
                 );
 
@@ -1037,23 +949,17 @@ impl<'a> RendererData<'a> {
                     renderer_context,
                     command_buffer,
                     swapchain_index,
-                    render_forward_for_light_probe::get_render_pass_name(
-                        RenderObjectType::Static,
-                        layer_index as u32,
-                    ),
+                    render_forward_for_light_probe::get_render_pass_name(RenderObjectType::Static, layer_index as u32),
                     static_render_elements,
                 );
 
                 // downsampling light probe
                 renderer_context.begin_compute_pipeline(
                     command_buffer,
-                    &downsampling_pipeline_binding_data
-                        .get_pipeline_data()
-                        .borrow(),
+                    &downsampling_pipeline_binding_data.get_pipeline_data().borrow(),
                 );
-                let mip_level_descriptor_sets = &self
-                    ._render_context_light_probe
-                    ._light_probe_downsampling_descriptor_sets[layer_index];
+                let mip_level_descriptor_sets =
+                    &self._render_context_light_probe._light_probe_downsampling_descriptor_sets[layer_index];
                 let mip_levels = mip_level_descriptor_sets.len();
                 for mip_level in 0..mip_levels {
                     let descriptor_sets = Some(&mip_level_descriptor_sets[mip_level]);
@@ -1064,12 +970,7 @@ impl<'a> RendererData<'a> {
                         descriptor_sets,
                     );
                     let dispatch_count = constants::LIGHT_PROBE_SIZE >> (mip_level + 1);
-                    renderer_context.dispatch_compute_pipeline(
-                        command_buffer,
-                        dispatch_count,
-                        dispatch_count,
-                        1,
-                    );
+                    renderer_context.dispatch_compute_pipeline(command_buffer, dispatch_count, dispatch_count, 1);
                 }
             }
         }
@@ -1098,9 +999,11 @@ impl<'a> RendererData<'a> {
             let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
             for render_element in render_elements.iter() {
                 let material_instance = render_element._material_instance_data.borrow();
-                let render_pass_pipeline_data_names = material_instance.get_render_pass_pipeline_data_names(render_pass_name);
+                let render_pass_pipeline_data_names =
+                    material_instance.get_render_pass_pipeline_data_names(render_pass_name);
                 for render_pass_pipeline_data_name in render_pass_pipeline_data_names.iter() {
-                    let pipeline_binding_data: *const PipelineBindingData = material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
+                    let pipeline_binding_data: *const PipelineBindingData =
+                        material_instance.get_pipeline_binding_data(&render_pass_pipeline_data_name);
                     let render_pass_data = &(*pipeline_binding_data).get_render_pass_data().borrow();
                     let pipeline_data = (*pipeline_binding_data).get_pipeline_data();
                     let pipeline_data_ptr: *const PipelineData = pipeline_data.as_ptr();
@@ -1187,9 +1090,7 @@ impl<'a> RendererData<'a> {
         );
 
         let ray_tracing_properties = renderer_context.get_ray_tracing_properties();
-        let material_instance = engine_resources
-            .get_material_instance_data("ray_tracing/ray_tracing")
-            .borrow();
+        let material_instance = engine_resources.get_material_instance_data("ray_tracing/ray_tracing").borrow();
         let pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
 
@@ -1229,12 +1130,7 @@ impl<'a> RendererData<'a> {
                     pipeline_data._pipeline,
                 );
 
-                renderer_context.bind_descriptor_sets(
-                    command_buffer,
-                    swapchain_index,
-                    pipeline_binding_data,
-                    None,
-                );
+                renderer_context.bind_descriptor_sets(command_buffer, swapchain_index, pipeline_binding_data, None);
 
                 renderer_context._ray_tracing.cmd_trace_rays(
                     command_buffer,
@@ -1263,12 +1159,7 @@ impl<'a> RendererData<'a> {
         swapchain_index: u32,
         engine_resources: &EngineResources<'a>,
     ) {
-        self.get_effect_manager().render_effects(
-            command_buffer,
-            swapchain_index,
-            self,
-            &engine_resources,
-        );
+        self.get_effect_manager().render_effects(command_buffer, swapchain_index, self, &engine_resources);
     }
 
     pub fn render_bound_box(
@@ -1280,12 +1171,10 @@ impl<'a> RendererData<'a> {
         geometry_data: &GeometryData,
         bound_box_matrices: &Vec<BoundBoxInstanceData>,
     ) {
-        let instance_count =
-            constants::MAX_BOUND_BOX_INSTANCE_COUNT.min(bound_box_matrices.len()) as u32;
+        let instance_count = constants::MAX_BOUND_BOX_INSTANCE_COUNT.min(bound_box_matrices.len()) as u32;
         if 0 < instance_count {
-            let material_instance_data = engine_resources
-                .get_material_instance_data("common/render_bound_box")
-                .borrow();
+            let material_instance_data =
+                engine_resources.get_material_instance_data("common/render_bound_box").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
             let descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
 
@@ -1320,11 +1209,8 @@ impl<'a> RendererData<'a> {
         quad_geometry_data: &GeometryData,
     ) {
         // render_taa
-        let _label_render_taa = ScopedDebugLabel::create_scoped_cmd_label(
-            renderer_context.get_debug_utils(),
-            command_buffer,
-            "render_taa",
-        );
+        let _label_render_taa =
+            ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_taa");
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,
@@ -1366,11 +1252,10 @@ impl<'a> RendererData<'a> {
             "render_bloom",
         );
         // render_bloom_highlight
-        let render_bloom_material_instance_data = engine_resources
-            .get_material_instance_data("common/render_bloom")
-            .borrow();
-        let pipeline_binding_data = render_bloom_material_instance_data
-            .get_pipeline_binding_data("render_bloom/render_bloom_highlight");
+        let render_bloom_material_instance_data =
+            engine_resources.get_material_instance_data("common/render_bloom").borrow();
+        let pipeline_binding_data =
+            render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_highlight");
         renderer_context.render_render_pass_pipeline(
             command_buffer,
             swapchain_index,
@@ -1382,38 +1267,26 @@ impl<'a> RendererData<'a> {
         );
 
         // render_bloom_downsampling
-        let pipeline_binding_data = render_bloom_material_instance_data
-            .get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
-        let framebuffer_count = self
-            ._render_context_bloom
-            ._bloom_downsample_framebuffer_data_list
-            .len();
+        let pipeline_binding_data =
+            render_bloom_material_instance_data.get_pipeline_binding_data("render_bloom/render_bloom_downsampling");
+        let framebuffer_count = self._render_context_bloom._bloom_downsample_framebuffer_data_list.len();
         for i in 0..framebuffer_count {
             renderer_context.render_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
                 pipeline_binding_data,
                 quad_geometry_data,
-                Some(
-                    &self
-                        ._render_context_bloom
-                        ._bloom_downsample_framebuffer_data_list[i],
-                ),
+                Some(&self._render_context_bloom._bloom_downsample_framebuffer_data_list[i]),
                 Some(&self._render_context_bloom._bloom_downsample_descriptor_sets[i]),
                 None,
             );
         }
 
         // render_gaussian_blur
-        let render_gaussian_blur_material_instance_data = engine_resources
-            .get_material_instance_data("common/render_gaussian_blur")
-            .borrow();
-        let pipeline_binding_data =
-            render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
-        let framebuffer_count = self
-            ._render_context_bloom
-            ._bloom_temp_framebuffer_data_list
-            .len();
+        let render_gaussian_blur_material_instance_data =
+            engine_resources.get_material_instance_data("common/render_gaussian_blur").borrow();
+        let pipeline_binding_data = render_gaussian_blur_material_instance_data.get_default_pipeline_binding_data();
+        let framebuffer_count = self._render_context_bloom._bloom_temp_framebuffer_data_list.len();
         for i in 0..framebuffer_count {
             renderer_context.render_render_pass_pipeline(
                 command_buffer,
@@ -1442,11 +1315,8 @@ impl<'a> RendererData<'a> {
         quad_geometry_data: &GeometryData,
     ) {
         // Screen Space Reflection
-        let _label_render_ssr = ScopedDebugLabel::create_scoped_cmd_label(
-            renderer_context.get_debug_utils(),
-            command_buffer,
-            "render_ssr",
-        );
+        let _label_render_ssr =
+            ScopedDebugLabel::create_scoped_cmd_label(renderer_context.get_debug_utils(), command_buffer, "render_ssr");
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,
@@ -1521,12 +1391,8 @@ impl<'a> RendererData<'a> {
             "composite_gbuffer",
         );
         let descriptor_sets = match self._render_context_ssr._current_taa_resolved {
-            RenderTargetType::SSRResolved => {
-                Some(&self._render_context_composite_gbuffer._descriptor_sets0)
-            }
-            RenderTargetType::SSRResolvedPrev => {
-                Some(&self._render_context_composite_gbuffer._descriptor_sets1)
-            }
+            RenderTargetType::SSRResolved => Some(&self._render_context_composite_gbuffer._descriptor_sets0),
+            RenderTargetType::SSRResolvedPrev => Some(&self._render_context_composite_gbuffer._descriptor_sets1),
             _ => panic!("error"),
         };
         renderer_context.render_material_instance(
@@ -1568,11 +1434,8 @@ impl<'a> RendererData<'a> {
         );
 
         // Generate Hierarchical Min Z
-        let material_instance_data = engine_resources
-            .get_material_instance_data("common/generate_min_z")
-            .borrow();
-        let pipeline_binding_data =
-            material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
+        let material_instance_data = engine_resources.get_material_instance_data("common/generate_min_z").borrow();
+        let pipeline_binding_data = material_instance_data.get_pipeline_binding_data("generate_min_z/generate_min_z");
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
         let dispatch_count = self._render_context_hiz._descriptor_sets.len();
         renderer_context.begin_compute_pipeline(command_buffer, pipeline_data);
@@ -1605,22 +1468,13 @@ impl<'a> RendererData<'a> {
             "scene_color_downsampling",
         );
         let engine_resources = renderer_context.get_engine_resources();
-        let material_instance_data = engine_resources
-            .get_material_instance_data("common/downsampling")
-            .borrow();
+        let material_instance_data = engine_resources.get_material_instance_data("common/downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
-        let dispatch_count = self
-            ._render_context_scene_color_downsampling
-            ._descriptor_sets
-            .len();
+        let dispatch_count = self._render_context_scene_color_downsampling._descriptor_sets.len();
         renderer_context.begin_compute_pipeline(command_buffer, pipeline_data);
         for mip_level in 0..dispatch_count {
-            let descriptor_sets = Some(
-                &self
-                    ._render_context_scene_color_downsampling
-                    ._descriptor_sets[mip_level],
-            );
+            let descriptor_sets = Some(&self._render_context_scene_color_downsampling._descriptor_sets[mip_level]);
             renderer_context.bind_descriptor_sets(
                 command_buffer,
                 swapchain_index,
@@ -1629,12 +1483,8 @@ impl<'a> RendererData<'a> {
             );
             renderer_context.dispatch_compute_pipeline(
                 command_buffer,
-                self._render_context_scene_color_downsampling
-                    ._dispatch_group_x
-                    >> (mip_level + 1),
-                self._render_context_scene_color_downsampling
-                    ._dispatch_group_y
-                    >> (mip_level + 1),
+                self._render_context_scene_color_downsampling._dispatch_group_x >> (mip_level + 1),
+                self._render_context_scene_color_downsampling._dispatch_group_y >> (mip_level + 1),
                 1,
             );
         }
@@ -1648,40 +1498,20 @@ impl<'a> RendererData<'a> {
         quad_geometry_data: &GeometryData,
     ) {
         // Generate Hierarchical Min Z
-        self.generate_min_z(
-            renderer_context,
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-        );
+        self.generate_min_z(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // Screen Space Reflection
         if self.has_render_option(RenderOption::RenderSSR) {
-            self.render_ssr(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                quad_geometry_data,
-            );
+            self.render_ssr(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
         }
 
         // ShadowAO
         if self.has_render_option(RenderOption::RenderShadow) {
-            self.render_shadow_ao(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                quad_geometry_data,
-            );
+            self.render_shadow_ao(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
         }
 
         // Composite GBuffer
-        self.composite_gbuffer(
-            renderer_context,
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-        );
+        self.composite_gbuffer(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // SceneColor Downsampling
         self.scene_color_downsampling(command_buffer, swapchain_index, renderer_context);
@@ -1696,12 +1526,7 @@ impl<'a> RendererData<'a> {
         engine_resources: &EngineResources<'a>,
     ) {
         // TAA
-        self.render_taa(
-            renderer_context,
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-        );
+        self.render_taa(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // Bloom
         self.render_bloom(
@@ -1810,12 +1635,7 @@ impl<'a> RendererData<'a> {
             }
 
             if self.has_render_option(RenderOption::RenderAtmosphere) {
-                self._atmosphere.precompute(
-                    command_buffer,
-                    swapchain_index,
-                    &quad_geometry_data,
-                    renderer_context,
-                );
+                self._atmosphere.precompute(command_buffer, swapchain_index, &quad_geometry_data, renderer_context);
             }
         }
 
@@ -1831,8 +1651,7 @@ impl<'a> RendererData<'a> {
                 );
             }
 
-            if capture_height_map.need_to_read_back_height_map(renderer_context.get_render_frame())
-            {
+            if capture_height_map.need_to_read_back_height_map(renderer_context.get_render_frame()) {
                 capture_height_map.read_back_height_map(command_buffer, renderer_context, self);
             }
         }
@@ -1929,7 +1748,9 @@ impl<'a> RendererData<'a> {
         }
 
         // light probe
-        if self._render_context_light_probe._next_refresh_time <= elapsed_time || self._render_context_light_probe._light_probe_capture_count < MAX_FRAME_COUNT {
+        if self._render_context_light_probe._next_refresh_time <= elapsed_time
+            || self._render_context_light_probe._light_probe_capture_count < MAX_FRAME_COUNT
+        {
             let _label_render_light_probe = ScopedDebugLabel::create_scoped_cmd_label(
                 renderer_context.get_debug_utils(),
                 command_buffer,
@@ -1946,7 +1767,8 @@ impl<'a> RendererData<'a> {
                 capture_height_map,
                 static_render_elements,
             );
-            self._render_context_light_probe._next_refresh_time = elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
+            self._render_context_light_probe._next_refresh_time =
+                elapsed_time + self._render_context_light_probe._light_probe_refresh_term;
             self._render_context_light_probe._light_probe_blend_time = 0.0;
             self._render_context_light_probe._light_probe_capture_count += 1;
         }
@@ -1962,8 +1784,8 @@ impl<'a> RendererData<'a> {
                 "copy_cube_map",
             );
             self._render_context_light_probe._light_probe_blend_time += delta_time;
-            let blend_ratio: f64 = 1.0f64
-                .min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
+            let blend_ratio: f64 =
+                1.0f64.min(self._render_context_light_probe._light_probe_blend_time / light_probe_term);
             self.copy_cube_map(
                 renderer_context,
                 command_buffer,
@@ -1971,13 +1793,9 @@ impl<'a> RendererData<'a> {
                 &engine_resources,
                 "copy_cube_map/blend",
                 if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
-                    &self
-                        ._render_context_light_probe
-                        ._light_probe_blend_from_forward_descriptor_sets
+                    &self._render_context_light_probe._light_probe_blend_from_forward_descriptor_sets
                 } else {
-                    &self
-                        ._render_context_light_probe
-                        ._light_probe_blend_from_only_sky_descriptor_sets
+                    &self._render_context_light_probe._light_probe_blend_from_only_sky_descriptor_sets
                 },
                 constants::LIGHT_PROBE_SIZE,
                 Some(&PushConstant_BlendCubeMap {
@@ -2029,12 +1847,7 @@ impl<'a> RendererData<'a> {
                 );
                 effect_manager.set_need_to_clear_gpu_particle_buffer(false);
             }
-            effect_manager.process_gpu_particles(
-                command_buffer,
-                swapchain_index,
-                self,
-                &engine_resources,
-            );
+            effect_manager.process_gpu_particles(command_buffer, swapchain_index, self, &engine_resources);
         }
 
         // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scene color
@@ -2044,12 +1857,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "pre_process",
             );
-            self.render_pre_process(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-            );
+            self.render_pre_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data);
         }
 
         // render ocean
@@ -2059,12 +1867,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_ocean",
             );
-            self._fft_ocean.render_ocean(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-            );
+            self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
 
         // render atmosphere
@@ -2101,12 +1904,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_ray_tracing",
             );
-            self.render_ray_tracing(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &engine_resources,
-            );
+            self.render_ray_tracing(renderer_context, command_buffer, swapchain_index, &engine_resources);
         }
 
         // post-process: taa, bloom, motion blur
@@ -2171,12 +1969,7 @@ impl<'a> RendererData<'a> {
                 "render_debug_line",
             );
 
-            debug_line_manager.render_debug_line(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-            );
+            debug_line_manager.render_debug_line(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
 
         // Render UI
@@ -2186,12 +1979,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_ui",
             );
-            ui_manager.render_ui(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &engine_resources,
-            );
+            ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
         }
 
         // Render Debug
@@ -2201,20 +1989,15 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_debug",
             );
-            let mut render_debug_material_instance_data = engine_resources
-                .get_material_instance_data(&"common/render_debug")
-                .borrow_mut();
+            let mut render_debug_material_instance_data =
+                engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
             let mut render_debug_pipeline_binding_data =
                 render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
             renderer_context.begin_render_pass_pipeline(
                 command_buffer,
                 swapchain_index,
-                &render_debug_pipeline_binding_data
-                    .get_render_pass_data()
-                    .borrow(),
-                &render_debug_pipeline_binding_data
-                    .get_pipeline_data()
-                    .borrow(),
+                &render_debug_pipeline_binding_data.get_render_pass_data().borrow(),
+                &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
                 None,
             );
 
@@ -2230,16 +2013,12 @@ impl<'a> RendererData<'a> {
                 swapchain_index,
                 &mut render_debug_pipeline_binding_data,
                 descriptor_index,
-                &DescriptorResourceInfo::DescriptorImageInfo(
-                    debug_texture_data.get_default_image_info(),
-                ),
+                &DescriptorResourceInfo::DescriptorImageInfo(debug_texture_data.get_default_image_info()),
             );
 
             renderer_context.upload_push_constant_data(
                 command_buffer,
-                &render_debug_pipeline_binding_data
-                    .get_pipeline_data()
-                    .borrow(),
+                &render_debug_pipeline_binding_data.get_pipeline_data().borrow(),
                 &PushConstant_RenderDebug {
                     _debug_target: debug_texture_data.get_image_view_type().as_raw() as u32,
                     _mip_level: self._debug_render_target_miplevel,

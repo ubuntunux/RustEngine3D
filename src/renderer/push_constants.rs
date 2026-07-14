@@ -28,10 +28,7 @@ pub trait PushConstant: PushConstantClone + PushConstantSize + PushConstantName 
         false
     }
 
-    fn update_material_parameters(
-        &mut self,
-        material_parameters: &serde_json::Map<String, serde_json::Value>,
-    ) {
+    fn update_material_parameters(&mut self, material_parameters: &serde_json::Map<String, serde_json::Value>) {
         for (key, value) in material_parameters {
             self.set_push_constant_parameter(key, &convert_json_value_to_push_constant_parameter(value));
         }
@@ -71,9 +68,7 @@ impl<T> PushConstantSize for T {
         std::mem::size_of::<T>() as u32
     }
     fn convert_to_bytes(&self) -> &[u8] {
-        unsafe {
-            std::slice::from_raw_parts((self as *const T) as *const u8, std::mem::size_of::<T>())
-        }
+        unsafe { std::slice::from_raw_parts((self as *const T) as *const u8, std::mem::size_of::<T>()) }
     }
 }
 

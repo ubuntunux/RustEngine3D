@@ -59,9 +59,7 @@ pub enum RenderTargetType {
     MaxBound,
 }
 
-pub fn get_render_target_create_infos(
-    renderer_context: &RendererContext,
-) -> Vec<TextureCreateInfo<u8>> {
+pub fn get_render_target_create_infos(renderer_context: &RendererContext) -> Vec<TextureCreateInfo<u8>> {
     let swapchain_data = &renderer_context._swapchain_data;
     let window_width = swapchain_data._swapchain_extent.width;
     let window_height = swapchain_data._swapchain_extent.height;
@@ -318,8 +316,7 @@ pub fn get_render_target_create_infos(
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::R8G8B8A8_UNORM,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _image_layout_transition:
-                ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
+            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -328,8 +325,7 @@ pub fn get_render_target_create_infos(
             _texture_height: unsafe { constants::CAPTURE_HEIGHT_MAP_SIZE },
             _texture_format: vk::Format::R32_SFLOAT,
             _texture_wrap_mode: vk::SamplerAddressMode::CLAMP_TO_EDGE,
-            _image_layout_transition:
-                ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
+            _image_layout_transition: ImageLayoutTransition::TransferUndefToColorAttachementWithTransferSrc,
             ..Default::default()
         },
         TextureCreateInfo {
@@ -427,8 +423,7 @@ pub fn get_render_target_create_infos(
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING
-                .to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING.to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
@@ -447,8 +442,7 @@ pub fn get_render_target_create_infos(
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING
-                .to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING.to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
@@ -458,8 +452,7 @@ pub fn get_render_target_create_infos(
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING
-                .to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING.to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,
@@ -469,8 +462,7 @@ pub fn get_render_target_create_infos(
             ..Default::default()
         },
         TextureCreateInfo {
-            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY
-                .to_string(),
+            _texture_name: RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY.to_string(),
             _texture_width: precomputed_atmosphere::SCATTERING_TEXTURE_WIDTH as u32,
             _texture_height: precomputed_atmosphere::SCATTERING_TEXTURE_HEIGHT as u32,
             _texture_layers: precomputed_atmosphere::SCATTERING_TEXTURE_DEPTH as u32,

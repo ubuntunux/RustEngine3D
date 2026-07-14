@@ -2,9 +2,7 @@ use std::path::PathBuf;
 
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
-use crate::vulkan_context::render_pass::{
-    PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo,
-};
+use crate::vulkan_context::render_pass::{PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
 use ash::vk;
 
 use crate::renderer::push_constants::PushConstant_BlendCubeMap;

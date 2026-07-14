@@ -1,11 +1,10 @@
 use crate::constants;
 use crate::effect::effect_manager::{
-    GpuParticleCountBufferData, GpuParticleDynamicConstants, GpuParticleStaticConstants,
-    GpuParticleUpdateBufferData,
+    GpuParticleCountBufferData, GpuParticleDynamicConstants, GpuParticleStaticConstants, GpuParticleUpdateBufferData,
 };
 use crate::renderer::shader_buffer_data::{
-    AtmosphereConstants, RegisterShaderBufferCreateInfo, SceneConstants, ShaderBufferDataMap,
-    ShaderBufferDataType, ShadowAOConstants, TransformMatrices, TransformOffsets, ViewConstants,
+    AtmosphereConstants, RegisterShaderBufferCreateInfo, SceneConstants, ShaderBufferDataMap, ShaderBufferDataType,
+    ShadowAOConstants, TransformMatrices, TransformOffsets, ViewConstants,
 };
 use crate::scene::camera::CameraObjectData;
 use crate::scene::capture_height_map::CaptureHeightMap;
@@ -15,7 +14,7 @@ use crate::scene::light::{LightData, LightIndicesCell, PointLights};
 use crate::scene::scene_manager::BoundBoxInstanceData;
 use crate::scene::ui::UIRenderData;
 use crate::vulkan_context::buffer;
-use ash::{ext, vk, Device};
+use ash::{Device, ext, vk};
 use nalgebra::{Vector2, Vector3};
 
 impl SceneConstants {
@@ -42,8 +41,10 @@ impl SceneConstants {
         self._max_emitter_count = unsafe { constants::MAX_EMITTER_COUNT };
         self._gpu_particle_count_buffer_offset = gpu_particle_count_buffer_offset;
         self._gpu_particle_update_buffer_offset = gpu_particle_update_buffer_offset;
-        self._prev_gpu_particle_count_buffer_offset = unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
-        self._prev_gpu_particle_update_buffer_offset = unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
+        self._prev_gpu_particle_count_buffer_offset =
+            unsafe { gpu_particle_count_buffer_offset ^ constants::MAX_EMITTER_COUNT };
+        self._prev_gpu_particle_update_buffer_offset =
+            unsafe { gpu_particle_update_buffer_offset ^ constants::MAX_PARTICLE_COUNT };
         self._render_point_light_count = render_point_light_count;
         self._elapsed_frame = elapsed_frame as u32;
         self._render_option = render_option as u32;
@@ -72,21 +73,15 @@ impl ViewConstants {
         self._view_projection_jitter = camera_data._view_projection_jitter.into();
         self._inv_view_projection_jitter = camera_data._inv_view_projection_jitter.into();
         self._view_origin_projection_jitter = camera_data._view_origin_projection_jitter.into();
-        self._inv_view_origin_projection_jitter =
-            camera_data._inv_view_origin_projection_jitter.into();
-        self._view_origin_projection_prev_jitter =
-            camera_data._view_origin_projection_prev_jitter.into();
-        self._camera_position =
-            camera_data._transform_object.get_position().clone() as Vector3<f32>;
+        self._inv_view_origin_projection_jitter = camera_data._inv_view_origin_projection_jitter.into();
+        self._view_origin_projection_prev_jitter = camera_data._view_origin_projection_prev_jitter.into();
+        self._camera_position = camera_data._transform_object.get_position().clone() as Vector3<f32>;
         if capture_height_map.need_to_render_height_map() {
-            self._capture_height_map_view_projection =
-                capture_height_map.get_shadow_view_projection().clone();
-            self._inv_capture_height_map_view_projection =
-                capture_height_map.get_inv_shadow_view_projection().clone();
+            self._capture_height_map_view_projection = capture_height_map.get_shadow_view_projection().clone();
+            self._inv_capture_height_map_view_projection = capture_height_map.get_inv_shadow_view_projection().clone();
         }
         self._jitter_frame = camera_data._jitter_frame;
-        self._camera_position_prev =
-            camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
+        self._camera_position_prev = camera_data._transform_object.get_prev_position().clone() as Vector3<f32>;
         self._view_constants_dummy0 = 0.0;
         self._near_far = Vector2::new(camera_data._near, camera_data._far);
         self._jitter_delta = camera_data._jitter_delta.into();
@@ -108,20 +103,15 @@ impl ShaderBufferDataType {
                 &*shader_buffer_create_info._device,
                 &*shader_buffer_create_info._memory_properties,
                 debug_utils_device,
-                &String::from(format!(
-                    "{:?}",
-                    shader_buffer_create_info._shader_buffer_data_type
-                )),
+                &String::from(format!("{:?}", shader_buffer_create_info._shader_buffer_data_type)),
                 shader_buffer_create_info._buffer_usage,
                 buffer_data_size as vk::DeviceSize,
                 shader_buffer_create_info._create_buffer_per_swapchain_count,
                 shader_buffer_create_info._has_staging_buffer,
                 shader_buffer_create_info._is_device_local,
             );
-            (&mut *shader_buffer_create_info._shader_buffer_data_map).insert(
-                shader_buffer_create_info._shader_buffer_data_type,
-                uniform_buffer_data,
-            );
+            (&mut *shader_buffer_create_info._shader_buffer_data_map)
+                .insert(shader_buffer_create_info._shader_buffer_data_type, uniform_buffer_data);
         }
     }
 

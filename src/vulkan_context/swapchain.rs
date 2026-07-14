@@ -1,7 +1,7 @@
 use std::cmp::{max, min};
 
 use ash::vk::Handle;
-use ash::{ext, khr, vk, Device};
+use ash::{Device, ext, khr, vk};
 
 use crate::constants;
 use crate::vulkan_context::debug_utils;
@@ -57,51 +57,29 @@ pub fn choose_swapchain_surface_format(
     surface_format
 }
 
-pub fn choose_swapchain_present_mode(
-    swapchain_support_details: &SwapchainSupportDetails,
-) -> vk::PresentModeKHR {
-    if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::FIFO)
-    {
+pub fn choose_swapchain_present_mode(swapchain_support_details: &SwapchainSupportDetails) -> vk::PresentModeKHR {
+    if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO) {
         return vk::PresentModeKHR::FIFO;
-    } else if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::FIFO_RELAXED)
-    {
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
         return vk::PresentModeKHR::FIFO_RELAXED;
-    } else if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::MAILBOX)
-    {
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
         return vk::PresentModeKHR::MAILBOX;
-    } else if swapchain_support_details
-        ._present_modes
-        .contains(&vk::PresentModeKHR::IMMEDIATE)
-    {
+    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
         return vk::PresentModeKHR::IMMEDIATE;
     }
     vk::PresentModeKHR::FIFO
 }
 
-pub fn choose_swapchain_extent(
-    swapchain_support_details: &SwapchainSupportDetails,
-) -> vk::Extent2D {
+pub fn choose_swapchain_extent(swapchain_support_details: &SwapchainSupportDetails) -> vk::Extent2D {
     let capabilities: &vk::SurfaceCapabilitiesKHR = &swapchain_support_details._capabilities;
     vk::Extent2D {
         width: max(
             capabilities.min_image_extent.width,
-            min(
-                capabilities.max_image_extent.width,
-                capabilities.current_extent.width,
-            ),
+            min(capabilities.max_image_extent.width, capabilities.current_extent.width),
         ),
         height: max(
             capabilities.min_image_extent.height,
-            min(
-                capabilities.max_image_extent.height,
-                capabilities.current_extent.height,
-            ),
+            min(capabilities.max_image_extent.height, capabilities.current_extent.height),
         ),
     }
 }
@@ -117,15 +95,10 @@ pub fn query_swapchain_support(
     surface: vk::SurfaceKHR,
 ) -> SwapchainSupportDetails {
     unsafe {
-        let capabilities: vk::SurfaceCapabilitiesKHR = surface_loader
-            .get_physical_device_surface_capabilities(physical_device, surface)
-            .unwrap();
-        let formats = surface_loader
-            .get_physical_device_surface_formats(physical_device, surface)
-            .unwrap();
-        let present_modes = surface_loader
-            .get_physical_device_surface_present_modes(physical_device, surface)
-            .unwrap();
+        let capabilities: vk::SurfaceCapabilitiesKHR =
+            surface_loader.get_physical_device_surface_capabilities(physical_device, surface).unwrap();
+        let formats = surface_loader.get_physical_device_surface_formats(physical_device, surface).unwrap();
+        let present_modes = surface_loader.get_physical_device_surface_present_modes(physical_device, surface).unwrap();
         SwapchainSupportDetails {
             _capabilities: capabilities,
             _formats: formats,
@@ -143,10 +116,8 @@ pub fn create_swapchain_data(
     queue_family_data_list: &queue::QueueFamilyDataList,
     immediate_mode: bool,
 ) -> SwapchainData {
-    let surface_format = choose_swapchain_surface_format(
-        swapchain_support_details,
-        &constants::SWAPCHAIN_SURFACE_FORMATS,
-    );
+    let surface_format =
+        choose_swapchain_surface_format(swapchain_support_details, &constants::SWAPCHAIN_SURFACE_FORMATS);
     #[cfg(target_os = "android")]
     let present_mode = if immediate_mode {
         vk::PresentModeKHR::IMMEDIATE
@@ -194,18 +165,12 @@ pub fn create_swapchain_data(
         clipped: 1,
         ..Default::default()
     };
-    if queue_family_data_list
-        ._queue_family_indices
-        ._graphics_queue_index
-        != queue_family_data_list
-            ._queue_family_indices
-            ._present_queue_index
+    if queue_family_data_list._queue_family_indices._graphics_queue_index
+        != queue_family_data_list._queue_family_indices._present_queue_index
     {
         swapchain_create_info.image_sharing_mode = vk::SharingMode::CONCURRENT;
-        swapchain_create_info.queue_family_index_count =
-            queue_family_data_list._queue_family_index_list.len() as u32;
-        swapchain_create_info.p_queue_family_indices =
-            (&queue_family_data_list._queue_family_index_list).as_ptr();
+        swapchain_create_info.queue_family_index_count = queue_family_data_list._queue_family_index_list.len() as u32;
+        swapchain_create_info.p_queue_family_indices = (&queue_family_data_list._queue_family_index_list).as_ptr();
     } else {
         swapchain_create_info.image_sharing_mode = vk::SharingMode::EXCLUSIVE;
     }
@@ -214,16 +179,10 @@ pub fn create_swapchain_data(
         let swapchain = swapchain_device
             .create_swapchain(&swapchain_create_info, None)
             .expect("vkCreateSwapchainKHR failed!");
-        let swapchain_images: SwapchainArray<vk::Image> = swapchain_device
-            .get_swapchain_images(swapchain)
-            .expect("vkGetSwapchainImagesKHR error!");
+        let swapchain_images: SwapchainArray<vk::Image> =
+            swapchain_device.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
         for image in swapchain_images.iter() {
-            debug_utils::set_object_debug_info(
-                debug_utils_device,
-                "swapchain",
-                vk::ObjectType::IMAGE,
-                image.as_raw(),
-            );
+            debug_utils::set_object_debug_info(debug_utils_device, "swapchain", vk::ObjectType::IMAGE, image.as_raw());
         }
         let swapchain_image_views = create_swapchain_image_views(
             &device,
@@ -292,10 +251,7 @@ pub fn create_swapchain_image_views(
         .collect()
 }
 
-pub fn destroy_swapchain_image_views(
-    device: &Device,
-    swapchain_image_views: &SwapchainArray<vk::ImageView>,
-) {
+pub fn destroy_swapchain_image_views(device: &Device, swapchain_image_views: &SwapchainArray<vk::ImageView>) {
     for image_view in swapchain_image_views.iter() {
         texture::destroy_image_view(device, *image_view);
     }

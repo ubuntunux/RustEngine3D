@@ -5,13 +5,13 @@ use std::mem;
 use ash::ext;
 use ash::util::Align;
 use ash::vk::Handle;
-use ash::{vk, Device};
+use ash::{Device, vk};
 
 use crate::constants;
 use crate::renderer::utility::find_memory_type_index;
 use crate::vulkan_context::debug_utils;
 use crate::vulkan_context::descriptor::DescriptorResourceInfo;
-use crate::vulkan_context::vulkan_context::{run_commands_once, SwapchainArray};
+use crate::vulkan_context::vulkan_context::{SwapchainArray, run_commands_once};
 
 #[derive(Debug, Clone, Copy)]
 pub struct BufferData {
@@ -49,15 +49,9 @@ pub fn create_buffer_data_with_immediate_uploads<T: Copy>(
     upload_data_list: &Vec<T>,
 ) -> BufferData {
     let buffer_size = (mem::size_of::<T>() * upload_data_list.len()) as vk::DeviceSize;
-    let buffer_usage_flags =
-        dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
-    let buffer_memory_property_flags =
-        vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
-    log::trace!(
-        "CreateBuffer: type({:?}), size({})",
-        dst_buffer_type,
-        buffer_size
-    );
+    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_memory_property_flags = vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT;
+    log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
     let dst_buffer_data = create_buffer_data(
         device,
         device_memory_properties,
@@ -82,14 +76,9 @@ pub fn create_buffer_data_with_uploads<T: Copy>(
     upload_data_list: &Vec<T>,
 ) -> BufferData {
     let buffer_size = (mem::size_of::<T>() * upload_data_list.len()) as vk::DeviceSize;
-    let buffer_usage_flags =
-        dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
+    let buffer_usage_flags = dst_buffer_type | vk::BufferUsageFlags::TRANSFER_SRC | vk::BufferUsageFlags::TRANSFER_DST;
     let buffer_memory_property_flags = vk::MemoryPropertyFlags::DEVICE_LOCAL;
-    log::trace!(
-        "CreateBuffer: type({:?}), size({})",
-        dst_buffer_type,
-        buffer_size
-    );
+    log::trace!("CreateBuffer: type({:?}), size({})", dst_buffer_type, buffer_size);
 
     // create temporary staging buffer
     let staging_buffer_usage_flags = vk::BufferUsageFlags::TRANSFER_SRC;
@@ -157,32 +146,20 @@ pub fn create_buffer_data(
             sharing_mode: vk::SharingMode::EXCLUSIVE,
             ..Default::default()
         };
-        let buffer = device
-            .create_buffer(&buffer_create_info, None)
-            .expect("vkCreateBuffer failed!");
+        let buffer = device.create_buffer(&buffer_create_info, None).expect("vkCreateBuffer failed!");
         let buffer_memory_requirements = device.get_buffer_memory_requirements(buffer);
-        let memory_type_index = find_memory_type_index(
-            &buffer_memory_requirements,
-            memory_properties,
-            memory_property_flags,
-        )
-        .expect("Unable to find suitable memory type for the vertex buffer.");
+        let memory_type_index =
+            find_memory_type_index(&buffer_memory_requirements, memory_properties, memory_property_flags)
+                .expect("Unable to find suitable memory type for the vertex buffer.");
         let memory_allocate_info = vk::MemoryAllocateInfo {
             allocation_size: buffer_memory_requirements.size,
             memory_type_index,
             ..Default::default()
         };
-        let buffer_memory = device
-            .allocate_memory(&memory_allocate_info, None)
-            .expect("vkAllocateMemory failed!");
+        let buffer_memory = device.allocate_memory(&memory_allocate_info, None).expect("vkAllocateMemory failed!");
         device.bind_buffer_memory(buffer, buffer_memory, 0).unwrap();
 
-        debug_utils::set_object_debug_info(
-            debug_utils_device,
-            buffer_name,
-            vk::ObjectType::BUFFER,
-            buffer.as_raw(),
-        );
+        debug_utils::set_object_debug_info(debug_utils_device, buffer_name, vk::ObjectType::BUFFER, buffer.as_raw());
 
         log::trace!(
             "    Create Buffer ({:?}): ({:?}), buffer({:?}), memory({:?})",
@@ -193,10 +170,7 @@ pub fn create_buffer_data(
         );
         log::trace!("        buffer_size: {:?}", buffer_size);
         log::trace!("        memory_type_index: {:?}", memory_type_index);
-        log::trace!(
-            "        memory_requirements: {:?}",
-            buffer_memory_requirements
-        );
+        log::trace!("        memory_requirements: {:?}", buffer_memory_requirements);
 
         BufferData {
             _buffer: buffer,
@@ -236,12 +210,7 @@ pub fn upload_buffer_data<T: Copy>(device: &Device, buffer_data: &BufferData, up
     }
 }
 
-pub fn read_buffer_data<T: Copy>(
-    device: &Device,
-    buffer_data: &BufferData,
-    read_offset: u32,
-    read_data: &mut [T],
-) {
+pub fn read_buffer_data<T: Copy>(device: &Device, buffer_data: &BufferData, read_offset: u32, read_data: &mut [T]) {
     unsafe {
         let read_data_count = read_data.len();
         let read_data_size = mem::size_of::<T>() as u64 * read_data_count as u64;
@@ -447,10 +416,7 @@ pub fn create_shader_buffer_data<'a>(
 }
 
 pub fn destroy_shader_buffer_data(device: &Device, uniform_buffer_data: &mut ShaderBufferData) {
-    log::debug!(
-        "destroy_shader_buffer_data: {:?}",
-        uniform_buffer_data._buffer_name
-    );
+    log::debug!("destroy_shader_buffer_data: {:?}", uniform_buffer_data._buffer_name);
 
     let buffer_count = if uniform_buffer_data._create_buffer_per_swapchain_count {
         uniform_buffer_data._buffers.len()

@@ -2,7 +2,7 @@ use std::cmp::max;
 
 use ash::ext;
 use ash::vk::Handle;
-use ash::{vk, Device};
+use ash::{Device, vk};
 
 use crate::constants;
 use crate::vulkan_context::debug_utils;
@@ -165,8 +165,7 @@ pub fn create_framebuffer_data<'a>(
     let get_framebuffer_create_info = |index: usize| -> vk::FramebufferCreateInfo {
         vk::FramebufferCreateInfo {
             render_pass,
-            attachment_count: framebuffer_data_create_info._framebuffer_image_views[index].len()
-                as u32,
+            attachment_count: framebuffer_data_create_info._framebuffer_image_views[index].len() as u32,
             p_attachments: framebuffer_data_create_info._framebuffer_image_views[index].as_ptr(),
             width: framebuffer_data_create_info._framebuffer_width,
             height: framebuffer_data_create_info._framebuffer_height,
@@ -203,11 +202,8 @@ pub fn create_framebuffer_data<'a>(
                     framebuffer_data_create_info._framebuffer_width,
                     framebuffer_data_create_info._framebuffer_height,
                 ),
-                clear_value_count: framebuffer_data_create_info._framebuffer_clear_values.len()
-                    as u32,
-                p_clear_values: framebuffer_data_create_info
-                    ._framebuffer_clear_values
-                    .as_ptr(),
+                clear_value_count: framebuffer_data_create_info._framebuffer_clear_values.len() as u32,
+                p_clear_values: framebuffer_data_create_info._framebuffer_clear_values.as_ptr(),
                 ..Default::default()
             })
             .collect();

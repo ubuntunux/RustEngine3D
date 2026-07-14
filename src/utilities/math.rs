@@ -129,10 +129,7 @@ pub fn make_normalize_xy(vec: &Vector3<f32>) -> Vector3<f32> {
 pub fn make_normalize_xy_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
     let distance = get_norm_xy(vec);
     if 0.0 < distance {
-        return (
-            Vector3::new(vec.x / distance, vec.y / distance, 0.0),
-            distance,
-        );
+        return (Vector3::new(vec.x / distance, vec.y / distance, 0.0), distance);
     }
     (Vector3::zeros(), 0.0)
 }
@@ -160,15 +157,18 @@ pub fn make_normalize_xz(vec: &Vector3<f32>) -> Vector3<f32> {
 pub fn make_normalize_xz_with_norm(vec: &Vector3<f32>) -> (Vector3<f32>, f32) {
     let distance = get_norm_xz(vec);
     if 0.0 < distance {
-        return (
-            Vector3::new(vec.x / distance, 0.0, vec.z / distance),
-            distance,
-        );
+        return (Vector3::new(vec.x / distance, 0.0, vec.z / distance), distance);
     }
     (Vector3::zeros(), 0.0)
 }
 
-pub fn check_arrival_with_radius(position_before: &Vector3<f32>, position: &Vector3<f32>, target_position: &Vector3<f32>, radius: f32, ignore_y_axis: bool) -> bool {
+pub fn check_arrival_with_radius(
+    position_before: &Vector3<f32>,
+    position: &Vector3<f32>,
+    target_position: &Vector3<f32>,
+    radius: f32,
+    ignore_y_axis: bool,
+) -> bool {
     let mut to_target_before = target_position - position_before;
     let mut to_target = target_position - position;
     if ignore_y_axis {
@@ -197,21 +197,12 @@ pub fn make_rotation_matrix(pitch: f32, yaw: f32, roll: f32) -> Matrix4<f32> {
     Matrix4::from_columns(&[
         Vector4::new(ch * ca, sa, -sh * ca, 0.0),
         Vector4::new(sh * sb - ch * sa * cb, ca * cb, sh * sa * cb + ch * sb, 0.0),
-        Vector4::new(
-            ch * sa * sb + sh * cb,
-            -ca * sb,
-            -sh * sa * sb + ch * cb,
-            0.0,
-        ),
+        Vector4::new(ch * sa * sb + sh * cb, -ca * sb, -sh * sa * sb + ch * cb, 0.0),
         Vector4::new(0.0, 0.0, 0.0, 1.0),
     ])
 }
 
-pub fn make_srt_transform(
-    translation: &Vector3<f32>,
-    rotation: &Vector3<f32>,
-    scale: &Vector3<f32>,
-) -> Matrix4<f32> {
+pub fn make_srt_transform(translation: &Vector3<f32>, rotation: &Vector3<f32>, scale: &Vector3<f32>) -> Matrix4<f32> {
     let rotation_matrix = make_rotation_matrix(rotation.x, rotation.y, rotation.z);
     combinate_matrix(translation, &rotation_matrix, scale)
 }
@@ -290,14 +281,7 @@ pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> 
     ])
 }
 
-pub fn orthogonal(
-    left: f32,
-    right: f32,
-    bottom: f32,
-    top: f32,
-    near: f32,
-    far: f32,
-) -> Matrix4<f32> {
+pub fn orthogonal(left: f32, right: f32, bottom: f32, top: f32, near: f32, far: f32) -> Matrix4<f32> {
     Matrix4::new(
         2.0 / (right - left),
         0.0,
@@ -438,7 +422,7 @@ pub fn vector_multiply_quaternion(vector, quaternion):
 pub fn matrix_decompose_pitch_yaw_roll(matrix: &Matrix4<f32>) -> Vector3<f32> {
     let mut euler: Vector3<f32> = Vector3::zeros();
     euler.x = (-matrix.m23).asin(); // Pitch
-                                    // Not at poles
+    // Not at poles
     if 0.0001 < euler.x.cos() {
         euler.y = matrix.m13.atan2(matrix.m33); // Yaw
         euler.z = matrix.m21.atan2(matrix.m22); // Roll
@@ -537,8 +521,7 @@ pub fn quaternion_to_matrix(quat: &Quaternion<f32>) -> Matrix4<f32> {
 
 pub fn make_translate_matrix(position: &Vector3<f32>) -> Matrix4<f32> {
     Matrix4::new(
-        1.0, 0.0, 0.0, position.x, 0.0, 1.0, 0.0, position.y, 0.0, 0.0, 1.0, position.z, 0.0, 0.0,
-        0.0, 1.0,
+        1.0, 0.0, 0.0, position.x, 0.0, 1.0, 0.0, position.y, 0.0, 0.0, 1.0, position.z, 0.0, 0.0, 0.0, 1.0,
     )
 }
 
@@ -555,15 +538,11 @@ pub fn translate_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
 }
 
 pub fn make_scale_matrix(x: f32, y: f32, z: f32) -> Matrix4<f32> {
-    Matrix4::new(
-        x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0,
-    )
+    Matrix4::new(x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0)
 }
 
 pub fn set_matrix_scale(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
-    m.copy_from_slice(&[
-        x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0,
-    ]);
+    m.copy_from_slice(&[x, 0.0, 0.0, 0.0, 0.0, y, 0.0, 0.0, 0.0, 0.0, z, 0.0, 0.0, 0.0, 0.0, 1.0]);
 }
 
 pub fn scale_matrix(m: &mut Matrix4<f32>, x: f32, y: f32, z: f32) {
@@ -682,9 +661,7 @@ pub fn extract_scale(matrix: &Matrix4<f32>) -> Vector3<f32> {
     Vector3::new(sx, sy, sz)
 }
 
-pub fn extract_location_rotation_scale(
-    matrix: &Matrix4<f32>,
-) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
+pub fn extract_location_rotation_scale(matrix: &Matrix4<f32>) -> (Vector3<f32>, Vector3<f32>, Vector3<f32>) {
     (
         extract_location(matrix),
         matrix_decompose_pitch_yaw_roll(matrix),

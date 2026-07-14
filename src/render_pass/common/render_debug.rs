@@ -6,8 +6,8 @@ use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorReso
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
-    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
-    PipelinePushConstantData, RenderPassDataCreateInfo,
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData,
+    RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
@@ -43,10 +43,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_color_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -76,9 +73,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(
-                BlendOperation::None
-            );
+            vulkan_context::get_color_blend_operation(BlendOperation::None);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
@@ -86,8 +81,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
             ..Default::default()
         },
         _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-        _vertex_input_attribute_descriptions:
-            VertexData::create_vertex_input_attribute_descriptions(),
+        _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
         _push_constant_data_list: vec![PipelinePushConstantData {
             _stage_flags: vk::ShaderStageFlags::ALL,
             _offset: 0,
@@ -98,8 +92,7 @@ pub fn get_render_pass_data_create_info(renderer_data: &RendererData) -> RenderP
                 _descriptor_binding_index: 0,
                 _descriptor_name: enum_to_string(&ShaderBufferDataType::ViewConstants),
                 _descriptor_resource_type: DescriptorResourceType::UniformBuffer,
-                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX
-                    | vk::ShaderStageFlags::FRAGMENT,
+                _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
             },
             DescriptorDataCreateInfo {

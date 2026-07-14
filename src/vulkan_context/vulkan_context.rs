@@ -3,7 +3,7 @@ use std::default::Default;
 use std::vec::Vec;
 
 use ash;
-use ash::{vk, Device};
+use ash::{Device, vk};
 
 pub type CubeMapArray<T> = Vec<T>; // equivalent to [T; constants::CUBE_LAYER_COUNT as usize]
 pub type SwapchainArray<T> = Vec<T>; // equivalent to [T; constants::SWAPCHAIN_IMAGE_COUNT as usize]
@@ -44,9 +44,7 @@ pub fn get_color32(r: u32, g: u32, b: u32, a: u32) -> u32 {
     min(255, r) | (min(255, g) << 8) | (min(255, b) << 16) | (min(255, a) << 24)
 }
 
-pub fn get_color_blend_operation(
-    blend_operation: BlendOperation,
-) -> vk::PipelineColorBlendAttachmentState {
+pub fn get_color_blend_operation(blend_operation: BlendOperation) -> vk::PipelineColorBlendAttachmentState {
     match blend_operation {
         BlendOperation::AlphaBlend => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
@@ -56,9 +54,7 @@ pub fn get_color_blend_operation(
             src_alpha_blend_factor: vk::BlendFactor::ONE,
             dst_alpha_blend_factor: vk::BlendFactor::ZERO,
             alpha_blend_op: vk::BlendOp::ADD,
-            color_write_mask: vk::ColorComponentFlags::R
-                | vk::ColorComponentFlags::G
-                | vk::ColorComponentFlags::B,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
         },
         BlendOperation::Additive => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
@@ -68,9 +64,7 @@ pub fn get_color_blend_operation(
             src_alpha_blend_factor: vk::BlendFactor::ONE,
             dst_alpha_blend_factor: vk::BlendFactor::ONE,
             alpha_blend_op: vk::BlendOp::ADD,
-            color_write_mask: vk::ColorComponentFlags::R
-                | vk::ColorComponentFlags::G
-                | vk::ColorComponentFlags::B,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
         },
         BlendOperation::MaxDepth => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::TRUE,
@@ -90,9 +84,7 @@ pub fn get_color_blend_operation(
             src_alpha_blend_factor: vk::BlendFactor::ONE,
             dst_alpha_blend_factor: vk::BlendFactor::ONE_MINUS_SRC_ALPHA,
             alpha_blend_op: vk::BlendOp::ADD,
-            color_write_mask: vk::ColorComponentFlags::R
-                | vk::ColorComponentFlags::G
-                | vk::ColorComponentFlags::B,
+            color_write_mask: vk::ColorComponentFlags::R | vk::ColorComponentFlags::G | vk::ColorComponentFlags::B,
         },
         BlendOperation::None => vk::PipelineColorBlendAttachmentState {
             blend_enable: vk::FALSE,
@@ -128,20 +120,11 @@ pub fn get_color_clear_one() -> vk::ClearValue {
 
 pub fn get_color_clear_value(x: f32, y: f32, z: f32, w: f32) -> vk::ClearValue {
     vk::ClearValue {
-        color: vk::ClearColorValue {
-            float32: [x, y, z, w],
-        },
+        color: vk::ClearColorValue { float32: [x, y, z, w] },
     }
 }
 
-pub fn create_viewport(
-    x: u32,
-    y: u32,
-    width: u32,
-    height: u32,
-    min_depth: f32,
-    max_depth: f32,
-) -> vk::Viewport {
+pub fn create_viewport(x: u32, y: u32, width: u32, height: u32, min_depth: f32, max_depth: f32) -> vk::Viewport {
     vk::Viewport {
         x: x as f32,
         y: y as f32,
@@ -163,10 +146,7 @@ pub fn get_default_depth_clear_value() -> vk::ClearValue {
     get_depth_stencil_clear_value(0.0, 0)
 }
 
-pub fn get_depth_stencil_clear_value(
-    depth_clear_value: f32,
-    stencil_clear_value: u32,
-) -> vk::ClearValue {
+pub fn get_depth_stencil_clear_value(depth_clear_value: f32, stencil_clear_value: u32) -> vk::ClearValue {
     vk::ClearValue {
         depth_stencil: vk::ClearDepthStencilValue {
             depth: depth_clear_value,
@@ -186,10 +166,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
 ) {
     unsafe {
         device
-            .reset_command_buffer(
-                command_buffer,
-                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-            )
+            .reset_command_buffer(command_buffer, vk::CommandBufferResetFlags::RELEASE_RESOURCES)
             .expect("Reset command buffer failed.");
         let command_buffer_begin_info = vk::CommandBufferBeginInfo {
             flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
@@ -199,12 +176,8 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
             .begin_command_buffer(command_buffer, &command_buffer_begin_info)
             .expect("Begin commandbuffer");
         func(device, command_buffer);
-        device
-            .end_command_buffer(command_buffer)
-            .expect("End commandbuffer");
-        let submit_fence = device
-            .create_fence(&vk::FenceCreateInfo::default(), None)
-            .expect("Create fence failed.");
+        device.end_command_buffer(command_buffer).expect("End commandbuffer");
+        let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None).expect("Create fence failed.");
         let command_buffers = vec![command_buffer];
         let submit_info = vk::SubmitInfo {
             wait_semaphore_count: wait_semaphores.len() as u32,
@@ -216,12 +189,8 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
             p_signal_semaphores: signal_semaphores.as_ptr(),
             ..Default::default()
         };
-        device
-            .queue_submit(submit_queue, &[submit_info], submit_fence)
-            .expect("queue submit failed.");
-        device
-            .wait_for_fences(&[submit_fence], true, u64::MAX)
-            .expect("Wait for fence failed.");
+        device.queue_submit(submit_queue, &[submit_info], submit_fence).expect("queue submit failed.");
+        device.wait_for_fences(&[submit_fence], true, u64::MAX).expect("Wait for fence failed.");
         device.destroy_fence(submit_fence, None);
     }
 }
@@ -253,9 +222,7 @@ pub fn run_commands_once<F: FnOnce(&Device, vk::CommandBuffer)>(
         // execute function
         func(device, command_buffer);
 
-        device
-            .end_command_buffer(command_buffer)
-            .expect("Failed to end_command_buffer");
+        device.end_command_buffer(command_buffer).expect("Failed to end_command_buffer");
 
         let submit_info = vk::SubmitInfo {
             command_buffer_count: command_buffers.len() as u32,
@@ -279,23 +246,14 @@ pub fn run_commands_once<F: FnOnce(&Device, vk::CommandBuffer)>(
         // concurrency would be hurt in this case).
         const SYNC_WITH_FENCE: bool = false;
         if SYNC_WITH_FENCE {
-            let submit_fence = device
-                .create_fence(&vk::FenceCreateInfo::default(), None)
-                .expect("Create fence failed.");
-            device
-                .queue_submit(command_queue, &[submit_info], submit_fence)
-                .expect("queue submit failed.");
-            device
-                .wait_for_fences(&[submit_fence], true, u64::MAX)
-                .expect("Wait for fence failed.");
+            let submit_fence =
+                device.create_fence(&vk::FenceCreateInfo::default(), None).expect("Create fence failed.");
+            device.queue_submit(command_queue, &[submit_info], submit_fence).expect("queue submit failed.");
+            device.wait_for_fences(&[submit_fence], true, u64::MAX).expect("Wait for fence failed.");
             device.destroy_fence(submit_fence, None);
         } else {
-            device
-                .queue_submit(command_queue, &[submit_info], vk::Fence::null())
-                .expect("queue submit failed.");
-            device
-                .queue_wait_idle(command_queue)
-                .expect("vkQueueWaitIdle error");
+            device.queue_submit(command_queue, &[submit_info], vk::Fence::null()).expect("queue submit failed.");
+            device.queue_wait_idle(command_queue).expect("vkQueueWaitIdle error");
         }
         device.free_command_buffers(command_pool, &command_buffers);
     }

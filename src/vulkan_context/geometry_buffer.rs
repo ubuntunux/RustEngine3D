@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::mem;
 
 use ash::ext;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
@@ -127,34 +127,13 @@ impl VertexData {
 
 impl VertexDataBase for VertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions =
-            Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
-        add_vertex_input_attribute_description(
-            &mut vertex_input_attribute_descriptions,
-            binding,
-            VertexData::POSITION,
-        );
-        add_vertex_input_attribute_description(
-            &mut vertex_input_attribute_descriptions,
-            binding,
-            VertexData::NORMAL,
-        );
-        add_vertex_input_attribute_description(
-            &mut vertex_input_attribute_descriptions,
-            binding,
-            VertexData::TANGENT,
-        );
-        add_vertex_input_attribute_description(
-            &mut vertex_input_attribute_descriptions,
-            binding,
-            VertexData::COLOR,
-        );
-        add_vertex_input_attribute_description(
-            &mut vertex_input_attribute_descriptions,
-            binding,
-            VertexData::TEXCOORD,
-        );
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::POSITION);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::NORMAL);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TANGENT);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::COLOR);
+        add_vertex_input_attribute_description(&mut vertex_input_attribute_descriptions, binding, VertexData::TEXCOORD);
         vertex_input_attribute_descriptions
     }
 
@@ -179,8 +158,7 @@ impl SkeletalVertexData {
 
 impl VertexDataBase for SkeletalVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions =
-            Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         let binding = 0u32;
         add_vertex_input_attribute_description(
             &mut vertex_input_attribute_descriptions,
@@ -240,8 +218,7 @@ pub fn create_geometry_data(
 ) -> GeometryData {
     log::trace!("create_geometry_data: {:?}", geometry_name);
 
-    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_data_list.is_empty()
-    {
+    let vertex_buffer_data = if false == geometry_create_info._skeletal_vertex_data_list.is_empty() {
         buffer::create_buffer_data_with_uploads(
             device,
             command_pool,
@@ -346,8 +323,7 @@ pub fn compute_tangent(
         if 0.0 != r {
             r = 1.0 / r;
         }
-        let tangent_sq: Vector3<f32> =
-            ((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r;
+        let tangent_sq: Vector3<f32> = ((delta_pos_0_1 * delta_uv_0_2.y) - (delta_pos_0_2 * delta_uv_0_1.y)) * r;
         let result_tangent = if 0.0 == tangent_sq.dot(&tangent_sq) {
             let avg_normal: Vector3<f32> = math::safe_normalize(&(&normals[i0] + &normals[i1] + &normals[i2]));
             avg_normal.cross(&math::get_world_up())
@@ -359,23 +335,16 @@ pub fn compute_tangent(
         tangent_map.insert(i2, result_tangent.clone());
     }
     let vertex_count_indices: Vec<usize> = (0..vertex_count).collect();
-    let tangents: Vec<Vector3<f32>> = vertex_count_indices
-        .iter()
-        .map(|index| tangent_map.get(index).unwrap().clone())
-        .collect();
+    let tangents: Vec<Vector3<f32>> =
+        vertex_count_indices.iter().map(|index| tangent_map.get(index).unwrap().clone()).collect();
     tangents
 }
 
 pub fn quad_mesh_create_info() -> MeshDataCreateInfo {
-    let positions: Vec<Vector3<f32>> = vec![
-        (-1.0, 1.0, 0.0),
-        (1.0, 1.0, 0.0),
-        (1.0, -1.0, 0.0),
-        (-1.0, -1.0, 0.0),
-    ]
-    .iter()
-    .map(|(x, y, z)| Vector3::new(*x, *y, *z))
-    .collect();
+    let positions: Vec<Vector3<f32>> = vec![(-1.0, 1.0, 0.0), (1.0, 1.0, 0.0), (1.0, -1.0, 0.0), (-1.0, -1.0, 0.0)]
+        .iter()
+        .map(|(x, y, z)| Vector3::new(*x, *y, *z))
+        .collect();
     let vertex_count = positions.len();
     let normals: Vec<Vector3<f32>> = vec![Vector3::new(0.0, 0.0, 1.0); vertex_count];
     let vertex_color = get_color32(255, 255, 255, 255);
@@ -504,8 +473,8 @@ pub fn cube_mesh_create_info() -> MeshDataCreateInfo {
     .collect();
     let vertex_color = get_color32(255, 255, 255, 255);
     let indices: Vec<u32> = vec![
-        0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18,
-        17, 16, 19, 18, 20, 22, 21, 20, 23, 22,
+        0, 2, 1, 0, 3, 2, 4, 6, 5, 4, 7, 6, 8, 10, 9, 8, 11, 10, 12, 14, 13, 12, 15, 14, 16, 18, 17, 16, 19, 18, 20,
+        22, 21, 20, 23, 22,
     ];
     let tangents = compute_tangent(&positions, &normals, &texcoords, &indices);
     let vertex_data_list = positions

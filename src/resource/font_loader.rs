@@ -3,7 +3,7 @@ use std::path::PathBuf;
 
 use image::{DynamicImage, Rgba};
 use nalgebra::{self, Vector2};
-use rusttype::{point, Font, PositionedGlyph, Scale};
+use rusttype::{Font, PositionedGlyph, Scale, point};
 
 use crate::scene::font::{self, FontDataCreateInfo};
 use crate::utilities::system;
@@ -43,19 +43,14 @@ pub fn get_font_data_create_info(
             (Some(glyphs_first_bounding_box), Some(glyphs_last_bounding_box)) => {
                 let min_x = glyphs_first_bounding_box.min.x;
                 let max_x = glyphs_last_bounding_box.max.x;
-                glyphs_width = max(
-                    glyphs_width,
-                    ((max_x - min_x) as f32 + padding * 2.0) as u32,
-                );
+                glyphs_width = max(glyphs_width, ((max_x - min_x) as f32 + padding * 2.0) as u32);
             }
             _ => {}
         }
         glyphs_list.push(glyphs);
     }
 
-    let mut image =
-        DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side)
-            .to_rgba8();
+    let mut image = DynamicImage::new_rgba8(glyphs_width * count_of_side, glyphs_height * count_of_side).to_rgba8();
     let mut text_index = range_min;
     for y in 0..count_of_side {
         for x in 0..count_of_side {
@@ -65,11 +60,7 @@ pub fn get_font_data_create_info(
                     glyph.draw(|px, py, v| {
                         let px = px + bounding_box.min.x as u32 + x * glyphs_width;
                         let py = py + bounding_box.min.y as u32 + y * glyphs_height;
-                        image.put_pixel(
-                            px,
-                            py,
-                            Rgba([colour.0, colour.1, colour.2, (v * 255.0) as u8]),
-                        )
+                        image.put_pixel(px, py, Rgba([colour.0, colour.1, colour.2, (v * 255.0) as u8]))
                     });
                 }
             }
@@ -89,8 +80,7 @@ pub fn get_font_data_create_info(
         let cell_width = image.width() / count_of_side;
         let cell_height = image.height() / count_of_side;
         let max_dist = (max(cell_width, cell_height) - 1) as f32;
-        let mut distance_field_image =
-            DynamicImage::new_rgba8(image.width(), image.height()).to_rgba8();
+        let mut distance_field_image = DynamicImage::new_rgba8(image.width(), image.height()).to_rgba8();
         for y in 0..count_of_side {
             for x in 0..count_of_side {
                 for py in 0..cell_height {
@@ -98,17 +88,14 @@ pub fn get_font_data_create_info(
                         let mut min_dist: f32 = max_dist;
                         let offset_x = x * cell_width;
                         let offset_y = y * cell_height;
-                        let pos: Vector2<f32> =
-                            Vector2::new((offset_x + px) as f32, (offset_y + py) as f32);
+                        let pos: Vector2<f32> = Vector2::new((offset_x + px) as f32, (offset_y + py) as f32);
                         for sy in 0..cell_height {
                             for sx in 0..cell_width {
                                 let pixel = image.get_pixel(offset_x + sx, offset_y + sy);
                                 let opacity: f32 = pixel[3] as f32 / 255.0;
                                 if 0.5 < opacity {
-                                    let src_pos: Vector2<f32> = Vector2::new(
-                                        (offset_x + sx) as f32,
-                                        (offset_y + sy) as f32,
-                                    );
+                                    let src_pos: Vector2<f32> =
+                                        Vector2::new((offset_x + sx) as f32, (offset_y + sy) as f32);
                                     let dist = nalgebra_glm::distance(&pos, &src_pos);
                                     if dist < min_dist {
                                         min_dist = dist;

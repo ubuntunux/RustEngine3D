@@ -9,7 +9,7 @@ use crate::scene::transform_object::{SimpleTransform, TransformObjectData};
 use crate::constants;
 use crate::scene::render_object::AnimationLayer;
 use crate::scene::socket::Socket;
-use crate::utilities::system::{ptr_as_ref, RcRefCell};
+use crate::utilities::system::{RcRefCell, ptr_as_ref};
 use nalgebra_glm as glm;
 
 pub const INVALID_BONE_INDEX: usize = usize::MAX;
@@ -96,8 +96,8 @@ pub struct SkeletonHierarchyTree {
 pub struct SkeletonDataCreateInfo {
     pub _name: String,
     pub _transform: Matrix4<f32>,
-    pub _hierarchy: SkeletonHierarchyTree, // bone names map as hierarchy
-    pub _bone_names: Vec<String>,          // bone name list ordered by index
+    pub _hierarchy: SkeletonHierarchyTree,     // bone names map as hierarchy
+    pub _bone_names: Vec<String>,              // bone name list ordered by index
     pub _inv_bind_matrices: Vec<Matrix4<f32>>, // inverse matrix of bone
 }
 
@@ -172,12 +172,7 @@ impl Default for SkeletonHierarchyTree {
 }
 
 impl BoneData {
-    pub fn create_bone(
-        name: &String,
-        index: usize,
-        depth: u32,
-        inv_bind_matrix: &Matrix4<f32>,
-    ) -> BoneData {
+    pub fn create_bone(name: &String, index: usize, depth: u32, inv_bind_matrix: &Matrix4<f32>) -> BoneData {
         BoneData {
             _name: name.clone(),
             _transform: TransformObjectData::create_transform_object_data(),
@@ -202,10 +197,7 @@ impl BoneData {
 }
 
 impl SkeletonData {
-    pub fn create_skeleton_data(
-        index: usize,
-        skeleton_data_create_info: &SkeletonDataCreateInfo,
-    ) -> SkeletonData {
+    pub fn create_skeleton_data(index: usize, skeleton_data_create_info: &SkeletonDataCreateInfo) -> SkeletonData {
         let mut skeleton_data = SkeletonData {
             _name: skeleton_data_create_info._name.clone(),
             _index: index,
@@ -216,17 +208,13 @@ impl SkeletonData {
                 ._bone_names
                 .iter()
                 .enumerate()
-                .map(|(bone_index, bone_name)| {
-                    BoneData::create_bone(bone_name, bone_index, 0, &Matrix4::identity())
-                })
+                .map(|(bone_index, bone_name)| BoneData::create_bone(bone_name, bone_index, 0, &Matrix4::identity()))
                 .collect(),
             _hierarchy: Vec::new(),
         };
 
         for (bone_index, bone_name) in skeleton_data_create_info._bone_names.iter().enumerate() {
-            skeleton_data
-                ._bone_index_map
-                .insert(bone_name.clone(), bone_index);
+            skeleton_data._bone_index_map.insert(bone_name.clone(), bone_index);
         }
 
         skeleton_data.build_bone(
@@ -247,8 +235,7 @@ impl SkeletonData {
     ) {
         for (bone_name, child_hierarchy) in hierarchy._children.iter() {
             if let Some(index) = self._bone_names.iter().position(|key| key == bone_name) {
-                self._bones[index] =
-                    BoneData::create_bone(bone_name, index, depth, &inv_bind_matrices[index]);
+                self._bones[index] = BoneData::create_bone(bone_name, index, depth, &inv_bind_matrices[index]);
                 let bone: *mut BoneData = &mut self._bones[index];
                 if parent_bone.is_null() {
                     // add root
@@ -324,8 +311,7 @@ impl AnimationData {
 
             loop {
                 if (0 == frame && current_time <= self._frame_times[frame])
-                    || (self._frame_times[frame] <= current_time
-                        && current_time <= self._frame_times[frame + 1])
+                    || (self._frame_times[frame] <= current_time && current_time <= self._frame_times[frame + 1])
                 {
                     break;
                 }
@@ -369,16 +355,8 @@ impl AnimationNodeData {
             let next_frame: usize = (frame + 1) % self._frame_count;
             if frame < self._frame_count {
                 return SimpleTransform {
-                    _position: glm::lerp(
-                        &self._locations[frame],
-                        &self._locations[next_frame],
-                        rate,
-                    ),
-                    _rotation: glm::quat_slerp(
-                        &self._rotations[frame],
-                        &self._rotations[next_frame],
-                        rate,
-                    ),
+                    _position: glm::lerp(&self._locations[frame], &self._locations[next_frame], rate),
+                    _rotation: glm::quat_slerp(&self._rotations[frame], &self._rotations[next_frame], rate),
                     _scale: glm::lerp(&self._scales[frame], &self._scales[next_frame], rate),
                 };
             }
@@ -396,10 +374,7 @@ impl AnimationBuffer {
     }
 
     pub fn swap_animation_buffer(&mut self) {
-        std::mem::swap(
-            &mut self._prev_animation_buffer,
-            &mut self._animation_buffer,
-        );
+        std::mem::swap(&mut self._prev_animation_buffer, &mut self._animation_buffer);
     }
 
     pub fn update_animation_buffer(
@@ -407,23 +382,16 @@ impl AnimationBuffer {
         animation_play_info: &AnimationPlayInfo,
         sockets: &mut HashMap<String, RcRefCell<Socket>>,
     ) {
-        let animation_transforms: &Vec<SimpleTransform> =
-            &animation_play_info._animation_transforms;
-        let animation_data_list: &Vec<AnimationData> = &animation_play_info
-            ._animation_mesh
-            .as_ref()
-            .unwrap()
-            .borrow()
-            ._animation_data_list;
-        let animation_data: &AnimationData =
-            &animation_data_list[animation_play_info._animation_index];
+        let animation_transforms: &Vec<SimpleTransform> = &animation_play_info._animation_transforms;
+        let animation_data_list: &Vec<AnimationData> =
+            &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
+        let animation_data: &AnimationData = &animation_data_list[animation_play_info._animation_index];
         for bone_data in ptr_as_ref(animation_data._skeleton)._hierarchy.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
-            let transform = ptr_as_ref(animation_data._skeleton)._transform
-                * animation_transforms[bone_index].to_matrix();
-            self._animation_buffer[bone_index] =
-                transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
+            let transform =
+                ptr_as_ref(animation_data._skeleton)._transform * animation_transforms[bone_index].to_matrix();
+            self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
             self.update_hierarchical_animation_transform(
                 *bone_data,
                 &transform,
@@ -545,12 +513,8 @@ impl AnimationPlayInfo {
             self._is_animation_start = false;
         }
 
-        let animation_data_list: &Vec<AnimationData> = &self
-            ._animation_mesh
-            .as_ref()
-            .unwrap()
-            .borrow()
-            ._animation_data_list;
+        let animation_data_list: &Vec<AnimationData> =
+            &self._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
         let animation_data = &animation_data_list[self._animation_index];
 
         // update animation time
@@ -574,20 +538,19 @@ impl AnimationPlayInfo {
                 }
             }
 
-            self._animation_frame =
-                animation_data.get_time_to_frame(self._animation_frame, self._animation_play_time);
+            self._animation_frame = animation_data.get_time_to_frame(self._animation_frame, self._animation_play_time);
 
             if 0.0 == self._animation_blend_time {
                 self._animation_blend_ratio = 1.0;
             } else {
-                self._animation_blend_ratio =
-                    1f32.min(self._animation_elapsed_time / self._animation_blend_time);
+                self._animation_blend_ratio = 1f32.min(self._animation_elapsed_time / self._animation_blend_time);
             }
 
             if self._animation_loop || 0.0 == self._animation_fade_out_time {
                 self._animation_fade_out_ratio = 1.0;
             } else {
-                self._animation_fade_out_ratio = 1f32.min(0f32.max((animation_end_time - self._animation_elapsed_time) / self._animation_fade_out_time));
+                self._animation_fade_out_ratio = 1f32
+                    .min(0f32.max((animation_end_time - self._animation_elapsed_time) / self._animation_fade_out_time));
             }
         } else {
             self._animation_frame = 0.0;
@@ -606,33 +569,26 @@ impl AnimationPlayInfo {
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
         if additive_animation_play_info._animation_layers.is_null() {
-            for (bone_index, additive_animation_transform) in additive_animation_play_info
-                ._animation_transforms
-                .iter()
-                .enumerate()
+            for (bone_index, additive_animation_transform) in
+                additive_animation_play_info._animation_transforms.iter().enumerate()
             {
-                self._animation_transforms[bone_index] = self._animation_transforms[bone_index]
-                    .lerp(
-                        additive_animation_transform,
-                        additive_animation_play_info._animation_fade_out_ratio,
-                    );
+                self._animation_transforms[bone_index] = self._animation_transforms[bone_index].lerp(
+                    additive_animation_transform,
+                    additive_animation_play_info._animation_fade_out_ratio,
+                );
             }
         } else {
             for (bone_name, blend_ratio) in
-                ptr_as_ref(additive_animation_play_info._animation_layers)
-                    ._bone_blend_map
-                    .iter()
+                ptr_as_ref(additive_animation_play_info._animation_layers)._bone_blend_map.iter()
             {
                 if 0.0 < *blend_ratio {
                     if let Some(bone_index) = skeleton_data._bone_index_map.get(bone_name) {
                         let additive_animation_transform =
                             &additive_animation_play_info._animation_transforms[*bone_index];
-                        self._animation_transforms[*bone_index] =
-                            self._animation_transforms[*bone_index].lerp(
-                                additive_animation_transform,
-                                *blend_ratio
-                                    * additive_animation_play_info._animation_fade_out_ratio,
-                            );
+                        self._animation_transforms[*bone_index] = self._animation_transforms[*bone_index].lerp(
+                            additive_animation_transform,
+                            *blend_ratio * additive_animation_play_info._animation_fade_out_ratio,
+                        );
                     }
                 }
             }

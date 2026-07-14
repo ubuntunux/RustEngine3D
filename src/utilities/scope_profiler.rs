@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::ops::Drop;
+use std::sync::{Mutex, OnceLock};
 use std::time::Instant;
-use std::sync::{OnceLock, Mutex};
 
 pub static TIME_PROFILER: OnceLock<Mutex<HashMap<String, f64>>> = OnceLock::new();
 

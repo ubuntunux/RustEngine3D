@@ -1,11 +1,11 @@
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::{Matrix3, Vector2, Vector3};
 
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::render_context::RenderContext_TAA_Simple;
 use crate::renderer::render_target::RenderTargetType;
 use crate::renderer::renderer_context::RendererContext;
-use crate::renderer::renderer_data::{RendererData, DEFAULT_PIPELINE};
+use crate::renderer::renderer_data::{DEFAULT_PIPELINE, RendererData};
 use crate::renderer::shader_buffer_data::AtmosphereConstants;
 use crate::renderer::utility;
 use crate::resource::resource::EngineResources;
@@ -35,11 +35,10 @@ pub const K_LENGTH_UNIT_IN_METERS: f32 = 1000.0;
 pub const K_LAMBDA_MIN: f32 = 360.0;
 pub const K_LAMBDA_MAX: f32 = 830.0;
 pub const K_SOLAR_IRRADIANCE: [f32; 48] = [
-    1.11776, 1.14259, 1.01249, 1.14716, 1.72765, 1.73054, 1.6887, 1.61253, 1.91198, 2.03474,
-    2.02042, 2.02212, 1.93377, 1.95809, 1.91686, 1.8298, 1.8685, 1.8931, 1.85149, 1.8504, 1.8341,
-    1.8345, 1.8147, 1.78158, 1.7533, 1.6965, 1.68194, 1.64654, 1.6048, 1.52143, 1.55622, 1.5113,
-    1.474, 1.4482, 1.41018, 1.36775, 1.34188, 1.31429, 1.28303, 1.26758, 1.2367, 1.2082, 1.18737,
-    1.14683, 1.12362, 1.1058, 1.07124, 1.04992,
+    1.11776, 1.14259, 1.01249, 1.14716, 1.72765, 1.73054, 1.6887, 1.61253, 1.91198, 2.03474, 2.02042, 2.02212, 1.93377,
+    1.95809, 1.91686, 1.8298, 1.8685, 1.8931, 1.85149, 1.8504, 1.8341, 1.8345, 1.8147, 1.78158, 1.7533, 1.6965,
+    1.68194, 1.64654, 1.6048, 1.52143, 1.55622, 1.5113, 1.474, 1.4482, 1.41018, 1.36775, 1.34188, 1.31429, 1.28303,
+    1.26758, 1.2367, 1.2082, 1.18737, 1.14683, 1.12362, 1.1058, 1.07124, 1.04992,
 ];
 
 // Values from http://www.iup.uni-bremen.de/gruppen/molspec/databases/
@@ -47,11 +46,10 @@ pub const K_SOLAR_IRRADIANCE: [f32; 48] = [
 // each bin (e.g. the value for 360nm is the average of the original values
 // for all wavelengths between 360 and 370nm). Values in m^2.
 pub const K_OZONE_CROSS_SECTION: [f32; 48] = [
-    1.18e-27, 2.182e-28, 2.818e-28, 6.636e-28, 1.527e-27, 2.763e-27, 5.52e-27, 8.451e-27,
-    1.582e-26, 2.316e-26, 3.669e-26, 4.924e-26, 7.752e-26, 9.016e-26, 1.48e-25, 1.602e-25,
-    2.139e-25, 2.755e-25, 3.091e-25, 3.5e-25, 4.266e-25, 4.672e-25, 4.398e-25, 4.701e-25,
-    5.019e-25, 4.305e-25, 3.74e-25, 3.215e-25, 2.662e-25, 2.238e-25, 1.852e-25, 1.473e-25,
-    1.209e-25, 9.423e-26, 7.455e-26, 6.566e-26, 5.105e-26, 4.15e-26, 4.228e-26, 3.237e-26,
+    1.18e-27, 2.182e-28, 2.818e-28, 6.636e-28, 1.527e-27, 2.763e-27, 5.52e-27, 8.451e-27, 1.582e-26, 2.316e-26,
+    3.669e-26, 4.924e-26, 7.752e-26, 9.016e-26, 1.48e-25, 1.602e-25, 2.139e-25, 2.755e-25, 3.091e-25, 3.5e-25,
+    4.266e-25, 4.672e-25, 4.398e-25, 4.701e-25, 5.019e-25, 4.305e-25, 3.74e-25, 3.215e-25, 2.662e-25, 2.238e-25,
+    1.852e-25, 1.473e-25, 1.209e-25, 9.423e-26, 7.455e-26, 6.566e-26, 5.105e-26, 4.15e-26, 4.228e-26, 3.237e-26,
     2.451e-26, 2.801e-26, 2.534e-26, 1.624e-26, 1.465e-26, 2.078e-26, 1.383e-26, 7.105e-27,
 ];
 
@@ -791,30 +789,15 @@ impl AtmosphereModel {
                 "const int TRANSMITTANCE_TEXTURE_HEIGHT = {};",
                 TRANSMITTANCE_TEXTURE_HEIGHT
             ),
-            format!(
-                "const int SCATTERING_TEXTURE_R_SIZE = {};",
-                SCATTERING_TEXTURE_R_SIZE
-            ),
-            format!(
-                "const int SCATTERING_TEXTURE_MU_SIZE = {};",
-                SCATTERING_TEXTURE_MU_SIZE
-            ),
+            format!("const int SCATTERING_TEXTURE_R_SIZE = {};", SCATTERING_TEXTURE_R_SIZE),
+            format!("const int SCATTERING_TEXTURE_MU_SIZE = {};", SCATTERING_TEXTURE_MU_SIZE),
             format!(
                 "const int SCATTERING_TEXTURE_MU_S_SIZE = {};",
                 SCATTERING_TEXTURE_MU_S_SIZE
             ),
-            format!(
-                "const int SCATTERING_TEXTURE_NU_SIZE = {};",
-                SCATTERING_TEXTURE_NU_SIZE
-            ),
-            format!(
-                "const int IRRADIANCE_TEXTURE_WIDTH = {};",
-                IRRADIANCE_TEXTURE_WIDTH
-            ),
-            format!(
-                "const int IRRADIANCE_TEXTURE_HEIGHT = {};",
-                IRRADIANCE_TEXTURE_HEIGHT
-            ),
+            format!("const int SCATTERING_TEXTURE_NU_SIZE = {};", SCATTERING_TEXTURE_NU_SIZE),
+            format!("const int IRRADIANCE_TEXTURE_WIDTH = {};", IRRADIANCE_TEXTURE_WIDTH),
+            format!("const int IRRADIANCE_TEXTURE_HEIGHT = {};", IRRADIANCE_TEXTURE_HEIGHT),
             format!(
                 "const vec2 IRRADIANCE_TEXTURE_SIZE = vec2({}, {});",
                 IRRADIANCE_TEXTURE_WIDTH, IRRADIANCE_TEXTURE_HEIGHT
@@ -828,11 +811,7 @@ impl AtmosphereModel {
             format!("{}, ", density_profile(&mut self._rayleigh_density)),
             format!(
                 "{}, ",
-                to_string(
-                    &self._rayleigh_scattering,
-                    lambdas,
-                    self._length_unit_in_meters
-                )
+                to_string(&self._rayleigh_scattering, lambdas, self._length_unit_in_meters)
             ),
             format!("{}, ", density_profile(&mut self._mie_density)),
             format!(
@@ -847,11 +826,7 @@ impl AtmosphereModel {
             format!("{}, ", density_profile(&mut self._absorption_density)),
             format!(
                 "{}, ",
-                to_string(
-                    &self._absorption_extinction,
-                    lambdas,
-                    self._length_unit_in_meters
-                )
+                to_string(&self._absorption_extinction, lambdas, self._length_unit_in_meters)
             ),
             format!("{}, ", to_string(&self._ground_albedo, lambdas, 1.0)),
             format!("{});", self._max_sun_zenith_angle.cos()),
@@ -906,21 +881,9 @@ impl AtmosphereModel {
                 ];
 
                 let luminance_from_radiance = Matrix3::from_columns(&[
-                    Vector3::new(
-                        coeff(lambdas[0], 0),
-                        coeff(lambdas[1], 0),
-                        coeff(lambdas[2], 0),
-                    ),
-                    Vector3::new(
-                        coeff(lambdas[0], 1),
-                        coeff(lambdas[1], 1),
-                        coeff(lambdas[2], 1),
-                    ),
-                    Vector3::new(
-                        coeff(lambdas[0], 2),
-                        coeff(lambdas[1], 2),
-                        coeff(lambdas[2], 2),
-                    ),
+                    Vector3::new(coeff(lambdas[0], 0), coeff(lambdas[1], 0), coeff(lambdas[2], 0)),
+                    Vector3::new(coeff(lambdas[0], 1), coeff(lambdas[1], 1), coeff(lambdas[2], 1)),
+                    Vector3::new(coeff(lambdas[0], 2), coeff(lambdas[1], 2), coeff(lambdas[2], 2)),
                 ])
                 .transpose();
 
@@ -1134,35 +1097,13 @@ impl<'a> Atmosphere<'a> {
         );
         let max_sun_zenith_angle = 120.0 / 180.0 * K_PI;
 
-        let rayleigh_layer = DensityProfileLayer::create_density_profile_layer(
-            0.0,
-            1.0,
-            -1.0 / K_RAYLEIGH_SCALE_HEIGHT,
-            0.0,
-            0.0,
-        );
-        let mie_layer = DensityProfileLayer::create_density_profile_layer(
-            0.0,
-            1.0,
-            -1.0 / K_MIE_SCALE_HEIGHT,
-            0.0,
-            0.0,
-        );
+        let rayleigh_layer =
+            DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / K_RAYLEIGH_SCALE_HEIGHT, 0.0, 0.0);
+        let mie_layer =
+            DensityProfileLayer::create_density_profile_layer(0.0, 1.0, -1.0 / K_MIE_SCALE_HEIGHT, 0.0, 0.0);
         let ozone_density: Vec<DensityProfileLayer> = vec![
-            DensityProfileLayer::create_density_profile_layer(
-                25000.0,
-                0.0,
-                0.0,
-                1.0 / 15000.0,
-                -2.0 / 3.0,
-            ),
-            DensityProfileLayer::create_density_profile_layer(
-                0.0,
-                0.0,
-                0.0,
-                -1.0 / 15000.0,
-                8.0 / 3.0,
-            ),
+            DensityProfileLayer::create_density_profile_layer(25000.0, 0.0, 0.0, 1.0 / 15000.0, -2.0 / 3.0),
+            DensityProfileLayer::create_density_profile_layer(0.0, 0.0, 0.0, -1.0 / 15000.0, 8.0 / 3.0),
         ];
 
         let mut wavelengths: Vec<f32> = Vec::new();
@@ -1186,10 +1127,8 @@ impl<'a> Atmosphere<'a> {
             mie_scattering.push(mie * K_MIE_SINGLE_SCATTERING_ALBEDO);
             mie_extinction.push(mie);
             if self._use_ozone {
-                absorption_extinction.push(
-                    K_MAX_OZONE_NUMBER_DENSITY
-                        * K_OZONE_CROSS_SECTION[(i - K_LAMBDA_MIN as usize) / 10],
-                )
+                absorption_extinction
+                    .push(K_MAX_OZONE_NUMBER_DENSITY * K_OZONE_CROSS_SECTION[(i - K_LAMBDA_MIN as usize) / 10])
             } else {
                 absorption_extinction.push(0.0);
             }
@@ -1200,20 +1139,11 @@ impl<'a> Atmosphere<'a> {
         let mie_density: Vec<DensityProfileLayer> = vec![mie_layer];
 
         if Luminance::PRECOMPUTED == self._luminance_type {
-            self._sky = Vector3::new(
-                MAX_LUMINOUS_EFFICACY,
-                MAX_LUMINOUS_EFFICACY,
-                MAX_LUMINOUS_EFFICACY,
-            );
+            self._sky = Vector3::new(MAX_LUMINOUS_EFFICACY, MAX_LUMINOUS_EFFICACY, MAX_LUMINOUS_EFFICACY);
         } else {
-            self._sky = compute_spectral_radiance_to_luminance_factors(
-                &wavelengths,
-                &solar_irradiance,
-                -3.0,
-            );
+            self._sky = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, -3.0);
         }
-        self._sun =
-            compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, 0.0);
+        self._sun = compute_spectral_radiance_to_luminance_factors(&wavelengths, &solar_irradiance, 0.0);
 
         self._atmosphere_constants = AtmosphereConstants {
             _sky_radiance_to_luminance: &self._sky * self._atmosphere_exposure,
@@ -1288,10 +1218,8 @@ impl<'a> Atmosphere<'a> {
             debug_utils_device,
             engine_resources,
             renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR),
-            renderer_data
-                .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED),
-            renderer_data
-                .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV),
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED),
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV),
             RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED,
             RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV,
         );
@@ -1299,10 +1227,10 @@ impl<'a> Atmosphere<'a> {
         // composite atmosphere
         let composite_atmosphere_pipeline_binding_data =
             material_instance.get_pipeline_binding_data("composite_atmosphere/default");
-        let precomputed_atmosphere_color_resolved = renderer_data
-            .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED);
-        let precomputed_atmosphere_color_resolved_prev = renderer_data
-            .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV);
+        let precomputed_atmosphere_color_resolved =
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED);
+        let precomputed_atmosphere_color_resolved_prev =
+            renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV);
         self._composite_atmosphere_descriptor_sets0 = utility::create_descriptor_sets_by_semantic(
             device,
             debug_utils_device,
@@ -1328,19 +1256,15 @@ impl<'a> Atmosphere<'a> {
 
         // precomputed atmosphere
         if false == USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
-            let delta_scattering_density = renderer_data.get_render_target(
-                RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY,
-            );
-            let delta_rayleigh_scattering = renderer_data.get_render_target(
-                RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING,
-            );
-            let delta_mie_scattering = renderer_data
-                .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
-            let scattering = renderer_data
-                .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
-            let optional_single_mie_scattering = renderer_data.get_render_target(
-                RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
-            );
+            let delta_scattering_density =
+                renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_SCATTERING_DENSITY);
+            let delta_rayleigh_scattering =
+                renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_RAYLEIGH_SCATTERING);
+            let delta_mie_scattering =
+                renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_DELTA_MIE_SCATTERING);
+            let scattering = renderer_data.get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_SCATTERING);
+            let optional_single_mie_scattering = renderer_data
+                .get_render_target(RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING);
             let compute_multiple_scattering_pipeline_binding_data =
                 material_instance.get_pipeline_binding_data("compute_multiple_scattering/default");
             let compute_single_scattering_pipeline_binding_data =
@@ -1349,32 +1273,29 @@ impl<'a> Atmosphere<'a> {
                 material_instance.get_pipeline_binding_data("compute_scattering_density/default");
             for layer in 0..SCATTERING_TEXTURE_DEPTH as u32 {
                 // compute_multiple_scattering
-                self._compute_multiple_scattering_framebuffers
-                    .push(utility::create_framebuffers(
-                        device,
-                        debug_utils_device,
-                        &compute_multiple_scattering_pipeline_binding_data
-                            .get_render_pass_data()
-                            .borrow(),
-                        "compute_multiple_scattering",
-                        &[
-                            // DELTA_RAYLEIGH_SCATTERING equal to DELTA_MULTIPLE_SCATTERING_TEXTURE
-                            RenderTargetInfo {
-                                _texture_data: &delta_rayleigh_scattering,
-                                _target_layer: layer,
-                                _target_mip_level: 0,
-                                _clear_value: None,
-                            },
-                            RenderTargetInfo {
-                                _texture_data: &scattering,
-                                _target_layer: layer,
-                                _target_mip_level: 0,
-                                _clear_value: None,
-                            },
-                        ],
-                        &[],
-                        &[],
-                    ));
+                self._compute_multiple_scattering_framebuffers.push(utility::create_framebuffers(
+                    device,
+                    debug_utils_device,
+                    &compute_multiple_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
+                    "compute_multiple_scattering",
+                    &[
+                        // DELTA_RAYLEIGH_SCATTERING equal to DELTA_MULTIPLE_SCATTERING_TEXTURE
+                        RenderTargetInfo {
+                            _texture_data: &delta_rayleigh_scattering,
+                            _target_layer: layer,
+                            _target_mip_level: 0,
+                            _clear_value: None,
+                        },
+                        RenderTargetInfo {
+                            _texture_data: &scattering,
+                            _target_layer: layer,
+                            _target_mip_level: 0,
+                            _clear_value: None,
+                        },
+                    ],
+                    &[],
+                    &[],
+                ));
                 // compute_single_scattering
                 let compute_single_scattering_rendertargets = vec![
                     RenderTargetInfo {
@@ -1403,36 +1324,30 @@ impl<'a> Atmosphere<'a> {
                     },
                 ];
 
-                self._compute_single_scattering_framebuffers
-                    .push(utility::create_framebuffers(
-                        device,
-                        debug_utils_device,
-                        &compute_single_scattering_pipeline_binding_data
-                            .get_render_pass_data()
-                            .borrow(),
-                        "compute_single_scattering",
-                        &compute_single_scattering_rendertargets,
-                        &[],
-                        &[],
-                    ));
+                self._compute_single_scattering_framebuffers.push(utility::create_framebuffers(
+                    device,
+                    debug_utils_device,
+                    &compute_single_scattering_pipeline_binding_data.get_render_pass_data().borrow(),
+                    "compute_single_scattering",
+                    &compute_single_scattering_rendertargets,
+                    &[],
+                    &[],
+                ));
                 // compute_scattering_density
-                self._compute_scattering_density_framebuffers
-                    .push(utility::create_framebuffers(
-                        device,
-                        debug_utils_device,
-                        &compute_scattering_density_pipeline_binding_data
-                            .get_render_pass_data()
-                            .borrow(),
-                        "compute_scattering_density",
-                        &[RenderTargetInfo {
-                            _texture_data: &delta_scattering_density,
-                            _target_layer: layer,
-                            _target_mip_level: 0,
-                            _clear_value: None,
-                        }],
-                        &[],
-                        &[],
-                    ));
+                self._compute_scattering_density_framebuffers.push(utility::create_framebuffers(
+                    device,
+                    debug_utils_device,
+                    &compute_scattering_density_pipeline_binding_data.get_render_pass_data().borrow(),
+                    "compute_scattering_density",
+                    &[RenderTargetInfo {
+                        _texture_data: &delta_scattering_density,
+                        _target_layer: layer,
+                        _target_mip_level: 0,
+                        _clear_value: None,
+                    }],
+                    &[],
+                    &[],
+                ));
             }
         }
     }
@@ -1440,18 +1355,9 @@ impl<'a> Atmosphere<'a> {
     pub fn destroy_atmosphere(&mut self, device: &Device) {
         if false == USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES {
             for layer in 0..SCATTERING_TEXTURE_DEPTH as usize {
-                framebuffer::destroy_framebuffer_data(
-                    device,
-                    &self._compute_multiple_scattering_framebuffers[layer],
-                );
-                framebuffer::destroy_framebuffer_data(
-                    device,
-                    &self._compute_single_scattering_framebuffers[layer],
-                );
-                framebuffer::destroy_framebuffer_data(
-                    device,
-                    &self._compute_scattering_density_framebuffers[layer],
-                );
+                framebuffer::destroy_framebuffer_data(device, &self._compute_multiple_scattering_framebuffers[layer]);
+                framebuffer::destroy_framebuffer_data(device, &self._compute_single_scattering_framebuffers[layer]);
+                framebuffer::destroy_framebuffer_data(device, &self._compute_scattering_density_framebuffers[layer]);
             }
         }
         self._compute_multiple_scattering_framebuffers.clear();
@@ -1490,42 +1396,23 @@ impl<'a> Atmosphere<'a> {
         );
 
         // Anti-Aliasing
-        let (taa_framebuffer, taa_descriptor_sets, composite_descriptor_sets) = match self
-            ._render_context_precomputed_atmosphere
-            ._current_taa_resolved
-        {
-            RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED => (
-                Some(
-                    &self
-                        ._render_context_precomputed_atmosphere
-                        ._framebuffer_data0,
+        let (taa_framebuffer, taa_descriptor_sets, composite_descriptor_sets) =
+            match self._render_context_precomputed_atmosphere._current_taa_resolved {
+                RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED => (
+                    Some(&self._render_context_precomputed_atmosphere._framebuffer_data0),
+                    Some(&self._render_context_precomputed_atmosphere._descriptor_sets0),
+                    Some(&self._composite_atmosphere_descriptor_sets1),
                 ),
-                Some(
-                    &self
-                        ._render_context_precomputed_atmosphere
-                        ._descriptor_sets0,
+                RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV => (
+                    Some(&self._render_context_precomputed_atmosphere._framebuffer_data1),
+                    Some(&self._render_context_precomputed_atmosphere._descriptor_sets1),
+                    Some(&self._composite_atmosphere_descriptor_sets0),
                 ),
-                Some(&self._composite_atmosphere_descriptor_sets1),
-            ),
-            RenderTargetType::PRECOMPUTED_ATMOSPHERE_COLOR_RESOLVED_PREV => (
-                Some(
-                    &self
-                        ._render_context_precomputed_atmosphere
-                        ._framebuffer_data1,
+                _ => panic!(
+                    "not matched render target. {:?}",
+                    self._render_context_precomputed_atmosphere._current_taa_resolved
                 ),
-                Some(
-                    &self
-                        ._render_context_precomputed_atmosphere
-                        ._descriptor_sets1,
-                ),
-                Some(&self._composite_atmosphere_descriptor_sets0),
-            ),
-            _ => panic!(
-                "not matched render target. {:?}",
-                self._render_context_precomputed_atmosphere
-                    ._current_taa_resolved
-            ),
-        };
+            };
         renderer_context.render_material_instance(
             command_buffer,
             swapchain_index,

@@ -1,6 +1,3 @@
-use nalgebra::{Matrix4, Vector3, Vector4};
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_data::BlendMode;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
@@ -9,7 +6,10 @@ use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
-use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
+use nalgebra::{Matrix4, Vector3, Vector4};
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
 
 pub const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;
 pub const INVALID_ALLOCATED_PARTICLE_OFFSET: i32 = -1;
@@ -333,19 +333,14 @@ impl<'a> EffectInstance<'a> {
             _effect_data: effect_data.clone(),
             _emitters: emitters,
         });
-        effect_instance
-            .borrow_mut()
-            .initialize_effect(effect_create_info);
+        effect_instance.borrow_mut().initialize_effect(effect_create_info);
         effect_instance
     }
 
     pub fn initialize_effect(&mut self, effect_create_info: &EffectCreateInfo) {
-        self._effect_transform
-            .set_position(&effect_create_info._effect_position);
-        self._effect_transform
-            .set_rotation(&effect_create_info._effect_rotation);
-        self._effect_transform
-            .set_scale(&effect_create_info._effect_scale);
+        self._effect_transform.set_position(&effect_create_info._effect_position);
+        self._effect_transform.set_rotation(&effect_create_info._effect_rotation);
+        self._effect_transform.set_scale(&effect_create_info._effect_scale);
         let parent_effect = self as *const EffectInstance;
         for emitter in self._emitters.iter_mut() {
             emitter.initialize_emitter(parent_effect);
@@ -470,22 +465,17 @@ impl<'a> EmitterInstance<'a> {
                 self._is_alive = false;
             } else {
                 if false == self.is_infinite_emitter()
-                    && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime)
-                        < self._elapsed_time
+                    && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime) < self._elapsed_time
                 {
                     self._ready_to_destroy = true;
                 } else {
-                    let updated_emitter_transform =
-                        self._emitter_transform.update_transform_object();
+                    let updated_emitter_transform = self._emitter_transform.update_transform_object();
                     if updated_effect_transform || updated_emitter_transform {
                         self._emitter_world_transform =
-                            self.get_parent_effect().get_effect_world_transform()
-                                * &self._emitter_transform._matrix;
+                            self.get_parent_effect().get_effect_world_transform() * &self._emitter_transform._matrix;
                     }
 
-                    if self.is_infinite_emitter()
-                        || self._elapsed_time <= emitter_data._emitter_lifetime
-                    {
+                    if self.is_infinite_emitter() || self._elapsed_time <= emitter_data._emitter_lifetime {
                         if self._remained_spawn_term <= 0.0 {
                             // particle spawn
                             self._particle_spawn_count = self.get_emitter_data()._spawn_count;

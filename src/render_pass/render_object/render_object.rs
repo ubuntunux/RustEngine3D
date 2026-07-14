@@ -1,9 +1,7 @@
 use crate::render_pass::render_object::common;
-use crate::render_pass::render_object::common::{
-    USER_BINDING_INDEX0, USER_BINDING_INDEX1, USER_BINDING_INDEX2,
-};
+use crate::render_pass::render_object::common::{USER_BINDING_INDEX0, USER_BINDING_INDEX1, USER_BINDING_INDEX2};
 use crate::renderer::push_constants::{
-    PushConstant, PushConstantName, PushConstantParameter, PushConstant_RenderObjectBase,
+    PushConstant, PushConstant_RenderObjectBase, PushConstantName, PushConstantParameter,
 };
 use crate::renderer::renderer_data::RendererData;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
@@ -72,9 +70,7 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
     ]
 }
 
-pub fn get_render_pass_data_create_infos(
-    renderer_data: &RendererData,
-) -> Vec<RenderPassDataCreateInfo> {
+pub fn get_render_pass_data_create_infos(renderer_data: &RendererData) -> Vec<RenderPassDataCreateInfo> {
     common::get_render_pass_data_create_infos(
         renderer_data,
         vk::CullModeFlags::BACK,

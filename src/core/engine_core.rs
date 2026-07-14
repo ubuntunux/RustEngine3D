@@ -2,13 +2,10 @@ use std::time;
 
 use log;
 use nalgebra::Vector2;
-use sdl2::event;
 use sdl2::Sdl;
-use winit::{dpi};
-use winit::event::{
-    DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase,
-    WindowEvent,
-};
+use sdl2::event;
+use winit::dpi;
+use winit::event::{DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
@@ -117,11 +114,7 @@ impl TimeData {
 }
 
 pub trait ApplicationBase<'a> {
-    fn initialize_application(
-        &'a mut self,
-        engine_core: &EngineCore<'a>,
-        window_size: &Vector2<i32>,
-    );
+    fn initialize_application(&'a mut self, engine_core: &EngineCore<'a>, window_size: &Vector2<i32>);
     fn will_terminate_application(&self) -> bool;
     fn terminate_application(&mut self);
     fn get_render_pass_create_info_callback(&self) -> *const CallbackLoadRenderPassCreateInfo;
@@ -218,16 +211,13 @@ impl<'a> EngineCore<'a> {
         sdl: &Sdl,
         application: *const dyn ApplicationBase<'a>,
     ) -> Box<EngineCore<'a>> {
-        let window_size: Vector2<i32> = Vector2::new(
-            window.inner_size().width as i32,
-            window.inner_size().height as i32,
-        );
+        let window_size: Vector2<i32> =
+            Vector2::new(window.inner_size().width as i32, window.inner_size().height as i32);
 
         // create managers
         let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo =
             ptr_as_ref(application).get_render_pass_create_info_callback();
-        let engine_resources =
-            EngineResources::create_engine_resources(callback_load_render_pass_create_info);
+        let engine_resources = EngineResources::create_engine_resources(callback_load_render_pass_create_info);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
@@ -270,20 +260,19 @@ impl<'a> EngineCore<'a> {
 
         // initialize managers
         let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
-        engine_core.get_renderer_context_mut().initialize_renderer_context(
-            engine_core.get_engine_resources(),
-            engine_core.get_effect_manager(),
-        );
+        engine_core
+            .get_renderer_context_mut()
+            .initialize_renderer_context(engine_core.get_engine_resources(), engine_core.get_effect_manager());
         engine_core.get_engine_resources_mut().load_engine_resources(engine_core.get_renderer_context());
-        engine_core.get_debug_line_manager_mut().initialize_debug_line_manager(engine_core.get_renderer_context());
-        engine_core.get_font_manager_mut().initialize_font_manager(
-            engine_core.get_renderer_context(),
-            engine_core.get_engine_resources(),
-        );
-        engine_core.get_ui_manager_mut().initialize_ui_manager(
-            engine_core.get_renderer_context(),
-            engine_core.get_engine_resources(),
-        );
+        engine_core
+            .get_debug_line_manager_mut()
+            .initialize_debug_line_manager(engine_core.get_renderer_context());
+        engine_core
+            .get_font_manager_mut()
+            .initialize_font_manager(engine_core.get_renderer_context(), engine_core.get_engine_resources());
+        engine_core
+            .get_ui_manager_mut()
+            .initialize_ui_manager(engine_core.get_renderer_context(), engine_core.get_engine_resources());
         engine_core.get_audio_manager_mut().initialize_audio_manager();
         engine_core.get_effect_manager_mut().initialize_effect_manager();
 
@@ -312,8 +301,7 @@ impl<'a> EngineCore<'a> {
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;
         self._window_size.y = size.height as i32;
-        self.get_scene_manager_mut()
-            .update_window_size(size.width as i32, size.height as i32);
+        self.get_scene_manager_mut().update_window_size(size.width as i32, size.height as i32);
 
         let renderer_context = self.get_renderer_context_mut();
         let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
@@ -406,8 +394,7 @@ impl<'a> EngineCore<'a> {
     pub fn update_touch(&mut self, touch: &Touch) {
         if 0 == touch.id {
             let window_size = self._window_size.clone();
-            self._mouse_move_data
-                .update_mouse_pos(&touch.location.into(), &window_size);
+            self._mouse_move_data.update_mouse_pos(&touch.location.into(), &window_size);
 
             if TouchPhase::Started == touch.phase {
                 self._mouse_input_data.btn_r_pressed(true);
@@ -436,7 +423,11 @@ impl<'a> EngineCore<'a> {
 
         // update timer
         let delta_time_scale: f64 = unsafe {
-            if DEVELOPMENT && self._keyboard_input_data.get_key_hold(KeyCode::CapsLock) { 10.0 } else { 1.0 }
+            if DEVELOPMENT && self._keyboard_input_data.get_key_hold(KeyCode::CapsLock) {
+                10.0
+            } else {
+                1.0
+            }
         };
         self._time_data.update_time_data(delta_time_scale);
 
@@ -494,16 +485,17 @@ impl<'a> EngineCore<'a> {
                     "Render Time: {:.3}ms",
                     self._time_data._average_render_time - self._time_data._average_present_time
                 ));
-                font_manager.log(format!(
-                    "Present Time: {:.3}ms",
-                    self._time_data._average_present_time
-                ));
+                font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
                 let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
                 let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
                 font_manager.log(format!(
                     "Camera Position: [{:.2}, {:.2}, {:.2}], Rotation: [{:.2}, {:.2}, {:.2}]",
-                    camera_position.x, camera_position.y, camera_position.z,
-                    camera_rotation.x, camera_rotation.y, camera_rotation.z,
+                    camera_position.x,
+                    camera_position.y,
+                    camera_position.z,
+                    camera_rotation.x,
+                    camera_rotation.y,
+                    camera_rotation.z,
                 ));
                 font_manager.log(format!(
                     "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
@@ -531,9 +523,17 @@ impl<'a> EngineCore<'a> {
                 font_manager.log(format!(
                     "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
                     scene_manager._skeletal_render_elements.len(),
-                    scene_manager._skeletal_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>(),
+                    scene_manager
+                        ._skeletal_render_elements
+                        .iter()
+                        .map(|element| element._num_render_instances)
+                        .sum::<u32>(),
                     scene_manager._skeletal_shadow_render_elements.len(),
-                    scene_manager._skeletal_shadow_render_elements.iter().map(|element| element._num_render_instances).sum::<u32>(),
+                    scene_manager
+                        ._skeletal_shadow_render_elements
+                        .iter()
+                        .map(|element| element._num_render_instances)
+                        .sum::<u32>(),
                 ));
                 font_manager.log(format!(
                     "PointLight: {:?}, Render PointLight: {:?}",
@@ -625,8 +625,7 @@ pub fn run_application(
     let mut current_video_mode = primary_monitor.video_modes().nth(0).unwrap();
     for (_video_index, video_mode) in primary_monitor.video_modes().enumerate() {
         if video_mode.size() == primary_monitor.size()
-            && video_mode.refresh_rate_millihertz()
-                == primary_monitor.refresh_rate_millihertz().unwrap()
+            && video_mode.refresh_rate_millihertz() == primary_monitor.refresh_rate_millihertz().unwrap()
         {
             current_video_mode = video_mode.clone();
             log::info!(
@@ -679,7 +678,8 @@ pub fn run_application(
     let mut initialize_done: bool = false;
     let mut run_application: bool = false;
     //event_loop.run(move |event, window_target| {
-    event_loop.run_on_demand(|event, window_target| {
+    event_loop
+        .run_on_demand(|event, window_target| {
             window_target.set_control_flow(ControlFlow::Poll);
 
             if need_initialize {
@@ -688,13 +688,8 @@ pub fn run_application(
                     engine_core.terminate_application();
                 }
 
-                let engine_core = EngineCore::create_application(
-                    app_name.as_str(),
-                    app_version,
-                    &window,
-                    &sdl,
-                    application,
-                );
+                let engine_core =
+                    EngineCore::create_application(app_name.as_str(), app_version, &window, &sdl, application);
 
                 // set managers
                 maybe_engine_core = Some(engine_core);
@@ -735,11 +730,15 @@ pub fn run_application(
                                     engine_core.set_keyboard_input_mode(false);
                                 }
                                 event::Event::ControllerButtonDown { button, .. } => {
-                                    engine_core._joystick_input_data.update_controller_button_state(button, ButtonState::Pressed);
+                                    engine_core
+                                        ._joystick_input_data
+                                        .update_controller_button_state(button, ButtonState::Pressed);
                                     engine_core.set_keyboard_input_mode(false);
                                 }
                                 event::Event::ControllerButtonUp { button, .. } => {
-                                    engine_core._joystick_input_data.update_controller_button_state(button, ButtonState::Released);
+                                    engine_core
+                                        ._joystick_input_data
+                                        .update_controller_button_state(button, ButtonState::Released);
                                     engine_core.set_keyboard_input_mode(false);
                                 }
                                 event::Event::Quit { .. } => break,
@@ -769,20 +768,40 @@ pub fn run_application(
 
                         // exit
                         if engine_core._is_grab_mode == false {
-                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape) || engine_core._joystick_input_data._btn_back == ButtonState::Pressed {
+                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape)
+                                || engine_core._joystick_input_data._btn_back == ButtonState::Pressed
+                            {
                                 run_application = false;
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
-                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSSR)
+                                engine_core
+                                    .get_renderer_context()
+                                    .get_renderer_data_mut()
+                                    .toggle_render_option(RenderOption::RenderSSR)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
-                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderOcean)
+                                engine_core
+                                    .get_renderer_context()
+                                    .get_renderer_data_mut()
+                                    .toggle_render_option(RenderOption::RenderOcean)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
-                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderAtmosphere)
+                                engine_core
+                                    .get_renderer_context()
+                                    .get_renderer_data_mut()
+                                    .toggle_render_option(RenderOption::RenderAtmosphere)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
-                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSky)
+                                engine_core
+                                    .get_renderer_context()
+                                    .get_renderer_data_mut()
+                                    .toggle_render_option(RenderOption::RenderSky)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
-                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderShadow)
+                                engine_core
+                                    .get_renderer_context()
+                                    .get_renderer_data_mut()
+                                    .toggle_render_option(RenderOption::RenderShadow)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit6) {
-                                engine_core.get_renderer_context().get_renderer_data_mut().toggle_render_option(RenderOption::RenderSSAO)
+                                engine_core
+                                    .get_renderer_context()
+                                    .get_renderer_data_mut()
+                                    .toggle_render_option(RenderOption::RenderSSAO)
                             }
                         }
                     }
@@ -819,12 +838,10 @@ pub fn run_application(
                         }
                     }
                     WindowEvent::CursorEntered {
-                        device_id: _device_id,
-                        ..
+                        device_id: _device_id, ..
                     } => {}
                     WindowEvent::CursorLeft {
-                        device_id: _device_id,
-                        ..
+                        device_id: _device_id, ..
                     } => {}
                     WindowEvent::Ime(_event) => {
                         // nothing

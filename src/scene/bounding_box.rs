@@ -19,10 +19,7 @@ pub struct BoundingBox {
 
 impl Default for BoundingBox {
     fn default() -> BoundingBox {
-        BoundingBox::create_bounding_box(
-            &Vector3::new(-1.0, -1.0, -1.0),
-            &Vector3::new(1.0, 1.0, 1.0),
-        )
+        BoundingBox::create_bounding_box(&Vector3::new(-1.0, -1.0, -1.0), &Vector3::new(1.0, 1.0, 1.0))
     }
 }
 
@@ -131,15 +128,9 @@ impl BoundingBox {
         self._min.y <= pos.y && pos.y <= self._max.y && self._min.z <= pos.z && pos.z <= self._max.z
     }
 
-    pub fn update_aixs_aligned_bounding_box(
-        &mut self,
-        bound_box: &BoundingBox,
-        matrix: &Matrix4<f32>,
-    ) {
-        let pos_min =
-            matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
-        let pos_max =
-            matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
+    pub fn update_aixs_aligned_bounding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+        let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
+        let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
 
         self._min.x = pos_min.x.min(pos_max.x);
         self._min.y = pos_min.y.min(pos_max.y);

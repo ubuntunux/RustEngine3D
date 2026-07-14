@@ -1,9 +1,7 @@
 use nalgebra::Vector3;
 use serde::{Deserialize, Serialize};
 
-use crate::scene::animation::{
-    AnimationData, AnimationNodeCreateInfo, SkeletonData, SkeletonDataCreateInfo,
-};
+use crate::scene::animation::{AnimationData, AnimationNodeCreateInfo, SkeletonData, SkeletonDataCreateInfo};
 use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::geometry_buffer::{GeometryCreateInfo, GeometryData};
@@ -70,30 +68,19 @@ impl MeshData {
                 ._skeleton_create_infos
                 .iter()
                 .enumerate()
-                .map(|(i, skeleton_create_info)| {
-                    SkeletonData::create_skeleton_data(i, skeleton_create_info)
-                })
+                .map(|(i, skeleton_create_info)| SkeletonData::create_skeleton_data(i, skeleton_create_info))
                 .collect(),
             _animation_data_list: Vec::new(),
             _geometry_data_list: geometry_data_list,
         };
 
-        for (i, animation_node_create_info) in mesh_data_create_info
-            ._animation_node_create_infos
-            .iter()
-            .enumerate()
-        {
-            mesh_data
-                ._animation_data_list
-                .push(AnimationData::create_animation_data(
-                    &format!(
-                        "{}_{}",
-                        mesh_data._name, mesh_data._skeleton_data_list[i]._name
-                    ),
-                    i,
-                    &mesh_data._skeleton_data_list[i],
-                    animation_node_create_info,
-                ));
+        for (i, animation_node_create_info) in mesh_data_create_info._animation_node_create_infos.iter().enumerate() {
+            mesh_data._animation_data_list.push(AnimationData::create_animation_data(
+                &format!("{}_{}", mesh_data._name, mesh_data._skeleton_data_list[i]._name),
+                i,
+                &mesh_data._skeleton_data_list[i],
+                animation_node_create_info,
+            ));
         }
 
         mesh_data

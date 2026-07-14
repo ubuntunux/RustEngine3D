@@ -1,14 +1,9 @@
-use ash::{vk, Device};
+use ash::{Device, vk};
 
 use crate::vulkan_context::queue;
 
-pub fn create_command_pool(
-    device: &Device,
-    queue_family_data: &queue::QueueFamilyDataList,
-) -> vk::CommandPool {
-    let queue_family_index = queue_family_data
-        ._queue_family_indices
-        ._graphics_queue_index;
+pub fn create_command_pool(device: &Device, queue_family_data: &queue::QueueFamilyDataList) -> vk::CommandPool {
+    let queue_family_index = queue_family_data._queue_family_indices._graphics_queue_index;
     let command_pool_create_info = vk::CommandPoolCreateInfo {
         flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
         queue_family_index,
@@ -18,11 +13,7 @@ pub fn create_command_pool(
         "create_command_pool: queueFamilyIndex({:?})",
         command_pool_create_info.queue_family_index
     );
-    unsafe {
-        device
-            .create_command_pool(&command_pool_create_info, None)
-            .expect("vkCreateCommandPool failed!")
-    }
+    unsafe { device.create_command_pool(&command_pool_create_info, None).expect("vkCreateCommandPool failed!") }
 }
 
 pub fn destroy_command_pool(device: &Device, command_pool: vk::CommandPool) {
@@ -44,9 +35,8 @@ pub fn create_command_buffers(
         ..Default::default()
     };
     unsafe {
-        let command_buffers = device
-            .allocate_command_buffers(&allocation_info)
-            .expect("vkAllocateCommandBuffers failed!");
+        let command_buffers =
+            device.allocate_command_buffers(&allocation_info).expect("vkAllocateCommandBuffers failed!");
         log::info!("create_command_buffers: {:?}", command_buffers);
         command_buffers
     }

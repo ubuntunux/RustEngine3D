@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use ash::khr;
-use ash::{vk, Device, Instance};
+use ash::{Device, Instance, vk};
 
 use crate::constants;
 
@@ -36,11 +36,9 @@ fn select_queue_family(
             .enumerate()
             .filter_map(|(index, ref queue_family_property)| {
                 let has_specify_queue = queue_family_property.queue_flags.contains(queue_flags);
-                let surface_support = surface_instance.get_physical_device_surface_support(
-                    physical_device,
-                    index as u32,
-                    surface,
-                ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
+                let surface_support = surface_instance
+                    .get_physical_device_surface_support(physical_device, index as u32, surface)
+                    .expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
                 if has_specify_queue && surface_support {
                     Some(index as u32)
                 } else {
@@ -62,25 +60,16 @@ fn select_presentation_queue_family(
             .iter()
             .enumerate()
             .filter_map(|(index, ref __queue_family_property)| {
-                let surface_support = surface_instance.get_physical_device_surface_support(
-                    physical_device,
-                    index as u32,
-                    surface,
-                ).expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
-                if surface_support {
-                    Some(index as u32)
-                } else {
-                    None
-                }
+                let surface_support = surface_instance
+                    .get_physical_device_surface_support(physical_device, index as u32, surface)
+                    .expect("vkGetPhysicalDeviceSurfaceSupportKHR: failed to check for presentation support.");
+                if surface_support { Some(index as u32) } else { None }
             })
             .collect()
     }
 }
 
-pub fn get_queue_families(
-    instance: &Instance,
-    physical_device: vk::PhysicalDevice,
-) -> Vec<vk::QueueFamilyProperties> {
+pub fn get_queue_families(instance: &Instance, physical_device: vk::PhysicalDevice) -> Vec<vk::QueueFamilyProperties> {
     unsafe {
         let queue_family_properties: Vec<vk::QueueFamilyProperties> =
             instance.get_physical_device_queue_family_properties(physical_device);
@@ -99,12 +88,8 @@ pub fn get_queue_family_indices(
     is_concurrent_mode: bool,
 ) -> QueueFamilyIndices {
     let queue_families = get_queue_families(&instance, physical_device);
-    let presentation_queue_family_indices = select_presentation_queue_family(
-        surface_instance,
-        surface,
-        physical_device,
-        &queue_families,
-    );
+    let presentation_queue_family_indices =
+        select_presentation_queue_family(surface_instance, surface, physical_device, &queue_families);
     let graphics_queue_family_indices = select_queue_family(
         surface_instance,
         surface,
@@ -150,15 +135,10 @@ pub fn get_queue_family_indices(
         _present_queue_index: fn_get_queue_family_index(&presentation_queue_family_indices),
         _compute_queue_index: fn_get_queue_family_index(&compute_queue_family_indices),
         _transfer_queue_index: fn_get_queue_family_index(&transfer_queue_family_indices),
-        _sparse_binding_queue_index: fn_get_queue_family_index(
-            &sparse_binding_queue_family_indices,
-        ),
+        _sparse_binding_queue_index: fn_get_queue_family_index(&sparse_binding_queue_family_indices),
     };
 
-    log::info!(
-        "Graphics Queue Index : {}",
-        queue_family_indices._graphics_queue_index
-    );
+    log::info!("Graphics Queue Index : {}", queue_family_indices._graphics_queue_index);
     log::info!(
         "Presentation Queue Index : {} / {:?}",
         queue_family_indices._present_queue_index,
@@ -183,10 +163,7 @@ pub fn get_queue_family_indices(
     queue_family_indices
 }
 
-pub fn create_queues(
-    device: &Device,
-    queue_family_index_set: &Vec<u32>,
-) -> HashMap<u32, vk::Queue> {
+pub fn create_queues(device: &Device, queue_family_index_set: &Vec<u32>) -> HashMap<u32, vk::Queue> {
     unsafe {
         let mut queue_map = HashMap::new();
         for queue_family_index in queue_family_index_set.iter() {

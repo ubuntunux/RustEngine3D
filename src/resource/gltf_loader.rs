@@ -4,9 +4,7 @@ use gltf;
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 
 use crate::constants;
-use crate::scene::animation::{
-    AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree,
-};
+use crate::scene::animation::{AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::math;
@@ -35,7 +33,8 @@ pub struct GLTF {
 
 pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::buffer::View) {
     if SHOW_GLTF_LOG {
-        log::info!("{} Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
+        log::info!(
+            "{} Type: {:?}, Index: {:?}, Dimensions: {:?}, Stride: {:?}, Count: {:?}, ByteLength: {:?}, Offset: {:?}, Target: {:?}",
             prefix,
             accessor.data_type(),
             accessor.index(),
@@ -49,10 +48,7 @@ pub fn log_assesor_view(prefix: &str, accessor: &gltf::Accessor, view: &gltf::bu
     }
 }
 
-pub fn parsing_index_buffer(
-    primitive: &gltf::Primitive,
-    buffers: &Vec<gltf::buffer::Data>,
-) -> Vec<u32> {
+pub fn parsing_index_buffer(primitive: &gltf::Primitive, buffers: &Vec<gltf::buffer::Data>) -> Vec<u32> {
     let accessor = primitive.indices().unwrap();
     let view = accessor.view().unwrap();
     log_assesor_view("\t\t\tIndices", &accessor, &view);
@@ -72,9 +68,7 @@ pub fn parsing_index_buffer(
     for i in 0..index_count {
         let base_index = i * stride;
         let index_value = match accessor.data_type() {
-            gltf::accessor::DataType::U16 => {
-                (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8)
-            }
+            gltf::accessor::DataType::U16 => (bytes[base_index] as u32) | ((bytes[base_index + 1] as u32) << 8),
             gltf::accessor::DataType::U32 => {
                 (bytes[base_index] as u32)
                     | ((bytes[base_index + 1] as u32) << 8)
@@ -268,12 +262,8 @@ pub fn parsing_vertex_buffer(
                     assert_eq!(gltf::accessor::Dimensions::Vec4, accessor.dimensions());
                     let buffer_data: Vec<Vector4<u8>> = system::convert_vec(bytes);
                     for (i, data) in buffer_data.iter().enumerate() {
-                        skeletal_vertex_data_list[i]._bone_indices = Vector4::new(
-                            data.x as u32,
-                            data.y as u32,
-                            data.z as u32,
-                            data.w as u32,
-                        );
+                        skeletal_vertex_data_list[i]._bone_indices =
+                            Vector4::new(data.x as u32, data.y as u32, data.z as u32, data.w as u32);
                     }
                 }
             }
@@ -292,11 +282,7 @@ pub fn parsing_vertex_buffer(
         }
     }
 
-    (
-        vertex_data_list,
-        skeletal_vertex_data_list,
-        find_tangent_data,
-    )
+    (vertex_data_list, skeletal_vertex_data_list, find_tangent_data)
 }
 
 pub fn compute_tangent(
@@ -320,17 +306,9 @@ pub fn compute_tangent(
     // gather vertex data_list
     for vertex_data_index in 0..vertex_count {
         if is_skeletal_mesh {
-            positions.push(
-                skeletal_vertex_data_list[vertex_data_index]
-                    ._position
-                    .clone(),
-            );
+            positions.push(skeletal_vertex_data_list[vertex_data_index]._position.clone());
             normals.push(skeletal_vertex_data_list[vertex_data_index]._normal.clone());
-            texcoords.push(
-                skeletal_vertex_data_list[vertex_data_index]
-                    ._texcoord
-                    .clone(),
-            );
+            texcoords.push(skeletal_vertex_data_list[vertex_data_index]._texcoord.clone());
         } else {
             positions.push(vertex_data_list[vertex_data_index]._position.clone());
             normals.push(vertex_data_list[vertex_data_index]._normal.clone());
@@ -339,25 +317,17 @@ pub fn compute_tangent(
     }
 
     // insert tangent
-    let tangents: Vec<Vector3<f32>> =
-        geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
+    let tangents: Vec<Vector3<f32>> = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
     for (vertex_data_index, tangent) in tangents.iter().enumerate() {
         if is_skeletal_mesh {
-            skeletal_vertex_data_list[vertex_data_index]
-                ._tangent
-                .clone_from(&tangent);
+            skeletal_vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
         } else {
-            vertex_data_list[vertex_data_index]
-                ._tangent
-                .clone_from(&tangent);
+            vertex_data_list[vertex_data_index]._tangent.clone_from(&tangent);
         }
     }
 }
 
-pub fn parsing_inverse_bind_matrices(
-    skin: &gltf::Skin,
-    buffers: &Vec<gltf::buffer::Data>,
-) -> Vec<Matrix4<f32>> {
+pub fn parsing_inverse_bind_matrices(skin: &gltf::Skin, buffers: &Vec<gltf::buffer::Data>) -> Vec<Matrix4<f32>> {
     let accessor = skin.inverse_bind_matrices().unwrap();
     let view = accessor.view().unwrap();
     log_assesor_view("\t\t\tInverse Bind Matrices", &accessor, &view);
@@ -376,9 +346,7 @@ pub fn parsing_bone_hierarchy(bone_node: &gltf::Node, hierarchy: &mut SkeletonHi
         assert!(child_node.mesh().is_none());
         let mut child_hierarchy = SkeletonHierarchyTree::default();
         parsing_bone_hierarchy(&child_node, &mut child_hierarchy);
-        hierarchy
-            ._children
-            .insert(child_node.name().unwrap().to_string(), child_hierarchy);
+        hierarchy._children.insert(child_node.name().unwrap().to_string(), child_hierarchy);
     }
 }
 
@@ -392,8 +360,8 @@ pub fn parsing_skins(
         if armature_node.name().unwrap() == skin.name().unwrap() {
             let m: &[[f32; 4]; 4] = &armature_node.transform().matrix();
             let mut parent_transform: Matrix4<f32> = Matrix4::new(
-                m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2],
-                m[1][2], m[2][2], m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
+                m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2],
+                m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
             );
 
             // inverse bind matrices
@@ -418,22 +386,18 @@ pub fn parsing_skins(
                 if child_node.mesh().is_none() {
                     let mut child_hierarchy = SkeletonHierarchyTree::default();
                     parsing_bone_hierarchy(&child_node, &mut child_hierarchy);
-                    hierarchy
-                        ._children
-                        .insert(child_node.name().unwrap().to_string(), child_hierarchy);
+                    hierarchy._children.insert(child_node.name().unwrap().to_string(), child_hierarchy);
                 }
             }
 
             // skeletone create info
-            mesh_data_create_info
-                ._skeleton_create_infos
-                .push(SkeletonDataCreateInfo {
-                    _name: armature_node.name().unwrap().to_string(),
-                    _transform: parent_transform,
-                    _hierarchy: hierarchy,
-                    _bone_names: bone_names,
-                    _inv_bind_matrices: inverse_bind_matrices,
-                });
+            mesh_data_create_info._skeleton_create_infos.push(SkeletonDataCreateInfo {
+                _name: armature_node.name().unwrap().to_string(),
+                _transform: parent_transform,
+                _hierarchy: hierarchy,
+                _bone_names: bone_names,
+                _inv_bind_matrices: inverse_bind_matrices,
+            });
             return;
         }
     }
@@ -457,11 +421,7 @@ pub fn parsing_animation(
 
         for animation in animations.clone() {
             if SHOW_GLTF_LOG {
-                log::info!(
-                    "\tAnimation: {:?}, Index: {:?}",
-                    animation.name(),
-                    animation.index()
-                );
+                log::info!("\tAnimation: {:?}, Index: {:?}", animation.name(), animation.index());
             }
             for channel in animation.channels() {
                 let target = channel.target();
@@ -483,10 +443,7 @@ pub fn parsing_animation(
                             target_index,
                             property
                         );
-                        log::info!(
-                            "        Sampler Interpolation: {:?}",
-                            sampler.interpolation()
-                        );
+                        log::info!("        Sampler Interpolation: {:?}", sampler.interpolation());
                         log_assesor_view(
                             "        Sampler Input",
                             &sampler.input(),
@@ -503,46 +460,32 @@ pub fn parsing_animation(
                     if animation_node_data._times.is_empty() {
                         let input_buffer_offset = input_view.offset();
                         let input_buffer_length = input_view.length();
-                        let input_bytes: Vec<u8> = buffers[0].0
-                            [input_buffer_offset..(input_buffer_offset + input_buffer_length)]
-                            .to_vec();
+                        let input_bytes: Vec<u8> =
+                            buffers[0].0[input_buffer_offset..(input_buffer_offset + input_buffer_length)].to_vec();
                         assert_eq!(gltf::accessor::DataType::F32, input_accesor.data_type());
-                        assert_eq!(
-                            gltf::accessor::Dimensions::Scalar,
-                            input_accesor.dimensions()
-                        );
+                        assert_eq!(gltf::accessor::Dimensions::Scalar, input_accesor.dimensions());
                         animation_node_data._times = system::convert_vec(input_bytes);
                     }
 
                     // output data
                     let output_buffer_offset = output_view.offset();
                     let output_buffer_length = output_view.length();
-                    let output_bytes: Vec<u8> = buffers[0].0
-                        [output_buffer_offset..(output_buffer_offset + output_buffer_length)]
-                        .to_vec();
+                    let output_bytes: Vec<u8> =
+                        buffers[0].0[output_buffer_offset..(output_buffer_offset + output_buffer_length)].to_vec();
                     match property {
                         gltf::animation::Property::Translation => {
                             assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
-                            assert_eq!(
-                                gltf::accessor::Dimensions::Vec3,
-                                output_accesor.dimensions()
-                            );
+                            assert_eq!(gltf::accessor::Dimensions::Vec3, output_accesor.dimensions());
                             animation_node_data._locations = system::convert_vec(output_bytes);
                         }
                         gltf::animation::Property::Rotation => {
                             assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
-                            assert_eq!(
-                                gltf::accessor::Dimensions::Vec4,
-                                output_accesor.dimensions()
-                            );
+                            assert_eq!(gltf::accessor::Dimensions::Vec4, output_accesor.dimensions());
                             animation_node_data._rotations = system::convert_vec(output_bytes);
                         }
                         gltf::animation::Property::Scale => {
                             assert_eq!(gltf::accessor::DataType::F32, output_accesor.data_type());
-                            assert_eq!(
-                                gltf::accessor::Dimensions::Vec3,
-                                output_accesor.dimensions()
-                            );
+                            assert_eq!(gltf::accessor::Dimensions::Vec3, output_accesor.dimensions());
                             animation_node_data._scales = system::convert_vec(output_bytes);
                         }
                         _ => panic!("not implementation!"),
@@ -563,9 +506,7 @@ pub fn parsing_animation(
             assert_eq!(num_keyframes, animation_node_data._times.len());
         }
     }
-    mesh_data_create_info
-        ._animation_node_create_infos
-        .push(animation_node_data_list);
+    mesh_data_create_info._animation_node_create_infos.push(animation_node_data_list);
 }
 
 pub fn precompute_animation(
@@ -591,10 +532,7 @@ pub fn precompute_animation(
     animation_node_data._scales[frame_index] = math::extract_scale(&combined_transform);
 
     for (child_bone_name, child_hierarchy) in hierarchy._children.iter() {
-        let child_bone_index = bone_names
-            .iter()
-            .position(|bone_name| bone_name == child_bone_name)
-            .unwrap();
+        let child_bone_index = bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
         precompute_animation(
             frame_index,
             &transform,
@@ -618,7 +556,8 @@ pub fn parsing_meshes(
         for _i in 0..depth {
             text += "    ";
         }
-        log::info!("{}Node {:?} Index: {:?}, Mesh: {:?}, Skin: {:?}, Weight: {:?}, Extras: {:?}, Transform: {:?}",
+        log::info!(
+            "{}Node {:?} Index: {:?}, Mesh: {:?}, Skin: {:?}, Weight: {:?}, Extras: {:?}, Transform: {:?}",
             text,
             node.name().unwrap(),
             node.index(),
@@ -635,8 +574,8 @@ pub fn parsing_meshes(
         let mesh = node.mesh().unwrap();
         let m: &[[f32; 4]; 4] = &node.transform().matrix();
         let mut parent_transform: Matrix4<f32> = Matrix4::new(
-            m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2],
-            m[1][2], m[2][2], m[3][2], m[0][3], m[1][3], m[2][3], m[3][3],
+            m[0][0], m[1][0], m[2][0], m[3][0], m[0][1], m[1][1], m[2][1], m[3][1], m[0][2], m[1][2], m[2][2], m[3][2],
+            m[0][3], m[1][3], m[2][3], m[3][3],
         );
 
         if constants::CONVERT_COORDINATE_SYSTEM_RIGHT_HANDED_TO_LEFT_HANDED {
@@ -679,8 +618,7 @@ pub fn parsing_meshes(
                 ),
                 1.0,
             );
-            let bounding_box: BoundingBox =
-                BoundingBox::create_bounding_box(&bound_min, &bound_max);
+            let bounding_box: BoundingBox = BoundingBox::create_bounding_box(&bound_min, &bound_max);
 
             // parsing vertex buffer
             let indices = parsing_index_buffer(&primitive, buffers);
@@ -698,14 +636,12 @@ pub fn parsing_meshes(
             }
 
             // insert GeometryCreateInfo
-            mesh_data_create_info
-                ._geometry_create_infos
-                .push(GeometryCreateInfo {
-                    _vertex_data_list: vertex_data_list,
-                    _skeletal_vertex_data_list: skeletal_vertex_data_list,
-                    _indices: indices,
-                    _bounding_box: bounding_box,
-                });
+            mesh_data_create_info._geometry_create_infos.push(GeometryCreateInfo {
+                _vertex_data_list: vertex_data_list,
+                _skeletal_vertex_data_list: skeletal_vertex_data_list,
+                _indices: indices,
+                _bounding_box: bounding_box,
+            });
         }
     }
 
@@ -720,36 +656,20 @@ impl GLTF {
         let (document, buffers, _images) = gltf::import(filename).unwrap();
         let mut mesh_data_create_info = MeshDataCreateInfo::default();
         for skin in document.skins() {
-            parsing_skins(
-                document.nodes(),
-                &skin,
-                &buffers,
-                &mut mesh_data_create_info,
-            );
+            parsing_skins(document.nodes(), &skin, &buffers, &mut mesh_data_create_info);
 
-            parsing_animation(
-                document.animations(),
-                &skin,
-                &buffers,
-                &mut mesh_data_create_info,
-            );
+            parsing_animation(document.animations(), &skin, &buffers, &mut mesh_data_create_info);
 
             if constants::COMBINED_INVERSE_BIND_MATRIX {
                 let n = mesh_data_create_info._animation_node_create_infos.len();
-                let animation_node_data_list =
-                    &mut mesh_data_create_info._animation_node_create_infos[n - 1];
-                let skeleton_create_info =
-                    &mesh_data_create_info._skeleton_create_infos.last().unwrap();
+                let animation_node_data_list = &mut mesh_data_create_info._animation_node_create_infos[n - 1];
+                let skeleton_create_info = &mesh_data_create_info._skeleton_create_infos.last().unwrap();
                 let inv_bind_matrices = &skeleton_create_info._inv_bind_matrices;
                 let bone_names = &skeleton_create_info._bone_names;
                 let parent_transform: Matrix4<f32> = skeleton_create_info._transform.clone();
-                for (child_bone_name, child_hierarchy) in
-                    skeleton_create_info._hierarchy._children.iter()
-                {
-                    let child_bone_index = bone_names
-                        .iter()
-                        .position(|bone_name| bone_name == child_bone_name)
-                        .unwrap();
+                for (child_bone_name, child_hierarchy) in skeleton_create_info._hierarchy._children.iter() {
+                    let child_bone_index =
+                        bone_names.iter().position(|bone_name| bone_name == child_bone_name).unwrap();
                     let total_frame_count = animation_node_data_list[child_bone_index]._times.len();
                     for frame_index in 0..total_frame_count {
                         precompute_animation(
@@ -772,9 +692,8 @@ impl GLTF {
             }
         }
 
-        mesh_data_create_info._bound_box = MeshDataCreateInfo::calc_mesh_bounding_box(
-            &mesh_data_create_info._geometry_create_infos,
-        );
+        mesh_data_create_info._bound_box =
+            MeshDataCreateInfo::calc_mesh_bounding_box(&mesh_data_create_info._geometry_create_infos);
         mesh_data_create_info
     }
 }

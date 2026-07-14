@@ -9,7 +9,7 @@ use ash::khr;
 use ash::nv;
 use ash::prelude::VkResult;
 use ash::vk::CommandBuffer;
-use ash::{vk, Device, Entry, Instance};
+use ash::{Device, Entry, Instance, vk};
 use nalgebra::Vector2;
 use winit;
 use winit::raw_window_handle::HasDisplayHandle;
@@ -47,21 +47,17 @@ pub unsafe extern "system" fn vulkan_debug_callback(
     p_callback_data: *const vk::DebugUtilsMessengerCallbackDataEXT,
     _user_data: *mut std::os::raw::c_void,
 ) -> vk::Bool32 {
-    let callback_data = unsafe{ *p_callback_data };
+    let callback_data = unsafe { *p_callback_data };
     let message_id_number: i32 = callback_data.message_id_number;
     let message_id_name = if callback_data.p_message_id_name.is_null() {
         Cow::from("")
     } else {
-        unsafe {
-            CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy()
-        }
+        unsafe { CStr::from_ptr(callback_data.p_message_id_name).to_string_lossy() }
     };
     let message = if callback_data.p_message.is_null() {
         Cow::from("")
     } else {
-        unsafe {
-            CStr::from_ptr(callback_data.p_message).to_string_lossy()
-        }
+        unsafe { CStr::from_ptr(callback_data.p_message).to_string_lossy() }
     };
     println!(
         "[{:?}]:{:?} [{} ({})] : {}",
@@ -84,12 +80,9 @@ pub fn get_debug_message_level(
                 | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
         }
         vk::DebugUtilsMessageSeverityFlagsEXT::WARNING => {
-            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING
-                | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
+            vk::DebugUtilsMessageSeverityFlagsEXT::WARNING | vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
         }
-        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => {
-            vk::DebugUtilsMessageSeverityFlagsEXT::ERROR
-        }
+        vk::DebugUtilsMessageSeverityFlagsEXT::ERROR => vk::DebugUtilsMessageSeverityFlagsEXT::ERROR,
         _ => {
             vk::DebugUtilsMessageSeverityFlagsEXT::VERBOSE
                 | vk::DebugUtilsMessageSeverityFlagsEXT::INFO
@@ -151,36 +144,26 @@ impl<'a> RendererContext<'a> {
                 window_size.y
             );
             let entry = Entry::linked();
-            let surface_extensions = ash_window::enumerate_required_extensions(
-                window.display_handle().unwrap().as_raw(),
-            )
-            .unwrap();
-            let required_layer_names = device::get_instance_layers(
-                &entry,
-                &*&raw const constants::REQUIRED_INSTANCE_LAYERS,
-            );
-            let required_instance_layers: Vec<*const c_char> = required_layer_names
+            let surface_extensions =
+                ash_window::enumerate_required_extensions(window.display_handle().unwrap().as_raw()).unwrap();
+            let required_layer_names =
+                device::get_instance_layers(&entry, &*&raw const constants::REQUIRED_INSTANCE_LAYERS);
+            let required_instance_layers: Vec<*const c_char> =
+                required_layer_names.iter().map(|layer| layer.as_ptr()).collect();
+            let device_extensions: Vec<CString> = (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
                 .iter()
-                .map(|layer| layer.as_ptr())
+                .map(|str| CString::new(str.as_str()).unwrap())
                 .collect();
-            let device_extensions: Vec<CString> =
+            let mut device_extension_names_raw: Vec<*const c_char> =
+                device_extensions.iter().map(|extension| extension.as_ptr()).collect();
+            let device_extensions_for_ray_tracing: Vec<CString> = if *&raw const constants::USE_RAY_TRACING {
                 (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
                     .iter()
                     .map(|str| CString::new(str.as_str()).unwrap())
-                    .collect();
-            let mut device_extension_names_raw: Vec<*const c_char> = device_extensions
-                .iter()
-                .map(|extension| extension.as_ptr())
-                .collect();
-            let device_extensions_for_ray_tracing: Vec<CString> =
-                if *&raw const constants::USE_RAY_TRACING {
-                    (&*&raw const constants::REQUIRED_DEVICE_EXTENSIONS)
-                        .iter()
-                        .map(|str| CString::new(str.as_str()).unwrap())
-                        .collect()
-                } else {
-                    Vec::new()
-                };
+                    .collect()
+            } else {
+                Vec::new()
+            };
             let instance: Instance = device::create_vk_instance(
                 &entry,
                 &app_name,
@@ -190,25 +173,20 @@ impl<'a> RendererContext<'a> {
             );
             let surface = device::create_vk_surface(&entry, &instance, window);
             let surface_instance = khr::surface::Instance::new(&entry, &instance);
-            let (
-                physical_device,
-                swapchain_support_details,
-                physical_device_features,
-                has_ray_tracing_extensions,
-            ) = device::select_physical_device(
-                &instance,
-                &surface_instance,
-                surface,
-                &device_extensions,
-                &device_extensions_for_ray_tracing,
-            )
-            .unwrap();
+            let (physical_device, swapchain_support_details, physical_device_features, has_ray_tracing_extensions) =
+                device::select_physical_device(
+                    &instance,
+                    &surface_instance,
+                    surface,
+                    &device_extensions,
+                    &device_extensions_for_ray_tracing,
+                )
+                .unwrap();
             let device_properties: vk::PhysicalDeviceProperties =
                 instance.get_physical_device_properties(physical_device);
             let device_memory_properties: vk::PhysicalDeviceMemoryProperties =
                 instance.get_physical_device_memory_properties(physical_device);
-            let device_name =
-                CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
+            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
             let enable_ray_tracing = has_ray_tracing_extensions && constants::USE_RAY_TRACING;
 
             log::info!("PhysicalDeviceProperties");
@@ -237,15 +215,11 @@ impl<'a> RendererContext<'a> {
             let ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV = {
                 let mut props_rt = vk::PhysicalDeviceRayTracingPropertiesNV::default();
                 {
-                    let mut props =
-                        vk::PhysicalDeviceProperties2::default().push_next(&mut props_rt);
+                    let mut props = vk::PhysicalDeviceProperties2::default().push_next(&mut props_rt);
                     instance.get_physical_device_properties2(physical_device, &mut props);
                 }
                 log::info!("NV Ray Tracing Properties:");
-                log::info!(
-                    "    has_ray_tracing_extensions: {:?}",
-                    has_ray_tracing_extensions
-                );
+                log::info!("    has_ray_tracing_extensions: {:?}", has_ray_tracing_extensions);
                 log::info!("    ray_tracing_properties: {:?}", props_rt);
                 props_rt
             };
@@ -266,11 +240,7 @@ impl<'a> RendererContext<'a> {
             );
             let render_features = RenderFeatures {
                 _physical_device_features: vk::PhysicalDeviceFeatures {
-                    shader_clip_distance: if constants::SHADER_CLIP_DISTANCE {
-                        1
-                    } else {
-                        0
-                    },
+                    shader_clip_distance: if constants::SHADER_CLIP_DISTANCE { 1 } else { 0 },
                     ..physical_device_features.clone()
                 },
                 _msaa_samples: msaa_samples,
@@ -307,11 +277,8 @@ impl<'a> RendererContext<'a> {
                 };
                 debug_utils_device = Some(ext::debug_utils::Device::new(&instance, &device));
                 debug_utils_instance = Some(ext::debug_utils::Instance::new(&entry, &instance));
-                debug_call_back = debug_utils_instance
-                    .as_ref()
-                    .unwrap()
-                    .create_debug_utils_messenger(&debug_info, None)
-                    .unwrap();
+                debug_call_back =
+                    debug_utils_instance.as_ref().unwrap().create_debug_utils_messenger(&debug_info, None).unwrap();
             } else {
                 debug_utils_device = None;
                 debug_utils_instance = None;
@@ -322,14 +289,8 @@ impl<'a> RendererContext<'a> {
             let queue_map = queue::create_queues(&device, &queue_family_index_set);
             let default_queue: &vk::Queue = queue_map.get(&queue_family_index_set[0]).unwrap();
             let queue_family_data_list = queue::QueueFamilyDataList {
-                _graphics_queue: queue_map
-                    .get(&graphics_queue_index)
-                    .unwrap_or(default_queue)
-                    .clone(),
-                _present_queue: queue_map
-                    .get(&present_queue_index)
-                    .unwrap_or(default_queue)
-                    .clone(),
+                _graphics_queue: queue_map.get(&graphics_queue_index).unwrap_or(default_queue).clone(),
+                _present_queue: queue_map.get(&present_queue_index).unwrap_or(default_queue).clone(),
                 _queue_family_index_list: queue_family_index_set.clone(),
                 _queue_family_count: queue_map.len() as u32,
                 _queue_family_indices: queue_family_indices.clone(),
@@ -348,13 +309,9 @@ impl<'a> RendererContext<'a> {
             let image_available_semaphores = sync::create_semaphores(&device);
             let render_finished_semaphores = sync::create_semaphores(&device);
             let frame_fences = sync::create_fences(&device);
-            let command_pool =
-                command_buffer::create_command_pool(&device, &queue_family_data_list);
-            let command_buffers = command_buffer::create_command_buffers(
-                &device,
-                command_pool,
-                constants::SWAPCHAIN_IMAGE_COUNT as u32,
-            );
+            let command_pool = command_buffer::create_command_pool(&device, &queue_family_data_list);
+            let command_buffers =
+                command_buffer::create_command_buffers(&device, command_pool, constants::SWAPCHAIN_IMAGE_COUNT as u32);
 
             // renderer data
             let renderer_data = Box::new(RendererData::create_renderer_data());
@@ -405,13 +362,8 @@ impl<'a> RendererContext<'a> {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
-        self._image_samplers =
-            image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
-        self.get_renderer_data_mut().initialize_renderer_data(
-            self,
-            engine_resources,
-            effect_manager,
-        );
+        self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
+        self.get_renderer_data_mut().initialize_renderer_data(self, engine_resources, effect_manager);
 
         // TEST CODE
         if self.get_use_ray_tracing() {
@@ -524,10 +476,7 @@ impl<'a> RendererContext<'a> {
     pub fn get_present_queue(&self) -> vk::Queue {
         self._queue_family_data_list._present_queue
     }
-    pub fn create_render_target<T: Copy>(
-        &self,
-        texture_create_info: &TextureCreateInfo<T>,
-    ) -> TextureData {
+    pub fn create_render_target<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_render_target(
             self.get_instance(),
             self.get_device(),
@@ -539,10 +488,7 @@ impl<'a> RendererContext<'a> {
             texture_create_info,
         )
     }
-    pub fn create_texture<T: Copy>(
-        &self,
-        texture_create_info: &TextureCreateInfo<T>,
-    ) -> TextureData {
+    pub fn create_texture<T: Copy>(&self, texture_create_info: &TextureCreateInfo<T>) -> TextureData {
         texture::create_texture_data(
             self.get_instance(),
             self.get_device(),
@@ -586,17 +532,9 @@ impl<'a> RendererContext<'a> {
         sync::destroy_semaphores(&self._device, &self._image_available_semaphores);
         sync::destroy_semaphores(&self._device, &self._render_finished_semaphores);
         sync::destroy_fences(&self._device, &self._frame_fences);
-        command_buffer::destroy_command_buffers(
-            &self._device,
-            self._command_pool,
-            &self._command_buffers,
-        );
+        command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
         command_buffer::destroy_command_pool(&self._device, self._command_pool);
-        swapchain::destroy_swapchain_data(
-            &self._device,
-            &self._swapchain_device,
-            &self._swapchain_data,
-        );
+        swapchain::destroy_swapchain_data(&self._device, &self._swapchain_device, &self._swapchain_data);
         device::destroy_device(&self._device);
         device::destroy_vk_surface(&self._surface_instance, self._surface);
         unsafe {
@@ -646,9 +584,7 @@ impl<'a> RendererContext<'a> {
         push_constant_data: Option<&dyn PushConstant>,
     ) {
         let engine_resources = ptr_as_ref(self._engine_resources);
-        let material_instance_data = engine_resources
-            .get_material_instance_data(material_instance_name)
-            .borrow();
+        let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
         } else {
@@ -704,9 +640,7 @@ impl<'a> RendererContext<'a> {
         push_constant_data: Option<&dyn PushConstant>,
     ) {
         let engine_resources = self.get_engine_resources();
-        let material_instance_data = engine_resources
-            .get_material_instance_data(material_instance_name)
-            .borrow();
+        let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
         } else {
@@ -776,20 +710,11 @@ impl<'a> RendererContext<'a> {
         if let Some(push_constant_data) = push_constant_data {
             self.upload_push_constant_data(command_buffer, pipeline_data, push_constant_data);
         }
-        self.draw_elements_instanced(
-            command_buffer,
-            geometry_data,
-            instance_buffers,
-            instance_count,
-        );
+        self.draw_elements_instanced(command_buffer, geometry_data, instance_buffers, instance_count);
         self.end_render_pass(command_buffer);
     }
 
-    pub fn begin_compute_pipeline(
-        &self,
-        command_buffer: CommandBuffer,
-        pipeline_data: &PipelineData,
-    ) {
+    pub fn begin_compute_pipeline(&self, command_buffer: CommandBuffer, pipeline_data: &PipelineData) {
         unsafe {
             self._device.cmd_bind_pipeline(
                 command_buffer,
@@ -815,15 +740,11 @@ impl<'a> RendererContext<'a> {
                 .as_ptr(),
         };
         unsafe {
-            let render_pass_begin_info =
-                (&(*framebuffer_data))._render_pass_begin_infos[swapchain_index as usize];
+            let render_pass_begin_info = (&(*framebuffer_data))._render_pass_begin_infos[swapchain_index as usize];
             let pipeline_bind_point = pipeline_data._pipeline_bind_point;
             let pipeline_dynamic_states = &pipeline_data._pipeline_dynamic_states;
-            self._device.cmd_begin_render_pass(
-                command_buffer,
-                &render_pass_begin_info,
-                vk::SubpassContents::INLINE,
-            );
+            self._device
+                .cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
 
             if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
                 self._device.cmd_set_viewport(
@@ -837,17 +758,11 @@ impl<'a> RendererContext<'a> {
                 self._device.cmd_set_scissor(
                     command_buffer,
                     0,
-                    &[(*framebuffer_data)
-                        ._framebuffer_info
-                        ._framebuffer_scissor_rect],
+                    &[(*framebuffer_data)._framebuffer_info._framebuffer_scissor_rect],
                 );
             }
 
-            self._device.cmd_bind_pipeline(
-                command_buffer,
-                pipeline_bind_point,
-                pipeline_data._pipeline,
-            );
+            self._device.cmd_bind_pipeline(command_buffer, pipeline_bind_point, pipeline_data._pipeline);
         }
     }
 
@@ -888,15 +803,11 @@ impl<'a> RendererContext<'a> {
     ) {
         let write_descriptor_sets: &Vec<vk::WriteDescriptorSet> =
             &pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
-        let write_descriptor_set = descriptor::create_write_descriptor_set(
-            write_descriptor_sets,
-            descriptor_index,
-            descriptor_resource_info,
-        );
+        let write_descriptor_set =
+            descriptor::create_write_descriptor_set(write_descriptor_sets, descriptor_index, descriptor_resource_info);
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
         unsafe {
-            self._device
-                .update_descriptor_sets(&[write_descriptor_set], descriptor_copies);
+            self._device.update_descriptor_sets(&[write_descriptor_set], descriptor_copies);
         }
     }
 
@@ -909,16 +820,11 @@ impl<'a> RendererContext<'a> {
     ) {
         let write_descriptor_sets: &mut Vec<vk::WriteDescriptorSet> =
             &mut pipeline_binding_data._write_descriptor_sets[swapchain_index as usize];
-        descriptor::update_write_descriptor_set(
-            write_descriptor_sets,
-            descriptor_index,
-            descriptor_resource_info,
-        );
+        descriptor::update_write_descriptor_set(write_descriptor_sets, descriptor_index, descriptor_resource_info);
         let write_descriptor_set_offset = write_descriptor_sets[descriptor_index];
         let descriptor_copies: &[vk::CopyDescriptorSet] = &[];
         unsafe {
-            self._device
-                .update_descriptor_sets(&[write_descriptor_set_offset], descriptor_copies);
+            self._device.update_descriptor_sets(&[write_descriptor_set_offset], descriptor_copies);
         }
     }
 
@@ -1008,12 +914,8 @@ impl<'a> RendererContext<'a> {
             const FIRST_INSTANCE: u32 = 0;
             const VERTEX_BUFFER_BINDING_INDEX: u32 = 0;
             const INSTANCE_BUFFER_BINDING_INDEX: u32 = 1;
-            self._device.cmd_bind_vertex_buffers(
-                command_buffer,
-                VERTEX_BUFFER_BINDING_INDEX,
-                vertex_buffers,
-                offsets,
-            );
+            self._device
+                .cmd_bind_vertex_buffers(command_buffer, VERTEX_BUFFER_BINDING_INDEX, vertex_buffers, offsets);
             if false == instance_buffers.is_empty() {
                 self._device.cmd_bind_vertex_buffers(
                     command_buffer,
@@ -1022,12 +924,7 @@ impl<'a> RendererContext<'a> {
                     offsets,
                 );
             }
-            self._device.cmd_bind_index_buffer(
-                command_buffer,
-                index_buffer,
-                0,
-                vk::IndexType::UINT32,
-            );
+            self._device.cmd_bind_index_buffer(command_buffer, index_buffer, 0, vk::IndexType::UINT32);
             self._device.cmd_draw_indexed(
                 command_buffer,
                 index_count,
@@ -1047,9 +944,7 @@ impl<'a> RendererContext<'a> {
 
     pub fn device_wait_idle(&self) {
         unsafe {
-            self._device
-                .device_wait_idle()
-                .expect("vkDeviceWaitIdle failed!");
+            self._device.device_wait_idle().expect("vkDeviceWaitIdle failed!");
         }
     }
 
@@ -1075,22 +970,11 @@ impl<'a> RendererContext<'a> {
 
     pub fn recreate_swapchain(&mut self) {
         log::info!("<< recreateSwapChain >>");
-        command_buffer::destroy_command_buffers(
-            &self._device,
-            self._command_pool,
-            &self._command_buffers,
-        );
-        swapchain::destroy_swapchain_data(
-            &self._device,
-            &self._swapchain_device,
-            &self._swapchain_data,
-        );
+        command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
+        swapchain::destroy_swapchain_data(&self._device, &self._swapchain_device, &self._swapchain_data);
 
-        self._swapchain_support_details = swapchain::query_swapchain_support(
-            &self._surface_instance,
-            self._physical_device,
-            self._surface,
-        );
+        self._swapchain_support_details =
+            swapchain::query_swapchain_support(&self._surface_instance, self._physical_device, self._surface);
         self._swapchain_data = swapchain::create_swapchain_data(
             &self._device,
             self.get_debug_utils(),
@@ -1131,9 +1015,7 @@ impl<'a> RendererContext<'a> {
         unsafe {
             let waiting_for_fence = false;
             let fences = &[fence];
-            self._device
-                .reset_fences(fences)
-                .expect("failed to reset_fences");
+            self._device.reset_fences(fences).expect("failed to reset_fences");
 
             // vkQueueSubmit
             {
@@ -1146,19 +1028,13 @@ impl<'a> RendererContext<'a> {
                     .queue_submit(
                         self._queue_family_data_list._graphics_queue,
                         &[submit_info],
-                        if waiting_for_fence {
-                            fence
-                        } else {
-                            vk::Fence::null()
-                        },
+                        if waiting_for_fence { fence } else { vk::Fence::null() },
                     )
                     .expect("vkQueueSubmit failed!");
             }
 
             if waiting_for_fence {
-                self._device
-                    .wait_for_fences(fences, true, u64::MAX)
-                    .expect("vkWaitForFences failed!");
+                self._device.wait_for_fences(fences, true, u64::MAX).expect("vkWaitForFences failed!");
             }
 
             let present_wait_semaphores = [render_finished_semaphore];
@@ -1173,9 +1049,8 @@ impl<'a> RendererContext<'a> {
                 ..Default::default()
             };
 
-            let is_swapchain_suboptimal: VkResult<bool> = self
-                ._swapchain_device
-                .queue_present(self.get_present_queue(), &present_info);
+            let is_swapchain_suboptimal: VkResult<bool> =
+                self._swapchain_device.queue_present(self.get_present_queue(), &present_info);
             if let Err(present_error) = is_swapchain_suboptimal {
                 log::error!("present_error: {:?}", present_error);
             }
@@ -1204,8 +1079,7 @@ impl<'a> RendererContext<'a> {
     ) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
-            let staging_buffer_data =
-                &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
             let upload_data_size = std::mem::size_of::<T>() as u64;
             buffer::upload_buffer_data(
                 &self._device,
@@ -1220,11 +1094,7 @@ impl<'a> RendererContext<'a> {
                 upload_data_size,
             );
         } else {
-            buffer::upload_buffer_data(
-                &self._device,
-                buffer_data,
-                system::convert_to_bytes(upload_data),
-            );
+            buffer::upload_buffer_data(&self._device, buffer_data, system::convert_to_bytes(upload_data));
         }
     }
 
@@ -1238,8 +1108,7 @@ impl<'a> RendererContext<'a> {
     ) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
-            let staging_buffer_data =
-                &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
             let upload_data_size = std::mem::size_of::<T>() as u64;
             buffer::upload_buffer_data_offset(
                 &self._device,
@@ -1275,8 +1144,7 @@ impl<'a> RendererContext<'a> {
     ) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
-            let staging_buffer_data =
-                &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
             let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
             buffer::upload_buffer_data(&self._device, staging_buffer_data, upload_data);
             buffer::copy_buffer(
@@ -1312,15 +1180,9 @@ impl<'a> RendererContext<'a> {
     ) {
         let buffer_data = &shader_buffer_data._buffers[swapchain_index as usize];
         if shader_buffer_data._staging_buffers.is_some() {
-            let staging_buffer_data =
-                &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
+            let staging_buffer_data = &shader_buffer_data._staging_buffers.as_ref().unwrap()[swapchain_index as usize];
             let upload_data_size = std::mem::size_of::<T>() as u64 * upload_data.len() as u64;
-            buffer::upload_buffer_data_offset(
-                &self._device,
-                staging_buffer_data,
-                upload_data,
-                offset,
-            );
+            buffer::upload_buffer_data_offset(&self._device, staging_buffer_data, upload_data, offset);
             buffer::copy_buffer_offset(
                 &self._device,
                 command_buffer,
@@ -1355,16 +1217,14 @@ impl<'a> RendererContext<'a> {
             let render_finished_semaphore = self._render_finished_semaphores[frame_index];
 
             // Begin Render
-            let acquire_next_image_result: VkResult<(u32, bool)> =
-                self._swapchain_device.acquire_next_image(
-                    self._swapchain_data._swapchain,
-                    u64::MAX,
-                    image_available_semaphore,
-                    vk::Fence::null(),
-                );
+            let acquire_next_image_result: VkResult<(u32, bool)> = self._swapchain_device.acquire_next_image(
+                self._swapchain_data._swapchain,
+                u64::MAX,
+                image_available_semaphore,
+                vk::Fence::null(),
+            );
 
-            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok()
-            {
+            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok() {
                 acquire_next_image_result.unwrap()
             } else {
                 (self._swapchain_index, true)
@@ -1372,80 +1232,74 @@ impl<'a> RendererContext<'a> {
 
             self._swapchain_index = swapchain_index;
 
-            let present_result: vk::Result = if swapchain_index
-                < constants::SWAPCHAIN_IMAGE_COUNT as u32
-                && false == failed_acquire_next_image
-            {
-                // Begin command buffer
-                let command_buffer = self._command_buffers[swapchain_index as usize];
-                let command_buffer_begin_info = vk::CommandBufferBeginInfo {
-                    flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
-                    ..Default::default()
-                };
-                self._device
-                    .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-                    .expect("vkBeginCommandBuffer failed!");
+            let present_result: vk::Result =
+                if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == failed_acquire_next_image {
+                    // Begin command buffer
+                    let command_buffer = self._command_buffers[swapchain_index as usize];
+                    let command_buffer_begin_info = vk::CommandBufferBeginInfo {
+                        flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
+                        ..Default::default()
+                    };
+                    self._device
+                        .begin_command_buffer(command_buffer, &command_buffer_begin_info)
+                        .expect("vkBeginCommandBuffer failed!");
 
-                // renderer - render_scene
-                self.get_renderer_data_mut().render_scene(
-                    command_buffer,
-                    frame_index,
-                    swapchain_index,
-                    &self,
-                    scene_manager,
-                    debug_line_manager,
-                    font_manager,
-                    ui_manager,
-                    elapsed_time,
-                    delta_time,
-                    elapsed_frame,
-                );
+                    // renderer - render_scene
+                    self.get_renderer_data_mut().render_scene(
+                        command_buffer,
+                        frame_index,
+                        swapchain_index,
+                        &self,
+                        scene_manager,
+                        debug_line_manager,
+                        font_manager,
+                        ui_manager,
+                        elapsed_time,
+                        delta_time,
+                        elapsed_frame,
+                    );
 
-                // End command buffer
-                self._device
-                    .end_command_buffer(command_buffer)
-                    .expect("vkEndCommandBuffer failed!");
+                    // End command buffer
+                    self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
 
-                // End Render
-                if self.is_first_rendering() {
-                    self.set_is_first_rendering(false);
-                }
-
-                let present_time = time_data.get_current_time();
-                let present_swapchain_result = self.present_swapchain(
-                    &[command_buffer],
-                    frame_fence,
-                    image_available_semaphore,
-                    render_finished_semaphore,
-                );
-                time_data._acc_present_time += time_data.get_current_time() - present_time;
-
-                match present_swapchain_result {
-                    Ok(is_swapchain_suboptimal) => {
-                        if is_swapchain_suboptimal {
-                            vk::Result::SUBOPTIMAL_KHR
-                        } else {
-                            vk::Result::SUCCESS
-                        }
+                    // End Render
+                    if self.is_first_rendering() {
+                        self.set_is_first_rendering(false);
                     }
-                    Err(err) => err,
-                }
-            } else {
-                log::error!(
-                    "failed_acquire_next_image: {}, swapchain_index: {}",
-                    failed_acquire_next_image,
-                    swapchain_index
-                );
-                vk::Result::ERROR_OUT_OF_DATE_KHR
-            };
+
+                    let present_time = time_data.get_current_time();
+                    let present_swapchain_result = self.present_swapchain(
+                        &[command_buffer],
+                        frame_fence,
+                        image_available_semaphore,
+                        render_finished_semaphore,
+                    );
+                    time_data._acc_present_time += time_data.get_current_time() - present_time;
+
+                    match present_swapchain_result {
+                        Ok(is_swapchain_suboptimal) => {
+                            if is_swapchain_suboptimal {
+                                vk::Result::SUBOPTIMAL_KHR
+                            } else {
+                                vk::Result::SUCCESS
+                            }
+                        }
+                        Err(err) => err,
+                    }
+                } else {
+                    log::error!(
+                        "failed_acquire_next_image: {}, swapchain_index: {}",
+                        failed_acquire_next_image,
+                        swapchain_index
+                    );
+                    vk::Result::ERROR_OUT_OF_DATE_KHR
+                };
 
             if vk::Result::SUCCESS != present_result {
                 log::error!("present swapchain result: {:?}", present_result);
             }
 
-            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result
-                || vk::Result::SUBOPTIMAL_KHR == present_result
-            {
+            if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
                 self.set_need_recreate_swapchain(true);
             }
 
@@ -1470,23 +1324,20 @@ impl<'a> RendererContext<'a> {
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::prepare_framebuffer_and_descriptors");
-        self.get_renderer_data_mut()
-            .prepare_framebuffer_and_descriptors(
-                self.get_device(),
-                self.get_debug_utils(),
-                &self.get_engine_resources(),
-            );
+        self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(
+            self.get_device(),
+            self.get_debug_utils(),
+            &self.get_engine_resources(),
+        );
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::destroy_framebuffer_and_descriptors");
-        self.get_renderer_data_mut()
-            .destroy_framebuffer_and_descriptors(self.get_device());
+        self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
-        self.get_renderer_data()
-            .get_shader_buffer_data_from_str(buffer_data_name)
+        self.get_renderer_data().get_shader_buffer_data_from_str(buffer_data_name)
     }
 
     pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
@@ -1494,8 +1345,7 @@ impl<'a> RendererContext<'a> {
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
-        self.get_renderer_data()
-            .get_render_target_from_str(render_target_type_str)
+        self.get_renderer_data().get_render_target_from_str(render_target_type_str)
     }
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
@@ -1504,8 +1354,7 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_image_samplers(&self) {
         log::info!("destroy_image_samplers");
-        self.get_image_sampler_data_mut()
-            .destroy_image_samplers(self.get_device());
+        self.get_image_sampler_data_mut().destroy_image_samplers(self.get_device());
     }
 
     pub fn create_render_targets(&self) {
@@ -1515,12 +1364,10 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self.get_renderer_data_mut()
-            .destroy_render_targets(self.get_device());
+        self.get_renderer_data_mut().destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {
-        self.get_renderer_data_mut()
-            .destroy_uniform_buffers(self.get_device());
+        self.get_renderer_data_mut().destroy_uniform_buffers(self.get_device());
     }
 }

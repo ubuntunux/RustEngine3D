@@ -1,11 +1,11 @@
 use std::cmp::min;
 use std::collections::HashMap;
-use std::ffi::{c_void, CStr, CString};
+use std::ffi::{CStr, CString, c_void};
 use std::os::raw::c_char;
 
 use ash::khr;
 use ash::vk::PhysicalDeviceType;
-use ash::{vk, Device, Entry, Instance};
+use ash::{Device, Entry, Instance, vk};
 use winit::raw_window_handle::{HasDisplayHandle, HasWindowHandle};
 use winit::window::Window;
 
@@ -26,10 +26,7 @@ pub fn device_create_info_set_push_next<T: vk::ExtendsDeviceCreateInfo>(
     }
 }
 
-pub fn get_extension_names(
-    extension_type: &str,
-    available_extensions: &Vec<vk::ExtensionProperties>,
-) -> Vec<CString> {
+pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::ExtensionProperties>) -> Vec<CString> {
     log::info!(
         "Available {} extensions: {}",
         extension_type,
@@ -39,7 +36,7 @@ pub fn get_extension_names(
     for available_extension in available_extensions {
         unsafe {
             let extension_name = CString::from(CStr::from_ptr(
-                available_extension.extension_name.as_ptr() as *const c_char,
+                available_extension.extension_name.as_ptr() as *const c_char
             ));
             extension_names.push(extension_name);
         }
@@ -56,10 +53,7 @@ pub fn get_instance_extension_supports(entry: &Entry) -> Vec<CString> {
     }
 }
 
-pub fn get_device_extension_supports(
-    instance: &Instance,
-    physical_device: vk::PhysicalDevice,
-) -> Vec<CString> {
+pub fn get_device_extension_supports(instance: &Instance, physical_device: vk::PhysicalDevice) -> Vec<CString> {
     unsafe {
         let available_device_extensions: Vec<vk::ExtensionProperties> = instance
             .enumerate_device_extension_properties(physical_device)
@@ -97,10 +91,7 @@ pub fn check_extension_support(
     result
 }
 
-pub unsafe fn get_instance_layers(
-    entry: &Entry,
-    required_instance_layers: &Vec<String>,
-) -> Vec<CString> {
+pub unsafe fn get_instance_layers(entry: &Entry, required_instance_layers: &Vec<String>) -> Vec<CString> {
     let available_layers: Vec<vk::LayerProperties> = unsafe { entry.enumerate_instance_layer_properties().unwrap() };
     let mut available_layer_names: Vec<CString> = Vec::new();
     log::info!("available layers:");
@@ -136,9 +127,7 @@ pub unsafe fn get_instance_layers(
     required_instance_layers
 }
 
-pub fn get_max_usable_sample_count(
-    device_properties: &vk::PhysicalDeviceProperties,
-) -> vk::SampleCountFlags {
+pub fn get_max_usable_sample_count(device_properties: &vk::PhysicalDeviceProperties) -> vk::SampleCountFlags {
     let sample_count_limit = min(
         device_properties.limits.framebuffer_color_sample_counts,
         device_properties.limits.framebuffer_depth_sample_counts,
@@ -174,18 +163,10 @@ pub fn create_vk_instance(
         extension_names_raw.push(vk::EXT_DEBUG_UTILS_NAME.as_ptr());
     }
 
-    let require_extension_names = unsafe {
-        surface_extensions
-            .iter()
-            .map(|ext| CString::from(CStr::from_ptr(*ext)))
-            .collect()
-    };
+    let require_extension_names =
+        unsafe { surface_extensions.iter().map(|ext| CString::from(CStr::from_ptr(*ext))).collect() };
     let available_instance_extensions: Vec<CString> = get_instance_extension_supports(entry);
-    check_extension_support(
-        &"Instance",
-        &available_instance_extensions,
-        &require_extension_names,
-    );
+    check_extension_support(&"Instance", &available_instance_extensions, &require_extension_names);
 
     let appinfo = vk::ApplicationInfo {
         p_application_name: app_name.as_ptr(),
@@ -223,11 +204,7 @@ pub fn create_vk_instance(
     }
     log::info!("    instance_layer_names: {:?}", instance_layer_names_raw);
     log::info!("    surface_extensions: {:?}", surface_extensions);
-    unsafe {
-        entry
-            .create_instance(&create_info, None)
-            .expect("Instance creation error")
-    }
+    unsafe { entry.create_instance(&create_info, None).expect("Instance creation error") }
 }
 
 pub fn destroy_vk_instance(instance: &Instance) {
@@ -273,11 +250,8 @@ pub fn is_device_suitable(
 ) {
     unsafe {
         let available_device_extensions = get_device_extension_supports(instance, physical_device);
-        let has_extension: bool = check_extension_support(
-            &"Device",
-            &available_device_extensions,
-            device_extension_names,
-        );
+        let has_extension: bool =
+            check_extension_support(&"Device", &available_device_extensions, device_extension_names);
         let enable_raytracing: bool = false == ray_tracing_extension_names.is_empty()
             && check_extension_support(
                 &"Ray Tracing",
@@ -285,8 +259,7 @@ pub fn is_device_suitable(
                 ray_tracing_extension_names,
             );
         let physical_device_features = instance.get_physical_device_features(physical_device);
-        let swapchain_support_details =
-            swapchain::query_swapchain_support(surface_instance, physical_device, surface);
+        let swapchain_support_details = swapchain::query_swapchain_support(surface_instance, physical_device, surface);
         let result = swapchain::is_valid_swapchain_support(&swapchain_support_details);
         (
             has_extension && result,
@@ -310,20 +283,17 @@ pub fn select_physical_device(
     bool,
 )> {
     unsafe {
-        let physical_devices = instance
-            .enumerate_physical_devices()
-            .expect("Physical device error");
+        let physical_devices = instance.enumerate_physical_devices().expect("Physical device error");
         log::info!("Found {} physical devices.", physical_devices.len());
 
-        let mut physical_device_map: HashMap<PhysicalDeviceType, Vec<vk::PhysicalDevice>> =
-            HashMap::new();
+        let mut physical_device_map: HashMap<PhysicalDeviceType, Vec<vk::PhysicalDevice>> = HashMap::new();
         for (index, physical_device) in physical_devices.iter().enumerate() {
             let device_properties: vk::PhysicalDeviceProperties =
                 instance.get_physical_device_properties(*physical_device);
-            let device_name =
-                CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
+            let device_name = CStr::from_ptr(device_properties.device_name.as_ptr() as *const c_char);
 
-            log::info!("    PhysicalDeviceProperties[{}] device: [{:?}] {:?} {:?} vendor_id: {:?} device_id: {:?}",
+            log::info!(
+                "    PhysicalDeviceProperties[{}] device: [{:?}] {:?} {:?} vendor_id: {:?} device_id: {:?}",
                 index,
                 physical_device,
                 device_name,
@@ -335,9 +305,7 @@ pub fn select_physical_device(
             if physical_device_map.contains_key(&device_properties.device_type) == false {
                 physical_device_map.insert(device_properties.device_type, Vec::new());
             }
-            physical_device_map
-                .get_mut(&device_properties.device_type)?
-                .push(*physical_device);
+            physical_device_map.get_mut(&device_properties.device_type)?.push(*physical_device);
         }
 
         let device_types_priority: [PhysicalDeviceType; 5] = [
@@ -352,26 +320,18 @@ pub fn select_physical_device(
         for device_type in device_types_priority {
             if let Some(physical_devices) = physical_device_map.get(&device_type) {
                 for physical_device in physical_devices {
-                    let (
-                        result,
-                        swapchain_support_details,
-                        physical_device_features,
-                        enable_ray_tracing,
-                    ) = is_device_suitable(
-                        instance,
-                        surface_instance,
-                        surface,
-                        *physical_device,
-                        device_extension_names,
-                        ray_tracing_extension_names,
-                    );
+                    let (result, swapchain_support_details, physical_device_features, enable_ray_tracing) =
+                        is_device_suitable(
+                            instance,
+                            surface_instance,
+                            surface,
+                            *physical_device,
+                            device_extension_names,
+                            ray_tracing_extension_names,
+                        );
 
                     if result {
-                        log::info!(
-                            "Select physical device: {:?} {:?}",
-                            physical_device,
-                            device_type
-                        );
+                        log::info!("Select physical device: {:?} {:?}", physical_device, device_type);
                         return Some((
                             *physical_device,
                             swapchain_support_details,
@@ -443,9 +403,7 @@ pub fn create_device(
     }
 
     unsafe {
-        let device: Device = instance
-            .create_device(physical_device, &device_create_info, None)
-            .unwrap();
+        let device: Device = instance.create_device(physical_device, &device_create_info, None).unwrap();
         log::info!("create device: {:?}", device.handle());
         device
     }

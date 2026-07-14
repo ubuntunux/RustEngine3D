@@ -1,8 +1,4 @@
-use nalgebra::{Matrix4, Vector3};
-use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
-use strum::EnumCount;
-use strum_macros::EnumCount;
+use crate::renderer::push_constants::PushConstantParameter;
 use crate::scene::animation::{
     AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo,
 };
@@ -14,9 +10,13 @@ use crate::scene::scene_manager::{RenderObjectMap, SceneObjectID};
 use crate::scene::socket::Socket;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
-use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
 use crate::vulkan_context::render_pass::PipelinePushConstantData;
-use crate::renderer::push_constants::PushConstantParameter;
+use nalgebra::{Matrix4, Vector3};
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use strum::EnumCount;
+use strum_macros::EnumCount;
 
 #[repr(i32)]
 #[derive(Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount)]
@@ -88,7 +88,7 @@ impl<'a> RenderObjectData<'a> {
         render_object_name: &String,
         model_data: &RcRefCell<ModelData<'a>>,
         render_object_create_data: &RenderObjectCreateInfo,
-        custom_collision_type: Option<CollisionType>
+        custom_collision_type: Option<CollisionType>,
     ) -> RenderObjectData<'a> {
         log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::create_transform_object_data();
@@ -101,11 +101,7 @@ impl<'a> RenderObjectData<'a> {
             ._material_instance_data_list
             .iter()
             .map(|material_instance_data| {
-                material_instance_data
-                    .borrow()
-                    .get_default_pipeline_binding_data()
-                    ._push_constant_data_list
-                    .clone()
+                material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_data_list.clone()
             })
             .collect();
         let mesh_data = model_data_ref._mesh_data.clone();
@@ -255,23 +251,14 @@ impl<'a> RenderObjectData<'a> {
         &self._instance_transforms
     }
 
-    pub fn register_instancing_render_object(
-        &mut self,
-        render_object_data: &RcRefCell<RenderObjectData<'a>>,
-    ) {
+    pub fn register_instancing_render_object(&mut self, render_object_data: &RcRefCell<RenderObjectData<'a>>) {
         let render_object_data_ref = render_object_data.borrow();
         if self._instance_objects.is_empty() {
             self._bounding_box = render_object_data_ref._bounding_box.clone();
             self._collision._bounding_box = render_object_data_ref._collision._bounding_box.clone();
         } else {
-            let bounding_box_min = math::get_min(
-                &self._bounding_box._min,
-                &render_object_data_ref._bounding_box._min,
-            );
-            let bounding_box_max = math::get_max(
-                &self._bounding_box._max,
-                &render_object_data_ref._bounding_box._max,
-            );
+            let bounding_box_min = math::get_min(&self._bounding_box._min, &render_object_data_ref._bounding_box._min);
+            let bounding_box_max = math::get_max(&self._bounding_box._max, &render_object_data_ref._bounding_box._max);
             let collision_bounding_box_min = math::get_min(
                 &self._collision._bounding_box._min,
                 &render_object_data_ref._collision._bounding_box._min,
@@ -280,24 +267,16 @@ impl<'a> RenderObjectData<'a> {
                 &self._collision._bounding_box._max,
                 &render_object_data_ref._collision._bounding_box._max,
             );
-            self._bounding_box =
-                BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
-            self._collision._bounding_box = BoundingBox::create_bounding_box(
-                &collision_bounding_box_min,
-                &collision_bounding_box_max,
-            );
+            self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+            self._collision._bounding_box =
+                BoundingBox::create_bounding_box(&collision_bounding_box_min, &collision_bounding_box_max);
         }
 
-        self._transform_object
-            .set_position(&self._bounding_box._center);
+        self._transform_object.set_position(&self._bounding_box._center);
         self._transform_object.update_transform_object();
 
-        self._instance_objects.insert(
-            render_object_data_ref.get_object_id(),
-            render_object_data.clone(),
-        );
-        self._instance_transforms
-            .push(render_object_data_ref._final_transform.clone());
+        self._instance_objects.insert(render_object_data_ref.get_object_id(), render_object_data.clone());
+        self._instance_transforms.push(render_object_data_ref._final_transform.clone());
     }
 
     pub fn initialize_animation_play_info(&mut self) {
@@ -315,12 +294,11 @@ impl<'a> RenderObjectData<'a> {
             } else {
                 None
             };
-            self._animation_play_infos
-                .push(AnimationPlayInfo::create_animation_play_info(
-                    unsafe { std::mem::transmute(i as i32) },
-                    mesh_data,
-                    bone_count,
-                ));
+            self._animation_play_infos.push(AnimationPlayInfo::create_animation_play_info(
+                unsafe { std::mem::transmute(i as i32) },
+                mesh_data,
+                bone_count,
+            ));
         }
         self._animation_buffer = Some(AnimationBuffer::create_animation_buffer(bone_count));
         self._bone_count = bone_count;
@@ -334,17 +312,11 @@ impl<'a> RenderObjectData<'a> {
         &self._model_data
     }
 
-    pub fn get_push_constant_data_list(
-        &self,
-        model_index: usize,
-    ) -> &Vec<PipelinePushConstantData> {
+    pub fn get_push_constant_data_list(&self, model_index: usize) -> &Vec<PipelinePushConstantData> {
         &self._push_constant_data_list_group[model_index]
     }
 
-    pub fn get_push_constant_data_list_mut(
-        &mut self,
-        model_index: usize,
-    ) -> &mut Vec<PipelinePushConstantData> {
+    pub fn get_push_constant_data_list_mut(&mut self, model_index: usize) -> &mut Vec<PipelinePushConstantData> {
         &mut self._push_constant_data_list_group[model_index]
     }
 
@@ -380,11 +352,7 @@ impl<'a> RenderObjectData<'a> {
         self.get_animation_play_info(layer)._animation_layers
     }
 
-    pub fn set_animation_layers(
-        &mut self,
-        animation_layers: *const AnimationLayerData,
-        layer: AnimationLayer,
-    ) {
+    pub fn set_animation_layers(&mut self, animation_layers: *const AnimationLayerData, layer: AnimationLayer) {
         self.get_animation_play_info_mut(layer)._animation_layers = animation_layers;
     }
 
@@ -408,22 +376,12 @@ impl<'a> RenderObjectData<'a> {
                 let animation_play_info = &mut self.get_animation_play_info_mut(layer);
                 let was_valid_animation = animation_play_info.is_valid();
                 let prev_animation_mesh_ptr: *mut MeshData = (if was_valid_animation {
-                    animation_play_info
-                        ._animation_mesh
-                        .as_ref()
-                        .unwrap()
-                        .as_ptr()
+                    animation_play_info._animation_mesh.as_ref().unwrap().as_ptr()
                 } else {
                     std::ptr::null()
                 }) as *mut MeshData;
-                if animation_args._force_animation_setting
-                    || animation_mesh.as_ptr() != prev_animation_mesh_ptr
-                {
-                    animation_play_info.set_animation_play_info(
-                        animation_mesh,
-                        animation_args,
-                        was_valid_animation,
-                    );
+                if animation_args._force_animation_setting || animation_mesh.as_ptr() != prev_animation_mesh_ptr {
+                    animation_play_info.set_animation_play_info(animation_mesh, animation_args, was_valid_animation);
                     if was_valid_animation && 0.0 < animation_play_info._animation_blend_time {
                         animation_play_info
                             ._last_animation_transforms
@@ -435,11 +393,7 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn get_prev_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
-        &self
-            ._animation_buffer
-            .as_ref()
-            .unwrap()
-            ._prev_animation_buffer
+        &self._animation_buffer.as_ref().unwrap()._prev_animation_buffer
     }
 
     pub fn get_animation_buffer(&self) -> &Vec<Matrix4<f32>> {
@@ -452,16 +406,14 @@ impl<'a> RenderObjectData<'a> {
         if self._transform_object.update_transform_object() {
             self._final_transform = ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
             // update bound box
-            self._bounding_box.update_aixs_aligned_bounding_box(
-                &self._mesh_data.borrow()._bound_box,
-                &self._final_transform,
-            );
+            self._bounding_box
+                .update_aixs_aligned_bounding_box(&self._mesh_data.borrow()._bound_box, &self._final_transform);
 
             // update collision
             if self._collision.is_valid_collision() {
                 self._collision._bounding_box.update_oriented_bouding_box(
                     &self._model_data.borrow()._collision._bounding_box,
-                    self._transform_object.get_matrix()
+                    self._transform_object.get_matrix(),
                 )
             }
 
@@ -485,43 +437,32 @@ impl<'a> RenderObjectData<'a> {
                 for animation_play_info in self._animation_play_infos.iter_mut() {
                     if animation_play_info.is_valid() {
                         // update animation nodes
-                        let animation_data_list: &Vec<AnimationData> = &(*animation_play_info)
-                            ._animation_mesh
-                            .as_ref()
-                            .unwrap()
-                            .borrow()
-                            ._animation_data_list;
+                        let animation_data_list: &Vec<AnimationData> =
+                            &(*animation_play_info)._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
                         let animation_data = &animation_data_list[animation_play_info._animation_index];
                         for bone_node in animation_data._nodes.iter() {
                             let bone_index = ptr_as_ref(bone_node._bone)._index;
-                            animation_play_info._animation_transforms[bone_index] = bone_node
-                                .calc_animation_transform(animation_play_info._animation_frame);
+                            animation_play_info._animation_transforms[bone_index] =
+                                bone_node.calc_animation_transform(animation_play_info._animation_frame);
                         }
 
                         // blend last animation
                         if animation_play_info._animation_blend_ratio < 1.0 {
-                            for (bone_index, animation_transform) in animation_play_info
-                                ._animation_transforms
-                                .iter_mut()
-                                .enumerate()
+                            for (bone_index, animation_transform) in
+                                animation_play_info._animation_transforms.iter_mut().enumerate()
                             {
-                                let last_animation_buffer =
-                                    &animation_play_info._last_animation_transforms[bone_index];
-                                *animation_transform = last_animation_buffer.lerp(
-                                    animation_transform,
-                                    animation_play_info._animation_blend_ratio,
-                                );
+                                let last_animation_buffer = &animation_play_info._last_animation_transforms[bone_index];
+                                *animation_transform = last_animation_buffer
+                                    .lerp(animation_transform, animation_play_info._animation_blend_ratio);
                             }
                         }
                     }
                 }
 
                 // update additive animation
-                let additive_animation =
-                    ptr_as_ref(self.get_animation_play_info(AnimationLayer::ActionLayer));
+                let additive_animation = ptr_as_ref(self.get_animation_play_info(AnimationLayer::ActionLayer));
                 if additive_animation.is_valid() {
-                    let base_animation =
-                        ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
+                    let base_animation = ptr_as_mut(self.get_animation_play_info(AnimationLayer::BaseLayer));
                     base_animation.combine_additive_animation(additive_animation);
                 }
 

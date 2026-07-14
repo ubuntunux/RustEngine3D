@@ -1,7 +1,7 @@
-use nalgebra::{Vector3};
-use serde::{Deserialize, Serialize};
 use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::math;
+use nalgebra::Vector3;
+use serde::{Deserialize, Serialize};
 
 #[repr(i32)]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug, PartialEq)]
@@ -9,7 +9,7 @@ pub enum CollisionType {
     NONE,
     BOX,
     CYLINDER,
-    SPHERE
+    SPHERE,
 }
 
 #[repr(C)]
@@ -18,7 +18,7 @@ pub enum CollisionType {
 pub struct CollisionCreateInfo {
     pub _collision_type: CollisionType,
     pub _location: Vector3<f32>,
-    pub _extents: Vector3<f32>
+    pub _extents: Vector3<f32>,
 }
 
 impl Default for CollisionCreateInfo {
@@ -26,7 +26,7 @@ impl Default for CollisionCreateInfo {
         CollisionCreateInfo {
             _collision_type: CollisionType::NONE,
             _location: Vector3::zeros(),
-            _extents: Vector3::new(0.5, 0.5, 0.5)
+            _extents: Vector3::new(0.5, 0.5, 0.5),
         }
     }
 }
@@ -43,7 +43,7 @@ impl Default for CollisionData {
     fn default() -> CollisionData {
         CollisionData {
             _collision_type: CollisionType::NONE,
-            _bounding_box: BoundingBox::default()
+            _bounding_box: BoundingBox::default(),
         }
     }
 }
@@ -54,7 +54,7 @@ impl CollisionData {
         let pos_max = collision_info._location + collision_info._extents;
         CollisionData {
             _collision_type: collision_info._collision_type,
-            _bounding_box: BoundingBox::create_bounding_box(&pos_min, &pos_max)
+            _bounding_box: BoundingBox::create_bounding_box(&pos_min, &pos_max),
         }
     }
 
@@ -71,8 +71,8 @@ impl CollisionData {
             return false;
         }
         let to_point = point - self._bounding_box._center;
-        self._bounding_box._orientation.column(0).dot(&to_point).abs() <= self._bounding_box._extents.x &&
-            self._bounding_box._orientation.column(2).dot(&to_point).abs() <= self._bounding_box._extents.z
+        self._bounding_box._orientation.column(0).dot(&to_point).abs() <= self._bounding_box._extents.x
+            && self._bounding_box._orientation.column(2).dot(&to_point).abs() <= self._bounding_box._extents.z
     }
 
     pub fn collide_cylinder_with_point(&self, point: &Vector3<f32>) -> bool {
@@ -101,9 +101,12 @@ impl CollisionData {
     }
 
     pub fn collide_aabb(&self, other: &CollisionData) -> bool {
-        self._bounding_box._min.x < other._bounding_box._max.x && other._bounding_box._min.x < self._bounding_box._max.x &&
-            self._bounding_box._min.y < other._bounding_box._max.y && other._bounding_box._min.y < self._bounding_box._max.y &&
-            self._bounding_box._min.z < other._bounding_box._max.z && other._bounding_box._min.z < self._bounding_box._max.z
+        self._bounding_box._min.x < other._bounding_box._max.x
+            && other._bounding_box._min.x < self._bounding_box._max.x
+            && self._bounding_box._min.y < other._bounding_box._max.y
+            && other._bounding_box._min.y < self._bounding_box._max.y
+            && self._bounding_box._min.z < other._bounding_box._max.z
+            && other._bounding_box._min.z < self._bounding_box._max.z
     }
 
     pub fn collide_point(&self, point: &Vector3<f32>) -> bool {
@@ -111,14 +114,14 @@ impl CollisionData {
             CollisionType::BOX => self.collide_box_with_point(point),
             CollisionType::CYLINDER => self.collide_cylinder_with_point(point),
             CollisionType::SPHERE => self.collide_sphere_with_point(point),
-            _ => false
+            _ => false,
         }
     }
 
     pub fn collide_ray(&self, origin: &Vector3<f32>, dir: &Vector3<f32>) -> Option<f32> {
         match self._collision_type {
             CollisionType::BOX => self.collide_box_with_ray(origin, dir),
-            _ => None
+            _ => None,
         }
     }
 
@@ -152,18 +155,20 @@ impl CollisionData {
                 t_min = t_min.max(t1);
                 t_max = t_max.min(t2);
 
-                if t_min > t_max { return None; }
-                if t_max < 0.0 { return None; }
+                if t_min > t_max {
+                    return None;
+                }
+                if t_max < 0.0 {
+                    return None;
+                }
             } else {
-                if s.abs() > e { return None; }
+                if s.abs() > e {
+                    return None;
+                }
             }
         }
 
-        if t_min >= 0.0 {
-            Some(t_min)
-        } else {
-            None
-        }
+        if t_min >= 0.0 { Some(t_min) } else { None }
     }
 
     pub fn collide_collision(&self, other: &CollisionData) -> bool {
@@ -234,7 +239,7 @@ impl CollisionData {
                     let closest_local = Vector3::new(
                         local_char.x.clamp(-ext.x, ext.x),
                         0.0,
-                        local_char.z.clamp(-ext.z, ext.z)
+                        local_char.z.clamp(-ext.z, ext.z),
                     );
                     let normal_local = local_char - closest_local;
                     let dist = normal_local.norm();
@@ -250,11 +255,15 @@ impl CollisionData {
                         push_vec = normal_world * penetration;
                     }
                 }
-            },
+            }
             CollisionType::CYLINDER | CollisionType::SPHERE => {
                 let diff = char_center_xz - block_center_xz;
                 let dist = diff.norm();
-                let dir = if dist < 1e-6 { Vector3::new(1.0, 0.0, 0.0) } else { diff / dist };
+                let dir = if dist < 1e-6 {
+                    Vector3::new(1.0, 0.0, 0.0)
+                } else {
+                    diff / dist
+                };
 
                 let r_char = self._bounding_box._mag_xz * 0.5;
                 let r_block = other._bounding_box._mag_xz * 0.5;
@@ -263,7 +272,7 @@ impl CollisionData {
                 if penetration > 0.0 {
                     push_vec = dir * penetration;
                 }
-            },
+            }
             _ => {}
         }
         push_vec
@@ -274,16 +283,20 @@ fn get_ellipsoid_radius(dir_local: &Vector3<f32>, extents: &Vector3<f32>) -> f32
     let tx = dir_local.x / extents.x;
     let ty = dir_local.y / extents.y;
     let tz = dir_local.z / extents.z;
-    let sq = tx*tx + ty*ty + tz*tz;
-    if sq < 1e-9 { return extents.x.min(extents.y).min(extents.z); }
+    let sq = tx * tx + ty * ty + tz * tz;
+    if sq < 1e-9 {
+        return extents.x.min(extents.y).min(extents.z);
+    }
     1.0 / sq.sqrt()
 }
 
 fn get_ellipse_radius_xz(dir_local_xz: &Vector3<f32>, extents: &Vector3<f32>) -> f32 {
     let tx = dir_local_xz.x / extents.x;
     let tz = dir_local_xz.z / extents.z;
-    let sq = tx*tx + tz*tz;
-    if sq < 1e-9 { return extents.x.min(extents.z); }
+    let sq = tx * tx + tz * tz;
+    if sq < 1e-9 {
+        return extents.x.min(extents.z);
+    }
     1.0 / sq.sqrt()
 }
 
@@ -303,16 +316,18 @@ pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
     for axis in axes.iter() {
         let axis_xz = Vector3::new(axis.x, 0.0, axis.z);
         let axis_len_sq = axis_xz.magnitude_squared();
-        if axis_len_sq < 1e-6 { continue; }
+        if axis_len_sq < 1e-6 {
+            continue;
+        }
         let axis_norm = math::safe_normalize(&axis_xz);
 
         let proj_dist = center_dist.dot(&axis_norm).abs();
 
-        let proj_a = (a._bounding_box._orientation.column(0).dot(&axis_norm)).abs() * a._bounding_box._extents.x +
-                     (a._bounding_box._orientation.column(2).dot(&axis_norm)).abs() * a._bounding_box._extents.z;
+        let proj_a = (a._bounding_box._orientation.column(0).dot(&axis_norm)).abs() * a._bounding_box._extents.x
+            + (a._bounding_box._orientation.column(2).dot(&axis_norm)).abs() * a._bounding_box._extents.z;
 
-        let proj_b = (b._bounding_box._orientation.column(0).dot(&axis_norm)).abs() * b._bounding_box._extents.x +
-                     (b._bounding_box._orientation.column(2).dot(&axis_norm)).abs() * b._bounding_box._extents.z;
+        let proj_b = (b._bounding_box._orientation.column(0).dot(&axis_norm)).abs() * b._bounding_box._extents.x
+            + (b._bounding_box._orientation.column(2).dot(&axis_norm)).abs() * b._bounding_box._extents.z;
 
         if proj_dist > proj_a + proj_b {
             return false;
@@ -322,7 +337,9 @@ pub fn collide_box_with_box(a: &CollisionData, b: &CollisionData) -> bool {
 }
 
 pub fn collide_box_with_cylinder(a_box: &CollisionData, b_cylinder: &CollisionData) -> bool {
-    if a_box._bounding_box._max.y < b_cylinder._bounding_box._min.y || a_box._bounding_box._min.y > b_cylinder._bounding_box._max.y {
+    if a_box._bounding_box._max.y < b_cylinder._bounding_box._min.y
+        || a_box._bounding_box._min.y > b_cylinder._bounding_box._max.y
+    {
         return false;
     }
 
@@ -334,7 +351,7 @@ pub fn collide_box_with_cylinder(a_box: &CollisionData, b_cylinder: &CollisionDa
     let closest_local = Vector3::new(
         cyl_pos_local.x.clamp(-ext.x, ext.x),
         cyl_pos_local.y.clamp(-ext.y, ext.y),
-        cyl_pos_local.z.clamp(-ext.z, ext.z)
+        cyl_pos_local.z.clamp(-ext.z, ext.z),
     );
 
     let closest_world = a_box._bounding_box._center + a_box._bounding_box._orientation * closest_local;
@@ -350,7 +367,9 @@ pub fn collide_box_with_cylinder(a_box: &CollisionData, b_cylinder: &CollisionDa
 }
 
 pub fn collide_box_with_sphere(a_box: &CollisionData, b_sphere: &CollisionData) -> bool {
-    if a_box._bounding_box._max.y < b_sphere._bounding_box._min.y || a_box._bounding_box._min.y > b_sphere._bounding_box._max.y {
+    if a_box._bounding_box._max.y < b_sphere._bounding_box._min.y
+        || a_box._bounding_box._min.y > b_sphere._bounding_box._max.y
+    {
         return false;
     }
 
@@ -362,7 +381,7 @@ pub fn collide_box_with_sphere(a_box: &CollisionData, b_sphere: &CollisionData) 
     let closest_local = Vector3::new(
         sphere_pos_local.x.clamp(-ext.x, ext.x),
         sphere_pos_local.y.clamp(-ext.y, ext.y),
-        sphere_pos_local.z.clamp(-ext.z, ext.z)
+        sphere_pos_local.z.clamp(-ext.z, ext.z),
     );
 
     let closest_world = a_box._bounding_box._center + a_box._bounding_box._orientation * closest_local;
@@ -386,7 +405,9 @@ pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> b
     let diff = b._bounding_box._center - a._bounding_box._center;
     let diff_xz = Vector3::new(diff.x, 0.0, diff.z);
     let dist_sq = diff_xz.magnitude_squared();
-    if dist_sq < 1e-9 { return true; }
+    if dist_sq < 1e-9 {
+        return true;
+    }
 
     let dir_a = math::safe_normalize(&(a._bounding_box._orientation.transpose() * diff_xz));
     let ra = get_ellipse_radius_xz(&dir_a, &a._bounding_box._extents);
@@ -399,14 +420,18 @@ pub fn collide_cylinder_with_cylinder(a: &CollisionData, b: &CollisionData) -> b
 }
 
 pub fn collide_cylinder_with_sphere(a_cyl: &CollisionData, b_sphere: &CollisionData) -> bool {
-    if a_cyl._bounding_box._max.y < b_sphere._bounding_box._min.y || a_cyl._bounding_box._min.y > b_sphere._bounding_box._max.y {
+    if a_cyl._bounding_box._max.y < b_sphere._bounding_box._min.y
+        || a_cyl._bounding_box._min.y > b_sphere._bounding_box._max.y
+    {
         return false;
     }
 
     let diff = b_sphere._bounding_box._center - a_cyl._bounding_box._center;
     let diff_xz = Vector3::new(diff.x, 0.0, diff.z);
     let dist_sq = diff_xz.magnitude_squared();
-    if dist_sq < 1e-9 { return true; }
+    if dist_sq < 1e-9 {
+        return true;
+    }
 
     let dir_a = math::safe_normalize(&(a_cyl._bounding_box._orientation.transpose() * diff_xz));
     let ra = get_ellipse_radius_xz(&dir_a, &a_cyl._bounding_box._extents);
@@ -425,7 +450,9 @@ pub fn collide_sphere_with_sphere(a: &CollisionData, b: &CollisionData) -> bool 
 
     let diff = b._bounding_box._center - a._bounding_box._center;
     let dist_sq = diff.magnitude_squared();
-    if dist_sq < 1e-9 { return true; }
+    if dist_sq < 1e-9 {
+        return true;
+    }
 
     let dir_a = math::safe_normalize(&(a._bounding_box._orientation.transpose() * diff));
     let ra = get_ellipsoid_radius(&dir_a, &a._bounding_box._extents);

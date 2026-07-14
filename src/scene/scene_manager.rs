@@ -3,7 +3,10 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
-use crate::constants::{COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS, MAX_TRANSFORM_COUNT};
+use crate::constants::{
+    COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS,
+    MAX_TRANSFORM_COUNT,
+};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
@@ -17,14 +20,13 @@ use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::scene::collision::CollisionType;
 use crate::scene::height_map::HeightMapData;
 use crate::scene::light::{
-    DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo,
-    PointLights,
+    DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLights,
 };
 use crate::scene::model::ModelData;
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData, SceneObjectType};
 use crate::utilities::math;
-use crate::utilities::system::{newRcRefCell, ptr_as_mut, ptr_as_ref, RcRefCell};
+use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
 use crate::{begin_block, constants};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
@@ -33,8 +35,7 @@ use uuid::Uuid;
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
 pub type PointLightObjectMap = HashMap<SceneObjectID, RcRefCell<PointLight>>;
-pub type RenderObjectInstancingMap<'a> =
-    HashMap<RenderObjectInstanceKey<'a>, RcRefCell<RenderObjectData<'a>>>;
+pub type RenderObjectInstancingMap<'a> = HashMap<RenderObjectInstanceKey<'a>, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectMap<'a> = HashMap<SceneObjectID, RcRefCell<RenderObjectData<'a>>>;
 pub type RenderObjectCreateInfoMap = HashMap<String, RenderObjectCreateInfo>;
 pub type CollisionObjectMap<'a> = HashMap<CollisionObjectKey, Vec<RcRefCell<RenderObjectData<'a>>>>;
@@ -182,19 +183,19 @@ impl<'a> SceneManager<'a> {
         padding: f32,
         collision_point: &mut Vector3<f32>,
     ) -> bool {
-        self._capture_height_map
-            ._height_map_data
-            .get_collision_point(start_pos, dir, limit_dist, padding, collision_point)
+        self._capture_height_map._height_map_data.get_collision_point(
+            start_pos,
+            dir,
+            limit_dist,
+            padding,
+            collision_point,
+        )
     }
     pub fn get_height_bilinear(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        self._capture_height_map
-            ._height_map_data
-            .get_height_bilinear(pos, lod)
+        self._capture_height_map._height_map_data.get_height_bilinear(pos, lod)
     }
     pub fn get_height_point(&self, pos: &Vector3<f32>, lod: usize) -> f32 {
-        self._capture_height_map
-            ._height_map_data
-            .get_height_point(pos, lod)
+        self._capture_height_map._height_map_data.get_height_point(pos, lod)
     }
     pub fn get_static_render_elements(&self) -> &Vec<RenderElementData<'a>> {
         &self._static_render_elements
@@ -276,10 +277,7 @@ impl<'a> SceneManager<'a> {
         );
         let light_probe_camera_create_info = CameraCreateInfo {
             fov: 90.0,
-            window_size: Vector2::new(
-                constants::LIGHT_PROBE_SIZE as i32,
-                constants::LIGHT_PROBE_SIZE as i32,
-            ),
+            window_size: Vector2::new(constants::LIGHT_PROBE_SIZE as i32, constants::LIGHT_PROBE_SIZE as i32),
             enable_jitter: false,
             ..Default::default()
         };
@@ -320,9 +318,7 @@ impl<'a> SceneManager<'a> {
             &String::from("default_light"),
             &DirectionalLightCreateInfo::default(),
         );
-        let capture_height_map = Box::new(CaptureHeightMap::create_capture_height_map(
-            self.generate_object_id(),
-        ));
+        let capture_height_map = Box::new(CaptureHeightMap::create_capture_height_map(self.generate_object_id()));
 
         // assign
         self._main_camera = Some(Rc::new(default_camera));
@@ -394,8 +390,7 @@ impl<'a> SceneManager<'a> {
             &String::from(object_name),
             light_create_info,
         ));
-        self._directional_light_object_map
-            .insert(object_id, light_object_data.clone());
+        self._directional_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
     pub fn add_point_light_object(
@@ -409,30 +404,20 @@ impl<'a> SceneManager<'a> {
             &String::from(object_name),
             light_create_info,
         ));
-        self._point_light_object_map
-            .insert(object_id, light_object_data.clone());
+        self._point_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
-    pub fn collect_collision_objects(
-        &self,
-        bound_min: &Vector3<f32>,
-        bound_max: &Vector3<f32>,
-    ) -> RenderObjectMap<'a> {
+    pub fn collect_collision_objects(&self, bound_min: &Vector3<f32>, bound_max: &Vector3<f32>) -> RenderObjectMap<'a> {
         let mut collision_objectm_map: RenderObjectMap<'a> = HashMap::new();
         let key_min = CollisionObjectKey::from_position(&bound_min);
         let key_max = CollisionObjectKey::from_position(&bound_max);
         for z in key_min._indices.z..(key_max._indices.z + 1) {
             for y in key_min._indices.y..(key_max._indices.y + 1) {
                 for x in key_min._indices.x..(key_max._indices.x + 1) {
-                    if let Some(collision_objects) = self
-                        ._collision_object_map
-                        .get(&CollisionObjectKey::new(x, y, z))
-                    {
+                    if let Some(collision_objects) = self._collision_object_map.get(&CollisionObjectKey::new(x, y, z)) {
                         for collision_object in collision_objects.iter() {
-                            collision_objectm_map.insert(
-                                collision_object.borrow().get_object_id(),
-                                collision_object.clone(),
-                            );
+                            collision_objectm_map
+                                .insert(collision_object.borrow().get_object_id(), collision_object.clone());
                         }
                     }
                 }
@@ -442,31 +427,23 @@ impl<'a> SceneManager<'a> {
     }
     pub fn register_collision_object(&mut self, object: &RcRefCell<RenderObjectData<'a>>) {
         if object.borrow().get_collision_type() != CollisionType::NONE {
-            let key_min =
-                CollisionObjectKey::from_position(&object.borrow()._collision._bounding_box._min);
-            let key_max =
-                CollisionObjectKey::from_position(&object.borrow()._collision._bounding_box._max);
+            let key_min = CollisionObjectKey::from_position(&object.borrow()._collision._bounding_box._min);
+            let key_max = CollisionObjectKey::from_position(&object.borrow()._collision._bounding_box._max);
             for z in key_min._indices.z..(key_max._indices.z + 1) {
                 for y in key_min._indices.y..(key_max._indices.y + 1) {
                     for x in key_min._indices.x..(key_max._indices.x + 1) {
                         let new_key = CollisionObjectKey::new(x, y, z);
-                        if let Some(collision_objects) =
-                            self._collision_object_map.get_mut(&new_key)
-                        {
+                        if let Some(collision_objects) = self._collision_object_map.get_mut(&new_key) {
                             collision_objects.push(object.clone());
                         } else {
-                            self._collision_object_map
-                                .insert(new_key, vec![object.clone()]);
+                            self._collision_object_map.insert(new_key, vec![object.clone()]);
                         }
 
                         let scene_object_id = object.borrow().get_object_id();
-                        if let Some(collision_object_keys) =
-                            self._collision_object_key_map.get_mut(&scene_object_id)
-                        {
+                        if let Some(collision_object_keys) = self._collision_object_key_map.get_mut(&scene_object_id) {
                             collision_object_keys.push(new_key);
                         } else {
-                            self._collision_object_key_map
-                                .insert(scene_object_id, vec![new_key]);
+                            self._collision_object_key_map.insert(scene_object_id, vec![new_key]);
                         }
                     }
                 }
@@ -491,8 +468,7 @@ impl<'a> SceneManager<'a> {
         &self._dynamic_update_object_map
     }
     pub fn register_dynamic_update_object(&mut self, object: &RcRefCell<RenderObjectData<'a>>) {
-        self._dynamic_update_object_map
-            .insert(object.borrow().get_object_id(), object.clone());
+        self._dynamic_update_object_map.insert(object.borrow().get_object_id(), object.clone());
     }
     pub fn unregister_dynamic_update_object(&mut self, object_id: &SceneObjectID) {
         self._dynamic_update_object_map.remove(&object_id);
@@ -508,13 +484,13 @@ impl<'a> SceneManager<'a> {
             object_name,
             render_object_create_info,
             collision_type,
-            is_dynamic_update_object
+            is_dynamic_update_object,
         )
     }
     pub fn add_static_render_object(
         &mut self,
         object_name: &str,
-        render_object_create_info: &RenderObjectCreateInfo
+        render_object_create_info: &RenderObjectCreateInfo,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let custom_collision_type: Option<CollisionType>;
         let is_dynamic_update_object: bool = false;
@@ -540,7 +516,7 @@ impl<'a> SceneManager<'a> {
         object_name: &str,
         render_object_create_info: &RenderObjectCreateInfo,
         custom_collision_type: Option<CollisionType>,
-        is_dynamic_update_object: bool
+        is_dynamic_update_object: bool,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
@@ -548,7 +524,7 @@ impl<'a> SceneManager<'a> {
             &String::from(object_name),
             self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
             &render_object_create_info,
-            custom_collision_type
+            custom_collision_type,
         ));
 
         // register a collision object
@@ -575,38 +551,34 @@ impl<'a> SceneManager<'a> {
                 ),
             };
 
-            let instancing_render_object: RcRefCell<RenderObjectData<'a>> =
-                if let Some(find_object) = self._static_render_object_instancing_map.get(&instance_key) {
-                    find_object.clone()
-                } else {
-                    let new_instancing_object_id = self.generate_object_id();
-                    let new_instancing_render_object =
-                        newRcRefCell(RenderObjectData::create_render_object_data(
-                            new_instancing_object_id,
-                            &String::from(object_name),
-                            render_object_data_ref.get_model_data(),
-                            &RenderObjectCreateInfo {
-                                _scene_object_type: render_object_create_info._scene_object_type,
-                                _model_data_name: render_object_create_info._model_data_name.clone(),
-                                _position: Vector3::zeros(),
-                                _rotation: Vector3::zeros(),
-                                _scale: Vector3::new(1.0, 1.0, 1.0),
-                            },
-                            custom_collision_type
-                        ));
+            let instancing_render_object: RcRefCell<RenderObjectData<'a>> = if let Some(find_object) =
+                self._static_render_object_instancing_map.get(&instance_key)
+            {
+                find_object.clone()
+            } else {
+                let new_instancing_object_id = self.generate_object_id();
+                let new_instancing_render_object = newRcRefCell(RenderObjectData::create_render_object_data(
+                    new_instancing_object_id,
+                    &String::from(object_name),
+                    render_object_data_ref.get_model_data(),
+                    &RenderObjectCreateInfo {
+                        _scene_object_type: render_object_create_info._scene_object_type,
+                        _model_data_name: render_object_create_info._model_data_name.clone(),
+                        _position: Vector3::zeros(),
+                        _rotation: Vector3::zeros(),
+                        _scale: Vector3::new(1.0, 1.0, 1.0),
+                    },
+                    custom_collision_type,
+                ));
 
-                    self._static_render_object_map.insert(
-                        new_instancing_object_id,
-                        new_instancing_render_object.clone(),
-                    );
+                self._static_render_object_map
+                    .insert(new_instancing_object_id, new_instancing_render_object.clone());
 
-                    self._static_render_object_instancing_map.insert(instance_key, new_instancing_render_object.clone());
+                self._static_render_object_instancing_map.insert(instance_key, new_instancing_render_object.clone());
 
-                    new_instancing_render_object
-                };
-            instancing_render_object
-                .borrow_mut()
-                .register_instancing_render_object(&render_object_data);
+                new_instancing_render_object
+            };
+            instancing_render_object.borrow_mut().register_instancing_render_object(&render_object_data);
         }
 
         render_object_data
@@ -623,7 +595,7 @@ impl<'a> SceneManager<'a> {
             &String::from(object_name),
             model_data,
             &render_object_create_info,
-            None
+            None,
         ));
         self.register_dynamic_update_object(&render_object_data);
         self._skeletal_render_object_map.insert(object_id, render_object_data.clone());
@@ -641,14 +613,10 @@ impl<'a> SceneManager<'a> {
 
     pub fn play_audio(&self, audio_resource: &ResourceData) -> Option<RcRefCell<AudioInstance>> {
         match audio_resource {
-            Audio(audio_data) => {
-                self.get_audio_manager_mut().play_audio_data(&audio_data, AudioLoop::ONCE, None)
+            Audio(audio_data) => self.get_audio_manager_mut().play_audio_data(&audio_data, AudioLoop::ONCE, None),
+            AudioBank(audio_bank_data) => {
+                self.get_audio_manager_mut().play_audio_bank_data(&audio_bank_data, AudioLoop::ONCE, None)
             }
-            AudioBank(audio_bank_data) => self.get_audio_manager_mut().play_audio_bank_data(
-                &audio_bank_data,
-                AudioLoop::ONCE,
-                None,
-            ),
             _ => None,
         }
     }
@@ -670,10 +638,7 @@ impl<'a> SceneManager<'a> {
         &self._static_render_object_map
     }
 
-    pub fn get_static_render_object(
-        &self,
-        object_id: SceneObjectID,
-    ) -> Option<&RcRefCell<RenderObjectData<'a>>> {
+    pub fn get_static_render_object(&self, object_id: SceneObjectID) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._static_render_object_map.get(&object_id)
     }
 
@@ -687,10 +652,7 @@ impl<'a> SceneManager<'a> {
         &self._skeletal_render_object_map
     }
 
-    pub fn get_skeletal_render_object(
-        &self,
-        object_id: SceneObjectID,
-    ) -> Option<&RcRefCell<RenderObjectData<'a>>> {
+    pub fn get_skeletal_render_object(&self, object_id: SceneObjectID) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._skeletal_render_object_map.get(&object_id)
     }
 
@@ -716,23 +678,15 @@ impl<'a> SceneManager<'a> {
             Vector3::new(0.0, pi, 0.0),
         ];
         for i in 0..constants::CUBE_LAYER_COUNT {
-            self._light_probe_cameras[i]
-                .borrow_mut()
-                ._transform_object
-                .set_rotation(&rotations[i]);
-            self._light_probe_cameras[i]
-                .borrow_mut()
-                ._transform_object
-                .set_scale(&Vector3::new(1.0, 1.0, 1.0));
-            self._light_probe_cameras[i]
-                .borrow_mut()
-                .update_camera_object_data();
+            self._light_probe_cameras[i].borrow_mut()._transform_object.set_rotation(&rotations[i]);
+            self._light_probe_cameras[i].borrow_mut()._transform_object.set_scale(&Vector3::new(1.0, 1.0, 1.0));
+            self._light_probe_cameras[i].borrow_mut().update_camera_object_data();
         }
     }
     pub fn view_frustum_culling_geometry(
         camera: &CameraObjectData,
         geometry_bound_box: &BoundingBox,
-        to_geometry: &Vector3<f32>
+        to_geometry: &Vector3<f32>,
     ) -> bool {
         for plane in camera._view_frustum_planes.iter() {
             let d = plane.dot(&to_geometry);
@@ -807,11 +761,13 @@ impl<'a> SceneManager<'a> {
             let render_object_data = ptr_as_ref(render_object_refcell.as_ptr());
 
             let to_geometry = &render_object_data._bounding_box._center - camera.get_camera_position();
-            let is_distance_culled = render_object_data._is_render_height_map == false && render_object_data._bounding_box._radius * DISTANCE_CULL_FACTOR <= to_geometry.dot(&to_geometry);
+            let is_distance_culled = render_object_data._is_render_height_map == false
+                && render_object_data._bounding_box._radius * DISTANCE_CULL_FACTOR <= to_geometry.dot(&to_geometry);
 
             let is_render_camera = render_object_data._is_visible
                 && render_object_data._is_render_camera
-                && SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box, &to_geometry) == false;
+                && SceneManager::view_frustum_culling_geometry(camera, &render_object_data._bounding_box, &to_geometry)
+                    == false;
 
             let is_render_shadow = render_object_data._is_visible
                 && render_object_data._is_render_shadow
@@ -852,9 +808,7 @@ impl<'a> SceneManager<'a> {
                     }
                 };
 
-                if (*render_element_transform_count + required_transform_count)
-                    <= MAX_TRANSFORM_COUNT
-                {
+                if (*render_element_transform_count + required_transform_count) <= MAX_TRANSFORM_COUNT {
                     let model_data = ptr_as_ref(render_object_data.get_model_data().as_ptr());
                     let mesh_data_refcell = model_data.get_mesh_data();
                     let mesh_data = ptr_as_ref(mesh_data_refcell.as_ptr());
@@ -882,12 +836,9 @@ impl<'a> SceneManager<'a> {
                             if render_object_data.is_instancing_render_object() {
                                 let require_render_element_transform_count: usize =
                                     *render_element_transform_count + local_matrix_count;
-                                render_element_transform_matrices[*render_element_transform_count
-                                    ..require_render_element_transform_count]
-                                    .copy_from_slice(
-                                        render_object_data
-                                            .get_instancing_render_object_transforms(),
-                                    );
+                                render_element_transform_matrices
+                                    [*render_element_transform_count..require_render_element_transform_count]
+                                    .copy_from_slice(render_object_data.get_instancing_render_object_transforms());
                             } else {
                                 render_element_transform_matrices[*render_element_transform_count]
                                     .copy_from(&render_object_data._final_transform);
@@ -912,23 +863,20 @@ impl<'a> SceneManager<'a> {
                                 assert_eq!(bone_count, prev_animation_buffer.len());
                                 let require_render_element_transform_count: usize =
                                     *render_element_transform_count + bone_count;
-                                render_element_transform_matrices[*render_element_transform_count
-                                    ..require_render_element_transform_count]
+                                render_element_transform_matrices
+                                    [*render_element_transform_count..require_render_element_transform_count]
                                     .copy_from_slice(prev_animation_buffer);
-                                *render_element_transform_count =
-                                    require_render_element_transform_count;
+                                *render_element_transform_count = require_render_element_transform_count;
 
                                 // current animation buffer
-                                let animation_buffer: &Vec<Matrix4<f32>> =
-                                    render_object_data.get_animation_buffer();
+                                let animation_buffer: &Vec<Matrix4<f32>> = render_object_data.get_animation_buffer();
                                 assert_eq!(bone_count, animation_buffer.len());
                                 let require_render_element_transform_count: usize =
                                     *render_element_transform_count + bone_count;
-                                render_element_transform_matrices[*render_element_transform_count
-                                    ..require_render_element_transform_count]
+                                render_element_transform_matrices
+                                    [*render_element_transform_count..require_render_element_transform_count]
                                     .copy_from_slice(animation_buffer);
-                                *render_element_transform_count =
-                                    require_render_element_transform_count;
+                                *render_element_transform_count = require_render_element_transform_count;
                             }
                         }
                     }
@@ -942,30 +890,26 @@ impl<'a> SceneManager<'a> {
         }
 
         // sort render element info list by mesh
-        render_element_info_list.sort_by(
-            |lhs: &RenderElementInfo<'a>, rhs: &RenderElementInfo<'a>| {
-                if lhs._mesh_data.as_ptr() < rhs._mesh_data.as_ptr() {
-                    return Less;
-                } else if rhs._mesh_data.as_ptr() < lhs._mesh_data.as_ptr() {
-                    return Greater;
-                }
-
-                if lhs._geometry_data.as_ptr() < rhs._geometry_data.as_ptr() {
-                    return Less;
-                } else if rhs._geometry_data.as_ptr() < lhs._geometry_data.as_ptr() {
-                    return Greater;
-                }
-
-                if lhs._material_instance_data.as_ptr() < rhs._material_instance_data.as_ptr() {
-                    return Less;
-                } else if rhs._material_instance_data.as_ptr()
-                    < lhs._material_instance_data.as_ptr()
-                {
-                    return Greater;
-                }
+        render_element_info_list.sort_by(|lhs: &RenderElementInfo<'a>, rhs: &RenderElementInfo<'a>| {
+            if lhs._mesh_data.as_ptr() < rhs._mesh_data.as_ptr() {
                 return Less;
-            },
-        );
+            } else if rhs._mesh_data.as_ptr() < lhs._mesh_data.as_ptr() {
+                return Greater;
+            }
+
+            if lhs._geometry_data.as_ptr() < rhs._geometry_data.as_ptr() {
+                return Less;
+            } else if rhs._geometry_data.as_ptr() < lhs._geometry_data.as_ptr() {
+                return Greater;
+            }
+
+            if lhs._material_instance_data.as_ptr() < rhs._material_instance_data.as_ptr() {
+                return Less;
+            } else if rhs._material_instance_data.as_ptr() < lhs._material_instance_data.as_ptr() {
+                return Greater;
+            }
+            return Less;
+        });
 
         // build render element data
         let mut render_element_count: usize = 0;
@@ -983,8 +927,7 @@ impl<'a> SceneManager<'a> {
 
             // update transform offset
             for instance_index in 0..instancing_count {
-                let transform_offset =
-                    (render_element_info._transform_offset + instance_index) as i32;
+                let transform_offset = (render_element_info._transform_offset + instance_index) as i32;
                 if render_element_info._is_render_camera {
                     render_element_transform_offsets[*transform_offset_index].x = transform_offset;
                     *transform_offset_index += 1;
@@ -992,29 +935,30 @@ impl<'a> SceneManager<'a> {
                 }
 
                 if render_element_info._is_render_shadow {
-                    render_element_transform_offsets[*transform_offset_index_for_shadow].y =
-                        transform_offset;
+                    render_element_transform_offsets[*transform_offset_index_for_shadow].y = transform_offset;
                     *transform_offset_index_for_shadow += 1;
                     render_shadow_element_count += 1;
                 }
 
                 if enable_capture_height_map && render_element_info._is_render_height_map {
-                    render_element_transform_offsets[*transform_offset_index_for_height_map].z =
-                        transform_offset;
+                    render_element_transform_offsets[*transform_offset_index_for_height_map].z = transform_offset;
                     *transform_offset_index_for_height_map += 1;
                     capture_height_map_element_count += 1;
                 }
             }
 
-            let next_render_element_info = &render_element_info_list[(num_render_element_info - 1).min(render_element_index + 1)];
+            let next_render_element_info =
+                &render_element_info_list[(num_render_element_info - 1).min(render_element_index + 1)];
             let is_changed = render_element_info._mesh_data.as_ptr() != next_render_element_info._mesh_data.as_ptr()
                 || render_element_info._geometry_data.as_ptr() != next_render_element_info._geometry_data.as_ptr()
-                || render_element_info._material_instance_data.as_ptr() != next_render_element_info._material_instance_data.as_ptr();
+                || render_element_info._material_instance_data.as_ptr()
+                    != next_render_element_info._material_instance_data.as_ptr();
             let is_last = render_element_index == (num_render_element_info - 1);
 
             // update push constants data
             if is_last || is_changed {
-                let mut push_constant_data_list = render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
+                let mut push_constant_data_list =
+                    render_object_data.get_push_constant_data_list(render_element_info._geometry_index).clone();
                 for push_constant_data_mut in push_constant_data_list.iter_mut() {
                     push_constant_data_mut._push_constant.set_push_constant_parameter(
                         "_transform_offset_index",
@@ -1026,7 +970,8 @@ impl<'a> SceneManager<'a> {
                     );
                 }
 
-                begin_block!("render element"); {
+                begin_block!("render element");
+                {
                     if 0 < render_element_count {
                         render_elements.push(RenderElementData {
                             _geometry_data: render_element_info._geometry_data.clone(),
@@ -1044,7 +989,9 @@ impl<'a> SceneManager<'a> {
                     for push_constant_data_mut in push_constant_data_list.iter_mut() {
                         push_constant_data_mut._push_constant.set_push_constant_parameter(
                             "_transform_offset_index",
-                            &PushConstantParameter::Int((*transform_offset_index_for_shadow - render_shadow_element_count) as i32)
+                            &PushConstantParameter::Int(
+                                (*transform_offset_index_for_shadow - render_shadow_element_count) as i32,
+                            ),
                         );
                     }
 
@@ -1052,9 +999,7 @@ impl<'a> SceneManager<'a> {
                     if 0 < render_shadow_element_count {
                         render_shadow_elements.push(RenderElementData {
                             _geometry_data: render_element_info._geometry_data.clone(),
-                            _material_instance_data: render_element_info
-                                ._material_instance_data
-                                .clone(),
+                            _material_instance_data: render_element_info._material_instance_data.clone(),
                             _push_constant_data_list: push_constant_data_list.clone(),
                             _num_render_instances: render_shadow_element_count as u32,
                         });
@@ -1068,7 +1013,9 @@ impl<'a> SceneManager<'a> {
                     for push_constant_data_mut in push_constant_data_list.iter_mut() {
                         push_constant_data_mut._push_constant.set_push_constant_parameter(
                             "_transform_offset_index",
-                            &PushConstantParameter::Int((*transform_offset_index_for_height_map - capture_height_map_element_count) as i32)
+                            &PushConstantParameter::Int(
+                                (*transform_offset_index_for_height_map - capture_height_map_element_count) as i32,
+                            ),
                         );
                     }
 
@@ -1136,8 +1083,7 @@ impl<'a> SceneManager<'a> {
                 ..Default::default()
             },
         );
-        self.get_engine_resources_mut()
-            .save_scene_data(scene_data_name, &scene_data_create_info);
+        self.get_engine_resources_mut().save_scene_data(scene_data_name, &scene_data_create_info);
     }
 
     pub fn open_scene_data(&mut self, scene_data_name: &str) {
@@ -1259,9 +1205,7 @@ impl<'a> SceneManager<'a> {
                 rotation: camera._transform_object.get_rotation().clone() as Vector3<f32>,
                 ..Default::default()
             };
-            scene_data_create_info
-                ._cameras
-                .insert(camera._name.clone(), camera_create_info);
+            scene_data_create_info._cameras.insert(camera._name.clone(), camera_create_info);
         }
         // lights
         for light_object in self._directional_light_object_map.values() {
@@ -1271,9 +1215,7 @@ impl<'a> SceneManager<'a> {
                 _rotation: light._transform_object.get_rotation().clone() as Vector3<f32>,
                 ..Default::default()
             };
-            scene_data_create_info
-                ._directional_lights
-                .insert(light._light_name.clone(), light_create_info);
+            scene_data_create_info._directional_lights.insert(light._light_name.clone(), light_create_info);
         }
         // effects
         for (_effect_id, effect) in self.get_effect_manager().get_effects() {
@@ -1284,9 +1226,7 @@ impl<'a> SceneManager<'a> {
                 _effect_scale: effect._effect_transform.get_scale().clone() as Vector3<f32>,
                 _effect_data_name: effect._effect_data.borrow()._effect_data_name.clone(),
             };
-            scene_data_create_info
-                ._effects
-                .insert(effect.get_effect_name().clone(), effect_create_info);
+            scene_data_create_info._effects.insert(effect.get_effect_name().clone(), effect_create_info);
         }
         // static objects
         for static_object in self._static_render_object_map.values() {
@@ -1298,10 +1238,9 @@ impl<'a> SceneManager<'a> {
                 _rotation: object._transform_object.get_rotation().clone() as Vector3<f32>,
                 _scale: object._transform_object.get_scale().clone() as Vector3<f32>,
             };
-            scene_data_create_info._static_objects.insert(
-                object._render_object_name.clone(),
-                static_object_create_info,
-            );
+            scene_data_create_info
+                ._static_objects
+                .insert(object._render_object_name.clone(), static_object_create_info);
         }
         // skeletal objects
         for skeletal_object in self._skeletal_render_object_map.values() {
@@ -1313,14 +1252,12 @@ impl<'a> SceneManager<'a> {
                 _rotation: object._transform_object.get_rotation().clone() as Vector3<f32>,
                 _scale: object._transform_object.get_scale().clone() as Vector3<f32>,
             };
-            scene_data_create_info._skeletal_objects.insert(
-                object._render_object_name.clone(),
-                skeletal_object_create_info,
-            );
+            scene_data_create_info
+                ._skeletal_objects
+                .insert(object._render_object_name.clone(), skeletal_object_create_info);
         }
 
-        self.get_engine_resources_mut()
-            .save_scene_data(&self._scene_name, &scene_data_create_info);
+        self.get_engine_resources_mut().save_scene_data(&self._scene_name, &scene_data_create_info);
     }
 
     pub fn destroy_scene_manager(&mut self) {}
@@ -1348,9 +1285,7 @@ impl<'a> SceneManager<'a> {
         main_light.update_light_data(camera_position);
 
         for (_key, update_object_data) in self._dynamic_update_object_map.iter() {
-            update_object_data
-                .borrow_mut()
-                .update_render_object_data(delta_time as f32);
+            update_object_data.borrow_mut().update_render_object_data(delta_time as f32);
         }
 
         begin_block!("gather point lights");
@@ -1358,8 +1293,7 @@ impl<'a> SceneManager<'a> {
             // TODO: cull point light
             self._render_point_light_count = 0;
             for (i, point_light_data) in self._point_light_object_map.values().enumerate() {
-                self._render_point_lights._point_light_data[i] =
-                    point_light_data.borrow()._light_data.clone();
+                self._render_point_lights._point_light_data[i] = point_light_data.borrow()._light_data.clone();
                 self._render_point_light_count += 1;
                 if MAX_POINT_LIGHTS <= self._render_point_light_count as usize {
                     break;
@@ -1381,8 +1315,7 @@ impl<'a> SceneManager<'a> {
 
             self._bound_boxes.clear();
 
-            let capture_height_map_fot_static_mesh: bool =
-                self._capture_height_map.is_start_capture_height_map();
+            let capture_height_map_fot_static_mesh: bool = self._capture_height_map.is_start_capture_height_map();
             let capture_height_map_fot_skeletal_mesh: bool = false;
             let mut height_map_bounding_box_for_static_mesh = BoundingBox::default();
             let mut height_map_bounding_box_for_skeletal_mesh = BoundingBox::default();

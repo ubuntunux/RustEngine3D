@@ -2,9 +2,7 @@ use std::path::PathBuf;
 
 use crate::utilities::system::enum_to_string;
 use crate::vulkan_context::descriptor::{DescriptorDataCreateInfo, DescriptorResourceType};
-use crate::vulkan_context::render_pass::{
-    PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo,
-};
+use crate::vulkan_context::render_pass::{PipelineDataCreateInfo, PipelinePushConstantData, RenderPassDataCreateInfo};
 use ash::vk;
 
 use crate::effect::effect_manager::PushConstant_UpdateGpuParticle;
@@ -34,18 +32,14 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 1,
-                    _descriptor_name: enum_to_string(
-                        &ShaderBufferDataType::GpuParticleStaticConstants,
-                    ),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleStaticConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 2,
-                    _descriptor_name: enum_to_string(
-                        &ShaderBufferDataType::GpuParticleDynamicConstants,
-                    ),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleDynamicConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
@@ -100,27 +94,21 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 4,
-                    _descriptor_name: enum_to_string(
-                        &ShaderBufferDataType::GpuParticleStaticConstants,
-                    ),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleStaticConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 5,
-                    _descriptor_name: enum_to_string(
-                        &ShaderBufferDataType::GpuParticleDynamicConstants,
-                    ),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleDynamicConstants),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 6,
-                    _descriptor_name: enum_to_string(
-                        &ShaderBufferDataType::GpuParticleEmitterIndexBuffer,
-                    ),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleEmitterIndexBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()
@@ -134,9 +122,7 @@ pub fn get_render_pass_data_create_info(_renderer_data: &RendererData) -> Render
                 },
                 DescriptorDataCreateInfo {
                     _descriptor_binding_index: 8,
-                    _descriptor_name: enum_to_string(
-                        &ShaderBufferDataType::GpuParticleUpdateBuffer,
-                    ),
+                    _descriptor_name: enum_to_string(&ShaderBufferDataType::GpuParticleUpdateBuffer),
                     _descriptor_resource_type: DescriptorResourceType::StorageBuffer,
                     _descriptor_shader_stage: vk::ShaderStageFlags::COMPUTE,
                     ..Default::default()

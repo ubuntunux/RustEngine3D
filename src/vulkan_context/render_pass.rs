@@ -3,22 +3,17 @@ use std::path::PathBuf;
 
 use crate::renderer::push_constants::PushConstant;
 use crate::renderer::renderer_context::RendererContext;
-use crate::utilities::system::{newRcRefCell, RcRefCell};
+use crate::utilities::system::{RcRefCell, newRcRefCell};
 use crate::vulkan_context::buffer::{self, BufferData};
 use crate::vulkan_context::debug_utils;
 use crate::vulkan_context::descriptor::{DescriptorData, DescriptorDataCreateInfo};
 use crate::vulkan_context::framebuffer::FramebufferDataCreateInfo;
 use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
-use crate::vulkan_context::shader::{
-    create_shader_stage_create_info, destroy_shader_stage_create_info,
-};
+use crate::vulkan_context::shader::{create_shader_stage_create_info, destroy_shader_stage_create_info};
 use ash::vk::Handle;
-use ash::{ext, nv, vk, Device};
+use ash::{Device, ext, nv, vk};
 
-pub fn get_render_pass_pipeline_data_name(
-    render_pass_data_name: &str,
-    pipeline_data_name: &str,
-) -> String {
+pub fn get_render_pass_pipeline_data_name(render_pass_data_name: &str, pipeline_data_name: &str) -> String {
     format!("{}/{}", render_pass_data_name, pipeline_data_name)
 }
 
@@ -124,8 +119,7 @@ impl Default for PipelineDataCreateInfo {
             _pipeline_color_blend_operations: Vec::new(),
             _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
             _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-            _vertex_input_attribute_descriptions:
-                VertexData::create_vertex_input_attribute_descriptions(),
+            _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
             _push_constant_data_list: Vec::new(),
             _descriptor_data_create_infos: Vec::new(),
         }
@@ -156,8 +150,8 @@ pub struct DepthStencilStateCreateInfo {
     pub _depth_write_enable: bool,
     pub _depth_compare_op: vk::CompareOp,
     pub _stencil_test_enable: bool,
-    pub _front_fail_op: vk::StencilOp, // fail the stencil test
-    pub _front_pass_op: vk::StencilOp, // pass both the depth and stencil tests
+    pub _front_fail_op: vk::StencilOp,       // fail the stencil test
+    pub _front_pass_op: vk::StencilOp,       // pass both the depth and stencil tests
     pub _front_depth_fail_op: vk::StencilOp, // pass the stencil test and fail the depth test
     pub _front_compare_op: vk::CompareOp,
     pub _front_compare_mask: u32,
@@ -179,15 +173,15 @@ impl Default for DepthStencilStateCreateInfo {
             _depth_write_enable: true,
             _depth_compare_op: vk::CompareOp::GREATER_OR_EQUAL,
             _stencil_test_enable: false,
-            _front_fail_op: vk::StencilOp::KEEP, // fail the stencil test
-            _front_pass_op: vk::StencilOp::KEEP, // pass both the depth and stencil tests
+            _front_fail_op: vk::StencilOp::KEEP,       // fail the stencil test
+            _front_pass_op: vk::StencilOp::KEEP,       // pass both the depth and stencil tests
             _front_depth_fail_op: vk::StencilOp::KEEP, // pass the stencil test and fail the depth test
             _front_compare_op: vk::CompareOp::NEVER,
             _front_compare_mask: 0,
             _front_write_mask: 0,
             _front_reference: 0,
-            _back_fail_op: vk::StencilOp::KEEP, // fail the stencil test
-            _back_pass_op: vk::StencilOp::KEEP, // pass both the depth and stencil tests
+            _back_fail_op: vk::StencilOp::KEEP,       // fail the stencil test
+            _back_pass_op: vk::StencilOp::KEEP,       // pass both the depth and stencil tests
             _back_depth_fail_op: vk::StencilOp::KEEP, // pass the stencil test and fail the depth test
             _back_compare_op: vk::CompareOp::NEVER,
             _back_compare_mask: 0,
@@ -302,24 +296,18 @@ pub fn create_render_pass_data<'a>(
     let device = renderer_context.get_device();
     let debug_utils_device = renderer_context.get_debug_utils();
     let render_pass = create_render_pass(device, debug_utils_device, &render_pass_data_create_info);
-    let count = render_pass_data_create_info
-        ._pipeline_data_create_infos
-        .len();
+    let count = render_pass_data_create_info._pipeline_data_create_infos.len();
     let mut pipeline_data_map: PipelineDataMap = HashMap::new();
     let mut default_pipeline_data_name: String = String::new();
     for i in 0..count {
-        let binding_point =
-            render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
+        let binding_point = render_pass_data_create_info._pipeline_data_create_infos[i]._pipeline_bind_point;
         let pipeline_data = match binding_point {
             vk::PipelineBindPoint::GRAPHICS => create_graphics_pipeline_data(
                 device,
                 debug_utils_device,
                 render_pass,
                 &render_pass_data_create_info._pipeline_data_create_infos[i],
-                false
-                    == render_pass_data_create_info
-                        ._depth_attachment_descriptions
-                        .is_empty(),
+                false == render_pass_data_create_info._depth_attachment_descriptions.is_empty(),
                 &descriptor_data_list[i].borrow(),
             ),
             vk::PipelineBindPoint::COMPUTE => create_compute_pipeline_data(
@@ -348,10 +336,7 @@ pub fn create_render_pass_data<'a>(
         if 0 == i {
             default_pipeline_data_name = pipeline_data._pipeline_data_name.clone();
         }
-        pipeline_data_map.insert(
-            pipeline_data._pipeline_data_name.clone(),
-            newRcRefCell(pipeline_data),
-        );
+        pipeline_data_map.insert(pipeline_data._pipeline_data_name.clone(), newRcRefCell(pipeline_data));
     }
 
     log::trace!(
@@ -360,9 +345,7 @@ pub fn create_render_pass_data<'a>(
     );
     let default_pipeline_data = pipeline_data_map.get(&default_pipeline_data_name).unwrap();
     RenderPassData {
-        _render_pass_data_name: render_pass_data_create_info
-            ._render_pass_create_info_name
-            .clone(),
+        _render_pass_data_name: render_pass_data_create_info._render_pass_create_info_name.clone(),
         _render_pass: render_pass,
         _default_pipeline_data: default_pipeline_data.clone(),
         _pipeline_data_map: pipeline_data_map,
@@ -385,37 +368,30 @@ pub fn create_render_pass(
     debug_utils_device: &ext::debug_utils::Device,
     render_pass_data_create_info: &RenderPassDataCreateInfo,
 ) -> vk::RenderPass {
-    let create_image_attachment =
-        |attachment_description: &ImageAttachmentDescription| -> vk::AttachmentDescription {
-            vk::AttachmentDescription {
-                format: attachment_description._attachment_image_format,
-                samples: attachment_description._attachment_image_samples,
-                load_op: attachment_description._attachment_load_operation,
-                store_op: attachment_description._attachment_store_operation,
-                stencil_load_op: attachment_description._attachment_stencil_load_operation,
-                stencil_store_op: attachment_description._attachment_stencil_store_operation,
-                initial_layout: attachment_description._attachment_initial_layout,
-                final_layout: attachment_description._attachment_final_layout,
-                ..Default::default()
-            }
-        };
+    let create_image_attachment = |attachment_description: &ImageAttachmentDescription| -> vk::AttachmentDescription {
+        vk::AttachmentDescription {
+            format: attachment_description._attachment_image_format,
+            samples: attachment_description._attachment_image_samples,
+            load_op: attachment_description._attachment_load_operation,
+            store_op: attachment_description._attachment_store_operation,
+            stencil_load_op: attachment_description._attachment_stencil_load_operation,
+            stencil_store_op: attachment_description._attachment_stencil_store_operation,
+            initial_layout: attachment_description._attachment_initial_layout,
+            final_layout: attachment_description._attachment_final_layout,
+            ..Default::default()
+        }
+    };
     let create_image_attachment_reference =
-        |attachment_description: &ImageAttachmentDescription,
-         index: u32|
-         -> vk::AttachmentReference {
+        |attachment_description: &ImageAttachmentDescription, index: u32| -> vk::AttachmentReference {
             vk::AttachmentReference {
                 attachment: index,
                 layout: attachment_description._attachment_reference_layout,
             }
         };
-    let color_attachment_descriptions =
-        &render_pass_data_create_info._color_attachment_descriptions;
-    let depth_attachment_descriptions =
-        &render_pass_data_create_info._depth_attachment_descriptions;
-    let resolve_attachment_descriptions =
-        &render_pass_data_create_info._resolve_attachment_descriptions;
-    let mut attachment_descriptions: Vec<ImageAttachmentDescription> =
-        color_attachment_descriptions.clone();
+    let color_attachment_descriptions = &render_pass_data_create_info._color_attachment_descriptions;
+    let depth_attachment_descriptions = &render_pass_data_create_info._depth_attachment_descriptions;
+    let resolve_attachment_descriptions = &render_pass_data_create_info._resolve_attachment_descriptions;
+    let mut attachment_descriptions: Vec<ImageAttachmentDescription> = color_attachment_descriptions.clone();
     attachment_descriptions.extend(depth_attachment_descriptions.clone());
     attachment_descriptions.extend(resolve_attachment_descriptions.clone());
     let image_attachments: Vec<vk::AttachmentDescription> = attachment_descriptions
@@ -426,9 +402,7 @@ pub fn create_render_pass(
     let color_attachment_references: Vec<vk::AttachmentReference> = color_attachment_descriptions
         .iter()
         .enumerate()
-        .map(|(index, ref description)| {
-            create_image_attachment_reference(description, index as u32)
-        })
+        .map(|(index, ref description)| create_image_attachment_reference(description, index as u32))
         .collect();
     description_offset += color_attachment_references.len() as u32;
     let depth_attachment_references: Vec<vk::AttachmentReference> = depth_attachment_descriptions
@@ -439,14 +413,13 @@ pub fn create_render_pass(
         })
         .collect();
     description_offset += depth_attachment_references.len() as u32;
-    let resolve_attachment_references: Vec<vk::AttachmentReference> =
-        resolve_attachment_descriptions
-            .iter()
-            .enumerate()
-            .map(|(index, ref description)| {
-                create_image_attachment_reference(description, description_offset + index as u32)
-            })
-            .collect();
+    let resolve_attachment_references: Vec<vk::AttachmentReference> = resolve_attachment_descriptions
+        .iter()
+        .enumerate()
+        .map(|(index, ref description)| {
+            create_image_attachment_reference(description, description_offset + index as u32)
+        })
+        .collect();
     let subpasses = [vk::SubpassDescription {
         pipeline_bind_point: vk::PipelineBindPoint::GRAPHICS,
         p_color_attachments: if !color_attachment_references.is_empty() {
@@ -478,14 +451,11 @@ pub fn create_render_pass(
         ..Default::default()
     };
     unsafe {
-        let render_pass = device
-            .create_render_pass(&render_pass_create_info, None)
-            .expect("vkCreatePipelineLayout failed!");
+        let render_pass =
+            device.create_render_pass(&render_pass_create_info, None).expect("vkCreatePipelineLayout failed!");
         debug_utils::set_object_debug_info(
             debug_utils_device,
-            render_pass_data_create_info
-                ._render_pass_create_info_name
-                .as_str(),
+            render_pass_data_create_info._render_pass_create_info_name.as_str(),
             vk::ObjectType::RENDER_PASS,
             render_pass.as_raw(),
         );
@@ -498,16 +468,8 @@ pub fn create_render_pass(
     }
 }
 
-pub fn destroy_render_pass(
-    device: &Device,
-    render_pass: vk::RenderPass,
-    render_pass_name: &String,
-) {
-    log::debug!(
-        "destroy_render_pass: {} {:?}",
-        render_pass_name,
-        render_pass
-    );
+pub fn destroy_render_pass(device: &Device, render_pass: vk::RenderPass, render_pass_name: &String) {
+    log::debug!("destroy_render_pass: {} {:?}", render_pass_name, render_pass);
     unsafe {
         device.destroy_render_pass(render_pass, None);
     }
@@ -537,9 +499,8 @@ pub fn create_pipeline_layout(
         ..Default::default()
     };
     unsafe {
-        let pipeline_layout = device
-            .create_pipeline_layout(&pipeline_create_info, None)
-            .expect("VkCreatePipelineLayout failed!!");
+        let pipeline_layout =
+            device.create_pipeline_layout(&pipeline_create_info, None).expect("VkCreatePipelineLayout failed!!");
         debug_utils::set_object_debug_info(
             debug_utils_device,
             pipeline_layout_name,
@@ -589,25 +550,15 @@ pub fn create_graphics_pipeline_data<'a>(
     let pipeline_layout = create_pipeline_layout(
         device,
         debug_utils_device,
-        pipeline_data_create_info
-            ._pipeline_data_create_info_name
-            .as_str(),
+        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
         &pipeline_data_create_info._push_constant_data_list,
         &descriptor_set_layouts,
     );
     let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo {
-        vertex_binding_description_count: pipeline_data_create_info
-            ._vertex_input_bind_descriptions
-            .len() as u32,
-        p_vertex_binding_descriptions: pipeline_data_create_info
-            ._vertex_input_bind_descriptions
-            .as_ptr(),
-        vertex_attribute_description_count: pipeline_data_create_info
-            ._vertex_input_attribute_descriptions
-            .len() as u32,
-        p_vertex_attribute_descriptions: pipeline_data_create_info
-            ._vertex_input_attribute_descriptions
-            .as_ptr(),
+        vertex_binding_description_count: pipeline_data_create_info._vertex_input_bind_descriptions.len() as u32,
+        p_vertex_binding_descriptions: pipeline_data_create_info._vertex_input_bind_descriptions.as_ptr(),
+        vertex_attribute_description_count: pipeline_data_create_info._vertex_input_attribute_descriptions.len() as u32,
+        p_vertex_attribute_descriptions: pipeline_data_create_info._vertex_input_attribute_descriptions.as_ptr(),
         ..Default::default()
     };
     let input_assembly = vk::PipelineInputAssemblyStateCreateInfo {
@@ -629,8 +580,7 @@ pub fn create_graphics_pipeline_data<'a>(
         p_scissors: scissors.as_ptr(),
         ..Default::default()
     };
-    let depth_bias_enable: bool = 0.0
-        != pipeline_data_create_info._pipeline_depth_bias_constant_factor
+    let depth_bias_enable: bool = 0.0 != pipeline_data_create_info._pipeline_depth_bias_constant_factor
         || 0.0 != pipeline_data_create_info._pipeline_depth_bias_clamp
         || 0.0 != pipeline_data_create_info._pipeline_depth_bias_slope_factor;
     let rasterizer = vk::PipelineRasterizationStateCreateInfo {
@@ -658,17 +608,12 @@ pub fn create_graphics_pipeline_data<'a>(
     let color_blending = vk::PipelineColorBlendStateCreateInfo {
         logic_op_enable: 0,
         logic_op: vk::LogicOp::COPY,
-        attachment_count: pipeline_data_create_info
-            ._pipeline_color_blend_operations
-            .len() as u32,
-        p_attachments: pipeline_data_create_info
-            ._pipeline_color_blend_operations
-            .as_ptr(),
+        attachment_count: pipeline_data_create_info._pipeline_color_blend_operations.len() as u32,
+        p_attachments: pipeline_data_create_info._pipeline_color_blend_operations.as_ptr(),
         blend_constants,
         ..Default::default()
     };
-    let depth_stencil_state_create_info =
-        &pipeline_data_create_info._depth_stencil_state_create_info;
+    let depth_stencil_state_create_info = &pipeline_data_create_info._depth_stencil_state_create_info;
     let depth_stencil_state = if has_depth_stencil_attachment {
         vk::PipelineDepthStencilStateCreateInfo {
             depth_test_enable: depth_stencil_state_create_info._depth_test_enable.into(),
@@ -722,19 +667,13 @@ pub fn create_graphics_pipeline_data<'a>(
 
     unsafe {
         let graphics_pipelines = device
-            .create_graphics_pipelines(
-                vk::PipelineCache::null(),
-                &graphics_pipeline_create_info,
-                None,
-            )
+            .create_graphics_pipelines(vk::PipelineCache::null(), &graphics_pipeline_create_info, None)
             .expect("vkCreateGraphicsPipelines failed!");
         assert_eq!(1, graphics_pipelines.len());
 
         debug_utils::set_object_debug_info(
             debug_utils_device,
-            pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .as_str(),
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::ObjectType::PIPELINE,
             graphics_pipelines[0].as_raw(),
         );
@@ -759,9 +698,7 @@ pub fn create_graphics_pipeline_data<'a>(
         );
 
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .clone(),
+            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _vertex_shader_create_info: vertex_shader_create_info,
             _fragment_shader_create_info: fragment_shader_create_info,
             _pipeline: graphics_pipelines[0],
@@ -792,9 +729,7 @@ pub fn create_compute_pipeline_data<'a>(
     let pipeline_layout = create_pipeline_layout(
         device,
         debug_utils_device,
-        pipeline_data_create_info
-            ._pipeline_data_create_info_name
-            .as_str(),
+        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
         &pipeline_data_create_info._push_constant_data_list,
         &descriptor_set_layouts,
     );
@@ -815,9 +750,7 @@ pub fn create_compute_pipeline_data<'a>(
 
         debug_utils::set_object_debug_info(
             debug_utils_device,
-            pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .as_str(),
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::ObjectType::PIPELINE,
             pipelines[0].as_raw(),
         );
@@ -837,9 +770,7 @@ pub fn create_compute_pipeline_data<'a>(
         );
 
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .clone(),
+            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _compute_shader_create_info: shader_create_info,
             _pipeline: pipelines[0],
             _pipeline_layout: pipeline_layout,
@@ -920,9 +851,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
     let pipeline_layout = create_pipeline_layout(
         device,
         debug_utils_device,
-        pipeline_data_create_info
-            ._pipeline_data_create_info_name
-            .as_str(),
+        pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
         &pipeline_data_create_info._push_constant_data_list,
         &descriptor_set_layouts,
     );
@@ -942,9 +871,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             .expect("create_ray_tracing_pipelines failed!")[0];
         debug_utils::set_object_debug_info(
             debug_utils_device,
-            pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .as_str(),
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::ObjectType::PIPELINE,
             pipeline.as_raw(),
         );
@@ -977,8 +904,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
         }
 
         // create shader binding table
-        let table_size =
-            (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
+        let table_size = (ray_tracing_properties.shader_group_handle_size * shader_group_count) as u64;
         //let table_size = (ray_tracing_properties.shader_group_base_alignment * shader_group_count) as u64;
         let mut table_data: Vec<u8> = vec![0u8; table_size as usize];
         ray_tracing
@@ -991,9 +917,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             command_queue,
             device_memory_properties,
             debug_utils_device,
-            pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .as_str(),
+            pipeline_data_create_info._pipeline_data_create_info_name.as_str(),
             vk::BufferUsageFlags::TRANSFER_SRC,
             &table_data,
         );
@@ -1002,9 +926,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
         log::info!("    create_ray_tracing_pipeline_data.");
         log::info!("    CHECK :: do i need present_queue or graphics queue ??");
         PipelineData {
-            _pipeline_data_name: pipeline_data_create_info
-                ._pipeline_data_create_info_name
-                .clone(),
+            _pipeline_data_name: pipeline_data_create_info._pipeline_data_create_info_name.clone(),
             _ray_tracing_shader_create_infos: shader_create_infos,
             _pipeline: pipeline,
             _pipeline_layout: pipeline_layout,

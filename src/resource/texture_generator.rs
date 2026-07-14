@@ -35,11 +35,8 @@ fn generate_flat_color_image_rgba8(
         if false == directory.is_dir() {
             fs::create_dir_all(directory).expect("Failed to create directories.");
         }
-        let image =
-            image::ImageBuffer::from_fn(image_width, image_height, |_x, _y| image::Rgba(color));
-        image
-            .save(image_file_path.as_path())
-            .expect("Failed to save image.");
+        let image = image::ImageBuffer::from_fn(image_width, image_height, |_x, _y| image::Rgba(color));
+        image.save(image_file_path.as_path()).expect("Failed to save image.");
     }
 }
 
@@ -95,20 +92,8 @@ pub fn generate_random_normals(image_width: u32, image_height: u32) -> Vec<Vecto
 }
 
 pub fn generate_images(texture_source_directory: &PathBuf) {
-    generate_flat_color_image_rgba8(
-        texture_source_directory,
-        "common/flat_none.png",
-        2,
-        2,
-        [0, 0, 0, 0],
-    );
-    generate_flat_color_image_rgba8(
-        texture_source_directory,
-        "common/flat_black.png",
-        2,
-        2,
-        [0, 0, 0, 255],
-    );
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_none.png", 2, 2, [0, 0, 0, 0]);
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_black.png", 2, 2, [0, 0, 0, 255]);
     generate_flat_color_image_rgba8(
         texture_source_directory,
         "common/flat_gray.png",
@@ -123,13 +108,7 @@ pub fn generate_images(texture_source_directory: &PathBuf) {
         2,
         [255, 255, 255, 255],
     );
-    generate_flat_color_image_rgba8(
-        texture_source_directory,
-        "common/flat_red.png",
-        2,
-        2,
-        [255, 0, 0, 255],
-    );
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_red.png", 2, 2, [255, 0, 0, 255]);
     generate_flat_color_image_rgba8(
         texture_source_directory,
         "common/flat_green.png",
@@ -137,13 +116,7 @@ pub fn generate_images(texture_source_directory: &PathBuf) {
         2,
         [0, 255, 0, 255],
     );
-    generate_flat_color_image_rgba8(
-        texture_source_directory,
-        "common/flat_blue.png",
-        2,
-        2,
-        [0, 0, 255, 255],
-    );
+    generate_flat_color_image_rgba8(texture_source_directory, "common/flat_blue.png", 2, 2, [0, 0, 255, 255]);
     generate_flat_color_image_rgba8(
         texture_source_directory,
         "common/flat_yellow.png",
@@ -237,10 +210,9 @@ pub fn generate_textures(renderer_context: &RendererContext) -> Vec<TextureData>
         ..Default::default()
     });
 
-    let random_normals =
-        generate_random_normals(unsafe { constants::SSAO_NOISE_DIM as u32 }, unsafe {
-            constants::SSAO_NOISE_DIM as u32
-        });
+    let random_normals = generate_random_normals(unsafe { constants::SSAO_NOISE_DIM as u32 }, unsafe {
+        constants::SSAO_NOISE_DIM as u32
+    });
     let texture_random_normal = renderer_context.create_texture(&TextureCreateInfo {
         _texture_name: String::from(DEFAULT_RANDOM_NORMAL_TEXTURE),
         _texture_width: unsafe { constants::SSAO_NOISE_DIM as u32 },

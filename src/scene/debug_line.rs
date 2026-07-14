@@ -1,5 +1,5 @@
 use ash::ext;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
@@ -59,8 +59,7 @@ impl DebugLineVertexData {
 
 impl VertexDataBase for DebugLineVertexData {
     fn create_vertex_input_attribute_descriptions() -> Vec<vk::VertexInputAttributeDescription> {
-        let mut vertex_input_attribute_descriptions =
-            Vec::<vk::VertexInputAttributeDescription>::new();
+        let mut vertex_input_attribute_descriptions = Vec::<vk::VertexInputAttributeDescription>::new();
         geometry_buffer::add_vertex_input_attribute_description(
             &mut vertex_input_attribute_descriptions,
             0,
@@ -111,10 +110,7 @@ impl DebugLineManager {
         device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
     ) -> GeometryData {
         log::debug!("create_debug_line_vertex_data");
-        let positions: Vec<Vector4<f32>> = vec![
-            Vector4::new(0.0, 0.0, 0.0, 0.0),
-            Vector4::new(1.0, 0.0, 0.0, 0.0),
-        ];
+        let positions: Vec<Vector4<f32>> = vec![Vector4::new(0.0, 0.0, 0.0, 0.0), Vector4::new(1.0, 0.0, 0.0, 0.0)];
         let vertex_data_list = positions
             .iter()
             .map(|position| DebugLineVertexData {
@@ -155,34 +151,22 @@ impl DebugLineManager {
     }
 
     // screen size coordinate
-    pub fn add_debug_line_2d(
-        &mut self,
-        position0: &Vector2<f32>,
-        position1: &Vector2<f32>,
-        color: u32,
-    ) {
-        self._debug_line_instance_data_list
-            .push(DebugLineInstanceData {
-                _positions0: Vector3::new(position0.x, position0.y, 0.0),
-                _color: color,
-                _positions1: Vector3::new(position1.x, position1.y, 0.0),
-                _is_debug_line_3d: 0,
-            });
+    pub fn add_debug_line_2d(&mut self, position0: &Vector2<f32>, position1: &Vector2<f32>, color: u32) {
+        self._debug_line_instance_data_list.push(DebugLineInstanceData {
+            _positions0: Vector3::new(position0.x, position0.y, 0.0),
+            _color: color,
+            _positions1: Vector3::new(position1.x, position1.y, 0.0),
+            _is_debug_line_3d: 0,
+        });
     }
 
-    pub fn add_debug_line_3d(
-        &mut self,
-        position0: &Vector3<f32>,
-        position1: &Vector3<f32>,
-        color: u32,
-    ) {
-        self._debug_line_instance_data_list
-            .push(DebugLineInstanceData {
-                _positions0: position0.clone(),
-                _color: color,
-                _positions1: position1.clone(),
-                _is_debug_line_3d: 1,
-            });
+    pub fn add_debug_line_3d(&mut self, position0: &Vector3<f32>, position1: &Vector3<f32>, color: u32) {
+        self._debug_line_instance_data_list.push(DebugLineInstanceData {
+            _positions0: position0.clone(),
+            _color: color,
+            _positions1: position1.clone(),
+            _is_debug_line_3d: 1,
+        });
     }
 
     pub fn render_debug_line(
@@ -203,16 +187,14 @@ impl DebugLineManager {
         // }
 
         if self._show && 0 < self._debug_line_instance_data_list.len() {
-            let material_instance_data = engine_resources
-                .get_material_instance_data("common/render_debug_line")
-                .borrow();
+            let material_instance_data =
+                engine_resources.get_material_instance_data("common/render_debug_line").borrow();
             let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
             let render_debug_line_descriptor_sets = Some(&pipeline_binding_data._descriptor_sets);
 
             // upload storage buffer
-            let debug_line_count = constants::MAX_DEBUG_LINE_INSTANCE_COUNT
-                .min(self._debug_line_instance_data_list.len())
-                as u32;
+            let debug_line_count =
+                constants::MAX_DEBUG_LINE_INSTANCE_COUNT.min(self._debug_line_instance_data_list.len()) as u32;
             renderer_context.upload_shader_buffer_data_list(
                 command_buffer,
                 swapchain_index,

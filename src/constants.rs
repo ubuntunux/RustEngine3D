@@ -1,5 +1,5 @@
-use ash::vk;
 use crate::renderer::renderer_data::RenderOption;
+use ash::vk;
 
 pub static mut DEVELOPMENT: bool = false;
 pub const ENGINE_NAME: &str = "RustEngine3D";
@@ -11,8 +11,7 @@ pub const DEPTH_STENCIL_FORMATS: [vk::Format; 3] = [
     vk::Format::D16_UNORM_S8_UINT,
 ];
 pub const CUBE_LAYER_COUNT: usize = 6;
-pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] =
-    ["right", "left", "top", "bottom", "front", "back"];
+pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] = ["right", "left", "top", "bottom", "front", "back"];
 pub const INVALID_QUEUE_INDEX: u32 = u32::MAX;
 pub const WHOLE_LAYERS: u32 = u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = u32::MAX;
@@ -67,8 +66,7 @@ pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in sce
 pub const SSAO_RADIUS: f32 = 2.0;
 pub const MAX_POINT_LIGHTS: usize = 32; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const LIGHT_GRID_DIMENSION: [usize; 3] = [10, 10, 10];
-pub const LIGHT_GRID_CELL_COUNT: usize =
-    LIGHT_GRID_DIMENSION[0] * LIGHT_GRID_DIMENSION[1] * LIGHT_GRID_DIMENSION[2];
+pub const LIGHT_GRID_CELL_COUNT: usize = LIGHT_GRID_DIMENSION[0] * LIGHT_GRID_DIMENSION[1] * LIGHT_GRID_DIMENSION[2];
 pub const MAX_LIGHT_COUNT_PER_CELL: usize = 4;
 pub const LIGHT_PROBE_SIZE: u32 = 256;
 pub const RENDER_OBJECT_FOR_LIGHT_PROBE: bool = false;

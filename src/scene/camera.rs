@@ -127,10 +127,7 @@ impl CameraObjectData {
         };
 
         // initialize
-        camera_object_data.set_aspect(
-            camera_create_info.window_size.x,
-            camera_create_info.window_size.y,
-        );
+        camera_object_data.set_aspect(camera_create_info.window_size.x, camera_create_info.window_size.y);
         camera_object_data._transform_object.set_position(&camera_create_info.position);
         camera_object_data._transform_object.set_rotation(&camera_create_info.rotation);
         camera_object_data._transform_object.update_transform_object();
@@ -252,8 +249,7 @@ impl CameraObjectData {
 
     pub fn update_camera_object_data(&mut self) {
         if self._enable_jitter {
-            self._jitter_frame =
-                (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
+            self._jitter_frame = (self._jitter_frame + 1) % self._jitter_mode_hammersley16x.len() as i32;
             // offset of camera projection matrix. NDC Space -1.0 ~ 1.0
             self._jitter_prev = self._jitter.into();
             self._jitter = self._jitter_mode_hammersley16x[self._jitter_frame as usize].into();
@@ -264,10 +260,8 @@ impl CameraObjectData {
         }
 
         // copy prev matrices
-        self._view_origin_projection_prev
-            .copy_from(&self._view_origin_projection);
-        self._view_origin_projection_prev_jitter
-            .copy_from(&self._view_origin_projection_jitter);
+        self._view_origin_projection_prev.copy_from(&self._view_origin_projection);
+        self._view_origin_projection_prev_jitter.copy_from(&self._view_origin_projection_jitter);
 
         // update matrices
         let updated = self._transform_object.update_transform_object() || self._updated_projection;
@@ -278,8 +272,7 @@ impl CameraObjectData {
             self._view = self._transform_object.get_inverse_matrix().clone() as Matrix4<f32>;
             self._inv_view = self._transform_object.get_matrix().clone() as Matrix4<f32>;
             self._view_origin = self._view.clone() as Matrix4<f32>;
-            self._view_origin
-                .set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
+            self._view_origin.set_column(3, &Vector4::new(0.0, 0.0, 0.0, 1.0));
             self._inv_view_origin = self._view_origin.transpose();
             self._view_projection = &self._projection * &self._view;
             self._inv_view_projection = &self._inv_view * &self._inv_projection;
@@ -293,10 +286,7 @@ impl CameraObjectData {
         if self._enable_jitter {
             self._projection_jitter.column_mut(2)[0] = self._jitter[0];
             self._projection_jitter.column_mut(2)[1] = self._jitter[1];
-            linalg::try_invert_to(
-                self._projection_jitter.into(),
-                &mut self._inv_projection_jitter,
-            );
+            linalg::try_invert_to(self._projection_jitter.into(), &mut self._inv_projection_jitter);
             self._view_projection_jitter = &self._projection_jitter * &self._view;
             self._view_origin_projection_jitter = &self._projection_jitter * &self._view_origin;
             linalg::try_invert_to(

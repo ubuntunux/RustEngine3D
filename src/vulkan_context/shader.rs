@@ -11,7 +11,7 @@ use crate::utilities::system;
 use crate::vulkan_context::debug_utils;
 use ash::ext;
 use ash::vk::Handle;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use regex::Regex;
 
 pub fn spirv_file_path_with_defines(
@@ -61,9 +61,8 @@ pub fn get_shader_module_name(shader_filename: &PathBuf, shader_defines: &[Strin
 }
 
 pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
-    let engine_shader_file_path: PathBuf = PathBuf::from(resource::ENGINE_RESOURCE_PATH)
-        .join(resource::SHADER_DIRECTORY)
-        .join(shader_filename);
+    let engine_shader_file_path: PathBuf =
+        PathBuf::from(resource::ENGINE_RESOURCE_PATH).join(resource::SHADER_DIRECTORY).join(shader_filename);
     let project_shader_file_path: PathBuf = PathBuf::from(resource::APPLICATION_RESOURCE_PATH)
         .join(resource::SHADER_DIRECTORY)
         .join(shader_filename);
@@ -75,14 +74,9 @@ pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
     }
 }
 
-pub fn compile_glsl(
-    shader_filename: &PathBuf,
-    shader_defines: &[String],
-    stage_flag: vk::ShaderStageFlags,
-) -> Vec<u8> {
+pub fn compile_glsl(shader_filename: &PathBuf, shader_defines: &[String], stage_flag: vk::ShaderStageFlags) -> Vec<u8> {
     let (is_engine_resource, shader_file_path) = get_shader_file_path(shader_filename);
-    let spirv_file_path: PathBuf =
-        spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
+    let spirv_file_path: PathBuf = spirv_file_path_with_defines(is_engine_resource, &shader_filename, &shader_defines);
 
     if unsafe { DEVELOPMENT } {
         // collect include files
@@ -106,15 +100,10 @@ pub fn compile_glsl(
 
         // check need to compile
         let need_to_compile: bool = if spirv_file_path.is_file() {
-            let spirv_file_modified_time =
-                fs::metadata(&spirv_file_path).unwrap().modified().unwrap();
-            let mut recent_modified_time =
-                fs::metadata(&shader_file_path).unwrap().modified().unwrap();
+            let spirv_file_modified_time = fs::metadata(&spirv_file_path).unwrap().modified().unwrap();
+            let mut recent_modified_time = fs::metadata(&shader_file_path).unwrap().modified().unwrap();
             for included_file_path in included_files.iter() {
-                let included_file_modified_time = fs::metadata(included_file_path)
-                    .unwrap()
-                    .modified()
-                    .unwrap();
+                let included_file_modified_time = fs::metadata(included_file_path).unwrap().modified().unwrap();
                 if recent_modified_time < included_file_modified_time {
                     recent_modified_time = included_file_modified_time;
                 }
@@ -132,11 +121,12 @@ pub fn compile_glsl(
                 shader_file_path,
                 spirv_file_path
             );
-            fs::create_dir_all(spirv_file_path.parent().unwrap())
-                .expect("Failed to create directories.");
+            fs::create_dir_all(spirv_file_path.parent().unwrap()).expect("Failed to create directories.");
             let validator_exe = match which::which("glslangValidator") {
                 Ok(path) => path,
-                Err(_) => panic!("Cannot find glslangValidator executable.\nCheck if it is available in your $PATH\nRead more about it at https://www.khronos.org/opengles/sdk/tools/Reference-Compiler/")
+                Err(_) => panic!(
+                    "Cannot find glslangValidator executable.\nCheck if it is available in your $PATH\nRead more about it at https://www.khronos.org/opengles/sdk/tools/Reference-Compiler/"
+                ),
             };
 
             let mut command = process::Command::new(validator_exe);
@@ -155,11 +145,7 @@ pub fn compile_glsl(
             ];
 
             for shader_stage_flag in SHADER_STAGE_FLAGS.iter() {
-                command.arg(format!(
-                    "-D{:?}={:?}",
-                    shader_stage_flag,
-                    shader_stage_flag.as_raw()
-                ));
+                command.arg(format!("-D{:?}={:?}", shader_stage_flag, shader_stage_flag.as_raw()));
             }
             command.arg(format!("-DSHADER_STAGE_FLAG={:?}", stage_flag));
 
@@ -221,9 +207,8 @@ pub fn create_shader_stage_create_info<'a>(
         ..Default::default()
     };
     unsafe {
-        let shader_module = device
-            .create_shader_module(&shader_module_create_info, None)
-            .expect("vkCreateShaderModule failed!");
+        let shader_module =
+            device.create_shader_module(&shader_module_create_info, None).expect("vkCreateShaderModule failed!");
         let shader_module_name: PathBuf = get_shader_module_name(&shader_filename, &shader_defines);
         debug_utils::set_object_debug_info(
             debug_utils_device,
@@ -248,10 +233,7 @@ pub fn create_shader_stage_create_info<'a>(
     }
 }
 
-pub fn destroy_shader_stage_create_info(
-    device: &Device,
-    shader_stage_create_info: &vk::PipelineShaderStageCreateInfo,
-) {
+pub fn destroy_shader_stage_create_info(device: &Device, shader_stage_create_info: &vk::PipelineShaderStageCreateInfo) {
     if 0 != shader_stage_create_info.module.as_raw() {
         log::debug!(
             "    destroy_shader_module : stage {:?}, module {:?}",

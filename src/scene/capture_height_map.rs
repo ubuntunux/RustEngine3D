@@ -101,8 +101,7 @@ impl<'a> CaptureHeightMap<'a> {
         self._capture_height_map_view.get_shadow_view_projection()
     }
     pub fn get_inv_shadow_view_projection(&self) -> &Matrix4<f32> {
-        self._capture_height_map_view
-            .get_inv_shadow_view_projection()
+        self._capture_height_map_view.get_inv_shadow_view_projection()
     }
     pub fn render_capture_height_map(
         &mut self,
@@ -140,8 +139,7 @@ impl<'a> CaptureHeightMap<'a> {
         self.clear_static_render_elements();
 
         // be able to read back at next frame
-        self._read_back_frames
-            .push(renderer_context.get_render_frame() + 1);
+        self._read_back_frames.push(renderer_context.get_render_frame() + 1);
     }
 
     pub fn read_back_height_map(
@@ -158,8 +156,7 @@ impl<'a> CaptureHeightMap<'a> {
 
         let mut normal_map_raw_data: Vec<Vector4<u8>> = Vec::new();
         if self._enable_capture_normal_map {
-            let normal_map_texture =
-                renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
+            let normal_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureNormalMap);
             if let TextureRawData::R8G8B8A8_UNORM(texture_raw_data) = texture::read_texture_data(
                 renderer_context.get_device(),
                 renderer_context.get_command_pool(),
@@ -173,8 +170,7 @@ impl<'a> CaptureHeightMap<'a> {
         }
 
         let mut height_map_raw_data: Vec<f32> = Vec::new();
-        let height_map_texture =
-            renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
+        let height_map_texture = renderer_data.get_render_target(RenderTargetType::CaptureHeightMap);
         if let TextureRawData::R32(texture_raw_data) = texture::read_texture_data(
             renderer_context.get_device(),
             renderer_context.get_command_pool(),
@@ -207,8 +203,7 @@ impl<'a> CaptureHeightMap<'a> {
             bounding_box_max.x = bounding_box_max.x.max(bounding_box_max.z);
             bounding_box_min.z = bounding_box_min.x;
             bounding_box_max.z = bounding_box_max.x;
-            self._bounding_box =
-                BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
+            self._bounding_box = BoundingBox::create_bounding_box(&bounding_box_min, &bounding_box_max);
         }
 
         let shadow_dimensions = Vector4::new(
@@ -217,9 +212,7 @@ impl<'a> CaptureHeightMap<'a> {
             -self._bounding_box._extents.y,
             self._bounding_box._extents.y,
         );
-        self._capture_height_map_view
-            .update_shadow_orthogonal(&shadow_dimensions);
-        self._capture_height_map_view
-            .update_light_data(&self._bounding_box._center);
+        self._capture_height_map_view.update_shadow_orthogonal(&shadow_dimensions);
+        self._capture_height_map_view.update_light_data(&self._bounding_box._center);
     }
 }

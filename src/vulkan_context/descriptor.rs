@@ -2,7 +2,7 @@ use std::ffi::c_void;
 
 use ash::ext;
 use ash::vk::Handle;
-use ash::{vk, Device};
+use ash::{Device, vk};
 
 use crate::constants;
 use crate::renderer::utility::ptr_chain_iter;
@@ -14,9 +14,7 @@ pub enum DescriptorResourceInfo<'a> {
     DescriptorBufferInfo(vk::DescriptorBufferInfo),
     DescriptorImageInfo(vk::DescriptorImageInfo),
     DescriptorSamplerInfo(vk::Sampler),
-    WriteDescriptorSetAccelerationStructure(
-        *const vk::WriteDescriptorSetAccelerationStructureNV<'a>,
-    ),
+    WriteDescriptorSetAccelerationStructure(*const vk::WriteDescriptorSetAccelerationStructureNV<'a>),
     InvalidDescriptorInfo,
 }
 
@@ -100,9 +98,7 @@ pub fn write_descriptor_set_push_next<T: vk::ExtendsWriteDescriptorSet>(
     }
 }
 
-pub fn convert_resource_type_to_descriptor_type(
-    resource_type: &DescriptorResourceType,
-) -> vk::DescriptorType {
+pub fn convert_resource_type_to_descriptor_type(resource_type: &DescriptorResourceType) -> vk::DescriptorType {
     match resource_type {
         DescriptorResourceType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
         DescriptorResourceType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
@@ -112,9 +108,7 @@ pub fn convert_resource_type_to_descriptor_type(
         DescriptorResourceType::RenderTarget => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
         DescriptorResourceType::StorageTexture => vk::DescriptorType::STORAGE_IMAGE,
         DescriptorResourceType::StorageRenderTarget => vk::DescriptorType::STORAGE_IMAGE,
-        DescriptorResourceType::AccelerationStructure => {
-            vk::DescriptorType::ACCELERATION_STRUCTURE_NV
-        }
+        DescriptorResourceType::AccelerationStructure => vk::DescriptorType::ACCELERATION_STRUCTURE_NV,
     }
 }
 
@@ -135,9 +129,8 @@ pub fn create_descriptor_pool(
             ..Default::default()
         };
         unsafe {
-            let descriptor_pool: vk::DescriptorPool = device
-                .create_descriptor_pool(&pool_create_info, None)
-                .expect("vkCreateDescriptorPool failed!");
+            let descriptor_pool: vk::DescriptorPool =
+                device.create_descriptor_pool(&pool_create_info, None).expect("vkCreateDescriptorPool failed!");
 
             debug_utils::set_object_debug_info(
                 debug_utils_device,
@@ -145,11 +138,7 @@ pub fn create_descriptor_pool(
                 vk::ObjectType::DESCRIPTOR_POOL,
                 descriptor_pool.as_raw(),
             );
-            log::trace!(
-                "    CreateDescriptorPool: {:?}({:?})",
-                descriptor_name,
-                descriptor_pool
-            );
+            log::trace!("    CreateDescriptorPool: {:?}({:?})", descriptor_name, descriptor_pool);
             return descriptor_pool;
         }
     }
@@ -193,14 +182,8 @@ pub fn create_descriptor_set_layout(
     }
 }
 
-pub fn destroy_descriptor_set_layout(
-    device: &Device,
-    descriptor_set_layout: vk::DescriptorSetLayout,
-) {
-    log::trace!(
-        "    DestroyDescriptorSetLayout: {:?}",
-        descriptor_set_layout
-    );
+pub fn destroy_descriptor_set_layout(device: &Device, descriptor_set_layout: vk::DescriptorSetLayout) {
+    log::trace!("    DestroyDescriptorSetLayout: {:?}", descriptor_set_layout);
     unsafe {
         device.destroy_descriptor_set_layout(descriptor_set_layout, None);
     }
@@ -216,33 +199,25 @@ pub fn create_descriptor_data<'a>(
     log::trace!("create_descriptor_data");
     let descriptor_layout_bindings = descriptor_data_create_infos
         .iter()
-        .map(
-            |descriptor_data_create_info| vk::DescriptorSetLayoutBinding {
-                binding: descriptor_data_create_info._descriptor_binding_index,
-                descriptor_type: convert_resource_type_to_descriptor_type(
-                    &descriptor_data_create_info._descriptor_resource_type,
-                ),
-                descriptor_count: 1,
-                stage_flags: descriptor_data_create_info._descriptor_shader_stage,
-                ..Default::default()
-            },
-        )
+        .map(|descriptor_data_create_info| vk::DescriptorSetLayoutBinding {
+            binding: descriptor_data_create_info._descriptor_binding_index,
+            descriptor_type: convert_resource_type_to_descriptor_type(
+                &descriptor_data_create_info._descriptor_resource_type,
+            ),
+            descriptor_count: 1,
+            stage_flags: descriptor_data_create_info._descriptor_shader_stage,
+            ..Default::default()
+        })
         .collect();
     let descriptor_pool_sizes = descriptor_data_create_infos
         .iter()
         .map(|descriptor_data_create_info| vk::DescriptorPoolSize {
-            ty: convert_resource_type_to_descriptor_type(
-                &descriptor_data_create_info._descriptor_resource_type,
-            ),
+            ty: convert_resource_type_to_descriptor_type(&descriptor_data_create_info._descriptor_resource_type),
             descriptor_count: max_descriptor_sets_count,
         })
         .collect();
-    let descriptor_set_layout = create_descriptor_set_layout(
-        device,
-        debug_utils_device,
-        descriptor_name,
-        &descriptor_layout_bindings,
-    );
+    let descriptor_set_layout =
+        create_descriptor_set_layout(device, debug_utils_device, descriptor_name, &descriptor_layout_bindings);
     let descriptor_pool = create_descriptor_pool(
         device,
         debug_utils_device,
@@ -284,9 +259,8 @@ pub fn create_descriptor_sets(
             ..Default::default()
         };
         unsafe {
-            let descriptor_sets = device
-                .allocate_descriptor_sets(&allocation_info)
-                .expect("failed to allocate_descriptor_sets");
+            let descriptor_sets =
+                device.allocate_descriptor_sets(&allocation_info).expect("failed to allocate_descriptor_sets");
             for descriptor_set in descriptor_sets.iter() {
                 debug_utils::set_object_debug_info(
                     debug_utils_device,
@@ -352,10 +326,7 @@ pub fn create_write_descriptor_sets_with_update<'a>(
                     DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
                         write_descriptor_set_accel_struct,
                     ) => {
-                        write_descriptor_set_push_next(
-                            &mut write_descriptor_set,
-                            *write_descriptor_set_accel_struct,
-                        );
+                        write_descriptor_set_push_next(&mut write_descriptor_set, *write_descriptor_set_accel_struct);
                         write_descriptor_set.descriptor_count = 1;
                     }
                     DescriptorResourceInfo::InvalidDescriptorInfo => {
@@ -367,8 +338,7 @@ pub fn create_write_descriptor_sets_with_update<'a>(
                     write_descriptor_set.dst_set = descriptor_set;
                     write_descriptor_set.dst_binding = descriptor_bind_indices[index];
                     write_descriptor_set.dst_array_element = 0;
-                    write_descriptor_set.descriptor_type =
-                        descriptor_set_layout_bindings[index].descriptor_type;
+                    write_descriptor_set.descriptor_type = descriptor_set_layout_bindings[index].descriptor_type;
 
                     write_descriptor_sets.push(write_descriptor_set);
                 }
@@ -404,13 +374,8 @@ pub fn create_write_descriptor_set<'a>(
         DescriptorResourceInfo::DescriptorSamplerInfo(_sampler_info) => {
             // todo image sampler
         }
-        DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(
-            write_descriptor_set_accel_struct,
-        ) => {
-            write_descriptor_set_push_next(
-                &mut write_descriptor_set,
-                *write_descriptor_set_accel_struct,
-            );
+        DescriptorResourceInfo::WriteDescriptorSetAccelerationStructure(write_descriptor_set_accel_struct) => {
+            write_descriptor_set_push_next(&mut write_descriptor_set, *write_descriptor_set_accel_struct);
             write_descriptor_set.descriptor_count = 1;
         }
         DescriptorResourceInfo::InvalidDescriptorInfo => {}

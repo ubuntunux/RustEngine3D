@@ -2,9 +2,7 @@ use crate::renderer::push_constants::PushConstantParameter;
 use nalgebra::{Vector2, Vector3, Vector4};
 use serde_json;
 
-pub fn convert_json_value_to_push_constant_parameter(
-    json_data: &serde_json::Value,
-) -> PushConstantParameter {
+pub fn convert_json_value_to_push_constant_parameter(json_data: &serde_json::Value) -> PushConstantParameter {
     match json_data {
         serde_json::Value::Number(num_value) => {
             if num_value.is_f64() {

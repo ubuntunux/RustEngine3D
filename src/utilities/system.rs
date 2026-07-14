@@ -10,7 +10,7 @@ use strum_macros::EnumIter;
 pub enum State {
     End,
     Begin,
-    Update
+    Update,
 }
 
 #[macro_export]
@@ -62,9 +62,7 @@ fn walk_directory_recursive(dir: &Path, extensions: &[&str], out_contents: &mut 
             walk_directory_recursive(&content, extensions, out_contents);
         } else {
             let ext = content.extension();
-            if extensions.is_empty()
-                || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap()))
-            {
+            if extensions.is_empty() || (ext.is_some() && extensions.contains(&ext.unwrap().to_str().unwrap())) {
                 out_contents.push(PathBuf::from(content));
             }
         }
@@ -130,15 +128,8 @@ pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
 
     let asset_manager = ndk_glue::native_activity().asset_manager();
 
-    let path = path
-        .as_ref()
-        .strip_prefix("resources/")
-        .unwrap()
-        .to_str()
-        .unwrap();
-    let mut asset = asset_manager
-        .open(&std::ffi::CString::new(path).unwrap())
-        .unwrap();
+    let path = path.as_ref().strip_prefix("resources/").unwrap().to_str().unwrap();
+    let mut asset = asset_manager.open(&std::ffi::CString::new(path).unwrap()).unwrap();
 
     let mut buf = Vec::new();
     asset.read_to_end(&mut buf).unwrap();

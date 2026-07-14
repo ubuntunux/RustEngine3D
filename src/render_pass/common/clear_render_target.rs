@@ -5,8 +5,7 @@ use ash::vk;
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
-    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
-    RenderPassDataCreateInfo,
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 
@@ -25,9 +24,7 @@ pub fn get_framebuffer_data_create_info(
             vk::Format::R16G16_SFLOAT => RenderTargetType::SceneVelocity,
             vk::Format::R16G16B16A16_SFLOAT => RenderTargetType::SceneColor,
             vk::Format::R32_SFLOAT => RenderTargetType::HierarchicalMinZ,
-            vk::Format::R32G32B32A32_SFLOAT => {
-                RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING
-            }
+            vk::Format::R32G32B32A32_SFLOAT => RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
             _ => panic!("Not implemented."),
         };
         color_render_targets.push(RenderTargetInfo {
@@ -52,11 +49,7 @@ pub fn get_framebuffer_data_create_info(
         });
     }
 
-    framebuffer::create_framebuffer_data_create_info(
-        &color_render_targets,
-        &depth_render_target,
-        &[],
-    )
+    framebuffer::create_framebuffer_data_create_info(&color_render_targets, &depth_render_target, &[])
 }
 
 pub fn get_render_pass_data_create_info(
@@ -76,11 +69,7 @@ pub fn get_render_pass_data_create_info(
         get_framebuffer_data_create_info(renderer_data, render_target_formats, depth_format);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for (i, format) in framebuffer_data_create_info
-        ._framebuffer_color_attachment_formats
-        .iter()
-        .enumerate()
-    {
+    for (i, format) in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter().enumerate() {
         assert_eq!(render_target_formats[i], *format);
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
@@ -95,10 +84,7 @@ pub fn get_render_pass_data_create_info(
     }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
     if use_depth_target {
-        for format in framebuffer_data_create_info
-            ._framebuffer_depth_attachment_formats
-            .iter()
-        {
+        for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
             assert_eq!(depth_format, *format);
             depth_attachment_descriptions.push(ImageAttachmentDescription {
                 _attachment_image_format: *format,
@@ -120,8 +106,7 @@ pub fn get_render_pass_data_create_info(
         dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
             | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
             | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
@@ -136,9 +121,7 @@ pub fn get_render_pass_data_create_info(
         _pipeline_dynamic_states: vec![vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR],
         _pipeline_sample_count: sample_count,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(
-                BlendOperation::None
-            );
+            vulkan_context::get_color_blend_operation(BlendOperation::None);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo {
@@ -146,8 +129,7 @@ pub fn get_render_pass_data_create_info(
             ..Default::default()
         },
         _vertex_input_bind_descriptions: VertexData::get_vertex_input_binding_descriptions(),
-        _vertex_input_attribute_descriptions:
-            VertexData::create_vertex_input_attribute_descriptions(),
+        _vertex_input_attribute_descriptions: VertexData::create_vertex_input_attribute_descriptions(),
         ..Default::default()
     }];
 

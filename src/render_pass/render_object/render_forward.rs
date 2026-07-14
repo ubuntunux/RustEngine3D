@@ -7,8 +7,8 @@ use crate::vulkan_context::descriptor::DescriptorDataCreateInfo;
 use crate::vulkan_context::framebuffer::{self, FramebufferDataCreateInfo, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::{SkeletalVertexData, VertexData, VertexDataBase};
 use crate::vulkan_context::render_pass::{
-    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo,
-    PipelinePushConstantData, RenderPassDataCreateInfo,
+    DepthStencilStateCreateInfo, ImageAttachmentDescription, PipelineDataCreateInfo, PipelinePushConstantData,
+    RenderPassDataCreateInfo,
 };
 use crate::vulkan_context::vulkan_context::{self, BlendOperation};
 use ash::vk;
@@ -53,10 +53,7 @@ pub fn get_render_pass_data_create_info(
     let framebuffer_data_create_info = get_framebuffer_data_create_info(renderer_data);
     let sample_count = framebuffer_data_create_info._framebuffer_sample_count;
     let mut color_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_color_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_color_attachment_formats.iter() {
         color_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -69,10 +66,7 @@ pub fn get_render_pass_data_create_info(
         });
     }
     let mut depth_attachment_descriptions: Vec<ImageAttachmentDescription> = Vec::new();
-    for format in framebuffer_data_create_info
-        ._framebuffer_depth_attachment_formats
-        .iter()
-    {
+    for format in framebuffer_data_create_info._framebuffer_depth_attachment_formats.iter() {
         depth_attachment_descriptions.push(ImageAttachmentDescription {
             _attachment_image_format: *format,
             _attachment_image_samples: sample_count,
@@ -92,8 +86,7 @@ pub fn get_render_pass_data_create_info(
         dst_stage_mask: vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
             | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
             | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE
-            | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+        dst_access_mask: vk::AccessFlags::COLOR_ATTACHMENT_WRITE | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
         dependency_flags: vk::DependencyFlags::BY_REGION,
     }];
     let pipeline_data_create_infos = vec![PipelineDataCreateInfo {
@@ -110,34 +103,25 @@ pub fn get_render_pass_data_create_info(
         _pipeline_cull_mode: cull_mode,
         _pipeline_front_face: vk::FrontFace::CLOCKWISE,
         _pipeline_color_blend_operations: vec![
-            vulkan_context::get_color_blend_operation(
-                BlendOperation::None
-            );
+            vulkan_context::get_color_blend_operation(BlendOperation::None);
             color_attachment_descriptions.len()
         ],
         _depth_stencil_state_create_info: DepthStencilStateCreateInfo::default(),
         _vertex_input_bind_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::get_vertex_input_binding_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::get_vertex_input_binding_descriptions()
-            }
+            RenderObjectType::Skeletal => SkeletalVertexData::get_vertex_input_binding_descriptions(),
         },
         _vertex_input_attribute_descriptions: match render_object_type {
             RenderObjectType::Static => VertexData::create_vertex_input_attribute_descriptions(),
-            RenderObjectType::Skeletal => {
-                SkeletalVertexData::create_vertex_input_attribute_descriptions()
-            }
+            RenderObjectType::Skeletal => SkeletalVertexData::create_vertex_input_attribute_descriptions(),
         },
         _push_constant_data_list: vec![PipelinePushConstantData {
             _stage_flags: vk::ShaderStageFlags::ALL,
             _offset: 0,
             _push_constant: push_constant_data,
         }],
-        _descriptor_data_create_infos: [
-            common::get_descriptor_data_create_infos(),
-            descriptor_data_create_infos,
-        ]
-        .concat(),
+        _descriptor_data_create_infos: [common::get_descriptor_data_create_infos(), descriptor_data_create_infos]
+            .concat(),
         ..Default::default()
     }];
 

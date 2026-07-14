@@ -1,13 +1,12 @@
 use crate::constants;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::light::{
-    DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo,
-    PointLightData,
+    DirectionalLight, DirectionalLightCreateInfo, LightData, PointLight, PointLightCreateInfo, PointLightData,
 };
 use crate::scene::scene_manager::SceneObjectID;
 use crate::scene::transform_object::TransformObjectData;
 use crate::utilities::math;
-use nalgebra::{linalg, Matrix4, Vector3, Vector4};
+use nalgebra::{Matrix4, Vector3, Vector4, linalg};
 
 // LightData
 impl Default for LightData {
@@ -69,12 +68,8 @@ impl DirectionalLight {
             _updated_light_data: true,
             _shadow_update_distance: light_create_info._shadow_update_distance,
         };
-        light_data
-            ._transform_object
-            .set_position(&light_create_info._position);
-        light_data
-            ._transform_object
-            .set_rotation(&light_create_info._rotation);
+        light_data._transform_object.set_position(&light_create_info._position);
+        light_data._transform_object.set_rotation(&light_create_info._rotation);
         light_data.update_shadow_orthogonal(&light_create_info._shadow_dimensions);
         light_data.update_light_data(&Vector3::zeros());
         light_data

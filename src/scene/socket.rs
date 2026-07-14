@@ -54,10 +54,7 @@ pub struct Socket {
 }
 
 impl Socket {
-    pub fn create_socket(
-        socket_data: &RcRefCell<SocketData>,
-        parent_bone_transform: &Matrix4<f32>,
-    ) -> Socket {
+    pub fn create_socket(socket_data: &RcRefCell<SocketData>, parent_bone_transform: &Matrix4<f32>) -> Socket {
         let mut socket = Socket {
             _socket_data: socket_data.clone(),
             _transform: Default::default(),

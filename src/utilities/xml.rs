@@ -2,8 +2,8 @@ use crate::utilities::system;
 use std::collections::HashMap;
 use std::io::BufReader;
 use std::path::PathBuf;
-use xml::reader::XmlEvent;
 use xml::EventReader;
+use xml::reader::XmlEvent;
 
 type XmlTreeMap = HashMap<String, Vec<XmlTree>>;
 
@@ -28,11 +28,7 @@ impl Default for XmlTree {
     }
 }
 
-pub fn get_elements_attribute(
-    xml_tree: &Option<&Vec<XmlTree>>,
-    attribute_name: &str,
-    default_value: &str,
-) -> String {
+pub fn get_elements_attribute(xml_tree: &Option<&Vec<XmlTree>>, attribute_name: &str, default_value: &str) -> String {
     if xml_tree.is_some() {
         let attribute_value = xml_tree.unwrap()[0].attributes.get(attribute_name);
         if attribute_value.is_some() {
@@ -49,11 +45,7 @@ pub fn get_elements_text(xml_tree: &Option<&Vec<XmlTree>>, default_value: &str) 
     }
 }
 
-pub fn get_element_attribute(
-    xml_tree: &Option<&XmlTree>,
-    attribute_name: &str,
-    default_value: &str,
-) -> String {
+pub fn get_element_attribute(xml_tree: &Option<&XmlTree>, attribute_name: &str, default_value: &str) -> String {
     if xml_tree.is_some() {
         let attribute_value = xml_tree.unwrap().attributes.get(attribute_name);
         if attribute_value.is_some() {
@@ -86,16 +78,13 @@ impl XmlTree {
                         attributes,
                         namespace: _namespace,
                     }) => {
-                        let children: &mut Vec<XmlTree> =
-                            match (*xml_tree).children.get_mut(&name.local_name) {
-                                Some(children) => children,
-                                None => {
-                                    (*xml_tree)
-                                        .children
-                                        .insert(name.local_name.clone(), Vec::new());
-                                    (*xml_tree).children.get_mut(&name.local_name).unwrap()
-                                }
-                            };
+                        let children: &mut Vec<XmlTree> = match (*xml_tree).children.get_mut(&name.local_name) {
+                            Some(children) => children,
+                            None => {
+                                (*xml_tree).children.insert(name.local_name.clone(), Vec::new());
+                                (*xml_tree).children.get_mut(&name.local_name).unwrap()
+                            }
+                        };
                         children.push(XmlTree {
                             parent: xml_tree,
                             name: name.local_name.clone(),
@@ -104,9 +93,7 @@ impl XmlTree {
                         xml_tree = children.last_mut().unwrap();
 
                         for attribute in attributes {
-                            (*xml_tree)
-                                .attributes
-                                .insert(attribute.name.local_name.clone(), attribute.value.clone());
+                            (*xml_tree).attributes.insert(attribute.name.local_name.clone(), attribute.value.clone());
                         }
                     }
                     Ok(XmlEvent::Characters(text)) => {
@@ -132,11 +119,7 @@ impl XmlTree {
                 if (index + 1) == paths.len() {
                     maybe_children
                 } else {
-                    maybe_children
-                        .unwrap()
-                        .get(0)
-                        .unwrap()
-                        .get_elements_from_paths(paths, index + 1)
+                    maybe_children.unwrap().get(0).unwrap().get_elements_from_paths(paths, index + 1)
                 }
             }
         }

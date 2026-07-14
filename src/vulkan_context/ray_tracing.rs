@@ -1,6 +1,6 @@
 use ash::ext;
 use ash::nv;
-use ash::{vk, Device};
+use ash::{Device, vk};
 use nalgebra::Vector3;
 
 use crate::renderer::utility::find_exactly_matching_memory_type_index;
@@ -30,12 +30,10 @@ pub struct RayTracingData<'a> {
     pub _instance_data: Vec<GeometryInstance>,
     pub _bottom_accel_structs: Vec<vk::AccelerationStructureNV>,
     pub _bottom_accel_struct_memories: Vec<vk::DeviceMemory>,
-    pub _bottom_write_descriptor_set_accel_structs:
-        Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
+    pub _bottom_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
     pub _top_accel_structs: Vec<vk::AccelerationStructureNV>,
     pub _top_accel_struct_memories: Vec<vk::DeviceMemory>,
-    pub _top_write_descriptor_set_accel_structs:
-        Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
+    pub _top_write_descriptor_set_accel_structs: Vec<vk::WriteDescriptorSetAccelerationStructureNV<'a>>,
     pub _scratch_buffer_data: BufferData,
 }
 
@@ -90,14 +88,9 @@ pub fn create_acceleration_structure(
 ) -> (Vec<vk::AccelerationStructureNV>, Vec<vk::DeviceMemory>) {
     unsafe {
         log::info!("-----------------------------------------");
-        log::info!(
-            "TEST CODE: create_acceleration_structure: {:?}",
-            accel_create_info
-        );
+        log::info!("TEST CODE: create_acceleration_structure: {:?}", accel_create_info);
         log::info!("-----------------------------------------");
-        let accel_struct = ray_tracing
-            .create_acceleration_structure(accel_create_info, None)
-            .unwrap();
+        let accel_struct = ray_tracing.create_acceleration_structure(accel_create_info, None).unwrap();
         let memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
             &vk::AccelerationStructureMemoryRequirementsInfoNV {
                 ty: vk::AccelerationStructureMemoryRequirementsTypeNV::OBJECT,
@@ -119,17 +112,13 @@ pub fn create_acceleration_structure(
             ..Default::default()
         };
 
-        let accel_struct_memory = device
-            .allocate_memory(&memory_allocate_create_info, None)
-            .unwrap();
+        let accel_struct_memory = device.allocate_memory(&memory_allocate_create_info, None).unwrap();
         let memory_info = vk::BindAccelerationStructureMemoryInfoNV {
             acceleration_structure: accel_struct,
             memory: accel_struct_memory,
             ..Default::default()
         };
-        ray_tracing
-            .bind_acceleration_structure_memory(&[memory_info])
-            .unwrap();
+        ray_tracing.bind_acceleration_structure_memory(&[memory_info]).unwrap();
 
         (vec![accel_struct], vec![accel_struct_memory])
     }
@@ -235,33 +224,23 @@ impl<'a> RayTracingData<'a> {
                 ..Default::default()
             };
 
-            (
-                self._bottom_accel_structs,
-                self._bottom_accel_struct_memories,
-            ) = create_acceleration_structure(
+            (self._bottom_accel_structs, self._bottom_accel_struct_memories) = create_acceleration_structure(
                 device,
                 device_memory_properties,
                 ray_tracing,
                 &bottom_structure_create_info,
             );
-            self._bottom_write_descriptor_set_accel_structs.push(
-                vk::WriteDescriptorSetAccelerationStructureNV {
-                    p_acceleration_structures: self._bottom_accel_structs.as_ptr(),
-                    acceleration_structure_count: self._bottom_accel_structs.len() as u32,
-                    ..Default::default()
-                },
-            );
+            self._bottom_write_descriptor_set_accel_structs.push(vk::WriteDescriptorSetAccelerationStructureNV {
+                p_acceleration_structures: self._bottom_accel_structs.as_ptr(),
+                acceleration_structure_count: self._bottom_accel_structs.len() as u32,
+                ..Default::default()
+            });
 
             // Create instance buffer
-            let accel_handle = ray_tracing
-                .get_acceleration_structure_handle(self._bottom_accel_structs[0])
-                .unwrap();
-            let transform_0: [f32; 12] =
-                [1.0, 0.0, 0.0, -1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
-            let transform_1: [f32; 12] =
-                [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.1, 0.0, 0.0, 1.0, 0.0];
-            let transform_2: [f32; 12] =
-                [1.0, 0.0, 0.0, 1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
+            let accel_handle = ray_tracing.get_acceleration_structure_handle(self._bottom_accel_structs[0]).unwrap();
+            let transform_0: [f32; 12] = [1.0, 0.0, 0.0, -1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
+            let transform_1: [f32; 12] = [1.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, -1.1, 0.0, 0.0, 1.0, 0.0];
+            let transform_2: [f32; 12] = [1.0, 0.0, 0.0, 1.5, 0.0, 1.0, 0.0, 1.1, 0.0, 0.0, 1.0, 0.0];
             self._instance_data = vec![
                 GeometryInstance::new(
                     transform_0,
@@ -311,37 +290,28 @@ impl<'a> RayTracingData<'a> {
             };
 
             (self._top_accel_structs, self._top_accel_struct_memories) =
-                create_acceleration_structure(
-                    device,
-                    device_memory_properties,
-                    ray_tracing,
-                    &top_structure_info,
-                );
-            self._top_write_descriptor_set_accel_structs.push(
-                vk::WriteDescriptorSetAccelerationStructureNV {
-                    p_acceleration_structures: self._top_accel_structs.as_ptr(),
-                    acceleration_structure_count: self._top_accel_structs.len() as u32,
+                create_acceleration_structure(device, device_memory_properties, ray_tracing, &top_structure_info);
+            self._top_write_descriptor_set_accel_structs.push(vk::WriteDescriptorSetAccelerationStructureNV {
+                p_acceleration_structures: self._top_accel_structs.as_ptr(),
+                acceleration_structure_count: self._top_accel_structs.len() as u32,
+                ..Default::default()
+            });
+
+            // Build acceleration structures
+            let bottom_memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
+                &vk::AccelerationStructureMemoryRequirementsInfoNV {
+                    ty: vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH,
+                    acceleration_structure: self._bottom_accel_structs[0],
                     ..Default::default()
                 },
             );
-
-            // Build acceleration structures
-            let bottom_memory_requirements = ray_tracing
-                .get_acceleration_structure_memory_requirements(
-                    &vk::AccelerationStructureMemoryRequirementsInfoNV {
-                        ty: vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH,
-                        acceleration_structure: self._bottom_accel_structs[0],
-                        ..Default::default()
-                    },
-                );
-            let top_memory_requirements = ray_tracing
-                .get_acceleration_structure_memory_requirements(
-                    &vk::AccelerationStructureMemoryRequirementsInfoNV {
-                        ty: vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH,
-                        acceleration_structure: self._top_accel_structs[0],
-                        ..Default::default()
-                    },
-                );
+            let top_memory_requirements = ray_tracing.get_acceleration_structure_memory_requirements(
+                &vk::AccelerationStructureMemoryRequirementsInfoNV {
+                    ty: vk::AccelerationStructureMemoryRequirementsTypeNV::BUILD_SCRATCH,
+                    acceleration_structure: self._top_accel_structs[0],
+                    ..Default::default()
+                },
+            );
 
             let scratch_buffer_size = std::cmp::max(
                 bottom_memory_requirements.memory_requirements.size,
@@ -368,11 +338,7 @@ impl<'a> RayTracingData<'a> {
         } // End - create_acceleration_structure_data_list
     }
 
-    pub fn destroy_ray_tracing_data(
-        &mut self,
-        device: &Device,
-        ray_tracing: &nv::ray_tracing::Device,
-    ) {
+    pub fn destroy_ray_tracing_data(&mut self, device: &Device, ray_tracing: &nv::ray_tracing::Device) {
         log::info!("destroy_ray_tracing_data");
         buffer::destroy_buffer_data(device, &self._vertex_buffer_data);
         buffer::destroy_buffer_data(device, &self._index_buffer_data);

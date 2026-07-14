@@ -122,19 +122,14 @@ pub fn get_descriptor_data_create_infos() -> Vec<DescriptorDataCreateInfo> {
         },
         DescriptorDataCreateInfo {
             _descriptor_binding_index: 13,
-            _descriptor_name: enum_to_string(
-                &RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING,
-            ),
+            _descriptor_name: enum_to_string(&RenderTargetType::PRECOMPUTED_ATMOSPHERE_OPTIONAL_SINGLE_MIE_SCATTERING),
             _descriptor_resource_type: DescriptorResourceType::RenderTarget,
             _descriptor_shader_stage: vk::ShaderStageFlags::VERTEX | vk::ShaderStageFlags::FRAGMENT,
             ..Default::default()
         },
     ];
 
-    assert_eq!(
-        descriptor_data_create_infos.len(),
-        USER_BINDING_INDEX0 as usize
-    );
+    assert_eq!(descriptor_data_create_infos.len(), USER_BINDING_INDEX0 as usize);
 
     descriptor_data_create_infos
 }

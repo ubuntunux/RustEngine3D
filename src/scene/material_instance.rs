@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
 use ash::ext;
-use ash::{vk, Device};
+use ash::{Device, vk};
 
 use crate::scene::material::MaterialData;
 use crate::utilities::system::RcRefCell;
 use crate::vulkan_context::descriptor::{
-    create_descriptor_sets, create_write_descriptor_sets_with_update, DescriptorResourceInfo,
+    DescriptorResourceInfo, create_descriptor_sets, create_write_descriptor_sets_with_update,
 };
 use crate::vulkan_context::render_pass::{
-    get_render_pass_pipeline_data_name, PipelineData, PipelinePushConstantData, RenderPassData,
-    RenderPassPipelineData,
+    PipelineData, PipelinePushConstantData, RenderPassData, RenderPassPipelineData, get_render_pass_pipeline_data_name,
 };
 use crate::vulkan_context::vulkan_context::SwapchainArray;
 
@@ -53,17 +52,11 @@ impl<'a> PipelineBindingData<'a> {
     }
 
     pub fn get_pipeline_bind_point(&self) -> vk::PipelineBindPoint {
-        self._render_pass_pipeline_data
-            ._pipeline_data
-            .borrow()
-            ._pipeline_bind_point
+        self._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_bind_point
     }
 
     pub fn get_pipeline_layout(&self) -> vk::PipelineLayout {
-        self._render_pass_pipeline_data
-            ._pipeline_data
-            .borrow()
-            ._pipeline_layout
+        self._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_layout
     }
 }
 
@@ -77,10 +70,7 @@ impl<'a> MaterialInstanceData<'a> {
         pipeline_bind_create_infos: Vec<PipelineBindingDataCreateInfo<'a>>,
     ) -> MaterialInstanceData<'a> {
         log::debug!("create_material_instance: {}", material_instance_data_name);
-        log::trace!(
-            "    material_data: {}",
-            material_data.borrow()._material_data_name
-        );
+        log::trace!("    material_data: {}", material_data.borrow()._material_data_name);
         let mut render_pass_pipeline_data_names_map: HashMap<String, Vec<String>> = HashMap::new();
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
         let mut default_pipeline_binding_name = String::new();
@@ -90,27 +80,17 @@ impl<'a> MaterialInstanceData<'a> {
                 ._render_pass_data
                 .borrow()
                 ._render_pass_data_name;
-            let pipeline_name = &pipeline_bind_create_info
-                ._render_pass_pipeline_data
-                ._pipeline_data
-                .borrow()
-                ._pipeline_data_name;
-            let render_pass_pipeline_data_name =
-                get_render_pass_pipeline_data_name(render_pass_name, pipeline_name);
+            let pipeline_name =
+                &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name;
+            let render_pass_pipeline_data_name = get_render_pass_pipeline_data_name(render_pass_name, pipeline_name);
 
             if default_pipeline_binding_name.is_empty() {
                 default_pipeline_binding_name = render_pass_pipeline_data_name.clone();
             }
 
-            log::trace!(
-                "        renderpass/pipeline: {}",
-                render_pass_pipeline_data_name
-            );
-            let descriptor_data = &pipeline_bind_create_info
-                ._render_pass_pipeline_data
-                ._pipeline_data
-                .borrow()
-                ._descriptor_data;
+            log::trace!("        renderpass/pipeline: {}", render_pass_pipeline_data_name);
+            let descriptor_data =
+                &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._descriptor_data;
             let descriptor_sets = create_descriptor_sets(
                 device,
                 debug_utils_device,
@@ -120,9 +100,7 @@ impl<'a> MaterialInstanceData<'a> {
             let descriptor_binding_indices: Vec<u32> = descriptor_data
                 ._descriptor_data_create_infos
                 .iter()
-                .map(|descriptor_data_create_info| {
-                    descriptor_data_create_info._descriptor_binding_index
-                })
+                .map(|descriptor_data_create_info| descriptor_data_create_info._descriptor_binding_index)
                 .collect();
             let write_descriptor_sets: SwapchainArray<Vec<vk::WriteDescriptorSet>> =
                 create_write_descriptor_sets_with_update(
@@ -134,35 +112,24 @@ impl<'a> MaterialInstanceData<'a> {
                 );
 
             let pipeline_binding_data = PipelineBindingData {
-                _render_pass_pipeline_data: pipeline_bind_create_info
-                    ._render_pass_pipeline_data
-                    .clone(),
+                _render_pass_pipeline_data: pipeline_bind_create_info._render_pass_pipeline_data.clone(),
                 _descriptor_sets: descriptor_sets,
                 _write_descriptor_sets: write_descriptor_sets,
                 _descriptor_set_count: descriptor_binding_indices.len() as u32,
-                _descriptor_resource_infos_list: pipeline_bind_create_info
-                    ._descriptor_resource_infos_list,
-                _push_constant_data_list: pipeline_bind_create_info
-                    ._push_constant_data_list
-                    .clone(),
+                _descriptor_resource_infos_list: pipeline_bind_create_info._descriptor_resource_infos_list,
+                _push_constant_data_list: pipeline_bind_create_info._push_constant_data_list.clone(),
             };
 
             // insert to pipeline_binding_data_map
-            pipeline_binding_data_map.insert(
-                render_pass_pipeline_data_name.clone(),
-                pipeline_binding_data.clone(),
-            );
+            pipeline_binding_data_map.insert(render_pass_pipeline_data_name.clone(), pipeline_binding_data.clone());
 
             // insert to render_pass_pipeline_data_names_map
-            if let Some(render_pass_pipeline_data_names) =
-                render_pass_pipeline_data_names_map.get_mut(render_pass_name)
+            if let Some(render_pass_pipeline_data_names) = render_pass_pipeline_data_names_map.get_mut(render_pass_name)
             {
                 render_pass_pipeline_data_names.push(render_pass_pipeline_data_name.clone());
             } else {
-                render_pass_pipeline_data_names_map.insert(
-                    render_pass_name.clone(),
-                    vec![render_pass_pipeline_data_name.clone()],
-                );
+                render_pass_pipeline_data_names_map
+                    .insert(render_pass_name.clone(), vec![render_pass_pipeline_data_name.clone()]);
             }
         }
 
@@ -177,26 +144,18 @@ impl<'a> MaterialInstanceData<'a> {
     }
 
     pub fn destroy_material_instance(&self) {
-        log::debug!(
-            "destroy_material_instance: {}",
-            self._material_instance_data_name
-        );
+        log::debug!("destroy_material_instance: {}", self._material_instance_data_name);
     }
 
     pub fn get_default_pipeline_binding_data(&self) -> &PipelineBindingData<'a> {
-        self._pipeline_binding_data_map
-            .get(self._default_pipeline_binding_name.as_str())
-            .unwrap()
+        self._pipeline_binding_data_map.get(self._default_pipeline_binding_name.as_str()).unwrap()
     }
 
     pub fn get_default_pipeline_binding_data_mut(&mut self) -> &mut PipelineBindingData<'a> {
         self._pipeline_binding_data_map.get_mut(self._default_pipeline_binding_name.as_str()).unwrap()
     }
 
-    pub fn get_pipeline_binding_data(
-        &self,
-        render_pass_pipeline_data_name: &str,
-    ) -> &PipelineBindingData<'a> {
+    pub fn get_pipeline_binding_data(&self, render_pass_pipeline_data_name: &str) -> &PipelineBindingData<'a> {
         self._pipeline_binding_data_map.get(render_pass_pipeline_data_name).unwrap()
     }
 
@@ -204,9 +163,7 @@ impl<'a> MaterialInstanceData<'a> {
         &mut self,
         render_pass_pipeline_data_name: &str,
     ) -> &mut PipelineBindingData<'a> {
-        self._pipeline_binding_data_map
-            .get_mut(render_pass_pipeline_data_name)
-            .unwrap()
+        self._pipeline_binding_data_map.get_mut(render_pass_pipeline_data_name).unwrap()
     }
 
     pub fn get_render_pass_pipeline_data_names(&self, render_pass_name: &str) -> &Vec<String> {

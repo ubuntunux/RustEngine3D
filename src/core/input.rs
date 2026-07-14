@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use crate::constants::JOYSTICK_SENSOR_DEAD_ZONE;
 use nalgebra::Vector2;
-use sdl2::controller::{Axis, Button, GameController};
 use sdl2::Sdl;
+use sdl2::controller::{Axis, Button, GameController};
 use winit::keyboard::KeyCode;
 
 pub type KeyMap = HashMap<KeyCode, bool>;
@@ -383,12 +383,7 @@ impl JoystickInputData {
         self._game_controller.is_some()
     }
 
-    pub fn set_rumble(
-        &mut self,
-        low_frequency_rumble: u16,
-        high_frequency_rumble: u16,
-        duration_ms: u32,
-    ) {
+    pub fn set_rumble(&mut self, low_frequency_rumble: u16, high_frequency_rumble: u16, duration_ms: u32) {
         self._game_controller
             .as_mut()
             .unwrap()
@@ -404,19 +399,11 @@ impl JoystickInputData {
             match axis {
                 Axis::TriggerLeft => {
                     self._btn_left_trigger_value = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
-                    self.set_rumble(
-                        self._btn_left_trigger_value,
-                        self._btn_right_trigger_value,
-                        15000,
-                    );
+                    self.set_rumble(self._btn_left_trigger_value, self._btn_right_trigger_value, 15000);
                 }
                 Axis::TriggerRight => {
                     self._btn_right_trigger_value = (value as u16) * 2; // Trigger axes go from 0 to 32767, so this should be okay
-                    self.set_rumble(
-                        self._btn_left_trigger_value,
-                        self._btn_right_trigger_value,
-                        15000,
-                    );
+                    self.set_rumble(self._btn_left_trigger_value, self._btn_right_trigger_value, 15000);
                 }
                 Axis::LeftX => {
                     if value < -JOYSTICK_SENSOR_DEAD_ZONE || JOYSTICK_SENSOR_DEAD_ZONE < value {

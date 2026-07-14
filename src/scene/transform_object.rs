@@ -1,4 +1,4 @@
-use nalgebra::{linalg, Matrix4, Quaternion, Vector3};
+use nalgebra::{Matrix4, Quaternion, Vector3, linalg};
 use nalgebra_glm as glm;
 
 use crate::utilities::math;
@@ -143,7 +143,9 @@ impl TransformObjectData {
     pub fn rotation_roll(&mut self, rotation_speed: f32) {
         self._rotation.z = (self._rotation.z + rotation_speed) % math::TWO_PI;
     }
-    pub fn get_pitch(&self) -> f32 { self._rotation.x }
+    pub fn get_pitch(&self) -> f32 {
+        self._rotation.x
+    }
     pub fn get_yaw(&self) -> f32 {
         self._rotation.y
     }
@@ -198,11 +200,8 @@ impl TransformObjectData {
         let updated = updated_position || updated_rotation || updated_scale;
         if updated {
             if updated_rotation {
-                self._rotation_matrix = math::make_rotation_matrix(
-                    self._rotation.x,
-                    self._rotation.y,
-                    self._rotation.z,
-                );
+                self._rotation_matrix =
+                    math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
                 //          look at algorithm
                 //             let sin_pitch = self._rotation._x.sin();
                 //             let cos_pitch = self._rotation._x.cos();
@@ -221,7 +220,8 @@ impl TransformObjectData {
                 unsafe {
                     let left: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
                     let up: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
-                    let front: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
+                    let front: &mut Vector3<f32> =
+                        &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
                     left.normalize_mut();
                     up.normalize_mut();
                     front.normalize_mut();

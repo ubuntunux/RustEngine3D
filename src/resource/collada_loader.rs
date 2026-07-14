@@ -9,16 +9,12 @@ use nalgebra::{self, Matrix4, Vector2, Vector3, Vector4};
 use nalgebra_glm as glm;
 
 use crate::constants;
-use crate::scene::animation::{
-    AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree,
-};
+use crate::scene::animation::{AnimationNodeCreateInfo, SkeletonDataCreateInfo, SkeletonHierarchyTree};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::mesh::MeshDataCreateInfo;
 use crate::utilities::math;
 use crate::utilities::xml::{self, XmlTree};
-use crate::vulkan_context::geometry_buffer::{
-    self, GeometryCreateInfo, SkeletalVertexData, VertexData,
-};
+use crate::vulkan_context::geometry_buffer::{self, GeometryCreateInfo, SkeletalVertexData, VertexData};
 use crate::vulkan_context::vulkan_context;
 
 #[derive(Debug, Clone)]
@@ -114,10 +110,7 @@ pub fn parse_value<T: std::str::FromStr>(data: &str, default_value: T) -> T {
 
 pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(data_list: &str) -> Vec<T> {
     let data_list = data_list.replace("[", "").replace("]", "");
-    let data_list = data_list
-        .trim()
-        .split(" ")
-        .map(|data| data.trim().parse::<T>());
+    let data_list = data_list.trim().split(" ").map(|data| data.trim().parse::<T>());
 
     let mut values: Vec<T> = Vec::new();
     for data in data_list {
@@ -129,10 +122,7 @@ pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(data_list: &str) -> Ve
     values
 }
 
-pub fn parse_vector_list<T: std::str::FromStr + Clone>(
-    data_list: &str,
-    component_count: usize,
-) -> Vec<Vec<T>> {
+pub fn parse_vector_list<T: std::str::FromStr + Clone>(data_list: &str, component_count: usize) -> Vec<Vec<T>> {
     let data_list: Vec<Result<T, T::Err>> = data_list
         .replace("[", "")
         .replace("]", "")
@@ -162,21 +152,17 @@ pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSour
         for xml_source in source_elements.unwrap().iter() {
             let source_id: &String = &xml_source.attributes.get("id").unwrap();
             let accessor_element = xml_source.get_element("technique_common/accessor").unwrap();
-            let stride =
-                parse_value::<usize>(&accessor_element.attributes.get("stride").unwrap(), 0);
+            let stride = parse_value::<usize>(&accessor_element.attributes.get("stride").unwrap(), 0);
             let float_array_elements = xml_source.get_elements("float_array");
             if float_array_elements.is_some() {
                 let source_text = &float_array_elements.unwrap()[0].text;
                 if false == source_text.is_empty() {
                     if 1 < stride {
-                        let source_data = ColladaSourceData::VectorArray(parse_vector_list::<f32>(
-                            source_text.as_str(),
-                            stride,
-                        ));
+                        let source_data =
+                            ColladaSourceData::VectorArray(parse_vector_list::<f32>(source_text.as_str(), stride));
                         sources.insert(source_id.clone(), source_data);
                     } else {
-                        let source_data =
-                            ColladaSourceData::FloatArray(parse_list::<f32>(source_text.as_str()));
+                        let source_data = ColladaSourceData::FloatArray(parse_list::<f32>(source_text.as_str()));
                         sources.insert(source_id.clone(), source_data);
                     }
                 }
@@ -186,8 +172,7 @@ pub fn parsing_source_data(xml_element: &XmlTree) -> HashMap<String, ColladaSour
             if name_array_elements.is_some() {
                 let source_text = &name_array_elements.unwrap()[0].text;
                 if false == source_text.is_empty() {
-                    let source_data =
-                        ColladaSourceData::NameArray(parse_list::<String>(source_text.as_str()));
+                    let source_data = ColladaSourceData::NameArray(parse_list::<String>(source_text.as_str()));
                     sources.insert(source_id.clone(), source_data);
                 }
             }
@@ -292,11 +277,7 @@ impl ColladaSourceData {
 }
 
 impl ColladaNode {
-    pub fn create_collada_node(
-        xml_node: &XmlTree,
-        parent: *const ColladaNode,
-        depth: usize,
-    ) -> ColladaNode {
+    pub fn create_collada_node(xml_node: &XmlTree, parent: *const ColladaNode, depth: usize) -> ColladaNode {
         let mut collada_node = ColladaNode {
             _valid: false,
             _name: xml_node.attributes.get("name").unwrap().replace(".", "_"),
@@ -336,8 +317,7 @@ impl ColladaNode {
         let xml_nodes = xml_node.get_elements("node");
         if xml_nodes.is_some() {
             for xml_child_node in xml_nodes.unwrap().iter() {
-                let child =
-                    ColladaNode::create_collada_node(xml_child_node, &collada_node, depth + 1);
+                let child = ColladaNode::create_collada_node(xml_child_node, &collada_node, depth + 1);
                 collada_node._children.push(child);
             }
         }
@@ -348,11 +328,7 @@ impl ColladaNode {
         let xml_matrix = xml_node.get_elements("matrix");
         if xml_matrix.is_some() {
             // transform matrix
-            let matrix: Vec<f32> = xml_matrix.unwrap()[0]
-                .text
-                .split(" ")
-                .map(|x| parse_value::<f32>(x, 0.0))
-                .collect();
+            let matrix: Vec<f32> = xml_matrix.unwrap()[0].text.split(" ").map(|x| parse_value::<f32>(x, 0.0)).collect();
             if 16 == matrix.len() {
                 self._matrix.copy_from_slice(&matrix);
             } else {
@@ -362,18 +338,10 @@ impl ColladaNode {
             // location, rotation, scale
             let xml_translate = xml_node.get_elements("translate");
             if xml_translate.is_some() {
-                let translation: Vec<f32> = xml_translate.unwrap()[0]
-                    .text
-                    .split(" ")
-                    .map(|x| parse_value::<f32>(x, 0.0))
-                    .collect();
+                let translation: Vec<f32> =
+                    xml_translate.unwrap()[0].text.split(" ").map(|x| parse_value::<f32>(x, 0.0)).collect();
                 if 3 == translation.len() {
-                    math::translate_matrix(
-                        &mut self._matrix,
-                        translation[0],
-                        translation[1],
-                        translation[2],
-                    );
+                    math::translate_matrix(&mut self._matrix, translation[0], translation[1], translation[2]);
                 } else {
                     panic!("{} node has a invalid translate.", self._name);
                 }
@@ -382,11 +350,7 @@ impl ColladaNode {
             let xml_rotates = xml_node.get_elements("rotate");
             if xml_rotates.is_some() {
                 for xml_rotate in xml_rotates.unwrap().iter() {
-                    let rotation: Vec<f32> = xml_rotate
-                        .text
-                        .split(" ")
-                        .map(|x| parse_value::<f32>(x, 0.0))
-                        .collect();
+                    let rotation: Vec<f32> = xml_rotate.text.split(" ").map(|x| parse_value::<f32>(x, 0.0)).collect();
                     if 4 == rotation.len() {
                         let axis = xml_rotate.attributes.get("sid").unwrap();
                         match axis.as_str() {
@@ -402,11 +366,8 @@ impl ColladaNode {
 
             let xml_scale = xml_node.get_elements("scale");
             if xml_scale.is_some() {
-                let scale: Vec<f32> = xml_scale.unwrap()[0]
-                    .text
-                    .split(" ")
-                    .map(|x| parse_value::<f32>(x, 1.0))
-                    .collect();
+                let scale: Vec<f32> =
+                    xml_scale.unwrap()[0].text.split(" ").map(|x| parse_value::<f32>(x, 1.0)).collect();
                 if 3 == scale.len() {
                     math::scale_matrix(&mut self._matrix, scale[0], scale[1], scale[2]);
                 } else {
@@ -421,16 +382,8 @@ impl ColladaController {
     pub fn create_collada_controller(xml_controller: &XmlTree) -> ColladaController {
         let mut collada_controller = ColladaController {
             _valid: false,
-            _name: xml_controller
-                .attributes
-                .get("name")
-                .unwrap()
-                .replace(".", "_"),
-            _id: xml_controller
-                .attributes
-                .get("id")
-                .unwrap()
-                .replace(".", "_"),
+            _name: xml_controller.attributes.get("name").unwrap().replace(".", "_"),
+            _id: xml_controller.attributes.get("id").unwrap().replace(".", "_"),
             _skin_source: String::new(),
             _bind_shape_matrix: Matrix4::identity(),
             _bone_names: Vec::new(),
@@ -481,20 +434,13 @@ impl ColladaController {
                 let weights_semantics = parsing_semantic(xml_vertex_weights);
 
                 // parse vertex weights
-                let vcount_text =
-                    xml::get_elements_text(&xml_vertex_weights.get_elements("vcount"), "");
+                let vcount_text = xml::get_elements_text(&xml_vertex_weights.get_elements("vcount"), "");
                 let v_text = xml::get_elements_text(&xml_vertex_weights.get_elements("v"), "");
                 let vcount_list = parse_list::<i32>(&vcount_text);
                 let v_list = parse_list::<i32>(&v_text);
 
                 // make geometry data
-                self.build(
-                    &sources,
-                    &joins_semantics,
-                    &weights_semantics,
-                    &vcount_list,
-                    &v_list,
-                );
+                self.build(&sources, &joins_semantics, &weights_semantics, &vcount_list, &v_list);
             }
         }
     }
@@ -538,8 +484,7 @@ impl ColladaController {
                 if joint.is_some() {
                     let offset = weight.unwrap()._offset;
                     if v < vcount {
-                        bone_weights
-                            .push(weight_sources[indices[offset + v * semantic_stride] as usize]);
+                        bone_weights.push(weight_sources[indices[offset + v * semantic_stride] as usize]);
                     } else {
                         bone_weights.push(0.0);
                     }
@@ -726,8 +671,8 @@ impl ColladaGeometry {
         if false == collada_geometry._controller.is_null() {
             unsafe {
                 // precompute bind_shape_matrix as coulmn-major matrix calculation.
-                collada_geometry._bind_shape_matrix = &collada_geometry._bind_shape_matrix
-                    * &(*collada_geometry._controller)._bind_shape_matrix;
+                collada_geometry._bind_shape_matrix =
+                    &collada_geometry._bind_shape_matrix * &(*collada_geometry._controller)._bind_shape_matrix;
             }
         }
 
@@ -771,13 +716,11 @@ impl ColladaGeometry {
                         let mut polygon_index_list: Vec<u32> = Vec::new();
                         if "polylist" == *tag {
                             vcount_list = parse_list::<u32>(
-                                xml::get_element_text(&xml_polygons.get_element("vcount"), "")
-                                    .as_str(),
+                                xml::get_element_text(&xml_polygons.get_element("vcount"), "").as_str(),
                             );
                             // flatten list
-                            polygon_index_list = parse_list::<u32>(
-                                xml::get_element_text(&xml_polygons.get_element("p"), "").as_str(),
-                            )
+                            polygon_index_list =
+                                parse_list::<u32>(xml::get_element_text(&xml_polygons.get_element("p"), "").as_str())
                         } else if "polygons" == *tag {
                             for xml_p in xml_polygons.get_elements("p").unwrap() {
                                 let polygon_indices = parse_list::<u32>(xml_p.text.as_str());
@@ -789,18 +732,13 @@ impl ColladaGeometry {
                         // triangulate
                         let mut elapsed_vindex = 0u32;
                         for vcount in vcount_list.iter() {
-                            let index_end: usize =
-                                (elapsed_vindex + vcount * semantic_stride) as usize;
-                            let vertex_indices = Vec::from(
-                                polygon_index_list
-                                    .get(elapsed_vindex as usize..index_end)
-                                    .unwrap(),
-                            );
+                            let index_end: usize = (elapsed_vindex + vcount * semantic_stride) as usize;
+                            let vertex_indices =
+                                Vec::from(polygon_index_list.get(elapsed_vindex as usize..index_end).unwrap());
                             if 3 == (*vcount) {
                                 vertex_index_list.extend(vertex_indices);
                             } else if 4 == (*vcount) {
-                                vertex_index_list
-                                    .extend(math::convert_triangulate(&vertex_indices));
+                                vertex_index_list.extend(math::convert_triangulate(&vertex_indices));
                             } else {
                                 panic!("too many polygon shape.")
                             }
@@ -872,12 +810,8 @@ impl ColladaGeometry {
 
                     if false == self._controller.is_null() {
                         unsafe {
-                            self._bone_indices.push(
-                                (&*self._controller)._bone_indices[vertex_index as usize].into(),
-                            );
-                            self._bone_weights.push(
-                                (&*self._controller)._bone_weights[vertex_index as usize].into(),
-                            );
+                            self._bone_indices.push((&*self._controller)._bone_indices[vertex_index as usize].into());
+                            self._bone_weights.push((&*self._controller)._bone_weights[vertex_index as usize].into());
                         }
                     }
                 }
@@ -885,11 +819,9 @@ impl ColladaGeometry {
                 if let Some(normal) = semantics.get("NORMAL") {
                     let source_id = &normal._source;
                     let offset = normal._offset;
-                    if let ColladaSourceData::VectorArray(normal) = sources.get(source_id).unwrap()
-                    {
+                    if let ColladaSourceData::VectorArray(normal) = sources.get(source_id).unwrap() {
                         let normal = &normal[vert_indices[offset] as usize];
-                        self._normals
-                            .push(Vector3::new(normal[0], normal[1], normal[2]));
+                        self._normals.push(Vector3::new(normal[0], normal[1], normal[2]));
                     }
                 }
 
@@ -909,12 +841,9 @@ impl ColladaGeometry {
                 if let Some(texcoord) = semantics.get("TEXCOORD") {
                     let source_id = &texcoord._source;
                     let offset = texcoord._offset;
-                    if let ColladaSourceData::VectorArray(texcoord) =
-                        sources.get(source_id).unwrap()
-                    {
+                    if let ColladaSourceData::VectorArray(texcoord) = sources.get(source_id).unwrap() {
                         let texcoord = &texcoord[vert_indices[offset] as usize];
-                        self._texcoords
-                            .push(Vector2::new(texcoord[0], 1.0 - texcoord[1]));
+                        self._texcoords.push(Vector2::new(texcoord[0], 1.0 - texcoord[1]));
                     }
                 }
             }
@@ -929,44 +858,20 @@ impl Collada {
         let xml_root = &xml_tree.get_elements("COLLADA").unwrap()[0];
         let mut collada = Collada {
             _name: String::from(filepath.file_stem().unwrap().to_str().unwrap()),
-            _collada_version: xml_tree.get_elements("COLLADA").unwrap()[0]
-                .attributes
-                .get("version")
-                .unwrap()
-                .clone(),
-            _author: xml_tree
-                .get_elements("COLLADA/asset/contributor/author")
-                .unwrap()[0]
-                .text
-                .clone(),
-            _authoring_tool: xml_tree
-                .get_elements("COLLADA/asset/contributor/authoring_tool")
-                .unwrap()[0]
-                .text
-                .clone(),
-            _created: xml_tree.get_elements("COLLADA/asset/created").unwrap()[0]
-                .text
-                .clone(),
-            _modified: xml_tree.get_elements("COLLADA/asset/modified").unwrap()[0]
-                .text
-                .clone(),
-            _unit_name: match xml_tree.get_elements("COLLADA/asset/unit").unwrap()[0]
-                .attributes
-                .get("name")
-            {
+            _collada_version: xml_tree.get_elements("COLLADA").unwrap()[0].attributes.get("version").unwrap().clone(),
+            _author: xml_tree.get_elements("COLLADA/asset/contributor/author").unwrap()[0].text.clone(),
+            _authoring_tool: xml_tree.get_elements("COLLADA/asset/contributor/authoring_tool").unwrap()[0].text.clone(),
+            _created: xml_tree.get_elements("COLLADA/asset/created").unwrap()[0].text.clone(),
+            _modified: xml_tree.get_elements("COLLADA/asset/modified").unwrap()[0].text.clone(),
+            _unit_name: match xml_tree.get_elements("COLLADA/asset/unit").unwrap()[0].attributes.get("name") {
                 Some(unit_name) => unit_name.clone(),
                 None => String::from("meter"),
             },
-            _unit_meter: match xml_tree.get_elements("COLLADA/asset/unit").unwrap()[0]
-                .attributes
-                .get("meter")
-            {
+            _unit_meter: match xml_tree.get_elements("COLLADA/asset/unit").unwrap()[0].attributes.get("meter") {
                 Some(unit_meter) => parse_value::<f32>(unit_meter, 1.0),
                 None => 1.0,
             },
-            _up_axis: xml_tree.get_elements("COLLADA/asset/up_axis").unwrap()[0]
-                .text
-                .clone(),
+            _up_axis: xml_tree.get_elements("COLLADA/asset/up_axis").unwrap()[0].text.clone(),
             _nodes: Vec::new(),
             _node_name_map: HashMap::new(),
             _geometries: Vec::new(),
@@ -977,11 +882,7 @@ impl Collada {
         let nodes = xml_root.get_elements("library_visual_scenes/visual_scene/node");
         if nodes.is_some() {
             for xml_node in nodes.unwrap().iter() {
-                collada._nodes.push(ColladaNode::create_collada_node(
-                    xml_node,
-                    std::ptr::null(),
-                    0,
-                ));
+                collada._nodes.push(ColladaNode::create_collada_node(xml_node, std::ptr::null(), 0));
             }
             Collada::gather_node_name_map(&collada._nodes, &mut collada._node_name_map);
         }
@@ -995,31 +896,21 @@ impl Collada {
         }
 
         let empty_xml_animations: Vec<XmlTree> = Vec::new();
-        let xml_animations: &Vec<XmlTree> =
-            match xml_root.get_elements("library_animations/animation") {
-                Some(xml_animations) => xml_animations[0]
-                    .get_elements("animation")
-                    .unwrap_or_else(|| xml_animations),
-                None => &empty_xml_animations,
-            };
+        let xml_animations: &Vec<XmlTree> = match xml_root.get_elements("library_animations/animation") {
+            Some(xml_animations) => xml_animations[0].get_elements("animation").unwrap_or_else(|| xml_animations),
+            None => &empty_xml_animations,
+        };
 
         for xml_animation in xml_animations.iter() {
-            let animation =
-                ColladaAnimation::create_collada_animation(xml_animation, &collada._node_name_map);
+            let animation = ColladaAnimation::create_collada_animation(xml_animation, &collada._node_name_map);
             if animation._valid {
                 collada._animations.push(animation);
             }
         }
 
-        for xml_geometry in xml_root
-            .get_elements("library_geometries/geometry")
-            .unwrap()
-        {
-            let geometry = ColladaGeometry::create_collada_geometry(
-                xml_geometry,
-                &collada._controllers,
-                &collada._nodes,
-            );
+        for xml_geometry in xml_root.get_elements("library_geometries/geometry").unwrap() {
+            let geometry =
+                ColladaGeometry::create_collada_geometry(xml_geometry, &collada._controllers, &collada._nodes);
             collada._geometries.push(geometry);
         }
 
@@ -1040,9 +931,7 @@ impl Collada {
     ) {
         for child in parent_node._children.iter() {
             if controller._bone_names.contains(&child._name) {
-                hierarchy_tree
-                    ._children
-                    .insert(child._name.clone(), SkeletonHierarchyTree::default());
+                hierarchy_tree._children.insert(child._name.clone(), SkeletonHierarchyTree::default());
                 Collada::build_hierarchy(
                     controller,
                     child,
@@ -1077,7 +966,7 @@ impl Collada {
                 let skeleton_data = SkeletonDataCreateInfo {
                     _name: controller._name.clone(),
                     _transform: Matrix4::identity(),
-                    _hierarchy: hierarchy, // bone names map as hierarchy
+                    _hierarchy: hierarchy,                       // bone names map as hierarchy
                     _bone_names: controller._bone_names.clone(), // bone name list ordered by index
                     _inv_bind_matrices: controller._inv_bind_matrices.clone(), // inverse matrix of bone
                 };
@@ -1102,10 +991,8 @@ impl Collada {
                     let child_transform: Matrix4<f32> = animations[i]._outputs[frame].transpose();
 
                     if constants::COMBINED_INVERSE_BIND_MATRIX {
-                        let child_bone_index = bone_names
-                            .iter()
-                            .position(|bone_name| *bone_name == animations[i]._target)
-                            .unwrap();
+                        let child_bone_index =
+                            bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap();
                         let child_inv_bind_matrix = &inv_bind_matrices[child_bone_index];
                         animations[i]._outputs[frame] = child_transform * child_inv_bind_matrix;
                     } else {
@@ -1114,10 +1001,7 @@ impl Collada {
                     // recursive precompute animation
                     Collada::precompute_animation(
                         animations,
-                        children_hierarchy
-                            ._children
-                            .get(&animations[i]._target)
-                            .unwrap(),
+                        children_hierarchy._children.get(&animations[i]._target).unwrap(),
                         bone_names,
                         inv_bind_matrices,
                         &child_transform,
@@ -1151,13 +1035,10 @@ impl Collada {
                     // precompute all animation frames
                     for frame in 0..animations[i]._outputs.len() {
                         // only root bone adjust convert_matrix for swap Y-Z Axis
-                        let transform: Matrix4<f32> =
-                            animations[i]._outputs[frame].clone() as Matrix4<f32>;
+                        let transform: Matrix4<f32> = animations[i]._outputs[frame].clone() as Matrix4<f32>;
                         if constants::COMBINED_INVERSE_BIND_MATRIX {
-                            let bone_index = bone_names
-                                .iter()
-                                .position(|bone_name| *bone_name == animations[i]._target)
-                                .unwrap();
+                            let bone_index =
+                                bone_names.iter().position(|bone_name| *bone_name == animations[i]._target).unwrap();
                             let inv_bind_matrix: &Matrix4<f32> = &inv_bind_matrices[bone_index];
                             animations[i]._outputs[frame] = transform * inv_bind_matrix;
                         } else {
@@ -1197,11 +1078,7 @@ impl Collada {
                                 .iter()
                                 .map(|output| math::extract_quaternion(output))
                                 .collect(),
-                            _scales: animation_node
-                                ._outputs
-                                .iter()
-                                .map(|output| math::extract_scale(output))
-                                .collect(),
+                            _scales: animation_node._outputs.iter().map(|output| math::extract_scale(output)).collect(),
                             _interpolations: animation_node._interpolations.clone(),
                             _in_tangents: animation_node._in_tangents.clone(),
                             _out_tangents: animation_node._out_tangents.clone(),
@@ -1240,8 +1117,7 @@ impl Collada {
                     geometry._positions[position_index].z,
                     1.0,
                 );
-                geometry._positions[position_index] =
-                    glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &position));
+                geometry._positions[position_index] = glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &position));
             }
 
             let bounding_box: BoundingBox = BoundingBox::calc_bounding_box(&geometry._positions);
@@ -1253,7 +1129,8 @@ impl Collada {
                     geometry._normals[normal_index].z,
                     0.0,
                 );
-                geometry._normals[normal_index] = math::safe_normalize(&glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &normal)));
+                geometry._normals[normal_index] =
+                    math::safe_normalize(&glm::vec4_to_vec3(&(&geometry._bind_shape_matrix * &normal)));
             }
 
             let tangents = geometry_buffer::compute_tangent(

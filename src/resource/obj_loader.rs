@@ -45,9 +45,7 @@ impl WaveFrontOBJ {
         let mut pre_fix: &str = "";
         let mut load_contents = system::load(filename);
         let mut contents: String = String::new();
-        load_contents
-            .read_to_string(&mut contents)
-            .expect("failed to parse");
+        load_contents.read_to_string(&mut contents).expect("failed to parse");
         let lines = contents.lines();
         for content in lines {
             // is comment?
@@ -55,11 +53,7 @@ impl WaveFrontOBJ {
                 continue;
             }
 
-            let values: Vec<&str> = content
-                .split(" ")
-                .into_iter()
-                .filter(|x| false == x.is_empty())
-                .collect();
+            let values: Vec<&str> = content.split(" ").into_iter().filter(|x| false == x.is_empty()).collect();
             if values.len() < 2 {
                 continue;
             }
@@ -213,14 +207,9 @@ impl WaveFrontOBJ {
                             let index: u32 = index_map.len() as u32;
                             indices.push(index);
                             index_map.insert(index_key, index);
-                            positions
-                                .push(self.positions[postion_indices[i] as usize].clone()
-                                    as Vector3<f32>);
-                            normals
-                                .push(self.normals[normal_indices[i] as usize].clone()
-                                    as Vector3<f32>);
-                            texcoords.push(self.texcoords[texcoord_indices[i] as usize].clone()
-                                as Vector2<f32>);
+                            positions.push(self.positions[postion_indices[i] as usize].clone() as Vector3<f32>);
+                            normals.push(self.normals[normal_indices[i] as usize].clone() as Vector3<f32>);
+                            texcoords.push(self.texcoords[texcoord_indices[i] as usize].clone() as Vector2<f32>);
                             // bounding box
                             let position: &Vector3<f32> = positions.last().unwrap();
                             for j in 0..3 {
@@ -237,11 +226,7 @@ impl WaveFrontOBJ {
             }
 
             if 0 == positions.len() {
-                log::error!(
-                    "%s has a empty mesh. {} {}",
-                    self.filename.to_str().unwrap(),
-                    mesh.name
-                );
+                log::error!("%s has a empty mesh. {} {}", self.filename.to_str().unwrap(), mesh.name);
                 continue;
             }
 
@@ -258,8 +243,7 @@ impl WaveFrontOBJ {
                 }
             }
 
-            let tangents =
-                geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
+            let tangents = geometry_buffer::compute_tangent(&positions, &normals, &texcoords, &indices);
             let vertex_color = vulkan_context::get_color32(255, 255, 255, 255);
             let vertex_data_list: Vec<VertexData> = positions
                 .iter()
