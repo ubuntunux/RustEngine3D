@@ -5,6 +5,7 @@ use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::rc::{Rc, Weak};
 use strum_macros::EnumIter;
+use uuid::Uuid;
 
 #[derive(Clone, Copy, Debug, Hash, PartialEq, EnumIter)]
 pub enum State {
@@ -134,4 +135,25 @@ pub fn load<P: AsRef<Path>>(path: P) -> Cursor<Vec<u8>> {
     let mut buf = Vec::new();
     asset.read_to_end(&mut buf).unwrap();
     Cursor::new(buf)
+}
+
+pub fn format_name_with_uuid(name: &str, uuid: Uuid) -> String {
+    format!("{}_{}", name, uuid)
+}
+
+pub fn extract_name_and_uuid(raw_key: &str) -> (String, Option<Uuid>) {
+    if raw_key.len() < 37 {
+        return (raw_key.to_string(), None);
+    }
+
+    let split_idx = raw_key.len() - 36;
+    let uuid_candidate = &raw_key[split_idx..];
+
+    let prefix = &raw_key[..split_idx];
+    if (prefix.ends_with('_') || prefix.ends_with('-')) && Uuid::parse_str(uuid_candidate).is_ok() {
+        let pure_name = &prefix[..prefix.len() - 1];
+        let parsed_uuid = Uuid::parse_str(uuid_candidate).unwrap();
+        return (pure_name.to_string(), Some(parsed_uuid));
+    }
+    (raw_key.to_string(), None)
 }
