@@ -1164,8 +1164,6 @@ impl<'a> SceneManager<'a> {
         self._capture_height_map.clear_static_render_elements();
         self.get_effect_manager_mut().clear_effects();
 
-        self._main_camera = None;
-        self._main_light = None;
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
         self._point_light_object_map.clear();

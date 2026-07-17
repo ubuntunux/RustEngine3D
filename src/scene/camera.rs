@@ -37,6 +37,7 @@ impl Default for CameraCreateInfo {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct CameraObjectData {
     pub _object_id: SceneObjectID,
     pub _name: String,

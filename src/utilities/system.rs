@@ -21,6 +21,7 @@ macro_rules! begin_block {
     };
 }
 
+pub type BoxRefCell<T> = Box<RefCell<T>>;
 pub type RcRefCell<T> = Rc<RefCell<T>>;
 pub type WeakRefCell<T> = Weak<RefCell<T>>;
 
@@ -30,6 +31,12 @@ pub fn ptr_as_ref<'a, T: ?Sized>(t: *const T) -> &'a T {
 pub fn ptr_as_mut<'a, T: ?Sized>(t: *const T) -> &'a mut T {
     unsafe { &mut *(t as *mut T) }
 }
+
+#[allow(non_snake_case)]
+pub fn newBoxRefCell<T>(t: T) -> BoxRefCell<T> {
+    Box::new(RefCell::new(t))
+}
+
 #[allow(non_snake_case)]
 pub fn newRcRefCell<T>(t: T) -> RcRefCell<T> {
     Rc::new(RefCell::new(t))
