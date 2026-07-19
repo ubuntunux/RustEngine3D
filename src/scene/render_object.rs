@@ -167,6 +167,22 @@ impl<'a> RenderObjectData<'a> {
         self._prev_transform = self._final_transform.clone();
     }
 
+    pub fn copy_render_object_date(&mut self, src_render_object: &RenderObjectData<'a>) {
+        self._is_visible = src_render_object._is_visible;
+        self._is_render_camera = src_render_object._is_render_camera;
+        self._is_render_shadow = src_render_object._is_render_shadow;
+        self._is_render_height_map = src_render_object._is_render_height_map;
+        self._render_object_name = src_render_object._render_object_name.clone();
+        self._local_transform = src_render_object._local_transform;
+        self._transform_object = src_render_object._transform_object.clone();
+        self._prev_transform = src_render_object._prev_transform;
+        self._final_transform = src_render_object._final_transform;
+        self._instance_objects = src_render_object._instance_objects.clone();
+        self._instance_transforms = src_render_object._instance_transforms.clone();
+        self._animation_play_infos = src_render_object._animation_play_infos.clone();
+        self._animation_buffer = src_render_object._animation_buffer.clone();
+    }
+
     pub fn get_object_id(&self) -> SceneObjectID {
         self._object_id
     }
