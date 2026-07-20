@@ -101,7 +101,8 @@ pub struct SkeletonDataCreateInfo {
     pub _inv_bind_matrices: Vec<Matrix4<f32>>, // inverse matrix of bone
 }
 
-#[derive(Clone, Debug)]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(default)]
 pub struct AnimationBuffer {
     pub _prev_animation_buffer: Vec<Matrix4<f32>>,
     pub _animation_buffer: Vec<Matrix4<f32>>,
@@ -130,6 +131,30 @@ pub struct AnimationPlayInfo {
     pub _animation_index: usize,
     pub _animation_mesh: Option<RcRefCell<MeshData>>,
     pub _animation_layers: *const AnimationLayerData,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+#[serde(default)]
+pub struct AnimationPlayInfoSaveData {
+    pub _animation_layer: AnimationLayer,
+    pub _is_animation_reset: bool,
+    pub _is_animation_start: bool,
+    pub _is_animation_end: bool,
+    pub _animation_loop: bool,
+    pub _animation_blend_ratio: f32,
+    pub _animation_blend_time: f32,
+    pub _animation_fade_out_ratio: f32,
+    pub _animation_fade_out_time: f32,
+    pub _animation_elapsed_time: f32,
+    pub _animation_speed: f32,
+    pub _prev_animation_frame: f32,
+    pub _animation_frame: f32,
+    pub _prev_animation_play_time: f32,
+    pub _animation_play_time: f32,
+    pub _animation_end_time: Option<f32>,
+    pub _animation_transforms: Vec<SimpleTransform>,
+    pub _last_animation_transforms: Vec<SimpleTransform>,
+    pub _animation_index: usize,
 }
 
 #[derive(Clone, Debug)]
@@ -382,6 +407,9 @@ impl AnimationBuffer {
         animation_play_info: &AnimationPlayInfo,
         sockets: &mut HashMap<String, RcRefCell<Socket>>,
     ) {
+        if !animation_play_info.is_valid() {
+            return;
+        }
         let animation_transforms: &Vec<SimpleTransform> = &animation_play_info._animation_transforms;
         let animation_data_list: &Vec<AnimationData> =
             &animation_play_info._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
@@ -389,7 +417,7 @@ impl AnimationBuffer {
         for bone_data in ptr_as_ref(animation_data._skeleton)._hierarchy.iter() {
             let bone_index: usize = ptr_as_ref(*bone_data)._index;
             let bone_node = &animation_data._nodes[bone_index];
-            let transform =
+            let transform = 
                 ptr_as_ref(animation_data._skeleton)._transform * animation_transforms[bone_index].to_matrix();
             self._animation_buffer[bone_index] = transform * ptr_as_ref(bone_node._bone)._inv_bind_matrix;
             self.update_hierarchical_animation_transform(
@@ -566,6 +594,9 @@ impl AnimationPlayInfo {
     }
 
     pub fn combine_additive_animation(&mut self, additive_animation_play_info: &AnimationPlayInfo) {
+        if !self.is_valid() || !additive_animation_play_info.is_valid() {
+            return;
+        }
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
         if additive_animation_play_info._animation_layers.is_null() {
@@ -622,6 +653,52 @@ impl AnimationPlayInfo {
             self._prev_animation_frame = 0.0;
             self._animation_frame = 0.0;
         }
+    }
+
+    pub fn get_animation_play_info_save_data(&self) -> AnimationPlayInfoSaveData {
+        AnimationPlayInfoSaveData {
+            _animation_layer: self._animation_layer,
+            _is_animation_reset: self._is_animation_reset,
+            _is_animation_start: self._is_animation_start,
+            _is_animation_end: self._is_animation_end,
+            _animation_loop: self._animation_loop,
+            _animation_blend_ratio: self._animation_blend_ratio,
+            _animation_blend_time: self._animation_blend_time,
+            _animation_fade_out_ratio: self._animation_fade_out_ratio,
+            _animation_fade_out_time: self._animation_fade_out_time,
+            _animation_elapsed_time: self._animation_elapsed_time,
+            _animation_speed: self._animation_speed,
+            _prev_animation_frame: self._prev_animation_frame,
+            _animation_frame: self._animation_frame,
+            _prev_animation_play_time: self._prev_animation_play_time,
+            _animation_play_time: self._animation_play_time,
+            _animation_end_time: self._animation_end_time,
+            _animation_transforms: self._animation_transforms.clone(),
+            _last_animation_transforms: self._last_animation_transforms.clone(),
+            _animation_index: self._animation_index,
+        }
+    }
+
+    pub fn load_animation_play_info_save_data(&mut self, save_data: &AnimationPlayInfoSaveData) {
+        self._animation_layer = save_data._animation_layer;
+        self._is_animation_reset = save_data._is_animation_reset;
+        self._is_animation_start = save_data._is_animation_start;
+        self._is_animation_end = save_data._is_animation_end;
+        self._animation_loop = save_data._animation_loop;
+        self._animation_blend_ratio = save_data._animation_blend_ratio;
+        self._animation_blend_time = save_data._animation_blend_time;
+        self._animation_fade_out_ratio = save_data._animation_fade_out_ratio;
+        self._animation_fade_out_time = save_data._animation_fade_out_time;
+        self._animation_elapsed_time = save_data._animation_elapsed_time;
+        self._animation_speed = save_data._animation_speed;
+        self._prev_animation_frame = save_data._prev_animation_frame;
+        self._animation_frame = save_data._animation_frame;
+        self._prev_animation_play_time = save_data._prev_animation_play_time;
+        self._animation_play_time = save_data._animation_play_time;
+        self._animation_end_time = save_data._animation_end_time;
+        self._animation_transforms.clone_from(&save_data._animation_transforms);
+        self._last_animation_transforms.clone_from(&save_data._last_animation_transforms);
+        self._animation_index = save_data._animation_index;
     }
 }
 

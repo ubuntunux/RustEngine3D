@@ -1,7 +1,5 @@
 use crate::renderer::push_constants::PushConstantParameter;
-use crate::scene::animation::{
-    AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo,
-};
+use crate::scene::animation::{AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo, AnimationPlayInfoSaveData};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
 use crate::scene::mesh::MeshData;
@@ -19,8 +17,9 @@ use strum::EnumCount;
 use strum_macros::EnumCount;
 
 #[repr(i32)]
-#[derive(Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount)]
+#[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount, Default)]
 pub enum AnimationLayer {
+    #[default]
     BaseLayer,
     ActionLayer,
 }
@@ -53,6 +52,14 @@ impl Default for RenderObjectCreateInfo {
             _scale: Vector3::new(1.0, 1.0, 1.0),
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default )]
+#[serde(default)]
+pub struct RenderObjectSaveData {
+    pub _render_object_name: String,
+    pub _animation_play_infos: Vec<AnimationPlayInfoSaveData>,
+    pub _animation_buffer: Option<AnimationBuffer>,
 }
 
 #[derive(Clone, Debug)]
@@ -498,5 +505,25 @@ impl<'a> RenderObjectData<'a> {
                 socket_borrowed._transform = self._final_transform * socket_borrowed._transform * local_transform;
             }
         }
+    }
+
+    pub fn get_render_object_save_data(&self) -> RenderObjectSaveData {
+        RenderObjectSaveData {
+            _render_object_name: self._render_object_name.clone(),
+            _animation_play_infos: self
+                ._animation_play_infos
+                .iter()
+                .map(|info| info.get_animation_play_info_save_data())
+                .collect(),
+            _animation_buffer: self._animation_buffer.clone(),
+        }
+    }
+
+    pub fn load_render_object_save_data(&mut self, save_data: &RenderObjectSaveData) {
+        self._render_object_name.clone_from(&save_data._render_object_name);
+        for (info, save_info) in self._animation_play_infos.iter_mut().zip(save_data._animation_play_infos.iter()) {
+            info.load_animation_play_info_save_data(save_info);
+        }
+        self._animation_buffer.clone_from(&save_data._animation_buffer);
     }
 }

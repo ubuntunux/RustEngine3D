@@ -1,10 +1,11 @@
 use nalgebra::{Matrix4, Quaternion, Vector3, linalg};
 use nalgebra_glm as glm;
-
+use serde::{Deserialize, Serialize};
 use crate::utilities::math;
 use crate::utilities::system::ptr_as_ref;
 
-#[derive(Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
+#[serde(default)]
 pub struct SimpleTransform {
     pub _position: Vector3<f32>,
     pub _rotation: Quaternion<f32>,
@@ -38,7 +39,8 @@ impl SimpleTransform {
     }
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
+#[serde(default)]
 pub struct TransformObjectData {
     pub _updated: bool,
     pub _prev_updated: bool,
