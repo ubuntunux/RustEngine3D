@@ -75,9 +75,19 @@ pub fn create_time_data() -> TimeData {
 
 impl TimeData {
     pub fn update_time_data(&mut self, delta_time_scale: f64) {
-        let current_time = self._time_instance.elapsed().as_secs_f64();
+        let target_fps = unsafe { crate::constants::TARGET_FRAME_RATE };
+        let mut current_time = self._time_instance.elapsed().as_secs_f64();
         let previous_time = self._current_time;
-        let delta_time = current_time - previous_time;
+        let mut delta_time = current_time - previous_time;
+        if target_fps > 0 {
+            let target_frame_time = 1.0 / target_fps as f64;
+            if delta_time < target_frame_time {
+                let sleep_secs = target_frame_time - delta_time;
+                std::thread::sleep(std::time::Duration::from_secs_f64(sleep_secs));
+                current_time = self._time_instance.elapsed().as_secs_f64();
+                delta_time = current_time - previous_time;
+            }
+        }
         self._elapsed_time_prev = self._elapsed_time;
         let elapsed_time = self._elapsed_time + delta_time;
         let acc_frame_time = self._acc_frame_time + delta_time;
