@@ -260,6 +260,8 @@ pub struct WidgetDefault<'a> {
 pub struct UIManager<'a> {
     pub _root: Rc<WidgetDefault<'a>>,
     pub _window_size: Vector2<i32>,
+    pub _reference_window_size: Vector2<f32>,
+    pub _dpi_scale: f32,
     pub _quad_mesh: GeometryData,
     pub _font_data: RcRefCell<FontData>,
     pub _ui_render_data_list: Vec<UIRenderData>,
@@ -1224,11 +1226,11 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
 
-    pub fn compute_text_contents_size(&mut self, font_data: &FontData) -> Vector2<f32> {
+    pub fn compute_text_contents_size(&mut self, font_data: &FontData, dpi_scale: f32) -> Vector2<f32> {
         self._text_counts.clear();
 
         if false == self._text.is_empty() {
-            let font_size_ratio = self.get_font_size() / font_data._font_size.y;
+            let font_size_ratio = (self.get_font_size() * dpi_scale) / font_data._font_size.y;
             let font_size = &font_data._font_size * font_size_ratio;
             let mut column_count: usize = 0;
             let mut row_count: usize = 0;
@@ -1269,12 +1271,13 @@ impl<'a> UIComponentInstance<'a> {
         _prev_render_group_data: &mut UIRenderGroupData,
         render_ui_instance_data_list: &mut [UIRenderData],
         opacity: f32,
+        dpi_scale: f32,
     ) {
         let mut render_ui_index = render_ui_count;
 
         let count_of_side: u32 = font_data._count_of_side;
         let inv_count_of_side: f32 = 1.0 / font_data._count_of_side as f32;
-        let font_size_ratio: f32 = self.get_font_size() / font_data._font_size.y;
+        let font_size_ratio: f32 = (self.get_font_size() * dpi_scale) / font_data._font_size.y;
         let font_size: Vector2<f32> = &font_data._font_size * font_size_ratio * UI_RENDER_FONT_PADDING_RATIO;
         let mut column: i32 = 0;
         let mut row: i32 = 0;
@@ -1390,6 +1393,7 @@ impl<'a> UIComponentInstance<'a> {
         render_ui_instance_data_list: &mut [UIRenderData],
         mut need_to_collect_render_data: bool,
         mut opacity: f32,
+        dpi_scale: f32,
     ) {
         if self._changed_render_data {
             need_to_collect_render_data = true;
@@ -1416,8 +1420,8 @@ impl<'a> UIComponentInstance<'a> {
                 render_ui_instance_data._ui_renderable_area.clone_from(&self._renderable_area);
                 render_ui_instance_data._ui_renderable_area_round = self.get_renderable_area_round();
                 render_ui_instance_data._ui_renderable_area_border = self.get_renderable_area_border();
-                render_ui_instance_data._ui_round = self.get_round();
-                render_ui_instance_data._ui_border = self.get_border();
+                render_ui_instance_data._ui_round = self.get_round() * dpi_scale;
+                render_ui_instance_data._ui_border = self.get_border() * dpi_scale;
                 render_ui_instance_data._ui_opacity = opacity;
                 render_ui_instance_data._ui_color = self.get_color();
                 render_ui_instance_data._ui_touched_over_color = self.get_touched_over_color();
@@ -1474,6 +1478,7 @@ impl<'a> UIComponentInstance<'a> {
                         prev_render_group_data,
                         render_ui_instance_data_list,
                         opacity,
+                        dpi_scale,
                     );
                 }
                 self._changed_text = false;
@@ -1495,6 +1500,7 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data_list,
                     need_to_collect_render_data,
                     opacity,
+                    dpi_scale,
                 );
             }
         }
@@ -1505,6 +1511,7 @@ impl<'a> UIComponentInstance<'a> {
         mut inherit_changed_layout: bool,
         parent_contents_size: &Vector2<f32>,
         font_data: &FontData,
+        dpi_scale: f32,
     ) {
         if self._enable == false {
             return;
@@ -1512,11 +1519,10 @@ impl<'a> UIComponentInstance<'a> {
 
         if inherit_changed_layout || self._changed_layout {
             inherit_changed_layout = true;
-            //let border = self.get_border() * 0.5;
-            let spaces = self.get_margin() + self.get_padding(); // + &Vector4::new(border, border, border, border);
+            let spaces = (self.get_margin() + self.get_padding()) * dpi_scale;
             let size_hint_x = self.get_size_hint_x();
             let size_hint_y = self.get_size_hint_y();
-            let mut ui_size: Vector2<f32> = self.get_size().clone() as Vector2<f32>;
+            let mut ui_size: Vector2<f32> = self.get_size() * dpi_scale;
             if size_hint_x.is_some() {
                 ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
             }
@@ -1526,7 +1532,7 @@ impl<'a> UIComponentInstance<'a> {
 
             // update contents area
             if self._changed_text {
-                self._text_contents_size = self.compute_text_contents_size(font_data);
+                self._text_contents_size = self.compute_text_contents_size(font_data, dpi_scale);
                 self._changed_text = false;
             }
 
@@ -1556,6 +1562,7 @@ impl<'a> UIComponentInstance<'a> {
                     inherit_changed_layout,
                     &self._contents_area_size,
                     font_data,
+                    dpi_scale,
                 );
 
                 // accumulate required_contents_size
@@ -1601,7 +1608,13 @@ impl<'a> UIComponentInstance<'a> {
         parent_round: f32,
         ui_area_pos: &mut Vector2<f32>,
         _update_depth: u32,
+        dpi_scale: f32,
     ) {
+        let scaled_margin_left = self.get_margin_left() * dpi_scale;
+        let scaled_margin_top = self.get_margin_top() * dpi_scale;
+        let scaled_margin_right = self.get_margin_right() * dpi_scale;
+        let scaled_margin_bottom = self.get_margin_bottom() * dpi_scale;
+
         match parent_layout_type {
             UILayoutType::FloatLayout => {
                 match self.get_pos_hint_x() {
@@ -1676,12 +1689,12 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_area.z = self._ui_area.x + self._ui_size.x;
         self._ui_area.w = self._ui_area.y + self._ui_size.y;
 
-        self._render_area.x = self._ui_area.x + self.get_margin_left();
-        self._render_area.y = self._ui_area.y + self.get_margin_top();
-        self._render_area.z = self._ui_area.z - self.get_margin_right();
-        self._render_area.w = self._ui_area.w - self.get_margin_bottom();
+        self._render_area.x = self._ui_area.x + scaled_margin_left;
+        self._render_area.y = self._ui_area.y + scaled_margin_top;
+        self._render_area.z = self._ui_area.z - scaled_margin_right;
+        self._render_area.w = self._ui_area.w - scaled_margin_bottom;
 
-        let renderable_area_border = 0f32.max(border - 2.0);
+        let renderable_area_border = 0f32.max(border - 2.0 * dpi_scale);
         self._renderable_area_border = renderable_area_border;
         self._renderable_area_round = parent_round;
         self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x + renderable_area_border);
@@ -1701,11 +1714,10 @@ impl<'a> UIComponentInstance<'a> {
         );
         self._transform.set_position(&pivot);
 
-        // log::info!("{:?}: update_layout_area:: changed_layout: {:?}, changed_deep_child_layout: {:?}, changed_child_layout: {:?}", self.get_owner_widget().get_ui_widget_name(), self._changed_layout, self._changed_deep_child_layout, self._changed_child_layout);
         self._changed_render_data = true;
     }
 
-    fn recursive_update_layout(&mut self, mut inherit_changed_layout: bool, update_depth: u32, font_data: &FontData) {
+    fn recursive_update_layout(&mut self, mut inherit_changed_layout: bool, update_depth: u32, font_data: &FontData, dpi_scale: f32) {
         if self._enable == false {
             return;
         }
@@ -1758,10 +1770,11 @@ impl<'a> UIComponentInstance<'a> {
                         &self._contents_area_size,
                         &self._required_contents_size,
                         &inherit_renderable_area,
-                        self.get_border(),
-                        self.get_round(),
+                        self.get_border() * dpi_scale,
+                        self.get_round() * dpi_scale,
                         &mut child_ui_pos,
                         update_depth + 1,
+                        dpi_scale,
                     );
 
                     // update child_ui_pos
@@ -1780,7 +1793,7 @@ impl<'a> UIComponentInstance<'a> {
 
             // recursive update_layout
             for child in self._children.iter() {
-                ptr_as_mut(*child).recursive_update_layout(inherit_changed_layout, update_depth + 1, font_data);
+                ptr_as_mut(*child).recursive_update_layout(inherit_changed_layout, update_depth + 1, font_data, dpi_scale);
             }
         }
 
@@ -2020,6 +2033,8 @@ impl<'a> UIManager<'a> {
         let mut ui_manager = UIManager {
             _root: UIManager::create_widget("root", UIWidgetTypes::Default),
             _window_size: Vector2::zeros(),
+            _reference_window_size: Vector2::new(1920.0, 1080.0),
+            _dpi_scale: 1.0,
             _quad_mesh: GeometryData::default(),
             _font_data: system::newRcRefCell(FontData::default()),
             _ui_render_data_list: Vec::new(),
@@ -2059,6 +2074,20 @@ impl<'a> UIManager<'a> {
 
     pub fn get_root_ptr(&self) -> *const WidgetDefault<'a> {
         self._root.as_ref()
+    }
+
+    pub fn get_dpi_scale(&self) -> f32 {
+        self._dpi_scale
+    }
+
+    pub fn set_reference_window_size(&mut self, width: f32, height: f32) {
+        self._reference_window_size.x = width;
+        self._reference_window_size.y = height;
+        if 0.0 < self._window_size.y as f32 && 0.0 < height {
+            self._dpi_scale = (self._window_size.y as f32 / height).max(0.1);
+            let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
+            root_ui_component.set_changed_layout(true);
+        }
     }
 
     pub fn set_visible_world_axis(&mut self, visible: bool) {
@@ -2269,6 +2298,9 @@ impl<'a> UIManager<'a> {
         if *window_size != self._window_size {
             log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
             self._window_size = window_size.clone() as Vector2<i32>;
+            if 0.0 < self._reference_window_size.y {
+                self._dpi_scale = (self._window_size.y as f32 / self._reference_window_size.y).max(0.1);
+            }
             root_ui_component.set_changed_layout(true);
         }
 
@@ -2312,6 +2344,7 @@ impl<'a> UIManager<'a> {
                 inherit_changed_layout,
                 &contents_area_size,
                 &self._font_data.borrow(),
+                self._dpi_scale,
             );
 
             root_ui_component.update_layout_area(
@@ -2327,9 +2360,10 @@ impl<'a> UIManager<'a> {
                 round,
                 &mut child_ui_pos,
                 update_depth,
+                self._dpi_scale,
             );
 
-            root_ui_component.recursive_update_layout(inherit_changed_layout, update_depth, &self._font_data.borrow());
+            root_ui_component.recursive_update_layout(inherit_changed_layout, update_depth, &self._font_data.borrow(), self._dpi_scale);
         }
 
         // collect_ui_render_data
@@ -2351,6 +2385,7 @@ impl<'a> UIManager<'a> {
             &mut self._ui_render_data_list,
             need_to_collect_render_data,
             opacity,
+            self._dpi_scale,
         );
 
         // last render count
