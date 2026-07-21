@@ -12,6 +12,7 @@ use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 use crate::audio::audio_manager::AudioManager;
+use crate::constants;
 use crate::constants::DEVELOPMENT;
 use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
@@ -556,7 +557,8 @@ impl<'a> EngineCore<'a> {
                     renderer_context._renderer_data._debug_render_target
                 ));
                 font_manager.log(format!(
-                    "RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
+                    "RenderQualityLevel: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
+                    unsafe { constants::RENDER_QUALITY_LEVEL },
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),

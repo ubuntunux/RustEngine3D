@@ -1,4 +1,4 @@
-use crate::renderer::renderer_data::RenderOption;
+use crate::renderer::renderer_data::{RenderOption, RenderQualityLevel};
 use ash::vk;
 
 pub static mut DEVELOPMENT: bool = false;
@@ -62,6 +62,7 @@ pub static mut SHADOW_UPDATE_DISTANCE: f32 = 10.0;
 pub static mut SSAO_NOISE_DIM: i32 = 4;
 pub static mut CAPTURE_HEIGHT_MAP_SIZE: u32 = 512;
 pub static mut ENABLE_UPSCALE: bool = false;
+pub static mut RENDER_QUALITY_LEVEL: RenderQualityLevel = RenderQualityLevel::Medium;
 pub static mut CURRENT_RENDER_OPTION: RenderOption = RenderOption::ALL;
 pub const SSAO_KERNEL_SIZE: usize = 64; // NOTE: Ensure enum values match in scene_constants.glsl
 pub const SSAO_RADIUS: f32 = 2.0;
