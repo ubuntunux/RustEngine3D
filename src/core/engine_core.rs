@@ -616,7 +616,7 @@ pub fn run_application(
     }
 
     // choose video mode
-    let primary_monitor = event_loop.primary_monitor().unwrap();
+    let primary_monitor = event_loop.primary_monitor().or_else(|| event_loop.available_monitors().next()).unwrap();
     log::info!(
         "Monitor: {:?}, {:?}, {:?}hz",
         primary_monitor.name(),
