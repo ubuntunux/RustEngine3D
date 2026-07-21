@@ -286,6 +286,7 @@ impl<'a> EngineCore<'a> {
 
     pub fn terminate_application(&mut self) {
         let renderer_context = self.get_renderer_context();
+        renderer_context.device_wait_idle();
 
         // destroy managers
         self.get_application_mut().terminate_application();

@@ -522,6 +522,7 @@ impl<'a> RendererContext<'a> {
         geometry_buffer::destroy_geometry_data(self.get_device(), geometry_data);
     }
     pub fn destroy_renderer_context(&mut self) {
+        self.device_wait_idle();
         if self.get_use_ray_tracing() {
             self.destroy_ray_tracing_data();
         }
@@ -1013,7 +1014,6 @@ impl<'a> RendererContext<'a> {
         };
 
         unsafe {
-            let waiting_for_fence = false;
             let fences = &[fence];
             self._device.reset_fences(fences).expect("failed to reset_fences");
 
@@ -1028,13 +1028,9 @@ impl<'a> RendererContext<'a> {
                     .queue_submit(
                         self._queue_family_data_list._graphics_queue,
                         &[submit_info],
-                        if waiting_for_fence { fence } else { vk::Fence::null() },
+                        fence,
                     )
                     .expect("vkQueueSubmit failed!");
-            }
-
-            if waiting_for_fence {
-                self._device.wait_for_fences(fences, true, u64::MAX).expect("vkWaitForFences failed!");
             }
 
             let present_wait_semaphores = [render_finished_semaphore];
@@ -1053,17 +1049,6 @@ impl<'a> RendererContext<'a> {
                 self._swapchain_device.queue_present(self.get_present_queue(), &present_info);
             if let Err(present_error) = is_swapchain_suboptimal {
                 log::error!("present_error: {:?}", present_error);
-            }
-
-            // waiting
-            if !waiting_for_fence {
-                match self._device.device_wait_idle() {
-                    Err(e) => {
-                        log::error!("device_wait_idle: {:?}", e);
-                        return Err(e);
-                    }
-                    _ => (),
-                }
             }
 
             is_swapchain_suboptimal
@@ -1216,6 +1201,11 @@ impl<'a> RendererContext<'a> {
             let image_available_semaphore = self._image_available_semaphores[frame_index];
             let render_finished_semaphore = self._render_finished_semaphores[frame_index];
 
+            // Wait for GPU to finish previous frame using this frame_fence
+            self._device
+                .wait_for_fences(&[frame_fence], true, u64::MAX)
+                .expect("vkWaitForFences failed!");
+
             // Begin Render
             let acquire_next_image_result: VkResult<(u32, bool)> = self._swapchain_device.acquire_next_image(
                 self._swapchain_data._swapchain,
@@ -1237,7 +1227,7 @@ impl<'a> RendererContext<'a> {
                     // Begin command buffer
                     let command_buffer = self._command_buffers[swapchain_index as usize];
                     let command_buffer_begin_info = vk::CommandBufferBeginInfo {
-                        flags: vk::CommandBufferUsageFlags::SIMULTANEOUS_USE,
+                        flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
                         ..Default::default()
                     };
                     self._device
