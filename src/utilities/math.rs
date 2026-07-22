@@ -247,26 +247,44 @@ pub fn inverse_transform_matrix(
     rotation_matrix: &Matrix4<f32>,
     scale: &Vector3<f32>,
 ) -> Matrix4<f32> {
-    let mut inv_rotation_matrix = rotation_matrix.clone();
-    let column0 = inv_rotation_matrix.column(0) / scale[0];
-    let column1 = inv_rotation_matrix.column(1) / scale[1];
-    let column2 = inv_rotation_matrix.column(2) / scale[2];
-    inv_rotation_matrix.set_column(0, &column0);
-    inv_rotation_matrix.set_column(1, &column1);
-    inv_rotation_matrix.set_column(2, &column2);
-    inv_rotation_matrix = inv_rotation_matrix.transpose().into();
+    if scale[0] == 1.0 && scale[1] == 1.0 && scale[2] == 1.0 {
+        let r = rotation_matrix;
+        let tx = translation[0];
+        let ty = translation[1];
+        let tz = translation[2];
 
-    let homogeneous_pos = Vector4::new(-translation[0], -translation[1], -translation[2], 0.0);
-    let x: f32 = homogeneous_pos.dot(&column0);
-    let y: f32 = homogeneous_pos.dot(&column1);
-    let z: f32 = homogeneous_pos.dot(&column2);
+        let x = -(r.m11 * tx + r.m21 * ty + r.m31 * tz);
+        let y = -(r.m12 * tx + r.m22 * ty + r.m32 * tz);
+        let z = -(r.m13 * tx + r.m23 * ty + r.m33 * tz);
 
-    Matrix4::from_columns(&[
-        Vector4::from(inv_rotation_matrix.column(0)),
-        Vector4::from(inv_rotation_matrix.column(1)),
-        Vector4::from(inv_rotation_matrix.column(2)),
-        Vector4::new(x, y, z, 1.0),
-    ])
+        Matrix4::from_columns(&[
+            Vector4::new(r.m11, r.m12, r.m13, 0.0),
+            Vector4::new(r.m21, r.m22, r.m23, 0.0),
+            Vector4::new(r.m31, r.m32, r.m33, 0.0),
+            Vector4::new(x, y, z, 1.0),
+        ])
+    } else {
+        let mut inv_rotation_matrix = rotation_matrix.clone();
+        let column0 = inv_rotation_matrix.column(0) / scale[0];
+        let column1 = inv_rotation_matrix.column(1) / scale[1];
+        let column2 = inv_rotation_matrix.column(2) / scale[2];
+        inv_rotation_matrix.set_column(0, &column0);
+        inv_rotation_matrix.set_column(1, &column1);
+        inv_rotation_matrix.set_column(2, &column2);
+        inv_rotation_matrix = inv_rotation_matrix.transpose().into();
+
+        let homogeneous_pos = Vector4::new(-translation[0], -translation[1], -translation[2], 0.0);
+        let x: f32 = homogeneous_pos.dot(&column0);
+        let y: f32 = homogeneous_pos.dot(&column1);
+        let z: f32 = homogeneous_pos.dot(&column2);
+
+        Matrix4::from_columns(&[
+            Vector4::from(inv_rotation_matrix.column(0)),
+            Vector4::from(inv_rotation_matrix.column(1)),
+            Vector4::from(inv_rotation_matrix.column(2)),
+            Vector4::new(x, y, z, 1.0),
+        ])
+    }
 }
 
 pub fn look_at(eye: &Vector3<f32>, target: &Vector3<f32>, up: &Vector3<f32>) -> Matrix4<f32> {

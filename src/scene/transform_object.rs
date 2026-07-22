@@ -226,32 +226,12 @@ impl TransformObjectData {
         let updated_scale = self._prev_scale != self._scale;
         let updated = updated_position || updated_rotation || updated_scale;
         if updated {
+            self._prev_matrix.copy_from(&self._matrix);
+            self._prev_inverse_matrix.copy_from(&self._inverse_matrix);
+
             if updated_rotation {
                 self._rotation_matrix =
                     math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
-                //          look at algorithm
-                //             let sin_pitch = self._rotation._x.sin();
-                //             let cos_pitch = self._rotation._x.cos();
-                //             let sin_yaw = self._rotation._y.sin();
-                //             let cos_yaw = self._rotation._y.cos();
-                //             let front = Vector3::new(cos_pitch * sin_yaw, -sin_pitch, cos_pitch * cos_yaw).normalize();
-                //             let left = Vector3::new(0.0, 1.0, 0.0).cross(&front);
-                //             let up = front.cross(&left);
-                //             let rotation_matrix = Matrix4::from_columns(&[
-                //                 Vector4::new(left.x, left.y, left.z, 0.0),
-                //                 Vector4::new(up.x, up.y, up.z, 0.0),
-                //                 Vector4::new(front.x, front.y, front.z, 0.0),
-                //                 Vector4::new(0.0, 0.0, 0.0, 1.0),
-                //             ]);
-
-                unsafe {
-                    let left: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(0).as_ptr() as *mut Vector3<f32>);
-                    let up: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(1).as_ptr() as *mut Vector3<f32>);
-                    let front: &mut Vector3<f32> = &mut *(self._rotation_matrix.column(2).as_ptr() as *mut Vector3<f32>);
-                    left.normalize_mut();
-                    up.normalize_mut();
-                    front.normalize_mut();
-                }
             }
 
             self._matrix = math::combinate_matrix(
@@ -264,7 +244,11 @@ impl TransformObjectData {
                 &self._position,
                 &self._rotation_matrix,
                 &self._scale,
-            )
+            );
+
+            self._prev_position.clone_from(&self._position);
+            self._prev_rotation.clone_from(&self._rotation);
+            self._prev_scale.clone_from(&self._scale);
         }
         updated
     }
@@ -272,18 +256,8 @@ impl TransformObjectData {
     pub fn update_transform_object(&mut self) -> bool {
         self._updated = false;
         if self._is_dirty {
-            let position = self._position.clone();
-            let rotation = self._rotation.clone();
-            let scale = self._scale.clone();
-            let matrix = self._matrix.clone();
-            let inverse_matrix = self._inverse_matrix.clone();
             if self.update_matrix() {
                 self._updated = true;
-                self._prev_position = position;
-                self._prev_rotation = rotation;
-                self._prev_scale = scale;
-                self._prev_matrix = matrix;
-                self._prev_inverse_matrix = inverse_matrix;
                 self._prev_updated = true;
             }
             self._is_dirty = false;
