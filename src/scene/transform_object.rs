@@ -54,6 +54,8 @@ pub struct TransformObjectData {
     pub _rotation_matrix: Matrix4<f32>,
     pub _matrix: Matrix4<f32>,
     pub _inverse_matrix: Matrix4<f32>,
+    pub _matrix_store: Matrix4<f32>,
+    pub _inverse_matrix_store: Matrix4<f32>,
     pub _prev_matrix: Matrix4<f32>,
     pub _prev_inverse_matrix: Matrix4<f32>,
 }
@@ -73,6 +75,8 @@ impl TransformObjectData {
             _rotation_matrix: Matrix4::identity(),
             _matrix: Matrix4::identity(),
             _inverse_matrix: Matrix4::identity(),
+            _matrix_store: Matrix4::identity(),
+            _inverse_matrix_store: Matrix4::identity(),
             _prev_matrix: Matrix4::identity(),
             _prev_inverse_matrix: Matrix4::identity(),
         }
@@ -249,11 +253,20 @@ impl TransformObjectData {
             self._prev_position.clone_from(&self._position);
             self._prev_rotation.clone_from(&self._rotation);
             self._prev_scale.clone_from(&self._scale);
+
+            self._matrix_store.copy_from(&self._matrix);
+            self._inverse_matrix_store.copy_from(&self._inverse_matrix);
         }
         updated
     }
 
     pub fn update_transform_object(&mut self) -> bool {
+        if self._prev_updated {
+            self._prev_matrix.copy_from(&self._matrix_store);
+            self._prev_inverse_matrix.copy_from(&self._inverse_matrix_store);
+            self._prev_updated = false;
+        }
+
         self._updated = false;
         if self._is_dirty {
             if self.update_matrix() {
@@ -261,13 +274,6 @@ impl TransformObjectData {
                 self._prev_updated = true;
             }
             self._is_dirty = false;
-        } else if self._prev_updated {
-            self._prev_position.clone_from(&self._position);
-            self._prev_rotation.clone_from(&self._rotation);
-            self._prev_scale.clone_from(&self._scale);
-            self._prev_matrix.copy_from(&self._matrix);
-            self._prev_inverse_matrix.copy_from(&self._inverse_matrix);
-            self._prev_updated = false;
         }
         self._updated
     }
