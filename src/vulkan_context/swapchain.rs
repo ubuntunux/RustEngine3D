@@ -70,17 +70,25 @@ pub fn choose_swapchain_present_mode(swapchain_support_details: &SwapchainSuppor
     vk::PresentModeKHR::FIFO
 }
 
-pub fn choose_swapchain_extent(swapchain_support_details: &SwapchainSupportDetails) -> vk::Extent2D {
+pub fn choose_swapchain_extent(
+    swapchain_support_details: &SwapchainSupportDetails,
+    window_width: u32,
+    window_height: u32,
+) -> vk::Extent2D {
     let capabilities: &vk::SurfaceCapabilitiesKHR = &swapchain_support_details._capabilities;
-    vk::Extent2D {
-        width: max(
-            capabilities.min_image_extent.width,
-            min(capabilities.max_image_extent.width, capabilities.current_extent.width),
-        ),
-        height: max(
-            capabilities.min_image_extent.height,
-            min(capabilities.max_image_extent.height, capabilities.current_extent.height),
-        ),
+    if capabilities.current_extent.width != u32::MAX {
+        capabilities.current_extent
+    } else {
+        vk::Extent2D {
+            width: max(
+                capabilities.min_image_extent.width,
+                min(capabilities.max_image_extent.width, window_width),
+            ),
+            height: max(
+                capabilities.min_image_extent.height,
+                min(capabilities.max_image_extent.height, window_height),
+            ),
+        }
     }
 }
 
@@ -114,6 +122,8 @@ pub fn create_swapchain_data(
     surface: vk::SurfaceKHR,
     swapchain_support_details: &SwapchainSupportDetails,
     queue_family_data_list: &queue::QueueFamilyDataList,
+    window_width: u32,
+    window_height: u32,
     immediate_mode: bool,
 ) -> SwapchainData {
     let surface_format =
@@ -130,7 +140,7 @@ pub fn create_swapchain_data(
     } else {
         choose_swapchain_present_mode(swapchain_support_details)
     };
-    let image_extent = choose_swapchain_extent(swapchain_support_details);
+    let image_extent = choose_swapchain_extent(swapchain_support_details, window_width, window_height);
     let max_image_count = swapchain_support_details._capabilities.max_image_count;
     let min_image_count = swapchain_support_details._capabilities.min_image_count;
     let image_count = if max_image_count <= 0 {
