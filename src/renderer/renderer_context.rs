@@ -304,6 +304,8 @@ impl<'a> RendererContext<'a> {
                 surface,
                 &swapchain_support_details,
                 &queue_family_data_list,
+                window_size.x as u32,
+                window_size.y as u32,
                 constants::ENABLE_IMMEDIATE_MODE,
             );
             let image_available_semaphores = sync::create_semaphores(&device);
@@ -949,7 +951,7 @@ impl<'a> RendererContext<'a> {
         }
     }
 
-    pub fn resize_window(&mut self) {
+    pub fn resize_window(&mut self, window_width: u32, window_height: u32) {
         log::info!("<< resizeWindow >>");
         self.device_wait_idle();
 
@@ -962,14 +964,14 @@ impl<'a> RendererContext<'a> {
         self.destroy_render_targets();
 
         // recreate swapchain & graphics engine_resources
-        self.recreate_swapchain();
+        self.recreate_swapchain(window_width, window_height);
         self.create_render_targets();
         engine_resources.load_graphics_data_list(render_context_ref);
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);
     }
 
-    pub fn recreate_swapchain(&mut self) {
+    pub fn recreate_swapchain(&mut self, window_width: u32, window_height: u32) {
         log::info!("<< recreateSwapChain >>");
         command_buffer::destroy_command_buffers(&self._device, self._command_pool, &self._command_buffers);
         swapchain::destroy_swapchain_data(&self._device, &self._swapchain_device, &self._swapchain_data);
@@ -983,6 +985,8 @@ impl<'a> RendererContext<'a> {
             self._surface,
             &self._swapchain_support_details,
             &self._queue_family_data_list,
+            window_width,
+            window_height,
             unsafe { constants::ENABLE_IMMEDIATE_MODE },
         );
         self._command_buffers = command_buffer::create_command_buffers(

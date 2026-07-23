@@ -455,7 +455,7 @@ impl<'a> EngineCore<'a> {
                 // destroy
                 ui_manager.destroy_ui_graphics_data();
                 font_manager.destroy_font_descriptor_sets();
-                renderer_context.resize_window();
+                renderer_context.resize_window(self._window_size.x as u32, self._window_size.y as u32);
 
                 // recreate
                 font_manager.create_font_descriptor_sets(renderer_context, engine_resource);
@@ -557,8 +557,9 @@ impl<'a> EngineCore<'a> {
                     renderer_context._renderer_data._debug_render_target
                 ));
                 font_manager.log(format!(
-                    "RenderQualityLevel: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
+                    "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
                     unsafe { constants::RENDER_QUALITY_LEVEL },
+                    unsafe { constants::ENABLE_UPSCALE },
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
                     renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
