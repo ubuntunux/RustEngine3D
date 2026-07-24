@@ -225,7 +225,7 @@ pub struct UIComponentInstance<'a> {
     pub _transform: TransformObjectData,
     pub _world_to_local_matrix: Matrix4<f32>,
     pub _local_to_world_matrix: Matrix4<f32>,
-    pub _spaces: Vector4<f32>, // margin + border + padding
+    pub _spaces: Vector4<f32>, // margin + padding
     pub _contents_area: Vector4<f32>,
     pub _contents_area_size: Vector2<f32>, // ui_size - spaces
     pub _text_contents_size: Vector2<f32>, // just text contents size
@@ -677,15 +677,6 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_pos(&self) -> &Vector2<f32> {
         &self._ui_component_data._pos
     }
-    pub fn get_pos_x_with_dpi(&self) -> f32 {
-        self._ui_component_data._pos.x * get_global_dpi_scale()
-    }
-    pub fn get_pos_y_with_dpi(&self) -> f32 {
-        self._ui_component_data._pos.y * get_global_dpi_scale()
-    }
-    pub fn get_pos_with_dpi(&self) -> Vector2<f32> {
-        self._ui_component_data._pos * get_global_dpi_scale()
-    }
     pub fn get_enable_dpi_scale(&self) -> bool {
         self._enable_dpi_scale
     }
@@ -721,15 +712,6 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn get_center(&self) -> Vector2<f32> {
         Vector2::new(self.get_center_x(), self.get_center_y())
-    }
-    pub fn get_center_x_with_dpi(&self) -> f32 {
-        self.get_center_x() * get_global_dpi_scale()
-    }
-    pub fn get_center_y_with_dpi(&self) -> f32 {
-        self.get_center_y() * get_global_dpi_scale()
-    }
-    pub fn get_center_with_dpi(&self) -> Vector2<f32> {
-        self.get_center() * get_global_dpi_scale()
     }
     pub fn set_center(&mut self, x: f32, y: f32) {
         self.set_center_x(x);
@@ -783,15 +765,6 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn get_size_y(&self) -> f32 {
         self._ui_component_data._size.y
-    }
-    pub fn get_size_x_with_dpi(&self) -> f32 {
-        self._ui_component_data._size.x * get_global_dpi_scale()
-    }
-    pub fn get_size_y_with_dpi(&self) -> f32 {
-        self._ui_component_data._size.y * get_global_dpi_scale()
-    }
-    pub fn get_size_with_dpi(&self) -> Vector2<f32> {
-        self._ui_component_data._size * get_global_dpi_scale()
     }
     pub fn set_size(&mut self, size_x: f32, size_y: f32) {
         self.set_size_x(size_x);
@@ -975,7 +948,6 @@ impl<'a> UIComponentInstance<'a> {
         if renderable != self._renderable {
             self._renderable = renderable;
             self._changed_render_data = true;
-            // log::info!("{:?}: set_renderable", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_renderable_area_border(&self) -> f32 {
@@ -1009,6 +981,7 @@ impl<'a> UIComponentInstance<'a> {
         if enable != self._enable {
             self._enable = enable;
             self._changed_render_data = true;
+            self._changed_layout = true;
         }
     }
     pub fn get_visible(&self) -> bool {
@@ -1018,6 +991,7 @@ impl<'a> UIComponentInstance<'a> {
         if visible != self._visible {
             self._visible = visible;
             self._changed_render_data = true;
+            self._changed_layout = true;
         }
     }
     pub fn get_opacity(&self) -> f32 {
@@ -1694,14 +1668,10 @@ impl<'a> UIComponentInstance<'a> {
                         self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
                     }
                     PosHintX::Center(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x
-                            + parent_contents_area_size.x * pos_hint_x
-                            + (required_contents_size.x - self._ui_size.x) * 0.5;
+                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x * 0.5;
                     }
                     PosHintX::Right(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x
-                            + parent_contents_area_size.x * pos_hint_x
-                            + (required_contents_size.x - self._ui_size.x);
+                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x;
                     }
                 }
 
@@ -1713,14 +1683,10 @@ impl<'a> UIComponentInstance<'a> {
                         self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
                     }
                     PosHintY::Center(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y
-                            + parent_contents_area_size.y * pos_hint_y
-                            + (required_contents_size.y - self._ui_size.y) * 0.5;
+                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y * 0.5;
                     }
                     PosHintY::Bottom(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y
-                            + parent_contents_area_size.y * pos_hint_y
-                            + (required_contents_size.y - self._ui_size.y);
+                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y;
                     }
                 }
             }
@@ -1763,7 +1729,7 @@ impl<'a> UIComponentInstance<'a> {
         self._render_area.z = self._ui_area.z - scaled_margin_right;
         self._render_area.w = self._ui_area.w - scaled_margin_bottom;
 
-        let renderable_area_border = 0f32.max(border - 2.0 * dpi_scale);
+        let renderable_area_border = 0f32.max(border - 2.0 * component_dpi_scale);
         self._renderable_area_border = renderable_area_border;
         self._renderable_area_round = parent_round;
         self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x + renderable_area_border);
@@ -2488,7 +2454,7 @@ impl<'a> UIWorldAxis<'a> {
     ) -> UIWorldAxis<'a> {
         let widget_axis_x = UIManager::create_widget("ui_axis_x", UIWidgetTypes::Default);
         let ui_component_axis_x = ptr_as_mut(widget_axis_x.as_ref()).get_ui_component_mut();
-        ui_component_axis_x.set_enable_dpi_scale(false); // position is set in pixel coords via update_world_axis
+        ui_component_axis_x.set_enable_dpi_scale(false);
         ui_component_axis_x.set_text("X");
         ui_component_axis_x.set_size(10.0, 10.0);
         ui_component_axis_x.set_font_size(20.0);
@@ -2500,7 +2466,7 @@ impl<'a> UIWorldAxis<'a> {
 
         let widget_axis_y = UIManager::create_widget("ui_axis_y", UIWidgetTypes::Default);
         let ui_component_axis_y = ptr_as_mut(widget_axis_y.as_ref()).get_ui_component_mut();
-        ui_component_axis_y.set_enable_dpi_scale(false); // position is set in pixel coords via update_world_axis
+        ui_component_axis_y.set_enable_dpi_scale(false);
         ui_component_axis_y.set_text("Y");
         ui_component_axis_y.set_size(10.0, 10.0);
         ui_component_axis_y.set_font_size(20.0);
@@ -2512,7 +2478,7 @@ impl<'a> UIWorldAxis<'a> {
 
         let widget_axis_z = UIManager::create_widget("ui_axis_z", UIWidgetTypes::Default);
         let ui_component_axis_z = ptr_as_mut(widget_axis_z.as_ref()).get_ui_component_mut();
-        ui_component_axis_z.set_enable_dpi_scale(false); // position is set in pixel coords via update_world_axis
+        ui_component_axis_z.set_enable_dpi_scale(false);
         ui_component_axis_z.set_text("Z");
         ui_component_axis_z.set_size(10.0, 10.0);
         ui_component_axis_z.set_font_size(20.0);
