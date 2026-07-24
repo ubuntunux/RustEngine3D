@@ -1188,7 +1188,6 @@ impl<'a> UIComponentInstance<'a> {
         if expandable != self._ui_component_data._expandable_x {
             self._ui_component_data._expandable_x = expandable;
             self._changed_layout = true;
-            // log::info!("{:?} set_expandable_x", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_expandable_y(&self) -> bool {
@@ -1198,7 +1197,6 @@ impl<'a> UIComponentInstance<'a> {
         if expandable != self._ui_component_data._expandable_y {
             self._ui_component_data._expandable_y = expandable;
             self._changed_layout = true;
-            // log::info!("{:?} set_expandable_y", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_resizable(&self) -> (bool, bool) {
@@ -1218,7 +1216,6 @@ impl<'a> UIComponentInstance<'a> {
         if resizable != self._ui_component_data._resizable_x {
             self._ui_component_data._resizable_x = resizable;
             self._changed_layout = true;
-            // log::info!("{:?} set_resizable_x", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn get_resizable_y(&self) -> bool {
@@ -1228,7 +1225,6 @@ impl<'a> UIComponentInstance<'a> {
         if resizable != self._ui_component_data._resizable_y {
             self._ui_component_data._resizable_y = resizable;
             self._changed_layout = true;
-            // log::info!("{:?} set_resizable_y", self.get_owner_widget().get_ui_widget_name());
         }
     }
     pub fn add_ui_component(&mut self, child_ptr: *const UIComponentInstance<'a>) {
@@ -1262,7 +1258,6 @@ impl<'a> UIComponentInstance<'a> {
             self._text = String::from(text);
             self._changed_text = true;
             self.set_changed_layout(true);
-            // log::info!("set_text");
         }
     }
 
@@ -1275,8 +1270,7 @@ impl<'a> UIComponentInstance<'a> {
             let mut column_count: usize = 0;
             let mut row_count: usize = 0;
             let mut max_column_count: usize = 0;
-            for c in self._text.as_bytes().iter() {
-                let ch = (*c) as char;
+            for ch in self._text.chars() {
                 if '\n' == ch {
                     self._text_counts.push(column_count);
                     max_column_count = max_column_count.max(column_count);
@@ -1295,10 +1289,11 @@ impl<'a> UIComponentInstance<'a> {
             max_column_count = max_column_count.max(column_count);
             row_count += 1;
 
-            return Vector2::new(
+            let text_size = Vector2::new(
                 max_column_count as f32 * font_size.x * UI_RENDER_FONT_PADDING_RATIO,
                 row_count as f32 * font_size.y * UI_RENDER_FONT_PADDING_RATIO,
             );
+            return text_size;
         }
         Vector2::zeros()
     }
@@ -1357,8 +1352,7 @@ impl<'a> UIComponentInstance<'a> {
         };
 
         let mut ui_render_area: Vector4<f32> = Vector4::zeros();
-        for c in self._text.as_bytes().iter() {
-            let ch = (*c) as char;
+        for ch in self._text.chars() {
             if '\n' == ch {
                 column = 0;
                 row += 1;
@@ -1373,7 +1367,7 @@ impl<'a> UIComponentInstance<'a> {
             } else if ' ' == ch {
                 column += 1;
             } else {
-                let index: u32 = 0i32.max((*c) as i32 - font_data._range_min as i32) as u32;
+                let index: u32 = 0i32.max(ch as i32 - font_data._range_min as i32) as u32;
                 let texcoord_x = (index % count_of_side) as f32 * inv_count_of_side;
                 let texcoord_y = (index / count_of_side) as f32 * inv_count_of_side;
 
@@ -1573,10 +1567,8 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             // update contents area
-            if self._changed_text {
-                self._text_contents_size = self.compute_text_contents_size(font_data, dpi_scale);
-                self._changed_text = false;
-            }
+            self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
+            self._changed_text = false;
 
             // expandable
             if self.get_expandable_x() {
