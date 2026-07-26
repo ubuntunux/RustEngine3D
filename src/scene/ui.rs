@@ -753,7 +753,7 @@ impl<'a> UIComponentInstance<'a> {
             self.set_changed_layout(true);
         }
     }
-    pub fn set_pivot_vec(&mut self, pivot: Vector2<f32>) {
+    pub fn set_pivot_preset(&mut self, pivot: Vector2<f32>) {
         self.set_pivot(pivot.x, pivot.y);
     }
     pub fn get_ui_area(&self) -> &Vector4<f32> {
@@ -2465,7 +2465,7 @@ impl<'a> UIWorldAxis<'a> {
         ui_component_axis_x.set_font_color(get_color32(255, 0, 0, 255));
         ui_component_axis_x.set_halign(HorizontalAlign::CENTER);
         ui_component_axis_x.set_valign(VerticalAlign::CENTER);
-        ui_component_axis_x.set_pivot_vec(PIVOT_CENTER);
+        ui_component_axis_x.set_pivot_preset(PIVOT_CENTER);
         root_widget.add_widget(&widget_axis_x);
 
         let widget_axis_y = UIManager::create_widget("ui_axis_y", UIWidgetTypes::Default);
@@ -2478,7 +2478,7 @@ impl<'a> UIWorldAxis<'a> {
         ui_component_axis_y.set_font_color(get_color32(0, 255, 0, 255));
         ui_component_axis_y.set_halign(HorizontalAlign::CENTER);
         ui_component_axis_y.set_valign(VerticalAlign::CENTER);
-        ui_component_axis_y.set_pivot_vec(PIVOT_CENTER);
+        ui_component_axis_y.set_pivot_preset(PIVOT_CENTER);
         root_widget.add_widget(&widget_axis_y);
 
         let widget_axis_z = UIManager::create_widget("ui_axis_z", UIWidgetTypes::Default);
@@ -2491,7 +2491,7 @@ impl<'a> UIWorldAxis<'a> {
         ui_component_axis_z.set_font_color(get_color32(0, 0, 255, 255));
         ui_component_axis_z.set_halign(HorizontalAlign::CENTER);
         ui_component_axis_z.set_valign(VerticalAlign::CENTER);
-        ui_component_axis_z.set_pivot_vec(PIVOT_CENTER);
+        ui_component_axis_z.set_pivot_preset(PIVOT_CENTER);
         root_widget.add_widget(&widget_axis_z);
 
         UIWorldAxis {
