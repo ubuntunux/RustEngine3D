@@ -61,15 +61,15 @@ pub const DEFAULT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 // |--ui-size----------------------------------------------------------------------------|
 // |--margin--|--border--|--padding--|--contents-size--|--padding--|--border--|--margin--|
 //            |--render-size--------------------------------------------------|
-pub const PIVOT_TOP_LEFT: Vector2<f32>      = Vector2::new(0.0, 0.0);
-pub const PIVOT_TOP_CENTER: Vector2<f32>    = Vector2::new(0.5, 0.0);
-pub const PIVOT_TOP_RIGHT: Vector2<f32>     = Vector2::new(1.0, 0.0);
-pub const PIVOT_CENTER_LEFT: Vector2<f32>   = Vector2::new(0.0, 0.5);
-pub const PIVOT_CENTER: Vector2<f32>        = Vector2::new(0.5, 0.5);
-pub const PIVOT_CENTER_RIGHT: Vector2<f32>  = Vector2::new(1.0, 0.5);
-pub const PIVOT_BOTTOM_LEFT: Vector2<f32>   = Vector2::new(0.0, 1.0);
+pub const PIVOT_TOP_LEFT: Vector2<f32> = Vector2::new(0.0, 0.0);
+pub const PIVOT_TOP_CENTER: Vector2<f32> = Vector2::new(0.5, 0.0);
+pub const PIVOT_TOP_RIGHT: Vector2<f32> = Vector2::new(1.0, 0.0);
+pub const PIVOT_CENTER_LEFT: Vector2<f32> = Vector2::new(0.0, 0.5);
+pub const PIVOT_CENTER: Vector2<f32> = Vector2::new(0.5, 0.5);
+pub const PIVOT_CENTER_RIGHT: Vector2<f32> = Vector2::new(1.0, 0.5);
+pub const PIVOT_BOTTOM_LEFT: Vector2<f32> = Vector2::new(0.0, 1.0);
 pub const PIVOT_BOTTOM_CENTER: Vector2<f32> = Vector2::new(0.5, 1.0);
-pub const PIVOT_BOTTOM_RIGHT: Vector2<f32>  = Vector2::new(1.0, 1.0);
+pub const PIVOT_BOTTOM_RIGHT: Vector2<f32> = Vector2::new(1.0, 1.0);
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -1659,13 +1659,21 @@ impl<'a> UIComponentInstance<'a> {
             UILayoutType::FloatLayout => {
                 let base_x = match self.get_pos_hint_x() {
                     None => parent_contents_area.x + self.get_pos_x() * component_dpi_scale,
-                    Some(ratio) => parent_contents_area.x + parent_contents_area_size.x * ratio + self.get_pos_x() * component_dpi_scale,
+                    Some(ratio) => {
+                        parent_contents_area.x
+                            + parent_contents_area_size.x * ratio
+                            + self.get_pos_x() * component_dpi_scale
+                    }
                 };
                 self._ui_area.x = base_x - self._ui_size.x * self._ui_component_data._pivot.x;
 
                 let base_y = match self.get_pos_hint_y() {
                     None => parent_contents_area.y + self.get_pos_y() * component_dpi_scale,
-                    Some(ratio) => parent_contents_area.y + parent_contents_area_size.y * ratio + self.get_pos_y() * component_dpi_scale,
+                    Some(ratio) => {
+                        parent_contents_area.y
+                            + parent_contents_area_size.y * ratio
+                            + self.get_pos_y() * component_dpi_scale
+                    }
                 };
                 self._ui_area.y = base_y - self._ui_size.y * self._ui_component_data._pivot.y;
             }
