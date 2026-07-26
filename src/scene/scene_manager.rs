@@ -571,8 +571,7 @@ impl<'a> SceneManager<'a> {
                     custom_collision_type,
                 ));
 
-                self._static_render_object_map
-                    .insert(new_instancing_object_id, new_instancing_render_object.clone());
+                self._static_render_object_map.insert(new_instancing_object_id, new_instancing_render_object.clone());
 
                 self._static_render_object_instancing_map.insert(instance_key, new_instancing_render_object.clone());
 
@@ -1358,8 +1357,7 @@ impl<'a> SceneManager<'a> {
 
             if capture_height_map_fot_static_mesh {
                 let dead_zone = self.get_dead_zone_height();
-                self._capture_height_map
-                    .update_capture_height_map(height_map_bounding_box_for_static_mesh, dead_zone);
+                self._capture_height_map.update_capture_height_map(height_map_bounding_box_for_static_mesh, dead_zone);
                 if self._capture_height_map.need_to_render_height_map() == false {
                     self._capture_height_map.set_capture_height_map_complete();
                 }

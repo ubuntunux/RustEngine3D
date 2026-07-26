@@ -525,7 +525,11 @@ impl<'a> UIComponentInstance<'a> {
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self.get_touchable() || self.get_draggable() {
             let mut touched: bool = true;
-            let component_dpi_scale = if self._enable_dpi_scale { get_global_dpi_scale() } else { 1.0 };
+            let component_dpi_scale = if self._enable_dpi_scale {
+                get_global_dpi_scale()
+            } else {
+                1.0
+            };
             let ref_touched_pos = touched_pos / component_dpi_scale;
             let ref_touched_pos_delta = touched_pos_delta / component_dpi_scale;
 
@@ -549,7 +553,11 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             if self._callback_touch_down.is_some() {
-                touched = self._callback_touch_down.as_ref().unwrap()(ptr_as_mut(self), &ref_touched_pos, &ref_touched_pos_delta);
+                touched = self._callback_touch_down.as_ref().unwrap()(
+                    ptr_as_mut(self),
+                    &ref_touched_pos,
+                    &ref_touched_pos_delta,
+                );
             }
 
             self.set_touched(touched);
@@ -558,7 +566,11 @@ impl<'a> UIComponentInstance<'a> {
     pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             if self.get_touchable() || self.get_draggable() {
-                let component_dpi_scale = if self._enable_dpi_scale { get_global_dpi_scale() } else { 1.0 };
+                let component_dpi_scale = if self._enable_dpi_scale {
+                    get_global_dpi_scale()
+                } else {
+                    1.0
+                };
                 let ref_touched_pos = touched_pos / component_dpi_scale;
                 let ref_touched_pos_delta = touched_pos_delta / component_dpi_scale;
 
@@ -605,7 +617,11 @@ impl<'a> UIComponentInstance<'a> {
     pub fn on_touch_up(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self._touched {
             if self.get_touchable() || self.get_draggable() {
-                let component_dpi_scale = if self._enable_dpi_scale { get_global_dpi_scale() } else { 1.0 };
+                let component_dpi_scale = if self._enable_dpi_scale {
+                    get_global_dpi_scale()
+                } else {
+                    1.0
+                };
                 let ref_touched_pos = touched_pos / component_dpi_scale;
                 let ref_touched_pos_delta = touched_pos_delta / component_dpi_scale;
                 self._touch_corner_flags = UICornerFlags::NONE;
@@ -628,7 +644,11 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn on_touch_over(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self.get_touchable() || self.get_draggable() {
-            let component_dpi_scale = if self._enable_dpi_scale { get_global_dpi_scale() } else { 1.0 };
+            let component_dpi_scale = if self._enable_dpi_scale {
+                get_global_dpi_scale()
+            } else {
+                1.0
+            };
             let ref_touched_pos = touched_pos / component_dpi_scale;
             let ref_touched_pos_delta = touched_pos_delta / component_dpi_scale;
             if let Some(callback) = &self._callback_touch_over {
@@ -640,7 +660,11 @@ impl<'a> UIComponentInstance<'a> {
     }
     pub fn on_touch_out(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
         if self.get_touchable() || self.get_draggable() {
-            let component_dpi_scale = if self._enable_dpi_scale { get_global_dpi_scale() } else { 1.0 };
+            let component_dpi_scale = if self._enable_dpi_scale {
+                get_global_dpi_scale()
+            } else {
+                1.0
+            };
             let ref_touched_pos = touched_pos / component_dpi_scale;
             let ref_touched_pos_delta = touched_pos_delta / component_dpi_scale;
             if let Some(callback) = &self._callback_touch_out {
@@ -1660,10 +1684,12 @@ impl<'a> UIComponentInstance<'a> {
                         self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
                     }
                     PosHintX::Center(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x * 0.5;
+                        self._ui_area.x =
+                            parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x * 0.5;
                     }
                     PosHintX::Right(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x;
+                        self._ui_area.x =
+                            parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x;
                     }
                 }
 
@@ -1675,10 +1701,12 @@ impl<'a> UIComponentInstance<'a> {
                         self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
                     }
                     PosHintY::Center(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y * 0.5;
+                        self._ui_area.y =
+                            parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y * 0.5;
                     }
                     PosHintY::Bottom(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y;
+                        self._ui_area.y =
+                            parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y;
                     }
                 }
             }
@@ -1744,7 +1772,13 @@ impl<'a> UIComponentInstance<'a> {
         self._changed_render_data = true;
     }
 
-    fn recursive_update_layout(&mut self, mut inherit_changed_layout: bool, update_depth: u32, font_data: &FontData, dpi_scale: f32) {
+    fn recursive_update_layout(
+        &mut self,
+        mut inherit_changed_layout: bool,
+        update_depth: u32,
+        font_data: &FontData,
+        dpi_scale: f32,
+    ) {
         if self._enable == false {
             return;
         }
@@ -1820,7 +1854,12 @@ impl<'a> UIComponentInstance<'a> {
 
             // recursive update_layout
             for child in self._children.iter() {
-                ptr_as_mut(*child).recursive_update_layout(inherit_changed_layout, update_depth + 1, font_data, dpi_scale);
+                ptr_as_mut(*child).recursive_update_layout(
+                    inherit_changed_layout,
+                    update_depth + 1,
+                    font_data,
+                    dpi_scale,
+                );
             }
         }
 
@@ -2323,7 +2362,7 @@ impl<'a> UIManager<'a> {
         _engine_resources: &EngineResources<'a>,
     ) {
         // update world axis
-        let main_camera = engine_core.get_scene_manager().get_main_camera();    
+        let main_camera = engine_core.get_scene_manager().get_main_camera();
         let debug_line_manager = engine_core.get_debug_line_manager_mut();
         self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera, debug_line_manager);
 
@@ -2400,7 +2439,12 @@ impl<'a> UIManager<'a> {
                 self._dpi_scale,
             );
 
-            root_ui_component.recursive_update_layout(inherit_changed_layout, update_depth, &self._font_data.borrow(), self._dpi_scale);
+            root_ui_component.recursive_update_layout(
+                inherit_changed_layout,
+                update_depth,
+                &self._font_data.borrow(),
+                self._dpi_scale,
+            );
         }
 
         // collect_ui_render_data

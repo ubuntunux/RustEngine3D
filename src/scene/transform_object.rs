@@ -1,8 +1,8 @@
+use crate::utilities::math;
+use crate::utilities::system::ptr_as_ref;
 use nalgebra::{Matrix4, Quaternion, Vector3};
 use nalgebra_glm as glm;
 use serde::{Deserialize, Serialize};
-use crate::utilities::math;
-use crate::utilities::system::ptr_as_ref;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 #[serde(default)]
@@ -238,17 +238,10 @@ impl TransformObjectData {
                     math::make_rotation_matrix(self._rotation.x, self._rotation.y, self._rotation.z);
             }
 
-            self._matrix = math::combinate_matrix(
-                &self._position,
-                &self._rotation_matrix,
-                &self._scale,
-            );
+            self._matrix = math::combinate_matrix(&self._position, &self._rotation_matrix, &self._scale);
 
-            self._inverse_matrix = math::inverse_transform_matrix(
-                &self._position,
-                &self._rotation_matrix,
-                &self._scale,
-            );
+            self._inverse_matrix =
+                math::inverse_transform_matrix(&self._position, &self._rotation_matrix, &self._scale);
 
             self._prev_position.clone_from(&self._position);
             self._prev_rotation.clone_from(&self._rotation);

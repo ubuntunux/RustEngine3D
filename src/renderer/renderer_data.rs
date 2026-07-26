@@ -147,8 +147,7 @@ impl<'a> RendererData<'a> {
 
         self.create_render_targets(renderer_context_ref);
 
-        self.get_fft_ocean_mut()
-            .register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
+        self.get_fft_ocean_mut().register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
     }
 
     pub fn prepare_framebuffer_and_descriptors(
@@ -803,9 +802,8 @@ impl<'a> RendererData<'a> {
         capture_height_map: &CaptureHeightMap<'a>,
         static_render_elements: &Vec<RenderElementData>,
     ) {
-        let material_instance_data = engine_resources
-            .get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere")
-            .borrow();
+        let material_instance_data =
+            engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data =
             material_instance_data.get_pipeline_binding_data("render_atmosphere/default");
         let composite_atmosphere_pipeline_binding_data =

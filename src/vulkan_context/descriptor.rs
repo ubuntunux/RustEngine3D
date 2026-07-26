@@ -284,9 +284,7 @@ pub fn destroy_descriptor_sets(
     log::trace!("    destroyDescriptorSet: {:?}", descriptor_sets);
     // need VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT flag for vkFreeDescriptorSets
     unsafe {
-        device
-            .free_descriptor_sets(descriptor_pool, &descriptor_sets)
-            .expect("failed to free_descriptor_sets");
+        device.free_descriptor_sets(descriptor_pool, &descriptor_sets).expect("failed to free_descriptor_sets");
     }
 }
 

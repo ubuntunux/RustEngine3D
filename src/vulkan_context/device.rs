@@ -46,9 +46,8 @@ pub fn get_extension_names(extension_type: &str, available_extensions: &Vec<vk::
 
 pub fn get_instance_extension_supports(entry: &Entry) -> Vec<CString> {
     unsafe {
-        let available_instance_extensions: Vec<vk::ExtensionProperties> = entry
-            .enumerate_instance_extension_properties(None)
-            .expect("vkEnumerateInstanceExtensionProperties error");
+        let available_instance_extensions: Vec<vk::ExtensionProperties> =
+            entry.enumerate_instance_extension_properties(None).expect("vkEnumerateInstanceExtensionProperties error");
         get_extension_names(&"Instance", &available_instance_extensions)
     }
 }
@@ -103,10 +102,8 @@ pub unsafe fn get_instance_layers(entry: &Entry, required_instance_layers: &Vec<
     }
 
     log::info!("required layers:");
-    let required_layer_names: Vec<CString> = required_instance_layers
-        .iter()
-        .map(|layer_name| CString::new(layer_name.as_str()).unwrap())
-        .collect();
+    let required_layer_names: Vec<CString> =
+        required_instance_layers.iter().map(|layer_name| CString::new(layer_name.as_str()).unwrap()).collect();
     let mut required_instance_layers: Vec<CString> = Vec::new();
     for required_layer in required_layer_names.iter() {
         let mut found: bool = false;

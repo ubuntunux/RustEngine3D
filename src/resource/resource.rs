@@ -411,8 +411,7 @@ impl<'a> EngineResources<'a> {
             if self._relative_resource_file_path_map.get(&relative_resource_file_path).is_none()
                 || false == is_engine_resource
             {
-                self._relative_resource_file_path_map
-                    .insert(relative_resource_file_path.clone(), resource_file_path);
+                self._relative_resource_file_path_map.insert(relative_resource_file_path.clone(), resource_file_path);
             }
         }
     }
@@ -1823,8 +1822,7 @@ impl<'a> EngineResources<'a> {
             let loaded_contents = system::load(&scene_data_file);
             let scene_data_create_info: SceneDataCreateInfo =
                 serde_json::from_reader(loaded_contents).expect("Failed to deserialize.");
-            self._scene_data_create_infos_map
-                .insert(scene_data_name.clone(), newRcRefCell(scene_data_create_info));
+            self._scene_data_create_infos_map.insert(scene_data_name.clone(), newRcRefCell(scene_data_create_info));
         }
     }
 

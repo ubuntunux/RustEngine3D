@@ -123,13 +123,8 @@ pub fn parse_list<T: std::str::FromStr + std::fmt::Debug>(data_list: &str) -> Ve
 }
 
 pub fn parse_vector_list<T: std::str::FromStr + Clone>(data_list: &str, component_count: usize) -> Vec<Vec<T>> {
-    let data_list: Vec<Result<T, T::Err>> = data_list
-        .replace("[", "")
-        .replace("]", "")
-        .trim()
-        .split(" ")
-        .map(|data| data.trim().parse::<T>())
-        .collect();
+    let data_list: Vec<Result<T, T::Err>> =
+        data_list.replace("[", "").replace("]", "").trim().split(" ").map(|data| data.trim().parse::<T>()).collect();
     let mut values: Vec<Vec<T>> = Vec::new();
     let len = data_list.len() / component_count;
     for i in 0..len {

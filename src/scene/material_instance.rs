@@ -75,11 +75,8 @@ impl<'a> MaterialInstanceData<'a> {
         let mut pipeline_binding_data_map = PipelineBindingDataMap::new();
         let mut default_pipeline_binding_name = String::new();
         for pipeline_bind_create_info in pipeline_bind_create_infos {
-            let render_pass_name = &pipeline_bind_create_info
-                ._render_pass_pipeline_data
-                ._render_pass_data
-                .borrow()
-                ._render_pass_data_name;
+            let render_pass_name =
+                &pipeline_bind_create_info._render_pass_pipeline_data._render_pass_data.borrow()._render_pass_data_name;
             let pipeline_name =
                 &pipeline_bind_create_info._render_pass_pipeline_data._pipeline_data.borrow()._pipeline_data_name;
             let render_pass_pipeline_data_name = get_render_pass_pipeline_data_name(render_pass_name, pipeline_name);

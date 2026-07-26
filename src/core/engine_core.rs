@@ -275,9 +275,7 @@ impl<'a> EngineCore<'a> {
             .get_renderer_context_mut()
             .initialize_renderer_context(engine_core.get_engine_resources(), engine_core.get_effect_manager());
         engine_core.get_engine_resources_mut().load_engine_resources(engine_core.get_renderer_context());
-        engine_core
-            .get_debug_line_manager_mut()
-            .initialize_debug_line_manager(engine_core.get_renderer_context());
+        engine_core.get_debug_line_manager_mut().initialize_debug_line_manager(engine_core.get_renderer_context());
         engine_core
             .get_font_manager_mut()
             .initialize_font_manager(engine_core.get_renderer_context(), engine_core.get_engine_resources());

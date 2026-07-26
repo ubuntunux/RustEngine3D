@@ -542,10 +542,7 @@ impl<'a> RendererContext<'a> {
         device::destroy_vk_surface(&self._surface_instance, self._surface);
         unsafe {
             if self._debug_utils_instance.is_some() {
-                self._debug_utils_instance
-                    .as_ref()
-                    .unwrap()
-                    .destroy_debug_utils_messenger(self._debug_call_back, None);
+                self._debug_utils_instance.as_ref().unwrap().destroy_debug_utils_messenger(self._debug_call_back, None);
             }
         }
         device::destroy_vk_instance(&self._instance);
@@ -738,16 +735,15 @@ impl<'a> RendererContext<'a> {
         let engine_resources = self.get_engine_resources();
         let framebuffer_data: *const FramebufferData = match custom_framebuffer {
             Some(custom_framebuffer) => custom_framebuffer,
-            None => engine_resources
-                .get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str())
-                .as_ptr(),
+            None => {
+                engine_resources.get_framebuffer_data(render_pass_data.get_render_pass_data_name().as_str()).as_ptr()
+            }
         };
         unsafe {
             let render_pass_begin_info = (&(*framebuffer_data))._render_pass_begin_infos[swapchain_index as usize];
             let pipeline_bind_point = pipeline_data._pipeline_bind_point;
             let pipeline_dynamic_states = &pipeline_data._pipeline_dynamic_states;
-            self._device
-                .cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
+            self._device.cmd_begin_render_pass(command_buffer, &render_pass_begin_info, vk::SubpassContents::INLINE);
 
             if pipeline_dynamic_states.contains(&vk::DynamicState::VIEWPORT) {
                 self._device.cmd_set_viewport(
@@ -917,8 +913,7 @@ impl<'a> RendererContext<'a> {
             const FIRST_INSTANCE: u32 = 0;
             const VERTEX_BUFFER_BINDING_INDEX: u32 = 0;
             const INSTANCE_BUFFER_BINDING_INDEX: u32 = 1;
-            self._device
-                .cmd_bind_vertex_buffers(command_buffer, VERTEX_BUFFER_BINDING_INDEX, vertex_buffers, offsets);
+            self._device.cmd_bind_vertex_buffers(command_buffer, VERTEX_BUFFER_BINDING_INDEX, vertex_buffers, offsets);
             if false == instance_buffers.is_empty() {
                 self._device.cmd_bind_vertex_buffers(
                     command_buffer,
@@ -1029,11 +1024,7 @@ impl<'a> RendererContext<'a> {
                     "vkQueueSubmit",
                 );
                 self._device
-                    .queue_submit(
-                        self._queue_family_data_list._graphics_queue,
-                        &[submit_info],
-                        fence,
-                    )
+                    .queue_submit(self._queue_family_data_list._graphics_queue, &[submit_info], fence)
                     .expect("vkQueueSubmit failed!");
             }
 
@@ -1206,9 +1197,7 @@ impl<'a> RendererContext<'a> {
             let render_finished_semaphore = self._render_finished_semaphores[frame_index];
 
             // Wait for GPU to finish previous frame using this frame_fence
-            self._device
-                .wait_for_fences(&[frame_fence], true, u64::MAX)
-                .expect("vkWaitForFences failed!");
+            self._device.wait_for_fences(&[frame_fence], true, u64::MAX).expect("vkWaitForFences failed!");
 
             // Begin Render
             let acquire_next_image_result: VkResult<(u32, bool)> = self._swapchain_device.acquire_next_image(

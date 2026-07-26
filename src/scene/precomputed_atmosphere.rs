@@ -1208,9 +1208,8 @@ impl<'a> Atmosphere<'a> {
     ) {
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
-        let material_instance = engine_resources
-            .get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere")
-            .borrow();
+        let material_instance =
+            engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
 
         // render precomputed atmosphere
         self._render_context_precomputed_atmosphere.initialize(

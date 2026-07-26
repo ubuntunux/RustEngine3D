@@ -327,8 +327,7 @@ impl<'a> RenderContext_Bloom<'a> {
         for framebuffer_data in self._bloom_downsample_framebuffer_data_list.iter() {
             self._bloom_blur_framebuffer_data_list.push(framebuffer_data);
         }
-        self._bloom_blur_descriptor_sets
-            .push(&render_bloom_highlight_pipeline_binding_data._descriptor_sets);
+        self._bloom_blur_descriptor_sets.push(&render_bloom_highlight_pipeline_binding_data._descriptor_sets);
         for descriptor_set in self._bloom_downsample_descriptor_sets.iter() {
             self._bloom_blur_descriptor_sets.push(descriptor_set);
         }
@@ -697,9 +696,8 @@ impl<'a> RenderContext_LightProbe<'a> {
         light_probe_atmosphere_inscatter: &TextureData,
         light_probe_view_constants: &[&ShaderBufferData],
     ) {
-        let material_instance = engine_resources
-            .get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere")
-            .borrow();
+        let material_instance =
+            engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
         let texture_depth = DescriptorResourceInfo::DescriptorImageInfo(
             engine_resources.get_texture_data("common/flat_black").borrow().get_default_image_info().clone(),
         );
@@ -976,13 +974,12 @@ impl<'a> RenderContext_LightProbe<'a> {
                         &light_probe_blend_from_only_sky_descriptor_resource_infos,
                     ),
                 );
-                self._light_probe_blend_from_forward_descriptor_sets
-                    .push(utility::create_descriptor_sets_by_semantic(
-                        device,
-                        debug_utils_device,
-                        blend_cube_map_pipeline_binding_data,
-                        &light_probe_blend_from_forward_descriptor_resource_infos,
-                    ));
+                self._light_probe_blend_from_forward_descriptor_sets.push(utility::create_descriptor_sets_by_semantic(
+                    device,
+                    debug_utils_device,
+                    blend_cube_map_pipeline_binding_data,
+                    &light_probe_blend_from_forward_descriptor_resource_infos,
+                ));
             }
         }
     }

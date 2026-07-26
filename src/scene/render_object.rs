@@ -1,5 +1,7 @@
 use crate::renderer::push_constants::PushConstantParameter;
-use crate::scene::animation::{AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo, AnimationPlayInfoSaveData};
+use crate::scene::animation::{
+    AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo, AnimationPlayInfoSaveData,
+};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
 use crate::scene::mesh::MeshData;
@@ -54,7 +56,7 @@ impl Default for RenderObjectCreateInfo {
     }
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, Default )]
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
 #[serde(default)]
 pub struct RenderObjectSaveData {
     pub _render_object_name: String,

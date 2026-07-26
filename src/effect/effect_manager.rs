@@ -413,9 +413,7 @@ impl<'a> EffectManager<'a> {
             if need_to_upload_static_constant_buffer {
                 let gpu_particle_static_constant =
                     &mut self._gpu_particle_static_constants[process_emitter_count as usize];
-                gpu_particle_static_constant
-                    ._spawn_volume_transform
-                    .clone_from(&emitter_data._spawn_volume_transform);
+                gpu_particle_static_constant._spawn_volume_transform.clone_from(&emitter_data._spawn_volume_transform);
                 gpu_particle_static_constant._spawn_volume_info.clone_from(&emitter_data._spawn_volume_info);
                 gpu_particle_static_constant._spawn_volume_type = emitter_data._spawn_volume_type as i32;
                 gpu_particle_static_constant._rotation_min.clone_from(&emitter_data._rotation_min);

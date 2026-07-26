@@ -172,9 +172,7 @@ pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
             flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
             ..Default::default()
         };
-        device
-            .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-            .expect("Begin commandbuffer");
+        device.begin_command_buffer(command_buffer, &command_buffer_begin_info).expect("Begin commandbuffer");
         func(device, command_buffer);
         device.end_command_buffer(command_buffer).expect("End commandbuffer");
         let submit_fence = device.create_fence(&vk::FenceCreateInfo::default(), None).expect("Create fence failed.");

@@ -63,9 +63,8 @@ pub fn get_shader_module_name(shader_filename: &PathBuf, shader_defines: &[Strin
 pub fn get_shader_file_path(shader_filename: &PathBuf) -> (bool, PathBuf) {
     let engine_shader_file_path: PathBuf =
         PathBuf::from(resource::ENGINE_RESOURCE_PATH).join(resource::SHADER_DIRECTORY).join(shader_filename);
-    let project_shader_file_path: PathBuf = PathBuf::from(resource::APPLICATION_RESOURCE_PATH)
-        .join(resource::SHADER_DIRECTORY)
-        .join(shader_filename);
+    let project_shader_file_path: PathBuf =
+        PathBuf::from(resource::APPLICATION_RESOURCE_PATH).join(resource::SHADER_DIRECTORY).join(shader_filename);
 
     if engine_shader_file_path.is_file() && false == project_shader_file_path.is_file() {
         (true, engine_shader_file_path)

@@ -186,9 +186,8 @@ pub fn create_swapchain_data(
     }
 
     unsafe {
-        let swapchain = swapchain_device
-            .create_swapchain(&swapchain_create_info, None)
-            .expect("vkCreateSwapchainKHR failed!");
+        let swapchain =
+            swapchain_device.create_swapchain(&swapchain_create_info, None).expect("vkCreateSwapchainKHR failed!");
         let swapchain_images: SwapchainArray<vk::Image> =
             swapchain_device.get_swapchain_images(swapchain).expect("vkGetSwapchainImagesKHR error!");
         for image in swapchain_images.iter() {
