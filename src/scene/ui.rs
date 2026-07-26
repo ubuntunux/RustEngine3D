@@ -61,22 +61,15 @@ pub const DEFAULT_VERTICAL_ALIGN: VerticalAlign = VerticalAlign::TOP;
 // |--ui-size----------------------------------------------------------------------------|
 // |--margin--|--border--|--padding--|--contents-size--|--padding--|--border--|--margin--|
 //            |--render-size--------------------------------------------------|
-
-#[derive(Copy, Clone, PartialEq)]
-pub enum PosHintX {
-    None,
-    Left(f32),
-    Center(f32),
-    Right(f32),
-}
-
-#[derive(Copy, Clone, PartialEq)]
-pub enum PosHintY {
-    None,
-    Top(f32),
-    Center(f32),
-    Bottom(f32),
-}
+pub const PIVOT_TOP_LEFT: Vector2<f32>      = Vector2::new(0.0, 0.0);
+pub const PIVOT_TOP_CENTER: Vector2<f32>    = Vector2::new(0.5, 0.0);
+pub const PIVOT_TOP_RIGHT: Vector2<f32>     = Vector2::new(1.0, 0.0);
+pub const PIVOT_CENTER_LEFT: Vector2<f32>   = Vector2::new(0.0, 0.5);
+pub const PIVOT_CENTER: Vector2<f32>        = Vector2::new(0.5, 0.5);
+pub const PIVOT_CENTER_RIGHT: Vector2<f32>  = Vector2::new(1.0, 0.5);
+pub const PIVOT_BOTTOM_LEFT: Vector2<f32>   = Vector2::new(0.0, 1.0);
+pub const PIVOT_BOTTOM_CENTER: Vector2<f32> = Vector2::new(0.5, 1.0);
+pub const PIVOT_BOTTOM_RIGHT: Vector2<f32>  = Vector2::new(1.0, 1.0);
 
 #[repr(C)]
 #[allow(non_camel_case_types)]
@@ -182,8 +175,9 @@ pub struct UIComponentData<'a> {
     pub _rotation: f32,
     pub _halign: HorizontalAlign,
     pub _valign: VerticalAlign,
-    pub _pos_hint_x: PosHintX,
-    pub _pos_hint_y: PosHintY,
+    pub _pos_hint_x: Option<f32>,
+    pub _pos_hint_y: Option<f32>,
+    pub _pivot: Vector2<f32>,
     pub _size_hint_x: Option<f32>,
     pub _size_hint_y: Option<f32>,
     pub _padding: Vector4<f32>,
@@ -394,8 +388,9 @@ impl<'a> Default for UIComponentData<'a> {
             _rotation: 0.0,
             _halign: DEFAULT_HORIZONTAL_ALIGN,
             _valign: DEFAULT_VERTICAL_ALIGN,
-            _pos_hint_x: PosHintX::None,
-            _pos_hint_y: PosHintY::None,
+            _pos_hint_x: None,
+            _pos_hint_y: None,
+            _pivot: Vector2::new(0.0, 0.0),
             _size_hint_x: None,
             _size_hint_y: None,
             _padding: Vector4::zeros(),
@@ -715,65 +710,51 @@ impl<'a> UIComponentInstance<'a> {
         self.set_pos_y(y);
     }
     pub fn set_pos_x(&mut self, x: f32) {
-        if x != self._ui_component_data._pos.x || self._ui_component_data._pos_hint_x != PosHintX::None {
-            self._ui_component_data._pos_hint_x = PosHintX::None;
+        if x != self._ui_component_data._pos.x {
             self._ui_component_data._pos.x = x;
             self.set_changed_layout(true);
         }
     }
     pub fn set_pos_y(&mut self, y: f32) {
-        if y != self._ui_component_data._pos.y || self._ui_component_data._pos_hint_y != PosHintY::None {
-            self._ui_component_data._pos_hint_y = PosHintY::None;
+        if y != self._ui_component_data._pos.y {
             self._ui_component_data._pos.y = y;
             self.set_changed_layout(true);
         }
     }
-    pub fn get_center_x(&self) -> f32 {
-        self._ui_component_data._pos.x + self._ui_component_data._size.x * 0.5
-    }
-    pub fn get_center_y(&self) -> f32 {
-        self._ui_component_data._pos.y + self._ui_component_data._size.y * 0.5
-    }
-    pub fn get_center(&self) -> Vector2<f32> {
-        Vector2::new(self.get_center_x(), self.get_center_y())
-    }
-    pub fn set_center(&mut self, x: f32, y: f32) {
-        self.set_center_x(x);
-        self.set_center_y(y);
-    }
-    pub fn set_center_x(&mut self, x: f32) {
-        let left_x = x - self._ui_component_data._size.x * 0.5;
-        if left_x != self._ui_component_data._pos.x || self._ui_component_data._pos_hint_x != PosHintX::None {
-            self._ui_component_data._pos_hint_x = PosHintX::None;
-            self._ui_component_data._pos.x = left_x;
-            self.set_changed_layout(true);
-        }
-    }
-    pub fn set_center_y(&mut self, y: f32) {
-        let top_y = y - self._ui_component_data._size.y * 0.5;
-        if top_y != self._ui_component_data._pos.y || self._ui_component_data._pos_hint_y != PosHintY::None {
-            self._ui_component_data._pos_hint_y = PosHintY::None;
-            self._ui_component_data._pos.y = top_y;
-            self.set_changed_layout(true);
-        }
-    }
-    pub fn get_pos_hint_x(&self) -> PosHintX {
+
+    pub fn get_pos_hint_x(&self) -> Option<f32> {
         self._ui_component_data._pos_hint_x
     }
-    pub fn get_pos_hint_y(&self) -> PosHintY {
+    pub fn get_pos_hint_y(&self) -> Option<f32> {
         self._ui_component_data._pos_hint_y
     }
-    pub fn set_pos_hint_x(&mut self, pos_hint_x: PosHintX) {
+    pub fn set_pos_hint_x(&mut self, pos_hint_x: Option<f32>) {
         if pos_hint_x != self._ui_component_data._pos_hint_x {
             self._ui_component_data._pos_hint_x = pos_hint_x;
             self.set_changed_layout(true);
         }
     }
-    pub fn set_pos_hint_y(&mut self, pos_hint_y: PosHintY) {
+    pub fn set_pos_hint_y(&mut self, pos_hint_y: Option<f32>) {
         if pos_hint_y != self._ui_component_data._pos_hint_y {
             self._ui_component_data._pos_hint_y = pos_hint_y;
             self.set_changed_layout(true);
         }
+    }
+    pub fn set_pos_hint(&mut self, pos_hint_x: Option<f32>, pos_hint_y: Option<f32>) {
+        self.set_pos_hint_x(pos_hint_x);
+        self.set_pos_hint_y(pos_hint_y);
+    }
+    pub fn get_ui_pivot(&self) -> Vector2<f32> {
+        self._ui_component_data._pivot
+    }
+    pub fn set_pivot(&mut self, x: f32, y: f32) {
+        if self._ui_component_data._pivot.x != x || self._ui_component_data._pivot.y != y {
+            self._ui_component_data._pivot = Vector2::new(x, y);
+            self.set_changed_layout(true);
+        }
+    }
+    pub fn set_pivot_vec(&mut self, pivot: Vector2<f32>) {
+        self.set_pivot(pivot.x, pivot.y);
     }
     pub fn get_ui_area(&self) -> &Vector4<f32> {
         &self._ui_area
@@ -1676,39 +1657,17 @@ impl<'a> UIComponentInstance<'a> {
 
         match parent_layout_type {
             UILayoutType::FloatLayout => {
-                match self.get_pos_hint_x() {
-                    PosHintX::None => {
-                        self._ui_area.x = parent_contents_area.x + self.get_pos_x() * component_dpi_scale;
-                    }
-                    PosHintX::Left(pos_hint_x) => {
-                        self._ui_area.x = parent_contents_area.x + parent_contents_area_size.x * pos_hint_x;
-                    }
-                    PosHintX::Center(pos_hint_x) => {
-                        self._ui_area.x =
-                            parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x * 0.5;
-                    }
-                    PosHintX::Right(pos_hint_x) => {
-                        self._ui_area.x =
-                            parent_contents_area.x + parent_contents_area_size.x * pos_hint_x - self._ui_size.x;
-                    }
-                }
+                let base_x = match self.get_pos_hint_x() {
+                    None => parent_contents_area.x + self.get_pos_x() * component_dpi_scale,
+                    Some(ratio) => parent_contents_area.x + parent_contents_area_size.x * ratio + self.get_pos_x() * component_dpi_scale,
+                };
+                self._ui_area.x = base_x - self._ui_size.x * self._ui_component_data._pivot.x;
 
-                match self.get_pos_hint_y() {
-                    PosHintY::None => {
-                        self._ui_area.y = parent_contents_area.y + self.get_pos_y() * component_dpi_scale;
-                    }
-                    PosHintY::Top(pos_hint_y) => {
-                        self._ui_area.y = parent_contents_area.y + parent_contents_area_size.y * pos_hint_y;
-                    }
-                    PosHintY::Center(pos_hint_y) => {
-                        self._ui_area.y =
-                            parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y * 0.5;
-                    }
-                    PosHintY::Bottom(pos_hint_y) => {
-                        self._ui_area.y =
-                            parent_contents_area.y + parent_contents_area_size.y * pos_hint_y - self._ui_size.y;
-                    }
-                }
+                let base_y = match self.get_pos_hint_y() {
+                    None => parent_contents_area.y + self.get_pos_y() * component_dpi_scale,
+                    Some(ratio) => parent_contents_area.y + parent_contents_area_size.y * ratio + self.get_pos_y() * component_dpi_scale,
+                };
+                self._ui_area.y = base_y - self._ui_size.y * self._ui_component_data._pivot.y;
             }
             UILayoutType::BoxLayout => match parent_layout_orientation {
                 Orientation::HORIZONTAL => {
@@ -2498,6 +2457,7 @@ impl<'a> UIWorldAxis<'a> {
         ui_component_axis_x.set_font_color(get_color32(255, 0, 0, 255));
         ui_component_axis_x.set_halign(HorizontalAlign::CENTER);
         ui_component_axis_x.set_valign(VerticalAlign::CENTER);
+        ui_component_axis_x.set_pivot_vec(PIVOT_CENTER);
         root_widget.add_widget(&widget_axis_x);
 
         let widget_axis_y = UIManager::create_widget("ui_axis_y", UIWidgetTypes::Default);
@@ -2510,6 +2470,7 @@ impl<'a> UIWorldAxis<'a> {
         ui_component_axis_y.set_font_color(get_color32(0, 255, 0, 255));
         ui_component_axis_y.set_halign(HorizontalAlign::CENTER);
         ui_component_axis_y.set_valign(VerticalAlign::CENTER);
+        ui_component_axis_y.set_pivot_vec(PIVOT_CENTER);
         root_widget.add_widget(&widget_axis_y);
 
         let widget_axis_z = UIManager::create_widget("ui_axis_z", UIWidgetTypes::Default);
@@ -2522,6 +2483,7 @@ impl<'a> UIWorldAxis<'a> {
         ui_component_axis_z.set_font_color(get_color32(0, 0, 255, 255));
         ui_component_axis_z.set_halign(HorizontalAlign::CENTER);
         ui_component_axis_z.set_valign(VerticalAlign::CENTER);
+        ui_component_axis_z.set_pivot_vec(PIVOT_CENTER);
         root_widget.add_widget(&widget_axis_z);
 
         UIWorldAxis {
@@ -2560,16 +2522,13 @@ impl<'a> UIWorldAxis<'a> {
         let axis_z: Vector2<f32> = Vector2::new(camera_right.z, -camera_up.z) * size;
 
         let ui_component_x = ptr_as_mut(self._widget_axis_x.as_ref()).get_ui_component_mut();
-        ui_component_x.set_center_x(start_pos_x + axis_x.x * 1.25);
-        ui_component_x.set_center_y(start_pos_y + axis_x.y * 1.25);
+        ui_component_x.set_pos(start_pos_x + axis_x.x * 1.25, start_pos_y + axis_x.y * 1.25);
 
         let ui_component_y = ptr_as_mut(self._widget_axis_y.as_ref()).get_ui_component_mut();
-        ui_component_y.set_center_x(start_pos_x + axis_y.x * 1.25);
-        ui_component_y.set_center_y(start_pos_y + axis_y.y * 1.25);
+        ui_component_y.set_pos(start_pos_x + axis_y.x * 1.25, start_pos_y + axis_y.y * 1.25);
 
         let ui_component_z = ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut();
-        ui_component_z.set_center_x(start_pos_x + axis_z.x * 1.25);
-        ui_component_z.set_center_y(start_pos_y + axis_z.y * 1.25);
+        ui_component_z.set_pos(start_pos_x + axis_z.x * 1.25, start_pos_y + axis_z.y * 1.25);
 
         // update debug line
         debug_line_manager.add_debug_line_2d(
