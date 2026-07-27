@@ -377,6 +377,10 @@ impl<'a> EffectInstance<'a> {
         }
     }
 
+    pub fn set_dead(&mut self) {
+        self._is_alive = false;
+    }
+
     pub fn update_effect(&mut self, delta_time: f32) {
         if self._update_first_time {
             self.play_effect();
@@ -456,17 +460,28 @@ impl<'a> EmitterInstance<'a> {
     }
 
     pub fn update_emitter(&mut self, delta_time: f32, updated_effect_transform: bool) {
+        let emitter_data = ptr_as_ref(self._emitter_data);
+
+        log::info!(">> update_emitter, is_infinite: {:?}, particle_life_time: {:?}, emitter_lifetime: {:?} elapesed_time: {:?}",
+            self.is_infinite_emitter(),
+            emitter_data._particle_lifetime_max,
+            emitter_data._emitter_lifetime,
+            self._elapsed_time
+        );
+
         if self._is_alive {
-            let emitter_data = ptr_as_ref(self._emitter_data);
+
 
             self._particle_spawn_count = 0;
 
             if self._ready_to_destroy {
+                log::info!(">>> dead");
                 self._is_alive = false;
             } else {
                 if false == self.is_infinite_emitter()
                     && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime) < self._elapsed_time
                 {
+                    log::info!(">>> ready_to_destroy");
                     self._ready_to_destroy = true;
                 } else {
                     let updated_emitter_transform = self._emitter_transform.update_transform_object();

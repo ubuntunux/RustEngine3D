@@ -14,6 +14,7 @@ use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 use crate::audio::audio_manager::AudioManager;
 use crate::constants;
 use crate::constants::DEVELOPMENT;
+use crate::core::engine_service_locator;
 use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
@@ -25,6 +26,7 @@ use crate::scene::scene_manager::SceneManager;
 use crate::scene::ui::UIManager;
 use crate::utilities::scope_profiler::TIME_PROFILER;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
+
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WindowMode {
@@ -271,6 +273,21 @@ impl<'a> EngineCore<'a> {
 
         // initialize managers
         let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
+
+        // register engine service locator
+        engine_service_locator::register_engine_service_locator(
+            engine_core,
+            engine_core.get_engine_resources(),
+            engine_core.get_audio_manager(),
+            engine_core.get_effect_manager(),
+            engine_core.get_scene_manager(),
+            engine_core.get_renderer_context().get_renderer_data(),
+            engine_core.get_renderer_context(),
+            engine_core.get_ui_manager(),
+            engine_core.get_font_manager(),
+            engine_core.get_debug_line_manager(),
+        );
+
         engine_core
             .get_renderer_context_mut()
             .initialize_renderer_context(engine_core.get_engine_resources(), engine_core.get_effect_manager());
@@ -306,7 +323,11 @@ impl<'a> EngineCore<'a> {
         self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
         self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
+
+        // clear engine service locator
+        engine_service_locator::clear_engine_service_locator();
     }
+
 
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;
@@ -433,7 +454,7 @@ impl<'a> EngineCore<'a> {
 
         // update timer
         let delta_time_scale: f64 = unsafe {
-            if DEVELOPMENT && self._keyboard_input_data.get_key_hold(KeyCode::CapsLock) {
+            if DEVELOPMENT && self._keyboard_input_data.get_key_hold(KeyCode::Tab) {
                 10.0
             } else {
                 1.0
