@@ -4,6 +4,7 @@ use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
+use crate::core::engine_service_locator::get_engine_resources;
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::bounding_box::BoundingBox;
 use crate::vulkan_context::buffer;
@@ -174,7 +175,7 @@ impl DebugLineManager {
         swapchain_index: u32,
         renderer_context: &RendererContext,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         // Test DebugLine
         // {
         //     let t = renderer_context._renderer_data._scene_constants._time;

@@ -6,6 +6,7 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::constants::{DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT};
+use crate::core::engine_service_locator::get_engine_resources_mut;
 use crate::resource::resource::ResourceData;
 use crate::utilities::system::{RcRefCell, newRcRefCell};
 
@@ -178,7 +179,7 @@ impl AudioManager {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>,
     ) -> Option<RcRefCell<AudioInstance>> {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
+        let engine_resources = get_engine_resources_mut();
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
             return self.play_audio_data(&audio_data, audio_loop, audio_volume);
         }
@@ -191,7 +192,7 @@ impl AudioManager {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>,
     ) -> Option<RcRefCell<AudioInstance>> {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
+        let engine_resources = get_engine_resources_mut();
         if let ResourceData::AudioBank(audio_bank_data) = engine_resources.get_audio_bank_data(audio_name_bank) {
             return self.play_audio_bank_data(audio_bank_data, audio_loop, audio_volume);
         }
@@ -231,7 +232,7 @@ impl AudioManager {
     }
 
     pub fn play_bgm(&mut self, audio_data_name: &str, audio_volume: Option<f32>) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
+        let engine_resources = get_engine_resources_mut();
         let audio_resource_data = engine_resources.get_audio_bank_data(audio_data_name);
         if let ResourceData::AudioBank(audio_bank_data) = audio_resource_data {
             self.stop_bgm();

@@ -17,6 +17,7 @@ use winit::window::Window;
 
 use crate::constants;
 use crate::core::engine_core::TimeData;
+use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::image_sampler::{self, ImageSamplerData};
 use crate::renderer::push_constants::PushConstant;
@@ -572,7 +573,7 @@ impl<'a> RendererContext<'a> {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&dyn PushConstant>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
@@ -628,7 +629,7 @@ impl<'a> RendererContext<'a> {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&dyn PushConstant>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
@@ -721,7 +722,7 @@ impl<'a> RendererContext<'a> {
         pipeline_data: &PipelineData,
         custom_framebuffer: Option<&FramebufferData>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let framebuffer_data: *const FramebufferData = match custom_framebuffer {
             Some(custom_framebuffer) => custom_framebuffer,
             None => {
@@ -943,13 +944,13 @@ impl<'a> RendererContext<'a> {
 
         // destroy swapchain & graphics engine_resources
         self.destroy_framebuffer_and_descriptors();
-        crate::core::engine_service_locator::get_engine_resources_mut().unload_graphics_data_list(render_context_ref);
+        get_engine_resources_mut().unload_graphics_data_list(render_context_ref);
         self.destroy_render_targets();
 
         // recreate swapchain & graphics engine_resources
         self.recreate_swapchain(window_width, window_height);
         self.create_render_targets();
-        crate::core::engine_service_locator::get_engine_resources_mut().load_graphics_data_list(render_context_ref);
+        get_engine_resources_mut().load_graphics_data_list(render_context_ref);
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);
     }

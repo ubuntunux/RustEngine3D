@@ -16,6 +16,7 @@ use crate::vulkan_context::render_pass::PipelineData;
 use ash::vk;
 use nalgebra::{Matrix4, Vector3, Vector4};
 use uuid::Uuid;
+use crate::core::engine_service_locator::get_engine_resources;
 
 // code coupling with effect_constants.glsl
 const GPU_PARTICLE_CONSTANT_FLAG_NONE: u32 = 0;
@@ -298,7 +299,7 @@ impl<'a> EffectManager<'a> {
         swapchain_index: u32,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let material_instance_data =
             &engine_resources.get_material_instance_data("effect/process_gpu_particle").borrow();
 
@@ -539,7 +540,7 @@ impl<'a> EffectManager<'a> {
 
             // compute gpu particle count
             let material_instance_data =
-                &crate::core::engine_service_locator::get_engine_resources().get_material_instance_data("effect/process_gpu_particle").borrow();
+                &get_engine_resources().get_material_instance_data("effect/process_gpu_particle").borrow();
             let pipeline_binding_data: &PipelineBindingData =
                 material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
             let dispatch_count = process_emitter_count;

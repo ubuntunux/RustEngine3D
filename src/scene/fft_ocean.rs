@@ -15,6 +15,7 @@ use crate::vulkan_context::geometry_buffer::{self, GeometryData};
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::vulkan_context::{Layers, MipLevels, SwapchainArray};
 use ash::{Device, vk};
+use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
 
 const CM: f64 = 0.23;
 const KM: f64 = 370.0;
@@ -191,7 +192,7 @@ impl<'a> FFTOcean<'a> {
         &mut self,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
+        let engine_resources = get_engine_resources_mut();
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut butterfly_data: Vec<f32> = vec![0.0; (FFT_SIZE * PASSES * 4) as usize];
@@ -323,7 +324,7 @@ impl<'a> FFTOcean<'a> {
         &mut self,
         renderer_data: &RendererData,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
         // fft Variance
@@ -622,7 +623,7 @@ impl<'a> FFTOcean<'a> {
         quad_geometry_data: &GeometryData,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         // fft variance
         let _label_compute_slope_variance = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
@@ -672,7 +673,7 @@ impl<'a> FFTOcean<'a> {
         quad_geometry_data: &GeometryData,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let _label_simulate_fft_waves = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
@@ -791,7 +792,7 @@ impl<'a> FFTOcean<'a> {
         swapchain_index: u32,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let fft_grid_mesh = engine_resources.get_mesh_data("fft_grid").borrow();
         let fft_grid = fft_grid_mesh.get_default_geometry_data().borrow();
         let push_constant = PushConstant_FFT_Ocean {

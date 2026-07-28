@@ -28,6 +28,7 @@ use crate::{begin_block, constants};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
@@ -494,7 +495,7 @@ impl<'a> SceneManager<'a> {
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
-            crate::core::engine_service_locator::get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
+            get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
             &render_object_create_info,
             custom_collision_type,
         ));
@@ -560,7 +561,7 @@ impl<'a> SceneManager<'a> {
         render_object_create_info: &RenderObjectCreateInfo,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
-        let model_data = crate::core::engine_service_locator::get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
+        let model_data = get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
@@ -574,7 +575,7 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> Uuid {
-        let effect_data = crate::core::engine_service_locator::get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
+        let effect_data = get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
         self.get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
     }
 
@@ -1027,16 +1028,16 @@ impl<'a> SceneManager<'a> {
                 ..Default::default()
             },
         );
-        crate::core::engine_service_locator::get_engine_resources_mut().save_scene_data(scene_data_name, &scene_data_create_info);
+        get_engine_resources_mut().save_scene_data(scene_data_name, &scene_data_create_info);
     }
 
     pub fn open_scene_data(&mut self, scene_data_name: &str) {
         self._scene_name = String::from(scene_data_name);
-        if false == crate::core::engine_service_locator::get_engine_resources().has_scene_data(scene_data_name) {
+        if false == get_engine_resources().has_scene_data(scene_data_name) {
             self.create_default_scene_data(scene_data_name);
         }
 
-        let scene_data_create_info = crate::core::engine_service_locator::get_engine_resources().get_scene_data(scene_data_name).borrow();
+        let scene_data_create_info = get_engine_resources().get_scene_data(scene_data_name).borrow();
 
         self.create_scene_data(&scene_data_create_info);
     }
@@ -1198,7 +1199,7 @@ impl<'a> SceneManager<'a> {
                 .insert(object._render_object_name.clone(), skeletal_object_create_info);
         }
 
-        crate::core::engine_service_locator::get_engine_resources_mut().save_scene_data(&self._scene_name, &scene_data_create_info);
+        get_engine_resources_mut().save_scene_data(&self._scene_name, &scene_data_create_info);
     }
 
     pub fn destroy_scene_manager(&mut self) {}

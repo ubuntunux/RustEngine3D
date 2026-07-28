@@ -1,6 +1,6 @@
 use ash::{Device, vk};
 use nalgebra::{Matrix3, Vector2, Vector3};
-
+use crate::core::engine_service_locator::get_engine_resources;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::render_context::RenderContext_TAA_Simple;
 use crate::renderer::render_target::RenderTargetType;
@@ -1204,7 +1204,7 @@ impl<'a> Atmosphere<'a> {
         &mut self,
         renderer_data: &RendererData,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
         let material_instance =

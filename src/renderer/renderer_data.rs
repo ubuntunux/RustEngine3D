@@ -44,6 +44,7 @@ use ash::ext;
 use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector4};
 use serde::{Deserialize, Serialize};
+use crate::core::engine_service_locator::get_engine_resources;
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -151,7 +152,7 @@ impl<'a> RendererData<'a> {
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         // Bloom
         self._render_context_bloom.initialize(
             device,
@@ -706,7 +707,7 @@ impl<'a> RendererData<'a> {
         renderer_context: &RendererContext<'a>,
         _quad_geometry_data: &GeometryData,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let _label_clear_render_targets = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
@@ -751,7 +752,7 @@ impl<'a> RendererData<'a> {
         image_width: u32,
         push_constant_data: Option<&PushConstant_BlendCubeMap>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let copy_cube_map_material_instance =
             engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
         let pipeline_binding_data =
@@ -790,7 +791,7 @@ impl<'a> RendererData<'a> {
         capture_height_map: &CaptureHeightMap<'a>,
         static_render_elements: &Vec<RenderElementData>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let material_instance_data =
             engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data =
@@ -1046,7 +1047,7 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         // image barrier
         let scene_color = self.get_render_target(RenderTargetType::PostProcessedColor);
         let range = vk::ImageSubresourceRange {
@@ -1154,7 +1155,7 @@ impl<'a> RendererData<'a> {
         geometry_data: &GeometryData,
         bound_box_matrices: &Vec<BoundBoxInstanceData>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let instance_count = constants::MAX_BOUND_BOX_INSTANCE_COUNT.min(bound_box_matrices.len()) as u32;
         if 0 < instance_count {
             let material_instance_data =
@@ -1229,7 +1230,7 @@ impl<'a> RendererData<'a> {
         quad_geometry_data: &GeometryData,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let _label_render_bloom = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
@@ -1403,7 +1404,7 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "generate_min_z",
         );
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
 
         // Copy Scene Depth
         renderer_context.render_material_instance(
@@ -1451,7 +1452,7 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "scene_color_downsampling",
         );
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data("common/downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
@@ -1552,7 +1553,7 @@ impl<'a> RendererData<'a> {
             "render_scene",
         );
 
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let main_camera = scene_manager.get_main_camera();
         let main_light = scene_manager.get_main_light().borrow();
         let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
@@ -1964,7 +1965,7 @@ impl<'a> RendererData<'a> {
                 "render_debug",
             );
             let mut render_debug_material_instance_data =
-                crate::core::engine_service_locator::get_engine_resources().get_material_instance_data(&"common/render_debug").borrow_mut();
+                get_engine_resources().get_material_instance_data(&"common/render_debug").borrow_mut();
             let mut render_debug_pipeline_binding_data =
                 render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
             renderer_context.begin_render_pass_pipeline(

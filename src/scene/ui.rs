@@ -35,6 +35,7 @@ use crate::vulkan_context::vulkan_context::get_color32;
 use ash::ext;
 use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
+use crate::core::engine_service_locator::get_engine_resources;
 
 pub type CallbackTouchEvent<'a> =
     fn(ui_component: &UIComponentInstance<'a>, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) -> bool;
@@ -2088,7 +2089,7 @@ impl<'a> UIManager<'a> {
         &mut self,
         renderer_context: &RendererContext<'a>,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         self._font_data = engine_resources.get_default_font_data().clone();
         self._quad_mesh = self.create_ui_vertex_data(
             renderer_context.get_device(),
@@ -2134,7 +2135,7 @@ impl<'a> UIManager<'a> {
     }
 
     pub fn create_ui_graphics_data(&mut self) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         self._default_render_ui_material = Some(engine_resources.get_material_instance_data("ui/render_ui").clone());
     }
 
@@ -2218,7 +2219,7 @@ impl<'a> UIManager<'a> {
         swapchain_index: u32,
         renderer_context: &RendererContext,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         if 0 < self._render_ui_count {
             let framebuffer_data = engine_resources.get_framebuffer_data("render_ui").borrow();
             let mut push_constant_data = PushConstant_RenderUI {

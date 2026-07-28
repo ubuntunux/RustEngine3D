@@ -6,6 +6,7 @@ use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
+use crate::core::engine_service_locator::get_engine_resources;
 use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
@@ -231,7 +232,7 @@ impl TextRenderData {
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let material_instance = engine_resources.get_material_instance_data("ui/render_font").borrow();
         let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
         let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(
@@ -338,7 +339,7 @@ impl FontManager {
     }
 
     pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         let ascii_font_data = engine_resources.get_font_data(DEFAULT_FONT_NAME);
         self._ascii = ascii_font_data.clone();
         self._text_render_data = TextRenderData::create_text_render_data(
@@ -453,7 +454,7 @@ impl FontManager {
         renderer_context: &RendererContext,
         render_text_info: &RenderTextInfo,
     ) {
-        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
+        let engine_resources = get_engine_resources();
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
 
