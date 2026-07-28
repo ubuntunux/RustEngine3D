@@ -21,7 +21,6 @@ use crate::core::engine_core::{EngineCore, TimeData};
 use crate::core::input::{KeyboardInputData, MouseInputData, MouseMoveData};
 use crate::renderer::push_constants::{PushConstant, PushConstantName, PushConstantParameter};
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::resource::EngineResources;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::CameraObjectData;
 use crate::scene::debug_line::DebugLineManager;
@@ -2088,8 +2087,8 @@ impl<'a> UIManager<'a> {
     pub fn initialize_ui_manager(
         &mut self,
         renderer_context: &RendererContext<'a>,
-        engine_resources: &EngineResources<'a>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         self._font_data = engine_resources.get_default_font_data().clone();
         self._quad_mesh = self.create_ui_vertex_data(
             renderer_context.get_device(),
@@ -2098,11 +2097,11 @@ impl<'a> UIManager<'a> {
             renderer_context.get_graphics_queue(),
             renderer_context.get_device_memory_properties(),
         );
-        self.create_ui_graphics_data(engine_resources);
+        self.create_ui_graphics_data();
 
         // create widgets
         let root_widget_mut = ptr_as_mut(self.get_root_ptr());
-        self._ui_world_axis = Some(UIWorldAxis::create_ui_world_axis(engine_resources, root_widget_mut));
+        self._ui_world_axis = Some(UIWorldAxis::create_ui_world_axis(root_widget_mut));
     }
 
     pub fn get_root_ptr(&self) -> *const WidgetDefault<'a> {
@@ -2134,7 +2133,8 @@ impl<'a> UIManager<'a> {
         self._ui_world_axis.as_mut().unwrap().set_visible(visible);
     }
 
-    pub fn create_ui_graphics_data(&mut self, engine_resources: &EngineResources<'a>) {
+    pub fn create_ui_graphics_data(&mut self) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         self._default_render_ui_material = Some(engine_resources.get_material_instance_data("ui/render_ui").clone());
     }
 
@@ -2217,8 +2217,8 @@ impl<'a> UIManager<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         if 0 < self._render_ui_count {
             let framebuffer_data = engine_resources.get_framebuffer_data("render_ui").borrow();
             let mut push_constant_data = PushConstant_RenderUI {
@@ -2326,7 +2326,6 @@ impl<'a> UIManager<'a> {
         keyboard_input_data: &KeyboardInputData,
         mouse_move_data: &MouseMoveData,
         mouse_input_data: &MouseInputData,
-        _engine_resources: &EngineResources<'a>,
     ) {
         // update world axis
         let main_camera = engine_core.get_scene_manager().get_main_camera();
@@ -2452,7 +2451,6 @@ impl<'a> UIManager<'a> {
 
 impl<'a> UIWorldAxis<'a> {
     pub fn create_ui_world_axis(
-        _engine_resources: &EngineResources,
         root_widget: &mut WidgetDefault<'a>,
     ) -> UIWorldAxis<'a> {
         let widget_axis_x = UIManager::create_widget("ui_axis_x", UIWidgetTypes::Default);

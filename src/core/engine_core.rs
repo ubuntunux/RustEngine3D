@@ -148,9 +148,8 @@ pub struct EngineCore<'a> {
     pub _mouse_move_data: Box<input::MouseMoveData>,
     pub _mouse_input_data: Box<input::MouseInputData>,
     pub _joystick_input_data: Box<input::JoystickInputData>,
-    pub _audio_manager: Box<AudioManager<'a>>,
+    pub _audio_manager: Box<AudioManager>,
     pub _effect_manager: Box<EffectManager<'a>>,
-    pub _engine_resources: Box<EngineResources<'a>>,
     pub _debug_line_manager: Box<DebugLineManager>,
     pub _font_manager: Box<FontManager>,
     pub _renderer_context: Box<RendererContext<'a>>,
@@ -175,24 +174,14 @@ impl<'a> EngineCore<'a> {
     pub fn get_window(&self) -> &Window {
         ptr_as_ref(self._window)
     }
-    pub fn get_audio_manager(&self) -> &AudioManager<'a> {
-        self._audio_manager.as_ref()
-    }
-    pub fn get_audio_manager_mut(&self) -> &mut AudioManager<'a> {
-        ptr_as_mut(self._audio_manager.as_ref())
-    }
+
     pub fn get_effect_manager(&self) -> &EffectManager<'a> {
         self._effect_manager.as_ref()
     }
     pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager.as_ref())
     }
-    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
-        self._engine_resources.as_ref()
-    }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
-        ptr_as_mut(self._engine_resources.as_ref())
-    }
+
     pub fn get_debug_line_manager(&self) -> &DebugLineManager {
         self._debug_line_manager.as_ref()
     }
@@ -230,7 +219,7 @@ impl<'a> EngineCore<'a> {
         // create managers
         let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo =
             ptr_as_ref(application).get_render_pass_create_info_callback();
-        let engine_resources = EngineResources::create_engine_resources(callback_load_render_pass_create_info);
+        EngineResources::create_engine_resources(callback_load_render_pass_create_info);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
@@ -239,10 +228,9 @@ impl<'a> EngineCore<'a> {
             app_version,
             &window_size,
             window,
-            engine_resources.as_ref(),
         );
         let effect_manager = EffectManager::create_effect_manager();
-        let audio_manager = AudioManager::create_audio_manager(&sdl, engine_resources.as_ref());
+        let audio_manager = AudioManager::create_audio_manager(&sdl);
         let scene_manager = SceneManager::create_scene_manager();
         let keyboard_input_data = input::create_keyboard_input_data();
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
@@ -265,7 +253,6 @@ impl<'a> EngineCore<'a> {
             _font_manager: font_manager,
             _ui_manager: ui_manager,
             _renderer_context: renderer_context,
-            _engine_resources: engine_resources,
             _effect_manager: effect_manager,
             _scene_manager: scene_manager,
             _application: application,
@@ -277,8 +264,7 @@ impl<'a> EngineCore<'a> {
         // register engine service locator
         engine_service_locator::register_engine_service_locator(
             engine_core,
-            engine_core.get_engine_resources(),
-            engine_core.get_audio_manager(),
+            engine_core._audio_manager.as_ref(),
             engine_core.get_effect_manager(),
             engine_core.get_scene_manager(),
             engine_core.get_renderer_context().get_renderer_data(),
@@ -290,16 +276,16 @@ impl<'a> EngineCore<'a> {
 
         engine_core
             .get_renderer_context_mut()
-            .initialize_renderer_context(engine_core.get_engine_resources(), engine_core.get_effect_manager());
-        engine_core.get_engine_resources_mut().load_engine_resources(engine_core.get_renderer_context());
+            .initialize_renderer_context(engine_core.get_effect_manager());
+        engine_service_locator::get_engine_resources_mut().load_engine_resources(engine_core.get_renderer_context());
         engine_core.get_debug_line_manager_mut().initialize_debug_line_manager(engine_core.get_renderer_context());
         engine_core
             .get_font_manager_mut()
-            .initialize_font_manager(engine_core.get_renderer_context(), engine_core.get_engine_resources());
+            .initialize_font_manager(engine_core.get_renderer_context());
         engine_core
             .get_ui_manager_mut()
-            .initialize_ui_manager(engine_core.get_renderer_context(), engine_core.get_engine_resources());
-        engine_core.get_audio_manager_mut().initialize_audio_manager();
+            .initialize_ui_manager(engine_core.get_renderer_context());
+        engine_service_locator::get_audio_manager_mut().initialize_audio_manager();
         engine_core.get_effect_manager_mut().initialize_effect_manager();
 
         // initialize graphics data
@@ -316,12 +302,12 @@ impl<'a> EngineCore<'a> {
 
         // destroy managers
         self.get_application_mut().terminate_application();
-        self.get_audio_manager_mut().destroy_audio_manager();
+        engine_service_locator::get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
         self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
         self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
         self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
-        self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
+        engine_service_locator::get_engine_resources_mut().destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
 
         // clear engine service locator
@@ -443,12 +429,11 @@ impl<'a> EngineCore<'a> {
     }
 
     pub fn update_event_and_render_scene(&mut self) {
-        let engine_resource = ptr_as_ref(self._engine_resources.as_ref());
         let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
         let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
         let debug_line_manager = ptr_as_mut(self._debug_line_manager.as_ref());
         let font_manager = ptr_as_mut(self._font_manager.as_ref());
-        let audio_manager = ptr_as_mut(self._audio_manager.as_ref());
+        let audio_manager = engine_service_locator::get_audio_manager_mut();
         let effect_manager = ptr_as_mut(self._effect_manager.as_ref());
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
@@ -477,8 +462,8 @@ impl<'a> EngineCore<'a> {
                 renderer_context.resize_window(self._window_size.x as u32, self._window_size.y as u32);
 
                 // recreate
-                font_manager.create_font_descriptor_sets(renderer_context, engine_resource);
-                ui_manager.create_ui_graphics_data(&renderer_context.get_engine_resources());
+                font_manager.create_font_descriptor_sets(renderer_context);
+                ui_manager.create_ui_graphics_data();
                 renderer_context.set_need_recreate_swapchain(false);
 
                 log::info!("<<end recreate_swapchain>>");
@@ -500,7 +485,6 @@ impl<'a> EngineCore<'a> {
                     &self._keyboard_input_data,
                     &self._mouse_move_data,
                     &self._mouse_input_data,
-                    &renderer_context.get_engine_resources(),
                 );
 
                 // debug text
@@ -899,9 +883,7 @@ pub fn run_application(
                         }
                     }
                 }
-                _ => {
-                    //log::info!("Unknown event: {:?}", event);
-                }
+                _ => {}
             }
         })
         .expect("TODO: panic message");

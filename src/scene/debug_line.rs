@@ -5,7 +5,6 @@ use serde::{Deserialize, Serialize};
 
 use crate::constants;
 use crate::renderer::renderer_context::RendererContext;
-use crate::resource::resource::EngineResources;
 use crate::scene::bounding_box::BoundingBox;
 use crate::vulkan_context::buffer;
 use crate::vulkan_context::geometry_buffer::{self, GeometryData, VertexDataBase};
@@ -174,8 +173,8 @@ impl DebugLineManager {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         // Test DebugLine
         // {
         //     let t = renderer_context._renderer_data._scene_constants._time;

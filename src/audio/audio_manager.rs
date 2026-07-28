@@ -6,9 +6,8 @@ use std::collections::HashMap;
 use std::fmt;
 
 use crate::constants::{DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT};
-use crate::resource::resource::EngineResources;
 use crate::resource::resource::ResourceData;
-use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
+use crate::utilities::system::{RcRefCell, newRcRefCell};
 
 pub enum AudioLoop {
     ONCE,
@@ -38,8 +37,7 @@ pub struct AudioInstance {
     pub _channel: Result<Channel, String>,
 }
 
-pub struct AudioManager<'a> {
-    pub _engine_resources: *const EngineResources<'a>,
+pub struct AudioManager {
     pub _audio_instances: HashMap<i32, RcRefCell<AudioInstance>>,
     pub _bgm_audio_bank_data: Option<RcRefCell<AudioBankData>>,
     pub _bgm_audio_instance: Option<RcRefCell<AudioInstance>>,
@@ -89,8 +87,8 @@ impl AudioInstance {
     }
 }
 
-impl<'a> AudioManager<'a> {
-    pub fn create_audio_manager(sdl: &Sdl, engine_resources: *const EngineResources<'a>) -> Box<AudioManager<'a>> {
+impl AudioManager {
+    pub fn create_audio_manager(sdl: &Sdl) -> Box<AudioManager> {
         log::info!("create_audio_manager");
         let audio_subsystem = sdl.audio().expect("failed to sdl.audio");
         let frequency = 44_100;
@@ -122,14 +120,13 @@ impl<'a> AudioManager<'a> {
         }
 
         Box::new(AudioManager {
-            _engine_resources: engine_resources,
             _audio_instances: HashMap::new(),
             _bgm_audio_bank_data: None,
             _bgm_audio_instance: None,
             _bgm_volume: None,
             _audio_subsystem: audio_subsystem,
             _mixer_context: mixer_context,
-            _volume: DEFAULT_AUDIO_VOLUME,
+            _volume: DEFAULT_AUDIO_VOLUME
         })
     }
 
@@ -148,12 +145,6 @@ impl<'a> AudioManager<'a> {
         self._audio_instances.clear();
     }
 
-    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
-        ptr_as_ref(self._engine_resources)
-    }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
-        ptr_as_mut(self._engine_resources)
-    }
 
     fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>, volume: Option<f32>) {
         match audio_instance.borrow()._channel {
@@ -187,7 +178,7 @@ impl<'a> AudioManager<'a> {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>,
     ) -> Option<RcRefCell<AudioInstance>> {
-        let engine_resources = ptr_as_mut(self._engine_resources);
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
         if let ResourceData::Audio(audio_data) = engine_resources.get_audio_data(audio_name) {
             return self.play_audio_data(&audio_data, audio_loop, audio_volume);
         }
@@ -200,7 +191,7 @@ impl<'a> AudioManager<'a> {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>,
     ) -> Option<RcRefCell<AudioInstance>> {
-        let engine_resources = ptr_as_mut(self._engine_resources);
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
         if let ResourceData::AudioBank(audio_bank_data) = engine_resources.get_audio_bank_data(audio_name_bank) {
             return self.play_audio_bank_data(audio_bank_data, audio_loop, audio_volume);
         }
@@ -240,22 +231,20 @@ impl<'a> AudioManager<'a> {
     }
 
     pub fn play_bgm(&mut self, audio_data_name: &str, audio_volume: Option<f32>) {
-        let engine_resources = ptr_as_mut(self._engine_resources);
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources_mut();
         let audio_resource_data = engine_resources.get_audio_bank_data(audio_data_name);
         if let ResourceData::AudioBank(audio_bank_data) = audio_resource_data {
             self.stop_bgm();
 
             self._bgm_audio_bank_data = Some(audio_bank_data.clone());
-            self._bgm_audio_instance = self.play_audio_bank_data(audio_bank_data, AudioLoop::ONCE, audio_volume);
+            self._bgm_audio_instance = self.play_audio_bank_data(&audio_bank_data, AudioLoop::ONCE, audio_volume);
             self._bgm_volume = audio_volume;
         }
     }
 
     pub fn stop_bgm(&mut self) {
-        if self._bgm_audio_instance.is_some() {
-            if let Some(prev_audio_instance) = self._bgm_audio_instance.clone().as_ref() {
-                self.stop_audio_instance(prev_audio_instance);
-            }
+        if let Some(prev_audio_instance) = self._bgm_audio_instance.as_ref() {
+            self.stop_audio_instance(prev_audio_instance);
         }
         self._bgm_audio_bank_data = None;
         self._bgm_audio_instance = None;

@@ -1,14 +1,13 @@
 use std::cmp::Ordering::{Greater, Less};
 use std::cmp::{max, min};
 use std::collections::HashMap;
-
+use std::rc::Rc;
 use crate::constants::{MAX_EMITTER_COUNT, MAX_PARTICLE_COUNT, PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE};
 use crate::effect::effect_data::*;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::RendererData;
 use crate::renderer::shader_buffer_data::ShaderBufferDataType;
-use crate::resource::resource::EngineResources;
 use crate::scene::material_instance::PipelineBindingData;
 use crate::utilities::system::{RcRefCell, ptr_as_mut, ptr_as_ref};
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
@@ -128,10 +127,10 @@ impl PushConstant for PushConstant_RenderParticle {}
 pub struct EffectManager<'a> {
     pub _effects: HashMap<Uuid, RcRefCell<EffectInstance<'a>>>,
     pub _dead_effect_ids: Vec<Uuid>,
-    pub _allocated_emitters: Vec<*const EmitterInstance<'a>>,
+    pub _allocated_emitters: Vec<Option<Rc<EmitterInstance<'a>>>>,
     pub _allocated_emitter_count: i32,
     pub _allocated_particle_count: i32,
-    pub _effect_render_group: Vec<*const EmitterInstance<'a>>,
+    pub _effect_render_group: Vec<Rc<EmitterInstance<'a>>>,
     pub _gpu_particle_static_constants: Vec<GpuParticleStaticConstants>,
     pub _gpu_particle_dynamic_constants: Vec<GpuParticleDynamicConstants>,
     pub _gpu_particle_emitter_indices: Vec<i32>,
@@ -143,7 +142,7 @@ impl<'a> EffectManager<'a> {
         Box::new(EffectManager {
             _effects: HashMap::new(),
             _dead_effect_ids: Vec::new(),
-            _allocated_emitters: unsafe { vec![std::ptr::null(); MAX_EMITTER_COUNT as usize] },
+            _allocated_emitters: unsafe { vec![None; MAX_EMITTER_COUNT as usize] },
             _allocated_emitter_count: 0,
             _allocated_particle_count: 0,
             _effect_render_group: Vec::new(),
@@ -171,7 +170,7 @@ impl<'a> EffectManager<'a> {
             self._effects.clear();
             self._dead_effect_ids.clear();
             self._effect_render_group.clear();
-            self._allocated_emitters = vec![std::ptr::null(); MAX_EMITTER_COUNT as usize];
+            self._allocated_emitters = vec![None; MAX_EMITTER_COUNT as usize];
             self._allocated_emitter_count = 0;
             self._allocated_particle_count = 0;
             self._effect_render_group.clear();
@@ -229,7 +228,8 @@ impl<'a> EffectManager<'a> {
         effect_id
     }
 
-    pub fn allocate_emitter(&mut self, emitter: &mut EmitterInstance<'a>) {
+    pub fn allocate_emitter(&mut self, emitter_rc: &Rc<EmitterInstance<'a>>) {
+        let emitter = ptr_as_mut(emitter_rc.as_ref());
         if false == emitter.is_valid_allocated() {
             let available_emitter_count: i32 = unsafe { MAX_EMITTER_COUNT - self._allocated_emitter_count };
             let available_particle_count: i32 = unsafe { MAX_PARTICLE_COUNT - self._allocated_particle_count };
@@ -240,7 +240,7 @@ impl<'a> EffectManager<'a> {
                 emitter._allocated_emitter_index = self._allocated_emitter_count;
                 emitter._need_to_upload_static_constant_buffer = true;
                 self._allocated_particle_count += emitter._allocated_particle_count;
-                self._allocated_emitters[emitter._allocated_emitter_index as usize] = emitter;
+                self._allocated_emitters[emitter._allocated_emitter_index as usize] = Some(emitter_rc.clone());
                 self._allocated_emitter_count += 1;
             }
         }
@@ -248,7 +248,7 @@ impl<'a> EffectManager<'a> {
 
     pub fn deallocate_emitter(&mut self, emitter: &mut EmitterInstance) {
         if emitter.is_valid_allocated() {
-            self._allocated_emitters[emitter._allocated_emitter_index as usize] = std::ptr::null();
+            self._allocated_emitters[emitter._allocated_emitter_index as usize] = None;
             emitter._allocated_particle_count = 0;
             emitter._allocated_particle_offset = INVALID_ALLOCATED_PARTICLE_OFFSET;
             emitter._allocated_emitter_index = INVALID_ALLOCATED_EMITTER_INDEX;
@@ -281,11 +281,11 @@ impl<'a> EffectManager<'a> {
     pub fn gather_render_effects(&mut self) {
         self._effect_render_group.clear();
         for (_effect_id, effect) in self._effects.iter() {
-            let mut effect = effect.borrow_mut();
+            let effect = effect.borrow();
             if effect._is_alive {
-                for emitter in effect._emitters.iter_mut() {
-                    if emitter._is_alive {
-                        self._effect_render_group.push(emitter);
+                for emitter in effect._emitters.iter() {
+                    if emitter.as_ref()._is_alive {
+                        self._effect_render_group.push(emitter.clone());
                     }
                 }
             }
@@ -297,8 +297,8 @@ impl<'a> EffectManager<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_context: &RendererContext<'a>,
-        engine_resources: &EngineResources<'a>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let material_instance_data =
             &engine_resources.get_material_instance_data("effect/process_gpu_particle").borrow();
 
@@ -348,7 +348,6 @@ impl<'a> EffectManager<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        engine_resources: &EngineResources<'a>,
     ) {
         let renderer_context = renderer_data.get_renderer_context();
         let allocated_emitter_count = self._allocated_emitter_count as isize;
@@ -356,13 +355,13 @@ impl<'a> EffectManager<'a> {
             return;
         }
 
-        self._allocated_emitters.sort_by(|lhs: &*const EmitterInstance, rhs: &*const EmitterInstance| {
-            if lhs.is_null() || rhs.is_null() {
-                return if lhs.is_null() { Greater } else { Less };
+        self._allocated_emitters.sort_by(|lhs: &Option<Rc<EmitterInstance>>, rhs: &Option<Rc<EmitterInstance>>| {
+            if lhs.is_none() || rhs.is_none() {
+                return if lhs.is_none() { Greater } else { Less };
             }
 
-            let lhs: &EmitterInstance = ptr_as_ref(*lhs);
-            let rhs: &EmitterInstance = ptr_as_ref(*rhs);
+            let lhs: &EmitterInstance = lhs.as_ref().unwrap().as_ref();
+            let rhs: &EmitterInstance = rhs.as_ref().unwrap().as_ref();
 
             if lhs._parent_effect != rhs._parent_effect {
                 return if lhs._parent_effect < rhs._parent_effect {
@@ -382,13 +381,12 @@ impl<'a> EffectManager<'a> {
         let mut process_emitter_count: i32 = 0;
         let mut process_gpu_particle_count: i32 = 0;
         for emitter_index in 0..allocated_emitter_count {
-            let emitter = self._allocated_emitters[emitter_index as usize];
-
-            if emitter.is_null() {
+            let emitter = self._allocated_emitters[emitter_index as usize].clone();
+            if emitter.is_none() {
                 break;
             }
 
-            let emitter: &mut EmitterInstance = ptr_as_mut(emitter);
+            let emitter: &mut EmitterInstance = ptr_as_mut(emitter.as_ref().unwrap().as_ref());
             let emitter_data: &EmitterData = emitter.get_emitter_data();
             let available_particle_count: i32 = unsafe {
                 max(
@@ -399,6 +397,7 @@ impl<'a> EffectManager<'a> {
                     ),
                 )
             };
+
             if 0 == available_particle_count {
                 emitter._allocated_particle_count = 0;
                 emitter._allocated_particle_offset = INVALID_ALLOCATED_PARTICLE_OFFSET;
@@ -540,7 +539,7 @@ impl<'a> EffectManager<'a> {
 
             // compute gpu particle count
             let material_instance_data =
-                &engine_resources.get_material_instance_data("effect/process_gpu_particle").borrow();
+                &crate::core::engine_service_locator::get_engine_resources().get_material_instance_data("effect/process_gpu_particle").borrow();
             let pipeline_binding_data: &PipelineBindingData =
                 material_instance_data.get_pipeline_binding_data("process_gpu_particle/compute_gpu_particle_count");
             let dispatch_count = process_emitter_count;
@@ -669,7 +668,6 @@ impl<'a> EffectManager<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_data: &RendererData,
-        _engine_resources: &EngineResources<'a>,
     ) {
         if self._effect_render_group.is_empty() {
             return;
@@ -687,7 +685,7 @@ impl<'a> EffectManager<'a> {
         let mut prev_pipeline_binding_data: *const PipelineBindingData = std::ptr::null();
         let mut geometry_data: *const GeometryData = std::ptr::null();
         for emitter in self._effect_render_group.iter() {
-            let emitter: &EmitterInstance = ptr_as_ref(*emitter);
+            let emitter: &EmitterInstance = emitter.as_ref();
             let emitter_data = emitter.get_emitter_data();
             let material_instance_data = ptr_as_ref(emitter_data._material_instance_data.as_ptr());
             let pipeline_binding_data =

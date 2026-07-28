@@ -1,3 +1,4 @@
+use std::rc::Rc;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_data::BlendMode;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
@@ -225,7 +226,7 @@ pub struct EffectInstance<'a> {
     pub _bound_box: BoundingBox,
     pub _effect_transform: TransformObjectData,
     pub _effect_data: RcRefCell<EffectData<'a>>,
-    pub _emitters: Vec<EmitterInstance<'a>>,
+    pub _emitters: Vec<Rc<EmitterInstance<'a>>>,
 }
 
 pub struct EmitterInstance<'a> {
@@ -317,7 +318,7 @@ impl<'a> EffectInstance<'a> {
             .borrow()
             ._emitter_data_list
             .iter()
-            .map(|emitter_data| EmitterInstance::create_emitter_instance(emitter_data))
+            .map(|emitter_data| Rc::new(EmitterInstance::create_emitter_instance(emitter_data)))
             .collect();
 
         let effect_instance = newRcRefCell(EffectInstance {
@@ -343,7 +344,7 @@ impl<'a> EffectInstance<'a> {
         self._effect_transform.set_scale(&effect_create_info._effect_scale);
         let parent_effect = self as *const EffectInstance;
         for emitter in self._emitters.iter_mut() {
-            emitter.initialize_emitter(parent_effect);
+            ptr_as_mut(emitter.as_ref()).initialize_emitter(parent_effect);
         }
     }
 
@@ -373,7 +374,7 @@ impl<'a> EffectInstance<'a> {
         let effect_manager = ptr_as_mut(self._effect_manager);
         for emitter in self._emitters.iter_mut() {
             effect_manager.allocate_emitter(emitter);
-            emitter.play_emitter();
+            ptr_as_mut(emitter.as_ref()).play_emitter();
         }
     }
 
@@ -391,7 +392,8 @@ impl<'a> EffectInstance<'a> {
 
         let effect_manager = ptr_as_mut(self._effect_manager);
         let mut is_alive = false;
-        for emitter in self._emitters.iter_mut() {
+        for emitter in self._emitters.iter() {
+            let mut emitter = ptr_as_mut(emitter.as_ref());
             let is_alive_now = emitter._is_alive.clone();
             if is_alive_now {
                 emitter.update_emitter(delta_time, updated_effect_transform);
@@ -399,7 +401,7 @@ impl<'a> EffectInstance<'a> {
 
             let is_alive_now = emitter._is_alive.clone();
             if false == is_alive_now {
-                effect_manager.deallocate_emitter(emitter);
+                effect_manager.deallocate_emitter(&mut emitter);
             }
             is_alive |= is_alive_now;
         }
@@ -461,27 +463,15 @@ impl<'a> EmitterInstance<'a> {
 
     pub fn update_emitter(&mut self, delta_time: f32, updated_effect_transform: bool) {
         let emitter_data = ptr_as_ref(self._emitter_data);
-
-        log::info!(">> update_emitter, is_infinite: {:?}, particle_life_time: {:?}, emitter_lifetime: {:?} elapesed_time: {:?}",
-            self.is_infinite_emitter(),
-            emitter_data._particle_lifetime_max,
-            emitter_data._emitter_lifetime,
-            self._elapsed_time
-        );
-
         if self._is_alive {
-
-
             self._particle_spawn_count = 0;
 
             if self._ready_to_destroy {
-                log::info!(">>> dead");
                 self._is_alive = false;
             } else {
                 if false == self.is_infinite_emitter()
                     && (emitter_data._particle_lifetime_max + emitter_data._emitter_lifetime) < self._elapsed_time
                 {
-                    log::info!(">>> ready_to_destroy");
                     self._ready_to_destroy = true;
                 } else {
                     let updated_emitter_transform = self._emitter_transform.update_transform_object();

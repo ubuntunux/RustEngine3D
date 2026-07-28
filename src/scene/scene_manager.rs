@@ -2,7 +2,6 @@ use std::cmp::Ordering::{Greater, Less};
 use std::collections::HashMap;
 use std::rc::Rc;
 
-use crate::audio::audio_manager::{AudioInstance, AudioLoop, AudioManager};
 use crate::constants::{
     COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS,
     MAX_TRANSFORM_COUNT,
@@ -12,8 +11,6 @@ use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{RenderObjectType, RendererData};
-use crate::resource::resource::ResourceData::{Audio, AudioBank};
-use crate::resource::resource::{EngineResources, ResourceData};
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::capture_height_map::CaptureHeightMap;
@@ -93,9 +90,7 @@ pub struct SceneDataCreateInfo {
 }
 
 pub struct SceneManager<'a> {
-    pub _engine_resources: *const EngineResources<'a>,
     pub _renderer_data: *const RendererData<'a>,
-    pub _audio_manager: *const AudioManager<'a>,
     pub _effect_manager: *const EffectManager<'a>,
     pub _window_size: Vector2<i32>,
     pub _scene_name: String,
@@ -223,9 +218,7 @@ impl<'a> SceneManager<'a> {
     }
     pub fn create_scene_manager() -> Box<SceneManager<'a>> {
         Box::new(SceneManager {
-            _engine_resources: std::ptr::null(),
             _renderer_data: std::ptr::null(),
-            _audio_manager: std::ptr::null(),
             _effect_manager: std::ptr::null(),
             _window_size: Vector2::new(1024, 768),
             _scene_name: String::new(),
@@ -260,21 +253,15 @@ impl<'a> SceneManager<'a> {
     pub fn initialize_scene_manager(
         &mut self,
         renderer_context: &RendererContext<'a>,
-        audio_manager: &AudioManager<'a>,
         effect_manager: &EffectManager<'a>,
-        engine_resources: &EngineResources<'a>,
         window_size: &Vector2<i32>,
     ) {
         self._renderer_data = renderer_context.get_renderer_data();
-        self._audio_manager = audio_manager;
         self._effect_manager = effect_manager;
-        self._engine_resources = engine_resources;
 
-        let default_camera = CameraObjectData::create_camera_object_data(
-            self.generate_object_id(),
-            &String::from("default_camera"),
-            &CameraCreateInfo::default(),
-        );
+        let default_camera = self.add_camera_object(&String::from("default_camera"), &CameraCreateInfo::default());
+        let default_light = self.add_light_object(&String::from("default_light"), &DirectionalLightCreateInfo::default());
+
         let light_probe_camera_create_info = CameraCreateInfo {
             fov: 90.0,
             window_size: Vector2::new(constants::LIGHT_PROBE_SIZE as i32, constants::LIGHT_PROBE_SIZE as i32),
@@ -313,28 +300,18 @@ impl<'a> SceneManager<'a> {
                 &light_probe_camera_create_info,
             )),
         ];
-        let default_light = DirectionalLight::create_directional_light(
-            self.generate_object_id(),
-            &String::from("default_light"),
-            &DirectionalLightCreateInfo::default(),
-        );
         let capture_height_map = Box::new(CaptureHeightMap::create_capture_height_map(self.generate_object_id()));
 
         // assign
-        self._main_camera = Some(Rc::new(default_camera));
-        self._main_light = Some(newRcRefCell(default_light));
+        self._main_camera = Some(default_camera);
+        self._main_light = Some(default_light);
         self._capture_height_map = capture_height_map;
         self._light_probe_cameras = light_probe_cameras;
 
         // done
         self.update_window_size(window_size.x, window_size.y);
     }
-    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
-        ptr_as_ref(self._engine_resources)
-    }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
-        ptr_as_mut(self._engine_resources)
-    }
+
     pub fn get_renderer_data(&self) -> &RendererData<'a> {
         ptr_as_ref(self._renderer_data)
     }
@@ -347,12 +324,7 @@ impl<'a> SceneManager<'a> {
     pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
         ptr_as_mut(self._effect_manager)
     }
-    pub fn get_audio_manager(&self) -> &AudioManager<'a> {
-        ptr_as_ref(self._audio_manager)
-    }
-    pub fn get_audio_manager_mut(&self) -> &mut AudioManager<'a> {
-        ptr_as_mut(self._audio_manager)
-    }
+
     pub fn set_effect_manager(&mut self, effect_manager: *const EffectManager<'a>) {
         self._effect_manager = effect_manager;
     }
@@ -522,7 +494,7 @@ impl<'a> SceneManager<'a> {
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
-            self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
+            crate::core::engine_service_locator::get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
             &render_object_create_info,
             custom_collision_type,
         ));
@@ -588,7 +560,7 @@ impl<'a> SceneManager<'a> {
         render_object_create_info: &RenderObjectCreateInfo,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
-        let model_data = self.get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
+        let model_data = crate::core::engine_service_locator::get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
         let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
@@ -602,35 +574,8 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> Uuid {
-        let effect_data = self.get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
+        let effect_data = crate::core::engine_service_locator::get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
         self.get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
-    }
-
-    pub fn play_audio_bank(&self, audio_name_bank: &str) -> Option<RcRefCell<AudioInstance>> {
-        self.get_audio_manager_mut().play_audio_bank(audio_name_bank, AudioLoop::ONCE, None)
-    }
-
-    pub fn play_audio(&self, audio_resource: &ResourceData) -> Option<RcRefCell<AudioInstance>> {
-        match audio_resource {
-            Audio(audio_data) => self.get_audio_manager_mut().play_audio_data(&audio_data, AudioLoop::ONCE, None),
-            AudioBank(audio_bank_data) => {
-                self.get_audio_manager_mut().play_audio_bank_data(&audio_bank_data, AudioLoop::ONCE, None)
-            }
-            _ => None,
-        }
-    }
-
-    pub fn play_audio_options(
-        &self,
-        audio_name_bank: &str,
-        audio_loop: AudioLoop,
-        volume: Option<f32>,
-    ) -> Option<RcRefCell<AudioInstance>> {
-        self.get_audio_manager_mut().play_audio_bank(audio_name_bank, audio_loop, volume)
-    }
-
-    pub fn stop_audio_instance(&self, audio_instance: &RcRefCell<AudioInstance>) {
-        self.get_audio_manager_mut().stop_audio_instance(audio_instance)
     }
 
     pub fn get_static_render_object_map(&self) -> &RenderObjectMap<'a> {
@@ -1082,17 +1027,16 @@ impl<'a> SceneManager<'a> {
                 ..Default::default()
             },
         );
-        self.get_engine_resources_mut().save_scene_data(scene_data_name, &scene_data_create_info);
+        crate::core::engine_service_locator::get_engine_resources_mut().save_scene_data(scene_data_name, &scene_data_create_info);
     }
 
     pub fn open_scene_data(&mut self, scene_data_name: &str) {
         self._scene_name = String::from(scene_data_name);
-        let engine_resources = ptr_as_ref(self._engine_resources);
-        if false == engine_resources.has_scene_data(scene_data_name) {
+        if false == crate::core::engine_service_locator::get_engine_resources().has_scene_data(scene_data_name) {
             self.create_default_scene_data(scene_data_name);
         }
 
-        let scene_data_create_info = engine_resources.get_scene_data(scene_data_name).borrow();
+        let scene_data_create_info = crate::core::engine_service_locator::get_engine_resources().get_scene_data(scene_data_name).borrow();
 
         self.create_scene_data(&scene_data_create_info);
     }
@@ -1254,7 +1198,7 @@ impl<'a> SceneManager<'a> {
                 .insert(object._render_object_name.clone(), skeletal_object_create_info);
         }
 
-        self.get_engine_resources_mut().save_scene_data(&self._scene_name, &scene_data_create_info);
+        crate::core::engine_service_locator::get_engine_resources_mut().save_scene_data(&self._scene_name, &scene_data_create_info);
     }
 
     pub fn destroy_scene_manager(&mut self) {}

@@ -10,7 +10,7 @@ use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::utility;
-use crate::resource::resource::{DEFAULT_FONT_NAME, EngineResources};
+use crate::resource::resource::DEFAULT_FONT_NAME;
 use crate::scene::bounding_box::BoundingBox;
 use crate::utilities::system::{RcRefCell, newRcRefCell};
 use crate::vulkan_context::buffer;
@@ -213,7 +213,6 @@ impl TextRenderData {
     pub fn create_text_render_data(
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
         font_data: &RcRefCell<FontData>,
     ) -> TextRenderData {
         let mut text_render_data = TextRenderData {
@@ -223,7 +222,7 @@ impl TextRenderData {
         text_render_data
             ._font_instance_data_list
             .resize(constants::MAX_FONT_INSTANCE_COUNT, FontInstanceData::default());
-        text_render_data.create_texture_render_data_descriptor_sets(device, debug_utils_device, engine_resources);
+        text_render_data.create_texture_render_data_descriptor_sets(device, debug_utils_device);
         text_render_data
     }
 
@@ -231,8 +230,8 @@ impl TextRenderData {
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let material_instance = engine_resources.get_material_instance_data("ui/render_font").borrow();
         let render_font_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
         let font_texture_image_info = DescriptorResourceInfo::DescriptorImageInfo(
@@ -338,13 +337,13 @@ impl FontManager {
         })
     }
 
-    pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext, engine_resources: &EngineResources) {
+    pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let ascii_font_data = engine_resources.get_font_data(DEFAULT_FONT_NAME);
         self._ascii = ascii_font_data.clone();
         self._text_render_data = TextRenderData::create_text_render_data(
             renderer_context.get_device(),
             renderer_context.get_debug_utils(),
-            engine_resources,
             &ascii_font_data,
         );
         self._quad_mesh = self.create_font_vertex_data(
@@ -359,12 +358,10 @@ impl FontManager {
     pub fn create_font_descriptor_sets(
         &mut self,
         renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
     ) {
         self._text_render_data.create_texture_render_data_descriptor_sets(
             renderer_context.get_device(),
             renderer_context.get_debug_utils(),
-            engine_resources,
         );
     }
 
@@ -454,9 +451,9 @@ impl FontManager {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_context: &RendererContext,
-        engine_resources: &EngineResources,
         render_text_info: &RenderTextInfo,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         if self._show && 0 < self._logs.len() {
             let text = self._logs.join("\n");
 

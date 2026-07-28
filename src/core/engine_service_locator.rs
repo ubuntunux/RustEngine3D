@@ -13,8 +13,7 @@ use std::ptr;
 
 pub struct EngineServiceLocator {
     pub _engine_core: *const EngineCore<'static>,
-    pub _engine_resources: *const EngineResources<'static>,
-    pub _audio_manager: *const AudioManager<'static>,
+    pub _audio_manager: *const AudioManager,
     pub _effect_manager: *const EffectManager<'static>,
     pub _scene_manager: *const SceneManager<'static>,
     pub _renderer_data: *const RendererData<'static>,
@@ -28,7 +27,6 @@ impl Default for EngineServiceLocator {
     fn default() -> Self {
         Self {
             _engine_core: ptr::null(),
-            _engine_resources: ptr::null(),
             _audio_manager: ptr::null(),
             _effect_manager: ptr::null(),
             _scene_manager: ptr::null(),
@@ -43,7 +41,6 @@ impl Default for EngineServiceLocator {
 
 static mut ENGINE_SERVICE_LOCATOR: EngineServiceLocator = EngineServiceLocator {
     _engine_core: ptr::null(),
-    _engine_resources: ptr::null(),
     _audio_manager: ptr::null(),
     _effect_manager: ptr::null(),
     _scene_manager: ptr::null(),
@@ -53,6 +50,14 @@ static mut ENGINE_SERVICE_LOCATOR: EngineServiceLocator = EngineServiceLocator {
     _font_manager_ptr: ptr::null(),
     _debug_line_manager: ptr::null(),
 };
+
+static mut ENGINE_RESOURCES: *mut EngineResources<'static> = ptr::null_mut();
+
+pub fn set_engine_resources(engine_resources: *mut EngineResources<'static>) {
+    unsafe {
+        ENGINE_RESOURCES = engine_resources;
+    }
+}
 
 pub fn get_engine_service_locator() -> &'static EngineServiceLocator {
     ptr_as_ref(std::ptr::addr_of!(ENGINE_SERVICE_LOCATOR))
@@ -64,8 +69,7 @@ pub fn get_engine_service_locator_mut() -> &'static mut EngineServiceLocator {
 
 pub fn register_engine_service_locator<'a>(
     engine_core: *const EngineCore<'a>,
-    engine_resources: *const EngineResources<'a>,
-    audio_manager: *const AudioManager<'a>,
+    audio_manager: *const AudioManager,
     effect_manager: *const EffectManager<'a>,
     scene_manager: *const SceneManager<'a>,
     renderer_data: *const RendererData<'a>,
@@ -76,8 +80,7 @@ pub fn register_engine_service_locator<'a>(
 ) {
     let locator = get_engine_service_locator_mut();
     locator._engine_core = engine_core as *const EngineCore<'static>;
-    locator._engine_resources = engine_resources as *const EngineResources<'static>;
-    locator._audio_manager = audio_manager as *const AudioManager<'static>;
+    locator._audio_manager = audio_manager as *const AudioManager;
     locator._effect_manager = effect_manager as *const EffectManager<'static>;
     locator._scene_manager = scene_manager as *const SceneManager<'static>;
     locator._renderer_data = renderer_data as *const RendererData<'static>;
@@ -102,19 +105,19 @@ pub fn get_engine_core_mut<'a>() -> &'a mut EngineCore<'a> {
 }
 
 pub fn get_engine_resources<'a>() -> &'a EngineResources<'a> {
-    ptr_as_ref(get_engine_service_locator()._engine_resources as *const EngineResources<'a>)
+    ptr_as_ref(unsafe { ENGINE_RESOURCES } as *const EngineResources<'a>)
 }
 
 pub fn get_engine_resources_mut<'a>() -> &'a mut EngineResources<'a> {
-    ptr_as_mut(get_engine_service_locator()._engine_resources as *const EngineResources<'a>)
+    ptr_as_mut(unsafe { ENGINE_RESOURCES } as *const EngineResources<'a>)
 }
 
-pub fn get_audio_manager<'a>() -> &'a AudioManager<'a> {
-    ptr_as_ref(get_engine_service_locator()._audio_manager as *const AudioManager<'a>)
+pub fn get_audio_manager<'a>() -> &'a AudioManager {
+    ptr_as_ref(get_engine_service_locator()._audio_manager as *const AudioManager)
 }
 
-pub fn get_audio_manager_mut<'a>() -> &'a mut AudioManager<'a> {
-    ptr_as_mut(get_engine_service_locator()._audio_manager as *const AudioManager<'a>)
+pub fn get_audio_manager_mut<'a>() -> &'a mut AudioManager {
+    ptr_as_mut(get_engine_service_locator()._audio_manager as *const AudioManager)
 }
 
 pub fn get_effect_manager<'a>() -> &'a EffectManager<'a> {

@@ -922,7 +922,7 @@ pub fn create_ray_tracing_pipeline_data<'a>(
             &table_data,
         );
 
-        log::info!(">>> TEST CODE: create_ray_tracing_pipeline_data");
+        // log::info!(">>> TEST CODE: create_ray_tracing_pipeline_data");
         log::info!("    create_ray_tracing_pipeline_data.");
         log::info!("    CHECK :: do i need present_queue or graphics queue ??");
         PipelineData {

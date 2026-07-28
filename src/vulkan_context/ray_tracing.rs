@@ -152,7 +152,7 @@ impl<'a> RayTracingData<'a> {
         command_queue: vk::Queue,
     ) {
         unsafe {
-            log::info!(">>> TEST CODE: initialize_ray_tracing_data.");
+            // log::info!(">>> TEST CODE: initialize_ray_tracing_data.");
             log::info!("    TODO :: Clean up RayTracingData");
             log::info!("    CHECK :: do i need _geometry_buffer_data_list as a member?");
             log::info!("    CHECK :: do i need _scratch_buffer_data as a member?");

@@ -21,7 +21,6 @@ use crate::effect::effect_manager::EffectManager;
 use crate::renderer::image_sampler::{self, ImageSamplerData};
 use crate::renderer::push_constants::PushConstant;
 use crate::renderer::renderer_data::RendererData;
-use crate::resource::resource::EngineResources;
 use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontManager;
 use crate::scene::material_instance::PipelineBindingData;
@@ -124,7 +123,6 @@ pub struct RendererContext<'a> {
     pub _ray_tracing: Rc<nv::ray_tracing::Device>,
     pub _ray_tracing_properties: vk::PhysicalDeviceRayTracingPropertiesNV<'a>,
     pub _ray_tracing_test_data: RayTracingData<'a>,
-    pub _engine_resources: *const EngineResources<'a>,
     pub _renderer_data: Box<RendererData<'a>>,
 }
 
@@ -134,7 +132,6 @@ impl<'a> RendererContext<'a> {
         app_version: u32,
         window_size: &Vector2<i32>,
         window: &Window,
-        engine_resources: *const EngineResources<'a>,
     ) -> Box<RendererContext<'a>> {
         unsafe {
             log::info!(
@@ -350,7 +347,6 @@ impl<'a> RendererContext<'a> {
                 _ray_tracing: ray_tracing,
                 _ray_tracing_properties: ray_tracing_properties,
                 _ray_tracing_test_data: RayTracingData::create_ray_tracing_data(),
-                _engine_resources: engine_resources.clone(),
                 _renderer_data: renderer_data,
             })
         }
@@ -358,26 +354,20 @@ impl<'a> RendererContext<'a> {
 
     pub fn initialize_renderer_context(
         &mut self,
-        engine_resources: *const EngineResources<'a>,
         effect_manager: *const EffectManager<'a>,
     ) {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
-        self.get_renderer_data_mut().initialize_renderer_data(self, engine_resources, effect_manager);
+        self.get_renderer_data_mut().initialize_renderer_data(self, effect_manager);
 
         // TEST CODE
         if self.get_use_ray_tracing() {
             self.create_ray_tracing_test_data();
         }
     }
-    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
-        ptr_as_ref(self._engine_resources)
-    }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
-        ptr_as_mut(self._engine_resources)
-    }
+
     pub fn get_image_sampler_data(&self) -> &ImageSamplerData {
         &self._image_samplers
     }
@@ -423,7 +413,6 @@ impl<'a> RendererContext<'a> {
         &self._ray_tracing_test_data
     }
     pub fn create_ray_tracing_test_data(&mut self) {
-        log::info!(">>> TEST CODE: create_ray_tracing_test_data");
         let mut ray_tracing_test_data = RayTracingData::create_ray_tracing_data();
         ray_tracing_test_data.initialize_ray_tracing_data(
             self.get_device(),
@@ -583,7 +572,7 @@ impl<'a> RendererContext<'a> {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&dyn PushConstant>,
     ) {
-        let engine_resources = ptr_as_ref(self._engine_resources);
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
@@ -639,7 +628,7 @@ impl<'a> RendererContext<'a> {
         custom_descriptor_sets: Option<&SwapchainArray<vk::DescriptorSet>>,
         push_constant_data: Option<&dyn PushConstant>,
     ) {
-        let engine_resources = self.get_engine_resources();
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data(material_instance_name).borrow();
         let pipeline_binding_data = if render_pass_pipeline_data_name.is_empty() {
             material_instance_data.get_default_pipeline_binding_data()
@@ -732,7 +721,7 @@ impl<'a> RendererContext<'a> {
         pipeline_data: &PipelineData,
         custom_framebuffer: Option<&FramebufferData>,
     ) {
-        let engine_resources = self.get_engine_resources();
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let framebuffer_data: *const FramebufferData = match custom_framebuffer {
             Some(custom_framebuffer) => custom_framebuffer,
             None => {
@@ -951,17 +940,16 @@ impl<'a> RendererContext<'a> {
         self.device_wait_idle();
 
         let render_context_ref = ptr_as_ref(self);
-        let engine_resources = ptr_as_mut(self._engine_resources);
 
         // destroy swapchain & graphics engine_resources
         self.destroy_framebuffer_and_descriptors();
-        engine_resources.unload_graphics_data_list(render_context_ref);
+        crate::core::engine_service_locator::get_engine_resources_mut().unload_graphics_data_list(render_context_ref);
         self.destroy_render_targets();
 
         // recreate swapchain & graphics engine_resources
         self.recreate_swapchain(window_width, window_height);
         self.create_render_targets();
-        engine_resources.load_graphics_data_list(render_context_ref);
+        crate::core::engine_service_locator::get_engine_resources_mut().load_graphics_data_list(render_context_ref);
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);
     }
@@ -1310,7 +1298,6 @@ impl<'a> RendererContext<'a> {
         self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(
             self.get_device(),
             self.get_debug_utils(),
-            &self.get_engine_resources(),
         );
     }
 

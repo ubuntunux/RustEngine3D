@@ -21,7 +21,6 @@ use crate::renderer::render_target::{self, RenderTargetType};
 use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::shader_buffer_data::{self, ShaderBufferDataMap, ShaderBufferDataType};
 use crate::renderer::utility;
-use crate::resource::resource::EngineResources;
 use crate::scene::camera::CameraObjectData;
 use crate::scene::capture_height_map::CaptureHeightMap;
 use crate::scene::debug_line::DebugLineManager;
@@ -102,7 +101,6 @@ pub enum RenderOption {
 
 pub struct RendererData<'a> {
     pub _renderer_context: *const RendererContext<'a>,
-    pub _engine_resources: *const EngineResources<'a>,
     pub _effect_manager: *const EffectManager<'a>,
     pub _scene_constants: shader_buffer_data::SceneConstants,
     pub _view_constants: shader_buffer_data::ViewConstants,
@@ -129,11 +127,9 @@ impl<'a> RendererData<'a> {
     pub fn initialize_renderer_data(
         &mut self,
         renderer_context: *const RendererContext<'a>,
-        engine_resources: *const EngineResources<'a>,
         effect_manager: *const EffectManager<'a>,
     ) {
         self._renderer_context = renderer_context;
-        self._engine_resources = engine_resources;
         self._effect_manager = effect_manager;
 
         let renderer_context_ref = ptr_as_ref(renderer_context);
@@ -147,15 +143,15 @@ impl<'a> RendererData<'a> {
 
         self.create_render_targets(renderer_context_ref);
 
-        self.get_fft_ocean_mut().register_fft_ocean_textures(renderer_context_ref, self.get_engine_resources_mut());
+        self.get_fft_ocean_mut().register_fft_ocean_textures(renderer_context_ref);
     }
 
     pub fn prepare_framebuffer_and_descriptors(
         &mut self,
         device: &Device,
         debug_utils_device: &ext::debug_utils::Device,
-        engine_resources: &EngineResources<'a>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         // Bloom
         self._render_context_bloom.initialize(
             device,
@@ -234,16 +230,15 @@ impl<'a> RendererData<'a> {
         );
 
         if self.has_render_option(RenderOption::RenderOcean) {
-            self.get_fft_ocean_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+            self.get_fft_ocean_mut().prepare_framebuffer_and_descriptors(self);
         }
 
         if self.has_render_option(RenderOption::RenderAtmosphere) {
-            self.get_atmosphere_mut().prepare_framebuffer_and_descriptors(self, self.get_engine_resources());
+            self.get_atmosphere_mut().prepare_framebuffer_and_descriptors(self);
         }
 
         // TEST CODE
         if self.get_renderer_context().get_use_ray_tracing() {
-            log::info!(">>> TEST CODE: RayTracing create_descriptor_sets");
             let material_instance = engine_resources.get_material_instance_data("ray_tracing/ray_tracing").borrow();
             let render_ray_tracing_pipeline_binding_data = material_instance.get_default_pipeline_binding_data();
             let top_level_descriptor_resource_info =
@@ -534,7 +529,6 @@ impl<'a> RendererData<'a> {
     pub fn create_renderer_data() -> RendererData<'a> {
         RendererData {
             _renderer_context: std::ptr::null(),
-            _engine_resources: std::ptr::null(),
             _effect_manager: std::ptr::null(),
             _scene_constants: shader_buffer_data::SceneConstants::default(),
             _view_constants: shader_buffer_data::ViewConstants::default(),
@@ -570,12 +564,7 @@ impl<'a> RendererData<'a> {
     pub fn get_renderer_context_mut(&self) -> &mut RendererContext<'a> {
         ptr_as_mut(self._renderer_context)
     }
-    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
-        ptr_as_ref(self._engine_resources)
-    }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
-        ptr_as_mut(self._engine_resources)
-    }
+
     pub fn get_fft_ocean_mut(&self) -> &mut FFTOcean<'a> {
         ptr_as_mut(&self._fft_ocean)
     }
@@ -715,9 +704,9 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_context: &RendererContext<'a>,
-        engine_resources: &EngineResources<'a>,
         _quad_geometry_data: &GeometryData,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let _label_clear_render_targets = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
@@ -757,12 +746,12 @@ impl<'a> RendererData<'a> {
         renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        engine_resources: &EngineResources<'a>,
         render_pass_pipeline_data_name: &str,
         mip_level_descriptor_sets: &MipLevels<SwapchainArray<vk::DescriptorSet>>,
         image_width: u32,
         push_constant_data: Option<&PushConstant_BlendCubeMap>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let copy_cube_map_material_instance =
             engine_resources.get_material_instance_data("common/copy_cube_map").borrow();
         let pipeline_binding_data =
@@ -796,12 +785,12 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        engine_resources: &EngineResources<'a>,
         scene_manager: &SceneManager,
         main_camera: &CameraObjectData,
         capture_height_map: &CaptureHeightMap<'a>,
         static_render_elements: &Vec<RenderElementData>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let material_instance_data =
             engine_resources.get_material_instance_data("precomputed_atmosphere/precomputed_atmosphere").borrow();
         let render_atmosphere_pipeline_binding_data =
@@ -831,7 +820,6 @@ impl<'a> RendererData<'a> {
             renderer_context,
             command_buffer,
             swapchain_index,
-            engine_resources,
             "copy_cube_map/copy",
             &self._render_context_light_probe._only_sky_copy_descriptor_sets,
             constants::LIGHT_PROBE_SIZE,
@@ -903,7 +891,6 @@ impl<'a> RendererData<'a> {
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                engine_resources,
                 "copy_cube_map/copy",
                 &self._render_context_light_probe._light_probe_forward_copy_descriptor_sets,
                 constants::LIGHT_PROBE_SIZE,
@@ -1058,8 +1045,8 @@ impl<'a> RendererData<'a> {
         renderer_context: &RendererContext<'a>,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        engine_resources: &EngineResources<'a>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         // image barrier
         let scene_color = self.get_render_target(RenderTargetType::PostProcessedColor);
         let range = vk::ImageSubresourceRange {
@@ -1155,9 +1142,8 @@ impl<'a> RendererData<'a> {
         &self,
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
-        engine_resources: &EngineResources<'a>,
     ) {
-        self.get_effect_manager().render_effects(command_buffer, swapchain_index, self, &engine_resources);
+        self.get_effect_manager().render_effects(command_buffer, swapchain_index, self);
     }
 
     pub fn render_bound_box(
@@ -1165,10 +1151,10 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         renderer_context: &RendererContext<'a>,
-        engine_resources: &EngineResources<'a>,
         geometry_data: &GeometryData,
         bound_box_matrices: &Vec<BoundBoxInstanceData>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let instance_count = constants::MAX_BOUND_BOX_INSTANCE_COUNT.min(bound_box_matrices.len()) as u32;
         if 0 < instance_count {
             let material_instance_data =
@@ -1242,8 +1228,8 @@ impl<'a> RendererData<'a> {
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
         renderer_context: &RendererContext<'a>,
-        engine_resources: &EngineResources<'a>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let _label_render_bloom = ScopedDebugLabel::create_scoped_cmd_label(
             renderer_context.get_debug_utils(),
             command_buffer,
@@ -1417,7 +1403,7 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "generate_min_z",
         );
-        let engine_resources = renderer_context.get_engine_resources();
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
 
         // Copy Scene Depth
         renderer_context.render_material_instance(
@@ -1465,7 +1451,7 @@ impl<'a> RendererData<'a> {
             command_buffer,
             "scene_color_downsampling",
         );
-        let engine_resources = renderer_context.get_engine_resources();
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let material_instance_data = engine_resources.get_material_instance_data("common/downsampling").borrow();
         let pipeline_binding_data = material_instance_data.get_default_pipeline_binding_data();
         let pipeline_data = &pipeline_binding_data.get_pipeline_data().borrow();
@@ -1521,7 +1507,6 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
         quad_geometry_data: &GeometryData,
-        engine_resources: &EngineResources<'a>,
     ) {
         // TAA
         self.render_taa(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
@@ -1532,7 +1517,6 @@ impl<'a> RendererData<'a> {
             swapchain_index,
             quad_geometry_data,
             renderer_context,
-            engine_resources,
         );
 
         // Motion Blur
@@ -1568,7 +1552,7 @@ impl<'a> RendererData<'a> {
             "render_scene",
         );
 
-        let engine_resources = renderer_context.get_engine_resources();
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let main_camera = scene_manager.get_main_camera();
         let main_light = scene_manager.get_main_light().borrow();
         let cube_mesh = engine_resources.get_mesh_data("cube").borrow();
@@ -1618,7 +1602,6 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 renderer_context,
-                &engine_resources,
                 &quad_geometry_data,
             );
 
@@ -1628,7 +1611,6 @@ impl<'a> RendererData<'a> {
                     swapchain_index,
                     &quad_geometry_data,
                     renderer_context,
-                    &engine_resources,
                 );
             }
 
@@ -1741,7 +1723,6 @@ impl<'a> RendererData<'a> {
                 swapchain_index,
                 &quad_geometry_data,
                 renderer_context,
-                &engine_resources,
             );
         }
 
@@ -1759,7 +1740,6 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 &quad_geometry_data,
-                &engine_resources,
                 scene_manager,
                 &main_camera,
                 capture_height_map,
@@ -1788,7 +1768,6 @@ impl<'a> RendererData<'a> {
                 renderer_context,
                 command_buffer,
                 swapchain_index,
-                &engine_resources,
                 "copy_cube_map/blend",
                 if constants::RENDER_OBJECT_FOR_LIGHT_PROBE {
                     &self._render_context_light_probe._light_probe_blend_from_forward_descriptor_sets
@@ -1841,11 +1820,10 @@ impl<'a> RendererData<'a> {
                     command_buffer,
                     swapchain_index,
                     renderer_context,
-                    &engine_resources,
                 );
                 effect_manager.set_need_to_clear_gpu_particle_buffer(false);
             }
-            effect_manager.process_gpu_particles(command_buffer, swapchain_index, self, &engine_resources);
+            effect_manager.process_gpu_particles(command_buffer, swapchain_index, self);
         }
 
         // pre-process: min-z, ssr, shadow ao, gbuffer, downsampling scene color
@@ -1865,7 +1843,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_ocean",
             );
-            self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+            self._fft_ocean.render_ocean(command_buffer, swapchain_index, &renderer_context);
         }
 
         // render atmosphere
@@ -1892,7 +1870,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_translucent",
             );
-            self.render_translucent(command_buffer, swapchain_index, &engine_resources);
+            self.render_translucent(command_buffer, swapchain_index);
         }
 
         // TEST_CODE: ray tracing test
@@ -1902,7 +1880,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_ray_tracing",
             );
-            self.render_ray_tracing(renderer_context, command_buffer, swapchain_index, &engine_resources);
+            self.render_ray_tracing(renderer_context, command_buffer, swapchain_index);
         }
 
         // post-process: taa, bloom, motion blur
@@ -1917,7 +1895,6 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 &quad_geometry_data,
-                &engine_resources,
             );
         }
 
@@ -1934,7 +1911,6 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 &renderer_context,
-                &engine_resources,
                 &cube_geometry_data,
                 &bound_box_matrices,
             );
@@ -1967,7 +1943,7 @@ impl<'a> RendererData<'a> {
                 "render_debug_line",
             );
 
-            debug_line_manager.render_debug_line(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+            debug_line_manager.render_debug_line(command_buffer, swapchain_index, &renderer_context);
         }
 
         // Render UI
@@ -1977,7 +1953,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_ui",
             );
-            ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context, &engine_resources);
+            ui_manager.render_ui(command_buffer, swapchain_index, &renderer_context);
         }
 
         // Render Debug
@@ -1988,7 +1964,7 @@ impl<'a> RendererData<'a> {
                 "render_debug",
             );
             let mut render_debug_material_instance_data =
-                engine_resources.get_material_instance_data(&"common/render_debug").borrow_mut();
+                crate::core::engine_service_locator::get_engine_resources().get_material_instance_data(&"common/render_debug").borrow_mut();
             let mut render_debug_pipeline_binding_data =
                 render_debug_material_instance_data.get_default_pipeline_binding_data_mut();
             renderer_context.begin_render_pass_pipeline(
@@ -2051,7 +2027,6 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 swapchain_index,
                 &renderer_context,
-                &engine_resources,
                 &render_text_info,
             );
         }

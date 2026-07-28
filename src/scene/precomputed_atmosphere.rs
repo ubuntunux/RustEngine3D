@@ -8,7 +8,6 @@ use crate::renderer::renderer_context::RendererContext;
 use crate::renderer::renderer_data::{DEFAULT_PIPELINE, RendererData};
 use crate::renderer::shader_buffer_data::AtmosphereConstants;
 use crate::renderer::utility;
-use crate::resource::resource::EngineResources;
 use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::framebuffer::{self, FramebufferData, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::GeometryData;
@@ -1204,8 +1203,8 @@ impl<'a> Atmosphere<'a> {
     pub fn prepare_framebuffer_and_descriptors(
         &mut self,
         renderer_data: &RendererData,
-        engine_resources: &EngineResources<'a>,
     ) {
+        let engine_resources = crate::core::engine_service_locator::get_engine_resources();
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();
         let material_instance =
