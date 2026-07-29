@@ -332,8 +332,8 @@ impl MetaData {
 impl<'a> EngineResources<'a> {
     pub fn create_engine_resources(
         callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo,
-    ) {
-        let engine_resource = EngineResources {
+    ) -> Box<EngineResources<'a>> {
+        let mut engine_resource = Box::new(EngineResources {
             _relative_resource_file_path_map: HashMap::new(),
             _animation_layer_data_map: AnimationLayerDataMap::default(),
             _audio_data_map: ResourceInfoMap::new(),
@@ -351,14 +351,10 @@ impl<'a> EngineResources<'a> {
             _material_instance_data_map: MaterialInstanceDataMap::default(),
             _descriptor_data_map: DescriptorDataMap::default(),
             _callback_load_render_pass_create_infos: callback_load_render_pass_create_info,
-        };
+        });
 
-        let engine_resource_box = Box::new(engine_resource);
-        let engine_resource_ptr = Box::into_raw(engine_resource_box) as *mut EngineResources<'static>;
-        crate::core::engine_service_locator::set_engine_resources(engine_resource_ptr);
-        unsafe {
-            (*engine_resource_ptr).preinitialize_engine_resources();
-        }
+        engine_resource.preinitialize_engine_resources();
+        engine_resource
     }
 
     pub fn preinitialize_engine_resources(&mut self) {

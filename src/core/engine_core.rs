@@ -155,6 +155,7 @@ pub struct EngineCore<'a> {
     pub _renderer_context: Box<RendererContext<'a>>,
     pub _ui_manager: Box<UIManager<'a>>,
     pub _scene_manager: Box<SceneManager<'a>>,
+    pub _engine_resources: Box<EngineResources<'a>>,
     pub _application: *const dyn ApplicationBase<'a>,
 }
 
@@ -165,6 +166,12 @@ impl<'a> EngineCore<'a> {
     pub fn get_application_mut(&self) -> &mut dyn ApplicationBase<'a> {
         ptr_as_mut(self._application)
     }
+    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
+        self._engine_resources.as_ref()
+    }
+    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
+        ptr_as_mut(self._engine_resources.as_ref())
+    }
     pub fn get_scene_manager(&self) -> &SceneManager<'a> {
         self._scene_manager.as_ref()
     }
@@ -173,6 +180,13 @@ impl<'a> EngineCore<'a> {
     }
     pub fn get_window(&self) -> &Window {
         ptr_as_ref(self._window)
+    }
+
+    pub fn get_audio_manager(&self) -> &AudioManager {
+        self._audio_manager.as_ref()
+    }
+    pub fn get_audio_manager_mut(&self) -> &mut AudioManager {
+        ptr_as_mut(self._audio_manager.as_ref())
     }
 
     pub fn get_effect_manager(&self) -> &EffectManager<'a> {
@@ -219,7 +233,7 @@ impl<'a> EngineCore<'a> {
         // create managers
         let callback_load_render_pass_create_info: *const CallbackLoadRenderPassCreateInfo =
             ptr_as_ref(application).get_render_pass_create_info_callback();
-        EngineResources::create_engine_resources(callback_load_render_pass_create_info);
+        let engine_resources = EngineResources::create_engine_resources(callback_load_render_pass_create_info);
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
@@ -255,16 +269,15 @@ impl<'a> EngineCore<'a> {
             _renderer_context: renderer_context,
             _effect_manager: effect_manager,
             _scene_manager: scene_manager,
+            _engine_resources: engine_resources,
             _application: application,
         });
 
-        // initialize managers
-        let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
-
         // register engine service locator
+        let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
         engine_service_locator::register_engine_service_locator(
             engine_core,
-            engine_core._audio_manager.as_ref(),
+            engine_core.get_audio_manager(),
             engine_core.get_effect_manager(),
             engine_core.get_scene_manager(),
             engine_core.get_renderer_context().get_renderer_data(),
@@ -272,6 +285,7 @@ impl<'a> EngineCore<'a> {
             engine_core.get_ui_manager(),
             engine_core.get_font_manager(),
             engine_core.get_debug_line_manager(),
+            engine_core.get_engine_resources()
         );
 
         engine_core
@@ -302,16 +316,13 @@ impl<'a> EngineCore<'a> {
 
         // destroy managers
         self.get_application_mut().terminate_application();
-        engine_service_locator::get_audio_manager_mut().destroy_audio_manager();
+        self.get_audio_manager_mut().destroy_audio_manager();
         self.get_effect_manager_mut().destroy_effect_manager();
         self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
         self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
         self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
-        engine_service_locator::get_engine_resources_mut().destroy_engine_resources(renderer_context);
+        self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
         self.get_renderer_context_mut().destroy_renderer_context();
-
-        // clear engine service locator
-        engine_service_locator::clear_engine_service_locator();
     }
 
 

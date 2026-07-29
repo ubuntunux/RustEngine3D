@@ -21,22 +21,7 @@ pub struct EngineServiceLocator {
     pub _ui_manager: *const UIManager<'static>,
     pub _font_manager_ptr: *const FontManager,
     pub _debug_line_manager: *const DebugLineManager,
-}
-
-impl Default for EngineServiceLocator {
-    fn default() -> Self {
-        Self {
-            _engine_core: ptr::null(),
-            _audio_manager: ptr::null(),
-            _effect_manager: ptr::null(),
-            _scene_manager: ptr::null(),
-            _renderer_data: ptr::null(),
-            _renderer_context: ptr::null(),
-            _ui_manager: ptr::null(),
-            _font_manager_ptr: ptr::null(),
-            _debug_line_manager: ptr::null(),
-        }
-    }
+    pub _engine_resources: *const EngineResources<'static>,
 }
 
 static mut ENGINE_SERVICE_LOCATOR: EngineServiceLocator = EngineServiceLocator {
@@ -49,15 +34,8 @@ static mut ENGINE_SERVICE_LOCATOR: EngineServiceLocator = EngineServiceLocator {
     _ui_manager: ptr::null(),
     _font_manager_ptr: ptr::null(),
     _debug_line_manager: ptr::null(),
+    _engine_resources: ptr::null(),
 };
-
-static mut ENGINE_RESOURCES: *mut EngineResources<'static> = ptr::null_mut();
-
-pub fn set_engine_resources(engine_resources: *mut EngineResources<'static>) {
-    unsafe {
-        ENGINE_RESOURCES = engine_resources;
-    }
-}
 
 pub fn get_engine_service_locator() -> &'static EngineServiceLocator {
     ptr_as_ref(std::ptr::addr_of!(ENGINE_SERVICE_LOCATOR))
@@ -77,6 +55,7 @@ pub fn register_engine_service_locator<'a>(
     ui_manager: *const UIManager<'a>,
     font_manager: *const FontManager,
     debug_line_manager: *const DebugLineManager,
+    engine_resources: *const EngineResources<'a>,
 ) {
     let locator = get_engine_service_locator_mut();
     locator._engine_core = engine_core as *const EngineCore<'static>;
@@ -88,11 +67,7 @@ pub fn register_engine_service_locator<'a>(
     locator._ui_manager = ui_manager as *const UIManager<'static>;
     locator._font_manager_ptr = font_manager;
     locator._debug_line_manager = debug_line_manager;
-}
-
-pub fn clear_engine_service_locator() {
-    let locator = get_engine_service_locator_mut();
-    *locator = EngineServiceLocator::default();
+    locator._engine_resources = engine_resources as *const EngineResources<'static>;
 }
 
 // Global Getters
@@ -105,11 +80,11 @@ pub fn get_engine_core_mut<'a>() -> &'a mut EngineCore<'a> {
 }
 
 pub fn get_engine_resources<'a>() -> &'a EngineResources<'a> {
-    ptr_as_ref(unsafe { ENGINE_RESOURCES } as *const EngineResources<'a>)
+    ptr_as_ref(get_engine_service_locator()._engine_resources as *const EngineResources<'a>)
 }
 
 pub fn get_engine_resources_mut<'a>() -> &'a mut EngineResources<'a> {
-    ptr_as_mut(unsafe { ENGINE_RESOURCES } as *const EngineResources<'a>)
+    ptr_as_mut(get_engine_service_locator()._engine_resources as *const EngineResources<'a>)
 }
 
 pub fn get_audio_manager<'a>() -> &'a AudioManager {
