@@ -17,7 +17,7 @@ use winit::window::Window;
 
 use crate::constants;
 use crate::core::engine_core::TimeData;
-use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
+use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut, get_renderer_data, get_renderer_data_mut};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::image_sampler::{self, ImageSamplerData};
 use crate::renderer::push_constants::PushConstant;
@@ -361,7 +361,7 @@ impl<'a> RendererContext<'a> {
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
         self._image_samplers = image_sampler::create_image_samplers(self.get_device(), self.get_debug_utils());
-        self.get_renderer_data_mut().initialize_renderer_data(self, effect_manager);
+        get_renderer_data_mut().initialize_renderer_data(self, effect_manager);
 
         // TEST CODE
         if self.get_use_ray_tracing() {
@@ -1217,7 +1217,7 @@ impl<'a> RendererContext<'a> {
                         .expect("vkBeginCommandBuffer failed!");
 
                     // renderer - render_scene
-                    self.get_renderer_data_mut().render_scene(
+                    get_renderer_data_mut().render_scene(
                         command_buffer,
                         frame_index,
                         swapchain_index,
@@ -1296,7 +1296,7 @@ impl<'a> RendererContext<'a> {
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::prepare_framebuffer_and_descriptors");
-        self.get_renderer_data_mut().prepare_framebuffer_and_descriptors(
+        get_renderer_data_mut().prepare_framebuffer_and_descriptors(
             self.get_device(),
             self.get_debug_utils(),
         );
@@ -1304,11 +1304,11 @@ impl<'a> RendererContext<'a> {
 
     pub fn destroy_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::destroy_framebuffer_and_descriptors");
-        self.get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
+        get_renderer_data_mut().destroy_framebuffer_and_descriptors(self.get_device());
     }
 
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
-        self.get_renderer_data().get_shader_buffer_data_from_str(buffer_data_name)
+        get_renderer_data().get_shader_buffer_data_from_str(buffer_data_name)
     }
 
     pub fn get_sampler_from_str(&self, sampler_name: &str) -> &vk::Sampler {
@@ -1316,11 +1316,11 @@ impl<'a> RendererContext<'a> {
     }
 
     pub fn get_render_target_from_str(&self, render_target_type_str: &str) -> &TextureData {
-        self.get_renderer_data().get_render_target_from_str(render_target_type_str)
+        get_renderer_data().get_render_target_from_str(render_target_type_str)
     }
 
     pub fn get_render_pass_data_create_infos(&self) -> Vec<RenderPassDataCreateInfo> {
-        self.get_renderer_data().get_render_pass_data_create_infos()
+        get_renderer_data().get_render_pass_data_create_infos()
     }
 
     pub fn destroy_image_samplers(&self) {
@@ -1330,15 +1330,15 @@ impl<'a> RendererContext<'a> {
 
     pub fn create_render_targets(&self) {
         log::info!("create_render_targets");
-        self.get_renderer_data_mut().create_render_targets(self);
+        get_renderer_data_mut().create_render_targets(self);
     }
 
     pub fn destroy_render_targets(&self) {
         log::info!("destroy_render_targets");
-        self.get_renderer_data_mut().destroy_render_targets(self.get_device());
+        get_renderer_data_mut().destroy_render_targets(self.get_device());
     }
 
     pub fn destroy_uniform_buffers(&self) {
-        self.get_renderer_data_mut().destroy_uniform_buffers(self.get_device());
+        get_renderer_data_mut().destroy_uniform_buffers(self.get_device());
     }
 }

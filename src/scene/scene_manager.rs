@@ -7,10 +7,8 @@ use crate::constants::{
     MAX_TRANSFORM_COUNT,
 };
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
-use crate::effect::effect_manager::EffectManager;
 use crate::renderer::push_constants::PushConstantParameter;
-use crate::renderer::renderer_context::RendererContext;
-use crate::renderer::renderer_data::{RenderObjectType, RendererData};
+use crate::renderer::renderer_data::RenderObjectType;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::{CameraCreateInfo, CameraObjectData};
 use crate::scene::capture_height_map::CaptureHeightMap;
@@ -28,7 +26,7 @@ use crate::{begin_block, constants};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
+use crate::core::engine_service_locator::{get_effect_manager, get_effect_manager_mut, get_engine_resources, get_engine_resources_mut, get_renderer_data_mut};
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
@@ -91,8 +89,6 @@ pub struct SceneDataCreateInfo {
 }
 
 pub struct SceneManager<'a> {
-    pub _renderer_data: *const RendererData<'a>,
-    pub _effect_manager: *const EffectManager<'a>,
     pub _window_size: Vector2<i32>,
     pub _scene_name: String,
     pub _sea_height: f32,
@@ -219,8 +215,6 @@ impl<'a> SceneManager<'a> {
     }
     pub fn create_scene_manager() -> Box<SceneManager<'a>> {
         Box::new(SceneManager {
-            _renderer_data: std::ptr::null(),
-            _effect_manager: std::ptr::null(),
             _window_size: Vector2::new(1024, 768),
             _scene_name: String::new(),
             _sea_height: 0.0,
@@ -253,13 +247,8 @@ impl<'a> SceneManager<'a> {
 
     pub fn initialize_scene_manager(
         &mut self,
-        renderer_context: &RendererContext<'a>,
-        effect_manager: &EffectManager<'a>,
-        window_size: &Vector2<i32>,
+        window_size: &Vector2<i32>
     ) {
-        self._renderer_data = renderer_context.get_renderer_data();
-        self._effect_manager = effect_manager;
-
         let default_camera = self.add_camera_object(&String::from("default_camera"), &CameraCreateInfo::default());
         let default_light = self.add_light_object(&String::from("default_light"), &DirectionalLightCreateInfo::default());
 
@@ -311,23 +300,6 @@ impl<'a> SceneManager<'a> {
 
         // done
         self.update_window_size(window_size.x, window_size.y);
-    }
-
-    pub fn get_renderer_data(&self) -> &RendererData<'a> {
-        ptr_as_ref(self._renderer_data)
-    }
-    pub fn get_renderer_data_mut(&self) -> &mut RendererData<'a> {
-        ptr_as_mut(self._renderer_data)
-    }
-    pub fn get_effect_manager(&self) -> &EffectManager<'a> {
-        ptr_as_ref(self._effect_manager)
-    }
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
-        ptr_as_mut(self._effect_manager)
-    }
-
-    pub fn set_effect_manager(&mut self, effect_manager: *const EffectManager<'a>) {
-        self._effect_manager = effect_manager;
     }
     pub fn get_sea_height(&self) -> f32 {
         self._sea_height
@@ -576,7 +548,7 @@ impl<'a> SceneManager<'a> {
 
     pub fn add_effect(&mut self, object_name: &str, effect_create_info: &EffectCreateInfo) -> Uuid {
         let effect_data = get_engine_resources().get_effect_data(&effect_create_info._effect_data_name);
-        self.get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
+        get_effect_manager_mut().create_effect(object_name, effect_create_info, &effect_data)
     }
 
     pub fn get_static_render_object_map(&self) -> &RenderObjectMap<'a> {
@@ -608,7 +580,7 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn get_effect(&self, effect_id: Uuid) -> Option<&RcRefCell<EffectInstance<'a>>> {
-        self.get_effect_manager().get_effect(effect_id)
+        get_effect_manager().get_effect(effect_id)
     }
 
     pub fn initialize_light_probe_cameras(&mut self) {
@@ -1046,7 +1018,7 @@ impl<'a> SceneManager<'a> {
         self.initialize_light_probe_cameras();
 
         self._sea_height = scene_data_create_info._sea_height;
-        self.get_renderer_data_mut()._fft_ocean.set_height(scene_data_create_info._sea_height);
+        get_renderer_data_mut()._fft_ocean.set_height(scene_data_create_info._sea_height);
 
         // cameras
         for (index, (object_name, camera_create_info)) in scene_data_create_info._cameras.iter().enumerate() {
@@ -1106,7 +1078,7 @@ impl<'a> SceneManager<'a> {
 
     pub fn close_scene_data(&mut self) {
         self._capture_height_map.clear_static_render_elements();
-        self.get_effect_manager_mut().clear_effects();
+        get_effect_manager_mut().clear_effects();
 
         self._camera_object_map.clear();
         self._directional_light_object_map.clear();
@@ -1160,7 +1132,7 @@ impl<'a> SceneManager<'a> {
             scene_data_create_info._directional_lights.insert(light._light_name.clone(), light_create_info);
         }
         // effects
-        for (_effect_id, effect) in self.get_effect_manager().get_effects() {
+        for (_effect_id, effect) in get_effect_manager().get_effects() {
             let effect = effect.borrow();
             let effect_create_info = EffectCreateInfo {
                 _effect_position: effect._effect_transform.get_position().clone() as Vector3<f32>,
@@ -1209,13 +1181,13 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn reset_render_light_probe_time(&mut self) {
-        self.get_renderer_data_mut().reset_render_light_probe_time();
+        get_renderer_data_mut().reset_render_light_probe_time();
     }
 
     pub fn update_scene_manager(&mut self, delta_time: f64) {
         // refresh environment map
         if 0 <= self._frame_count_for_refresh_light_probe {
-            self.get_renderer_data_mut().reset_render_light_probe_time();
+            get_renderer_data_mut().reset_render_light_probe_time();
             self._frame_count_for_refresh_light_probe -= 1;
         }
 

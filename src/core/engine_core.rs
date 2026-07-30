@@ -15,6 +15,7 @@ use crate::audio::audio_manager::AudioManager;
 use crate::constants;
 use crate::constants::DEVELOPMENT;
 use crate::core::engine_service_locator;
+use crate::core::engine_service_locator::{get_renderer_context, get_scene_manager_mut};
 use crate::core::input::{self, ButtonState};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_context::RendererContext;
@@ -127,7 +128,7 @@ impl TimeData {
 }
 
 pub trait ApplicationBase<'a> {
-    fn initialize_application(&'a mut self, engine_core: &EngineCore<'a>, window_size: &Vector2<i32>);
+    fn initialize_application(&'a mut self, window_size: &Vector2<i32>);
     fn will_terminate_application(&self) -> bool;
     fn terminate_application(&mut self);
     fn get_render_pass_create_info_callback(&self) -> *const CallbackLoadRenderPassCreateInfo;
@@ -166,59 +167,8 @@ impl<'a> EngineCore<'a> {
     pub fn get_application_mut(&self) -> &mut dyn ApplicationBase<'a> {
         ptr_as_mut(self._application)
     }
-    pub fn get_engine_resources(&self) -> &EngineResources<'a> {
-        self._engine_resources.as_ref()
-    }
-    pub fn get_engine_resources_mut(&self) -> &mut EngineResources<'a> {
-        ptr_as_mut(self._engine_resources.as_ref())
-    }
-    pub fn get_scene_manager(&self) -> &SceneManager<'a> {
-        self._scene_manager.as_ref()
-    }
-    pub fn get_scene_manager_mut(&self) -> &mut SceneManager<'a> {
-        ptr_as_mut(self._scene_manager.as_ref())
-    }
     pub fn get_window(&self) -> &Window {
         ptr_as_ref(self._window)
-    }
-
-    pub fn get_audio_manager(&self) -> &AudioManager {
-        self._audio_manager.as_ref()
-    }
-    pub fn get_audio_manager_mut(&self) -> &mut AudioManager {
-        ptr_as_mut(self._audio_manager.as_ref())
-    }
-
-    pub fn get_effect_manager(&self) -> &EffectManager<'a> {
-        self._effect_manager.as_ref()
-    }
-    pub fn get_effect_manager_mut(&self) -> &mut EffectManager<'a> {
-        ptr_as_mut(self._effect_manager.as_ref())
-    }
-
-    pub fn get_debug_line_manager(&self) -> &DebugLineManager {
-        self._debug_line_manager.as_ref()
-    }
-    pub fn get_debug_line_manager_mut(&self) -> &mut DebugLineManager {
-        ptr_as_mut(self._debug_line_manager.as_ref())
-    }
-    pub fn get_font_manager(&self) -> &FontManager {
-        self._font_manager.as_ref()
-    }
-    pub fn get_font_manager_mut(&self) -> &mut FontManager {
-        ptr_as_mut(self._font_manager.as_ref())
-    }
-    pub fn get_renderer_context(&self) -> &RendererContext<'a> {
-        self._renderer_context.as_ref()
-    }
-    pub fn get_renderer_context_mut(&self) -> &mut RendererContext<'a> {
-        ptr_as_mut(self._renderer_context.as_ref())
-    }
-    pub fn get_ui_manager(&self) -> &UIManager<'a> {
-        self._ui_manager.as_ref()
-    }
-    pub fn get_ui_manager_mut(&self) -> &mut UIManager<'a> {
-        ptr_as_mut(self._ui_manager.as_ref())
     }
     pub fn create_application(
         app_name: &str,
@@ -250,7 +200,7 @@ impl<'a> EngineCore<'a> {
         let mouse_move_data = input::create_mouse_move_data(&window_size.x / 2, &window_size.y / 2);
         let mouse_input_data = input::create_mouse_input_data();
         let joystick_input_data = input::JoystickInputData::create_joystick_input_data(sdl);
-        let engine_core_ptr = Box::new(EngineCore {
+        let mut engine_core = Box::new(EngineCore {
             _window: window,
             _window_size: window_size.into(),
             _is_grab_mode: false,
@@ -274,54 +224,49 @@ impl<'a> EngineCore<'a> {
         });
 
         // register engine service locator
-        let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
-        engine_service_locator::set_engine_core(engine_core);
+        engine_service_locator::set_engine_core(engine_core.as_ref() as *const EngineCore);
 
         engine_core
-            .get_renderer_context_mut()
-            .initialize_renderer_context(engine_core.get_effect_manager());
-        engine_service_locator::get_engine_resources_mut().load_engine_resources(engine_core.get_renderer_context());
-        engine_core.get_debug_line_manager_mut().initialize_debug_line_manager(engine_core.get_renderer_context());
+            ._renderer_context
+            .initialize_renderer_context(engine_core._effect_manager.as_ref());
+        engine_core._engine_resources.load_engine_resources();
+        engine_core._debug_line_manager.initialize_debug_line_manager();
         engine_core
-            .get_font_manager_mut()
-            .initialize_font_manager(engine_core.get_renderer_context());
+            ._font_manager
+            .initialize_font_manager();
         engine_core
-            .get_ui_manager_mut()
-            .initialize_ui_manager(engine_core.get_renderer_context());
-        engine_service_locator::get_audio_manager_mut().initialize_audio_manager();
-        engine_core.get_effect_manager_mut().initialize_effect_manager();
+            ._ui_manager
+            .initialize_ui_manager();
+        engine_core._audio_manager.initialize_audio_manager();
+        engine_core._effect_manager.initialize_effect_manager();
 
         // initialize graphics data
-        engine_core.get_renderer_context().prepare_framebuffer_and_descriptors();
+        engine_core._renderer_context.prepare_framebuffer_and_descriptors();
 
-        // initialize application
-        engine_core.get_application_mut().initialize_application(&engine_core, &window_size);
-        engine_core_ptr
+        engine_core
     }
 
     pub fn terminate_application(&mut self) {
-        let renderer_context = self.get_renderer_context();
+        let renderer_context = get_renderer_context();
         renderer_context.device_wait_idle();
 
         // destroy managers
         self.get_application_mut().terminate_application();
-        self.get_audio_manager_mut().destroy_audio_manager();
-        self.get_effect_manager_mut().destroy_effect_manager();
-        self.get_ui_manager_mut().destroy_ui_manager(renderer_context.get_device());
-        self.get_debug_line_manager_mut().destroy_debug_line_manager(renderer_context.get_device());
-        self.get_font_manager_mut().destroy_font_manager(renderer_context.get_device());
-        self.get_engine_resources_mut().destroy_engine_resources(renderer_context);
-        self.get_renderer_context_mut().destroy_renderer_context();
+        self._audio_manager.destroy_audio_manager();
+        self._effect_manager.destroy_effect_manager();
+        self._ui_manager.destroy_ui_manager(renderer_context.get_device());
+        self._debug_line_manager.destroy_debug_line_manager(renderer_context.get_device());
+        self._font_manager.destroy_font_manager(renderer_context.get_device());
+        self._engine_resources.destroy_engine_resources(renderer_context);
     }
 
 
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;
         self._window_size.y = size.height as i32;
-        self.get_scene_manager_mut().update_window_size(size.width as i32, size.height as i32);
+        get_scene_manager_mut().update_window_size(size.width as i32, size.height as i32);
 
-        let renderer_context = self.get_renderer_context_mut();
-        let swapchain_extent = renderer_context.get_swap_chain_data()._swapchain_extent;
+        let swapchain_extent = self._renderer_context.get_swap_chain_data()._swapchain_extent;
         let need_recreate_swapchain = swapchain_extent.width != size.width || swapchain_extent.height != size.height;
         log::info!(
             "need_recreate_swapchain: {}, swapchain_extent: {:?}",
@@ -329,7 +274,7 @@ impl<'a> EngineCore<'a> {
             swapchain_extent
         );
         if need_recreate_swapchain {
-            renderer_context.set_need_recreate_swapchain(true);
+            self._renderer_context.set_need_recreate_swapchain(true);
         }
     }
 
@@ -602,6 +547,12 @@ impl<'a> EngineCore<'a> {
     }
 }
 
+impl<'a> Drop for EngineCore<'a> {
+    fn drop(&mut self) {
+        self._renderer_context.destroy_renderer_context();
+    }
+}
+
 pub fn run_application(
     app_name: String,
     app_version: u32,
@@ -707,6 +658,8 @@ pub fn run_application(
 
                 let engine_core =
                     EngineCore::create_application(app_name.as_str(), app_version, &window, &sdl, application);
+                let application_mut = ptr_as_mut(engine_core._application);
+                application_mut.initialize_application(&engine_core._window_size);
 
                 // set managers
                 maybe_engine_core = Some(engine_core);
@@ -791,32 +744,32 @@ pub fn run_application(
                                 run_application = false;
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
                                 engine_core
-                                    .get_renderer_context()
+                                    ._renderer_context
                                     .get_renderer_data_mut()
                                     .toggle_render_option(RenderOption::RenderSSR)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
                                 engine_core
-                                    .get_renderer_context()
+                                    ._renderer_context
                                     .get_renderer_data_mut()
                                     .toggle_render_option(RenderOption::RenderOcean)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
                                 engine_core
-                                    .get_renderer_context()
+                                    ._renderer_context
                                     .get_renderer_data_mut()
                                     .toggle_render_option(RenderOption::RenderAtmosphere)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
                                 engine_core
-                                    .get_renderer_context()
+                                    ._renderer_context
                                     .get_renderer_data_mut()
                                     .toggle_render_option(RenderOption::RenderSky)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
                                 engine_core
-                                    .get_renderer_context()
+                                    ._renderer_context
                                     .get_renderer_data_mut()
                                     .toggle_render_option(RenderOption::RenderShadow)
                             } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit6) {
                                 engine_core
-                                    .get_renderer_context()
+                                    ._renderer_context
                                     .get_renderer_data_mut()
                                     .toggle_render_option(RenderOption::RenderSSAO)
                             }

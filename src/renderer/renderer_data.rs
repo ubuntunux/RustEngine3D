@@ -44,7 +44,7 @@ use ash::ext;
 use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector4};
 use serde::{Deserialize, Serialize};
-use crate::core::engine_service_locator::get_engine_resources;
+use crate::core::engine_service_locator::{get_effect_manager, get_effect_manager_mut, get_engine_resources};
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -460,8 +460,8 @@ impl<'a> RendererData<'a> {
             elapsed_time,
             delta_time,
             self._fft_ocean.get_height(),
-            self.get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
-            self.get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
+            get_effect_manager().get_gpu_particle_count_buffer_offset(frame_index),
+            get_effect_manager().get_gpu_particle_update_buffer_offset(frame_index),
             scene_manager.get_render_point_light_count(),
             self._render_option,
         );
@@ -1144,7 +1144,7 @@ impl<'a> RendererData<'a> {
         command_buffer: vk::CommandBuffer,
         swapchain_index: u32,
     ) {
-        self.get_effect_manager().render_effects(command_buffer, swapchain_index, self);
+        get_effect_manager().render_effects(command_buffer, swapchain_index, self);
     }
 
     pub fn render_bound_box(
@@ -1815,7 +1815,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "process_gpu_particles",
             );
-            let effect_manager = self.get_effect_manager_mut();
+            let effect_manager = get_effect_manager_mut();
             if effect_manager.get_need_to_clear_gpu_particle_buffer() {
                 effect_manager.clear_gpu_particles(
                     command_buffer,

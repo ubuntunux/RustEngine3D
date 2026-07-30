@@ -6,7 +6,7 @@ use nalgebra::{Vector2, Vector3};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
-use crate::core::engine_service_locator::get_engine_resources;
+use crate::core::engine_service_locator::{get_engine_resources, get_renderer_context};
 use crate::render_pass::common::render_font;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
@@ -338,7 +338,8 @@ impl FontManager {
         })
     }
 
-    pub fn initialize_font_manager(&mut self, renderer_context: &RendererContext) {
+    pub fn initialize_font_manager(&mut self) {
+        let renderer_context = get_renderer_context();
         let engine_resources = get_engine_resources();
         let ascii_font_data = engine_resources.get_font_data(DEFAULT_FONT_NAME);
         self._ascii = ascii_font_data.clone();

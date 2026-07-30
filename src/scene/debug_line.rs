@@ -4,7 +4,7 @@ use nalgebra::{Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 
 use crate::constants;
-use crate::core::engine_service_locator::get_engine_resources;
+use crate::core::engine_service_locator::{get_engine_resources, get_renderer_context};
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::bounding_box::BoundingBox;
 use crate::vulkan_context::buffer;
@@ -87,7 +87,8 @@ impl DebugLineManager {
         })
     }
 
-    pub fn initialize_debug_line_manager(&mut self, renderer_context: &RendererContext) {
+    pub fn initialize_debug_line_manager(&mut self) {
+        let renderer_context = get_renderer_context();
         self._debug_line_geometry_data = DebugLineManager::create_debug_line_vertex_data(
             renderer_context.get_device(),
             renderer_context.get_debug_utils(),

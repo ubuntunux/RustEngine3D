@@ -15,6 +15,7 @@ use serde_json::{self, Value};
 use crate::audio::audio_manager::{AudioBankCreateInfo, AudioBankData, AudioData};
 use crate::constants;
 use crate::constants::DEVELOPMENT;
+use crate::core::engine_service_locator::get_renderer_context;
 use crate::effect::effect_data::{EffectData, EffectDataCreateInfo, EmitterData, EmitterDataCreateInfo};
 use crate::renderer::renderer_context::RendererContext;
 use crate::resource::collada_loader::Collada;
@@ -499,8 +500,9 @@ impl<'a> EngineResources<'a> {
         }
     }
 
-    pub fn load_engine_resources(&mut self, renderer_context: &'a RendererContext<'a>) {
+    pub fn load_engine_resources(&mut self) {
         log::info!("load_engine_resources");
+        let renderer_context = get_renderer_context();
         let is_reload: bool = false;
         self.load_texture_data_list(renderer_context);
         self.load_font_data_list(renderer_context);

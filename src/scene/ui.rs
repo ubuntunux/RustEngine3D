@@ -23,7 +23,6 @@ use crate::renderer::push_constants::{PushConstant, PushConstantName, PushConsta
 use crate::renderer::renderer_context::RendererContext;
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::camera::CameraObjectData;
-use crate::scene::debug_line::DebugLineManager;
 use crate::scene::font::FontData;
 use crate::scene::material_instance::{MaterialInstanceData, PipelineBindingData};
 use crate::scene::transform_object::TransformObjectData;
@@ -35,7 +34,7 @@ use crate::vulkan_context::vulkan_context::get_color32;
 use ash::ext;
 use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
-use crate::core::engine_service_locator::get_engine_resources;
+use crate::core::engine_service_locator::{get_debug_line_manager_mut, get_engine_resources, get_renderer_context};
 
 pub type CallbackTouchEvent<'a> =
     fn(ui_component: &UIComponentInstance<'a>, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) -> bool;
@@ -2085,11 +2084,9 @@ impl<'a> UIManager<'a> {
         Box::new(ui_manager)
     }
 
-    pub fn initialize_ui_manager(
-        &mut self,
-        renderer_context: &RendererContext<'a>,
-    ) {
+    pub fn initialize_ui_manager(&mut self) {
         let engine_resources = get_engine_resources();
+        let renderer_context = get_renderer_context();
         self._font_data = engine_resources.get_default_font_data().clone();
         self._quad_mesh = self.create_ui_vertex_data(
             renderer_context.get_device(),
@@ -2329,9 +2326,8 @@ impl<'a> UIManager<'a> {
         mouse_input_data: &MouseInputData,
     ) {
         // update world axis
-        let main_camera = engine_core.get_scene_manager().get_main_camera();
-        let debug_line_manager = engine_core.get_debug_line_manager_mut();
-        self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera, debug_line_manager);
+        let main_camera = engine_core._scene_manager.get_main_camera();
+        self._ui_world_axis.as_mut().unwrap().update_world_axis(main_camera);
 
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
@@ -2512,11 +2508,12 @@ impl<'a> UIWorldAxis<'a> {
         ptr_as_mut(self._widget_axis_z.as_ref()).get_ui_component_mut().set_visible(visible);
     }
 
-    pub fn update_world_axis(&mut self, main_camera: &CameraObjectData, debug_line_manager: &mut DebugLineManager) {
+    pub fn update_world_axis(&mut self, main_camera: &CameraObjectData) {
         if false == self.get_visible() {
             return;
         }
 
+        let debug_line_manager = get_debug_line_manager_mut();
         let window_height: f32 = main_camera._window_size.y as f32;
         let size: f32 = window_height * 0.05;
         let border: f32 = 20.0;
