@@ -128,7 +128,7 @@ impl BoundingBox {
         self._min.y <= pos.y && pos.y <= self._max.y && self._min.z <= pos.z && pos.z <= self._max.z
     }
 
-    pub fn update_aixs_aligned_bounding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+    pub fn update_axis_aligned_bounding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
         let pos_min = matrix * Vector4::new(bound_box._min.x, bound_box._min.y, bound_box._min.z, 1.0);
         let pos_max = matrix * Vector4::new(bound_box._max.x, bound_box._max.y, bound_box._max.z, 1.0);
 

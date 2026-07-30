@@ -17,7 +17,7 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use strum_macros::EnumCount;
-use crate::core::engine_service_locator::{get_scene_manager, is_engine_core_valid};
+use crate::core::engine_service_locator::get_scene_manager;
 use crate::ecs::entity::{EntityId, INVALID_ENTITY_ID};
 
 static DUMMY_TRANSFORM: OnceLock<TransformObjectData> = OnceLock::new();
@@ -368,8 +368,9 @@ impl<'a> RenderObjectData<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn get_transform_object_data(&self) -> &TransformObjectData {
-        if self._entity_id == INVALID_ENTITY_ID || !is_engine_core_valid() {
+        if self._entity_id == INVALID_ENTITY_ID {
             return get_dummy_transform();
         }
         if let Some(transform) = get_scene_manager()._transform_storage.get(self._entity_id) {
@@ -379,8 +380,9 @@ impl<'a> RenderObjectData<'a> {
         }
     }
 
+    #[inline(always)]
     pub fn get_transform_object_data_mut(&self) -> &mut TransformObjectData {
-        if self._entity_id == INVALID_ENTITY_ID || !is_engine_core_valid() {
+        if self._entity_id == INVALID_ENTITY_ID {
             return get_dummy_transform();
         }
         if let Some(transform) = ptr_as_mut(get_scene_manager())._transform_storage.get_mut(self._entity_id) {
@@ -473,14 +475,14 @@ impl<'a> RenderObjectData<'a> {
             self._final_transform = matrix * self._local_transform;
             // update bound box
             self._bounding_box
-                .update_aixs_aligned_bounding_box(&self._mesh_data.borrow()._bound_box, &self._final_transform);
+                .update_axis_aligned_bounding_box(&self._mesh_data.borrow()._bound_box, &self._final_transform);
 
             // update collision
             if self._collision.is_valid_collision() {
                 self._collision._bounding_box.update_oriented_bouding_box(
                     &self._model_data.borrow()._collision._bounding_box,
                     &matrix,
-                )
+                );
             }
 
             for (_socket_name, socket) in self._sockets.iter() {
