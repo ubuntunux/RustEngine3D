@@ -1,3 +1,4 @@
+use crate::ecs::{ComponentStorage, EntityId, INVALID_ENTITY_ID};
 use crate::utilities::math;
 use crate::utilities::system::ptr_as_ref;
 use nalgebra::{Matrix4, Quaternion, Vector3};
@@ -42,6 +43,7 @@ impl SimpleTransform {
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Default)]
 #[serde(default)]
 pub struct TransformObjectData {
+    pub _owner_entity_id: EntityId,
     pub _updated: bool,
     pub _prev_updated: bool,
     pub _is_dirty: bool,
@@ -63,6 +65,7 @@ pub struct TransformObjectData {
 impl TransformObjectData {
     pub fn create_transform_object_data() -> TransformObjectData {
         TransformObjectData {
+            _owner_entity_id: INVALID_ENTITY_ID,
             _updated: true,
             _prev_updated: true,
             _is_dirty: true,
@@ -253,6 +256,10 @@ impl TransformObjectData {
         updated
     }
 
+    pub fn reset_update_flag(&mut self) {
+        self._updated = false;
+    }
+
     pub fn update_transform_object(&mut self) -> bool {
         if self._prev_updated {
             self._prev_matrix.copy_from(&self._matrix_store);
@@ -260,7 +267,6 @@ impl TransformObjectData {
             self._prev_updated = false;
         }
 
-        self._updated = false;
         if self._is_dirty {
             if self.update_matrix() {
                 self._updated = true;
@@ -269,5 +275,22 @@ impl TransformObjectData {
             self._is_dirty = false;
         }
         self._updated
+    }
+
+    pub fn set_owner_entity_id(&mut self, entity_id: EntityId) {
+        self._owner_entity_id = entity_id;
+    }
+}
+
+pub type TransformStorage = ComponentStorage<TransformObjectData>;
+
+pub struct TransformSystem;
+
+impl TransformSystem {
+    pub fn update(storage: &mut TransformStorage) {
+        for transform in storage.dense_slice_mut() {
+            transform.reset_update_flag();
+            transform.update_transform_object();
+        }
     }
 }

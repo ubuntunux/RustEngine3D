@@ -19,6 +19,10 @@ pub fn set_engine_core(engine_core: *const EngineCore) {
     }
 }
 
+pub fn is_engine_core_valid() -> bool {
+    unsafe { !ENGINE_CORE_PTR.is_null() }
+}
+
 // Global Getters
 pub fn get_engine_core<'a>() -> &'a EngineCore<'a> {
     ptr_as_ref(unsafe { ENGINE_CORE_PTR } as *const EngineCore<'a>)

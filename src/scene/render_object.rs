@@ -15,8 +15,16 @@ use crate::vulkan_context::render_pass::PipelinePushConstantData;
 use nalgebra::{Matrix4, Vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use strum::EnumCount;
+use std::sync::OnceLock;
 use strum_macros::EnumCount;
+use crate::core::engine_service_locator::{get_scene_manager, is_engine_core_valid};
+use crate::ecs::entity::{EntityId, INVALID_ENTITY_ID};
+
+static DUMMY_TRANSFORM: OnceLock<TransformObjectData> = OnceLock::new();
+
+fn get_dummy_transform() -> &'static mut TransformObjectData {
+    ptr_as_mut(DUMMY_TRANSFORM.get_or_init(TransformObjectData::create_transform_object_data))
+}
 
 #[repr(i32)]
 #[derive(Serialize, Deserialize, Clone, PartialEq, Eq, Hash, Debug, Copy, EnumCount, Default)]
@@ -77,10 +85,10 @@ pub struct RenderObjectData<'a> {
     pub _model_data: RcRefCell<ModelData<'a>>,
     pub _push_constant_data_list_group: Vec<Vec<PipelinePushConstantData>>,
     pub _collision: CollisionData,
+    pub _entity_id: EntityId,
     pub _bounding_box: BoundingBox,
     pub _geometry_bound_boxes: Vec<BoundingBox>,
     pub _local_transform: Matrix4<f32>,
-    pub _transform_object: TransformObjectData,
     pub _prev_transform: Matrix4<f32>,
     pub _final_transform: Matrix4<f32>,
     pub _instance_objects: RenderObjectMap<'a>,
@@ -98,7 +106,7 @@ impl<'a> RenderObjectData<'a> {
         model_data: &RcRefCell<ModelData<'a>>,
         render_object_create_data: &RenderObjectCreateInfo,
         custom_collision_type: Option<CollisionType>,
-    ) -> RenderObjectData<'a> {
+    ) -> (RenderObjectData<'a>, TransformObjectData) {
         log::debug!("create_render_object_data: {}", render_object_name);
         let mut transform_object_data = TransformObjectData::create_transform_object_data();
         transform_object_data.set_position(&render_object_create_data._position);
@@ -131,6 +139,7 @@ impl<'a> RenderObjectData<'a> {
         }
 
         let mut render_object_data = RenderObjectData {
+            _entity_id: INVALID_ENTITY_ID,
             _scene_object_type: render_object_create_data._scene_object_type,
             _object_id: object_id,
             _is_visible: render_object_create_data._scene_object_type != SceneObjectType::Collision,
@@ -144,7 +153,6 @@ impl<'a> RenderObjectData<'a> {
             _bounding_box: mesh_data.borrow()._bound_box.clone(),
             _geometry_bound_boxes: geometry_bound_boxes,
             _local_transform: model_data_ref._local_transform.clone(),
-            _transform_object: transform_object_data,
             _prev_transform: Matrix4::identity(),
             _final_transform: Matrix4::identity(),
             _instance_objects: HashMap::new(),
@@ -161,8 +169,15 @@ impl<'a> RenderObjectData<'a> {
         }
 
         log::debug!("create_render_object_data: {}", render_object_name);
-        render_object_data.initialize_render_object_data();
-        render_object_data
+        (render_object_data, transform_object_data)
+    }
+
+    pub fn get_entity_id(&self) -> EntityId {
+        self._entity_id
+    }
+
+    pub fn set_entity_id(&mut self, entity_id: EntityId) {
+        self._entity_id = entity_id;
     }
 
     pub fn initialize_render_object_data(&mut self) {
@@ -183,7 +198,7 @@ impl<'a> RenderObjectData<'a> {
         self._is_render_height_map = src_render_object._is_render_height_map;
         self._render_object_name = src_render_object._render_object_name.clone();
         self._local_transform = src_render_object._local_transform;
-        self._transform_object = src_render_object._transform_object.clone();
+        self.get_transform_object_data_mut().clone_from(src_render_object.get_transform_object_data());
         self._prev_transform = src_render_object._prev_transform;
         self._final_transform = src_render_object._final_transform;
         self._instance_objects = src_render_object._instance_objects.clone();
@@ -233,7 +248,7 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn get_position(&self) -> &Vector3<f32> {
-        &self._transform_object._position
+        &self.get_transform_object_data()._position
     }
 
     pub fn get_bounding_box(&self) -> &BoundingBox {
@@ -297,8 +312,8 @@ impl<'a> RenderObjectData<'a> {
                 BoundingBox::create_bounding_box(&collision_bounding_box_min, &collision_bounding_box_max);
         }
 
-        self._transform_object.set_position(&self._bounding_box._center);
-        self._transform_object.update_transform_object();
+        self.get_transform_object_data_mut().set_position(&self._bounding_box._center);
+        self.get_transform_object_data_mut().update_transform_object();
 
         self._instance_objects.insert(render_object_data_ref.get_object_id(), render_object_data.clone());
         self._instance_transforms.push(render_object_data_ref._final_transform.clone());
@@ -313,7 +328,7 @@ impl<'a> RenderObjectData<'a> {
 
         assert!(0 < bone_count);
         let base_layer_index = AnimationLayer::BaseLayer as usize;
-        for i in 0..AnimationLayer::COUNT {
+        for i in 0..2 {
             let mesh_data = if base_layer_index == i {
                 Some(self._mesh_data.clone())
             } else {
@@ -354,7 +369,25 @@ impl<'a> RenderObjectData<'a> {
     }
 
     pub fn get_transform_object_data(&self) -> &TransformObjectData {
-        &self._transform_object
+        if self._entity_id == INVALID_ENTITY_ID || !is_engine_core_valid() {
+            return get_dummy_transform();
+        }
+        if let Some(transform) = get_scene_manager()._transform_storage.get(self._entity_id) {
+            transform
+        } else {
+            get_dummy_transform()
+        }
+    }
+
+    pub fn get_transform_object_data_mut(&self) -> &mut TransformObjectData {
+        if self._entity_id == INVALID_ENTITY_ID || !is_engine_core_valid() {
+            return get_dummy_transform();
+        }
+        if let Some(transform) = ptr_as_mut(get_scene_manager())._transform_storage.get_mut(self._entity_id) {
+            transform
+        } else {
+            get_dummy_transform()
+        }
     }
 
     pub fn has_animation(&self) -> bool {
@@ -427,9 +460,17 @@ impl<'a> RenderObjectData<'a> {
 
     pub fn update_render_object_data(&mut self, delta_time: f32) {
         let mut need_to_update_socket = false;
+
         self._prev_transform = self._final_transform.clone();
-        if self._transform_object.update_transform_object() {
-            self._final_transform = ptr_as_ref(self._transform_object.get_matrix()) * self._local_transform;
+
+        let (matrix, is_updated) = {
+            let transform = self.get_transform_object_data_mut();
+            let is_updated = transform.update_transform_object();
+            (*transform.get_matrix(), is_updated)
+        };
+
+        if is_updated {
+            self._final_transform = matrix * self._local_transform;
             // update bound box
             self._bounding_box
                 .update_aixs_aligned_bounding_box(&self._mesh_data.borrow()._bound_box, &self._final_transform);
@@ -438,12 +479,13 @@ impl<'a> RenderObjectData<'a> {
             if self._collision.is_valid_collision() {
                 self._collision._bounding_box.update_oriented_bouding_box(
                     &self._model_data.borrow()._collision._bounding_box,
-                    self._transform_object.get_matrix(),
+                    &matrix,
                 )
             }
 
-            for (_socket_name, socket) in self._sockets.iter_mut() {
-                socket.borrow_mut()._transform = Matrix4::identity();
+            for (_socket_name, socket) in self._sockets.iter() {
+                let socket_cell: &RcRefCell<Socket> = socket;
+                socket_cell.borrow_mut()._transform = Matrix4::identity();
             }
             need_to_update_socket = true;
         }
@@ -501,8 +543,9 @@ impl<'a> RenderObjectData<'a> {
 
         // update sockets
         if need_to_update_socket {
-            for (_socket_name, socket) in self._sockets.iter_mut() {
-                let mut socket_borrowed = socket.borrow_mut();
+            for (_socket_name, socket) in self._sockets.iter() {
+                let socket_cell: &RcRefCell<Socket> = socket;
+                let mut socket_borrowed = socket_cell.borrow_mut();
                 let local_transform = socket_borrowed._socket_data.borrow()._local_transform;
                 socket_borrowed._transform = self._final_transform * socket_borrowed._transform * local_transform;
             }

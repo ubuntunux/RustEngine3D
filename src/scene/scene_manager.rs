@@ -20,6 +20,7 @@ use crate::scene::light::{
 use crate::scene::model::ModelData;
 use crate::scene::render_element::{RenderElementData, RenderElementInfo};
 use crate::scene::render_object::{RenderObjectCreateInfo, RenderObjectData, SceneObjectType};
+use crate::scene::transform_object::{TransformStorage, TransformSystem};
 use crate::utilities::math;
 use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
 use crate::{begin_block, constants};
@@ -116,6 +117,7 @@ pub struct SceneManager<'a> {
     pub _render_element_transform_offsets: Vec<Vector4<i32>>,
     pub _bound_boxes: Vec<BoundBoxInstanceData>,
     pub _frame_count_for_refresh_light_probe: i32,
+    pub _transform_storage: TransformStorage,
 }
 
 // Implementation
@@ -242,6 +244,7 @@ impl<'a> SceneManager<'a> {
             _render_element_transform_offsets: vec![Vector4::zeros(); MAX_TRANSFORM_COUNT],
             _bound_boxes: Vec::new(),
             _frame_count_for_refresh_light_probe: 0,
+            _transform_storage: TransformStorage::new(),
         })
     }
 
@@ -464,13 +467,19 @@ impl<'a> SceneManager<'a> {
         is_dynamic_update_object: bool,
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
-        let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
+        let (mut render_object_data_obj, transform_object_data) = RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
             get_engine_resources().get_model_data(&render_object_create_info._model_data_name),
             &render_object_create_info,
             custom_collision_type,
-        ));
+        );
+
+        let entity_id = self._transform_storage.register(transform_object_data);
+        render_object_data_obj.set_entity_id(entity_id);
+
+        let render_object_data = newRcRefCell(render_object_data_obj);
+        render_object_data.borrow_mut().initialize_render_object_data();
 
         // register a collision object
         if render_object_data.borrow().get_collision_type() != CollisionType::NONE {
@@ -502,7 +511,7 @@ impl<'a> SceneManager<'a> {
                 find_object.clone()
             } else {
                 let new_instancing_object_id = self.generate_object_id();
-                let new_instancing_render_object = newRcRefCell(RenderObjectData::create_render_object_data(
+                let (mut new_instancing_obj, instancing_transform) = RenderObjectData::create_render_object_data(
                     new_instancing_object_id,
                     &String::from(object_name),
                     render_object_data_ref.get_model_data(),
@@ -514,7 +523,13 @@ impl<'a> SceneManager<'a> {
                         _scale: Vector3::new(1.0, 1.0, 1.0),
                     },
                     custom_collision_type,
-                ));
+                );
+
+                let entity_id = self._transform_storage.register(instancing_transform);
+                new_instancing_obj.set_entity_id(entity_id);
+
+                let new_instancing_render_object = newRcRefCell(new_instancing_obj);
+                new_instancing_render_object.borrow_mut().initialize_render_object_data();
 
                 self._static_render_object_map.insert(new_instancing_object_id, new_instancing_render_object.clone());
 
@@ -534,13 +549,19 @@ impl<'a> SceneManager<'a> {
     ) -> RcRefCell<RenderObjectData<'a>> {
         let object_id = self.generate_object_id();
         let model_data = get_engine_resources().get_model_data(&render_object_create_info._model_data_name);
-        let render_object_data = newRcRefCell(RenderObjectData::create_render_object_data(
+        let (mut render_object_data_obj, transform_object_data) = RenderObjectData::create_render_object_data(
             object_id,
             &String::from(object_name),
             model_data,
             &render_object_create_info,
             None,
-        ));
+        );
+
+        let entity_id = self._transform_storage.register(transform_object_data);
+        render_object_data_obj.set_entity_id(entity_id);
+
+        let render_object_data = newRcRefCell(render_object_data_obj);
+        render_object_data.borrow_mut().initialize_render_object_data();
         self.register_dynamic_update_object(&render_object_data);
         self._skeletal_render_object_map.insert(object_id, render_object_data.clone());
         render_object_data
@@ -1148,9 +1169,9 @@ impl<'a> SceneManager<'a> {
             let static_object_create_info = RenderObjectCreateInfo {
                 _scene_object_type: object._scene_object_type,
                 _model_data_name: object._model_data.borrow()._model_data_name.clone(),
-                _position: object._transform_object.get_position().clone() as Vector3<f32>,
-                _rotation: object._transform_object.get_rotation().clone() as Vector3<f32>,
-                _scale: object._transform_object.get_scale().clone() as Vector3<f32>,
+                _position: object.get_transform_object_data().get_position().clone() as Vector3<f32>,
+                _rotation: object.get_transform_object_data().get_rotation().clone() as Vector3<f32>,
+                _scale: object.get_transform_object_data().get_scale().clone() as Vector3<f32>,
             };
             scene_data_create_info
                 ._static_objects
@@ -1162,9 +1183,9 @@ impl<'a> SceneManager<'a> {
             let skeletal_object_create_info = RenderObjectCreateInfo {
                 _scene_object_type: object._scene_object_type,
                 _model_data_name: object._model_data.borrow()._model_data_name.clone(),
-                _position: object._transform_object.get_position().clone() as Vector3<f32>,
-                _rotation: object._transform_object.get_rotation().clone() as Vector3<f32>,
-                _scale: object._transform_object.get_scale().clone() as Vector3<f32>,
+                _position: object.get_transform_object_data().get_position().clone() as Vector3<f32>,
+                _rotation: object.get_transform_object_data().get_rotation().clone() as Vector3<f32>,
+                _scale: object.get_transform_object_data().get_scale().clone() as Vector3<f32>,
             };
             scene_data_create_info
                 ._skeletal_objects
@@ -1185,6 +1206,7 @@ impl<'a> SceneManager<'a> {
     }
 
     pub fn update_scene_manager(&mut self, delta_time: f64) {
+        TransformSystem::update(&mut self._transform_storage);
         // refresh environment map
         if 0 <= self._frame_count_for_refresh_light_probe {
             get_renderer_data_mut().reset_render_light_probe_time();
