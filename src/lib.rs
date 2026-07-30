@@ -1,6 +1,7 @@
 pub mod audio;
 pub mod constants;
 pub mod core;
+pub mod ecs;
 pub mod effect;
 pub mod render_pass;
 pub mod renderer;
