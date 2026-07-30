@@ -275,18 +275,7 @@ impl<'a> EngineCore<'a> {
 
         // register engine service locator
         let engine_core = ptr_as_ref(engine_core_ptr.as_ref());
-        engine_service_locator::register_engine_service_locator(
-            engine_core,
-            engine_core.get_audio_manager(),
-            engine_core.get_effect_manager(),
-            engine_core.get_scene_manager(),
-            engine_core.get_renderer_context().get_renderer_data(),
-            engine_core.get_renderer_context(),
-            engine_core.get_ui_manager(),
-            engine_core.get_font_manager(),
-            engine_core.get_debug_line_manager(),
-            engine_core.get_engine_resources()
-        );
+        engine_service_locator::set_engine_core(engine_core);
 
         engine_core
             .get_renderer_context_mut()
