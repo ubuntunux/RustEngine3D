@@ -479,7 +479,7 @@ impl<'a> RenderObjectData<'a> {
 
             // update collision
             if self._collision.is_valid_collision() {
-                self._collision._bounding_box.update_oriented_bouding_box(
+                self._collision._bounding_box.update_oriented_bounding_box(
                     &self._model_data.borrow()._collision._bounding_box,
                     &matrix,
                 );

@@ -149,7 +149,7 @@ impl BoundingBox {
         self._orientation = math::extract_axes(matrix) * bound_box._orientation;
     }
 
-    pub fn update_oriented_bouding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
+    pub fn update_oriented_bounding_box(&mut self, bound_box: &BoundingBox, matrix: &Matrix4<f32>) {
         let location = math::extract_location(&matrix);
         let rotation = math::extract_axes(&matrix);
         let scale = math::extract_scale(&matrix);
