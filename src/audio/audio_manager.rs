@@ -231,6 +231,13 @@ impl AudioManager {
         }
     }
 
+    pub fn is_playing_bgm(&self) -> bool {
+        if let Some(audio_instance) = self._bgm_audio_instance.as_ref() {
+            return self.is_playing_audio_instance(audio_instance);
+        }
+        false
+    }
+
     pub fn play_bgm(&mut self, audio_data_name: &str, audio_volume: Option<f32>) {
         let engine_resources = get_engine_resources_mut();
         let audio_resource_data = engine_resources.get_audio_bank_data(audio_data_name);

@@ -45,7 +45,7 @@ struct GpuParticleStaticConstants
     vec3 _velocity_max;
     int _geometry_type;
     vec3 _force_min;
-    int _reserved0;
+    float _velocity_stretch;
     vec3 _force_max;
     int _reserved1;
 };

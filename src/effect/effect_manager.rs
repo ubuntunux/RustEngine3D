@@ -42,7 +42,7 @@ pub struct GpuParticleStaticConstants {
     pub _velocity_max: Vector3<f32>,
     pub _geometry_type: i32,
     pub _force_min: Vector3<f32>,
-    pub _reserved0: i32,
+    pub _velocity_stretch: f32,
     pub _force_max: Vector3<f32>,
     pub _reserved1: i32,
 }
@@ -428,6 +428,7 @@ impl<'a> EffectManager<'a> {
                 gpu_particle_static_constant._velocity_min.clone_from(&emitter_data._velocity_min);
                 gpu_particle_static_constant._velocity_max.clone_from(&emitter_data._velocity_max);
                 gpu_particle_static_constant._force_min.clone_from(&emitter_data._force_min);
+                gpu_particle_static_constant._velocity_stretch = emitter_data._velocity_stretch;
                 gpu_particle_static_constant._force_max.clone_from(&emitter_data._force_max);
                 emitter._need_to_upload_static_constant_buffer = false;
             }

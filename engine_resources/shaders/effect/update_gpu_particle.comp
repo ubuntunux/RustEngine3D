@@ -46,6 +46,7 @@ void update_particle_transform(
     const in vec3 particle_local_position,
     const in vec3 normalized_world_velocity,
     const float world_velocity_length,
+    const float velocity_stretch,
     const int align_mode
 )
 {
@@ -67,7 +68,6 @@ void update_particle_transform(
     {
         if(0.0 < world_velocity_length)
         {
-            const float velocity_stretch = 0.1;
             alignment_matrix[0] = cross(normalized_world_velocity.xyz, normalize(particle_relative_position));
             alignment_matrix[1] = normalized_world_velocity.xyz * (1.0 + world_velocity_length * velocity_stretch);
             alignment_matrix[2] = cross(alignment_matrix[0], normalized_world_velocity.xyz);
@@ -132,8 +132,36 @@ void spawn_particle_func(
         gpu_particle_static_constant._force_max,
         generate_random3(random_seed)
     );
-    vec3 spawn_position = vec3(random(random_seed), random(random_seed), random(random_seed)) * 2.0 - 1.0;
-    spawn_position = (gpu_particle_static_constant._spawn_volume_transform * vec4(spawn_position, 1.0)).xyz;
+
+    vec3 spawn_position = vec3(0.0, 0.0, 0.0);
+    {
+        vec4 spawn_volume_random_factors = generate_random4(random_seed);
+        vec4 spawn_volume_info = gpu_particle_static_constant._spawn_volume_info;
+        int spawn_volume_type = gpu_particle_static_constant._spawn_volume_type;
+        if(ParticleSpawnVolumeType_Box == spawn_volume_type)
+        {
+            spawn_position = spawn_volume_info.xyz * (spawn_volume_random_factors.xyz - 0.5);
+        }
+        else if(ParticleSpawnVolumeType_Sphere == spawn_volume_type)
+        {
+            vec3 dir = safe_normalize(spawn_volume_random_factors.xyz - 0.5);
+            spawn_position = dir * mix(spawn_volume_info.y, spawn_volume_info.x, spawn_volume_random_factors.w * spawn_volume_random_factors.w) * 0.5;
+        }
+        else if(ParticleSpawnVolumeType_Cone == spawn_volume_type)
+        {
+            vec2 dir = safe_normalize(spawn_volume_random_factors.xy - 0.5);
+            float ratio = spawn_volume_random_factors.z * spawn_volume_random_factors.z;
+            spawn_position.y = spawn_volume_info.z * (ratio - 0.5);
+            spawn_position.xz = dir * mix(spawn_volume_info.y, spawn_volume_info.x, ratio) * sqrt(spawn_volume_random_factors.w) * 0.5;
+        }
+        else if(ParticleSpawnVolumeType_Cylinder == spawn_volume_type)
+        {
+            vec2 dir = safe_normalize(spawn_volume_random_factors.xy - 0.5);
+            spawn_position.y = spawn_volume_info.z * (spawn_volume_random_factors.z - 0.5);
+            spawn_position.xz = dir * mix(spawn_volume_info.y, spawn_volume_info.x, spawn_volume_random_factors.w * spawn_volume_random_factors.w) * 0.5;
+        }
+        spawn_position = (gpu_particle_static_constant._spawn_volume_transform * vec4(spawn_position, 1.0)).xyz;
+    }
 
     particle_buffer._particle_emitter_transform = gpu_particle_dynamic_constant._emitter_transform;
     particle_buffer._particle_relative_transform = Mat4Identity;
@@ -178,6 +206,7 @@ void update_particle_func(
         particle_buffer._particle_local_position,
         normalized_world_velocity,
         world_velocity_length,
+        gpu_particle_static_constant._velocity_stretch,
         gpu_particle_static_constant._align_mode
     );
 }
