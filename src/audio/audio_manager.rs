@@ -36,6 +36,7 @@ pub struct AudioBankData {
 pub struct AudioInstance {
     pub _audio_data: RcRefCell<AudioData>,
     pub _channel: Result<Channel, String>,
+    pub _volume: Option<f32>,
 }
 
 pub struct AudioManager {
@@ -73,7 +74,7 @@ impl fmt::Debug for AudioBankData {
 }
 
 impl AudioInstance {
-    pub fn play_audio_instance(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop) -> RcRefCell<AudioInstance> {
+    pub fn play_audio_instance(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop, audio_volume: Option<f32>) -> RcRefCell<AudioInstance> {
         let audio_loop = match audio_loop {
             AudioLoop::ONCE => 0,
             AudioLoop::SOME(x) => 0.max(x - 1),
@@ -84,6 +85,7 @@ impl AudioInstance {
         newRcRefCell(AudioInstance {
             _audio_data: audio_data.clone(),
             _channel: Channel::all().play(chunk, audio_loop),
+            _volume: audio_volume,
         })
     }
 }
@@ -168,7 +170,7 @@ impl AudioManager {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>,
     ) -> Option<RcRefCell<AudioInstance>> {
-        let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop);
+        let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop, audio_volume);
         self.register_audio_instance(&audio_instance, audio_volume);
         Some(audio_instance)
     }
@@ -258,6 +260,12 @@ impl AudioManager {
         self._bgm_audio_instance = None;
     }
 
+    pub fn set_bgm_volume(&self, volume: f32) {
+        if let Some(audio_instance) = self._bgm_audio_instance.as_ref() {
+            self.set_audio_instance_volume(&audio_instance, volume);
+        }
+    }
+
     pub fn stop_audio_instance(&self, audio_instance: &RcRefCell<AudioInstance>) {
         let audio_instance_borrow = audio_instance.borrow();
         if let Ok(channel) = audio_instance_borrow._channel {
@@ -272,6 +280,13 @@ impl AudioManager {
         }
         false
     }
+    pub fn set_audio_instance_volume(&self, audio_instance: &RcRefCell<AudioInstance>, volume: f32) {
+        let audio_instance_borrow = audio_instance.borrow();
+        if let Ok(channel) = audio_instance_borrow._channel.as_ref() {
+            channel.set_volume((self._volume as f32 * volume) as i32);
+        }
+    }
+
 
     pub fn update_audio_manager(&mut self) {
         let mut is_playing_bgm: bool = false;
