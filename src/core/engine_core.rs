@@ -46,6 +46,7 @@ pub struct TimeData {
     pub _acc_frame_count: i32,
     pub _average_frame_time: f64,
     pub _average_fps: f64,
+    pub _target_fps: f64,
     pub _average_render_time: f64,
     pub _average_present_time: f64,
     pub _elapsed_frame: u64,
@@ -67,6 +68,7 @@ pub fn create_time_data() -> TimeData {
         _acc_frame_count: 0,
         _average_frame_time: 0.0,
         _average_fps: 0.0,
+        _target_fps: 60.0,
         _average_render_time: 0.0,
         _average_present_time: 0.0,
         _elapsed_frame: 0,
@@ -79,12 +81,19 @@ pub fn create_time_data() -> TimeData {
 
 impl TimeData {
     pub fn update_time_data(&mut self, delta_time_scale: f64) {
-        let target_fps = unsafe { crate::constants::TARGET_FRAME_RATE };
         let mut current_time = self._time_instance.elapsed().as_secs_f64();
         let previous_time = self._current_time;
         let mut delta_time = current_time - previous_time;
-        if target_fps > 0 {
-            let target_frame_time = 1.0 / target_fps as f64;
+
+        let explicit_target = unsafe { constants::TARGET_FRAME_RATE };
+        let dynamic_target_fps: f64 = if explicit_target > 0 {
+            explicit_target as f64
+        } else {
+            self._target_fps
+        };
+
+        if dynamic_target_fps > 0f64 {
+            let target_frame_time = 1.0 / dynamic_target_fps;
             if delta_time < target_frame_time {
                 let sleep_secs = target_frame_time - delta_time;
                 std::thread::sleep(std::time::Duration::from_secs_f64(sleep_secs));
@@ -104,6 +113,7 @@ impl TimeData {
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
             self._average_fps = average_fps;
+            self._target_fps = 30f64.max(self._average_fps.max(self._target_fps) * 1.1);
             self._average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
             self._acc_render_time = 0.0;
             self._average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
