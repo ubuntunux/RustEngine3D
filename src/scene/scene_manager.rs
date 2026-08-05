@@ -763,7 +763,7 @@ impl<'a> SceneManager<'a> {
                             _is_render_height_map: is_render_height_map,
                             _geometry_index: geometry_index,
                             _geometry_data: mesh_data.get_geometry_data(geometry_index).clone(),
-                            _material_instance_data: model_data.get_material_instance_data(geometry_index).clone(),
+                            _material_instance_data: render_object_data.get_material_instance_data(geometry_index).clone(),
                         });
                     }
 

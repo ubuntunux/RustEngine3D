@@ -1,4 +1,5 @@
 use crate::renderer::push_constants::PushConstantParameter;
+use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::animation::{
     AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo, AnimationPlayInfoSaveData,
 };
@@ -97,6 +98,7 @@ pub struct RenderObjectData<'a> {
     pub _animation_buffer: Option<AnimationBuffer>,
     pub _bone_count: usize,
     pub _sockets: HashMap<String, RcRefCell<Socket>>,
+    pub _material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>>,
 }
 
 impl<'a> RenderObjectData<'a> {
@@ -114,8 +116,14 @@ impl<'a> RenderObjectData<'a> {
         transform_object_data.set_scale(&render_object_create_data._scale);
 
         let model_data_ref = model_data.borrow();
-        let push_constant_data_list_group = model_data_ref
+        let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>> = model_data_ref
             ._material_instance_data_list
+            .iter()
+            .map(|material_instance_data| {
+                newRcRefCell(material_instance_data.borrow().clone())
+            })
+            .collect();
+        let push_constant_data_list_group = material_instance_data_list
             .iter()
             .map(|material_instance_data| {
                 material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_data_list.clone()
@@ -162,6 +170,7 @@ impl<'a> RenderObjectData<'a> {
             _animation_buffer: None,
             _bone_count: 0,
             _sockets: sockets,
+            _material_instance_data_list: material_instance_data_list,
         };
 
         if let Some(collision_type) = custom_collision_type {
@@ -350,6 +359,18 @@ impl<'a> RenderObjectData<'a> {
 
     pub fn get_model_data(&self) -> &RcRefCell<ModelData<'a>> {
         &self._model_data
+    }
+
+    pub fn get_material_instance_data_list(&self) -> &Vec<RcRefCell<MaterialInstanceData<'a>>> {
+        &self._material_instance_data_list
+    }
+
+    pub fn get_material_instance_data_list_mut(&mut self) -> &mut Vec<RcRefCell<MaterialInstanceData<'a>>> {
+        &mut self._material_instance_data_list
+    }
+
+    pub fn get_material_instance_data(&self, index: usize) -> &RcRefCell<MaterialInstanceData<'a>> {
+        &self._material_instance_data_list[index]
     }
 
     pub fn get_push_constant_data_list(&self, model_index: usize) -> &Vec<PipelinePushConstantData> {
