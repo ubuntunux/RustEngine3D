@@ -519,6 +519,18 @@ impl AnimationPlayInfo {
         self._animation_mesh.is_some()
     }
 
+    pub fn get_animation_length(&self) -> f32 {
+        let animation_data_list: &Vec<AnimationData> =
+            &self._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
+        animation_data_list[self._animation_index]._animation_length
+    }
+
+    pub fn get_animation_frame_count(&self) -> usize {
+        let animation_data_list: &Vec<AnimationData> =
+            &self._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
+        animation_data_list[self._animation_index]._frame_count
+    }
+
     pub fn check_animation_event_time(&self, event_time: f32) -> bool {
         if self._prev_animation_play_time <= event_time && event_time < self._animation_play_time {
             return true;
