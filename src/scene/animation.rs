@@ -520,6 +520,10 @@ impl AnimationPlayInfo {
     }
 
     pub fn get_animation_length(&self) -> f32 {
+        if self._animation_mesh.is_none() {
+            return 0.0;
+        }
+
         let animation_data_list: &Vec<AnimationData> =
             &self._animation_mesh.as_ref().unwrap().borrow()._animation_data_list;
         animation_data_list[self._animation_index]._animation_length
