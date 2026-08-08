@@ -2,6 +2,7 @@ use crate::renderer::renderer_data::{RenderOption, RenderQualityLevel};
 use ash::vk;
 
 pub static mut DEVELOPMENT: bool = false;
+pub static mut SHOW_DEBUG_TEXT: bool = false;
 pub const ENGINE_NAME: &str = "RustEngine3D";
 pub const ENGINE_VERSION: u32 = vk::make_api_version(0, 1, 0, 0);
 pub const DEPTH_FORMATS: [vk::Format; 2] = [vk::Format::D32_SFLOAT, vk::Format::D16_UNORM];

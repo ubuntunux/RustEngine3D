@@ -13,7 +13,7 @@ use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
 
 use crate::audio::audio_manager::AudioManager;
 use crate::constants;
-use crate::constants::DEVELOPMENT;
+use crate::constants::{DEVELOPMENT, SHOW_DEBUG_TEXT};
 use crate::core::engine_service_locator;
 use crate::core::engine_service_locator::{get_renderer_context, get_scene_manager_mut};
 use crate::core::input::{self, ButtonState};
@@ -443,98 +443,102 @@ impl<'a> EngineCore<'a> {
                 );
 
                 // debug text
-                font_manager.log(format!(
-                    "{:.2}fps / {:.3}ms",
-                    self._time_data._average_fps, self._time_data._average_frame_time
-                ));
-                font_manager.log(format!(
-                    "Game Time: {:.3}ms",
-                    self._time_data._average_frame_time - self._time_data._average_render_time
-                ));
-                font_manager.log(format!(
-                    "Render Time: {:.3}ms",
-                    self._time_data._average_render_time - self._time_data._average_present_time
-                ));
-                font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
-                let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
-                let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
-                font_manager.log(format!(
-                    "Camera Position: [{:.2}, {:.2}, {:.2}], Rotation: [{:.2}, {:.2}, {:.2}]",
-                    camera_position.x,
-                    camera_position.y,
-                    camera_position.z,
-                    camera_rotation.x,
-                    camera_rotation.y,
-                    camera_rotation.z,
-                ));
-                font_manager.log(format!(
-                    "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
-                    scene_manager._static_render_object_map.len(),
-                    scene_manager._skeletal_render_object_map.len(),
-                    scene_manager._dynamic_update_object_map.len(),
-                    scene_manager._collision_object_key_map.len(),
-                    scene_manager._static_render_object_instancing_map.len()
-                ));
-                font_manager.log(format!(
-                    "RenderStaticMesh(Instancing): {}({}), RenderStaticShadow(Instancing): {}({})",
-                    scene_manager._static_render_elements.len(),
-                    scene_manager
-                        ._static_render_elements
-                        .iter()
-                        .map(|element| element._num_render_instances)
-                        .sum::<u32>(),
-                    scene_manager._static_shadow_render_elements.len(),
-                    scene_manager
-                        ._static_shadow_render_elements
-                        .iter()
-                        .map(|element| element._num_render_instances)
-                        .sum::<u32>()
-                ));
-                font_manager.log(format!(
-                    "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
-                    scene_manager._skeletal_render_elements.len(),
-                    scene_manager
-                        ._skeletal_render_elements
-                        .iter()
-                        .map(|element| element._num_render_instances)
-                        .sum::<u32>(),
-                    scene_manager._skeletal_shadow_render_elements.len(),
-                    scene_manager
-                        ._skeletal_shadow_render_elements
-                        .iter()
-                        .map(|element| element._num_render_instances)
-                        .sum::<u32>(),
-                ));
-                font_manager.log(format!(
-                    "PointLight: {:?}, Render PointLight: {:?}",
-                    scene_manager._point_light_object_map.len(),
-                    scene_manager.get_render_point_light_count()
-                ));
-                font_manager.log(format!(
-                    "RenderTarget: {:?}",
-                    renderer_context._renderer_data._debug_render_target
-                ));
-                font_manager.log(format!(
-                    "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
-                    unsafe { constants::RENDER_QUALITY_LEVEL },
-                    unsafe { constants::ENABLE_UPSCALE },
-                    renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
-                    renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
-                    renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
-                    renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
-                    renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
-                    renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
-                ));
+                unsafe {
+                    if SHOW_DEBUG_TEXT {
+                        font_manager.log(format!(
+                            "{:.2}fps / {:.3}ms",
+                            self._time_data._average_fps, self._time_data._average_frame_time
+                        ));
+                        font_manager.log(format!(
+                            "Game Time: {:.3}ms",
+                            self._time_data._average_frame_time - self._time_data._average_render_time
+                        ));
+                        font_manager.log(format!(
+                            "Render Time: {:.3}ms",
+                            self._time_data._average_render_time - self._time_data._average_present_time
+                        ));
+                        font_manager.log(format!("Present Time: {:.3}ms", self._time_data._average_present_time));
+                        let camera_position = scene_manager.get_main_camera()._transform_object.get_position();
+                        let camera_rotation = scene_manager.get_main_camera()._transform_object.get_rotation();
+                        font_manager.log(format!(
+                            "Camera Position: [{:.2}, {:.2}, {:.2}], Rotation: [{:.2}, {:.2}, {:.2}]",
+                            camera_position.x,
+                            camera_position.y,
+                            camera_position.z,
+                            camera_rotation.x,
+                            camera_rotation.y,
+                            camera_rotation.z,
+                        ));
+                        font_manager.log(format!(
+                            "StaticObjects: {}, SkeletalObjects: {}, DynamicUpdateObjects: {}, CollisionObjects: {}, InstancingRenderObjects: {}",
+                            scene_manager._static_render_object_map.len(),
+                            scene_manager._skeletal_render_object_map.len(),
+                            scene_manager._dynamic_update_object_map.len(),
+                            scene_manager._collision_object_key_map.len(),
+                            scene_manager._static_render_object_instancing_map.len()
+                        ));
+                        font_manager.log(format!(
+                            "RenderStaticMesh(Instancing): {}({}), RenderStaticShadow(Instancing): {}({})",
+                            scene_manager._static_render_elements.len(),
+                            scene_manager
+                                ._static_render_elements
+                                .iter()
+                                .map(|element| element._num_render_instances)
+                                .sum::<u32>(),
+                            scene_manager._static_shadow_render_elements.len(),
+                            scene_manager
+                                ._static_shadow_render_elements
+                                .iter()
+                                .map(|element| element._num_render_instances)
+                                .sum::<u32>()
+                        ));
+                        font_manager.log(format!(
+                            "RenderSkeletalMesh(Instancing): {}({}), RenderSkeletalShadow(Instancing): {}({})",
+                            scene_manager._skeletal_render_elements.len(),
+                            scene_manager
+                                ._skeletal_render_elements
+                                .iter()
+                                .map(|element| element._num_render_instances)
+                                .sum::<u32>(),
+                            scene_manager._skeletal_shadow_render_elements.len(),
+                            scene_manager
+                                ._skeletal_shadow_render_elements
+                                .iter()
+                                .map(|element| element._num_render_instances)
+                                .sum::<u32>(),
+                        ));
+                        font_manager.log(format!(
+                            "PointLight: {:?}, Render PointLight: {:?}",
+                            scene_manager._point_light_object_map.len(),
+                            scene_manager.get_render_point_light_count()
+                        ));
+                        font_manager.log(format!(
+                            "RenderTarget: {:?}",
+                            renderer_context._renderer_data._debug_render_target
+                        ));
+                        font_manager.log(format!(
+                            "RenderQualityLevel: {:?}, Upsacle: {:?}, RenderSSR: {:?}, RenderOcean: {:?}, RenderAtmosphere: {:?}, RenderSky: {:?}, RenderShadow: {:?}, RenderSSAO: {:?}",
+                             { constants::RENDER_QUALITY_LEVEL },
+                             { constants::ENABLE_UPSCALE },
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderSSR),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderOcean),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderAtmosphere) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSky),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow),
+                            renderer_context._renderer_data.has_render_option(RenderOption::RenderShadow) && renderer_context._renderer_data.has_render_option(RenderOption::RenderSSAO),
+                        ));
 
-                if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
-                    let mut time_profiler = time_profiler_mutex.lock().unwrap();
-                    let mut keys: Vec<&String> = time_profiler.keys().collect();
-                    keys.sort();
-                    for key in keys {
-                        let value = time_profiler.get(key).unwrap();
-                        font_manager.log(format!("{}: {:.3}ms", key, value));
+                        if let Some(time_profiler_mutex) = TIME_PROFILER.get() {
+                            let mut time_profiler = time_profiler_mutex.lock().unwrap();
+                            let mut keys: Vec<&String> = time_profiler.keys().collect();
+                            keys.sort();
+                            for key in keys {
+                                let value = time_profiler.get(key).unwrap();
+                                font_manager.log(format!("{}: {:.3}ms", key, value));
+                            }
+                            time_profiler.clear(); // Clear the HashMap for the next frame
+                        }
                     }
-                    time_profiler.clear(); // Clear the HashMap for the next frame
                 }
 
                 // render scene
@@ -748,11 +752,7 @@ pub fn run_application(
 
                         // exit
                         if engine_core._is_grab_mode == false {
-                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Escape)
-                                || engine_core._joystick_input_data._btn_back == ButtonState::Pressed
-                            {
-                                run_application = false;
-                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
+                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
                                 engine_core
                                     ._renderer_context
                                     .get_renderer_data_mut()
