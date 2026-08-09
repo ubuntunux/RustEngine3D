@@ -987,7 +987,7 @@ impl<'a> UIComponentInstance<'a> {
             self._enable = enable;
             self._changed_render_data = true;
             self._changed_layout = true;
-            if self.has_parent() {
+            if self.has_parent() && ptr_as_ref(self._parent).get_layout_type() == UILayoutType::BoxLayout {
                 ptr_as_mut(self._parent).set_changed_layout(true);
             }
         }
