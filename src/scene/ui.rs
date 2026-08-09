@@ -987,6 +987,9 @@ impl<'a> UIComponentInstance<'a> {
             self._enable = enable;
             self._changed_render_data = true;
             self._changed_layout = true;
+            if self.has_parent() {
+                ptr_as_mut(self._parent).set_changed_layout(true);
+            }
         }
     }
     pub fn get_visible(&self) -> bool {
@@ -1553,67 +1556,66 @@ impl<'a> UIComponentInstance<'a> {
         font_data: &FontData,
         dpi_scale: f32,
     ) {
-        if self._enable == false {
-            return;
-        }
-
         if inherit_changed_layout || self._changed_layout {
             inherit_changed_layout = true;
-            let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
-            let spaces = (self.get_margin() + self.get_padding()) * component_dpi_scale;
-            let size_hint_x = self.get_size_hint_x();
-            let size_hint_y = self.get_size_hint_y();
-            let mut ui_size: Vector2<f32> = self.get_size() * component_dpi_scale;
-            if size_hint_x.is_some() {
-                ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
-            }
-            if size_hint_y.is_some() {
-                ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
-            }
+            if self._enable {
+                let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
+                let spaces = (self.get_margin() + self.get_padding()) * component_dpi_scale;
+                let size_hint_x = self.get_size_hint_x();
+                let size_hint_y = self.get_size_hint_y();
+                let mut ui_size: Vector2<f32> = self.get_size() * component_dpi_scale;
+                if size_hint_x.is_some() {
+                    ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
+                }
+                if size_hint_y.is_some() {
+                    ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+                }
 
-            // update contents area
-            self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
-            self._changed_text = false;
+                // update contents area
+                self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
+                self._changed_text = false;
 
-            // expandable
-            if self.get_expandable_x() {
-                ui_size.x = ui_size.x.max(self._text_contents_size.x);
+                // expandable
+                if self.get_expandable_x() {
+                    ui_size.x = ui_size.x.max(self._text_contents_size.x);
+                }
+
+                if self.get_expandable_y() {
+                    ui_size.y = ui_size.y.max(self._text_contents_size.y);
+                }
+                ui_size.x += spaces.x + spaces.z;
+                ui_size.y += spaces.y + spaces.w;
+
+                self._spaces.clone_from(&spaces);
+                self._ui_size.clone_from(&ui_size);
+                self._contents_area_size.x = ui_size.x - spaces.x - spaces.z;
+                self._contents_area_size.y = ui_size.y - spaces.y - spaces.w;
             }
-
-            if self.get_expandable_y() {
-                ui_size.y = ui_size.y.max(self._text_contents_size.y);
-            }
-            ui_size.x += spaces.x + spaces.z;
-            ui_size.y += spaces.y + spaces.w;
-
-            self._spaces.clone_from(&spaces);
-            self._ui_size.clone_from(&ui_size);
-            self._contents_area_size.x = ui_size.x - spaces.x - spaces.z;
-            self._contents_area_size.y = ui_size.y - spaces.y - spaces.w;
         }
 
-        if inherit_changed_layout || self._changed_deep_child_layout {
-            // update required contents size
+        if self._enable && (inherit_changed_layout || self._changed_deep_child_layout) {
             let mut required_contents_size = Vector2::<f32>::zeros();
             for child in self._children.iter() {
                 let child_ui_instance = ptr_as_mut(*child);
-                child_ui_instance.recursive_update_layout_size(
-                    inherit_changed_layout,
-                    &self._contents_area_size,
-                    font_data,
-                    dpi_scale,
-                );
+                if child_ui_instance._enable {
+                    child_ui_instance.recursive_update_layout_size(
+                        inherit_changed_layout,
+                        &self._contents_area_size,
+                        font_data,
+                        dpi_scale,
+                    );
 
-                // accumulate required_contents_size
-                if UILayoutType::BoxLayout == self.get_layout_type() {
-                    match self.get_layout_orientation() {
-                        Orientation::HORIZONTAL => {
-                            required_contents_size.x += child_ui_instance._ui_size.x;
-                            required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
-                        }
-                        Orientation::VERTICAL => {
-                            required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
-                            required_contents_size.y += child_ui_instance._ui_size.y;
+                    // accumulate required_contents_size
+                    if UILayoutType::BoxLayout == self.get_layout_type() {
+                        match self.get_layout_orientation() {
+                            Orientation::HORIZONTAL => {
+                                required_contents_size.x += child_ui_instance._ui_size.x;
+                                required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
+                            }
+                            Orientation::VERTICAL => {
+                                required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
+                                required_contents_size.y += child_ui_instance._ui_size.y;
+                            }
                         }
                     }
                 }
@@ -1746,15 +1748,11 @@ impl<'a> UIComponentInstance<'a> {
         font_data: &FontData,
         dpi_scale: f32,
     ) {
-        if self._enable == false {
-            return;
-        }
-
         if self._changed_layout {
             inherit_changed_layout = true;
         }
 
-        if inherit_changed_layout || self._changed_deep_child_layout {
+        if self._enable && (inherit_changed_layout || self._changed_deep_child_layout) {
             if inherit_changed_layout || self._changed_child_layout {
                 let inherit_renderable_area = Vector4::new(
                     self._contents_area.x.max(self._renderable_area.x),
@@ -1789,30 +1787,32 @@ impl<'a> UIComponentInstance<'a> {
                 // update children ui area
                 for child in self._children.iter() {
                     let child_ui_instance = ptr_as_mut(*child);
-                    child_ui_instance.update_layout_area(
-                        self.get_layout_type(),
-                        self.get_layout_orientation(),
-                        self.get_halign(),
-                        self.get_valign(),
-                        &self._contents_area,
-                        &self._contents_area_size,
-                        &self._required_contents_size,
-                        &inherit_renderable_area,
-                        self.get_border() * if self._enable_dpi_scale { dpi_scale } else { 1.0 },
-                        self.get_round() * if self._enable_dpi_scale { dpi_scale } else { 1.0 },
-                        &mut child_ui_pos,
-                        update_depth + 1,
-                        dpi_scale,
-                    );
+                    if child_ui_instance.get_enable() {
+                        child_ui_instance.update_layout_area(
+                            self.get_layout_type(),
+                            self.get_layout_orientation(),
+                            self.get_halign(),
+                            self.get_valign(),
+                            &self._contents_area,
+                            &self._contents_area_size,
+                            &self._required_contents_size,
+                            &inherit_renderable_area,
+                            self.get_border() * if self._enable_dpi_scale { dpi_scale } else { 1.0 },
+                            self.get_round() * if self._enable_dpi_scale { dpi_scale } else { 1.0 },
+                            &mut child_ui_pos,
+                            update_depth + 1,
+                            dpi_scale,
+                        );
 
-                    // update child_ui_pos
-                    if UILayoutType::BoxLayout == self.get_layout_type() {
-                        match self.get_layout_orientation() {
-                            Orientation::HORIZONTAL => {
-                                child_ui_pos.x += child_ui_instance._ui_size.x;
-                            }
-                            Orientation::VERTICAL => {
-                                child_ui_pos.y += child_ui_instance._ui_size.y;
+                        // update child_ui_pos
+                        if UILayoutType::BoxLayout == self.get_layout_type() {
+                            match self.get_layout_orientation() {
+                                Orientation::HORIZONTAL => {
+                                    child_ui_pos.x += child_ui_instance._ui_size.x;
+                                }
+                                Orientation::VERTICAL => {
+                                    child_ui_pos.y += child_ui_instance._ui_size.y;
+                                }
                             }
                         }
                     }
