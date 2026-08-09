@@ -233,9 +233,6 @@ impl KeyboardInputData {
     }
 
     pub fn set_key_pressed(&mut self, key: KeyCode) {
-
-        log::info!(">>> set_key_pressed: {:?}", key);
-
         if false == self.get_key_hold(key) {
             self._key_pressed_map.insert(key, true);
             self.set_key_hold(key, true);
