@@ -488,7 +488,6 @@ impl<'a> UIComponentInstance<'a> {
             panic!("Widget already has parent");
         }
         self._parent = parent;
-        log::info!(">>> UIComponentInstance::set_parent: {:?}, parent: {:?}", self as *const UIComponentInstance, !parent.is_null());
     }
     pub fn get_num_children(&self) -> usize {
         self._children.len()
@@ -2006,7 +2005,6 @@ impl<'a> WidgetDefault<'a> {
     pub fn clear_parent(&mut self) {
         self._parent = None;
         self._ui_component._parent = std::ptr::null();
-        log::info!(">>> WidgetDefault::clear_parent: {:?}", self as *const WidgetDefault<'a>);
     }
     pub fn has_parent(&self) -> bool {
         self._parent.is_some()
@@ -2025,7 +2023,6 @@ impl<'a> WidgetDefault<'a> {
         self._ui_component._parent = ptr_as_ref(widget).get_ui_component();
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
-        log::info!(">>> WidgetDefault::set_parent: {:?}, parent: {:?}", self as *const WidgetDefault<'a>, !widget.is_null());
     }
     pub fn add_widget(&mut self, widget: &Rc<WidgetDefault<'a>>) {
         let widget_instance = ptr_as_mut(widget.as_ref());
@@ -2067,7 +2064,6 @@ impl<'a> WidgetDefault<'a> {
         self._ui_component._children.clear();
         self._ui_component.set_changed_child_layout(true);
         self._ui_component.set_changed_layout(true);
-        log::info!(">>> WidgetDefault::clear_widgets: {:?}", self as *const WidgetDefault<'a>);
     }
 }
 
