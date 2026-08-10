@@ -142,6 +142,7 @@ pub trait ApplicationBase<'a> {
     fn will_terminate_application(&self) -> bool;
     fn terminate_application(&mut self);
     fn get_render_pass_create_info_callback(&self) -> *const CallbackLoadRenderPassCreateInfo;
+    fn is_visible_cursor(&self) -> bool;
     fn focused(&mut self, focused: bool);
     fn update_event(&mut self);
     fn update_application(&mut self, delta_time: f64);
@@ -310,9 +311,9 @@ impl<'a> EngineCore<'a> {
 
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
         if self._is_grab_mode {
+            let update_mouse_pos = self.get_application().is_visible_cursor();
             let window_size = self._window_size.clone();
-            self._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size);
-            // window.set_cursor_position(dpi::PhysicalPosition { x: window_size.x / 2, y: window_size.y / 2 }).expect("failed to set_cursor_position");
+            self._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size, update_mouse_pos);
         }
     }
 
@@ -333,8 +334,9 @@ impl<'a> EngineCore<'a> {
 
     pub fn update_cursor_moved(&mut self, position: dpi::PhysicalPosition<f64>) {
         if false == self._is_grab_mode {
+            let update_mouse_pos = true;
             let window_size = self._window_size.clone();
-            self._mouse_move_data.update_mouse_pos(&position.into(), &window_size);
+            self._mouse_move_data.update_mouse_pos(&position.into(), &window_size, update_mouse_pos);
         }
     }
 
@@ -366,7 +368,8 @@ impl<'a> EngineCore<'a> {
     pub fn update_touch(&mut self, touch: &Touch) {
         if 0 == touch.id {
             let window_size = self._window_size.clone();
-            self._mouse_move_data.update_mouse_pos(&touch.location.into(), &window_size);
+            let update_mouse_pos = self.get_application().is_visible_cursor();
+            self._mouse_move_data.update_mouse_pos(&touch.location.into(), &window_size, update_mouse_pos);
 
             if TouchPhase::Started == touch.phase {
                 self._mouse_input_data.btn_r_pressed(true);
