@@ -1317,6 +1317,14 @@ impl<'a> UIComponentInstance<'a> {
     ) {
         let mut render_ui_index = render_ui_count;
 
+        if self._text_counts.is_empty() {
+            self.compute_text_contents_size(font_data, dpi_scale);
+        }
+
+        if self._text_counts.is_empty() {
+            return;
+        }
+
         let count_of_side: u32 = font_data._count_of_side;
         let inv_count_of_side: f32 = 1.0 / font_data._count_of_side as f32;
         let font_size_ratio: f32 = (self.get_font_size() * dpi_scale) / font_data._font_size.y;
@@ -1346,7 +1354,7 @@ impl<'a> UIComponentInstance<'a> {
             self.get_halign(),
             self._contents_area_size.x,
             self._contents_area.x,
-            self._text_counts[0],
+            *self._text_counts.get(0).unwrap_or(&0),
         );
 
         // text_render_area_y
@@ -1367,7 +1375,7 @@ impl<'a> UIComponentInstance<'a> {
                     self.get_halign(),
                     self._contents_area_size.x,
                     self._contents_area.x,
-                    self._text_counts[row as usize],
+                    *self._text_counts.get(row as usize).unwrap_or(&0),
                 );
             } else if '\t' == ch {
                 column += 4;
