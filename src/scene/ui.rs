@@ -1563,44 +1563,48 @@ impl<'a> UIComponentInstance<'a> {
         font_data: &FontData,
         dpi_scale: f32,
     ) {
-        if inherit_changed_layout || self._changed_layout {
+        if self._changed_layout {
             inherit_changed_layout = true;
-            if self._enable {
-                let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
-                let spaces = (self.get_margin() + self.get_padding()) * component_dpi_scale;
-                let size_hint_x = self.get_size_hint_x();
-                let size_hint_y = self.get_size_hint_y();
-                let mut ui_size: Vector2<f32> = self.get_size() * component_dpi_scale;
-                if size_hint_x.is_some() {
-                    ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
-                }
-                if size_hint_y.is_some() {
-                    ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
-                }
-
-                // update contents area
-                self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
-                self._changed_text = false;
-
-                // expandable
-                if self.get_expandable_x() {
-                    ui_size.x = ui_size.x.max(self._text_contents_size.x);
-                }
-
-                if self.get_expandable_y() {
-                    ui_size.y = ui_size.y.max(self._text_contents_size.y);
-                }
-                ui_size.x += spaces.x + spaces.z;
-                ui_size.y += spaces.y + spaces.w;
-
-                self._spaces.clone_from(&spaces);
-                self._ui_size.clone_from(&ui_size);
-                self._contents_area_size.x = ui_size.x - spaces.x - spaces.z;
-                self._contents_area_size.y = ui_size.y - spaces.y - spaces.w;
-            }
         }
 
-        if self._enable && (inherit_changed_layout || self._changed_deep_child_layout) {
+        if !self._enable {
+            return;
+        }
+
+        let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
+        let spaces = (self.get_margin() + self.get_padding()) * component_dpi_scale;
+        let size_hint_x = self.get_size_hint_x();
+        let size_hint_y = self.get_size_hint_y();
+        let mut ui_size: Vector2<f32> = self.get_size() * component_dpi_scale;
+        if size_hint_x.is_some() {
+            ui_size.x = parent_contents_size.x * size_hint_x.unwrap();
+        }
+        if size_hint_y.is_some() {
+            ui_size.y = parent_contents_size.y * size_hint_y.unwrap();
+        }
+
+        // update contents area
+        self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
+        self._changed_text = false;
+
+        // expandable text minimum bound
+        if self.get_expandable_x() {
+            ui_size.x = ui_size.x.max(self._text_contents_size.x);
+        }
+
+        if self.get_expandable_y() {
+            ui_size.y = ui_size.y.max(self._text_contents_size.y);
+        }
+
+        let base_contents_area_size = ui_size;
+        ui_size.x += spaces.x + spaces.z;
+        ui_size.y += spaces.y + spaces.w;
+
+        self._spaces.clone_from(&spaces);
+        self._ui_size.clone_from(&ui_size);
+        self._contents_area_size.clone_from(&base_contents_area_size);
+
+        if inherit_changed_layout || self._changed_deep_child_layout {
             let mut required_contents_size = Vector2::<f32>::zeros();
             for child in self._children.iter() {
                 let child_ui_instance = ptr_as_mut(*child);
@@ -1631,15 +1635,15 @@ impl<'a> UIComponentInstance<'a> {
 
             let prev_contents_area_size = self._contents_area_size;
 
-            // update expandable size
-            if self.get_expandable_x() && self._contents_area_size.x < self._required_contents_size.x {
-                self._contents_area_size.x = self._contents_area_size.x.max(self._required_contents_size.x);
-                self._ui_size.x = self._ui_size.x.max(self._required_contents_size.x + self._spaces.x + self._spaces.z);
+            // update expandable size (can expand OR shrink down to base_contents_area_size)
+            if self.get_expandable_x() {
+                self._contents_area_size.x = base_contents_area_size.x.max(self._required_contents_size.x);
+                self._ui_size.x = self._contents_area_size.x + self._spaces.x + self._spaces.z;
             }
 
-            if self.get_expandable_y() && self._contents_area_size.y < self._required_contents_size.y {
-                self._contents_area_size.y = self._contents_area_size.y.max(self._required_contents_size.y);
-                self._ui_size.y = self._ui_size.y.max(self._required_contents_size.y + self._spaces.y + self._spaces.w);
+            if self.get_expandable_y() {
+                self._contents_area_size.y = base_contents_area_size.y.max(self._required_contents_size.y);
+                self._ui_size.y = self._contents_area_size.y + self._spaces.y + self._spaces.w;
             }
 
             if prev_contents_area_size != self._contents_area_size {
@@ -1699,7 +1703,7 @@ impl<'a> UIComponentInstance<'a> {
         if let Some(size_hint_x) = self.get_size_hint_x() {
             let mut contents_size_x = parent_contents_area_size.x * size_hint_x;
             if self.get_expandable_x() {
-                contents_size_x = contents_size_x.max(self._text_contents_size.x);
+                contents_size_x = contents_size_x.max(self._text_contents_size.x).max(self._required_contents_size.x);
             }
             self._ui_size.x = contents_size_x + self._spaces.x + self._spaces.z;
             self._contents_area_size.x = contents_size_x;
@@ -1708,7 +1712,7 @@ impl<'a> UIComponentInstance<'a> {
         if let Some(size_hint_y) = self.get_size_hint_y() {
             let mut contents_size_y = parent_contents_area_size.y * size_hint_y;
             if self.get_expandable_y() {
-                contents_size_y = contents_size_y.max(self._text_contents_size.y);
+                contents_size_y = contents_size_y.max(self._text_contents_size.y).max(self._required_contents_size.y);
             }
             self._ui_size.y = contents_size_y + self._spaces.y + self._spaces.w;
             self._contents_area_size.y = contents_size_y;
