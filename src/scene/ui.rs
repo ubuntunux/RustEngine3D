@@ -986,9 +986,6 @@ impl<'a> UIComponentInstance<'a> {
             self._enable = enable;
             self._changed_render_data = true;
             self._changed_layout = true;
-            if self.has_parent() && ptr_as_ref(self._parent).get_layout_type() == UILayoutType::BoxLayout {
-                ptr_as_mut(self._parent).set_changed_layout(true);
-            }
         }
     }
     pub fn get_visible(&self) -> bool {
@@ -1894,39 +1891,15 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_layout_state = UILayoutState::Complete;
     }
 
-    fn recursive_update_ui_component(
-        &mut self,
-        delta_time: f64,
-        window_size: &Vector2<i32>,
-        time_data: &TimeData,
-        keyboard_input_data: &KeyboardInputData,
-        mouse_pos: &Vector2<f32>,
-        mouse_pos_delta: &Vector2<f32>,
-        mouse_moved: bool,
-        mouse_input_data: &MouseInputData,
-        mut hierarchical_visibility: bool,
-        touch_event: &mut bool,
-    ) {
+    fn recursive_update_ui_component(&mut self) {
         if self._enable == false {
             return;
         }
 
-        hierarchical_visibility = hierarchical_visibility && self._visible && self._enable;
         let mut child_index: isize = self._children.len() as isize - 1;
         while 0 <= child_index {
             let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
-            child_ui_instance.recursive_update_ui_component(
-                delta_time,
-                window_size,
-                time_data,
-                keyboard_input_data,
-                mouse_pos,
-                mouse_pos_delta,
-                mouse_moved,
-                mouse_input_data,
-                hierarchical_visibility,
-                touch_event,
-            );
+            child_ui_instance.recursive_update_ui_component();
 
             if child_ui_instance.get_changed_layout() {
                 self._changed_child_layout = true;
@@ -1938,8 +1911,38 @@ impl<'a> UIComponentInstance<'a> {
 
             child_index -= 1;
         }
+    }
 
-        if false == *touch_event && self.get_touchable() && hierarchical_visibility {
+    fn recursive_touch_event(
+        &mut self,
+        mouse_pos: &Vector2<f32>,
+        mouse_pos_delta: &Vector2<f32>,
+        mouse_moved: bool,
+        mouse_input_data: &MouseInputData,
+        touch_event: &mut bool,
+    ) {
+        if !self._enable || !self._visible {
+            return;
+        }
+
+        let mut child_index: isize = self._children.len() as isize - 1;
+        while 0 <= child_index {
+            let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
+            child_ui_instance.recursive_touch_event(
+                mouse_pos,
+                mouse_pos_delta,
+                mouse_moved,
+                mouse_input_data,
+                touch_event,
+            );
+
+            if *touch_event {
+                break;
+            }
+            child_index -= 1;
+        }
+
+        if false == *touch_event && self.get_touchable() {
             if self._touched {
                 if mouse_input_data._btn_l_hold {
                     if mouse_moved {
@@ -2371,11 +2374,11 @@ impl<'a> UIManager<'a> {
 
     pub fn update_ui_manager(
         &mut self,
-        delta_time: f64,
+        _delta_time: f64,
         engine_core: &EngineCore<'a>,
         window_size: &Vector2<i32>,
-        time_data: &TimeData,
-        keyboard_input_data: &KeyboardInputData,
+        _time_data: &TimeData,
+        _keyboard_input_data: &KeyboardInputData,
         mouse_move_data: &MouseMoveData,
         mouse_input_data: &MouseInputData,
     ) {
@@ -2397,7 +2400,6 @@ impl<'a> UIManager<'a> {
             root_ui_component.set_changed_layout(true);
         }
 
-        // update ui component
         let mouse_pos: Vector2<f32> =
             Vector2::new(mouse_move_data._mouse_pos.x as f32, mouse_move_data._mouse_pos.y as f32);
         let mouse_pos_delta: Vector2<f32> = Vector2::new(
@@ -2405,20 +2407,9 @@ impl<'a> UIManager<'a> {
             mouse_move_data._mouse_pos_delta.y as f32,
         );
         let mouse_moved: bool = 0 != mouse_move_data._mouse_pos_delta.x || 0 != mouse_move_data._mouse_pos_delta.y;
-        let hierarchical_visibility: bool = true;
-        let mut touch_event: bool = false;
-        root_ui_component.recursive_update_ui_component(
-            delta_time,
-            window_size,
-            time_data,
-            keyboard_input_data,
-            &mouse_pos,
-            &mouse_pos_delta,
-            mouse_moved,
-            mouse_input_data,
-            hierarchical_visibility,
-            &mut touch_event,
-        );
+
+        // gather changed layout flags
+        root_ui_component.recursive_update_ui_component();
 
         // update ui layout
         let contents_area = Vector4::new(0.0, 0.0, window_size.x as f32, window_size.y as f32);
@@ -2463,6 +2454,15 @@ impl<'a> UIManager<'a> {
                 self._dpi_scale,
             );
         }
+
+        let mut touch_event: bool = false;
+        root_ui_component.recursive_touch_event(
+            &mouse_pos,
+            &mouse_pos_delta,
+            mouse_moved,
+            mouse_input_data,
+            &mut touch_event,
+        );
 
         // collect_ui_render_data
         let font_data = self._font_data.borrow();
