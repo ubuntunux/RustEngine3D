@@ -225,6 +225,8 @@ pub struct UIComponentInstance<'a> {
     pub _world_to_local_matrix: Matrix4<f32>,
     pub _local_to_world_matrix: Matrix4<f32>,
     pub _spaces: Vector4<f32>, // margin + padding
+    pub _base_contents_area_size: Vector2<f32>,
+    pub _base_ui_size: Vector2<f32>,
     pub _contents_area: Vector4<f32>,
     pub _contents_area_size: Vector2<f32>, // ui_size - spaces
     pub _text_contents_size: Vector2<f32>, // just text contents size
@@ -443,6 +445,8 @@ impl<'a> Default for UIComponentInstance<'a> {
             _world_to_local_matrix: Matrix4::identity(),
             _local_to_world_matrix: Matrix4::identity(),
             _spaces: Vector4::zeros(),
+            _base_contents_area_size: Default::default(),
+            _base_ui_size: Default::default(),
             _contents_area: Vector4::zeros(),
             _contents_area_size: Vector2::zeros(),
             _text_contents_size: Vector2::zeros(),
@@ -1566,22 +1570,22 @@ impl<'a> UIComponentInstance<'a> {
             return false;
         }
 
-        self._changed_layout || inherit_changed_layout || self._changed_deep_child_layout
+        if self._changed_layout || inherit_changed_layout {
+            return true;
+        }
+
+        if self._changed_deep_child_layout {
+            if self.get_expandable_x() || self.get_expandable_y() || self.get_layout_type() == UILayoutType::BoxLayout {
+                return true;
+            }
+        }
+        false
     }
 
-    fn recursive_update_layout_size(&mut self) {
-        if self._enable && (self._changed_layout || self._changed_deep_child_layout) {
-            let component_dpi_scale = if self._enable_dpi_scale { get_global_dpi_scale() } else { 1.0 };
-            let mut base_contents_area_size = self.get_size() * component_dpi_scale;
-            if self.get_expandable_x() {
-                base_contents_area_size.x = base_contents_area_size.x.max(self._text_contents_size.x);
-            }
-            if self.get_expandable_y() {
-                base_contents_area_size.y = base_contents_area_size.y.max(self._text_contents_size.y);
-            }
-            self._contents_area_size = base_contents_area_size;
-            self._ui_size.x = self._contents_area_size.x + self._spaces.x + self._spaces.z;
-            self._ui_size.y = self._contents_area_size.y + self._spaces.y + self._spaces.w;
+    fn recursive_compute_required_sizes(&mut self) {
+        if self._enable && self.get_need_to_update_layout() {
+            self._contents_area_size = self._base_contents_area_size;
+            self._ui_size = self._base_ui_size;
 
             let mut required_contents_size = Vector2::<f32>::zeros();
             let mut required_contents_size_hint = Vector2::<f32>::zeros();
@@ -1659,7 +1663,7 @@ impl<'a> UIComponentInstance<'a> {
                         }
                         child_ui_instance._ui_size.y = child_ui_instance._contents_area_size.y + child_ui_instance._spaces.y + child_ui_instance._spaces.w;
                     }
-                    child_ui_instance.recursive_update_layout_size();
+                    child_ui_instance.recursive_compute_required_sizes();
 
                     let child_expand_req_x = if child_ui_instance.get_size_hint_x().is_none() {
                         child_ui_instance._ui_size.x
@@ -1709,7 +1713,7 @@ impl<'a> UIComponentInstance<'a> {
         }
     }
 
-    fn update_layout_area(
+    fn resolve_component_bounds(
         &mut self,
         parent_layout_type: UILayoutType,
         parent_layout_orientation: Orientation,
@@ -1849,7 +1853,7 @@ impl<'a> UIComponentInstance<'a> {
         self._changed_render_data = true;
     }
 
-    fn recursive_update_layout(
+    fn recursive_arrange_layout_tree(
         &mut self,
         dpi_scale: f32,
         update_depth: usize,
@@ -1944,7 +1948,7 @@ impl<'a> UIComponentInstance<'a> {
         for child in self._children.iter() {
             let child_ui_instance = ptr_as_mut(*child);
             if child_ui_instance.get_enable() {
-                child_ui_instance.update_layout_area(
+                child_ui_instance.resolve_component_bounds(
                     self.get_layout_type(),
                     self.get_layout_orientation(),
                     self.get_halign(),
@@ -1975,9 +1979,9 @@ impl<'a> UIComponentInstance<'a> {
             }
         }
 
-        // recursive update_layout
+        // recursive arrange layout tree
         for child in self._children.iter() {
-            ptr_as_mut(*child).recursive_update_layout(
+            ptr_as_mut(*child).recursive_arrange_layout_tree(
                 dpi_scale,
                 update_depth + 1
             );
@@ -1991,7 +1995,7 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_layout_state = UILayoutState::Complete;
     }
 
-    fn recursive_update_ui_component(
+    fn recursive_prepare_layout_state(
         &mut self,
         mut inherit_changed_layout: bool,
         font_data: &FontData,
@@ -2008,7 +2012,7 @@ impl<'a> UIComponentInstance<'a> {
 
         for child in self._children.iter() {
             let child = ptr_as_mut(*child);
-            child.recursive_update_ui_component(
+            child.recursive_prepare_layout_state(
                 inherit_changed_layout,
                 font_data,
                 dpi_scale,
@@ -2024,10 +2028,11 @@ impl<'a> UIComponentInstance<'a> {
             }
         }
 
-        if self._changed_layout {
+        // update base layout
+        if self._changed_layout || inherit_changed_layout {
             let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
             self._spaces = (self.get_margin() + self.get_padding()) * component_dpi_scale;
-            self._contents_area_size = self.get_size() * component_dpi_scale;
+            self._base_contents_area_size = self.get_size() * component_dpi_scale;
 
             // update contents area
             self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
@@ -2035,15 +2040,15 @@ impl<'a> UIComponentInstance<'a> {
 
             // expandable
             if self.get_expandable_x() {
-                self._contents_area_size.x = self._contents_area_size.x.max(self._text_contents_size.x);
+                self._base_contents_area_size.x = self._base_contents_area_size.x.max(self._text_contents_size.x);
             }
 
             if self.get_expandable_y() {
-                self._contents_area_size.y = self._contents_area_size.y.max(self._text_contents_size.y);
+                self._base_contents_area_size.y = self._base_contents_area_size.y.max(self._text_contents_size.y);
             }
 
-            self._ui_size.x = self._contents_area_size.x + self._spaces.x + self._spaces.z;
-            self._ui_size.y = self._contents_area_size.y + self._spaces.y + self._spaces.w;
+            self._base_ui_size.x = self._base_contents_area_size.x + self._spaces.x + self._spaces.z;
+            self._base_ui_size.y = self._base_contents_area_size.y + self._spaces.y + self._spaces.w;
         }
 
         self.set_need_to_update_layout( self.need_to_update_layout(inherit_changed_layout) );
@@ -2531,15 +2536,18 @@ impl<'a> UIManager<'a> {
 
         // update ui components
         let root_ui_component = ptr_as_mut(self._root.as_ref()).get_ui_component_mut();
-        if *window_size != self._window_size {
+        let inherit_changed_layout: bool = if *window_size != self._window_size {
             log::info!("changed window size: {:?} -> {:?}", self._window_size, window_size);
             self.set_window_size(window_size);
-        }
+            true
+        } else {
+            true
+        };
 
-        // gather changed layout flags
+        // gather changed layout flags & prepare state
         let update_depth: usize = 0;
-        let inherit_changed_layout: bool = true;
-        root_ui_component.recursive_update_ui_component(
+
+        root_ui_component.recursive_prepare_layout_state(
             inherit_changed_layout,
             &self._font_data.borrow(),
             self._dpi_scale,
@@ -2555,13 +2563,13 @@ impl<'a> UIManager<'a> {
         let border: f32 = 0.0;
         let round: f32 = 0.0;
 
-        if root_ui_component.get_enable()
-            && (root_ui_component.get_changed_layout() || root_ui_component.get_changed_deep_child_layout())
+        if root_ui_component.get_enable() && root_ui_component.get_need_to_update_layout()
         {
-            // gather required_contents_size, required_contents_size_hint
-            root_ui_component.recursive_update_layout_size();
+            // Pass 1: gather required_contents_size, required_contents_size_hint
+            root_ui_component.recursive_compute_required_sizes();
 
-            root_ui_component.update_layout_area(
+            // Pass 2a: resolve root component bounds
+            root_ui_component.resolve_component_bounds(
                 UILayoutType::FloatLayout,
                 Orientation::HORIZONTAL,
                 DEFAULT_HORIZONTAL_ALIGN,
@@ -2578,7 +2586,8 @@ impl<'a> UIManager<'a> {
                 update_depth
             );
 
-            root_ui_component.recursive_update_layout(
+            // Pass 2b: arrange layout tree recursively
+            root_ui_component.recursive_arrange_layout_tree(
                 self._dpi_scale,
                 update_depth
             );
