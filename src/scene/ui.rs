@@ -1618,6 +1618,8 @@ impl<'a> UIComponentInstance<'a> {
             for child in self._children.iter() {
                 let child_ui_instance = ptr_as_mut(*child);
                 if child_ui_instance._enable {
+                    let prev_child_ui_size = child_ui_instance._ui_size;
+
                     child_ui_instance.recursive_update_layout_size(
                         inherit_changed_layout,
                         &self._contents_area_size,
@@ -1625,6 +1627,10 @@ impl<'a> UIComponentInstance<'a> {
                         dpi_scale,
                         counts,
                     );
+
+                    if prev_child_ui_size != child_ui_instance._ui_size || child_ui_instance.get_changed_layout() {
+                        self._changed_child_layout = true;
+                    }
 
                     let child_expand_req_x = if child_ui_instance.get_size_hint_x().is_none() {
                         child_ui_instance._ui_size.x
@@ -1639,24 +1645,31 @@ impl<'a> UIComponentInstance<'a> {
                     };
 
                     // accumulate required_contents_size
-                    if UILayoutType::BoxLayout == self.get_layout_type() {
-                        match self.get_layout_orientation() {
-                            Orientation::HORIZONTAL => {
-                                required_contents_size.x += child_ui_instance._ui_size.x;
-                                required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
-                                required_contents_size_hint.x += child_expand_req_x;
-                                required_contents_size_hint.y = required_contents_size_hint.y.max(child_expand_req_y);
-                            }
-                            Orientation::VERTICAL => {
-                                required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
-                                required_contents_size.y += child_ui_instance._ui_size.y;
-                                required_contents_size_hint.x = required_contents_size_hint.x.max(child_expand_req_x);
-                                required_contents_size_hint.y += child_expand_req_y;
+                    let child_size_hint_x = child_ui_instance.get_size_hint_x().unwrap_or(0.0);
+                    let child_size_hint_y = child_ui_instance.get_size_hint_y().unwrap_or(0.0);
+                    match self.get_layout_type() {
+                        UILayoutType::FloatLayout => {
+                            required_contents_size_hint.x = required_contents_size_hint.x.max(child_size_hint_x);
+                            required_contents_size_hint.y = required_contents_size_hint.y.max(child_size_hint_y);
+                            required_contents_size.x = required_contents_size.x.max(child_expand_req_x);
+                            required_contents_size.y = required_contents_size.y.max(child_expand_req_y);
+                        }
+                        UILayoutType::BoxLayout => {
+                            match self.get_layout_orientation() {
+                                Orientation::HORIZONTAL => {
+                                    required_contents_size_hint.x += child_size_hint_x;
+                                    required_contents_size_hint.y = required_contents_size_hint.y.max(child_size_hint_y);
+                                    required_contents_size.x += child_expand_req_x;
+                                    required_contents_size.y = required_contents_size.y.max(child_expand_req_y);
+                                }
+                                Orientation::VERTICAL => {
+                                    required_contents_size_hint.x = required_contents_size_hint.x.max(child_size_hint_x);
+                                    required_contents_size_hint.y += child_size_hint_y;
+                                    required_contents_size.x = required_contents_size.x.max(child_expand_req_x);
+                                    required_contents_size.y += child_expand_req_y;
+                                }
                             }
                         }
-                    } else if UILayoutType::FloatLayout == self.get_layout_type() {
-                        required_contents_size.x = required_contents_size.x.max(child_expand_req_x);
-                        required_contents_size.y = required_contents_size.y.max(child_expand_req_y);
                     }
                 }
             }
@@ -1677,11 +1690,16 @@ impl<'a> UIComponentInstance<'a> {
             }
 
             if prev_contents_area_size != self._contents_area_size {
+                self._changed_layout = true;
+                self._changed_child_layout = true;
+
                 let mut required_contents_size = Vector2::<f32>::zeros();
                 let mut required_contents_size_hint = Vector2::<f32>::zeros();
                 for child in self._children.iter() {
                     let child_ui_instance = ptr_as_mut(*child);
                     if child_ui_instance._enable {
+                        let prev_child_ui_size = child_ui_instance._ui_size;
+
                         child_ui_instance.recursive_update_layout_size(
                             inherit_changed_layout,
                             &self._contents_area_size,
@@ -1689,6 +1707,10 @@ impl<'a> UIComponentInstance<'a> {
                             dpi_scale,
                             counts,
                         );
+
+                        if prev_child_ui_size != child_ui_instance._ui_size || child_ui_instance.get_changed_layout() {
+                            self._changed_child_layout = true;
+                        }
 
                         let child_expand_req_x = if child_ui_instance.get_size_hint_x().is_none() {
                             child_ui_instance._ui_size.x
@@ -1702,24 +1724,32 @@ impl<'a> UIComponentInstance<'a> {
                             child_ui_instance._required_contents_size.y.max(child_ui_instance._text_contents_size.y) + child_ui_instance._spaces.y + child_ui_instance._spaces.w
                         };
 
-                        if UILayoutType::BoxLayout == self.get_layout_type() {
-                            match self.get_layout_orientation() {
-                                Orientation::HORIZONTAL => {
-                                    required_contents_size.x += child_ui_instance._ui_size.x;
-                                    required_contents_size.y = required_contents_size.y.max(child_ui_instance._ui_size.y);
-                                    required_contents_size_hint.x += child_expand_req_x;
-                                    required_contents_size_hint.y = required_contents_size_hint.y.max(child_expand_req_y);
-                                }
-                                Orientation::VERTICAL => {
-                                    required_contents_size.x = required_contents_size.x.max(child_ui_instance._ui_size.x);
-                                    required_contents_size.y += child_ui_instance._ui_size.y;
-                                    required_contents_size_hint.x = required_contents_size_hint.x.max(child_expand_req_x);
-                                    required_contents_size_hint.y += child_expand_req_y;
+                        // accumulate required_contents_size
+                        let child_size_hint_x = child_ui_instance.get_size_hint_x().unwrap_or(0.0);
+                        let child_size_hint_y = child_ui_instance.get_size_hint_y().unwrap_or(0.0);
+                        match self.get_layout_type() {
+                            UILayoutType::FloatLayout => {
+                                required_contents_size_hint.x = required_contents_size_hint.x.max(child_size_hint_x);
+                                required_contents_size_hint.y = required_contents_size_hint.y.max(child_size_hint_y);
+                                required_contents_size.x = required_contents_size.x.max(child_expand_req_x);
+                                required_contents_size.y = required_contents_size.y.max(child_expand_req_y);
+                            }
+                            UILayoutType::BoxLayout => {
+                                match self.get_layout_orientation() {
+                                    Orientation::HORIZONTAL => {
+                                        required_contents_size_hint.x += child_size_hint_x;
+                                        required_contents_size_hint.y = required_contents_size_hint.y.max(child_size_hint_y);
+                                        required_contents_size.x += child_expand_req_x;
+                                        required_contents_size.y = required_contents_size.y.max(child_expand_req_y);
+                                    }
+                                    Orientation::VERTICAL => {
+                                        required_contents_size_hint.x = required_contents_size_hint.x.max(child_size_hint_x);
+                                        required_contents_size_hint.y += child_size_hint_y;
+                                        required_contents_size.x = required_contents_size.x.max(child_expand_req_x);
+                                        required_contents_size.y += child_expand_req_y;
+                                    }
                                 }
                             }
-                        } else if UILayoutType::FloatLayout == self.get_layout_type() {
-                            required_contents_size.x = required_contents_size.x.max(child_expand_req_x);
-                            required_contents_size.y = required_contents_size.y.max(child_expand_req_y);
                         }
                     }
                 }
@@ -1767,8 +1797,10 @@ impl<'a> UIComponentInstance<'a> {
             if self.get_expandable_x() {
                 contents_size_x = contents_size_x.max(self._text_contents_size.x);
             }
-            self._ui_size.x = contents_size_x + self._spaces.x + self._spaces.z;
-            self._contents_area_size.x = contents_size_x;
+            self._base_ui_size.x = contents_size_x + self._spaces.x + self._spaces.z;
+            self._base_contents_area_size.x = contents_size_x;
+            self._ui_size.x = self._base_ui_size.x;
+            self._contents_area_size.x = self._base_contents_area_size.x;
         }
 
         if let Some(size_hint_y) = self.get_size_hint_y() {
@@ -1782,8 +1814,10 @@ impl<'a> UIComponentInstance<'a> {
             if self.get_expandable_y() {
                 contents_size_y = contents_size_y.max(self._text_contents_size.y);
             }
-            self._ui_size.y = contents_size_y + self._spaces.y + self._spaces.w;
-            self._contents_area_size.y = contents_size_y;
+            self._base_ui_size.y = contents_size_y + self._spaces.y + self._spaces.w;
+            self._base_contents_area_size.y = contents_size_y;
+            self._ui_size.y = self._base_ui_size.y;
+            self._contents_area_size.y = self._base_contents_area_size.y;
         }
 
         match parent_layout_type {
@@ -1892,25 +1926,68 @@ impl<'a> UIComponentInstance<'a> {
                     self._contents_area.w.min(self._renderable_area.w),
                 );
 
+                // calculate actual_required_contents_size for BoxLayout alignments
+                let mut actual_required_contents_size = self._required_contents_size;
+                if UILayoutType::BoxLayout == self.get_layout_type() {
+                    actual_required_contents_size = Vector2::zeros();
+                    for child in self._children.iter() {
+                        let child_ui_instance = ptr_as_ref(*child);
+                        if child_ui_instance._enable {
+                            let mut child_size = child_ui_instance._ui_size;
+                            if let Some(size_hint_x) = child_ui_instance.get_size_hint_x() {
+                                let mut contents_size_x = match self.get_layout_orientation() {
+                                    Orientation::HORIZONTAL => self._contents_area_size.x * size_hint_x / 1.0f32.max(self._required_contents_size_hint.x),
+                                    Orientation::VERTICAL => self._contents_area_size.x * size_hint_x,
+                                };
+                                if child_ui_instance.get_expandable_x() {
+                                    contents_size_x = contents_size_x.max(child_ui_instance._text_contents_size.x);
+                                }
+                                child_size.x = contents_size_x + child_ui_instance._spaces.x + child_ui_instance._spaces.z;
+                            }
+                            if let Some(size_hint_y) = child_ui_instance.get_size_hint_y() {
+                                let mut contents_size_y = match self.get_layout_orientation() {
+                                    Orientation::VERTICAL => self._contents_area_size.y * size_hint_y / 1.0f32.max(self._required_contents_size_hint.y),
+                                    Orientation::HORIZONTAL => self._contents_area_size.y * size_hint_y,
+                                };
+                                if child_ui_instance.get_expandable_y() {
+                                    contents_size_y = contents_size_y.max(child_ui_instance._text_contents_size.y);
+                                }
+                                child_size.y = contents_size_y + child_ui_instance._spaces.y + child_ui_instance._spaces.w;
+                            }
+
+                            match self.get_layout_orientation() {
+                                Orientation::HORIZONTAL => {
+                                    actual_required_contents_size.x += child_size.x;
+                                    actual_required_contents_size.y = actual_required_contents_size.y.max(child_size.y);
+                                }
+                                Orientation::VERTICAL => {
+                                    actual_required_contents_size.x = actual_required_contents_size.x.max(child_size.x);
+                                    actual_required_contents_size.y += child_size.y;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // calculate child_ui_pos
                 let mut child_ui_pos = Vector2::<f32>::new(self._contents_area.x, self._contents_area.y);
                 if UILayoutType::BoxLayout == self.get_layout_type() {
                     match self.get_halign() {
                         HorizontalAlign::LEFT => {}
                         HorizontalAlign::CENTER => {
-                            child_ui_pos.x += (self._contents_area_size.x - self._required_contents_size.x) * 0.5
+                            child_ui_pos.x += (self._contents_area_size.x - actual_required_contents_size.x) * 0.5
                         }
                         HorizontalAlign::RIGHT => {
-                            child_ui_pos.x += self._contents_area_size.x - self._required_contents_size.x
+                            child_ui_pos.x += self._contents_area_size.x - actual_required_contents_size.x
                         }
                     }
                     match self.get_valign() {
                         VerticalAlign::TOP => {}
                         VerticalAlign::CENTER => {
-                            child_ui_pos.y += (self._contents_area_size.y - self._required_contents_size.y) * 0.5
+                            child_ui_pos.y += (self._contents_area_size.y - actual_required_contents_size.y) * 0.5
                         }
                         VerticalAlign::BOTTOM => {
-                            child_ui_pos.y += self._contents_area_size.y - self._required_contents_size.y
+                            child_ui_pos.y += self._contents_area_size.y - actual_required_contents_size.y
                         }
                     }
                 }
@@ -1926,7 +2003,7 @@ impl<'a> UIComponentInstance<'a> {
                             self.get_valign(),
                             &self._contents_area,
                             &self._contents_area_size,
-                            &self._required_contents_size,
+                            &actual_required_contents_size,
                             &self._required_contents_size_hint,
                             &inherit_renderable_area,
                             self.get_border() * if self._enable_dpi_scale { dpi_scale } else { 1.0 },
