@@ -17,7 +17,9 @@ use winit::window::Window;
 
 use crate::constants;
 use crate::core::engine_core::TimeData;
-use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut, get_renderer_data, get_renderer_data_mut};
+use crate::core::engine_service_locator::{
+    get_engine_resources, get_engine_resources_mut, get_renderer_data, get_renderer_data_mut, get_scene_manager_mut,
+};
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::image_sampler::{self, ImageSamplerData};
 use crate::renderer::push_constants::PushConstant;
@@ -951,6 +953,7 @@ impl<'a> RendererContext<'a> {
         self.recreate_swapchain(window_width, window_height);
         self.create_render_targets();
         get_engine_resources_mut().load_graphics_data_list(render_context_ref);
+        get_scene_manager_mut().update_render_object_data_resources();
         self.prepare_framebuffer_and_descriptors();
         self.set_is_first_rendering(true);
     }

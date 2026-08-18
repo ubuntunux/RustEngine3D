@@ -200,6 +200,27 @@ impl<'a> RenderObjectData<'a> {
         self._prev_transform = self._final_transform.clone();
     }
 
+    pub fn update_render_object_data_resources(&mut self) {
+        let model_data_ref = self._model_data.borrow();
+        self._material_instance_data_list = model_data_ref
+            ._material_instance_data_list
+            .iter()
+            .map(|material_instance_data| {
+                newRcRefCell(material_instance_data.borrow().clone())
+            })
+            .collect();
+        self._push_constant_data_list_group = self._material_instance_data_list
+            .iter()
+            .map(|material_instance_data| {
+                material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_data_list.clone()
+            })
+            .collect();
+
+        for instance_object in self._instance_objects.values_mut() {
+            instance_object.borrow_mut().update_render_object_data_resources();
+        }
+    }
+
     pub fn copy_render_object_date(&mut self, src_render_object: &RenderObjectData<'a>) {
         self._is_visible = src_render_object._is_visible;
         self._is_render_camera = src_render_object._is_render_camera;

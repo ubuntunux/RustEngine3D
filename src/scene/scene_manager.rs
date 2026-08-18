@@ -576,6 +576,18 @@ impl<'a> SceneManager<'a> {
         &self._static_render_object_map
     }
 
+    pub fn update_render_object_data_resources(&mut self) {
+        for render_object in self._static_render_object_map.values() {
+            render_object.borrow_mut().update_render_object_data_resources();
+        }
+        for render_object in self._skeletal_render_object_map.values() {
+            render_object.borrow_mut().update_render_object_data_resources();
+        }
+        for render_object in self._static_render_object_instancing_map.values() {
+            render_object.borrow_mut().update_render_object_data_resources();
+        }
+    }
+
     pub fn get_static_render_object(&self, object_id: SceneObjectID) -> Option<&RcRefCell<RenderObjectData<'a>>> {
         self._static_render_object_map.get(&object_id)
     }
