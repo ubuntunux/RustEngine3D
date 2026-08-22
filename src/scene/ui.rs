@@ -1590,11 +1590,11 @@ impl<'a> UIComponentInstance<'a> {
                 }
 
                 if let Some(size_hint_x) = self.get_size_hint_x() {
-                    self._base_contents_area_size.x = parent_contents_size.x * size_hint_x;
+                    self._base_contents_area_size.x = (parent_contents_size.x * size_hint_x - (self._spaces.x + self._spaces.z)).max(0.0);
                 }
 
                 if let Some(size_hint_y) = self.get_size_hint_y() {
-                    self._base_contents_area_size.y = parent_contents_size.y * size_hint_y;
+                    self._base_contents_area_size.y = (parent_contents_size.y * size_hint_y - (self._spaces.y + self._spaces.w)).max(0.0);
                 }
 
                 if self.get_expandable_x() {
@@ -1793,13 +1793,14 @@ impl<'a> UIComponentInstance<'a> {
 
         // update size_hint based on finalized parent_contents_area_size
         if let Some(size_hint_x) = self.get_size_hint_x() {
-            let mut contents_size_x = match parent_layout_type {
+            let target_ui_size_x = match parent_layout_type {
                 UILayoutType::BoxLayout => match parent_layout_orientation {
                     Orientation::HORIZONTAL => remaining_contents_size.x * size_hint_x / 1.0f32.max(parent_required_contents_size_hint.x),
                     Orientation::VERTICAL => parent_contents_area_size.x * size_hint_x,
                 },
                 _ => parent_contents_area_size.x * size_hint_x,
             };
+            let mut contents_size_x = (target_ui_size_x - (self._spaces.x + self._spaces.z)).max(0.0);
             if self.get_expandable_x() {
                 contents_size_x = contents_size_x.max(self._required_contents_size.x.max(self._text_contents_size.x));
             }
@@ -1810,13 +1811,14 @@ impl<'a> UIComponentInstance<'a> {
         }
 
         if let Some(size_hint_y) = self.get_size_hint_y() {
-            let mut contents_size_y = match parent_layout_type {
+            let target_ui_size_y = match parent_layout_type {
                 UILayoutType::BoxLayout => match parent_layout_orientation {
                     Orientation::VERTICAL => remaining_contents_size.y * size_hint_y / 1.0f32.max(parent_required_contents_size_hint.y),
                     Orientation::HORIZONTAL => parent_contents_area_size.y * size_hint_y,
                 },
                 _ => parent_contents_area_size.y * size_hint_y,
             };
+            let mut contents_size_y = (target_ui_size_y - (self._spaces.y + self._spaces.w)).max(0.0);
             if self.get_expandable_y() {
                 contents_size_y = contents_size_y.max(self._required_contents_size.y.max(self._text_contents_size.y));
             }
@@ -1973,20 +1975,22 @@ impl<'a> UIComponentInstance<'a> {
                         if child_ui_instance._enable {
                             let mut child_size = child_ui_instance._ui_size;
                             if let Some(size_hint_x) = child_ui_instance.get_size_hint_x() {
-                                let mut contents_size_x = match self.get_layout_orientation() {
+                                let target_ui_size_x = match self.get_layout_orientation() {
                                     Orientation::HORIZONTAL => remaining_contents_size.x * size_hint_x / 1.0f32.max(self._required_contents_size_hint.x),
                                     Orientation::VERTICAL => self._contents_area_size.x * size_hint_x,
                                 };
+                                let mut contents_size_x = (target_ui_size_x - (child_ui_instance._spaces.x + child_ui_instance._spaces.z)).max(0.0);
                                 if child_ui_instance.get_expandable_x() {
                                     contents_size_x = contents_size_x.max(child_ui_instance._required_contents_size.x.max(child_ui_instance._text_contents_size.x));
                                 }
                                 child_size.x = contents_size_x + child_ui_instance._spaces.x + child_ui_instance._spaces.z;
                             }
                             if let Some(size_hint_y) = child_ui_instance.get_size_hint_y() {
-                                let mut contents_size_y = match self.get_layout_orientation() {
+                                let target_ui_size_y = match self.get_layout_orientation() {
                                     Orientation::VERTICAL => remaining_contents_size.y * size_hint_y / 1.0f32.max(self._required_contents_size_hint.y),
                                     Orientation::HORIZONTAL => self._contents_area_size.y * size_hint_y,
                                 };
+                                let mut contents_size_y = (target_ui_size_y - (child_ui_instance._spaces.y + child_ui_instance._spaces.w)).max(0.0);
                                 if child_ui_instance.get_expandable_y() {
                                     contents_size_y = contents_size_y.max(child_ui_instance._required_contents_size.y.max(child_ui_instance._text_contents_size.y));
                                 }
