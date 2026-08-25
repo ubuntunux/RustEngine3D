@@ -196,6 +196,7 @@ pub struct UIComponentData<'a> {
     pub _has_cursor: bool,
     pub _scroll_x: bool,
     pub _scroll_y: bool,
+    pub _scroll_pos: Vector2<f32>,
     pub _expandable_x: bool,
     pub _expandable_y: bool,
     pub _resizable_x: bool,
@@ -239,6 +240,7 @@ pub struct UIComponentInstance<'a> {
     pub _text_counts: Vec<usize>,              // text column count, text row count
     pub _render_area: Vector4<f32>,            // border + _ui_component_data._size
     pub _renderable_area: Vector4<f32>,        // inherit _render_area
+    pub _parent_renderable_area: Vector4<f32>,
     pub _renderable_area_round: f32,           // parent round size
     pub _renderable_area_border: f32,          // parent border size
     pub _ui_area: Vector4<f32>,
@@ -253,6 +255,7 @@ pub struct UIComponentInstance<'a> {
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _selected: bool,
     pub _touched: bool,
+    pub _touched_middle: bool,
     pub _touched_over: bool,
     pub _touch_start_pos: Vector2<f32>,
     pub _touch_corner_flags: UICornerFlags,
@@ -417,6 +420,7 @@ impl<'a> Default for UIComponentData<'a> {
             _has_cursor: false,
             _scroll_x: false,
             _scroll_y: false,
+            _scroll_pos: Vector2::new(0.0, 0.0),
             _expandable_x: false,
             _expandable_y: false,
             _resizable_x: false,
@@ -458,6 +462,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _required_contents_size_hint: Vector2::zeros(),
             _render_area: Vector4::zeros(),
             _renderable_area: Vector4::zeros(),
+            _parent_renderable_area: Vector4::zeros(),
             _renderable_area_round: 0.0,
             _renderable_area_border: 0.0,
             _ui_area: Vector4::zeros(),
@@ -472,6 +477,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _selected: false,
             _touched: false,
+            _touched_middle: false,
             _touched_over: false,
             _touch_start_pos: Vector2::zeros(),
             _touch_corner_flags: UICornerFlags::NONE,
@@ -985,7 +991,10 @@ impl<'a> UIComponentInstance<'a> {
         self._enable_renderable_area
     }
     pub fn set_enable_renderable_area(&mut self, enable_renderable_area: bool) {
-        self._enable_renderable_area = enable_renderable_area;
+        if self._enable_renderable_area != enable_renderable_area {
+            self._enable_renderable_area = enable_renderable_area;
+            self._changed_render_data = true;
+        }
     }
     pub fn get_texture_wrap_mode(&self) -> vk::SamplerAddressMode {
         self._texture_wrap_mode
@@ -1190,6 +1199,50 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_scroll_y(&self) -> bool {
         self._ui_component_data._scroll_y
     }
+    pub fn set_scroll_x(&mut self, scroll_x: bool) {
+        if scroll_x != self._ui_component_data._scroll_x {
+            self._ui_component_data._scroll_x = scroll_x;
+            self.set_changed_layout(true);
+            self.set_changed_child_layout(true);
+        }
+    }
+    pub fn set_scroll_y(&mut self, scroll_y: bool) {
+        if scroll_y != self._ui_component_data._scroll_y {
+            self._ui_component_data._scroll_y = scroll_y;
+            self.set_changed_layout(true);
+            self.set_changed_child_layout(true);
+        }
+    }
+    pub fn get_scroll_pos(&self) -> &Vector2<f32> {
+        &self._ui_component_data._scroll_pos
+    }
+    pub fn get_scroll_pos_x(&self) -> f32 {
+        self._ui_component_data._scroll_pos.x
+    }
+    pub fn get_scroll_pos_y(&self) -> f32 {
+        self._ui_component_data._scroll_pos.y
+    }
+    pub fn set_scroll_pos(&mut self, pos: &Vector2<f32>) {
+        if self._ui_component_data._scroll_pos != *pos {
+            self._ui_component_data._scroll_pos = *pos;
+            self.set_changed_layout(true);
+            self.set_changed_child_layout(true);
+        }
+    }
+    pub fn set_scroll_pos_x(&mut self, x: f32) {
+        if self._ui_component_data._scroll_pos.x != x {
+            self._ui_component_data._scroll_pos.x = x;
+            self.set_changed_layout(true);
+            self.set_changed_child_layout(true);
+        }
+    }
+    pub fn set_scroll_pos_y(&mut self, y: f32) {
+        if self._ui_component_data._scroll_pos.y != y {
+            self._ui_component_data._scroll_pos.y = y;
+            self.set_changed_layout(true);
+            self.set_changed_child_layout(true);
+        }
+    }
     pub fn get_expandable(&self) -> (bool, bool) {
         (
             self._ui_component_data._expandable_x,
@@ -1326,6 +1379,7 @@ impl<'a> UIComponentInstance<'a> {
         render_ui_instance_data_list: &mut [UIRenderData],
         opacity: f32,
         dpi_scale: f32,
+        restrict_renderable_area: bool,
     ) {
         let mut render_ui_index = render_ui_count;
 
@@ -1433,7 +1487,7 @@ impl<'a> UIComponentInstance<'a> {
                     } else if self._touched_over {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
                     }
-                    if self._enable_renderable_area {
+                    if restrict_renderable_area {
                         render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                     }
 
@@ -1455,6 +1509,7 @@ impl<'a> UIComponentInstance<'a> {
         mut need_to_collect_render_data: bool,
         mut opacity: f32,
         dpi_scale: f32,
+        restrict_renderable_area: bool,
     ) {
         if self._changed_render_data {
             need_to_collect_render_data = true;
@@ -1505,7 +1560,7 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
                 }
 
-                if self._enable_renderable_area {
+                if restrict_renderable_area {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                 }
 
@@ -1541,6 +1596,7 @@ impl<'a> UIComponentInstance<'a> {
                         render_ui_instance_data_list,
                         opacity,
                         dpi_scale,
+                        restrict_renderable_area,
                     );
                 }
                 self._changed_text = false;
@@ -1551,6 +1607,8 @@ impl<'a> UIComponentInstance<'a> {
         if need_to_collect_render_data {
             // log::info!("    render_ui_count: {:?}", render_ui_count);
         }
+
+        let child_restrict_renderable_area = restrict_renderable_area || self._enable_renderable_area;
 
         if self._enable && self._visible {
             for child_ui_component in self._children.iter() {
@@ -1563,7 +1621,80 @@ impl<'a> UIComponentInstance<'a> {
                     need_to_collect_render_data,
                     opacity,
                     dpi_scale,
+                    child_restrict_renderable_area,
                 );
+            }
+
+            if self.get_scroll_y() && self._contents_area_size.y < self._required_contents_size.y {
+                let total_h = self._required_contents_size.y;
+                let visible_h = self._contents_area_size.y;
+                let max_scroll = total_h - visible_h;
+                if max_scroll > 0.0 {
+                    let component_dpi_scale = if self._enable_dpi_scale { dpi_scale } else { 1.0 };
+                    let bar_w = 6.0 * component_dpi_scale;
+                    let track_h = visible_h;
+                    let thumb_h = (visible_h / total_h * track_h).max(20.0 * component_dpi_scale).min(track_h);
+                    let scroll_ratio = (self.get_scroll_pos_y() / max_scroll).clamp(0.0, 1.0);
+                    let thumb_y = self._contents_area.y + scroll_ratio * (track_h - thumb_h);
+                    let thumb_x = self._contents_area.z - bar_w - 2.0 * component_dpi_scale;
+
+                    if prev_render_group_data._material_instance != std::ptr::null() {
+                        UIRenderGroupData::add_ui_render_group_data(
+                            render_ui_group,
+                            *render_ui_count,
+                            prev_render_group_data,
+                            std::ptr::null(),
+                        );
+                    }
+
+                    // Render scrollbar track background
+                    let render_ui_index_track = *render_ui_count;
+                    *render_ui_count += 1;
+                    let track_render_data = &mut render_ui_instance_data_list[render_ui_index_track as usize];
+                    track_render_data._ui_render_area = Vector4::new(thumb_x, self._contents_area.y, thumb_x + bar_w, self._contents_area.w);
+                    track_render_data._ui_renderable_area = self._renderable_area;
+                    track_render_data._ui_renderable_area_round = self.get_renderable_area_round();
+                    track_render_data._ui_renderable_area_border = self.get_renderable_area_border();
+                    track_render_data._ui_round = 3.0 * component_dpi_scale;
+                    track_render_data._ui_border = 0.0;
+                    track_render_data._ui_opacity = opacity;
+                    track_render_data._ui_color = get_color32(20, 20, 25, 120);
+                    track_render_data._ui_touched_over_color = get_color32(20, 20, 25, 120);
+                    track_render_data._ui_touched_color = get_color32(20, 20, 25, 120);
+                    track_render_data._ui_border_color = 0;
+                    track_render_data._ui_touched_over_border_color = 0;
+                    track_render_data._ui_touched_border_color = 0;
+                    track_render_data._ui_texcoord = Vector4::new(0.0, 0.0, 1.0, 1.0);
+                    track_render_data._ui_rotation = 0.0;
+                    track_render_data._ui_render_flags = UI_RENDER_FLAG_NONE;
+                    if child_restrict_renderable_area {
+                        track_render_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
+                    }
+
+                    // Render scrollbar thumb
+                    let render_ui_index_thumb = *render_ui_count;
+                    *render_ui_count += 1;
+                    let thumb_render_data = &mut render_ui_instance_data_list[render_ui_index_thumb as usize];
+                    thumb_render_data._ui_render_area = Vector4::new(thumb_x, thumb_y, thumb_x + bar_w, thumb_y + thumb_h);
+                    thumb_render_data._ui_renderable_area = self._renderable_area;
+                    thumb_render_data._ui_renderable_area_round = self.get_renderable_area_round();
+                    thumb_render_data._ui_renderable_area_border = self.get_renderable_area_border();
+                    thumb_render_data._ui_round = 3.0 * component_dpi_scale;
+                    thumb_render_data._ui_border = 0.0;
+                    thumb_render_data._ui_opacity = opacity;
+                    thumb_render_data._ui_color = get_color32(140, 145, 160, 200);
+                    thumb_render_data._ui_touched_over_color = get_color32(140, 145, 160, 200);
+                    thumb_render_data._ui_touched_color = get_color32(140, 145, 160, 200);
+                    thumb_render_data._ui_border_color = 0;
+                    thumb_render_data._ui_touched_over_border_color = 0;
+                    thumb_render_data._ui_touched_border_color = 0;
+                    thumb_render_data._ui_texcoord = Vector4::new(0.0, 0.0, 1.0, 1.0);
+                    thumb_render_data._ui_rotation = 0.0;
+                    thumb_render_data._ui_render_flags = UI_RENDER_FLAG_NONE;
+                    if child_restrict_renderable_area {
+                        thumb_render_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
+                    }
+                }
             }
         }
     }
@@ -1892,6 +2023,7 @@ impl<'a> UIComponentInstance<'a> {
         let renderable_area_border = 0f32.max(border - 2.0 * component_dpi_scale);
         self._renderable_area_border = renderable_area_border;
         self._renderable_area_round = parent_round;
+        self._parent_renderable_area.clone_from(parent_renderable_area);
         self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x + renderable_area_border);
         self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y + renderable_area_border);
         self._renderable_area.z = self._render_area.z.min(parent_renderable_area.z - renderable_area_border);
@@ -1927,12 +2059,16 @@ impl<'a> UIComponentInstance<'a> {
         if self._enable && (inherit_changed_layout || self._changed_deep_child_layout) {
             counts.total_arrange_layout_tree += 1;
             if inherit_changed_layout || self._changed_child_layout {
-                let inherit_renderable_area = Vector4::new(
-                    self._contents_area.x.max(self._renderable_area.x),
-                    self._contents_area.y.max(self._renderable_area.y),
-                    self._contents_area.z.min(self._renderable_area.z),
-                    self._contents_area.w.min(self._renderable_area.w),
-                );
+                let inherit_renderable_area = if self._enable_renderable_area {
+                    Vector4::new(
+                        self._contents_area.x.max(self._renderable_area.x),
+                        self._contents_area.y.max(self._renderable_area.y),
+                        self._contents_area.z.min(self._renderable_area.z),
+                        self._contents_area.w.min(self._renderable_area.w),
+                    )
+                } else {
+                    self._parent_renderable_area
+                };
 
                 // calculate actual_required_contents_size and non_hint_contents_size for BoxLayout alignments
                 let mut actual_required_contents_size = self._required_contents_size;
@@ -2011,8 +2147,20 @@ impl<'a> UIComponentInstance<'a> {
                     }
                 }
 
+                if self.get_scroll_y() {
+                    let max_scroll_y = (actual_required_contents_size.y - self._contents_area_size.y).max(0.0);
+                    self._ui_component_data._scroll_pos.y = self._ui_component_data._scroll_pos.y.clamp(0.0, max_scroll_y);
+                }
+                if self.get_scroll_x() {
+                    let max_scroll_x = (actual_required_contents_size.x - self._contents_area_size.x).max(0.0);
+                    self._ui_component_data._scroll_pos.x = self._ui_component_data._scroll_pos.x.clamp(0.0, max_scroll_x);
+                }
+
                 // calculate child_ui_pos
-                let mut child_ui_pos = Vector2::<f32>::new(self._contents_area.x, self._contents_area.y);
+                let mut child_ui_pos = Vector2::<f32>::new(
+                    self._contents_area.x - self.get_scroll_pos_x(),
+                    self._contents_area.y - self.get_scroll_pos_y(),
+                );
                 if UILayoutType::BoxLayout == self.get_layout_type() {
                     match self.get_halign() {
                         HorizontalAlign::LEFT => {}
@@ -2123,6 +2271,7 @@ impl<'a> UIComponentInstance<'a> {
         mouse_pos: &Vector2<f32>,
         mouse_pos_delta: &Vector2<f32>,
         mouse_moved: bool,
+        mouse_move_data: &MouseMoveData,
         mouse_input_data: &MouseInputData,
         touch_event: &mut bool,
     ) {
@@ -2137,6 +2286,7 @@ impl<'a> UIComponentInstance<'a> {
                 mouse_pos,
                 mouse_pos_delta,
                 mouse_moved,
+                mouse_move_data,
                 mouse_input_data,
                 touch_event,
             );
@@ -2145,6 +2295,50 @@ impl<'a> UIComponentInstance<'a> {
                 break;
             }
             child_index -= 1;
+        }
+
+        if (self.get_scroll_y() || self.get_scroll_x()) && self._enable && self._visible {
+            let collided = self.check_collide(mouse_pos);
+            if collided {
+                if self.get_scroll_y() && mouse_move_data._scroll_delta.y != 0 {
+                    let scroll_speed = 40.0;
+                    let delta_y = -(mouse_move_data._scroll_delta.y as f32) * scroll_speed;
+                    let new_scroll_y = self.get_scroll_pos_y() + delta_y;
+                    self.set_scroll_pos_y(new_scroll_y);
+                    *touch_event = true;
+                }
+                if self.get_scroll_x() && mouse_move_data._scroll_delta.x != 0 {
+                    let scroll_speed = 40.0;
+                    let delta_x = -(mouse_move_data._scroll_delta.x as f32) * scroll_speed;
+                    let new_scroll_x = self.get_scroll_pos_x() + delta_x;
+                    self.set_scroll_pos_x(new_scroll_x);
+                    *touch_event = true;
+                }
+            }
+
+            if mouse_input_data._btn_m_pressed {
+                if collided {
+                    self._touched_middle = true;
+                }
+            }
+
+            if self._touched_middle {
+                if mouse_input_data._btn_m_hold {
+                    if mouse_moved {
+                        if self.get_scroll_y() && mouse_pos_delta.y != 0.0 {
+                            let new_scroll_y = self.get_scroll_pos_y() - mouse_pos_delta.y;
+                            self.set_scroll_pos_y(new_scroll_y);
+                        }
+                        if self.get_scroll_x() && mouse_pos_delta.x != 0.0 {
+                            let new_scroll_x = self.get_scroll_pos_x() - mouse_pos_delta.x;
+                            self.set_scroll_pos_x(new_scroll_x);
+                        }
+                    }
+                    *touch_event = true;
+                } else {
+                    self._touched_middle = false;
+                }
+            }
         }
 
         if false == *touch_event && self.get_touchable() {
@@ -2679,6 +2873,7 @@ impl<'a> UIManager<'a> {
             &mouse_pos,
             &mouse_pos_delta,
             mouse_moved,
+            mouse_move_data,
             mouse_input_data,
             &mut touch_event,
         );
@@ -2694,6 +2889,7 @@ impl<'a> UIManager<'a> {
             _material_instance: std::ptr::null(),
         };
 
+        let restrict_renderable_area: bool = false;
         root_ui_component.collect_ui_render_data(
             &font_data,
             &mut render_ui_count,
@@ -2703,6 +2899,7 @@ impl<'a> UIManager<'a> {
             need_to_collect_render_data,
             opacity,
             self._dpi_scale,
+            restrict_renderable_area,
         );
 
         // last render count
