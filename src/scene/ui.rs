@@ -2313,15 +2313,20 @@ impl<'a> UIComponentInstance<'a> {
 
         let mut child_index: isize = self._children.len() as isize - 1;
         while 0 <= child_index {
-            let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
-            child_ui_instance.recursive_touch_event(
-                mouse_pos,
-                mouse_pos_delta,
-                mouse_moved,
-                mouse_move_data,
-                mouse_input_data,
-                touch_event,
-            );
+            if (child_index as usize) < self._children.len() {
+                let child_ui_instance = ptr_as_mut(self._children[child_index as usize]);
+                child_ui_instance.recursive_touch_event(
+                    mouse_pos,
+                    mouse_pos_delta,
+                    mouse_moved,
+                    mouse_move_data,
+                    mouse_input_data,
+                    touch_event,
+                );
+            } else {
+                child_index = (self._children.len() as isize) - 1;
+                continue;
+            }
             child_index -= 1;
         }
 
