@@ -2290,10 +2290,6 @@ impl<'a> UIComponentInstance<'a> {
                 mouse_input_data,
                 touch_event,
             );
-
-            if *touch_event {
-                break;
-            }
             child_index -= 1;
         }
 
@@ -2341,7 +2337,7 @@ impl<'a> UIComponentInstance<'a> {
             }
         }
 
-        if false == *touch_event && self.get_touchable() {
+        if self.get_touchable() {
             if self._touched {
                 if mouse_input_data._btn_l_hold {
                     if mouse_moved {
@@ -2353,14 +2349,13 @@ impl<'a> UIComponentInstance<'a> {
                         //self._viewport_manager.focused_widget = None;
                     }
                 }
-            } else {
+                *touch_event = true;
+            } else if false == *touch_event {
                 let collided = self.check_collide(mouse_pos);
-                if mouse_moved {
-                    if collided && self._touched_over == false {
-                        self.on_touch_over(mouse_pos, mouse_pos_delta);
-                    } else if collided == false && self._touched_over {
-                        self._touched_over = false;
-                    }
+                if collided && self._touched_over == false {
+                    self.on_touch_over(mouse_pos, mouse_pos_delta);
+                } else if collided == false && self._touched_over {
+                    self.on_touch_out(mouse_pos, mouse_pos_delta);
                 }
 
                 if mouse_input_data._btn_l_pressed {
@@ -2370,6 +2365,10 @@ impl<'a> UIComponentInstance<'a> {
                     } else if self.get_has_cursor() {
                         //self._viewport_manager.focused_widget = None
                     }
+                }
+            } else {
+                if self._touched_over {
+                    self.on_touch_out(mouse_pos, mouse_pos_delta);
                 }
             }
         }
