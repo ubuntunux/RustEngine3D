@@ -252,6 +252,7 @@ pub struct UIComponentInstance<'a> {
     pub _enable: bool,
     pub _enable_dpi_scale: bool,
     pub _enable_renderable_area: bool,
+    pub _ignore_parent_renderable_area: bool,
     pub _texture_wrap_mode: vk::SamplerAddressMode,
     pub _selected: bool,
     pub _touched: bool,
@@ -474,6 +475,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _enable: true,
             _enable_dpi_scale: true,
             _enable_renderable_area: false,
+            _ignore_parent_renderable_area: false,
             _texture_wrap_mode: vk::SamplerAddressMode::REPEAT,
             _selected: false,
             _touched: false,
@@ -531,10 +533,15 @@ impl<'a> UIComponentInstance<'a> {
         self.set_changed_layout(true);
     }
     pub fn check_collide(&self, touched_pos: &Vector2<f32>) -> bool {
-        self._renderable_area.x <= touched_pos.x
-            && touched_pos.x < self._renderable_area.z
-            && self._renderable_area.y <= touched_pos.y
-            && touched_pos.y < self._renderable_area.w
+        let check_area = if self._ignore_parent_renderable_area {
+            &self._render_area
+        } else {
+            &self._renderable_area
+        };
+        check_area.x <= touched_pos.x
+            && touched_pos.x < check_area.z
+            && check_area.y <= touched_pos.y
+            && touched_pos.y < check_area.w
     }
 
     pub fn on_touch_down(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
@@ -1000,6 +1007,16 @@ impl<'a> UIComponentInstance<'a> {
         if self._enable_renderable_area != enable_renderable_area {
             self._enable_renderable_area = enable_renderable_area;
             self._changed_render_data = true;
+        }
+    }
+    pub fn get_ignore_parent_renderable_area(&self) -> bool {
+        self._ignore_parent_renderable_area
+    }
+    pub fn set_ignore_parent_renderable_area(&mut self, ignore: bool) {
+        if self._ignore_parent_renderable_area != ignore {
+            self._ignore_parent_renderable_area = ignore;
+            self._changed_render_data = true;
+            self._changed_layout = true;
         }
     }
     pub fn get_texture_wrap_mode(&self) -> vk::SamplerAddressMode {
@@ -1592,7 +1609,13 @@ impl<'a> UIComponentInstance<'a> {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_TOUCHED_OVER;
                 }
 
-                if restrict_renderable_area {
+                let widget_restrict_renderable_area = if self._ignore_parent_renderable_area {
+                    false
+                } else {
+                    restrict_renderable_area
+                };
+
+                if widget_restrict_renderable_area {
                     render_ui_instance_data._ui_render_flags |= UI_RENDER_FLAG_ENABLE_RENDERABLE_AREA;
                 }
 
@@ -1615,6 +1638,12 @@ impl<'a> UIComponentInstance<'a> {
                 );
             }
 
+            let widget_restrict_renderable_area = if self._ignore_parent_renderable_area {
+                false
+            } else {
+                restrict_renderable_area
+            };
+
             // collect font render data
             if need_to_collect_render_data || self._changed_text {
                 if self._text.is_empty() {
@@ -1628,7 +1657,7 @@ impl<'a> UIComponentInstance<'a> {
                         render_ui_instance_data_list,
                         opacity,
                         dpi_scale,
-                        restrict_renderable_area,
+                        widget_restrict_renderable_area,
                     );
                 }
                 self._changed_text = false;
@@ -1640,7 +1669,11 @@ impl<'a> UIComponentInstance<'a> {
             // log::info!("    render_ui_count: {:?}", render_ui_count);
         }
 
-        let child_restrict_renderable_area = restrict_renderable_area || self._enable_renderable_area;
+        let child_restrict_renderable_area = if self._ignore_parent_renderable_area {
+            self._enable_renderable_area
+        } else {
+            restrict_renderable_area || self._enable_renderable_area
+        };
 
         if self._enable && self._visible {
             for child_ui_component in self._children.iter() {
@@ -2056,10 +2089,14 @@ impl<'a> UIComponentInstance<'a> {
         self._renderable_area_border = renderable_area_border;
         self._renderable_area_round = parent_round;
         self._parent_renderable_area.clone_from(parent_renderable_area);
-        self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x + renderable_area_border);
-        self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y + renderable_area_border);
-        self._renderable_area.z = self._render_area.z.min(parent_renderable_area.z - renderable_area_border);
-        self._renderable_area.w = self._render_area.w.min(parent_renderable_area.w - renderable_area_border);
+        if self._ignore_parent_renderable_area {
+            self._renderable_area.clone_from(&self._render_area);
+        } else {
+            self._renderable_area.x = self._render_area.x.max(parent_renderable_area.x + renderable_area_border);
+            self._renderable_area.y = self._render_area.y.max(parent_renderable_area.y + renderable_area_border);
+            self._renderable_area.z = self._render_area.z.min(parent_renderable_area.z - renderable_area_border);
+            self._renderable_area.w = self._render_area.w.min(parent_renderable_area.w - renderable_area_border);
+        }
 
         self._contents_area.x = self._ui_area.x + self._spaces.x;
         self._contents_area.y = self._ui_area.y + self._spaces.y;
