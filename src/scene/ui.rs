@@ -966,6 +966,12 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_render_area(&self) -> &Vector4<f32> {
         &self._render_area
     }
+    pub fn get_renderable_area(&self) -> &Vector4<f32> {
+        &self._renderable_area
+    }
+    pub fn get_contents_area(&self) -> &Vector4<f32> {
+        &self._contents_area
+    }
     pub fn get_renderable(&self) -> bool {
         self._renderable
     }
@@ -1241,6 +1247,32 @@ impl<'a> UIComponentInstance<'a> {
             self._ui_component_data._scroll_pos.y = y;
             self.set_changed_layout(true);
             self.set_changed_child_layout(true);
+        }
+    }
+    pub fn scroll_into_view(&mut self, target: &UIComponentInstance) {
+        let container_area = *self.get_contents_area();
+        let target_area = *target.get_render_area();
+
+        if self.get_scroll_y() {
+            let current_scroll_y = self.get_scroll_pos_y();
+            if target_area.y < container_area.y {
+                let delta = container_area.y - target_area.y;
+                self.set_scroll_pos_y((current_scroll_y - delta).max(0.0));
+            } else if target_area.w > container_area.w {
+                let delta = target_area.w - container_area.w;
+                self.set_scroll_pos_y(current_scroll_y + delta);
+            }
+        }
+
+        if self.get_scroll_x() {
+            let current_scroll_x = self.get_scroll_pos_x();
+            if target_area.x < container_area.x {
+                let delta = container_area.x - target_area.x;
+                self.set_scroll_pos_x((current_scroll_x - delta).max(0.0));
+            } else if target_area.z > container_area.z {
+                let delta = target_area.z - container_area.z;
+                self.set_scroll_pos_x(current_scroll_x + delta);
+            }
         }
     }
     pub fn get_expandable(&self) -> (bool, bool) {
