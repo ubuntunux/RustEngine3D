@@ -357,10 +357,7 @@ impl FontManager {
         );
     }
 
-    pub fn create_font_descriptor_sets(
-        &mut self,
-        renderer_context: &RendererContext,
-    ) {
+    pub fn create_font_descriptor_sets(&mut self, renderer_context: &RendererContext) {
         self._text_render_data.create_texture_render_data_descriptor_sets(
             renderer_context.get_device(),
             renderer_context.get_debug_utils(),

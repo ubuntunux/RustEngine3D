@@ -6,6 +6,9 @@ use crate::constants::{
     COLLISION_BLOCK_SIZE, DISTANCE_CULL_FACTOR, INSTANCING_BLOCK_SIZE, MAX_FRAME_COUNT, MAX_POINT_LIGHTS,
     MAX_TRANSFORM_COUNT,
 };
+use crate::core::engine_service_locator::{
+    get_effect_manager, get_effect_manager_mut, get_engine_resources, get_engine_resources_mut, get_renderer_data_mut,
+};
 use crate::effect::effect_data::{EffectCreateInfo, EffectInstance};
 use crate::renderer::push_constants::PushConstantParameter;
 use crate::renderer::renderer_data::RenderObjectType;
@@ -27,7 +30,6 @@ use crate::{begin_block, constants};
 use nalgebra::{Matrix4, Vector2, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::core::engine_service_locator::{get_effect_manager, get_effect_manager_mut, get_engine_resources, get_engine_resources_mut, get_renderer_data_mut};
 
 pub type CameraObjectMap = HashMap<SceneObjectID, Rc<CameraObjectData>>;
 pub type DirectionalLightObjectMap = HashMap<SceneObjectID, RcRefCell<DirectionalLight>>;
@@ -248,12 +250,10 @@ impl<'a> SceneManager<'a> {
         })
     }
 
-    pub fn initialize_scene_manager(
-        &mut self,
-        window_size: &Vector2<i32>
-    ) {
+    pub fn initialize_scene_manager(&mut self, window_size: &Vector2<i32>) {
         let default_camera = self.add_camera_object(&String::from("default_camera"), &CameraCreateInfo::default());
-        let default_light = self.add_light_object(&String::from("default_light"), &DirectionalLightCreateInfo::default());
+        let default_light =
+            self.add_light_object(&String::from("default_light"), &DirectionalLightCreateInfo::default());
 
         let light_probe_camera_create_info = CameraCreateInfo {
             fov: 90.0,
@@ -775,7 +775,9 @@ impl<'a> SceneManager<'a> {
                             _is_render_height_map: is_render_height_map,
                             _geometry_index: geometry_index,
                             _geometry_data: mesh_data.get_geometry_data(geometry_index).clone(),
-                            _material_instance_data: render_object_data.get_material_instance_data(geometry_index).clone(),
+                            _material_instance_data: render_object_data
+                                .get_material_instance_data(geometry_index)
+                                .clone(),
                         });
                     }
 

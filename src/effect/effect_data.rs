@@ -1,4 +1,3 @@
-use std::rc::Rc;
 use crate::effect::effect_manager::EffectManager;
 use crate::renderer::renderer_data::BlendMode;
 use crate::resource::resource::DEFAULT_EFFECT_MATERIAL_INSTANCE_NAME;
@@ -10,6 +9,7 @@ use crate::utilities::math;
 use crate::utilities::system::{RcRefCell, newRcRefCell, ptr_as_mut, ptr_as_ref};
 use nalgebra::{Matrix4, Vector3, Vector4};
 use serde::{Deserialize, Serialize};
+use std::rc::Rc;
 use uuid::Uuid;
 
 pub const INVALID_ALLOCATED_EMITTER_INDEX: i32 = -1;

@@ -5,6 +5,7 @@ use std::vec::Vec;
 
 use crate::constants;
 use crate::constants::{CURRENT_RENDER_OPTION, MAX_FRAME_COUNT};
+use crate::core::engine_service_locator::{get_effect_manager, get_effect_manager_mut, get_engine_resources};
 use crate::effect::effect_manager::EffectManager;
 use crate::render_pass::ray_tracing::ray_tracing;
 use crate::render_pass::render_object::{depth_prepass, render_forward_for_light_probe, render_gbuffer, render_shadow};
@@ -44,7 +45,6 @@ use ash::ext;
 use ash::{Device, vk};
 use nalgebra::{Matrix4, Vector2, Vector4};
 use serde::{Deserialize, Serialize};
-use crate::core::engine_service_locator::{get_effect_manager, get_effect_manager_mut, get_engine_resources};
 
 pub type RenderTargetDataMap = HashMap<RenderTargetType, TextureData>;
 
@@ -1139,11 +1139,7 @@ impl<'a> RendererData<'a> {
         }
     }
 
-    pub fn render_translucent(
-        &self,
-        command_buffer: vk::CommandBuffer,
-        swapchain_index: u32,
-    ) {
+    pub fn render_translucent(&self, command_buffer: vk::CommandBuffer, swapchain_index: u32) {
         get_effect_manager().render_effects(command_buffer, swapchain_index, self);
     }
 
@@ -1513,12 +1509,7 @@ impl<'a> RendererData<'a> {
         self.render_taa(renderer_context, command_buffer, swapchain_index, quad_geometry_data);
 
         // Bloom
-        self.render_bloom(
-            command_buffer,
-            swapchain_index,
-            quad_geometry_data,
-            renderer_context,
-        );
+        self.render_bloom(command_buffer, swapchain_index, quad_geometry_data, renderer_context);
 
         // Motion Blur
         renderer_context.render_material_instance(
@@ -1599,12 +1590,7 @@ impl<'a> RendererData<'a> {
                 "precompute_environment",
             );
 
-            self.clear_render_targets(
-                command_buffer,
-                swapchain_index,
-                renderer_context,
-                &quad_geometry_data,
-            );
+            self.clear_render_targets(command_buffer, swapchain_index, renderer_context, &quad_geometry_data);
 
             if self.has_render_option(RenderOption::RenderOcean) {
                 self._fft_ocean.compute_slope_variance_texture(
@@ -1719,12 +1705,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "fft_simulation",
             );
-            self._fft_ocean.simulate_fft_waves(
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-                renderer_context,
-            );
+            self._fft_ocean.simulate_fft_waves(command_buffer, swapchain_index, &quad_geometry_data, renderer_context);
         }
 
         // light probe
@@ -1817,11 +1798,7 @@ impl<'a> RendererData<'a> {
             );
             let effect_manager = get_effect_manager_mut();
             if effect_manager.get_need_to_clear_gpu_particle_buffer() {
-                effect_manager.clear_gpu_particles(
-                    command_buffer,
-                    swapchain_index,
-                    renderer_context,
-                );
+                effect_manager.clear_gpu_particles(command_buffer, swapchain_index, renderer_context);
                 effect_manager.set_need_to_clear_gpu_particle_buffer(false);
             }
             effect_manager.process_gpu_particles(command_buffer, swapchain_index, self);
@@ -1891,12 +1868,7 @@ impl<'a> RendererData<'a> {
                 command_buffer,
                 "render_post_process",
             );
-            self.render_post_process(
-                renderer_context,
-                command_buffer,
-                swapchain_index,
-                &quad_geometry_data,
-            );
+            self.render_post_process(renderer_context, command_buffer, swapchain_index, &quad_geometry_data);
         }
 
         // Render Bound Box
@@ -2024,12 +1996,7 @@ impl<'a> RendererData<'a> {
                 _initial_row: 0,
                 _render_text_offset: Vector2::new(10.0, 10.0),
             };
-            font_manager.render_text(
-                command_buffer,
-                swapchain_index,
-                &renderer_context,
-                &render_text_info,
-            );
+            font_manager.render_text(command_buffer, swapchain_index, &renderer_context, &render_text_info);
         }
     }
 }

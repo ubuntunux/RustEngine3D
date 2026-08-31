@@ -1,6 +1,7 @@
 use std::cmp::max;
 use std::num::Wrapping;
 
+use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
 use crate::render_pass::common::downsampling;
 use crate::render_pass::fft_ocean::render_fft_waves;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
@@ -15,7 +16,6 @@ use crate::vulkan_context::geometry_buffer::{self, GeometryData};
 use crate::vulkan_context::texture::TextureCreateInfo;
 use crate::vulkan_context::vulkan_context::{Layers, MipLevels, SwapchainArray};
 use ash::{Device, vk};
-use crate::core::engine_service_locator::{get_engine_resources, get_engine_resources_mut};
 
 const CM: f64 = 0.23;
 const KM: f64 = 370.0;
@@ -188,10 +188,7 @@ impl<'a> FFTOcean<'a> {
         self._height = sea_height
     }
 
-    pub fn register_fft_ocean_textures(
-        &mut self,
-        renderer_context: &RendererContext<'a>,
-    ) {
+    pub fn register_fft_ocean_textures(&mut self, renderer_context: &RendererContext<'a>) {
         let engine_resources = get_engine_resources_mut();
         let mut spectrum12_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
         let mut spectrum34_data: Vec<f32> = vec![0.0; (FFT_SIZE * FFT_SIZE * 4) as usize];
@@ -320,10 +317,7 @@ impl<'a> FFTOcean<'a> {
         self._render_fft_ocean_descriptor_sets.clear();
     }
 
-    pub fn prepare_framebuffer_and_descriptors(
-        &mut self,
-        renderer_data: &RendererData,
-    ) {
+    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData) {
         let engine_resources = get_engine_resources();
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();

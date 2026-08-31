@@ -1,5 +1,3 @@
-use ash::{Device, vk};
-use nalgebra::{Matrix3, Vector2, Vector3};
 use crate::core::engine_service_locator::get_engine_resources;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::render_context::RenderContext_TAA_Simple;
@@ -12,6 +10,8 @@ use crate::vulkan_context::debug_utils::ScopedDebugLabel;
 use crate::vulkan_context::framebuffer::{self, FramebufferData, RenderTargetInfo};
 use crate::vulkan_context::geometry_buffer::GeometryData;
 use crate::vulkan_context::vulkan_context::{Layers, SwapchainArray};
+use ash::{Device, vk};
+use nalgebra::{Matrix3, Vector2, Vector3};
 
 pub const USE_BAKED_PRECOMPUTED_ATMOSPHERE_TEXTURES: bool = true;
 pub const DEFAULT_LUMINANCE_TYPE: Luminance = Luminance::NONE; // macro: USE_LUMINANCE
@@ -1200,10 +1200,7 @@ impl<'a> Atmosphere<'a> {
         }
     }
 
-    pub fn prepare_framebuffer_and_descriptors(
-        &mut self,
-        renderer_data: &RendererData,
-    ) {
+    pub fn prepare_framebuffer_and_descriptors(&mut self, renderer_data: &RendererData) {
         let engine_resources = get_engine_resources();
         let device = renderer_data.get_renderer_context().get_device();
         let debug_utils_device = renderer_data.get_renderer_context().get_debug_utils();

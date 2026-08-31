@@ -355,10 +355,7 @@ impl<'a> RendererContext<'a> {
         }
     }
 
-    pub fn initialize_renderer_context(
-        &mut self,
-        effect_manager: *const EffectManager<'a>,
-    ) {
+    pub fn initialize_renderer_context(&mut self, effect_manager: *const EffectManager<'a>) {
         self._swapchain_index = 0;
         self._frame_index = 0;
         self._need_recreate_swapchain = false;
@@ -1299,10 +1296,7 @@ impl<'a> RendererContext<'a> {
 
     pub fn prepare_framebuffer_and_descriptors(&self) {
         log::info!("RendererContext::prepare_framebuffer_and_descriptors");
-        get_renderer_data_mut().prepare_framebuffer_and_descriptors(
-            self.get_device(),
-            self.get_debug_utils(),
-        );
+        get_renderer_data_mut().prepare_framebuffer_and_descriptors(self.get_device(), self.get_debug_utils());
     }
 
     pub fn destroy_framebuffer_and_descriptors(&self) {

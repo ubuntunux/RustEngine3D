@@ -1,8 +1,5 @@
-use std::cmp::Ordering::{Greater, Less};
-use std::cmp::{max, min};
-use std::collections::HashMap;
-use std::rc::Rc;
 use crate::constants::{MAX_EMITTER_COUNT, MAX_PARTICLE_COUNT, PROCESS_GPU_PARTICLE_WORK_GROUP_SIZE};
+use crate::core::engine_service_locator::get_engine_resources;
 use crate::effect::effect_data::*;
 use crate::renderer::push_constants::{PushConstant, PushConstantName};
 use crate::renderer::renderer_context::RendererContext;
@@ -15,8 +12,11 @@ use crate::vulkan_context::geometry_buffer::GeometryData;
 use crate::vulkan_context::render_pass::PipelineData;
 use ash::vk;
 use nalgebra::{Matrix4, Vector3, Vector4};
+use std::cmp::Ordering::{Greater, Less};
+use std::cmp::{max, min};
+use std::collections::HashMap;
+use std::rc::Rc;
 use uuid::Uuid;
-use crate::core::engine_service_locator::get_engine_resources;
 
 // code coupling with effect_constants.glsl
 const GPU_PARTICLE_CONSTANT_FLAG_NONE: u32 = 0;

@@ -1,10 +1,12 @@
+use crate::core::engine_service_locator::get_scene_manager;
+use crate::ecs::entity::{EntityId, INVALID_ENTITY_ID};
 use crate::renderer::push_constants::PushConstantParameter;
-use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::animation::{
     AnimationBuffer, AnimationData, AnimationLayerData, AnimationPlayArgs, AnimationPlayInfo, AnimationPlayInfoSaveData,
 };
 use crate::scene::bounding_box::BoundingBox;
 use crate::scene::collision::{CollisionData, CollisionType};
+use crate::scene::material_instance::MaterialInstanceData;
 use crate::scene::mesh::MeshData;
 use crate::scene::model::ModelData;
 use crate::scene::scene_manager::{RenderObjectMap, SceneObjectID};
@@ -18,8 +20,6 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::OnceLock;
 use strum_macros::EnumCount;
-use crate::core::engine_service_locator::get_scene_manager;
-use crate::ecs::entity::{EntityId, INVALID_ENTITY_ID};
 
 static DUMMY_TRANSFORM: OnceLock<TransformObjectData> = OnceLock::new();
 
@@ -119,9 +119,7 @@ impl<'a> RenderObjectData<'a> {
         let material_instance_data_list: Vec<RcRefCell<MaterialInstanceData<'a>>> = model_data_ref
             ._material_instance_data_list
             .iter()
-            .map(|material_instance_data| {
-                newRcRefCell(material_instance_data.borrow().clone())
-            })
+            .map(|material_instance_data| newRcRefCell(material_instance_data.borrow().clone()))
             .collect();
         let push_constant_data_list_group = material_instance_data_list
             .iter()
@@ -205,11 +203,10 @@ impl<'a> RenderObjectData<'a> {
         self._material_instance_data_list = model_data_ref
             ._material_instance_data_list
             .iter()
-            .map(|material_instance_data| {
-                newRcRefCell(material_instance_data.borrow().clone())
-            })
+            .map(|material_instance_data| newRcRefCell(material_instance_data.borrow().clone()))
             .collect();
-        self._push_constant_data_list_group = self._material_instance_data_list
+        self._push_constant_data_list_group = self
+            ._material_instance_data_list
             .iter()
             .map(|material_instance_data| {
                 material_instance_data.borrow().get_default_pipeline_binding_data()._push_constant_data_list.clone()
@@ -521,10 +518,9 @@ impl<'a> RenderObjectData<'a> {
 
             // update collision
             if self._collision.is_valid_collision() {
-                self._collision._bounding_box.update_oriented_bounding_box(
-                    &self._model_data.borrow()._collision._bounding_box,
-                    &matrix,
-                );
+                self._collision
+                    ._bounding_box
+                    .update_oriented_bounding_box(&self._model_data.borrow()._collision._bounding_box, &matrix);
             }
 
             for (_socket_name, socket) in self._sockets.iter() {

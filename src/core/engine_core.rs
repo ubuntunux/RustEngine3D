@@ -28,7 +28,6 @@ use crate::scene::ui::UIManager;
 use crate::utilities::scope_profiler::TIME_PROFILER;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
-
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum WindowMode {
     WindowMode,
@@ -198,12 +197,7 @@ impl<'a> EngineCore<'a> {
         let debug_line_manager = DebugLineManager::create_debug_line_manager();
         let font_manager = FontManager::create_font_manager();
         let ui_manager = UIManager::create_ui_manager();
-        let renderer_context = RendererContext::create_renderer_context(
-            app_name,
-            app_version,
-            &window_size,
-            window,
-        );
+        let renderer_context = RendererContext::create_renderer_context(app_name, app_version, &window_size, window);
         let effect_manager = EffectManager::create_effect_manager();
         let audio_manager = AudioManager::create_audio_manager(&sdl);
         let scene_manager = SceneManager::create_scene_manager();
@@ -237,17 +231,11 @@ impl<'a> EngineCore<'a> {
         // register engine service locator
         engine_service_locator::set_engine_core(engine_core.as_ref() as *const EngineCore);
 
-        engine_core
-            ._renderer_context
-            .initialize_renderer_context(engine_core._effect_manager.as_ref());
+        engine_core._renderer_context.initialize_renderer_context(engine_core._effect_manager.as_ref());
         engine_core._engine_resources.load_engine_resources();
         engine_core._debug_line_manager.initialize_debug_line_manager();
-        engine_core
-            ._font_manager
-            .initialize_font_manager();
-        engine_core
-            ._ui_manager
-            .initialize_ui_manager();
+        engine_core._font_manager.initialize_font_manager();
+        engine_core._ui_manager.initialize_ui_manager();
         engine_core._audio_manager.initialize_audio_manager();
         engine_core._effect_manager.initialize_effect_manager();
 
@@ -270,7 +258,6 @@ impl<'a> EngineCore<'a> {
         self._font_manager.destroy_font_manager(renderer_context.get_device());
         self._engine_resources.destroy_engine_resources(renderer_context);
     }
-
 
     pub fn resized_window(&mut self, size: dpi::PhysicalSize<u32>) {
         self._window_size.x = size.width as i32;

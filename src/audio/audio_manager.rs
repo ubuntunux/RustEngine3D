@@ -74,7 +74,11 @@ impl fmt::Debug for AudioBankData {
 }
 
 impl AudioInstance {
-    pub fn play_audio_instance(audio_data: &RcRefCell<AudioData>, audio_loop: AudioLoop, audio_volume: Option<f32>) -> RcRefCell<AudioInstance> {
+    pub fn play_audio_instance(
+        audio_data: &RcRefCell<AudioData>,
+        audio_loop: AudioLoop,
+        audio_volume: Option<f32>,
+    ) -> RcRefCell<AudioInstance> {
         let audio_loop = match audio_loop {
             AudioLoop::ONCE => 0,
             AudioLoop::SOME(x) => 0.max(x - 1),
@@ -129,7 +133,7 @@ impl AudioManager {
             _bgm_volume: None,
             _audio_subsystem: audio_subsystem,
             _mixer_context: mixer_context,
-            _volume: DEFAULT_AUDIO_VOLUME
+            _volume: DEFAULT_AUDIO_VOLUME,
         })
     }
 
@@ -147,7 +151,6 @@ impl AudioManager {
         }
         self._audio_instances.clear();
     }
-
 
     fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>, volume: Option<f32>) {
         match audio_instance.borrow()._channel {
@@ -286,7 +289,6 @@ impl AudioManager {
             channel.set_volume((self._volume as f32 * volume) as i32);
         }
     }
-
 
     pub fn update_audio_manager(&mut self) {
         let mut is_playing_bgm: bool = false;
