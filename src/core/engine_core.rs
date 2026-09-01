@@ -86,7 +86,7 @@ impl TimeData {
 
         let explicit_target = unsafe { constants::TARGET_FRAME_RATE };
         let dynamic_target_fps: f64 = if explicit_target > 0 {
-            explicit_target as f64
+            self._target_fps.min(explicit_target as f64)
         } else {
             self._target_fps
         };
