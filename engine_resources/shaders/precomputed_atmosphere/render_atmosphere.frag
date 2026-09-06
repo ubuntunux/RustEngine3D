@@ -68,14 +68,14 @@ void main()
     float device_depth = texture(texture_depth, vs_output.uv).x;
     float scene_linear_depth = device_depth_to_linear_depth(view_constants.NEAR_FAR.x, view_constants.NEAR_FAR.y, device_depth);
     float scene_shadow_length = GetSceneShadowLength(
-    atmosphere_constants,
-    scene_linear_depth,
-    view_constants.NEAR_FAR.y,
-    vec3(0.0, 0.0, 0.0), // view_constants.CAMERA_POSITION.xyz,
-    eye_direction,
-    sun_direction,
-    light_data.SHADOW_VIEW_PROJECTION,
-    texture_shadow
+        atmosphere_constants,
+        scene_linear_depth,
+        view_constants.NEAR_FAR.y,
+        vec3(0.0, 0.0, 0.0), // view_constants.CAMERA_POSITION.xyz,
+        eye_direction,
+        sun_direction,
+        light_data.SHADOW_VIEW_PROJECTION,
+        texture_shadow
     );
 
     // Sky

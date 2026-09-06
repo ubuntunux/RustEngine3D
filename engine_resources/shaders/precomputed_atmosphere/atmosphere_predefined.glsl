@@ -1185,63 +1185,69 @@ float GetSceneShadowLength(
 )
 {
     const float earth_radius = abs(atmosphere_constants.earth_center.y);
-    bool shadow_enter = false;
-    bool do_exit = false;
-    vec3 scene_shadow_in = vec3(0.0);
     float shadow_length = 0.0;
     const int LOOP = 64;
-    float d = min(far, scene_dist) / float(LOOP);
-    float enter_count = 0.0;
-
-    for(int i=0; i<LOOP; ++i)
+    // Limit shadow tracing distance to avoid huge steps and flickering.
+    // 200.0 units is a reasonable max distance for directional shadow map coverage.
+    const float SHADOW_MAX_DISTANCE = 200.0;
+    float max_dist = min(min(far, scene_dist), SHADOW_MAX_DISTANCE);
+    float d = max_dist / float(LOOP);
+    if (d <= 0.0)
     {
-        float ray_dist = float(i) * d;
+        return 0.0;
+    }
+
+    vec2 shadow_texel_size = 1.0 / vec2(textureSize(texture_shadow, 0));
+    const float shadow_bias = 0.001;
+
+    // Add simple dither to reduce banding
+    // Using a pseudo-random value based on view_direction
+    float dither = fract(sin(dot(view_direction.xyz, vec3(12.9898, 78.233, 45.164))) * 43758.5453);
+
+    for(int i = 0; i < LOOP; ++i)
+    {
+        float ray_dist = (float(i) + dither) * d;
+        if (scene_dist <= ray_dist)
+        {
+            break;
+        }
+
         vec3 relative_pos = view_direction * ray_dist;
         vec3 world_pos = camera_position.xyz + relative_pos;
+
+        if(length(world_pos - atmosphere_constants.earth_center) < earth_radius)
+        {
+            // Clip shadow by ground. Ray enters the earth.
+            break;
+        }
+
         vec4 shadow_uv = shadow_view_projection * vec4(world_pos, 1.0);
         shadow_uv.xyz /= shadow_uv.w;
         shadow_uv.xy = shadow_uv.xy * 0.5 + 0.5;
-        float shadow_depth = texture(texture_shadow, shadow_uv.xy).x;
 
-        if(shadow_uv.x < 0.0 || 1.0 < shadow_uv.x || shadow_uv.y < 0.0 || 1.0 < shadow_uv.y || shadow_uv.z < 0.0 || 1.0 < shadow_uv.z || scene_dist <= ray_dist)
+        if(shadow_uv.x < 0.0 || 1.0 < shadow_uv.x ||
+           shadow_uv.y < 0.0 || 1.0 < shadow_uv.y ||
+           shadow_uv.z < 0.0 || 1.0 < shadow_uv.z)
         {
-            do_exit = true;
-        }
-        else if(length(world_pos - atmosphere_constants.earth_center) < earth_radius)
-        {
-            // Clip shdoaw by ground. Check if the ray enters the earth.
-            do_exit = true;
-        }
-        else if(false == shadow_enter && shadow_uv.z <= shadow_depth)
-        {
-            // enter the shadow.
-            shadow_enter = true;
-            scene_shadow_in = relative_pos;
-        }
-        else if(shadow_enter && shadow_depth < shadow_uv.z)
-        {
-            // It came out of the shadows or hit the surface of the object.
-            shadow_length += length(relative_pos - scene_shadow_in);
-
-            // initialize
-            shadow_enter = false;
             continue;
         }
 
-        if(shadow_enter)
+        // 3x3 PCF filter for smooth shadow factor calculation
+        float shadow_factor = 0.0;
+        for(int x = -1; x <= 1; ++x)
         {
-            enter_count += 1.0;
-        }
-
-        if(do_exit || i == (LOOP-1))
-        {
-            if(shadow_enter)
+            for(int y = -1; y <= 1; ++y)
             {
-                // If there is already a shadow, set the position outside the shadow to the current position.
-                shadow_length += length(relative_pos - scene_shadow_in);
+                float shadow_depth = texture(texture_shadow, shadow_uv.xy + vec2(x, y) * shadow_texel_size).x;
+                if (shadow_uv.z - shadow_bias > shadow_depth)
+                {
+                    shadow_factor += 1.0;
+                }
             }
-            break;
         }
+        shadow_factor /= 9.0;
+
+        shadow_length += shadow_factor * d;
     }
 
     vec3 sun_direction = light_direction.xyz;
