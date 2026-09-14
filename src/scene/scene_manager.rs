@@ -355,6 +355,9 @@ impl<'a> SceneManager<'a> {
         self._point_light_object_map.insert(object_id, light_object_data.clone());
         light_object_data
     }
+    pub fn remove_point_light_object(&mut self, object_id: SceneObjectID) {
+        self._point_light_object_map.remove(&object_id);
+    }
     pub fn collect_collision_objects(&self, bound_min: &Vector3<f32>, bound_max: &Vector3<f32>) -> RenderObjectMap<'a> {
         let mut collision_objectm_map: RenderObjectMap<'a> = HashMap::new();
         let key_min = CollisionObjectKey::from_position(&bound_min);
