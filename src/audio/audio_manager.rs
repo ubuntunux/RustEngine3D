@@ -2,7 +2,7 @@ use rand::Rng;
 use sdl2::mixer::{AUDIO_S16LSB, Channel, Chunk, DEFAULT_CHANNELS, InitFlag, Sdl2MixerContext};
 use sdl2::{self, AudioSubsystem, Sdl};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::fmt;
 
 use crate::constants::{DEFAULT_AUDIO_VOLUME, MAX_AUDIO_CHANNEL_COUNT};
@@ -44,6 +44,7 @@ pub struct AudioManager {
     pub _bgm_audio_bank_data: Option<RcRefCell<AudioBankData>>,
     pub _bgm_audio_instance: Option<RcRefCell<AudioInstance>>,
     pub _bgm_volume: Option<f32>,
+    pub _played_audio_names_per_frame: HashSet<String>,
     pub _audio_subsystem: AudioSubsystem,
     pub _mixer_context: Sdl2MixerContext,
     pub _volume: i32,
@@ -131,6 +132,7 @@ impl AudioManager {
             _bgm_audio_bank_data: None,
             _bgm_audio_instance: None,
             _bgm_volume: None,
+            _played_audio_names_per_frame: HashSet::new(),
             _audio_subsystem: audio_subsystem,
             _mixer_context: mixer_context,
             _volume: DEFAULT_AUDIO_VOLUME,
@@ -150,6 +152,7 @@ impl AudioManager {
             }
         }
         self._audio_instances.clear();
+        self._played_audio_names_per_frame.clear();
     }
 
     fn register_audio_instance(&mut self, audio_instance: &RcRefCell<AudioInstance>, volume: Option<f32>) {
@@ -173,6 +176,12 @@ impl AudioManager {
         audio_loop: AudioLoop,
         audio_volume: Option<f32>,
     ) -> Option<RcRefCell<AudioInstance>> {
+        let audio_name = &audio_data.borrow()._audio_name;
+        if self._played_audio_names_per_frame.contains(audio_name) {
+            return None;
+        }
+        self._played_audio_names_per_frame.insert(audio_name.clone());
+
         let audio_instance = AudioInstance::play_audio_instance(audio_data, audio_loop, audio_volume);
         self.register_audio_instance(&audio_instance, audio_volume);
         Some(audio_instance)
@@ -291,6 +300,8 @@ impl AudioManager {
     }
 
     pub fn update_audio_manager(&mut self) {
+        self._played_audio_names_per_frame.clear();
+
         let mut is_playing_bgm: bool = false;
         if let Some(audio_instance_refcell) = self._bgm_audio_instance.as_ref() {
             if self.is_playing_audio_instance(audio_instance_refcell) {
