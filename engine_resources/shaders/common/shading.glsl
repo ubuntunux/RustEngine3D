@@ -387,7 +387,8 @@ vec4 surface_shading(
     specular_light *= inv_sea_ratio;
 
     // Point Lights
-    for(int i = 0; i < scene_constants.RENDER_POINT_LIGHT_COUNT; ++i)
+    const int light_count = min(MAX_POINT_LIGHTS, scene_constants.RENDER_POINT_LIGHT_COUNT);
+    for(int i = 0; i < light_count; ++i)
     {
         const float point_light_radius = point_lights.point_light_data[i].RADIUS;
         vec3 to_point_light = point_lights.point_light_data[i].LIGHT_POSITION - world_position;
