@@ -40,6 +40,7 @@ pub struct TimeData {
     pub _time_instance: time::Instant,
     pub _current_time: f64,
     pub _acc_frame_time: f64,
+    pub _real_acc_frame_time: f64,
     pub _acc_render_time: f64,
     pub _acc_present_time: f64,
     pub _acc_frame_count: i32,
@@ -62,6 +63,7 @@ pub fn create_time_data() -> TimeData {
         _time_instance: time_instance,
         _current_time: current_time,
         _acc_frame_time: 0.0,
+        _real_acc_frame_time: 0.0,
         _acc_render_time: 0.0,
         _acc_present_time: 0.0,
         _acc_frame_count: 0,
@@ -91,6 +93,8 @@ impl TimeData {
             self._target_fps
         };
 
+        let real_acc_frame_time = self._real_acc_frame_time + delta_time;
+
         if dynamic_target_fps > 0f64 {
             let target_frame_time = 1.0 / dynamic_target_fps;
             if delta_time < target_frame_time {
@@ -106,13 +110,16 @@ impl TimeData {
         let acc_frame_count = self._acc_frame_count + 1;
         self._elapsed_frame += 1;
         if 1.0 < acc_frame_time {
+            let real_average_frame_time = real_acc_frame_time / (acc_frame_count as f64) * 1000.0;
+            let real_average_fps = 1000.0 / real_average_frame_time;
+
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;
             let average_fps = 1000.0 / average_frame_time;
             self._acc_frame_time = 0.0;
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
             self._average_fps = average_fps;
-            self._target_fps = 30f64.max(self._average_fps.max(self._target_fps) * 1.1);
+            self._target_fps = real_average_fps.clamp(30.0, 240.0);
             self._average_render_time = self._acc_render_time / (acc_frame_count as f64) * 1000.0;
             self._acc_render_time = 0.0;
             self._average_present_time = self._acc_present_time / (acc_frame_count as f64) * 1000.0;
