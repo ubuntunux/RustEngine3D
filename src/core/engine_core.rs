@@ -115,6 +115,7 @@ impl TimeData {
 
             let average_frame_time = acc_frame_time / (acc_frame_count as f64) * 1000.0;
             let average_fps = 1000.0 / average_frame_time;
+            self._real_acc_frame_time = 0.0;
             self._acc_frame_time = 0.0;
             self._acc_frame_count = 0;
             self._average_frame_time = average_frame_time;
@@ -128,6 +129,7 @@ impl TimeData {
             // debug text
             // log::info!("{}", format!("{:.2}fps / {:.3}ms", self._average_fps, self._average_frame_time));
         } else {
+            self._real_acc_frame_time = real_acc_frame_time;
             self._acc_frame_time = acc_frame_time;
             self._acc_frame_count = acc_frame_count;
         }
