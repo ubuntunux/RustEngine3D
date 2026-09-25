@@ -16,8 +16,8 @@ pub const CUBE_TEXTURE_FACES: [&str; CUBE_LAYER_COUNT] = ["right", "left", "top"
 pub const INVALID_QUEUE_INDEX: u32 = u32::MAX;
 pub const WHOLE_LAYERS: u32 = u32::MAX;
 pub const WHOLE_MIP_LEVELS: u32 = u32::MAX;
-pub const SWAPCHAIN_IMAGE_COUNT: usize = 3;
-pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2];
+pub const SWAPCHAIN_IMAGE_COUNT: usize = 4;
+pub const SWAPCHAIN_IMAGE_INDICES: [usize; SWAPCHAIN_IMAGE_COUNT] = [0, 1, 2, 3];
 pub const SWAPCHAIN_SURFACE_FORMATS: [vk::SurfaceFormatKHR; 2] = [
     vk::SurfaceFormatKHR {
         format: vk::Format::R8G8B8A8_SRGB,
