@@ -122,6 +122,7 @@ pub struct RendererData<'a> {
     pub _fft_ocean: FFTOcean<'a>,
     pub _atmosphere: Atmosphere<'a>,
     pub _render_option: u32,
+    pub _is_render_scene: bool,
 }
 
 impl<'a> RendererData<'a> {
@@ -387,6 +388,10 @@ impl<'a> RendererData<'a> {
         }
     }
 
+    pub fn set_render_scene(&mut self, enable: bool) {
+        self._is_render_scene = enable;
+    }
+
     pub fn get_shader_buffer_data_from_str(&self, buffer_data_name: &str) -> &ShaderBufferData<'_> {
         self.get_shader_buffer_data(&ShaderBufferDataType::from_str(buffer_data_name).unwrap())
     }
@@ -550,6 +555,7 @@ impl<'a> RendererData<'a> {
             _fft_ocean: FFTOcean::default(),
             _atmosphere: Atmosphere::create_atmosphere(true),
             _render_option: unsafe { CURRENT_RENDER_OPTION as u32 },
+            _is_render_scene: true,
         }
     }
 
@@ -1640,6 +1646,10 @@ impl<'a> RendererData<'a> {
                 None,
                 None,
             );
+        }
+
+        if !self._is_render_scene {
+            return;
         }
 
         // depth prepass solid object
