@@ -615,7 +615,12 @@ impl AnimationPlayInfo {
         }
         let mesh_data = self._animation_mesh.as_ref().unwrap().borrow();
         let skeleton_data = &mesh_data._skeleton_data_list[self._animation_index];
-        if additive_animation_play_info._animation_layers.is_null() {
+        let is_empty_layer = additive_animation_play_info._animation_layers.is_null()
+            || ptr_as_ref(additive_animation_play_info._animation_layers)
+                ._bone_blend_map
+                .is_empty();
+
+        if is_empty_layer {
             for (bone_index, additive_animation_transform) in
                 additive_animation_play_info._animation_transforms.iter().enumerate()
             {
