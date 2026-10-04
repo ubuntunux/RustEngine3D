@@ -582,7 +582,11 @@ impl<'a> UIComponentInstance<'a> {
                 );
             }
 
-            self.set_touched(touched);
+            if (self.get_touchable() || self.get_draggable()) && self._enable && self._visible {
+                self.set_touched(touched);
+            } else {
+                self.reset_touch_state();
+            }
         }
     }
     pub fn on_touch_move(&mut self, touched_pos: &Vector2<f32>, touched_pos_delta: &Vector2<f32>) {
@@ -1028,9 +1032,18 @@ impl<'a> UIComponentInstance<'a> {
     pub fn get_enable(&self) -> bool {
         self._enable
     }
+    pub fn reset_touch_state(&mut self) {
+        self._touched = false;
+        self._touched_over = false;
+        self._touched_middle = false;
+        self._touch_corner_flags = UICornerFlags::NONE;
+    }
     pub fn set_enable(&mut self, enable: bool) {
         if enable != self._enable {
             self._enable = enable;
+            if !enable {
+                self.reset_touch_state();
+            }
             self._changed_render_data = true;
             self._changed_layout = true;
         }
@@ -1041,6 +1054,9 @@ impl<'a> UIComponentInstance<'a> {
     pub fn set_visible(&mut self, visible: bool) {
         if visible != self._visible {
             self._visible = visible;
+            if !visible {
+                self.reset_touch_state();
+            }
             self._changed_render_data = true;
             self._changed_layout = true;
         }
@@ -1209,7 +1225,12 @@ impl<'a> UIComponentInstance<'a> {
         self._ui_component_data._touchable
     }
     pub fn set_touchable(&mut self, touchable: bool) {
-        self._ui_component_data._touchable = touchable;
+        if touchable != self._ui_component_data._touchable {
+            self._ui_component_data._touchable = touchable;
+            if !touchable {
+                self.reset_touch_state();
+            }
+        }
     }
     pub fn get_has_cursor(&self) -> bool {
         self._ui_component_data._has_cursor
@@ -2448,39 +2469,38 @@ impl<'a> UIComponentInstance<'a> {
             }
         }
 
-        if self.get_touchable() {
-            if self._touched {
-                if mouse_input_data._btn_l_hold {
-                    if mouse_moved {
-                        self.on_touch_move(mouse_pos, mouse_pos_delta);
-                    }
-                } else {
-                    self.on_touch_up(mouse_pos, mouse_pos_delta);
-                    if false == self.get_has_cursor() {
-                        //self._viewport_manager.focused_widget = None;
-                    }
-                }
-                *touch_event = true;
-            } else if false == *touch_event {
-                let collided = self.check_collide(mouse_pos);
-                if collided && self._touched_over == false {
-                    self.on_touch_over(mouse_pos, mouse_pos_delta);
-                } else if collided == false && self._touched_over {
-                    self.on_touch_out(mouse_pos, mouse_pos_delta);
-                }
-
-                if mouse_input_data._btn_l_pressed {
-                    if collided {
-                        //self._viewport_manager.focused_widget = self
-                        self.on_touch_down(mouse_pos, mouse_pos_delta);
-                    } else if self.get_has_cursor() {
-                        //self._viewport_manager.focused_widget = None
-                    }
+        if self._touched {
+            if self.get_touchable() && mouse_input_data._btn_l_hold {
+                if mouse_moved {
+                    self.on_touch_move(mouse_pos, mouse_pos_delta);
                 }
             } else {
-                if self._touched_over {
-                    self.on_touch_out(mouse_pos, mouse_pos_delta);
+                if self.get_touchable() {
+                    self.on_touch_up(mouse_pos, mouse_pos_delta);
+                } else {
+                    self.reset_touch_state();
                 }
+            }
+            *touch_event = true;
+        } else if self.get_touchable() && false == *touch_event {
+            let collided = self.check_collide(mouse_pos);
+            if collided && self._touched_over == false {
+                self.on_touch_over(mouse_pos, mouse_pos_delta);
+            } else if collided == false && self._touched_over {
+                self.on_touch_out(mouse_pos, mouse_pos_delta);
+            }
+
+            if mouse_input_data._btn_l_pressed {
+                if collided {
+                    //self._viewport_manager.focused_widget = self
+                    self.on_touch_down(mouse_pos, mouse_pos_delta);
+                } else if self.get_has_cursor() {
+                    //self._viewport_manager.focused_widget = None
+                }
+            }
+        } else {
+            if self._touched_over {
+                self.on_touch_out(mouse_pos, mouse_pos_delta);
             }
         }
 
