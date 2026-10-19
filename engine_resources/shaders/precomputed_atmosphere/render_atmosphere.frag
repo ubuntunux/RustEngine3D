@@ -101,10 +101,10 @@ void main()
     const float sun_absorption = 0.9;
     const float sun_disc_intensity = 20.0;
     const float sun_size = atmosphere_constants.sun_size.y;
-    const vec3 sun_disc_color = 0.0 < VdotL ? light_data.LIGHT_COLOR.xyz : scene_constants.MOON_LIGHT_COLOR.xyz;
+    const vec3 sun_disc_color = 0.0 < VdotL ? (transmittance * light_data.LIGHT_COLOR.xyz) : (transmittance.x * scene_constants.MOON_LIGHT_COLOR.xyz * 0.2);
     if (false == is_render_light_probe_mode && sun_size < abs(VdotL) && 0.0 == device_depth)
     {
-        sun_disc = transmittance * solar_radiance.x * sun_disc_color * sun_disc_intensity;
+        sun_disc = solar_radiance.x * sun_disc_color * sun_disc_intensity;
         sun_disc *= pow(clamp((abs(VdotL) - sun_size) / (1.0 - sun_size), 0.0, 1.0), 2.0);
     }
 
