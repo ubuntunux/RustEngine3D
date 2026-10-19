@@ -369,22 +369,28 @@ impl<'a> EngineCore<'a> {
     }
 
     pub fn update_touch(&mut self, touch: &Touch) {
+        let touch_pos: (i32, i32) = touch.location.into();
         if 0 == touch.id {
             let window_size = self._window_size.clone();
             let update_mouse_pos = self.get_application().is_visible_cursor();
-            self._mouse_move_data.update_mouse_pos(&touch.location.into(), &window_size, update_mouse_pos);
-
-            if TouchPhase::Started == touch.phase {
-                self._mouse_input_data.btn_r_pressed(true);
-                self._mouse_move_data.clear_mouse_move_delta();
-            } else if TouchPhase::Ended == touch.phase {
-                self._mouse_input_data.btn_r_pressed(false);
+            match touch.phase {
+                TouchPhase::Started => {
+                    self._mouse_move_data.begin_touch(&touch_pos, &window_size, update_mouse_pos);
+                    self._mouse_input_data.btn_r_pressed(true);
+                }
+                TouchPhase::Moved => {
+                    self._mouse_move_data.update_touch_move(&touch_pos, &window_size, update_mouse_pos);
+                }
+                TouchPhase::Ended | TouchPhase::Cancelled => {
+                    self._mouse_move_data.end_touch();
+                    self._mouse_input_data.btn_r_pressed(false);
+                }
             }
         } else if 1 == touch.id {
-            if TouchPhase::Started == touch.phase {
-                self._keyboard_input_data.set_key_pressed(KeyCode::KeyW);
-            } else if TouchPhase::Ended == touch.phase {
-                self._keyboard_input_data.set_key_released(KeyCode::KeyW);
+            match touch.phase {
+                TouchPhase::Started => self._keyboard_input_data.set_key_pressed(KeyCode::KeyW),
+                TouchPhase::Ended | TouchPhase::Cancelled => self._keyboard_input_data.set_key_released(KeyCode::KeyW),
+                TouchPhase::Moved => (),
             }
         }
     }
