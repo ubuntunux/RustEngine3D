@@ -250,8 +250,8 @@ vec4 safe_normalize(vec4 vector)
 
 float distance_field_font_opacity(float opacity)
 {
-    const float threshold = 0.8;
-    return saturate(smoothstep(threshold, 1.0, opacity) * 2.0);
+    const float threshold = 0.6;
+    return saturate(smoothstep(threshold, 1.0, opacity * opacity) * 2.0);
 }
 
 float encode_emissive_intensity(float emissive_intensity)
