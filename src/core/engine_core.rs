@@ -11,6 +11,7 @@ use winit::event::{
 };
 use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
+use winit::monitor::MonitorHandle;
 use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
 use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes, WindowId};
 
@@ -596,6 +597,20 @@ struct EngineAppHandler<'a> {
 }
 
 impl<'a> EngineAppHandler<'a> {
+    fn select_primary_monitor(event_loop: &ActiveEventLoop) -> MonitorHandle {
+        let available_monitors: Vec<MonitorHandle> = event_loop.available_monitors().collect();
+        event_loop
+            .primary_monitor()
+            .or_else(|| {
+                available_monitors
+                    .iter()
+                    .find(|monitor| monitor.position().x == 0 && monitor.position().y == 0)
+                    .cloned()
+            })
+            .or_else(|| available_monitors.into_iter().next())
+            .expect("No available monitor found")
+    }
+
     fn init_engine_core(&mut self) {
         if self._maybe_engine_core.is_some() {
             let engine_core = self._maybe_engine_core.as_mut().unwrap().as_mut();
@@ -638,11 +653,11 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
             }
 
             // choose video mode
-            let primary_monitor =
-                event_loop.primary_monitor().or_else(|| event_loop.available_monitors().next()).unwrap();
+            let primary_monitor = Self::select_primary_monitor(event_loop);
             log::info!(
-                "Monitor: {:?}, {:?}, {:?}hz",
+                "Primary Monitor: {:?}, pos: {:?}, size: {:?}, {:?}hz",
                 primary_monitor.name(),
+                primary_monitor.position(),
                 primary_monitor.size(),
                 primary_monitor.refresh_rate_millihertz()
             );
@@ -675,7 +690,7 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
             log::info!("Window Mode: {:?}", self._window_mode);
             let window_attributes = WindowAttributes::default()
                 .with_title(self._app_name.clone())
-                .with_position(dpi::PhysicalPosition { x: 0, y: 0 })
+                .with_position(primary_monitor.position())
                 .with_inner_size(dpi::Size::Physical(window_size));
 
             let window: Window = event_loop.create_window(window_attributes).unwrap();
