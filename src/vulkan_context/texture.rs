@@ -930,8 +930,8 @@ pub fn copy_image_to_buffer(
         image_extent: vk::Extent3D { width, height, depth },
         ..Default::default()
     }];
-    let need_transition = image_layout != vk::ImageLayout::TRANSFER_SRC_OPTIMAL
-        && image_layout != vk::ImageLayout::GENERAL;
+    let need_transition =
+        image_layout != vk::ImageLayout::TRANSFER_SRC_OPTIMAL && image_layout != vk::ImageLayout::GENERAL;
     let copy_image_layout = if need_transition {
         vk::ImageLayout::TRANSFER_SRC_OPTIMAL
     } else {
@@ -971,13 +971,7 @@ pub fn copy_image_to_buffer(
                 );
             }
 
-            device.cmd_copy_image_to_buffer(
-                command_buffer,
-                image,
-                copy_image_layout,
-                buffer,
-                &regions,
-            );
+            device.cmd_copy_image_to_buffer(command_buffer, image, copy_image_layout, buffer, &regions);
 
             if need_transition {
                 let barrier = vk::ImageMemoryBarrier {

@@ -1032,7 +1032,11 @@ impl<'a> RendererContext<'a> {
             let is_swapchain_suboptimal: VkResult<bool> =
                 self._swapchain_device.queue_present(self.get_present_queue(), &present_info);
             if let Err(present_error) = is_swapchain_suboptimal {
-                log::error!("present_error: {:?}", present_error);
+                if vk::Result::ERROR_OUT_OF_DATE_KHR == present_error || vk::Result::SUBOPTIMAL_KHR == present_error {
+                    log::info!("queue_present returned: {:?}", present_error);
+                } else {
+                    log::error!("present_error: {:?}", present_error);
+                }
             }
 
             is_swapchain_suboptimal
@@ -1196,79 +1200,95 @@ impl<'a> RendererContext<'a> {
                 vk::Fence::null(),
             );
 
-            let (swapchain_index, failed_acquire_next_image) = if acquire_next_image_result.is_ok() {
-                acquire_next_image_result.unwrap()
-            } else {
-                (self._swapchain_index, true)
+            let (swapchain_index, is_swapchain_suboptimal) = match acquire_next_image_result {
+                Ok((index, is_suboptimal)) => {
+                    self._swapchain_index = index;
+                    (index, is_suboptimal)
+                }
+                Err(vk::Result::ERROR_OUT_OF_DATE_KHR) => {
+                    log::info!("acquire_next_image returned ERROR_OUT_OF_DATE_KHR, recreating swapchain.");
+                    self.set_need_recreate_swapchain(true);
+                    return;
+                }
+                Err(err) => {
+                    log::error!("acquire_next_image failed with error: {:?}", err);
+                    self.set_need_recreate_swapchain(true);
+                    return;
+                }
             };
 
-            self._swapchain_index = swapchain_index;
+            if is_swapchain_suboptimal {
+                self.set_need_recreate_swapchain(true);
+            }
 
-            let present_result: vk::Result =
-                if swapchain_index < constants::SWAPCHAIN_IMAGE_COUNT as u32 && false == failed_acquire_next_image {
-                    // Begin command buffer
-                    let command_buffer = self._command_buffers[swapchain_index as usize];
-                    let command_buffer_begin_info = vk::CommandBufferBeginInfo {
-                        flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
-                        ..Default::default()
-                    };
-                    self._device
-                        .begin_command_buffer(command_buffer, &command_buffer_begin_info)
-                        .expect("vkBeginCommandBuffer failed!");
-
-                    // renderer - render_scene
-                    get_renderer_data_mut().render_scene(
-                        command_buffer,
-                        frame_index,
-                        swapchain_index,
-                        &self,
-                        scene_manager,
-                        debug_line_manager,
-                        font_manager,
-                        ui_manager,
-                        elapsed_time,
-                        delta_time,
-                        elapsed_frame,
-                    );
-
-                    // End command buffer
-                    self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
-
-                    // End Render
-                    if self.is_first_rendering() {
-                        self.set_is_first_rendering(false);
-                    }
-
-                    let present_time = time_data.get_current_time();
-                    let present_swapchain_result = self.present_swapchain(
-                        &[command_buffer],
-                        frame_fence,
-                        image_available_semaphore,
-                        render_finished_semaphore,
-                    );
-                    time_data._acc_present_time += time_data.get_current_time() - present_time;
-
-                    match present_swapchain_result {
-                        Ok(is_swapchain_suboptimal) => {
-                            if is_swapchain_suboptimal {
-                                vk::Result::SUBOPTIMAL_KHR
-                            } else {
-                                vk::Result::SUCCESS
-                            }
-                        }
-                        Err(err) => err,
-                    }
-                } else {
-                    log::error!(
-                        "failed_acquire_next_image: {}, swapchain_index: {}",
-                        failed_acquire_next_image,
-                        swapchain_index
-                    );
-                    vk::Result::ERROR_OUT_OF_DATE_KHR
+            let present_result: vk::Result = if (swapchain_index as usize) < self._command_buffers.len() {
+                // Begin command buffer
+                let command_buffer = self._command_buffers[swapchain_index as usize];
+                let command_buffer_begin_info = vk::CommandBufferBeginInfo {
+                    flags: vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT,
+                    ..Default::default()
                 };
+                self._device
+                    .begin_command_buffer(command_buffer, &command_buffer_begin_info)
+                    .expect("vkBeginCommandBuffer failed!");
+
+                // renderer - render_scene
+                get_renderer_data_mut().render_scene(
+                    command_buffer,
+                    frame_index,
+                    swapchain_index,
+                    &self,
+                    scene_manager,
+                    debug_line_manager,
+                    font_manager,
+                    ui_manager,
+                    elapsed_time,
+                    delta_time,
+                    elapsed_frame,
+                );
+
+                // End command buffer
+                self._device.end_command_buffer(command_buffer).expect("vkEndCommandBuffer failed!");
+
+                // End Render
+                if self.is_first_rendering() {
+                    self.set_is_first_rendering(false);
+                }
+
+                let present_time = time_data.get_current_time();
+                let present_swapchain_result = self.present_swapchain(
+                    &[command_buffer],
+                    frame_fence,
+                    image_available_semaphore,
+                    render_finished_semaphore,
+                );
+                time_data._acc_present_time += time_data.get_current_time() - present_time;
+
+                match present_swapchain_result {
+                    Ok(is_swapchain_suboptimal) => {
+                        if is_swapchain_suboptimal {
+                            vk::Result::SUBOPTIMAL_KHR
+                        } else {
+                            vk::Result::SUCCESS
+                        }
+                    }
+                    Err(err) => err,
+                }
+            } else {
+                log::error!(
+                    "Invalid swapchain_index: {}, command_buffers len: {}",
+                    swapchain_index,
+                    self._command_buffers.len()
+                );
+                vk::Result::ERROR_OUT_OF_DATE_KHR
+            };
 
             if vk::Result::SUCCESS != present_result {
-                log::error!("present swapchain result: {:?}", present_result);
+                if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
+                    log::info!("present swapchain result: {:?}", present_result);
+                } else {
+                    log::error!("present swapchain result: {:?}", present_result);
+                }
             }
 
             if vk::Result::ERROR_OUT_OF_DATE_KHR == present_result || vk::Result::SUBOPTIMAL_KHR == present_result {
