@@ -395,7 +395,7 @@ impl<'a> EngineCore<'a> {
         }
     }
 
-    pub fn update_event_and_scene(&mut self) {
+    pub fn update_event_and_render_scene(&mut self) {
         let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
         let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
         let debug_line_manager = ptr_as_mut(self._debug_line_manager.as_ref());
@@ -552,36 +552,20 @@ impl<'a> EngineCore<'a> {
                         }
                     }
                 }
+
+                // render scene
+                let render_time = self._time_data.get_current_time();
+                renderer_context.render_scene(
+                    scene_manager,
+                    debug_line_manager,
+                    font_manager,
+                    ui_manager,
+                    delta_time,
+                    &mut self._time_data,
+                );
+                self._time_data._acc_render_time += self._time_data.get_current_time() - render_time;
             }
         }
-    }
-
-    pub fn render_scene(&mut self) {
-        let renderer_context = ptr_as_mut(self._renderer_context.as_ref());
-        let ui_manager = ptr_as_mut(self._ui_manager.as_ref());
-        let debug_line_manager = ptr_as_mut(self._debug_line_manager.as_ref());
-        let font_manager = ptr_as_mut(self._font_manager.as_ref());
-        let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
-
-        if false == renderer_context.get_need_recreate_swapchain() && 0 < self._window_size.x && 0 < self._window_size.y
-        {
-            let delta_time = self._time_data._delta_time_with_scale;
-            let render_time = self._time_data.get_current_time();
-            renderer_context.render_scene(
-                scene_manager,
-                debug_line_manager,
-                font_manager,
-                ui_manager,
-                delta_time,
-                &mut self._time_data,
-            );
-            self._time_data._acc_render_time += self._time_data.get_current_time() - render_time;
-        }
-    }
-
-    pub fn update_event_and_render_scene(&mut self) {
-        self.update_event_and_scene();
-        self.render_scene();
     }
 
     pub fn update_application(&self, delta_time: f64) {
@@ -825,11 +809,6 @@ pub fn run_application(
                             engine_core.resized_window(size);
                         }
                     }
-                    WindowEvent::RedrawRequested => {
-                        if run_application && initialize_done {
-                            engine_core.render_scene();
-                        }
-                    }
                     WindowEvent::MouseInput { button, state, .. } => {
                         engine_core.update_mouse_input(button, state);
                         engine_core.set_keyboard_input_mode(true);
@@ -873,11 +852,9 @@ pub fn run_application(
                 Event::AboutToWait => {
                     if run_application {
                         // update application
-                        engine_core.update_event_and_scene();
+                        engine_core.update_event_and_render_scene();
                         if engine_core.get_application().will_terminate_application() {
                             run_application = false;
-                        } else {
-                            window.request_redraw();
                         }
                     }
                 }
