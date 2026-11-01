@@ -563,7 +563,8 @@ impl<'a> EngineCore<'a> {
         let font_manager = ptr_as_mut(self._font_manager.as_ref());
         let scene_manager = ptr_as_mut(self._scene_manager.as_ref());
 
-        if false == renderer_context.get_need_recreate_swapchain() && 0 < self._window_size.x && 0 < self._window_size.y {
+        if false == renderer_context.get_need_recreate_swapchain() && 0 < self._window_size.x && 0 < self._window_size.y
+        {
             let delta_time = self._time_data._delta_time_with_scale;
             let render_time = self._time_data.get_current_time();
             renderer_context.render_scene(

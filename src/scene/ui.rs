@@ -201,6 +201,7 @@ pub struct UIComponentData<'a> {
     pub _expandable_y: bool,
     pub _resizable_x: bool,
     pub _resizable_y: bool,
+    pub _wrap: bool,
     pub _color: u32,
     pub _touched_color: u32,
     pub _touched_over_color: u32,
@@ -261,6 +262,7 @@ pub struct UIComponentInstance<'a> {
     pub _touch_start_pos: Vector2<f32>,
     pub _touch_corner_flags: UICornerFlags,
     pub _text: String,
+    pub _original_text: String,
     pub _render_text_count: u32,
     pub _callback_touch_down: Option<Box<CallbackTouchEvent<'a>>>,
     pub _callback_touch_move: Option<Box<CallbackTouchEvent<'a>>>,
@@ -426,6 +428,7 @@ impl<'a> Default for UIComponentData<'a> {
             _expandable_y: false,
             _resizable_x: false,
             _resizable_y: false,
+            _wrap: false,
             _color: get_color32(255, 255, 255, 255),
             _touched_color: get_color32(200, 200, 255, 255),
             _touched_over_color: get_color32(150, 150, 200, 255),
@@ -484,6 +487,7 @@ impl<'a> Default for UIComponentInstance<'a> {
             _touch_start_pos: Vector2::zeros(),
             _touch_corner_flags: UICornerFlags::NONE,
             _text: String::new(),
+            _original_text: String::new(),
             _text_counts: Vec::new(),
             _render_text_count: 0,
             _callback_touch_down: None,
@@ -1370,6 +1374,16 @@ impl<'a> UIComponentInstance<'a> {
             self._changed_layout = true;
         }
     }
+    pub fn get_wrap(&self) -> bool {
+        self._ui_component_data._wrap
+    }
+    pub fn set_wrap(&mut self, wrap: bool) {
+        if wrap != self._ui_component_data._wrap {
+            self._ui_component_data._wrap = wrap;
+            self._changed_text = true;
+            self._changed_layout = true;
+        }
+    }
     pub fn add_ui_component(&mut self, child_ptr: *const UIComponentInstance<'a>) {
         let child = ptr_as_mut(child_ptr);
         if child.has_parent() {
@@ -1397,7 +1411,8 @@ impl<'a> UIComponentInstance<'a> {
     }
 
     pub fn set_text(&mut self, text: &str) {
-        if text != self._text {
+        if text != self._original_text {
+            self._original_text = String::from(text);
             self._text = String::from(text);
             self._changed_text = true;
             self.set_changed_layout(true);
@@ -1408,8 +1423,134 @@ impl<'a> UIComponentInstance<'a> {
         self._text_counts.clear();
 
         if false == self._text.is_empty() {
+            let source_text = if self._original_text.is_empty() {
+                self._text.clone()
+            } else {
+                self._original_text.clone()
+            };
+
             let font_size_ratio = (self.get_font_size() * dpi_scale) / font_data._font_size.y;
             let font_size = &font_data._font_size * font_size_ratio;
+            let char_width = font_size.x * UI_RENDER_FONT_PADDING_RATIO;
+
+            if self.get_wrap() && self.has_parent() && char_width > 0.0 {
+                let parent = self.get_parent();
+                if !parent.get_expandable_x() {
+                    let parent_real_width = parent._contents_area.z - parent._contents_area.x;
+                    let mut parent_content_size_x = if parent_real_width > 0.0 {
+                        parent_real_width
+                    } else if parent._contents_area_size.x > 0.0 {
+                        parent._contents_area_size.x
+                    } else if parent._base_contents_area_size.x > 0.0 {
+                        parent._base_contents_area_size.x
+                    } else {
+                        parent._required_contents_size.x
+                    };
+
+                    if parent_real_width > 0.0 && parent_real_width < parent_content_size_x {
+                        parent_content_size_x = parent_real_width;
+                    }
+
+                    let self_real_width = self._contents_area.z - self._contents_area.x;
+                    let available_width = if self._base_contents_area_size.x > 0.0
+                        && self._base_contents_area_size.x <= parent_content_size_x
+                    {
+                        self._base_contents_area_size.x
+                    } else if self_real_width > 0.0 && self_real_width < parent_content_size_x {
+                        self_real_width
+                    } else if self._contents_area_size.x > 0.0 && self._contents_area_size.x < parent_content_size_x {
+                        self._contents_area_size.x
+                    } else {
+                        parent_content_size_x - (self._spaces.x + self._spaces.z)
+                    };
+
+                    let max_width = available_width.max(0.0);
+                    if max_width > 0.0 {
+                        let max_columns = (max_width / char_width).floor() as usize;
+                        if max_columns > 0 {
+                            let mut needs_wrap = false;
+                            for line in source_text.split('\n') {
+                                let mut line_cols: usize = 0;
+                                for ch in line.chars() {
+                                    if ch == '\t' {
+                                        line_cols += 4;
+                                    } else {
+                                        line_cols += 1;
+                                    }
+                                }
+                                if line_cols > max_columns {
+                                    needs_wrap = true;
+                                    break;
+                                }
+                            }
+
+                            if needs_wrap {
+                                let mut new_lines = Vec::new();
+                                for line in source_text.split('\n') {
+                                    let mut cur_line = String::new();
+                                    let mut cur_cols: usize = 0;
+                                    let words: Vec<&str> = line.split(' ').collect();
+
+                                    for (i, word) in words.iter().enumerate() {
+                                        if word.is_empty() {
+                                            if i > 0 && cur_cols + 1 <= max_columns {
+                                                cur_line.push(' ');
+                                                cur_cols += 1;
+                                            }
+                                            continue;
+                                        }
+
+                                        let word_cols: usize =
+                                            word.chars().map(|c| if c == '\t' { 4 } else { 1 }).sum();
+                                        let space_cols = if cur_line.is_empty() { 0 } else { 1 };
+
+                                        if cur_cols + space_cols + word_cols <= max_columns {
+                                            if !cur_line.is_empty() {
+                                                cur_line.push(' ');
+                                                cur_cols += 1;
+                                            }
+                                            cur_line.push_str(word);
+                                            cur_cols += word_cols;
+                                        } else {
+                                            if !cur_line.is_empty() {
+                                                new_lines.push(cur_line);
+                                                cur_line = String::new();
+                                                cur_cols = 0;
+                                            }
+
+                                            if word_cols > max_columns {
+                                                for ch in word.chars() {
+                                                    let ch_cols = if ch == '\t' { 4 } else { 1 };
+                                                    if cur_cols + ch_cols > max_columns && !cur_line.is_empty() {
+                                                        new_lines.push(cur_line);
+                                                        cur_line = String::new();
+                                                        cur_cols = 0;
+                                                    }
+                                                    cur_line.push(ch);
+                                                    cur_cols += ch_cols;
+                                                }
+                                            } else {
+                                                cur_line.push_str(word);
+                                                cur_cols += word_cols;
+                                            }
+                                        }
+                                    }
+
+                                    if !cur_line.is_empty() {
+                                        new_lines.push(cur_line);
+                                    } else if line.is_empty() {
+                                        new_lines.push(String::new());
+                                    }
+                                }
+                                self._text = new_lines.join("\n");
+                            } else {
+                                self._text = source_text;
+                            }
+                        }
+                    }
+                }
+            }
+
             let mut column_count: usize = 0;
             let mut row_count: usize = 0;
             let mut max_column_count: usize = 0;
@@ -1453,7 +1594,6 @@ impl<'a> UIComponentInstance<'a> {
         restrict_renderable_area: bool,
     ) {
         let mut render_ui_index = render_ui_count;
-
         if self._text_counts.is_empty() {
             self.compute_text_contents_size(font_data, dpi_scale);
         }
@@ -1803,14 +1943,14 @@ impl<'a> UIComponentInstance<'a> {
                 self._spaces = (self.get_margin() + self.get_padding()) * component_dpi_scale;
                 self._base_contents_area_size = self.get_size() * component_dpi_scale;
 
-                if self._changed_text {
-                    self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
-                    self._changed_text = false;
-                }
-
                 if let Some(size_hint_x) = self.get_size_hint_x() {
                     self._base_contents_area_size.x =
                         (parent_contents_size.x * size_hint_x - (self._spaces.x + self._spaces.z)).max(0.0);
+                }
+
+                if self._changed_text || (self.get_wrap() && inherit_changed_layout) {
+                    self._text_contents_size = self.compute_text_contents_size(font_data, component_dpi_scale);
+                    self._changed_text = false;
                 }
 
                 if let Some(size_hint_y) = self.get_size_hint_y() {
@@ -1841,9 +1981,38 @@ impl<'a> UIComponentInstance<'a> {
                 if child_ui_instance._enable {
                     let prev_child_ui_size = child_ui_instance._ui_size;
 
+                    let child_parent_contents_size = match self.get_layout_type() {
+                        UILayoutType::BoxLayout => match self.get_layout_orientation() {
+                            Orientation::HORIZONTAL => {
+                                if let Some(child_size_hint_x) = child_ui_instance.get_size_hint_x() {
+                                    let total_hint_x = if self._required_contents_size_hint.x > 0.0 {
+                                        self._required_contents_size_hint.x
+                                    } else {
+                                        self._children
+                                            .iter()
+                                            .filter_map(|c| ptr_as_ref(*c).get_size_hint_x())
+                                            .sum::<f32>()
+                                    };
+                                    if total_hint_x > 0.0 {
+                                        Vector2::new(
+                                            self._contents_area_size.x * child_size_hint_x / total_hint_x,
+                                            self._contents_area_size.y,
+                                        )
+                                    } else {
+                                        self._contents_area_size
+                                    }
+                                } else {
+                                    self._contents_area_size
+                                }
+                            }
+                            _ => self._contents_area_size,
+                        },
+                        _ => self._contents_area_size,
+                    };
+
                     child_ui_instance.recursive_update_layout_size(
                         inherit_changed_layout,
-                        &self._contents_area_size,
+                        &child_parent_contents_size,
                         font_data,
                         dpi_scale,
                         counts,
@@ -1923,9 +2092,38 @@ impl<'a> UIComponentInstance<'a> {
                     if child_ui_instance._enable {
                         let prev_child_ui_size = child_ui_instance._ui_size;
 
+                        let child_parent_contents_size = match self.get_layout_type() {
+                            UILayoutType::BoxLayout => match self.get_layout_orientation() {
+                                Orientation::HORIZONTAL => {
+                                    if let Some(child_size_hint_x) = child_ui_instance.get_size_hint_x() {
+                                        let total_hint_x = if self._required_contents_size_hint.x > 0.0 {
+                                            self._required_contents_size_hint.x
+                                        } else {
+                                            self._children
+                                                .iter()
+                                                .filter_map(|c| ptr_as_ref(*c).get_size_hint_x())
+                                                .sum::<f32>()
+                                        };
+                                        if total_hint_x > 0.0 {
+                                            Vector2::new(
+                                                self._contents_area_size.x * child_size_hint_x / total_hint_x,
+                                                self._contents_area_size.y,
+                                            )
+                                        } else {
+                                            self._contents_area_size
+                                        }
+                                    } else {
+                                        self._contents_area_size
+                                    }
+                                }
+                                _ => self._contents_area_size,
+                            },
+                            _ => self._contents_area_size,
+                        };
+
                         child_ui_instance.recursive_update_layout_size(
                             inherit_changed_layout,
-                            &self._contents_area_size,
+                            &child_parent_contents_size,
                             font_data,
                             dpi_scale,
                             counts,
