@@ -57,14 +57,33 @@ pub fn choose_swapchain_surface_format(
     surface_format
 }
 
-pub fn choose_swapchain_present_mode(swapchain_support_details: &SwapchainSupportDetails) -> vk::PresentModeKHR {
-    if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO) {
+pub fn choose_swapchain_present_mode(
+    swapchain_support_details: &SwapchainSupportDetails,
+    immediate_mode: bool,
+) -> vk::PresentModeKHR {
+    let present_modes = &swapchain_support_details._present_modes;
+    if immediate_mode {
+        if present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
+            return vk::PresentModeKHR::IMMEDIATE;
+        } else if present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
+            log::warn!("VK_PRESENT_MODE_IMMEDIATE_KHR is not supported. Fallback to VK_PRESENT_MODE_MAILBOX_KHR.");
+            return vk::PresentModeKHR::MAILBOX;
+        } else if present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
+            log::warn!("VK_PRESENT_MODE_IMMEDIATE_KHR is not supported. Fallback to VK_PRESENT_MODE_FIFO_RELAXED_KHR.");
+            return vk::PresentModeKHR::FIFO_RELAXED;
+        } else {
+            log::warn!("VK_PRESENT_MODE_IMMEDIATE_KHR is not supported. Fallback to VK_PRESENT_MODE_FIFO_KHR.");
+            return vk::PresentModeKHR::FIFO;
+        }
+    }
+
+    if present_modes.contains(&vk::PresentModeKHR::FIFO) {
         return vk::PresentModeKHR::FIFO;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
+    } else if present_modes.contains(&vk::PresentModeKHR::FIFO_RELAXED) {
         return vk::PresentModeKHR::FIFO_RELAXED;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
+    } else if present_modes.contains(&vk::PresentModeKHR::MAILBOX) {
         return vk::PresentModeKHR::MAILBOX;
-    } else if swapchain_support_details._present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
+    } else if present_modes.contains(&vk::PresentModeKHR::IMMEDIATE) {
         return vk::PresentModeKHR::IMMEDIATE;
     }
     vk::PresentModeKHR::FIFO
@@ -128,18 +147,7 @@ pub fn create_swapchain_data(
 ) -> SwapchainData {
     let surface_format =
         choose_swapchain_surface_format(swapchain_support_details, &constants::SWAPCHAIN_SURFACE_FORMATS);
-    #[cfg(target_os = "android")]
-    let present_mode = if immediate_mode {
-        vk::PresentModeKHR::IMMEDIATE
-    } else {
-        vk::PresentModeKHR::FIFO
-    };
-    #[cfg(not(target_os = "android"))]
-    let present_mode = if immediate_mode {
-        vk::PresentModeKHR::IMMEDIATE
-    } else {
-        choose_swapchain_present_mode(swapchain_support_details)
-    };
+    let present_mode = choose_swapchain_present_mode(swapchain_support_details, immediate_mode);
     let image_extent = choose_swapchain_extent(swapchain_support_details, window_width, window_height);
     let max_image_count = swapchain_support_details._capabilities.max_image_count;
     let min_image_count = swapchain_support_details._capabilities.min_image_count;

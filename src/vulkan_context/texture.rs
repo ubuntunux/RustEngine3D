@@ -909,6 +909,7 @@ pub fn copy_image_to_buffer(
     command_queue: vk::Queue,
     image: vk::Image,
     image_aspect: vk::ImageAspectFlags,
+    image_layout: vk::ImageLayout,
     width: u32,
     height: u32,
     depth: u32,
@@ -929,18 +930,83 @@ pub fn copy_image_to_buffer(
         image_extent: vk::Extent3D { width, height, depth },
         ..Default::default()
     }];
+    let need_transition = image_layout != vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+        && image_layout != vk::ImageLayout::GENERAL;
+    let copy_image_layout = if need_transition {
+        vk::ImageLayout::TRANSFER_SRC_OPTIMAL
+    } else {
+        image_layout
+    };
     run_commands_once(
         device,
         command_pool,
         command_queue,
         |device: &Device, command_buffer: vk::CommandBuffer| unsafe {
+            if need_transition {
+                let barrier = vk::ImageMemoryBarrier {
+                    old_layout: image_layout,
+                    new_layout: vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    image,
+                    subresource_range: vk::ImageSubresourceRange {
+                        aspect_mask: image_aspect,
+                        base_mip_level: 0,
+                        level_count: 1,
+                        base_array_layer: 0,
+                        layer_count,
+                    },
+                    src_access_mask: vk::AccessFlags::MEMORY_READ | vk::AccessFlags::MEMORY_WRITE,
+                    dst_access_mask: vk::AccessFlags::TRANSFER_READ,
+                    ..Default::default()
+                };
+                device.cmd_pipeline_barrier(
+                    command_buffer,
+                    vk::PipelineStageFlags::ALL_COMMANDS,
+                    vk::PipelineStageFlags::TRANSFER,
+                    vk::DependencyFlags::empty(),
+                    &[],
+                    &[],
+                    &[barrier],
+                );
+            }
+
             device.cmd_copy_image_to_buffer(
                 command_buffer,
                 image,
-                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                copy_image_layout,
                 buffer,
                 &regions,
             );
+
+            if need_transition {
+                let barrier = vk::ImageMemoryBarrier {
+                    old_layout: vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                    new_layout: image_layout,
+                    src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+                    image,
+                    subresource_range: vk::ImageSubresourceRange {
+                        aspect_mask: image_aspect,
+                        base_mip_level: 0,
+                        level_count: 1,
+                        base_array_layer: 0,
+                        layer_count,
+                    },
+                    src_access_mask: vk::AccessFlags::TRANSFER_READ,
+                    dst_access_mask: vk::AccessFlags::MEMORY_READ | vk::AccessFlags::MEMORY_WRITE,
+                    ..Default::default()
+                };
+                device.cmd_pipeline_barrier(
+                    command_buffer,
+                    vk::PipelineStageFlags::TRANSFER,
+                    vk::PipelineStageFlags::ALL_COMMANDS,
+                    vk::DependencyFlags::empty(),
+                    &[],
+                    &[],
+                    &[barrier],
+                );
+            }
         },
     );
 }
@@ -1343,6 +1409,7 @@ pub fn read_texture_data(
         command_queue,
         texture_data._image,
         get_image_aspect_by_format(texture_data._image_format),
+        texture_data._image_info.image_layout,
         texture_data._image_width,
         texture_data._image_height,
         image_depth,
