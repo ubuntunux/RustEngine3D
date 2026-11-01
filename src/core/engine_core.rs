@@ -4,12 +4,15 @@ use log;
 use nalgebra::Vector2;
 use sdl2::Sdl;
 use sdl2::event;
+use winit::application::ApplicationHandler;
 use winit::dpi;
-use winit::event::{DeviceEvent, ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, WindowEvent};
-use winit::event_loop::{ControlFlow, EventLoop};
+use winit::event::{
+    DeviceEvent, DeviceId, ElementState, MouseButton, MouseScrollDelta, StartCause, Touch, TouchPhase, WindowEvent,
+};
+use winit::event_loop::{ActiveEventLoop, ControlFlow, EventLoop};
 use winit::keyboard::{KeyCode, PhysicalKey};
 use winit::platform::run_on_demand::EventLoopExtRunOnDemand;
-use winit::window::{CursorGrabMode, Fullscreen, Window, WindowBuilder};
+use winit::window::{CursorGrabMode, Fullscreen, Window, WindowAttributes, WindowId};
 
 use crate::audio::audio_manager::AudioManager;
 use crate::constants;
@@ -579,12 +582,306 @@ impl<'a> Drop for EngineCore<'a> {
     }
 }
 
-pub fn run_application(
+struct EngineAppHandler<'a> {
+    _app_name: String,
+    _app_version: u32,
+    _initial_window_size: Option<Vector2<u32>>,
+    _window_mode: WindowMode,
+    _application: *const dyn ApplicationBase<'a>,
+    _sdl: Sdl,
+    _window: Option<Window>,
+    _maybe_engine_core: Option<Box<EngineCore<'a>>>,
+    _initialize_done: bool,
+    _run_application: bool,
+}
+
+impl<'a> EngineAppHandler<'a> {
+    fn init_engine_core(&mut self) {
+        if self._maybe_engine_core.is_some() {
+            let engine_core = self._maybe_engine_core.as_mut().unwrap().as_mut();
+            engine_core.terminate_application();
+        }
+
+        let window = self._window.as_ref().unwrap();
+        let engine_core = EngineCore::create_application(
+            self._app_name.as_str(),
+            self._app_version,
+            window,
+            &self._sdl,
+            self._application,
+        );
+        let application_mut = ptr_as_mut(engine_core._application);
+        application_mut.initialize_application(&engine_core._window_size);
+
+        self._maybe_engine_core = Some(engine_core);
+        self._run_application = true;
+        self._initialize_done = true;
+    }
+}
+
+impl<'a> ApplicationHandler for EngineAppHandler<'a> {
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        log::info!("Application was resumed");
+        if self._window.is_none() {
+            // show display infos
+            for (monitor_index, monitor) in event_loop.available_monitors().enumerate() {
+                log::debug!("Monitor[{}]: {:?}", monitor_index, monitor.name());
+                for (video_index, video_mode) in monitor.video_modes().enumerate() {
+                    log::debug!(
+                        "    Video Mode[{}]: {:?}, {:?} bit, {:?} hz",
+                        video_index,
+                        video_mode.size(),
+                        video_mode.bit_depth(),
+                        video_mode.refresh_rate_millihertz()
+                    );
+                }
+            }
+
+            // choose video mode
+            let primary_monitor =
+                event_loop.primary_monitor().or_else(|| event_loop.available_monitors().next()).unwrap();
+            log::info!(
+                "Monitor: {:?}, {:?}, {:?}hz",
+                primary_monitor.name(),
+                primary_monitor.size(),
+                primary_monitor.refresh_rate_millihertz()
+            );
+            let mut current_video_mode = primary_monitor.video_modes().nth(0).unwrap();
+            for (_video_index, video_mode) in primary_monitor.video_modes().enumerate() {
+                if video_mode.size() == primary_monitor.size()
+                    && video_mode.refresh_rate_millihertz() == primary_monitor.refresh_rate_millihertz().unwrap()
+                {
+                    current_video_mode = video_mode.clone();
+                    log::info!(
+                        "Matched Video Mode: {:?}, {:?} bit, {:?} hz",
+                        video_mode.size(),
+                        video_mode.bit_depth(),
+                        video_mode.refresh_rate_millihertz()
+                    );
+                    break;
+                }
+            }
+
+            let window_size: dpi::PhysicalSize<u32> = if let Some(window_size) = self._initial_window_size {
+                dpi::PhysicalSize {
+                    width: window_size.x,
+                    height: window_size.y,
+                }
+            } else {
+                current_video_mode.size()
+            };
+
+            // create window
+            log::info!("Window Mode: {:?}", self._window_mode);
+            let window_attributes = WindowAttributes::default()
+                .with_title(self._app_name.clone())
+                .with_position(dpi::PhysicalPosition { x: 0, y: 0 })
+                .with_inner_size(dpi::Size::Physical(window_size));
+
+            let window: Window = event_loop.create_window(window_attributes).unwrap();
+            window.set_ime_allowed(false);
+
+            if WindowMode::FullScreenExclusiveMode == self._window_mode
+                || WindowMode::FullScreenBorderlessMode == self._window_mode
+            {
+                if WindowMode::FullScreenExclusiveMode == self._window_mode {
+                    window.set_fullscreen(Some(Fullscreen::Exclusive(current_video_mode)));
+                } else if WindowMode::FullScreenBorderlessMode == self._window_mode {
+                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
+                } else {
+                    log::error!("unexpected window mode: {:?}", self._window_mode);
+                }
+            }
+
+            self._window = Some(window);
+        }
+
+        if !self._initialize_done {
+            self.init_engine_core();
+        }
+    }
+
+    fn suspended(&mut self, _event_loop: &ActiveEventLoop) {
+        log::info!("Application was suspended");
+        #[cfg(target_os = "android")]
+        if self._initialize_done {
+            self._run_application = false;
+            self._initialize_done = false;
+        }
+    }
+
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, _cause: StartCause) {
+        event_loop.set_control_flow(ControlFlow::Poll);
+
+        let Some(engine_core) = self._maybe_engine_core.as_mut() else {
+            return;
+        };
+
+        // reset input states on new frame
+        if self._run_application {
+            engine_core.clear_and_update_input_data_list();
+
+            // process sdl event
+            for event in self._sdl.event_pump().unwrap().poll_iter() {
+                match event {
+                    event::Event::ControllerAxisMotion { axis, value, .. } => {
+                        engine_core._joystick_input_data.update_controller_axis_motion(axis, value);
+                        engine_core.set_keyboard_input_mode(false);
+                    }
+                    event::Event::ControllerButtonDown { button, .. } => {
+                        engine_core._joystick_input_data.update_controller_button_state(button, ButtonState::Pressed);
+                        engine_core.set_keyboard_input_mode(false);
+                    }
+                    event::Event::ControllerButtonUp { button, .. } => {
+                        engine_core._joystick_input_data.update_controller_button_state(button, ButtonState::Released);
+                        engine_core.set_keyboard_input_mode(false);
+                    }
+                    event::Event::Quit { .. } => break,
+                    _ => (),
+                }
+            }
+        }
+
+        if !self._run_application {
+            engine_core.terminate_application();
+            event_loop.exit();
+        }
+    }
+
+    fn device_event(&mut self, _event_loop: &ActiveEventLoop, _device_id: DeviceId, event: DeviceEvent) {
+        let Some(engine_core) = self._maybe_engine_core.as_mut() else {
+            return;
+        };
+        match event {
+            DeviceEvent::MouseMotion { delta } => {
+                engine_core.update_mouse_motion(&delta);
+                engine_core.set_keyboard_input_mode(true);
+            }
+            DeviceEvent::Key(raw_key) => {
+                if self._run_application {
+                    engine_core.update_keyboard_input(raw_key.physical_key, raw_key.state);
+                    engine_core.set_keyboard_input_mode(true);
+                }
+
+                // exit
+                if engine_core._is_grab_mode == false {
+                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSSR)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderOcean)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderAtmosphere)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSky)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderShadow)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit6) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSSAO)
+                    }
+                }
+            }
+            _ => {}
+        }
+    }
+
+    fn window_event(&mut self, _event_loop: &ActiveEventLoop, _window_id: WindowId, event: WindowEvent) {
+        let Some(engine_core) = self._maybe_engine_core.as_mut() else {
+            return;
+        };
+        match event {
+            WindowEvent::CloseRequested => {
+                self._run_application = false;
+            }
+            WindowEvent::Resized(size) => {
+                log::info!(
+                    "WindowEvent::Resized: {:?}, initialize_done: {}",
+                    size,
+                    self._initialize_done
+                );
+                if self._initialize_done {
+                    engine_core.resized_window(size);
+                }
+            }
+            WindowEvent::MouseInput { button, state, .. } => {
+                engine_core.update_mouse_input(button, state);
+                engine_core.set_keyboard_input_mode(true);
+            }
+            WindowEvent::CursorMoved { position, .. } => {
+                engine_core.update_cursor_moved(position);
+            }
+            WindowEvent::MouseWheel {
+                delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y),
+                ..
+            } => {
+                engine_core.update_mouse_wheel(scroll_x, scroll_y);
+                engine_core.set_keyboard_input_mode(true);
+            }
+            WindowEvent::Focused(focused) => {
+                engine_core.get_application_mut().focused(focused);
+                if focused == false {
+                    engine_core.clear_key_hold();
+                }
+            }
+            WindowEvent::CursorEntered {
+                device_id: _device_id, ..
+            } => {}
+            WindowEvent::CursorLeft {
+                device_id: _device_id, ..
+            } => {}
+            WindowEvent::Ime(_event) => {
+                // nothing
+            }
+            WindowEvent::KeyboardInput { .. } => {
+                // nothing
+            }
+            WindowEvent::Touch(touch) => {
+                engine_core.update_touch(&touch);
+            }
+            _ => (),
+        }
+    }
+
+    fn about_to_wait(&mut self, _event_loop: &ActiveEventLoop) {
+        if let Some(engine_core) = self._maybe_engine_core.as_mut() {
+            if self._run_application {
+                // update application
+                engine_core.update_event_and_render_scene();
+                if engine_core.get_application().will_terminate_application() {
+                    self._run_application = false;
+                }
+            }
+        }
+    }
+
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        log::info!("Application destroyed");
+    }
+}
+
+pub fn run_application<'a>(
     app_name: String,
     app_version: u32,
     initial_window_size: Option<Vector2<u32>>,
     window_mode: WindowMode,
-    application: *const dyn ApplicationBase,
+    application: *const dyn ApplicationBase<'a>,
 ) {
     log::info!("run_application");
 
@@ -594,272 +891,18 @@ pub fn run_application(
 
     let mut event_loop = EventLoop::new().unwrap();
 
-    // show display infos
-    for (monitor_index, monitor) in event_loop.available_monitors().enumerate() {
-        log::debug!("Monitor[{}]: {:?}", monitor_index, monitor.name());
-        for (video_index, video_mode) in monitor.video_modes().enumerate() {
-            log::debug!(
-                "    Video Mode[{}]: {:?}, {:?} bit, {:?} hz",
-                video_index,
-                video_mode.size(),
-                video_mode.bit_depth(),
-                video_mode.refresh_rate_millihertz()
-            );
-        }
-    }
-
-    // choose video mode
-    let primary_monitor = event_loop.primary_monitor().or_else(|| event_loop.available_monitors().next()).unwrap();
-    log::info!(
-        "Monitor: {:?}, {:?}, {:?}hz",
-        primary_monitor.name(),
-        primary_monitor.size(),
-        primary_monitor.refresh_rate_millihertz()
-    );
-    let mut current_video_mode = primary_monitor.video_modes().nth(0).unwrap();
-    for (_video_index, video_mode) in primary_monitor.video_modes().enumerate() {
-        if video_mode.size() == primary_monitor.size()
-            && video_mode.refresh_rate_millihertz() == primary_monitor.refresh_rate_millihertz().unwrap()
-        {
-            current_video_mode = video_mode.clone();
-            log::info!(
-                "Matched Video Mode: {:?}, {:?} bit, {:?} hz",
-                video_mode.size(),
-                video_mode.bit_depth(),
-                video_mode.refresh_rate_millihertz()
-            );
-            break;
-        }
-    }
-
-    let window_size: dpi::PhysicalSize<u32> = if let Some(window_size) = initial_window_size {
-        dpi::PhysicalSize {
-            width: window_size.x,
-            height: window_size.y,
-        }
-    } else {
-        current_video_mode.size()
+    let mut app_handler = EngineAppHandler {
+        _app_name: app_name,
+        _app_version: app_version,
+        _initial_window_size: initial_window_size,
+        _window_mode: window_mode,
+        _application: application,
+        _sdl: sdl,
+        _window: None,
+        _maybe_engine_core: None,
+        _initialize_done: false,
+        _run_application: false,
     };
 
-    // create window
-    log::info!("Window Mode: {:?}", window_mode);
-    let window: Window = WindowBuilder::new()
-        .with_title(app_name.clone())
-        .with_position(dpi::PhysicalPosition { x: 0, y: 0 })
-        .with_inner_size(dpi::Size::Physical(window_size))
-        .build(&event_loop)
-        .unwrap();
-
-    window.set_ime_allowed(false);
-
-    if WindowMode::FullScreenExclusiveMode == window_mode || WindowMode::FullScreenBorderlessMode == window_mode {
-        if WindowMode::FullScreenExclusiveMode == window_mode {
-            window.set_fullscreen(Some(Fullscreen::Exclusive(current_video_mode)));
-        } else if WindowMode::FullScreenBorderlessMode == window_mode {
-            window.set_fullscreen(Some(Fullscreen::Borderless(Some(primary_monitor))));
-        } else {
-            log::error!("unexpected window mode: {:?}", window_mode);
-        }
-    }
-
-    let mut maybe_engine_core: Option<Box<EngineCore>> = None;
-
-    // main loop
-    #[cfg(target_os = "android")]
-    let mut need_initialize: bool = false;
-    #[cfg(not(target_os = "android"))]
-    let mut need_initialize: bool = true;
-    let mut initialize_done: bool = false;
-    let mut run_application: bool = false;
-    //event_loop.run(move |event, window_target| {
-    event_loop
-        .run_on_demand(|event, window_target| {
-            window_target.set_control_flow(ControlFlow::Poll);
-
-            if need_initialize {
-                if maybe_engine_core.is_some() {
-                    let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
-                    engine_core.terminate_application();
-                }
-
-                let engine_core =
-                    EngineCore::create_application(app_name.as_str(), app_version, &window, &sdl, application);
-                let application_mut = ptr_as_mut(engine_core._application);
-                application_mut.initialize_application(&engine_core._window_size);
-
-                // set managers
-                maybe_engine_core = Some(engine_core);
-                run_application = true;
-                need_initialize = false;
-                initialize_done = true;
-            }
-
-            let engine_core = maybe_engine_core.as_mut().unwrap().as_mut();
-
-            // winit event
-            match event {
-                Event::Resumed => {
-                    log::info!("Application was resumed");
-                    #[cfg(target_os = "android")]
-                    if false == initialize_done {
-                        need_initialize = true;
-                    }
-                }
-                Event::Suspended => {
-                    log::info!("Application was suspended");
-                    #[cfg(target_os = "android")]
-                    if initialize_done {
-                        run_application = false;
-                        initialize_done = false;
-                    }
-                }
-                Event::NewEvents(_) => {
-                    // reset input states on new frame
-                    if run_application {
-                        engine_core.clear_and_update_input_data_list();
-
-                        // process sdl event
-                        for event in sdl.event_pump().unwrap().poll_iter() {
-                            match event {
-                                event::Event::ControllerAxisMotion { axis, value, .. } => {
-                                    engine_core._joystick_input_data.update_controller_axis_motion(axis, value);
-                                    engine_core.set_keyboard_input_mode(false);
-                                }
-                                event::Event::ControllerButtonDown { button, .. } => {
-                                    engine_core
-                                        ._joystick_input_data
-                                        .update_controller_button_state(button, ButtonState::Pressed);
-                                    engine_core.set_keyboard_input_mode(false);
-                                }
-                                event::Event::ControllerButtonUp { button, .. } => {
-                                    engine_core
-                                        ._joystick_input_data
-                                        .update_controller_button_state(button, ButtonState::Released);
-                                    engine_core.set_keyboard_input_mode(false);
-                                }
-                                event::Event::Quit { .. } => break,
-                                _ => (),
-                            }
-                        }
-                    }
-
-                    if !run_application {
-                        engine_core.terminate_application();
-                        window_target.exit();
-                    }
-                }
-                Event::DeviceEvent {
-                    device_id: _device_id,
-                    event,
-                } => match event {
-                    DeviceEvent::MouseMotion { delta } => {
-                        engine_core.update_mouse_motion(&delta);
-                        engine_core.set_keyboard_input_mode(true);
-                    }
-                    DeviceEvent::Key(raw_key) => {
-                        if run_application {
-                            engine_core.update_keyboard_input(raw_key.physical_key, raw_key.state);
-                            engine_core.set_keyboard_input_mode(true);
-                        }
-
-                        // exit
-                        if engine_core._is_grab_mode == false {
-                            if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
-                                engine_core
-                                    ._renderer_context
-                                    .get_renderer_data_mut()
-                                    .toggle_render_option(RenderOption::RenderSSR)
-                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
-                                engine_core
-                                    ._renderer_context
-                                    .get_renderer_data_mut()
-                                    .toggle_render_option(RenderOption::RenderOcean)
-                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
-                                engine_core
-                                    ._renderer_context
-                                    .get_renderer_data_mut()
-                                    .toggle_render_option(RenderOption::RenderAtmosphere)
-                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
-                                engine_core
-                                    ._renderer_context
-                                    .get_renderer_data_mut()
-                                    .toggle_render_option(RenderOption::RenderSky)
-                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
-                                engine_core
-                                    ._renderer_context
-                                    .get_renderer_data_mut()
-                                    .toggle_render_option(RenderOption::RenderShadow)
-                            } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit6) {
-                                engine_core
-                                    ._renderer_context
-                                    .get_renderer_data_mut()
-                                    .toggle_render_option(RenderOption::RenderSSAO)
-                            }
-                        }
-                    }
-                    _ => {}
-                },
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CloseRequested => {
-                        run_application = false;
-                    }
-                    WindowEvent::Resized(size) => {
-                        log::info!("WindowEvent::Resized: {:?}, initialize_done: {}", size, initialize_done);
-                        if initialize_done {
-                            engine_core.resized_window(size);
-                        }
-                    }
-                    WindowEvent::MouseInput { button, state, .. } => {
-                        engine_core.update_mouse_input(button, state);
-                        engine_core.set_keyboard_input_mode(true);
-                    }
-                    WindowEvent::CursorMoved { position, .. } => {
-                        engine_core.update_cursor_moved(position);
-                    }
-                    WindowEvent::MouseWheel {
-                        delta: MouseScrollDelta::LineDelta(scroll_x, scroll_y),
-                        ..
-                    } => {
-                        engine_core.update_mouse_wheel(scroll_x, scroll_y);
-                        engine_core.set_keyboard_input_mode(true);
-                    }
-                    WindowEvent::Focused(focused) => {
-                        engine_core.get_application_mut().focused(focused);
-                        if focused == false {
-                            engine_core.clear_key_hold();
-                        }
-                    }
-                    WindowEvent::CursorEntered {
-                        device_id: _device_id, ..
-                    } => {}
-                    WindowEvent::CursorLeft {
-                        device_id: _device_id, ..
-                    } => {}
-                    WindowEvent::Ime(_event) => {
-                        // nothing
-                    }
-                    WindowEvent::KeyboardInput { .. } => {
-                        // nothing
-                    }
-                    WindowEvent::Touch(touch) => {
-                        engine_core.update_touch(&touch);
-                    }
-                    _ => (),
-                },
-                Event::LoopExiting => {
-                    log::info!("Application destroyed");
-                }
-                Event::AboutToWait => {
-                    if run_application {
-                        // update application
-                        engine_core.update_event_and_render_scene();
-                        if engine_core.get_application().will_terminate_application() {
-                            run_application = false;
-                        }
-                    }
-                }
-                _ => {}
-            }
-        })
-        .expect("TODO: panic message");
+    event_loop.run_app_on_demand(&mut app_handler).expect("failed to run application");
 }
