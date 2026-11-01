@@ -757,46 +757,8 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
                 engine_core.update_mouse_motion(&delta);
                 engine_core.set_keyboard_input_mode(true);
             }
-            DeviceEvent::Key(raw_key) => {
-                if self._run_application {
-                    engine_core.update_keyboard_input(raw_key.physical_key, raw_key.state);
-                    engine_core.set_keyboard_input_mode(true);
-                }
-
-                // exit
-                if engine_core._is_grab_mode == false {
-                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
-                        engine_core
-                            ._renderer_context
-                            .get_renderer_data_mut()
-                            .toggle_render_option(RenderOption::RenderSSR)
-                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
-                        engine_core
-                            ._renderer_context
-                            .get_renderer_data_mut()
-                            .toggle_render_option(RenderOption::RenderOcean)
-                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
-                        engine_core
-                            ._renderer_context
-                            .get_renderer_data_mut()
-                            .toggle_render_option(RenderOption::RenderAtmosphere)
-                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
-                        engine_core
-                            ._renderer_context
-                            .get_renderer_data_mut()
-                            .toggle_render_option(RenderOption::RenderSky)
-                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
-                        engine_core
-                            ._renderer_context
-                            .get_renderer_data_mut()
-                            .toggle_render_option(RenderOption::RenderShadow)
-                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit6) {
-                        engine_core
-                            ._renderer_context
-                            .get_renderer_data_mut()
-                            .toggle_render_option(RenderOption::RenderSSAO)
-                    }
-                }
+            DeviceEvent::Key(_raw_key) => {
+                // Handled in WindowEvent::KeyboardInput for Wayland & X11 compatibility
             }
             _ => {}
         }
@@ -849,8 +811,52 @@ impl<'a> ApplicationHandler for EngineAppHandler<'a> {
             WindowEvent::Ime(_event) => {
                 // nothing
             }
-            WindowEvent::KeyboardInput { .. } => {
-                // nothing
+            WindowEvent::KeyboardInput {
+                event: raw_key,
+                is_synthetic: _,
+                ..
+            } => {
+                if self._run_application {
+                    if !raw_key.repeat {
+                        engine_core.update_keyboard_input(raw_key.physical_key, raw_key.state);
+                        engine_core.set_keyboard_input_mode(true);
+                    }
+                }
+
+                // exit
+                if engine_core._is_grab_mode == false {
+                    if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit1) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSSR)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit2) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderOcean)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit3) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderAtmosphere)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit4) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSky)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit5) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderShadow)
+                    } else if engine_core._keyboard_input_data.get_key_pressed(KeyCode::Digit6) {
+                        engine_core
+                            ._renderer_context
+                            .get_renderer_data_mut()
+                            .toggle_render_option(RenderOption::RenderSSAO)
+                    }
+                }
             }
             WindowEvent::Touch(touch) => {
                 engine_core.update_touch(&touch);
