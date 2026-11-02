@@ -36,6 +36,8 @@ pub struct MouseMoveData {
     pub _mouse_pos_delta: Vector2<i32>,
     pub _scroll_delta: Vector2<i32>,
     pub _touch_pos: Vector2<i32>,
+    pub _primary_touch_id: Option<u64>,
+    pub _is_touch_active: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -117,6 +119,8 @@ pub fn create_mouse_move_data(width: i32, height: i32) -> Box<MouseMoveData> {
         _mouse_pos_delta: Vector2::new(0, 0),
         _scroll_delta: Vector2::new(0, 0),
         _touch_pos: mouse_pos.clone(),
+        _primary_touch_id: None,
+        _is_touch_active: false,
     })
 }
 
@@ -170,27 +174,25 @@ impl MouseMoveData {
         self._scroll_delta.y += delta.1;
     }
 
-    pub fn begin_touch(&mut self, position: &(i32, i32), window_size: &Vector2<i32>, update_mouse_pos: bool) {
+    pub fn begin_touch(&mut self, touch_id: u64, position: &(i32, i32), window_size: &Vector2<i32>) {
+        self._primary_touch_id = Some(touch_id);
+        self._is_touch_active = true;
         self._touch_pos = Vector2::new(position.0, position.1);
         self._mouse_pos_delta.x = 0;
         self._mouse_pos_delta.y = 0;
-        if update_mouse_pos {
-            self.set_mouse_pos(&self._touch_pos.clone(), window_size);
-        }
+        self.set_mouse_pos(&self._touch_pos.clone(), window_size);
     }
 
-    pub fn update_touch_move(&mut self, position: &(i32, i32), window_size: &Vector2<i32>, update_mouse_pos: bool) {
-        // the delta must be computed from the previous touch position, not from _mouse_pos,
-        // because _mouse_pos is not updated while the cursor is hidden.
+    pub fn update_touch_move(&mut self, position: &(i32, i32), window_size: &Vector2<i32>) {
         self._mouse_pos_delta.x += position.0 - self._touch_pos.x;
         self._mouse_pos_delta.y += position.1 - self._touch_pos.y;
         self._touch_pos = Vector2::new(position.0, position.1);
-        if update_mouse_pos {
-            self.set_mouse_pos(&self._touch_pos.clone(), window_size);
-        }
+        self.set_mouse_pos(&self._touch_pos.clone(), window_size);
     }
 
     pub fn end_touch(&mut self) {
+        self._primary_touch_id = None;
+        self._is_touch_active = false;
         self._mouse_pos_delta.x = 0;
         self._mouse_pos_delta.y = 0;
     }

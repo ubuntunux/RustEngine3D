@@ -318,6 +318,9 @@ impl<'a> EngineCore<'a> {
 
     pub fn update_mouse_motion(&mut self, delta: &(f64, f64)) {
         if self._is_grab_mode {
+            if self._mouse_move_data._is_touch_active {
+                return;
+            }
             let update_mouse_pos = self.get_application().is_visible_cursor();
             let window_size = self._window_size.clone();
             self._mouse_move_data.update_mouse_move(&(delta.0 as i32, delta.1 as i32), &window_size, update_mouse_pos);
@@ -341,6 +344,9 @@ impl<'a> EngineCore<'a> {
 
     pub fn update_cursor_moved(&mut self, position: dpi::PhysicalPosition<f64>) {
         if false == self._is_grab_mode {
+            if self._mouse_move_data._is_touch_active {
+                return;
+            }
             let update_mouse_pos = true;
             let window_size = self._window_size.clone();
             self._mouse_move_data.update_mouse_pos(&position.into(), &window_size, update_mouse_pos);
@@ -374,27 +380,25 @@ impl<'a> EngineCore<'a> {
 
     pub fn update_touch(&mut self, touch: &Touch) {
         let touch_pos: (i32, i32) = touch.location.into();
-        if 0 == touch.id {
-            let window_size = self._window_size.clone();
-            let update_mouse_pos = self.get_application().is_visible_cursor();
-            match touch.phase {
-                TouchPhase::Started => {
-                    self._mouse_move_data.begin_touch(&touch_pos, &window_size, update_mouse_pos);
-                    self._mouse_input_data.btn_r_pressed(true);
-                }
-                TouchPhase::Moved => {
-                    self._mouse_move_data.update_touch_move(&touch_pos, &window_size, update_mouse_pos);
-                }
-                TouchPhase::Ended | TouchPhase::Cancelled => {
-                    self._mouse_move_data.end_touch();
-                    self._mouse_input_data.btn_r_pressed(false);
+        let window_size = self._window_size.clone();
+
+        match touch.phase {
+            TouchPhase::Started => {
+                if self._mouse_move_data._primary_touch_id.is_none() {
+                    self._mouse_move_data.begin_touch(touch.id, &touch_pos, &window_size);
+                    self._mouse_input_data.btn_l_pressed(true);
                 }
             }
-        } else if 1 == touch.id {
-            match touch.phase {
-                TouchPhase::Started => self._keyboard_input_data.set_key_pressed(KeyCode::KeyW),
-                TouchPhase::Ended | TouchPhase::Cancelled => self._keyboard_input_data.set_key_released(KeyCode::KeyW),
-                TouchPhase::Moved => (),
+            TouchPhase::Moved => {
+                if self._mouse_move_data._primary_touch_id == Some(touch.id) {
+                    self._mouse_move_data.update_touch_move(&touch_pos, &window_size);
+                }
+            }
+            TouchPhase::Ended | TouchPhase::Cancelled => {
+                if self._mouse_move_data._primary_touch_id == Some(touch.id) {
+                    self._mouse_move_data.end_touch();
+                    self._mouse_input_data.btn_l_pressed(false);
+                }
             }
         }
     }
