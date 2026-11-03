@@ -202,7 +202,7 @@ pub struct EngineCore<'a> {
     pub _engine_resources: Box<EngineResources<'a>>,
     pub _application: *const dyn ApplicationBase<'a>,
     pub _window_mode: WindowMode,
-    pub _monitor_index: usize,
+    pub _monitor_index: Option<usize>,
     pub _resolution: Vector2<u32>,
 }
 
@@ -219,7 +219,7 @@ impl<'a> EngineCore<'a> {
     pub fn get_window_mode(&self) -> WindowMode {
         self._window_mode
     }
-    pub fn get_monitor_index(&self) -> usize {
+    pub fn get_monitor_index(&self) -> Option<usize> {
         self._monitor_index
     }
     pub fn get_resolution(&self) -> Vector2<u32> {
@@ -262,8 +262,38 @@ impl<'a> EngineCore<'a> {
     pub fn get_available_monitors(&self) -> Vec<MonitorHandle> {
         self.get_window().available_monitors().collect()
     }
+    pub fn get_primary_monitor(&self) -> Option<MonitorHandle> {
+        let window = self.get_window();
+        let available_monitors: Vec<MonitorHandle> = window.available_monitors().collect();
+        window
+            .primary_monitor()
+            .or_else(|| {
+                available_monitors
+                    .iter()
+                    .find(|monitor| monitor.position().x == 0 && monitor.position().y == 0)
+                    .cloned()
+            })
+            .or_else(|| available_monitors.into_iter().next())
+    }
+    pub fn get_primary_monitor_index(&self) -> usize {
+        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+        if let Some(primary) = self.get_primary_monitor() {
+            monitors.iter().position(|m| m.name() == primary.name() && m.position() == primary.position()).unwrap_or(0)
+        } else {
+            0
+        }
+    }
+    pub fn get_target_monitor(&self, monitor_index: Option<usize>) -> Option<MonitorHandle> {
+        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+        if let Some(index) = monitor_index {
+            monitors.get(index).cloned().or_else(|| self.get_primary_monitor())
+        } else {
+            self.get_primary_monitor()
+        }
+    }
     pub fn get_monitor_names(&self) -> Vec<String> {
         let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+        let primary = self.get_primary_monitor();
         if monitors.is_empty() {
             vec!["Primary Monitor".to_string()]
         } else {
@@ -272,20 +302,22 @@ impl<'a> EngineCore<'a> {
                 .enumerate()
                 .map(|(i, m)| {
                     let size = m.size();
+                    let is_primary =
+                        primary.as_ref().map(|p| p.name() == m.name() && p.position() == m.position()).unwrap_or(false);
+                    let primary_tag = if is_primary { " (Primary)" } else { "" };
                     if let Some(name) = m.name() {
-                        format!("{}: {} ({}x{})", i, name, size.width, size.height)
+                        format!("{}: {}{} ({}x{})", i, name, primary_tag, size.width, size.height)
                     } else {
-                        format!("Monitor {} ({}x{})", i, size.width, size.height)
+                        format!("Monitor {}{} ({}x{})", i, primary_tag, size.width, size.height)
                     }
                 })
                 .collect()
         }
     }
-    pub fn get_available_resolutions(&self, monitor_index: usize) -> Vec<Vector2<u32>> {
-        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+    pub fn get_available_resolutions(&self, monitor_index: Option<usize>) -> Vec<Vector2<u32>> {
         let mut resolutions = Vec::new();
 
-        if let Some(monitor) = monitors.get(monitor_index).or_else(|| monitors.first()) {
+        if let Some(monitor) = self.get_target_monitor(monitor_index) {
             for vm in monitor.video_modes() {
                 let s = vm.size();
                 let res = Vector2::new(s.width, s.height);
@@ -313,10 +345,9 @@ impl<'a> EngineCore<'a> {
         resolutions.dedup();
         resolutions
     }
-    pub fn set_monitor_index(&mut self, monitor_index: usize) {
+    pub fn set_monitor_index(&mut self, monitor_index: Option<usize>) {
         self._monitor_index = monitor_index;
-        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
-        if let Some(monitor) = monitors.get(monitor_index) {
+        if let Some(monitor) = self.get_target_monitor(monitor_index) {
             let window = self.get_window();
             match self._window_mode {
                 WindowMode::WindowMode => {
@@ -327,11 +358,11 @@ impl<'a> EngineCore<'a> {
                     if let Some(vm) = monitor.video_modes().next() {
                         window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
                     } else {
-                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor.clone()))));
+                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
                     }
                 }
                 WindowMode::FullScreenBorderlessMode => {
-                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor.clone()))));
+                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor))));
                 }
             }
         }
@@ -348,8 +379,7 @@ impl<'a> EngineCore<'a> {
                     self.resized_window(size);
                 }
                 WindowMode::FullScreenExclusiveMode => {
-                    let monitors: Vec<MonitorHandle> = window.available_monitors().collect();
-                    let target_monitor = monitors.get(self._monitor_index).or_else(|| monitors.first());
+                    let target_monitor = self.get_target_monitor(self._monitor_index);
                     if let Some(mon) = target_monitor {
                         if let Some(vm) = mon.video_modes().find(|v| v.size() == size) {
                             window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
@@ -413,7 +443,7 @@ impl<'a> EngineCore<'a> {
             _engine_resources: engine_resources,
             _application: application,
             _window_mode: window_mode,
-            _monitor_index: 0,
+            _monitor_index: None,
             _resolution: Vector2::new(window_size.x as u32, window_size.y as u32),
         });
 
