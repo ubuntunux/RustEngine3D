@@ -12,7 +12,7 @@ pub struct GameClient {}
 
 pub struct Application<'a> {
     pub _engine_core: *const EngineCore<'a>,
-    pub _audio_manager: *const AudioManager<'a>,
+    pub _audio_manager: *const AudioManager,
     pub _effect_manager: *const EffectManager<'a>,
     pub _renderer_data: *const RendererData<'a>,
     pub _game_scene_manager: Box<SceneManager<'a>>,

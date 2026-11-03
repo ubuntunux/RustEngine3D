@@ -32,11 +32,24 @@ use crate::scene::ui::UIManager;
 use crate::utilities::scope_profiler::TIME_PROFILER;
 use crate::utilities::system::{ptr_as_mut, ptr_as_ref};
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumCount, EnumIter, FromRepr};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, Display, EnumCount, EnumIter, FromRepr)]
 pub enum WindowMode {
     WindowMode,
     FullScreenExclusiveMode,
     FullScreenBorderlessMode,
+}
+
+impl WindowMode {
+    pub fn display_name(&self) -> &'static str {
+        match self {
+            WindowMode::WindowMode => "Windowed",
+            WindowMode::FullScreenExclusiveMode => "Full Screen (Exclusive)",
+            WindowMode::FullScreenBorderlessMode => "Full Screen (Borderless)",
+        }
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -188,6 +201,9 @@ pub struct EngineCore<'a> {
     pub _scene_manager: Box<SceneManager<'a>>,
     pub _engine_resources: Box<EngineResources<'a>>,
     pub _application: *const dyn ApplicationBase<'a>,
+    pub _window_mode: WindowMode,
+    pub _monitor_index: usize,
+    pub _resolution: Vector2<u32>,
 }
 
 impl<'a> EngineCore<'a> {
@@ -200,10 +216,160 @@ impl<'a> EngineCore<'a> {
     pub fn get_window(&self) -> &Window {
         ptr_as_ref(self._window)
     }
+    pub fn get_window_mode(&self) -> WindowMode {
+        self._window_mode
+    }
+    pub fn get_monitor_index(&self) -> usize {
+        self._monitor_index
+    }
+    pub fn get_resolution(&self) -> Vector2<u32> {
+        self._resolution
+    }
+    pub fn set_window_mode(&mut self, window_mode: WindowMode) {
+        if self._window_mode != window_mode {
+            self._window_mode = window_mode;
+            let window = self.get_window();
+            match window_mode {
+                WindowMode::WindowMode => {
+                    window.set_fullscreen(None);
+                }
+                WindowMode::FullScreenExclusiveMode => {
+                    let monitor = window.current_monitor().or_else(|| window.primary_monitor());
+                    if let Some(mon) = monitor {
+                        if let Some(video_mode) = mon.video_modes().next() {
+                            window.set_fullscreen(Some(Fullscreen::Exclusive(video_mode)));
+                        } else {
+                            window.set_fullscreen(Some(Fullscreen::Borderless(Some(mon))));
+                        }
+                    }
+                }
+                WindowMode::FullScreenBorderlessMode => {
+                    let monitor = window.current_monitor().or_else(|| window.primary_monitor());
+                    window.set_fullscreen(Some(Fullscreen::Borderless(monitor)));
+                }
+            }
+        }
+    }
+    pub fn center_mouse_pos(&mut self) {
+        let center_x = self._window_size.x / 2;
+        let center_y = self._window_size.y / 2;
+        let position = dpi::PhysicalPosition::new(center_x, center_y);
+        let _ = self.get_window().set_cursor_position(dpi::Position::Physical(position));
+        let window_size = self._window_size.clone();
+        self._mouse_move_data.set_mouse_pos(&Vector2::new(center_x, center_y), &window_size);
+        self._mouse_move_data._mouse_pos_delta = Vector2::zeros();
+    }
+    pub fn get_available_monitors(&self) -> Vec<MonitorHandle> {
+        self.get_window().available_monitors().collect()
+    }
+    pub fn get_monitor_names(&self) -> Vec<String> {
+        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+        if monitors.is_empty() {
+            vec!["Primary Monitor".to_string()]
+        } else {
+            monitors
+                .iter()
+                .enumerate()
+                .map(|(i, m)| {
+                    let size = m.size();
+                    if let Some(name) = m.name() {
+                        format!("{}: {} ({}x{})", i, name, size.width, size.height)
+                    } else {
+                        format!("Monitor {} ({}x{})", i, size.width, size.height)
+                    }
+                })
+                .collect()
+        }
+    }
+    pub fn get_available_resolutions(&self, monitor_index: usize) -> Vec<Vector2<u32>> {
+        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+        let mut resolutions = Vec::new();
+
+        if let Some(monitor) = monitors.get(monitor_index).or_else(|| monitors.first()) {
+            for vm in monitor.video_modes() {
+                let s = vm.size();
+                let res = Vector2::new(s.width, s.height);
+                if !resolutions.contains(&res) {
+                    resolutions.push(res);
+                }
+            }
+        }
+
+        let common_resolutions = [
+            Vector2::new(3840, 2160),
+            Vector2::new(2560, 1440),
+            Vector2::new(1920, 1080),
+            Vector2::new(1600, 900),
+            Vector2::new(1366, 768),
+            Vector2::new(1280, 720),
+            Vector2::new(1024, 768),
+        ];
+
+        if resolutions.is_empty() {
+            resolutions.extend_from_slice(&common_resolutions);
+        }
+
+        resolutions.sort_by(|a, b| (b.x * b.y).cmp(&(a.x * a.y)));
+        resolutions.dedup();
+        resolutions
+    }
+    pub fn set_monitor_index(&mut self, monitor_index: usize) {
+        self._monitor_index = monitor_index;
+        let monitors: Vec<MonitorHandle> = self.get_available_monitors();
+        if let Some(monitor) = monitors.get(monitor_index) {
+            let window = self.get_window();
+            match self._window_mode {
+                WindowMode::WindowMode => {
+                    let pos = monitor.position();
+                    window.set_outer_position(dpi::Position::Physical(pos));
+                }
+                WindowMode::FullScreenExclusiveMode => {
+                    if let Some(vm) = monitor.video_modes().next() {
+                        window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
+                    } else {
+                        window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor.clone()))));
+                    }
+                }
+                WindowMode::FullScreenBorderlessMode => {
+                    window.set_fullscreen(Some(Fullscreen::Borderless(Some(monitor.clone()))));
+                }
+            }
+        }
+    }
+    pub fn set_resolution(&mut self, resolution: Vector2<u32>) {
+        if self._resolution != resolution {
+            self._resolution = resolution;
+            let window = self.get_window();
+            let size = dpi::PhysicalSize::new(resolution.x, resolution.y);
+
+            match self._window_mode {
+                WindowMode::WindowMode => {
+                    let _ = window.request_inner_size(dpi::Size::Physical(size));
+                    self.resized_window(size);
+                }
+                WindowMode::FullScreenExclusiveMode => {
+                    let monitors: Vec<MonitorHandle> = window.available_monitors().collect();
+                    let target_monitor = monitors.get(self._monitor_index).or_else(|| monitors.first());
+                    if let Some(mon) = target_monitor {
+                        if let Some(vm) = mon.video_modes().find(|v| v.size() == size) {
+                            window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
+                        } else if let Some(vm) = mon.video_modes().next() {
+                            window.set_fullscreen(Some(Fullscreen::Exclusive(vm)));
+                        }
+                    }
+                    self.resized_window(size);
+                }
+                WindowMode::FullScreenBorderlessMode => {
+                    self.resized_window(size);
+                }
+            }
+        }
+    }
     pub fn create_application(
         app_name: &str,
         app_version: u32,
         window: &Window,
+        window_mode: WindowMode,
         sdl: &Sdl,
         application: *const dyn ApplicationBase<'a>,
     ) -> Box<EngineCore<'a>> {
@@ -246,6 +412,9 @@ impl<'a> EngineCore<'a> {
             _scene_manager: scene_manager,
             _engine_resources: engine_resources,
             _application: application,
+            _window_mode: window_mode,
+            _monitor_index: 0,
+            _resolution: Vector2::new(window_size.x as u32, window_size.y as u32),
         });
 
         // register engine service locator
@@ -261,6 +430,9 @@ impl<'a> EngineCore<'a> {
 
         // initialize graphics data
         engine_core._renderer_context.prepare_framebuffer_and_descriptors();
+
+        // center mouse pos on application creation
+        engine_core.center_mouse_pos();
 
         engine_core
     }
@@ -626,6 +798,7 @@ impl<'a> EngineAppHandler<'a> {
             self._app_name.as_str(),
             self._app_version,
             window,
+            self._window_mode,
             &self._sdl,
             self._application,
         );

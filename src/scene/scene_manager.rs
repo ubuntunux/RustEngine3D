@@ -992,7 +992,9 @@ impl<'a> SceneManager<'a> {
     pub fn update_window_size(&mut self, width: i32, height: i32) {
         self._window_size.x = width;
         self._window_size.y = height;
-        self.get_main_camera_mut().set_aspect(width, height);
+        if let Some(main_camera) = self._main_camera.as_ref() {
+            ptr_as_mut(main_camera.as_ref()).set_aspect(width, height);
+        }
     }
 
     pub fn create_default_scene_data(&self, scene_data_name: &str) {
@@ -1320,5 +1322,20 @@ impl<'a> SceneManager<'a> {
                 self._capture_height_map.set_start_capture_height_map(false);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_update_window_size_without_camera() {
+        let mut scene_manager = SceneManager::create_scene_manager();
+        assert!(scene_manager._main_camera.is_none());
+        // Should not panic when updating window size before scene is loaded
+        scene_manager.update_window_size(1920, 1080);
+        assert_eq!(scene_manager._window_size.x, 1920);
+        assert_eq!(scene_manager._window_size.y, 1080);
     }
 }
