@@ -576,7 +576,7 @@ impl<'a> EngineCore<'a> {
             _is_grab_mode_backup: false,
             _time_data: create_time_data(),
             _camera_move_speed: 1.0,
-            _is_keyboard_input_mode: false,
+            _is_keyboard_input_mode: true,
             _keyboard_input_data: keyboard_input_data,
             _mouse_move_data: mouse_move_data,
             _mouse_input_data: mouse_input_data,
